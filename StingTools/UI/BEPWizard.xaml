@@ -1,0 +1,599 @@
+<Window x:Class="StingTools.UI.BEPWizard"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="STING BEP Wizard — ISO 19650 BIM Execution Plan"
+        Width="740" Height="720"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResizeWithGrip"
+        Background="#F5F5F5">
+
+    <Window.Resources>
+        <!-- Shared styles matching STING panel -->
+        <Style x:Key="WizSectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#6A1B9A"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+        <Style x:Key="WizSubHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#333"/>
+            <Setter Property="Margin" Value="0,6,0,3"/>
+        </Style>
+        <Style x:Key="WizLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#555"/>
+            <Setter Property="Margin" Value="0,3,6,3"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="WizInput" TargetType="TextBox">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="4,3"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="BorderBrush" Value="#CCC"/>
+        </Style>
+        <Style x:Key="WizCombo" TargetType="ComboBox">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+        <Style x:Key="WizCheck" TargetType="CheckBox">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="WizGroupBox" TargetType="Border">
+            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+        <Style x:Key="NavBtn" TargetType="Button">
+            <Setter Property="Width" Value="100"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="RunBtn" TargetType="Button">
+            <Setter Property="Width" Value="200"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#388E3C"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="4,0"/>
+        </Style>
+        <Style x:Key="StepIndicator" TargetType="Border">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Background" Value="#E0E0E0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER: Step indicators -->
+        <Border Grid.Row="0" Background="#6A1B9A" Padding="12,8">
+            <StackPanel>
+                <TextBlock Text="STING BEP Wizard — ISO 19650 BIM Execution Plan" FontSize="16" FontWeight="Bold"
+                           Foreground="White" Margin="0,0,0,6"/>
+                <StackPanel x:Name="stepIndicatorPanel" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <!-- Steps filled dynamically in code-behind -->
+                </StackPanel>
+                <TextBlock x:Name="txtPageTitle" FontSize="12" Foreground="#E1BEE7"
+                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- CONTENT: Wizard pages in a TabControl (tabs hidden) -->
+        <TabControl x:Name="wizardTabs" Grid.Row="1" Margin="0"
+                    BorderThickness="0" Background="Transparent">
+            <TabControl.ItemContainerStyle>
+                <Style TargetType="TabItem">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </Style>
+            </TabControl.ItemContainerStyle>
+
+            <!-- PAGE 1: PROJECT INFORMATION -->
+            <TabItem Header="Project Info">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="1. Project Information"/>
+                        <TextBlock Text="Enter the core project details for the BIM Execution Plan."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Project Name"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtBepProjectName"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Project Number"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtBepProjectNumber"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Client Name"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtBepClientName"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Project Address" VerticalAlignment="Top" Margin="0,6,6,3"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtBepAddress"
+                                         Style="{StaticResource WizInput}" Height="60"
+                                         AcceptsReturn="True" TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Project Description" VerticalAlignment="Top" Margin="0,6,6,3"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="txtBepDescription"
+                                         Style="{StaticResource WizInput}" Height="60"
+                                         AcceptsReturn="True" TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Site Reference"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" x:Name="txtBepSiteRef"
+                                         Style="{StaticResource WizInput}"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- PAGE 2: TEMPLATE & STAGE -->
+            <TabItem Header="Template &amp; Stage">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="2. Template &amp; Stage"/>
+                        <TextBlock Text="Select the BEP template preset, RIBA stage, project type, and procurement route."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="BEP Template Preset"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbBepPreset"
+                                          Style="{StaticResource WizCombo}" SelectedIndex="0">
+                                    <ComboBoxItem Content="UK Government — Full ISO 19650"/>
+                                    <ComboBoxItem Content="NBS Standard — Commercial/Mixed-Use"/>
+                                    <ComboBoxItem Content="Residential — Simplified"/>
+                                    <ComboBoxItem Content="Minimal — Small Project"/>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="RIBA Stage"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbRibaStage"
+                                          Style="{StaticResource WizCombo}" SelectedIndex="0">
+                                    <ComboBoxItem Content="Stage 0 — Strategic Definition"/>
+                                    <ComboBoxItem Content="Stage 1 — Preparation and Briefing"/>
+                                    <ComboBoxItem Content="Stage 2 — Concept Design"/>
+                                    <ComboBoxItem Content="Stage 3 — Spatial Coordination"/>
+                                    <ComboBoxItem Content="Stage 4 — Technical Design"/>
+                                    <ComboBoxItem Content="Stage 5 — Manufacturing and Construction"/>
+                                    <ComboBoxItem Content="Stage 6 — Handover"/>
+                                    <ComboBoxItem Content="Stage 7 — Use"/>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Project Type"/>
+                                <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbProjectType"
+                                          Style="{StaticResource WizCombo}" SelectedIndex="0">
+                                    <ComboBoxItem Content="New Build"/>
+                                    <ComboBoxItem Content="Refurbishment"/>
+                                    <ComboBoxItem Content="Extension"/>
+                                    <ComboBoxItem Content="Fit-Out"/>
+                                    <ComboBoxItem Content="Mixed"/>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Procurement Route"/>
+                                <ComboBox Grid.Row="3" Grid.Column="1" x:Name="cmbProcurement"
+                                          Style="{StaticResource WizCombo}" SelectedIndex="0">
+                                    <ComboBoxItem Content="Design and Build"/>
+                                    <ComboBoxItem Content="Traditional"/>
+                                    <ComboBoxItem Content="Management Contract"/>
+                                    <ComboBoxItem Content="Construction Management"/>
+                                    <ComboBoxItem Content="Two-Stage"/>
+                                </ComboBox>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- PAGE 3: DISCIPLINES & TEAM -->
+            <TabItem Header="Disciplines &amp; Team">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="3. Disciplines &amp; Team"/>
+                        <TextBlock Text="Define the project lead roles and discipline team members."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <!-- Lead Roles -->
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Lead Designer Role"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbLeadDesigner"
+                                          Style="{StaticResource WizCombo}" SelectedIndex="0">
+                                    <ComboBoxItem Content="Architect (A)"/>
+                                    <ComboBoxItem Content="MEP Engineer (M)"/>
+                                    <ComboBoxItem Content="Structural Engineer (S)"/>
+                                    <ComboBoxItem Content="Multi-Discipline"/>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Lead Designer Company"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtLeadCompany"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Lead Designer Contact"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtLeadContact"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="BIM Information Manager"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtBimManager"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="BIM Coordinator"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="txtBimCoordinator"
+                                         Style="{StaticResource WizInput}"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Discipline Team Members -->
+                        <TextBlock Style="{StaticResource WizSubHeader}"
+                                   Text="Discipline Team Members"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Headers -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Discipline" FontWeight="SemiBold"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Style="{StaticResource WizLabel}"
+                                           Text="Company / Organisation" FontWeight="SemiBold"/>
+
+                                <!-- Architecture -->
+                                <CheckBox Grid.Row="1" Grid.Column="0" x:Name="chkDiscA"
+                                          Style="{StaticResource WizCheck}" Content="Architecture (A)"
+                                          IsChecked="True"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtCompanyA"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <!-- Mechanical -->
+                                <CheckBox Grid.Row="2" Grid.Column="0" x:Name="chkDiscM"
+                                          Style="{StaticResource WizCheck}" Content="Mechanical (M)"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtCompanyM"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <!-- Electrical -->
+                                <CheckBox Grid.Row="3" Grid.Column="0" x:Name="chkDiscE"
+                                          Style="{StaticResource WizCheck}" Content="Electrical (E)"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtCompanyE"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <!-- Plumbing -->
+                                <CheckBox Grid.Row="4" Grid.Column="0" x:Name="chkDiscP"
+                                          Style="{StaticResource WizCheck}" Content="Plumbing (P)"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="txtCompanyP"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <!-- Structural -->
+                                <CheckBox Grid.Row="5" Grid.Column="0" x:Name="chkDiscS"
+                                          Style="{StaticResource WizCheck}" Content="Structural (S)"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" x:Name="txtCompanyS"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <!-- Quantity Surveyor -->
+                                <CheckBox Grid.Row="6" Grid.Column="0" x:Name="chkDiscQ"
+                                          Style="{StaticResource WizCheck}" Content="Quantity Surveyor (Q)"/>
+                                <TextBox Grid.Row="6" Grid.Column="1" x:Name="txtCompanyQ"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <!-- Civil -->
+                                <CheckBox Grid.Row="7" Grid.Column="0" x:Name="chkDiscC"
+                                          Style="{StaticResource WizCheck}" Content="Civil (C)"/>
+                                <TextBox Grid.Row="7" Grid.Column="1" x:Name="txtCompanyC"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <!-- Fire Protection -->
+                                <CheckBox Grid.Row="8" Grid.Column="0" x:Name="chkDiscFP"
+                                          Style="{StaticResource WizCheck}" Content="Fire Protection (FP)"/>
+                                <TextBox Grid.Row="8" Grid.Column="1" x:Name="txtCompanyFP"
+                                         Style="{StaticResource WizInput}"/>
+
+                                <!-- Landscape -->
+                                <CheckBox Grid.Row="9" Grid.Column="0" x:Name="chkDiscL"
+                                          Style="{StaticResource WizCheck}" Content="Landscape (L)"/>
+                                <TextBox Grid.Row="9" Grid.Column="1" x:Name="txtCompanyL"
+                                         Style="{StaticResource WizInput}"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- PAGE 4: BIM USES & GOALS -->
+            <TabItem Header="BIM Uses &amp; Goals">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="4. BIM Uses &amp; Goals"/>
+                        <TextBlock Text="Select the intended BIM uses and define additional project goals."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <!-- Primary BIM Uses -->
+                        <TextBlock Style="{StaticResource WizSubHeader}"
+                                   Text="Primary BIM Uses"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <CheckBox x:Name="chkUseDesignAuthoring" Style="{StaticResource WizCheck}"
+                                          Content="Design Authoring (3D Modelling)" IsChecked="True"/>
+                                <CheckBox x:Name="chkUseCoordination" Style="{StaticResource WizCheck}"
+                                          Content="3D Coordination / Clash Detection"/>
+                                <CheckBox x:Name="chkUseQTO" Style="{StaticResource WizCheck}"
+                                          Content="Quantity Take-Off / Cost Estimation"/>
+                                <CheckBox x:Name="chkUseFM" Style="{StaticResource WizCheck}"
+                                          Content="Facility Management / Asset Data"/>
+                                <CheckBox x:Name="chkUseCOBie" Style="{StaticResource WizCheck}"
+                                          Content="COBie Data Drops"/>
+                                <CheckBox x:Name="chkUseVisualisation" Style="{StaticResource WizCheck}"
+                                          Content="Visualisation / Rendering"/>
+                                <CheckBox x:Name="chkUseSimulation" Style="{StaticResource WizCheck}"
+                                          Content="4D Scheduling / Construction Simulation"/>
+                                <CheckBox x:Name="chkUseCostMgmt" Style="{StaticResource WizCheck}"
+                                          Content="5D Cost Management"/>
+                                <CheckBox x:Name="chkUseRecordModel" Style="{StaticResource WizCheck}"
+                                          Content="As-Built / Record Model"/>
+                                <CheckBox x:Name="chkUseSustainability" Style="{StaticResource WizCheck}"
+                                          Content="Sustainability Analysis"/>
+                                <CheckBox x:Name="chkUseHealthSafety" Style="{StaticResource WizCheck}"
+                                          Content="Health &amp; Safety Planning"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Additional Goals -->
+                        <TextBlock Style="{StaticResource WizSubHeader}"
+                                   Text="Additional Goals"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <TextBox x:Name="txtAdditionalGoals" Style="{StaticResource WizInput}"
+                                     Height="100" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto"/>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- PAGE 5: STANDARDS & CDE -->
+            <TabItem Header="Standards &amp; CDE">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="5. Standards &amp; CDE"/>
+                        <TextBlock Text="Define the Common Data Environment, classification system, units, naming conventions, and file formats."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <!-- CDE & Classification -->
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="CDE Platform"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbCdePlatform"
+                                          Style="{StaticResource WizCombo}" SelectedIndex="0">
+                                    <ComboBoxItem Content="Autodesk Construction Cloud (ACC)"/>
+                                    <ComboBoxItem Content="Aconex"/>
+                                    <ComboBoxItem Content="Asite"/>
+                                    <ComboBoxItem Content="BIM 360"/>
+                                    <ComboBoxItem Content="Viewpoint"/>
+                                    <ComboBoxItem Content="ProjectWise"/>
+                                    <ComboBoxItem Content="SharePoint"/>
+                                    <ComboBoxItem Content="Other"/>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Classification System"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbClassification"
+                                          Style="{StaticResource WizCombo}" SelectedIndex="0">
+                                    <ComboBoxItem Content="Uniclass 2015"/>
+                                    <ComboBoxItem Content="OmniClass"/>
+                                    <ComboBoxItem Content="NRM"/>
+                                    <ComboBoxItem Content="NBS Create"/>
+                                    <ComboBoxItem Content="Custom"/>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Units - Length"/>
+                                <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbUnitsLength"
+                                          Style="{StaticResource WizCombo}" SelectedIndex="0">
+                                    <ComboBoxItem Content="Millimeters"/>
+                                    <ComboBoxItem Content="Meters"/>
+                                    <ComboBoxItem Content="Feet"/>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Units - Area"/>
+                                <ComboBox Grid.Row="3" Grid.Column="1" x:Name="cmbUnitsArea"
+                                          Style="{StaticResource WizCombo}" SelectedIndex="0">
+                                    <ComboBoxItem Content="Square Meters"/>
+                                    <ComboBoxItem Content="Square Feet"/>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Naming Convention"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="txtNamingConvention"
+                                         Style="{StaticResource WizInput}"
+                                         Text="Project-Originator-Volume-Level-Type-Role-Class-Number"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- File Formats -->
+                        <TextBlock Style="{StaticResource WizSubHeader}"
+                                   Text="File Formats"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Native Format"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtFormatNative"
+                                         Style="{StaticResource WizInput}"
+                                         Text="Autodesk Revit (.rvt)"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Exchange Format"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtFormatExchange"
+                                         Style="{StaticResource WizInput}"
+                                         Text="IFC 4 / IFC 2x3"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Drawing Format"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtFormatDrawing"
+                                         Style="{StaticResource WizInput}"
+                                         Text="PDF/A-1b"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource WizLabel}"
+                                           Text="Data Format"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtFormatData"
+                                         Style="{StaticResource WizInput}"
+                                         Text="COBie V2.4 (XLSX)"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- PAGE 6: REVIEW & CREATE -->
+            <TabItem Header="Review &amp; Create">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource WizSectionHeader}"
+                                   Text="6. Review &amp; Create"/>
+                        <TextBlock Text="Review the BEP summary below. Click 'Create BEP' to generate."
+                                   FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <TextBox x:Name="txtBepSummary" Style="{StaticResource WizInput}"
+                                     Height="440" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" IsReadOnly="True"
+                                     FontFamily="Consolas" FontSize="10.5"
+                                     Background="#FAFAFA"/>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- FOOTER: Navigation buttons -->
+        <Border Grid.Row="2" Background="#EEE" Padding="12,8" BorderBrush="#DDD" BorderThickness="0,1,0,0">
+            <DockPanel>
+                <Button x:Name="btnBack" DockPanel.Dock="Left" Style="{StaticResource NavBtn}"
+                        Content="Back" Click="BtnBack_Click" IsEnabled="False"/>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnNext" Style="{StaticResource NavBtn}"
+                            Content="Next" Click="BtnNext_Click"/>
+                    <Button x:Name="btnCreate" Style="{StaticResource RunBtn}"
+                            Content="Create BEP" Click="BtnCreate_Click" Visibility="Collapsed"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

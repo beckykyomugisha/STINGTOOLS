@@ -1,0 +1,2123 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Autodesk.Revit.DB;
+using Newtonsoft.Json.Linq;
+
+namespace StingTools.Core
+{
+    /// <summary>
+    /// Single source of truth for all parameter names, GUIDs, container definitions,
+    /// and category bindings. Loaded once from PARAMETER_REGISTRY.json at startup.
+    ///
+    /// USAGE:
+    ///   Instead of:  ParameterHelpers.GetString(el, "ASS_TAG_1_TXT")
+    ///   Write:       ParameterHelpers.GetString(el, ParamRegistry.TAG1)
+    ///
+    ///   Instead of:  duplicating 36 container definitions in 4 files
+    ///   Write:       ParamRegistry.ContainerGroups / ParamRegistry.ContainersForCategory(cat)
+    ///
+    /// To add/rename a parameter:
+    ///   1. Edit PARAMETER_REGISTRY.json
+    ///   2. Run "Sync Parameter Schema" command
+    ///   3. All code automatically uses the new name
+    /// </summary>
+    public static class ParamRegistry
+    {
+        // ── Loaded state ────────────────────────────────────────────────
+        // CRASH FIX: volatile ensures double-checked locking works correctly —
+        // without it, a thread can see _loaded=true while dictionaries are
+        // still being written by the loading thread (CPU cache coherency issue)
+        private static volatile bool _loaded;
+        private static readonly object _lock = new object();
+
+        // ── Tag format ──────────────────────────────────────────────────
+        // Base values loaded from PARAMETER_REGISTRY.json; project overrides applied on top.
+        private static string _baseSeparator = "-";
+        private static int _baseNumPad = 4;
+        private static string[] _baseSegmentOrder = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+        private static string _overrideSeparator;
+        private static int? _overrideNumPad;
+        private static string[] _overrideSegmentOrder;
+
+        public static string Separator => _overrideSeparator ?? _baseSeparator;
+        public static int NumPad => _overrideNumPad ?? _baseNumPad;
+        /// <summary>CR-03 FIX: Returns defensive clone every time to prevent callers from mutating shared state.</summary>
+        public static string[] SegmentOrder
+        {
+            get
+            {
+                return (string[])(_overrideSegmentOrder ?? _baseSegmentOrder).Clone();
+            }
+        }
+
+        private static readonly HashSet<string> ValidSegmentNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+
+        /// <summary>
+        /// Apply project-level tag format overrides (from project_config.json).
+        /// Validates segment order contains only known segment names.
+        /// </summary>
+        public static void ApplyTagFormatOverrides(string separator, int? numPad, string[] segmentOrder)
+        {
+            // FL-03: Track old separator in history before overriding
+            if (!string.IsNullOrEmpty(separator) && separator != Separator
+                && !string.IsNullOrEmpty(Separator))
+            {
+                if (!TagConfig.SeparatorHistory.Contains(Separator))
+                    TagConfig.SeparatorHistory.Add(Separator);
+            }
+            _overrideSeparator = separator;
+            _overrideNumPad = numPad;
+            if (segmentOrder != null)
+            {
+                foreach (var seg in segmentOrder)
+                {
+                    if (!ValidSegmentNames.Contains(seg))
+                    {
+                        StingLog.Warn($"Invalid segment name '{seg}' in tag format override — ignoring segment order override");
+                        _overrideSegmentOrder = null;
+                        StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length} (segment order rejected)");
+                        return;
+                    }
+                }
+                _overrideSegmentOrder = (string[])segmentOrder.Clone();
+            }
+            StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length}");
+        }
+
+        /// <summary>
+        /// Clear project-level tag format overrides (revert to PARAMETER_REGISTRY.json values).
+        /// </summary>
+        public static void ClearTagFormatOverrides()
+        {
+            _overrideSeparator = null;
+            _overrideNumPad = null;
+            _overrideSegmentOrder = null;
+        }
+
+        // ── Source token definitions ────────────────────────────────────
+        public static TokenDef[] SourceTokens { get; private set; } = Array.Empty<TokenDef>();
+
+        /// <summary>All 8 source token parameter names in tag segment order.</summary>
+        public static string[] AllTokenParams { get; private set; } = Array.Empty<string>();
+
+        // ── Convenience accessors: source token param names by slot ─────
+        /// <summary>Discipline token parameter name (slot 0).</summary>
+        public static string DISC => TokenParamName(0);
+        /// <summary>Location token parameter name (slot 1).</summary>
+        public static string LOC  => TokenParamName(1);
+        /// <summary>Zone token parameter name (slot 2).</summary>
+        public static string ZONE => TokenParamName(2);
+        /// <summary>Level token parameter name (slot 3).</summary>
+        public static string LVL  => TokenParamName(3);
+        /// <summary>System token parameter name (slot 4).</summary>
+        public static string SYS  => TokenParamName(4);
+        /// <summary>Function token parameter name (slot 5).</summary>
+        public static string FUNC => TokenParamName(5);
+        /// <summary>Product token parameter name (slot 6).</summary>
+        public static string PROD => TokenParamName(6);
+        /// <summary>Sequence token parameter name (slot 7).</summary>
+        public static string SEQ  => TokenParamName(7);
+
+        // ── Support parameter names ────────────────────────────────────
+        public static string STATUS { get; private set; } = "ASS_STATUS_TXT";
+        public static string DETAIL_NUM { get; private set; } = "ASS_INST_DETAIL_NUM_TXT";
+        public static string MNT_TYPE { get; private set; } = "MNT_TYPE_TXT";
+
+        // ── Required/Optional parameter flags ────────────────────────────
+        /// <summary>
+        /// DATA-02: Parameter names flagged as required in PARAMETER_REGISTRY.json.
+        /// Defaults to the 8 source tokens + TAG1 if not specified in JSON.
+        /// </summary>
+        public static HashSet<string> RequiredParams { get; private set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
+            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+            "ASS_TAG_1_TXT"
+        };
+
+        // ── Stale detection + display mode + tag position ───────────────
+        public const string STALE = "STING_STALE_BOOL";
+        public const string STALE_GUID = "C9D0E1F2-A3B4-4C5D-8E6F-7A8B9C0D1E2F";
+        public const string CLUSTER_COUNT = "STING_CLUSTER_COUNT";
+        public const string CLUSTER_COUNT_GUID = "D1E2F3A4-B5C6-4D7E-8F9A-0B1C2D3E4F5A";
+        public const string CLUSTER_LABEL = "STING_CLUSTER_LABEL";
+        public const string CLUSTER_LABEL_GUID = "D2E3F4A5-B6C7-4D8E-9F0A-1B2C3D4E5F6B";
+        /// <summary>FIX-B04: JSON array of cluster member bounding box centers for decluster restore.</summary>
+        public const string CLUSTER_MEMBER_POS = "STING_CLUSTER_MEMBER_POS_TXT";
+        public const string DISPLAY_MODE = "STING_DISPLAY_MODE";
+        public const string DISPLAY_MODE_GUID = "D0E1F2A3-B4C5-4D6E-8F7A-8B9C0D1E2F3A";
+        /// <summary>
+        /// Default display mode when STING_DISPLAY_MODE is 0 (unset).
+        /// 1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment.
+        /// </summary>
+        public static int DisplayModeDefault = 2;
+        public const string DISPLAY_TXT = "ASS_DISPLAY_TXT";
+        public const string DISPLAY_TXT_GUID = "D3E4F5A6-B7C8-4D9E-0F1A-2B3C4D5E6F7C";
+        public const string TAG_POS = "STING_TAG_POS";
+        public const string TAG_POS_GUID = "E1F2A3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B";
+        public const string VIEW_TAG_STYLE = "STING_VIEW_TAG_STYLE";
+        public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
+        public const string TAG_SEG_MASK = "TAG_SEG_MASK_TXT";
+        public const string TAG_SEG_MASK_GUID = "F3A4B5C6-D7E8-4F9A-0B1C-2D3E4F5A6B7D";
+
+        // LOG-01: Detection source tracking parameters
+        public const string LOC_SOURCE = "ASS_LOC_SOURCE_TXT";
+        public const string LOC_SOURCE_GUID = "A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D";
+        public const string ZONE_SOURCE = "ASS_ZONE_SOURCE_TXT";
+        public const string ZONE_SOURCE_GUID = "A2B3C4D5-E6F7-4A8B-9C0D-1E2F3A4B5C6E";
+        public const string SYS_DETECT_LAYER = "ASS_SYS_DETECT_LAYER_INT";
+        public const string SYS_DETECT_LAYER_GUID = "A3B4C5D6-E7F8-4A9B-0C1D-2E3F4A5B6C7F";
+
+        // ORF-02: COBie Serial Number
+        public const string SERIAL_NR = "ASS_SERIAL_NR_TXT";
+        public const string SERIAL_NR_GUID = "B1C2D3E4-F5A6-4B7C-8D9E-0F1A2B3C4D5E";
+
+        // ORF-03: COBie Installation Date and Warranty
+        public const string INSTALL_DATE = "ASS_INSTALLATION_DATE_TXT";
+        public const string INSTALL_DATE_GUID = "B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6F";
+        public const string WARRANTY = "ASS_WARRANTY_TXT";
+        public const string WARRANTY_GUID = "B3C4D5E6-F7A8-4B9C-0D1E-2F3A4B5C6D7A";
+
+        // ORF-04: Notes
+        public const string NOTES = "ASS_NOTES_TXT";
+        public const string NOTES_GUID = "B4C5D6E7-F8A9-4BAC-1D2E-3F4A5B6C7D8B";
+
+        // ORF-05: Flow Rate and Power Rating
+        public const string FLOW_RATE = "ASS_FLOW_RATE_TXT";
+        public const string FLOW_RATE_GUID = "B5C6D7E8-F9AA-4BBC-2D3E-4F5A6B7C8D9C";
+        public const string POWER_RATING = "ASS_POWER_RATING_TXT";
+        public const string POWER_RATING_GUID = "B6C7D8E9-FAAB-4BCC-3D4E-5F6A7B8C9DAD";
+
+        // ORF-06: Room Height
+        public const string ROOM_HEIGHT = "ASS_ROOM_HEIGHT_MM";
+        public const string ROOM_HEIGHT_GUID = "B7C8D9EA-FBAC-4BDC-4D5E-6F7A8B9CADBE";
+
+        // Phase 19: PROD detection source tracking
+        public const string PROD_DETECT = "ASS_PROD_DETECT_TXT";
+        public const string PROD_DETECT_GUID = "C1D2E3F4-A5B6-4C7D-8E9F-0A1B2C3D4E5F";
+        public const string PROD_PATTERN_SRC = "ASS_PROD_PATTERN_SRC_TXT";
+        public const string PROD_PATTERN_SRC_GUID = "C2D3E4F5-A6B7-4C8D-9E0F-1A2B3C4D5E6A";
+
+        // Phase 19: Type-level LOC/ZONE overrides
+        public const string TYPE_LOC_OVERRIDE = "ASS_TYPE_LOC_OVERRIDE_TXT";
+        public const string TYPE_LOC_OVERRIDE_GUID = "C3D4E5F6-A7B8-4C9D-0E1F-2A3B4C5D6E7B";
+        public const string TYPE_ZONE_OVERRIDE = "ASS_TYPE_ZONE_OVERRIDE_TXT";
+        public const string TYPE_ZONE_OVERRIDE_GUID = "C4D5E6F7-A8B9-4CAD-1E2F-3A4B5C6D7E8C";
+
+        // Phase 19: Level ID tracking
+        public const string LVL_ELEM_ID = "ASS_LVL_ELEM_ID_INT";
+        public const string LVL_ELEM_ID_GUID = "C5D6E7F8-A9BA-4CBD-2E3F-4A5B6C7D8E9D";
+
+        // Phase 19: Grid reference tracking
+        public const string GRID_X_ID = "ASS_GRID_X_ID_INT";
+        public const string GRID_X_ID_GUID = "C6D7E8F9-AABB-4CCD-3E4F-5A6B7C8D9EAE";
+        public const string GRID_Y_ID = "ASS_GRID_Y_ID_INT";
+        public const string GRID_Y_ID_GUID = "C7D8E9FA-ABBC-4CDE-4E5F-6A7B8C9DAEBF";
+        public const string GRID_DIST = "ASS_GRID_DIST_NR";
+        public const string GRID_DIST_GUID = "C8D9EAFB-ACBD-4CEF-5E6F-7A8B9CADBECF";
+
+        // Phase 19: MEP System Name
+        public const string MEP_SYS_NAME = "ASS_MEP_SYS_NAME_TXT";
+        public const string MEP_SYS_NAME_GUID = "C9DAEBFC-ADBE-4CFA-6E7F-8A9BACBDCED0";
+
+        // Phase 19: Host Type
+        public const string HOST_TYPE = "ASS_HOST_TYPE_TXT";
+        public const string HOST_TYPE_GUID = "CADBECFD-AECF-4D0B-7E8F-9AABBBCCDDEE";
+
+        // Phase 39: Sheet-Level Tagging Containers
+        public const string SHT_NUMBER = "SHT_NUMBER_TXT";
+        public const string SHT_NAME = "SHT_NAME_TXT";
+        public const string SHT_DISC = "SHT_DISC_TXT";
+        public const string SHT_ORIGINATOR = "SHT_ORIGINATOR_TXT";
+        public const string SHT_FORM = "SHT_FORM_TXT";
+        public const string SHT_LEVEL = "SHT_LEVEL_TXT";
+        public const string SHT_REV = "SHT_REV_TXT";
+        public const string SHT_TAG_1 = "SHT_TAG_1_TXT";
+        public const string SHT_TAG_7 = "SHT_TAG_7_TXT";
+
+        // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
+        // Loaded from extended_params section. Keys map to param_name values.
+        private static Dictionary<string, string> _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        /// <summary>DATA-02: Set of parameter names marked as required in PARAMETER_REGISTRY.json.</summary>
+        private static readonly HashSet<string> _requiredParams = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>DATA-02: Check if a parameter is marked as required in the registry.</summary>
+        public static bool IsRequired(string paramName)
+        {
+            return !string.IsNullOrEmpty(paramName) && _requiredParams.Contains(paramName);
+        }
+
+        /// <summary>Get an extended parameter name by its key (e.g. "DESC", "WALL_HEIGHT").</summary>
+        public static string Ext(string key)
+        {
+            EnsureLoaded();
+            if (_extendedParams.TryGetValue(key, out string name))
+                return name;
+            StingLog.Warn($"ParamRegistry.Ext: key '{key}' not found in extended_params");
+            return "";
+        }
+
+        // ── Identity parameters ──────────────────────────────────────────
+        public static string ID             => Ext("ID");
+        public static string DESC           => Ext("DESC");
+        public static string MFR            => Ext("MFR");
+        public static string MODEL          => Ext("MODEL");
+        public static string TYPE_NAME      => Ext("TYPE_NAME");
+        public static string FAMILY_NAME    => Ext("FAMILY_NAME");
+        public static string CAT            => Ext("CAT");
+        public static string TYPE_MARK      => Ext("TYPE_MARK");
+        public static string TYPE_COMMENTS  => Ext("TYPE_COMMENTS");
+        public static string KEYNOTE        => Ext("KEYNOTE");
+        public static string UNIFORMAT      => Ext("UNIFORMAT");
+        public static string UNIFORMAT_DESC => Ext("UNIFORMAT_DESC");
+        public static string OMNICLASS      => Ext("OMNICLASS");
+        public static string SIZE           => Ext("SIZE");
+        public static string COST           => Ext("COST");
+        public static string PRJ_COMMENTS   => Ext("PRJ_COMMENTS");
+
+        // ── Spatial parameters ───────────────────────────────────────────
+        public static string ROOM_NAME      => Ext("ROOM_NAME");
+        public static string ROOM_NUM       => Ext("ROOM_NUM");
+        public static string ROOM_AREA      => Ext("ROOM_AREA");
+        public static string ROOM_VOLUME    => Ext("ROOM_VOLUME");
+        public static string DEPT           => Ext("DEPT");
+        public static string GRID_REF       => Ext("GRID_REF");
+        public static string BLE_ROOM_NAME  => Ext("BLE_ROOM_NAME");
+        public static string BLE_ROOM_NUM   => Ext("BLE_ROOM_NUM");
+
+        // ── Extended token parameters ────────────────────────────────────
+        public static string ORIGIN         => Ext("ORIGIN");
+        public static string PROJECT        => Ext("PROJECT");
+        public static string REV            => Ext("REV");
+        public static string VOLUME         => Ext("VOLUME");
+
+        // ── BLE dimensional parameters ───────────────────────────────────
+        public static string WALL_HEIGHT    => Ext("WALL_HEIGHT");
+        public static string WALL_LENGTH    => Ext("WALL_LENGTH");
+        public static string WALL_THICKNESS => Ext("WALL_THICKNESS");
+        public static string DOOR_WIDTH     => Ext("DOOR_WIDTH");
+        public static string DOOR_HEIGHT    => Ext("DOOR_HEIGHT");
+        public static string WINDOW_WIDTH   => Ext("WINDOW_WIDTH");
+        public static string WINDOW_HEIGHT  => Ext("WINDOW_HEIGHT");
+        public static string WINDOW_SILL    => Ext("WINDOW_SILL");
+        public static string FLR_THICKNESS  => Ext("FLR_THICKNESS");
+        public static string ELE_AREA       => Ext("ELE_AREA");
+        public static string CEILING_HEIGHT => Ext("CEILING_HEIGHT");
+        public static string ROOF_SLOPE     => Ext("ROOF_SLOPE");
+        public static string STAIR_TREAD    => Ext("STAIR_TREAD");
+        public static string STAIR_RISE     => Ext("STAIR_RISE");
+        public static string STAIR_WIDTH    => Ext("STAIR_WIDTH");
+        public static string RAMP_SLOPE     => Ext("RAMP_SLOPE");
+        public static string RAMP_WIDTH     => Ext("RAMP_WIDTH");
+        public static string STRUCT_TYPE    => Ext("STRUCT_TYPE");
+        public static string FIRE_RATING    => Ext("FIRE_RATING");
+        public static string ELE_VOLUME     => Ext("ELE_VOLUME");
+        public static string ELE_LENGTH     => Ext("ELE_LENGTH");
+        public static string DOOR_HEAD_HT   => Ext("DOOR_HEAD_HT");
+        public static string DOOR_FUNC      => Ext("DOOR_FUNC");
+        public static string WINDOW_HEAD_HT => Ext("WINDOW_HEAD_HT");
+        public static string ROOM_FINISH_FLR  => Ext("ROOM_FINISH_FLR");
+        public static string ROOM_FINISH_WALL => Ext("ROOM_FINISH_WALL");
+        public static string ROOM_FINISH_CLG  => Ext("ROOM_FINISH_CLG");
+        public static string ROOM_FINISH_BASE => Ext("ROOM_FINISH_BASE");
+
+        // ── Electrical parameters ────────────────────────────────────────
+        public static string ELC_POWER      => Ext("ELC_POWER");
+        public static string ELC_VOLTAGE    => Ext("ELC_VOLTAGE");
+        public static string ELC_CIRCUIT_NR => Ext("ELC_CIRCUIT_NR");
+        public static string ELC_PNL_NAME   => Ext("ELC_PNL_NAME");
+        public static string ELC_PNL_VOLTAGE => Ext("ELC_PNL_VOLTAGE");
+        public static string ELC_PHASES     => Ext("ELC_PHASES");
+        public static string ELC_PNL_LOAD   => Ext("ELC_PNL_LOAD");
+        public static string ELC_PNL_FED_FROM => Ext("ELC_PNL_FED_FROM");
+        public static string ELC_MAIN_BRK   => Ext("ELC_MAIN_BRK");
+        public static string ELC_WAYS       => Ext("ELC_WAYS");
+        public static string ELC_IP_RATING  => Ext("ELC_IP_RATING");
+
+        // ── Lighting parameters ──────────────────────────────────────────
+        public static string LTG_WATTAGE    => Ext("LTG_WATTAGE");
+        public static string LTG_LUMENS     => Ext("LTG_LUMENS");
+        public static string LTG_EFFICACY   => Ext("LTG_EFFICACY");
+        public static string LTG_LAMP_TYPE  => Ext("LTG_LAMP_TYPE");
+
+        // ── HVAC parameters ─────────────────────────────────────────────
+        public static string HVC_DUCT_FLOW  => Ext("HVC_DUCT_FLOW");
+        public static string HVC_VELOCITY   => Ext("HVC_VELOCITY");
+        public static string HVC_PRESSURE   => Ext("HVC_PRESSURE");
+        public static string HVC_AIRFLOW    => Ext("HVC_AIRFLOW");
+        public static string HVC_DUCT_WIDTH => Ext("HVC_DUCT_WIDTH");
+        public static string HVC_DUCT_HEIGHT => Ext("HVC_DUCT_HEIGHT");
+        public static string HVC_INSULATION => Ext("HVC_INSULATION");
+        public static string HVC_DUCT_LENGTH => Ext("HVC_DUCT_LENGTH");
+
+        // ── Plumbing parameters ──────────────────────────────────────────
+        public static string PLM_PIPE_FLOW  => Ext("PLM_PIPE_FLOW");
+        public static string PLM_PIPE_SIZE  => Ext("PLM_PIPE_SIZE");
+        public static string PLM_VELOCITY   => Ext("PLM_VELOCITY");
+        public static string PLM_FLOW_RATE  => Ext("PLM_FLOW_RATE");
+        public static string PLM_PIPE_LENGTH => Ext("PLM_PIPE_LENGTH");
+
+        // ── COBie / Warranty / Asset fields ──
+        public static string WARR_GUAR_PARTS  => Ext("WARR_GUAR_PARTS");
+        public static string WARR_DUR_PARTS   => Ext("WARR_DUR_PARTS");
+        public static string WARR_GUAR_LABOR  => Ext("WARR_GUAR_LABOR");
+        public static string WARR_DUR_LABOR   => Ext("WARR_DUR_LABOR");
+        public static string WARR_DUR_UNIT    => Ext("WARR_DUR_UNIT");
+        public static string REPLACE_COST     => Ext("REPLACE_COST");
+        public static string DUR_UNIT         => Ext("DUR_UNIT");
+        public static string NOM_LENGTH       => Ext("NOM_LENGTH");
+        public static string NOM_WIDTH        => Ext("NOM_WIDTH");
+        public static string NOM_HEIGHT       => Ext("NOM_HEIGHT");
+        public static string MODEL_REF        => Ext("MODEL_REF");
+        public static string SHAPE            => Ext("SHAPE");
+        public static string COLOR            => Ext("COLOR");
+        public static string FINISH           => Ext("FINISH");
+        public static string GRADE            => Ext("GRADE");
+        public static string MATERIAL         => Ext("MATERIAL");
+        public static string CONSTITUENTS     => Ext("CONSTITUENTS");
+        public static string FEATURES         => Ext("FEATURES");
+        public static string ACCESS_PERF      => Ext("ACCESS_PERF");
+        public static string CODE_PERF        => Ext("CODE_PERF");
+        public static string SUSTAIN_PERF     => Ext("SUSTAIN_PERF");
+        public static string WARRANTY_START   => Ext("WARRANTY_START");
+        public static string BARCODE          => Ext("BARCODE");
+        public static string ASSET_ID         => Ext("ASSET_ID");
+        public static string CONDITION        => Ext("CONDITION");
+        public static string SUPPLIER         => Ext("SUPPLIER");
+
+        // ── Tag style fields ──
+        public static string STYLE_SIZE       => Ext("STYLE_SIZE");
+        public static string STYLE_WEIGHT     => Ext("STYLE_WEIGHT");
+
+        // ── Paragraph visibility controls (v4.2, expanded to 10 states) ──
+        /// <summary>Compact paragraph depth (State 1 only).</summary>
+        public static string PARA_STATE_1 { get; private set; } = "TAG_PARA_STATE_1_BOOL";
+        /// <summary>Standard paragraph depth (States 1+2).</summary>
+        public static string PARA_STATE_2 { get; private set; } = "TAG_PARA_STATE_2_BOOL";
+        /// <summary>Comprehensive paragraph depth (States 1+2+3).</summary>
+        public static string PARA_STATE_3 { get; private set; } = "TAG_PARA_STATE_3_BOOL";
+        /// <summary>State visibility control tier 4.</summary>
+        public static string PARA_STATE_4 { get; private set; } = "TAG_PARA_STATE_4_BOOL";
+        /// <summary>State visibility control tier 5.</summary>
+        public static string PARA_STATE_5 { get; private set; } = "TAG_PARA_STATE_5_BOOL";
+        /// <summary>State visibility control tier 6.</summary>
+        public static string PARA_STATE_6 { get; private set; } = "TAG_PARA_STATE_6_BOOL";
+        /// <summary>State visibility control tier 7.</summary>
+        public static string PARA_STATE_7 { get; private set; } = "TAG_PARA_STATE_7_BOOL";
+        /// <summary>State visibility control tier 8.</summary>
+        public static string PARA_STATE_8 { get; private set; } = "TAG_PARA_STATE_8_BOOL";
+        /// <summary>State visibility control tier 9.</summary>
+        public static string PARA_STATE_9 { get; private set; } = "TAG_PARA_STATE_9_BOOL";
+        /// <summary>State visibility control tier 10.</summary>
+        public static string PARA_STATE_10 { get; private set; } = "TAG_PARA_STATE_10_BOOL";
+        /// <summary>Enable/disable warning text in tags.</summary>
+        public static string WARN_VISIBLE { get; private set; } = "TAG_WARN_VISIBLE_BOOL";
+        /// <summary>Warning severity filter: CRITICAL, HIGH, MEDIUM, ALL.</summary>
+        public static string WARN_SEVERITY_FILTER { get; private set; } = "TAG_WARN_SEVERITY_FILTER_TXT";
+
+        // ── Warning threshold definitions (v5.5) ─────────────────────────
+        // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.
+        // Each entry defines a compliance check with threshold, unit, and severity.
+
+        /// <summary>Warning threshold definition loaded from PARAMETER_REGISTRY.json.</summary>
+        public class WarningThresholdDef
+        {
+            public string ParamName { get; set; }
+            public string Guid { get; set; }
+            public string Description { get; set; }
+            public string Threshold { get; set; }
+            public string Unit { get; set; }
+            public string Severity { get; set; } // CRITICAL, HIGH, MEDIUM, LOW
+        }
+
+        /// <summary>All warning threshold definitions keyed by param name.</summary>
+        public static Dictionary<string, WarningThresholdDef> WarningThresholds { get; private set; }
+            = new Dictionary<string, WarningThresholdDef>(StringComparer.Ordinal);
+
+        /// <summary>Get warning thresholds applicable to a category (looked up from LABEL_DEFINITIONS).</summary>
+        private static Dictionary<string, List<string>> _categoryWarnings
+            = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Register which warning params apply to a given category.
+        /// Called during LABEL_DEFINITIONS loading in TagConfig or presentation commands.
+        /// </summary>
+        public static void RegisterCategoryWarnings(string categoryName, List<string> warningParamNames)
+        {
+            if (!string.IsNullOrEmpty(categoryName) && warningParamNames != null)
+                _categoryWarnings[categoryName] = warningParamNames;
+        }
+
+        /// <summary>Get warning param names for a category (empty list if none registered).</summary>
+        public static List<string> GetCategoryWarnings(string categoryName)
+        {
+            if (string.IsNullOrEmpty(categoryName)) return new List<string>();
+            return _categoryWarnings.TryGetValue(categoryName, out var list) ? list : new List<string>();
+        }
+
+        /// <summary>
+        /// Evaluate a warning threshold against an element's current value.
+        /// Returns a warning message if threshold is exceeded, or null if compliant.
+        /// </summary>
+        public static string EvaluateWarning(WarningThresholdDef def, string currentValue)
+        {
+            if (def == null || string.IsNullOrEmpty(currentValue) || string.IsNullOrEmpty(def.Threshold))
+                return null;
+            // Try numeric comparison
+            if (double.TryParse(currentValue, out double val) && double.TryParse(def.Threshold, out double thresh))
+            {
+                // For most thresholds: value exceeding limit is a warning
+                // For minimums (coverage, width, depth): value below threshold is a warning
+                bool isMinimum = def.Description.Contains("minimum") || def.Description.Contains("min ");
+                bool isLimit = def.Description.Contains("limit") || def.Description.Contains("maximum") || def.Description.Contains("max ");
+
+                if (isMinimum && val < thresh)
+                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} < {def.Threshold} {def.Unit}]";
+                else if (isLimit && val > thresh)
+                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} > {def.Threshold} {def.Unit}]";
+                else if (!isMinimum && !isLimit && val > thresh)
+                    return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} exceeds {def.Threshold} {def.Unit}]";
+            }
+            return null;
+        }
+
+        // ── Paragraph container mapping (v5.5) ──────────────────────────
+        // Maps category names to their paragraph container parameter names.
+        // Loaded from LABEL_DEFINITIONS.json category_labels.
+
+        private static Dictionary<string, string> _paragraphContainers
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Register a paragraph container param for a category.</summary>
+        public static void RegisterParagraphContainer(string categoryName, string paramName)
+        {
+            if (!string.IsNullOrEmpty(categoryName) && !string.IsNullOrEmpty(paramName))
+                _paragraphContainers[categoryName] = paramName;
+        }
+
+        /// <summary>Get the paragraph container param name for a category (null if none).</summary>
+        public static string GetParagraphContainer(string categoryName)
+        {
+            if (string.IsNullOrEmpty(categoryName)) return null;
+            return _paragraphContainers.TryGetValue(categoryName, out string p) ? p : null;
+        }
+
+        /// <summary>All 10 paragraph state parameter names indexed by tier (1-based: index 0 = state 1).</summary>
+        // PERF-010 FIX: Cache array to avoid per-access allocation in hot loops (WriteTag7All)
+        private static string[] _allParaStates;
+        public static string[] AllParaStates => _allParaStates ??= new[]
+        {
+            PARA_STATE_1, PARA_STATE_2, PARA_STATE_3, PARA_STATE_4, PARA_STATE_5,
+            PARA_STATE_6, PARA_STATE_7, PARA_STATE_8, PARA_STATE_9, PARA_STATE_10
+        };
+
+        // ── Tag style visibility parameters (v5.0) ────────────────────────
+        // Controls which tag label row is visible via the {SIZE}{STYLE}_{COLOR}_BOOL pattern.
+        // In tag families, each label row has its Visible property bound to one of these.
+        // Setting e.g. TAG_2BOLD_RED_BOOL=true makes the "2pt bold red" label row visible.
+        // Sizes: 2, 2.5, 3, 3.5  |  Styles: NOM, BOLD, ITALIC  |  Colors: BLACK, BLUE, GREEN, RED
+        //
+        // The tag family has one Type per combination (e.g. type "2BOLD_RED") with its
+        // corresponding BOOL set to Yes; switching type switches visible label row.
+        //
+        // These are TEXT type names, resolved dynamically. Use TagStyleParamName() to build.
+        /// <summary>Tag text colour (Integer code for calculated value rendering).</summary>
+        public static string TAG_TEXT_COLOUR { get; private set; } = "TAG_TEXT_COLOUR_TEXT";
+        /// <summary>VG Projection/Surface visibility control.</summary>
+        public static string VGPS_VISIBLE { get; private set; } = "VGPS_VISIBLE_BOOL";
+
+        /// <summary>Available text sizes for tag style parameters.</summary>
+        public static readonly string[] TagStyleSizes = { "2", "2.5", "3", "3.5" };
+        /// <summary>Available text styles for tag style parameters.</summary>
+        public static readonly string[] TagStyleStyles = { "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
+        /// <summary>Available text colors for tag style parameters.</summary>
+        public static readonly string[] TagStyleColors = { "BLACK", "BLUE", "GREEN", "RED", "ORANGE", "PURPLE", "GREY", "WHITE" };
+
+        /// <summary>Original 4-color subset (for backwards compatibility with 48-param projects).</summary>
+        public static readonly string[] TagStyleColorsCore = { "BLACK", "BLUE", "GREEN", "RED" };
+        /// <summary>Extended colors added in v2 expansion.</summary>
+        public static readonly string[] TagStyleColorsExtended = { "ORANGE", "PURPLE", "GREY", "WHITE" };
+        /// <summary>Original 3-style subset (for backwards compatibility).</summary>
+        public static readonly string[] TagStyleStylesCore = { "NOM", "BOLD", "ITALIC" };
+
+        /// <summary>
+        /// Build a tag style parameter name from size, style, and color.
+        /// E.g. TagStyleParamName("2.5", "BOLD", "RED") => "TAG_2.5BOLD_RED_BOOL"
+        /// </summary>
+        public static string TagStyleParamName(string size, string style, string color)
+            => $"TAG_{size}{style}_{color}_BOOL";
+
+        private static string[] _cachedAllTagStyleParams;
+        private static string[] _cachedCoreTagStyleParams;
+
+        /// <summary>
+        /// Get ALL tag style parameter names (4 sizes x 4 styles x 8 colors = 128). Cached.
+        /// </summary>
+        public static string[] AllTagStyleParams
+        {
+            get
+            {
+                if (_cachedAllTagStyleParams == null)
+                {
+                    var list = new List<string>();
+                    foreach (var sz in TagStyleSizes)
+                        foreach (var st in TagStyleStyles)
+                            foreach (var co in TagStyleColors)
+                                list.Add(TagStyleParamName(sz, st, co));
+                    _cachedAllTagStyleParams = list.ToArray();
+                }
+                return _cachedAllTagStyleParams;
+            }
+        }
+
+        /// <summary>
+        /// Get CORE tag style parameter names only (4 sizes x 3 styles x 4 colors = 48). Cached.
+        /// </summary>
+        public static string[] CoreTagStyleParams
+        {
+            get
+            {
+                if (_cachedCoreTagStyleParams == null)
+                {
+                    var list = new List<string>();
+                    foreach (var sz in TagStyleSizes)
+                        foreach (var st in TagStyleStylesCore)
+                            foreach (var co in TagStyleColorsCore)
+                                list.Add(TagStyleParamName(sz, st, co));
+                    _cachedCoreTagStyleParams = list.ToArray();
+                }
+                return _cachedCoreTagStyleParams;
+            }
+        }
+
+        // ── Bounding box color parameters (separate from text color) ─────
+        /// <summary>Tag bounding box fill color — Red channel (0-255).</summary>
+        public static string TAG_BOX_COLOR_R { get; private set; } = "TAG_BOX_COLOR_R_INT";
+        /// <summary>Tag bounding box fill color — Green channel (0-255).</summary>
+        public static string TAG_BOX_COLOR_G { get; private set; } = "TAG_BOX_COLOR_G_INT";
+        /// <summary>Tag bounding box fill color — Blue channel (0-255).</summary>
+        public static string TAG_BOX_COLOR_B { get; private set; } = "TAG_BOX_COLOR_B_INT";
+        /// <summary>Tag bounding box visibility.</summary>
+        public static string TAG_BOX_VISIBLE { get; private set; } = "TAG_BOX_VISIBLE_BOOL";
+        /// <summary>Tag bounding box style (SOLID/DASHED/NONE/ROUND).</summary>
+        public static string TAG_BOX_STYLE { get; private set; } = "TAG_BOX_STYLE_TXT";
+        /// <summary>Tag leader line color — Red channel (0-255).</summary>
+        public static string TAG_LEADER_COLOR_R { get; private set; } = "TAG_LEADER_COLOR_R_INT";
+        /// <summary>Tag leader line color — Green channel (0-255).</summary>
+        public static string TAG_LEADER_COLOR_G { get; private set; } = "TAG_LEADER_COLOR_G_INT";
+        /// <summary>Tag leader line color — Blue channel (0-255).</summary>
+        public static string TAG_LEADER_COLOR_B { get; private set; } = "TAG_LEADER_COLOR_B_INT";
+
+        // ── Semantic color meaning registry ──────────────────────────────
+        // Maps colors to what they represent in each context:
+        //   DISC: M=BLUE, E=ORANGE, P=GREEN, A=GREY, S=RED, FP=ORANGE, LV=PURPLE, G=BLACK
+        //   STATUS: NEW=GREEN, EXISTING=BLUE, DEMOLISHED=RED, TEMPORARY=ORANGE
+        //   SYS: HVAC=BLUE, ELEC=ORANGE, PLUMB=GREEN, FIRE=RED, LV=PURPLE, STRUCT=RED, GEN=GREY
+        //   ZONE: Z01=BLUE, Z02=GREEN, Z03=ORANGE, Z04=RED
+        //   LEVEL: GF=GREEN, L01=BLUE, L02=PURPLE, B1=RED, RF=ORANGE
+
+        /// <summary>View color scheme parameter.</summary>
+        public static string VIEW_COLOR_SCHEME { get; private set; } = "VIEW_COLOR_SCHEME_TXT";
+        /// <summary>View discipline filter parameter.</summary>
+        public static string VIEW_DISC_FILTER { get; private set; } = "VIEW_DISC_FILTER_TXT";
+
+        // ── Paragraph container parameter names (v4.2/v4.3) ─────────────
+        public static string PARA_WALL      => Ext("PARA_WALL");
+        public static string PARA_FLOOR     => Ext("PARA_FLOOR");
+        public static string PARA_DOOR      => Ext("PARA_DOOR");
+        public static string PARA_WIN       => Ext("PARA_WIN");
+        public static string PARA_ROOM      => Ext("PARA_ROOM");
+        public static string PARA_CEIL      => Ext("PARA_CEIL");
+        public static string PARA_ROOF      => Ext("PARA_ROOF");
+        public static string PARA_STAIR     => Ext("PARA_STAIR");
+        public static string PARA_RAMP      => Ext("PARA_RAMP");
+        public static string PARA_FACADE    => Ext("PARA_FACADE");
+        public static string PARA_CASEWORK  => Ext("PARA_CASEWORK");
+        public static string PARA_FURNITURE => Ext("PARA_FURNITURE");
+        public static string PARA_STR_COL   => Ext("PARA_STR_COL");
+        public static string PARA_STR_BEAM  => Ext("PARA_STR_BEAM");
+        public static string PARA_STR_FDN   => Ext("PARA_STR_FDN");
+        public static string PARA_HVC_SPEC  => Ext("PARA_HVC_SPEC");
+        public static string PARA_HVC_DUCT  => Ext("PARA_HVC_DUCT");
+        public static string PARA_HVC_AT    => Ext("PARA_HVC_AT");
+        public static string PARA_ELC_PANEL => Ext("PARA_ELC_PANEL");
+        public static string PARA_ELC_CIRCUIT => Ext("PARA_ELC_CIRCUIT");
+        public static string PARA_LTG_SPEC  => Ext("PARA_LTG_SPEC");
+        public static string PARA_PLM_FIXTURE => Ext("PARA_PLM_FIXTURE");
+        public static string PARA_PLM_PIPE  => Ext("PARA_PLM_PIPE");
+        public static string PARA_FLS_FA    => Ext("PARA_FLS_FA");
+        public static string PARA_FLS_SPR   => Ext("PARA_FLS_SPR");
+        public static string PARA_COM_BMS   => Ext("PARA_COM_BMS");
+        // ── Paragraph containers added v4.3 (completing 15 missing) ────
+        public static string PARA_HVC_FLEXDUCT => Ext("PARA_HVC_FLEXDUCT");
+        public static string PARA_HVC_DCTACC  => Ext("PARA_HVC_DCTACC");
+        public static string PARA_ELC_CONDUIT => Ext("PARA_ELC_CONDUIT");
+        public static string PARA_ELC_TRAY   => Ext("PARA_ELC_TRAY");
+        public static string PARA_ELC_CABLE  => Ext("PARA_ELC_CABLE");
+        public static string PARA_PLM_EQUIP  => Ext("PARA_PLM_EQUIP");
+        public static string PARA_PLM_PIPEACC => Ext("PARA_PLM_PIPEACC");
+        public static string PARA_PLM_DRAIN  => Ext("PARA_PLM_DRAIN");
+        public static string PARA_ICT_DATA   => Ext("PARA_ICT_DATA");
+        public static string PARA_NCL        => Ext("PARA_NCL");
+        public static string PARA_SEC        => Ext("PARA_SEC");
+        public static string PARA_ASS_EQUIP  => Ext("PARA_ASS_EQUIP");
+        public static string PARA_RGL_CMPL   => Ext("PARA_RGL_CMPL");
+        public static string PARA_PER_ENV    => Ext("PARA_PER_ENV");
+        public static string PARA_CST_CONC   => Ext("PARA_CST_CONC");
+
+        // ── ISO 19650 naming parameters ────────────────────────────────
+        public static string PROJECT_COD    => Ext("PROJECT_COD");
+        public static string ORIGINATOR_COD => Ext("ORIGINATOR_COD");
+        public static string VOLUME_COD     => Ext("VOLUME_COD");
+        public static string STATUS_COD     => Ext("STATUS_COD");
+        public static string REV_COD        => Ext("REV_COD");
+
+        // ── Warning threshold parameters ────────────────────────────────
+        public static string ELC_PNL_RATED  => Ext("ELC_PNL_RATED");
+        public static string WARN_RAMP_SLOPE      => Ext("WARN_RAMP_SLOPE");
+        public static string WARN_VLT_DROP         => Ext("WARN_VLT_DROP");
+        public static string WARN_SPR_COVER        => Ext("WARN_SPR_COVER");
+        public static string WARN_NOISE            => Ext("WARN_NOISE");
+        public static string WARN_COP_EER          => Ext("WARN_COP_EER");
+        public static string WARN_FLEX_VEL         => Ext("WARN_FLEX_VEL");
+        public static string WARN_CARBON           => Ext("WARN_CARBON");
+        public static string WARN_UVAL_FLR         => Ext("WARN_UVAL_FLR");
+        public static string WARN_UVAL_ROOF        => Ext("WARN_UVAL_ROOF");
+        public static string WARN_UVAL_WALL        => Ext("WARN_UVAL_WALL");
+        public static string WARN_HW_FLOW          => Ext("WARN_HW_FLOW");
+        public static string WARN_ACCESS_WIDTH     => Ext("WARN_ACCESS_WIDTH");
+
+        // ── Universal tag container names (convenience) ─────────────────
+        /// <summary>Full 8-segment tag: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ</summary>
+        public static string TAG1 { get; private set; } = "ASS_TAG_1_TXT";
+        /// <summary>Short ID: DISC-PROD-SEQ</summary>
+        public static string TAG2 { get; private set; } = "ASS_TAG_2_TXT";
+        /// <summary>Location: LOC-ZONE-LVL</summary>
+        public static string TAG3 { get; private set; } = "ASS_TAG_3_TXT";
+        /// <summary>System: SYS-FUNC</summary>
+        public static string TAG4 { get; private set; } = "ASS_TAG_4_TXT";
+        /// <summary>Multi-line top: DISC-LOC-ZONE-LVL</summary>
+        public static string TAG5 { get; private set; } = "ASS_TAG_5_TXT";
+        /// <summary>Multi-line bottom: SYS-FUNC-PROD-SEQ</summary>
+        public static string TAG6 { get; private set; } = "ASS_TAG_6_TXT";
+        /// <summary>Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup.</summary>
+        public static string TAG7 { get; private set; } = "ASS_TAG_7_TXT";
+
+        // ── TAG7 Sub-Section Parameters ──────────────────────────────────
+        // Split TAG7 into independently stylable sections for multi-label tag families.
+        // Each sub-param can have its own font/size/color/bold in annotation family labels.
+        /// <summary>TAG7 Section A: Identity Header — asset name, product, manufacturer (BOLD in tag families).</summary>
+        public static string TAG7A { get; private set; } = "ASS_TAG_7A_TXT";
+        /// <summary>TAG7 Section B: System &amp; Function Context — full descriptions (ITALIC in tag families).</summary>
+        public static string TAG7B { get; private set; } = "ASS_TAG_7B_TXT";
+        /// <summary>TAG7 Section C: Spatial Context — room, department, grid reference.</summary>
+        public static string TAG7C { get; private set; } = "ASS_TAG_7C_TXT";
+        /// <summary>TAG7 Section D: Lifecycle &amp; Status — status, revision, origin, maintenance.</summary>
+        public static string TAG7D { get; private set; } = "ASS_TAG_7D_TXT";
+        /// <summary>TAG7 Section E: Technical Specifications — discipline-specific performance data.</summary>
+        public static string TAG7E { get; private set; } = "ASS_TAG_7E_TXT";
+        /// <summary>TAG7 Section F: Classification &amp; Reference — codes, cost, ISO tag.</summary>
+        public static string TAG7F { get; private set; } = "ASS_TAG_7F_TXT";
+
+        private static string[] _tag7Sections;
+        /// <summary>All TAG7 sub-section parameter names in order (A-F).</summary>
+        public static string[] TAG7Sections => _tag7Sections ??= new[] { TAG7A, TAG7B, TAG7C, TAG7D, TAG7E, TAG7F };
+
+        /// <summary>Check if a parameter is any TAG7 variant (main or sub-section).</summary>
+        public static bool IsTag7Param(string paramName)
+        {
+            return paramName == TAG7 || paramName == TAG7A || paramName == TAG7B ||
+                   paramName == TAG7C || paramName == TAG7D || paramName == TAG7E ||
+                   paramName == TAG7F;
+        }
+
+        // ── Token presets (named token index arrays) ────────────────────
+        public static Dictionary<string, int[]> TokenPresets { get; private set; } = new Dictionary<string, int[]>();
+
+        // ── Container groups and flat container list ─────────────────────
+        public static ContainerGroupDef[] ContainerGroups { get; private set; } = Array.Empty<ContainerGroupDef>();
+        private static ContainerParamDef[] _allContainers;
+        private static Dictionary<string, List<ContainerParamDef>> _containersByCategory;
+        // F-02: Cache for ContainersForCategory results — avoids List+ToArray allocation per call
+        private static System.Collections.Concurrent.ConcurrentDictionary<string, ContainerParamDef[]>
+            _containerForCategoryCache;
+        // F-15: Cache for GetContainerTuples result — avoids LINQ Select+ToArray per call
+        private static (string param, int[] tokens, string sep, string[] categories)[] _containerTuplesCache;
+
+        // ── GUID lookups ────────────────────────────────────────────────
+        private static Dictionary<string, Guid> _guidByName;
+        private static Dictionary<Guid, string> _nameByGuid;
+
+        // ── Universal params (Pass 1) ───────────────────────────────────
+        /// <summary>All parameter names that should be bound to all 53 categories (Pass 1).</summary>
+        public static string[] UniversalParams { get; private set; } = Array.Empty<string>();
+
+        // ── Category mappings ───────────────────────────────────────────
+        /// <summary>Category display name → BuiltInCategory enum string.</summary>
+        public static Dictionary<string, string> CategoryEnumMap { get; private set; } = new Dictionary<string, string>();
+        /// <summary>All universal category display names.</summary>
+        public static string[] UniversalCategories { get; private set; } = Array.Empty<string>();
+
+        // ── Discipline bindings (Pass 2): param → category enums ────────
+        private static Dictionary<string, string[]> _disciplineCategoryNames;
+
+        // ════════════════════════════════════════════════════════════════
+        // Public API
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>Get token parameter name by slot index (0-7).</summary>
+        public static string TokenParamName(int slot)
+        {
+            EnsureLoaded();
+            return slot >= 0 && slot < AllTokenParams.Length ? AllTokenParams[slot] : "";
+        }
+
+        /// <summary>Get token parameter name by key ("DISC", "LOC", etc.).</summary>
+        public static string TokenParamName(string key)
+        {
+            EnsureLoaded();
+            var tok = Array.Find(SourceTokens, t => t.Key == key);
+            return tok?.ParamName ?? "";
+        }
+
+        /// <summary>Get GUID for a parameter name. Returns Guid.Empty if not found.</summary>
+        public static Guid GetGuid(string paramName)
+        {
+            EnsureLoaded();
+            return _guidByName != null && _guidByName.TryGetValue(paramName, out Guid g) ? g : Guid.Empty;
+        }
+
+        /// <summary>Get parameter name for a GUID. Returns null if not found.</summary>
+        public static string GetParamName(Guid guid)
+        {
+            EnsureLoaded();
+            return _nameByGuid != null && _nameByGuid.TryGetValue(guid, out string n) ? n : null;
+        }
+
+        /// <summary>Get all parameter names that have GUIDs (tokens + support + containers).</summary>
+        public static Dictionary<string, Guid> AllParamGuids
+        {
+            get { EnsureLoaded(); return _guidByName ?? new Dictionary<string, Guid>(); }
+        }
+
+        /// <summary>All container definitions across all groups (flat list).</summary>
+        public static ContainerParamDef[] AllContainers
+        {
+            get
+            {
+                EnsureLoaded();
+                if (_allContainers == null)
+                    _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+                return _allContainers;
+            }
+        }
+
+        /// <summary>Get container definitions that apply to a specific Revit category name.</summary>
+        public static ContainerParamDef[] ContainersForCategory(string categoryName)
+        {
+            EnsureLoaded();
+            if (_containersByCategory == null) BuildCategoryIndex();
+            // Use _allContainers directly to avoid reentrant EnsureLoaded() calls
+            if (_allContainers == null)
+                _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+            if (string.IsNullOrEmpty(categoryName)) return _allContainers.Where(c => c.Categories == null).ToArray();
+
+            // F-02: Cache result per category — ContainersForCategory is called per-element in hot loops
+            // R1-PR-01: Snapshot to local to avoid race between null check and use during Reload()
+            var cache = _containerForCategoryCache;
+            if (cache == null)
+            {
+                cache = new System.Collections.Concurrent.ConcurrentDictionary<string, ContainerParamDef[]>(StringComparer.OrdinalIgnoreCase);
+                _containerForCategoryCache = cache;
+            }
+            return cache.GetOrAdd(categoryName, key =>
+            {
+                var result = new List<ContainerParamDef>();
+                // Universal containers (null categories) always apply
+                foreach (var c in _allContainers)
+                {
+                    if (c.Categories == null)
+                        result.Add(c);
+                }
+                // Plus category-specific matches
+                if (_containersByCategory.TryGetValue(key, out var specific))
+                    result.AddRange(specific);
+                return result.ToArray();
+            });
+        }
+
+        /// <summary>Get category display names for a discipline-specific parameter.</summary>
+        public static string[] GetCategoryNamesForParam(string paramName)
+        {
+            EnsureLoaded();
+            if (_disciplineCategoryNames != null && _disciplineCategoryNames.TryGetValue(paramName, out string[] cats))
+                return cats;
+            return Array.Empty<string>();
+        }
+
+        /// <summary>Resolve token preset name to index array. Returns raw indices if not a preset name.</summary>
+        public static int[] ResolveTokenPreset(string presetOrRaw)
+        {
+            EnsureLoaded();
+            if (TokenPresets.TryGetValue(presetOrRaw, out int[] preset))
+                return preset;
+            return Array.Empty<int>();
+        }
+
+        /// <summary>
+        /// Build tuple array matching the legacy format used by BuildTagsCommand and TokenWriterCommands.
+        /// Returns (paramName, tokenIndices, separator, categoryNames) for all containers.
+        /// </summary>
+        public static (string param, int[] tokens, string sep, string[] categories)[] GetContainerTuples()
+        {
+            EnsureLoaded();
+            // Use _allContainers directly to avoid reentrant EnsureLoaded() calls
+            if (_allContainers == null)
+                _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+            // F-15: Cache result — GetContainerTuples is called per-element in WriteContainers hot path
+            return _containerTuplesCache ??= _allContainers
+                .Select(c => (c.ParamName, c.TokenIndices, c.Separator, c.Categories))
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Build the BuiltInCategory array for a discipline parameter, resolving
+        /// category display names through the CategoryEnumMap. Used by SharedParamGuids
+        /// for Pass 2 binding.
+        /// </summary>
+        public static BuiltInCategory[] ResolveCategoryEnums(string[] categoryNames)
+        {
+            if (categoryNames == null || categoryNames.Length == 0) return Array.Empty<BuiltInCategory>();
+
+            var result = new List<BuiltInCategory>();
+            foreach (string name in categoryNames)
+            {
+                if (CategoryEnumMap.TryGetValue(name, out string enumStr))
+                {
+                    if (Enum.TryParse(enumStr, out BuiltInCategory bic))
+                        result.Add(bic);
+                }
+            }
+            return result.ToArray();
+        }
+
+        /// <summary>
+        /// Resolve the universal category list to BuiltInCategory enums.
+        /// </summary>
+        public static BuiltInCategory[] ResolveUniversalCategoryEnums()
+        {
+            EnsureLoaded();
+            StingLog.Info($"ResolveUniversalCategoryEnums: resolving {UniversalCategories?.Length ?? 0} categories");
+            var result = ResolveCategoryEnums(UniversalCategories);
+            StingLog.Info($"ResolveUniversalCategoryEnums: resolved to {result?.Length ?? 0} BuiltInCategory enums");
+            return result;
+        }
+
+        /// <summary>
+        /// Build the discipline bindings dictionary in the format SharedParamGuids expects:
+        /// paramName → BuiltInCategory[]. Derived from container_groups.
+        /// </summary>
+        public static Dictionary<string, BuiltInCategory[]> BuildDisciplineBindings()
+        {
+            EnsureLoaded();
+            var bindings = new Dictionary<string, BuiltInCategory[]>();
+            foreach (var group in ContainerGroups)
+            {
+                if (group.Categories == null) continue; // universal — handled by Pass 1
+                var enums = ResolveCategoryEnums(group.Categories);
+                foreach (var param in group.Params)
+                    bindings[param.ParamName] = enums;
+            }
+            return bindings;
+        }
+
+        /// <summary>
+        /// Override tag format settings from project_config.json.
+        /// Called by TagConfig.LoadFromFile when the config has TAG_FORMAT section.
+        /// </summary>
+        internal static void OverrideTagFormat(string separator, int numPad, string[] segmentOrder)
+        {
+            if (!string.IsNullOrEmpty(separator)) _overrideSeparator = separator;
+            if (numPad > 0) _overrideNumPad = numPad;
+            if (segmentOrder != null && segmentOrder.Length > 0) _overrideSegmentOrder = segmentOrder;
+        }
+
+        /// <summary>R2-FIX: Clear container-for-category cache so reloaded schema is reflected.</summary>
+        public static void ClearContainerCache()
+        {
+            lock (_lock) { _containerForCategoryCache = null; }
+        }
+
+        /// <summary>Force reload from disk. Call after editing PARAMETER_REGISTRY.json.</summary>
+        public static void Reload()
+        {
+            lock (_lock)
+            {
+                _loaded = false;
+                _allContainers = null;
+                _containersByCategory = null;
+                _containerForCategoryCache = null;   // F-02
+                _containerTuplesCache = null;         // F-15
+                WarningThresholds = new Dictionary<string, WarningThresholdDef>(StringComparer.Ordinal);
+                _categoryWarnings = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                _paragraphContainers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+            // Invalidate downstream caches that depend on our data
+            SharedParamGuids.InvalidateCache();
+            EnsureLoaded();
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Loading
+        // ════════════════════════════════════════════════════════════════
+
+        public static void EnsureLoaded()
+        {
+            if (_loaded) return;
+            lock (_lock)
+            {
+                if (_loaded) return;
+                StingLog.Info("ParamRegistry.EnsureLoaded: first-time load starting");
+                try
+                {
+                    LoadFromFile();
+                    StingLog.Info("ParamRegistry.EnsureLoaded: LoadFromFile completed successfully");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("EnsureLoaded: LoadFromFile failed, using minimal defaults", ex);
+                    // Set minimal defaults so the plugin doesn't crash entirely
+                    if (UniversalParams == null || UniversalParams.Length == 0)
+                    {
+                        UniversalParams = new[]
+                        {
+                            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
+                            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+                            "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
+                        };
+                    }
+                    if (AllTokenParams == null || AllTokenParams.Length == 0)
+                    {
+                        AllTokenParams = new[]
+                        {
+                            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                        };
+                    }
+                    if (ContainerGroups == null)
+                        ContainerGroups = Array.Empty<ContainerGroupDef>();
+                    if (CategoryEnumMap == null)
+                        CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    if (UniversalCategories == null)
+                        UniversalCategories = Array.Empty<string>();
+                    // Ensure TAG convenience names are set — many commands access these
+                    if (string.IsNullOrEmpty(TAG1)) TAG1 = "ASS_TAG_1_TXT";
+                    if (string.IsNullOrEmpty(TAG2)) TAG2 = "ASS_TAG_2_TXT";
+                    if (string.IsNullOrEmpty(TAG3)) TAG3 = "ASS_TAG_3_TXT";
+                    if (string.IsNullOrEmpty(TAG4)) TAG4 = "ASS_TAG_4_TXT";
+                    if (string.IsNullOrEmpty(TAG5)) TAG5 = "ASS_TAG_5_TXT";
+                    if (string.IsNullOrEmpty(TAG6)) TAG6 = "ASS_TAG_6_TXT";
+                    if (string.IsNullOrEmpty(TAG7)) TAG7 = "ASS_TAG_7_TXT";
+                    if (string.IsNullOrEmpty(STATUS)) STATUS = "ASS_STATUS_TXT";
+                    if (string.IsNullOrEmpty(DETAIL_NUM)) DETAIL_NUM = "ASS_INST_DETAIL_NUM_TXT";
+                    if (string.IsNullOrEmpty(MNT_TYPE)) MNT_TYPE = "MNT_TYPE_TXT";
+                    // Ensure GUID maps exist
+                    if (_guidByName == null) _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+                    if (_nameByGuid == null) _nameByGuid = new Dictionary<Guid, string>();
+                    if (_extendedParams == null) _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+                    if (TokenPresets == null) TokenPresets = new Dictionary<string, int[]>();
+                    if (SourceTokens == null || SourceTokens.Length == 0)
+                    {
+                        SourceTokens = new[]
+                        {
+                            new TokenDef { Slot = 0, Key = "DISC", ParamName = "ASS_DISCIPLINE_COD_TXT" },
+                            new TokenDef { Slot = 1, Key = "LOC",  ParamName = "ASS_LOC_TXT" },
+                            new TokenDef { Slot = 2, Key = "ZONE", ParamName = "ASS_ZONE_TXT" },
+                            new TokenDef { Slot = 3, Key = "LVL",  ParamName = "ASS_LVL_COD_TXT" },
+                            new TokenDef { Slot = 4, Key = "SYS",  ParamName = "ASS_SYSTEM_TYPE_TXT" },
+                            new TokenDef { Slot = 5, Key = "FUNC", ParamName = "ASS_FUNC_TXT" },
+                            new TokenDef { Slot = 6, Key = "PROD", ParamName = "ASS_PRODCT_COD_TXT" },
+                            new TokenDef { Slot = 7, Key = "SEQ",  ParamName = "ASS_SEQ_NUM_TXT" },
+                        };
+                    }
+                    StingLog.Info("ParamRegistry.EnsureLoaded: minimal defaults applied");
+                }
+                _loaded = true;
+            }
+        }
+
+        private static void LoadFromFile()
+        {
+            StingLog.Info("ParamRegistry.LoadFromFile: starting");
+            string path = StingToolsApp.FindDataFile("PARAMETER_REGISTRY.json");
+            if (path == null)
+            {
+                StingLog.Warn("PARAMETER_REGISTRY.json not found — using compiled defaults");
+                LoadDefaults();
+                return;
+            }
+            StingLog.Info($"ParamRegistry.LoadFromFile: found at {path}");
+
+            try
+            {
+                StingLog.Info("ParamRegistry.LoadFromFile: reading file");
+                string json = File.ReadAllText(path);
+                StingLog.Info($"ParamRegistry.LoadFromFile: read {json.Length} chars, parsing JSON");
+
+                // CRASH FIX: Newtonsoft.Json version conflicts with other Revit addins
+                // can cause native crashes during JObject.Parse(). Isolate JSON parsing
+                // in its own try/catch so a conflict falls back to compiled defaults
+                // instead of crashing Revit entirely.
+                JObject root;
+                try
+                {
+                    root = JObject.Parse(json);
+                }
+                catch (Exception jsonEx)
+                {
+                    StingLog.Error("ParamRegistry: JObject.Parse FAILED — possible Newtonsoft.Json " +
+                        "version conflict with another Revit addin. Using compiled defaults.", jsonEx);
+                    LoadDefaults();
+                    return;
+                }
+                StingLog.Info("ParamRegistry.LoadFromFile: JSON parsed OK");
+
+                // Tag format (base values from PARAMETER_REGISTRY.json)
+                var fmt = root["tag_format"];
+                if (fmt != null)
+                {
+                    _baseSeparator = fmt["separator"]?.ToString() ?? "-";
+                    _baseNumPad = fmt["num_pad"]?.Value<int>() ?? 4;
+                    _baseSegmentOrder = fmt["segment_order"]?.ToObject<string[]>() ?? _baseSegmentOrder;
+                }
+
+                StingLog.Info("ParamRegistry.LoadFromFile: tag_format loaded");
+
+                // Source tokens
+                var tokArr = root["source_tokens"] as JArray;
+                if (tokArr != null)
+                {
+                    var tokens = new List<TokenDef>();
+                    var tokenNames = new List<string>();
+                    foreach (JObject t in tokArr)
+                    {
+                        var def = new TokenDef
+                        {
+                            Slot = t["slot"]?.Value<int>() ?? 0,
+                            Key = t["key"]?.ToString() ?? "",
+                            ParamName = t["param_name"]?.ToString() ?? "",
+                            GuidStr = t["guid"]?.ToString() ?? "",
+                            Description = t["description"]?.ToString() ?? "",
+                        };
+                        tokens.Add(def);
+                        tokenNames.Add(def.ParamName);
+                    }
+                    SourceTokens = tokens.OrderBy(t => t.Slot).ToArray();
+                    // Build AllTokenParams from sorted SourceTokens to ensure slot ordering matches
+                    AllTokenParams = SourceTokens.Select(t => t.ParamName).ToArray();
+                }
+
+                StingLog.Info($"ParamRegistry.LoadFromFile: {SourceTokens.Length} source tokens loaded");
+
+                // Support params
+                var supArr = root["support_params"] as JArray;
+                if (supArr != null)
+                {
+                    foreach (JObject s in supArr)
+                    {
+                        string name = s["param_name"]?.ToString() ?? "";
+                        if (name.Contains("STATUS") && !name.Contains("PARA") && !name.Contains("WARN")) STATUS = name;
+                        else if (name.Contains("DETAIL")) DETAIL_NUM = name;
+                        else if (name.Contains("MNT")) MNT_TYPE = name;
+                        else if (name == "TAG_PARA_STATE_1_BOOL") PARA_STATE_1 = name;
+                        else if (name == "TAG_PARA_STATE_2_BOOL") PARA_STATE_2 = name;
+                        else if (name == "TAG_PARA_STATE_3_BOOL") PARA_STATE_3 = name;
+                        else if (name == "TAG_WARN_VISIBLE_BOOL") WARN_VISIBLE = name;
+                        else if (name == "TAG_WARN_SEVERITY_FILTER_TXT") WARN_SEVERITY_FILTER = name;
+
+                        // DATA-02: Track required/optional status
+                        bool isReq = s["required"]?.Value<bool>() ?? false;
+                        if (isReq) _requiredParams.Add(name);
+                    }
+                }
+
+                // DATA-02: Also track required flag on source_tokens
+                if (tokArr != null)
+                {
+                    foreach (JObject t in tokArr)
+                    {
+                        bool isReq = t["required"]?.Value<bool>() ?? false;
+                        string pn = t["param_name"]?.ToString() ?? "";
+                        if (isReq && !string.IsNullOrEmpty(pn)) _requiredParams.Add(pn);
+                    }
+                }
+
+                // DATA-02: Also track required flag on containers
+                var contArr = root["containers"] as JArray;
+                if (contArr != null)
+                {
+                    foreach (JObject c in contArr)
+                    {
+                        bool isReq = c["required"]?.Value<bool>() ?? false;
+                        string pn = c["param_name"]?.ToString() ?? "";
+                        if (isReq && !string.IsNullOrEmpty(pn)) _requiredParams.Add(pn);
+                    }
+                }
+
+                StingLog.Info("ParamRegistry.LoadFromFile: support params loaded");
+
+                // Token presets
+                var presets = root["token_presets"] as JObject;
+                TokenPresets = new Dictionary<string, int[]>();
+                if (presets != null)
+                {
+                    foreach (var kvp in presets)
+                        TokenPresets[kvp.Key] = kvp.Value.ToObject<int[]>();
+                }
+
+                StingLog.Info($"ParamRegistry.LoadFromFile: {TokenPresets.Count} token presets loaded");
+
+                // Container groups
+                var groupArr = root["container_groups"] as JArray;
+                if (groupArr != null)
+                {
+                    var groups = new List<ContainerGroupDef>();
+                    foreach (JObject g in groupArr)
+                    {
+                        var groupDef = new ContainerGroupDef
+                        {
+                            Group = g["group"]?.ToString() ?? "",
+                            GroupCode = g["group_code"]?.ToString() ?? "",
+                            Categories = g["categories"]?.Type == JTokenType.Null ? null : g["categories"]?.ToObject<string[]>(),
+                        };
+
+                        var paramArr = g["params"] as JArray;
+                        if (paramArr != null)
+                        {
+                            var parms = new List<ContainerParamDef>();
+                            foreach (JObject p in paramArr)
+                            {
+                                string tokensRef = p["tokens"]?.ToString() ?? "all";
+                                int[] tokenIndices = TokenPresets.TryGetValue(tokensRef, out int[] preset)
+                                    ? preset
+                                    : (tokensRef.StartsWith("[") ? p["tokens"].ToObject<int[]>() : new int[] { 0,1,2,3,4,5,6,7 });
+
+                                parms.Add(new ContainerParamDef
+                                {
+                                    ParamName = p["param_name"]?.ToString() ?? "",
+                                    GuidStr = p["guid"]?.ToString() ?? "",
+                                    TokenIndices = tokenIndices,
+                                    TokenPresetName = tokensRef,
+                                    Separator = p["separator"]?.ToString() ?? "-",
+                                    Prefix = p["prefix"]?.ToString() ?? "",
+                                    Suffix = p["suffix"]?.ToString() ?? "",
+                                    Description = p["description"]?.ToString() ?? "",
+                                    Categories = groupDef.Categories,
+                                });
+                            }
+                            groupDef.Params = parms.ToArray();
+                        }
+                        else
+                        {
+                            groupDef.Params = Array.Empty<ContainerParamDef>();
+                        }
+
+                        groups.Add(groupDef);
+                    }
+                    ContainerGroups = groups.ToArray();
+                }
+
+                // Set convenience names from first container group (Universal)
+                if (ContainerGroups.Length > 0 && ContainerGroups[0].Params.Length >= 6)
+                {
+                    TAG1 = ContainerGroups[0].Params[0].ParamName;
+                    TAG2 = ContainerGroups[0].Params[1].ParamName;
+                    TAG3 = ContainerGroups[0].Params[2].ParamName;
+                    TAG4 = ContainerGroups[0].Params[3].ParamName;
+                    TAG5 = ContainerGroups[0].Params[4].ParamName;
+                    TAG6 = ContainerGroups[0].Params[5].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 7)
+                        TAG7 = ContainerGroups[0].Params[6].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 8)
+                        TAG7A = ContainerGroups[0].Params[7].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 9)
+                        TAG7B = ContainerGroups[0].Params[8].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 10)
+                        TAG7C = ContainerGroups[0].Params[9].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 11)
+                        TAG7D = ContainerGroups[0].Params[10].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 12)
+                        TAG7E = ContainerGroups[0].Params[11].ParamName;
+                    if (ContainerGroups[0].Params.Length >= 13)
+                        TAG7F = ContainerGroups[0].Params[12].ParamName;
+                }
+
+                StingLog.Info($"ParamRegistry.LoadFromFile: {ContainerGroups.Length} container groups loaded");
+
+                // Category enum map
+                var catMap = root["category_enum_map"] as JObject;
+                CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (catMap != null)
+                {
+                    foreach (var kvp in catMap)
+                        CategoryEnumMap[kvp.Key] = kvp.Value.ToString();
+                }
+
+                StingLog.Info($"ParamRegistry.LoadFromFile: {CategoryEnumMap.Count} category enum mappings loaded");
+
+                // Universal categories — exclude "Materials" which is handled separately
+                // via BuildGroupCategoryOverrides() in LoadSharedParamsCommand.
+                // Including it here would bind ALL params to OST_Materials.
+                var rawUCats = root["universal_categories"]?.ToObject<string[]>() ?? Array.Empty<string>();
+                UniversalCategories = rawUCats
+                    .Where(c => !c.Equals("Materials", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                StingLog.Info($"ParamRegistry.LoadFromFile: {UniversalCategories.Length} universal categories loaded (Materials excluded)");
+
+                // Load extended params
+                LoadExtendedParams(root);
+                StingLog.Info($"ParamRegistry.LoadFromFile: {_extendedParams?.Count ?? 0} extended params loaded");
+
+                // DATA-02: Load required/optional flags from all param sections
+                LoadRequiredFlags(root);
+                StingLog.Info($"ParamRegistry.LoadFromFile: {RequiredParams.Count} required params loaded");
+
+                // Load warning thresholds (v5.5)
+                LoadWarningThresholds(root);
+                StingLog.Info($"ParamRegistry.LoadFromFile: {WarningThresholds.Count} warning thresholds loaded");
+
+                // Build GUID lookups
+                StingLog.Info("ParamRegistry.LoadFromFile: building GUID maps");
+                BuildGuidMaps(root);
+                StingLog.Info($"ParamRegistry.LoadFromFile: {_guidByName?.Count ?? 0} GUIDs mapped");
+
+                // Build universal params list
+                StingLog.Info("ParamRegistry.LoadFromFile: building universal params list");
+                BuildUniversalParams(root);
+                StingLog.Info($"ParamRegistry.LoadFromFile: {UniversalParams?.Length ?? 0} universal params");
+
+                // Build discipline category name mappings
+                StingLog.Info("ParamRegistry.LoadFromFile: building discipline category names");
+                BuildDisciplineCategoryNames();
+
+                // CRASH FIX: Build _allContainers here instead of lazily in the AllContainers
+                // property. The old code used AllContainers.Length in the success log line below,
+                // which called EnsureLoaded() — but _loaded is still false at this point, causing
+                // INFINITE RECURSION (C# lock is reentrant on the same thread).
+                _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+
+                // FIX-12.4: Supplement GUID map from MR_PARAMETERS.txt
+                try
+                {
+                    string _mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                    if (!string.IsNullOrEmpty(_mrFile))
+                    {
+                        if (_guidByName == null)
+                            _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+                        int _sup = 0;
+                        foreach (string _ml in File.ReadAllLines(_mrFile))
+                        {
+                            if (!_ml.StartsWith("PARAM")) continue;
+                            var _mp = _ml.Split('\t');
+                            if (_mp.Length < 3) continue;
+                            string _mg = _mp[1]; string _mn = _mp[2];
+                            if (string.IsNullOrEmpty(_mn) || _guidByName.ContainsKey(_mn)) continue;
+                            if (Guid.TryParse(_mg, out Guid _gg))
+                            { _guidByName[_mn] = _gg; _sup++; }
+                        }
+                        StingLog.Info($"ParamRegistry: supplemented {_sup} GUIDs from MR_PARAMETERS.txt");
+                    }
+                }
+                catch (Exception _mrEx) { StingLog.Warn($"ParamRegistry MR supplement: {_mrEx.Message}"); }
+
+                StingLog.Info($"ParamRegistry loaded: {SourceTokens.Length} tokens, {ContainerGroups.Length} groups, {_allContainers.Length} containers, {_guidByName?.Count ?? 0} GUIDs");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to load PARAMETER_REGISTRY.json", ex);
+                LoadDefaults();
+            }
+        }
+
+        private static void LoadExtendedParams(JObject root)
+        {
+            _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+            var ext = root["extended_params"] as JObject;
+            if (ext == null) return;
+
+            foreach (var group in ext)
+            {
+                var arr = group.Value as JArray;
+                if (arr == null) continue;
+                foreach (JObject item in arr)
+                {
+                    string key = item["key"]?.ToString();
+                    string paramName = item["param_name"]?.ToString();
+                    if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(paramName))
+                        _extendedParams[key] = paramName;
+                }
+            }
+        }
+
+        /// <summary>
+        /// DATA-02: Scan all param sections in PARAMETER_REGISTRY.json for a "required" field.
+        /// Params flagged as required are added to RequiredParams. If no "required" flags are
+        /// found at all, the default set (8 source tokens + TAG1) is retained.
+        /// </summary>
+        private static void LoadRequiredFlags(JObject root)
+        {
+            var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Scan source_tokens
+            var tokArr = root["source_tokens"] as JArray;
+            if (tokArr != null)
+            {
+                foreach (JObject t in tokArr)
+                {
+                    string paramName = t["param_name"]?.ToString() ?? "";
+                    bool? req = t["required"]?.Value<bool>();
+                    if (req == true && !string.IsNullOrEmpty(paramName))
+                        found.Add(paramName);
+                }
+            }
+
+            // Scan support_params
+            var supArr = root["support_params"] as JArray;
+            if (supArr != null)
+            {
+                foreach (JObject s in supArr)
+                {
+                    string paramName = s["param_name"]?.ToString() ?? "";
+                    bool? req = s["required"]?.Value<bool>();
+                    if (req == true && !string.IsNullOrEmpty(paramName))
+                        found.Add(paramName);
+                }
+            }
+
+            // Scan container_groups params
+            var groupArr = root["container_groups"] as JArray;
+            if (groupArr != null)
+            {
+                foreach (JObject g in groupArr)
+                {
+                    var paramArr = g["params"] as JArray;
+                    if (paramArr == null) continue;
+                    foreach (JObject p in paramArr)
+                    {
+                        string paramName = p["param_name"]?.ToString() ?? "";
+                        bool? req = p["required"]?.Value<bool>();
+                        if (req == true && !string.IsNullOrEmpty(paramName))
+                            found.Add(paramName);
+                    }
+                }
+            }
+
+            // Scan extended_params
+            var extArr = root["extended_params"] as JArray;
+            if (extArr != null)
+            {
+                foreach (JObject e in extArr)
+                {
+                    string paramName = e["param_name"]?.ToString() ?? "";
+                    bool? req = e["required"]?.Value<bool>();
+                    if (req == true && !string.IsNullOrEmpty(paramName))
+                        found.Add(paramName);
+                }
+            }
+
+            // Only replace defaults if we actually found required flags in JSON
+            if (found.Count > 0)
+                RequiredParams = found;
+            // else keep the default set (8 source tokens + TAG1)
+        }
+
+        /// <summary>Load warning threshold definitions from PARAMETER_REGISTRY.json.</summary>
+        private static void LoadWarningThresholds(JObject root)
+        {
+            WarningThresholds = new Dictionary<string, WarningThresholdDef>(StringComparer.Ordinal);
+            var warnArr = root["warning_thresholds"] as JArray;
+            if (warnArr == null) return;
+
+            foreach (JObject w in warnArr)
+            {
+                var def = new WarningThresholdDef
+                {
+                    ParamName   = w["param_name"]?.ToString() ?? "",
+                    Guid        = w["guid"]?.ToString() ?? "",
+                    Description = w["description"]?.ToString() ?? "",
+                    Threshold   = w["threshold"]?.ToString() ?? "",
+                    Unit        = w["unit"]?.ToString() ?? "",
+                    Severity    = w["severity"]?.ToString() ?? "MEDIUM",
+                };
+                if (!string.IsNullOrEmpty(def.ParamName))
+                    WarningThresholds[def.ParamName] = def;
+            }
+        }
+
+        private static void BuildGuidMaps(JObject root)
+        {
+            _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+            _nameByGuid = new Dictionary<Guid, string>();
+
+            // Source tokens
+            foreach (var tok in SourceTokens)
+            {
+                if (Guid.TryParse(tok.GuidStr, out Guid g))
+                {
+                    _guidByName[tok.ParamName] = g;
+                    _nameByGuid[g] = tok.ParamName;
+                }
+            }
+
+            // Support params
+            var supArr = root["support_params"] as JArray;
+            if (supArr != null)
+            {
+                foreach (JObject s in supArr)
+                {
+                    string name = s["param_name"]?.ToString();
+                    string guidStr = s["guid"]?.ToString();
+                    if (!string.IsNullOrEmpty(name) && Guid.TryParse(guidStr, out Guid g))
+                    {
+                        _guidByName[name] = g;
+                        _nameByGuid[g] = name;
+                    }
+                }
+            }
+
+            // Container params
+            foreach (var group in ContainerGroups)
+            {
+                foreach (var p in group.Params)
+                {
+                    if (Guid.TryParse(p.GuidStr, out Guid g))
+                    {
+                        _guidByName[p.ParamName] = g;
+                        _nameByGuid[g] = p.ParamName;
+                    }
+                }
+            }
+
+            // Extended params (iso19650_naming, paragraph_containers, warning_thresholds, etc.)
+            var ext = root["extended_params"] as JObject;
+            if (ext != null)
+            {
+                foreach (var group in ext)
+                {
+                    var arr = group.Value as JArray;
+                    if (arr == null) continue;
+                    foreach (JObject item in arr)
+                    {
+                        string name = item["param_name"]?.ToString();
+                        string guidStr = item["guid"]?.ToString();
+                        if (!string.IsNullOrEmpty(name) && Guid.TryParse(guidStr, out Guid g))
+                        {
+                            _guidByName[name] = g;
+                            _nameByGuid[g] = name;
+                        }
+                    }
+                }
+            }
+
+            // Warning thresholds — add GUIDs to lookup
+            foreach (var wt in WarningThresholds.Values)
+            {
+                if (System.Guid.TryParse(wt.Guid, out Guid wg))
+                {
+                    _guidByName[wt.ParamName] = wg;
+                    _nameByGuid[wg] = wt.ParamName;
+                }
+            }
+        }
+
+        private static void BuildUniversalParams(JObject root)
+        {
+            var list = new List<string>();
+            // All source tokens are universal
+            list.AddRange(AllTokenParams);
+            // All universal container params
+            if (ContainerGroups.Length > 0 && ContainerGroups[0].Categories == null)
+            {
+                foreach (var p in ContainerGroups[0].Params)
+                    list.Add(p.ParamName);
+            }
+            // Support params
+            var supArr = root["support_params"] as JArray;
+            if (supArr != null)
+            {
+                foreach (JObject s in supArr)
+                {
+                    string name = s["param_name"]?.ToString();
+                    if (!string.IsNullOrEmpty(name))
+                        list.Add(name);
+                }
+            }
+            UniversalParams = list.Distinct().ToArray();
+        }
+
+        private static void BuildDisciplineCategoryNames()
+        {
+            _disciplineCategoryNames = new Dictionary<string, string[]>(StringComparer.Ordinal);
+            foreach (var group in ContainerGroups)
+            {
+                if (group.Categories == null) continue;
+                foreach (var param in group.Params)
+                    _disciplineCategoryNames[param.ParamName] = group.Categories;
+            }
+        }
+
+        private static void BuildCategoryIndex()
+        {
+            _containersByCategory = new Dictionary<string, List<ContainerParamDef>>(StringComparer.OrdinalIgnoreCase);
+            // Use _allContainers directly (not the AllContainers property) to avoid
+            // re-entering EnsureLoaded() if this is called during loading
+            if (_allContainers == null)
+                _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+            foreach (var c in _allContainers)
+            {
+                if (c.Categories == null) continue;
+                foreach (string cat in c.Categories)
+                {
+                    if (!_containersByCategory.TryGetValue(cat, out var list))
+                    {
+                        list = new List<ContainerParamDef>();
+                        _containersByCategory[cat] = list;
+                    }
+                    list.Add(c);
+                }
+            }
+        }
+
+        /// <summary>Fallback defaults matching the original hardcoded values.</summary>
+        private static void LoadDefaults()
+        {
+            _baseSeparator = "-";
+            _baseNumPad = 4;
+            _baseSegmentOrder = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+
+            AllTokenParams = new[]
+            {
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+            };
+
+            SourceTokens = new[]
+            {
+                new TokenDef { Slot = 0, Key = "DISC", ParamName = "ASS_DISCIPLINE_COD_TXT", GuidStr = "8c7dcfd7-f922-52d0-b859-81cae8d17dc0" },
+                new TokenDef { Slot = 1, Key = "LOC",  ParamName = "ASS_LOC_TXT",             GuidStr = "b7469c27-c80e-5b59-b999-1a99ba620cd1" },
+                new TokenDef { Slot = 2, Key = "ZONE", ParamName = "ASS_ZONE_TXT",            GuidStr = "dc0d940f-e4ce-5e73-a0a7-fc7094148c84" },
+                new TokenDef { Slot = 3, Key = "LVL",  ParamName = "ASS_LVL_COD_TXT",        GuidStr = "b1e51fab-fa88-50df-8b2f-bcdbe48e7c78" },
+                new TokenDef { Slot = 4, Key = "SYS",  ParamName = "ASS_SYSTEM_TYPE_TXT",     GuidStr = "2b3658d9-bfc6-56db-9df5-901337fde0f5" },
+                new TokenDef { Slot = 5, Key = "FUNC", ParamName = "ASS_FUNC_TXT",            GuidStr = "1ddff9a8-6e66-4a93-88fe-f3b94fbd5710" },
+                new TokenDef { Slot = 6, Key = "PROD", ParamName = "ASS_PRODCT_COD_TXT",      GuidStr = "082a2a05-3387-5501-b355-51dd45e23e9f" },
+                new TokenDef { Slot = 7, Key = "SEQ",  ParamName = "ASS_SEQ_NUM_TXT",         GuidStr = "bbe1cd55-247b-48bd-94ba-a08031f06d5b" },
+            };
+
+            TAG1 = "ASS_TAG_1_TXT"; TAG2 = "ASS_TAG_2_TXT"; TAG3 = "ASS_TAG_3_TXT";
+            TAG4 = "ASS_TAG_4_TXT"; TAG5 = "ASS_TAG_5_TXT"; TAG6 = "ASS_TAG_6_TXT";
+            TAG7 = "ASS_TAG_7_TXT";
+            TAG7A = "ASS_TAG_7A_TXT"; TAG7B = "ASS_TAG_7B_TXT"; TAG7C = "ASS_TAG_7C_TXT";
+            TAG7D = "ASS_TAG_7D_TXT"; TAG7E = "ASS_TAG_7E_TXT"; TAG7F = "ASS_TAG_7F_TXT";
+            STATUS = "ASS_STATUS_TXT"; DETAIL_NUM = "ASS_INST_DETAIL_NUM_TXT"; MNT_TYPE = "MNT_TYPE_TXT";
+
+            TokenPresets = new Dictionary<string, int[]>
+            {
+                { "all", new[] {0,1,2,3,4,5,6,7} },
+                { "short_id", new[] {0,6,7} },
+                { "location", new[] {1,2,3} },
+                { "system", new[] {4,5} },
+                { "sys_ref", new[] {4,5,6} },
+                { "line1", new[] {0,1,2,3} },
+                { "line2", new[] {4,5,6,7} },
+            };
+
+            // Extended params defaults — use indexer syntax (dict[key] = value) instead
+            // of collection initializer to prevent duplicate-key crashes if keys overlap.
+            _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+            // Identity
+            _extendedParams["ID"] = "ASS_ID_TXT"; _extendedParams["DESC"] = "ASS_DESCRIPTION_TXT";
+            _extendedParams["MFR"] = "ASS_MANUFACTURER_TXT"; _extendedParams["MODEL"] = "ASS_MODEL_NR_TXT";
+            _extendedParams["TYPE_NAME"] = "ASS_TYPE_NAME_TXT"; _extendedParams["FAMILY_NAME"] = "ASS_FAMILY_NAME_TXT";
+            _extendedParams["CAT"] = "ASS_CAT_TXT"; _extendedParams["TYPE_MARK"] = "ASS_TYPE_MARK_TXT";
+            _extendedParams["TYPE_COMMENTS"] = "ASS_TYPE_COMMENTS_TXT"; _extendedParams["KEYNOTE"] = "ASS_KEYNOTE_TXT";
+            _extendedParams["UNIFORMAT"] = "ASS_UNIFORMAT_TXT"; _extendedParams["UNIFORMAT_DESC"] = "ASS_UNIFORMAT_DESC_TXT";
+            _extendedParams["OMNICLASS"] = "ASS_OMNICLASS_TXT"; _extendedParams["SIZE"] = "ASS_SIZE_TXT";
+            _extendedParams["COST"] = "ASS_CST_UNIT_PRICE_UGX_NR"; _extendedParams["PRJ_COMMENTS"] = "PRJ_COMMENTS_TXT";
+            // Spatial
+            _extendedParams["ROOM_NAME"] = "ASS_ROOM_NAME_TXT"; _extendedParams["ROOM_NUM"] = "ASS_ROOM_NUM_TXT";
+            _extendedParams["ROOM_AREA"] = "ASS_ROOM_AREA_SQ_M"; _extendedParams["ROOM_VOLUME"] = "ASS_ROOM_VOLUME_CU_M";
+            _extendedParams["DEPT"] = "ASS_DEPARTMENT_ASSIGNMENT_TXT"; _extendedParams["GRID_REF"] = "PRJ_GRID_REF_TXT";
+            _extendedParams["BLE_ROOM_NAME"] = "BLE_ROOM_NAME_TXT"; _extendedParams["BLE_ROOM_NUM"] = "BLE_ROOM_NUM_TXT";
+            // Extended tokens
+            _extendedParams["ORIGIN"] = "ASS_ORIGIN_TXT"; _extendedParams["PROJECT"] = "ASS_PROJECT_TXT";
+            _extendedParams["REV"] = "ASS_REV_TXT"; _extendedParams["VOLUME"] = "ASS_VOL_TXT";
+            // BLE dimensional
+            _extendedParams["WALL_HEIGHT"] = "BLE_WALL_HEIGHT_MM"; _extendedParams["WALL_LENGTH"] = "BLE_WALL_LENGTH_MM";
+            _extendedParams["WALL_THICKNESS"] = "BLE_WALL_THICKNESS_MM"; _extendedParams["DOOR_WIDTH"] = "BLE_DOOR_WIDTH_MM";
+            _extendedParams["DOOR_HEIGHT"] = "BLE_DOOR_HEIGHT_MM"; _extendedParams["WINDOW_WIDTH"] = "BLE_WINDOW_WIDTH_MM";
+            _extendedParams["WINDOW_HEIGHT"] = "BLE_WINDOW_HEIGHT_MM";
+            _extendedParams["WINDOW_SILL"] = "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM";
+            _extendedParams["FLR_THICKNESS"] = "BLE_FLR_THICKNESS_MM"; _extendedParams["ELE_AREA"] = "BLE_ELE_AREA_SQ_M";
+            _extendedParams["CEILING_HEIGHT"] = "BLE_CEILING_HEIGHT_MM"; _extendedParams["ROOF_SLOPE"] = "BLE_ROOF_SLOPE_DEG";
+            _extendedParams["STAIR_TREAD"] = "BLE_STAIR_GOING_MM"; _extendedParams["STAIR_RISE"] = "BLE_STAIR_RISE_MM";
+            _extendedParams["STAIR_WIDTH"] = "BLE_STAIR_WIDTH_MM"; _extendedParams["RAMP_SLOPE"] = "BLE_RAMP_SLOPE_PCT";
+            _extendedParams["RAMP_WIDTH"] = "BLE_RAMP_WIDTH_MM"; _extendedParams["STRUCT_TYPE"] = "BLE_STRUCT_ELE_TYPE_TXT";
+            _extendedParams["FIRE_RATING"] = "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN";
+            // Electrical
+            _extendedParams["ELC_POWER"] = "ELC_CKT_PWR_KW"; _extendedParams["ELC_VOLTAGE"] = "ELC_CKT_VLT_V";
+            _extendedParams["ELC_CIRCUIT_NR"] = "ELC_CKT_NR"; _extendedParams["ELC_PNL_NAME"] = "ELC_PNL_DESIGNATION_NAME_TXT";
+            _extendedParams["ELC_PNL_VOLTAGE"] = "ELC_VLT_PRIMARY_RATING_V"; _extendedParams["ELC_PHASES"] = "ELC_CKT_PHASE_COUNT_NR";
+            _extendedParams["ELC_PNL_LOAD"] = "ELC_PNL_CONNECTED_LOAD_KW"; _extendedParams["ELC_PNL_FED_FROM"] = "ELC_PNL_FED_FROM_PNL_TXT";
+            _extendedParams["ELC_MAIN_BRK"] = "ELC_PNL_MAIN_BRK_A"; _extendedParams["ELC_WAYS"] = "ELC_PNL_NUM_OF_WAYS_NR";
+            _extendedParams["ELC_IP_RATING"] = "ELC_IP_RATING_TXT";
+            // Lighting
+            _extendedParams["LTG_WATTAGE"] = "LTG_FIX_LMP_WATTAGE_W"; _extendedParams["LTG_LUMENS"] = "CST_FIX_LUMEN_OUTPUT_LM";
+            _extendedParams["LTG_EFFICACY"] = "LTG_FIX_EFFICACY_LM_W"; _extendedParams["LTG_LAMP_TYPE"] = "LTG_FIX_LAMP_TYPE_TXT";
+            // HVAC
+            _extendedParams["HVC_DUCT_FLOW"] = "HVC_DCT_FLW_CFM"; _extendedParams["HVC_VELOCITY"] = "HVC_VEL_MPS";
+            _extendedParams["HVC_PRESSURE"] = "HVC_PRESSURE_DROP_PA"; _extendedParams["HVC_AIRFLOW"] = "HVC_AIRFLOW_LPS";
+            // Plumbing
+            _extendedParams["PLM_PIPE_FLOW"] = "PLM_PPE_FLW_LPS"; _extendedParams["PLM_PIPE_SIZE"] = "PLM_PPE_SZ_MM";
+            _extendedParams["PLM_VELOCITY"] = "PLM_VEL_MPS"; _extendedParams["PLM_FLOW_RATE"] = "PLM_FLOW_RATE_LPS";
+            _extendedParams["PLM_PIPE_LENGTH"] = "PLM_PPE_LENGTH_M";
+            // Volume, length, head heights, function
+            _extendedParams["ELE_VOLUME"] = "BLE_ELE_VOLUME_CU_M"; _extendedParams["ELE_LENGTH"] = "BLE_ELE_LENGTH_M";
+            _extendedParams["DOOR_HEAD_HT"] = "BLE_DOOR_HEAD_HEIGHT_MM"; _extendedParams["DOOR_FUNC"] = "BLE_DOOR_FUNCTION_TXT";
+            _extendedParams["WINDOW_HEAD_HT"] = "BLE_WINDOW_HEAD_HEIGHT_MM";
+            // Room finishes
+            _extendedParams["ROOM_FINISH_FLR"] = "BLE_ROOM_FINISH_FLOOR_TXT";
+            _extendedParams["ROOM_FINISH_WALL"] = "BLE_ROOM_FINISH_WALL_TXT";
+            _extendedParams["ROOM_FINISH_CLG"] = "BLE_ROOM_FINISH_CEILING_TXT";
+            _extendedParams["ROOM_FINISH_BASE"] = "BLE_ROOM_FINISH_BASE_TXT";
+            // Duct dimensions
+            _extendedParams["HVC_DUCT_WIDTH"] = "HVC_DCT_WIDTH_MM"; _extendedParams["HVC_DUCT_HEIGHT"] = "HVC_DCT_HEIGHT_MM";
+            _extendedParams["HVC_INSULATION"] = "HVC_INS_THICKNESS_MM"; _extendedParams["HVC_DUCT_LENGTH"] = "HVC_DCT_LENGTH_M";
+            // ISO 19650 naming
+            _extendedParams["PROJECT_COD"] = "ASS_PROJECT_COD_TXT"; _extendedParams["ORIGINATOR_COD"] = "ASS_ORIGINATOR_COD_TXT";
+            _extendedParams["VOLUME_COD"] = "ASS_VOLUME_COD_TXT"; _extendedParams["STATUS_COD"] = "ASS_STATUS_COD_TXT";
+            _extendedParams["REV_COD"] = "ASS_REV_COD_TXT";
+            // Paragraph containers
+            _extendedParams["PARA_WALL"] = "ARCH_TAG_7_PARA_WALL_TXT"; _extendedParams["PARA_FLOOR"] = "ARCH_TAG_7_PARA_FLOOR_TXT";
+            _extendedParams["PARA_CEIL"] = "ARCH_TAG_7_PARA_CEIL_TXT"; _extendedParams["PARA_ROOF"] = "ARCH_TAG_7_PARA_ROOF_TXT";
+            _extendedParams["PARA_DOOR"] = "ARCH_TAG_7_PARA_DOOR_TXT"; _extendedParams["PARA_WIN"] = "ARCH_TAG_7_PARA_WIN_TXT";
+            _extendedParams["PARA_STAIR"] = "ARCH_TAG_7_PARA_STAIR_TXT"; _extendedParams["PARA_RAMP"] = "ARCH_TAG_7_PARA_RAMP_TXT";
+            _extendedParams["PARA_ROOM"] = "ARCH_TAG_7_PARA_ROOM_TXT"; _extendedParams["PARA_FACADE"] = "ARCH_TAG_7_PARA_FACADE_TXT";
+            _extendedParams["PARA_CASEWORK"] = "ARCH_TAG_7_PARA_CASEWORK_TXT"; _extendedParams["PARA_FURNITURE"] = "ARCH_TAG_7_PARA_FURNITURE_TXT";
+            _extendedParams["PARA_STR_FDN"] = "STR_TAG_7_PARA_FDN_TXT"; _extendedParams["PARA_STR_COL"] = "STR_TAG_7_PARA_COL_TXT";
+            _extendedParams["PARA_STR_BEAM"] = "STR_TAG_7_PARA_BEAM_TXT";
+            _extendedParams["PARA_HVC_SPEC"] = "HVC_TAG_7_PARA_SPEC_TXT"; _extendedParams["PARA_HVC_DUCT"] = "HVC_TAG_7_PARA_DUCT_TXT";
+            _extendedParams["PARA_HVC_AT"] = "HVC_TAG_7_PARA_AT_TXT";
+            // MEP paragraph containers
+            _extendedParams["PARA_ELC_PANEL"] = "ELC_TAG_7_PARA_PANEL_TXT"; _extendedParams["PARA_ELC_CIRCUIT"] = "ELC_TAG_7_PARA_CIRCUIT_TXT";
+            _extendedParams["PARA_LTG_SPEC"] = "LTG_TAG_7_PARA_SPEC_TXT";
+            _extendedParams["PARA_PLM_FIXTURE"] = "PLM_TAG_7_PARA_FIXTURE_TXT"; _extendedParams["PARA_PLM_PIPE"] = "PLM_TAG_7_PARA_PIPE_TXT";
+            _extendedParams["PARA_FLS_FA"] = "FLS_TAG_7_PARA_FA_TXT"; _extendedParams["PARA_FLS_SPR"] = "FLS_TAG_7_PARA_SPR_TXT";
+            _extendedParams["PARA_COM_BMS"] = "COM_TAG_7_PARA_BMS_TXT";
+            // Extended paragraph containers (v4.3)
+            _extendedParams["PARA_HVC_FLEXDUCT"] = "HVC_TAG_7_PARA_FLEXDUCT_TXT"; _extendedParams["PARA_HVC_DCTACC"] = "HVC_TAG_7_PARA_DCTACC_TXT";
+            _extendedParams["PARA_ELC_CONDUIT"] = "ELC_TAG_7_PARA_CONDUIT_TXT"; _extendedParams["PARA_ELC_TRAY"] = "ELC_TAG_7_PARA_TRAY_TXT";
+            _extendedParams["PARA_ELC_CABLE"] = "ELC_TAG_7_PARA_CABLE_TXT";
+            _extendedParams["PARA_PLM_EQUIP"] = "PLM_TAG_7_PARA_EQUIP_TXT"; _extendedParams["PARA_PLM_PIPEACC"] = "PLM_TAG_7_PARA_PIPEACC_TXT";
+            _extendedParams["PARA_PLM_DRAIN"] = "PLM_TAG_7_PARA_DRAIN_TXT";
+            _extendedParams["PARA_ICT_DATA"] = "ICT_TAG_7_PARA_DATA_TXT"; _extendedParams["PARA_NCL"] = "NCL_TAG_7_PARA_TXT";
+            _extendedParams["PARA_SEC"] = "SEC_TAG_7_PARA_TXT"; _extendedParams["PARA_ASS_EQUIP"] = "ASS_TAG_7_PARA_EQUIP_TXT";
+            _extendedParams["PARA_RGL_CMPL"] = "RGL_TAG_7_PARA_CMPL_TXT"; _extendedParams["PARA_PER_ENV"] = "PER_TAG_7_PARA_ENV_TXT";
+            _extendedParams["PARA_CST_CONC"] = "CST_TAG_7_PARA_CONC_TXT";
+            // v5.0 paragraph containers (new categories)
+            _extendedParams["PARA_FURN_SYS"] = "ARCH_TAG_7_PARA_FURN_SYS_TXT";
+            _extendedParams["PARA_PARKING"] = "ARCH_TAG_7_PARA_PARKING_TXT";
+            _extendedParams["PARA_SITE"] = "ARCH_TAG_7_PARA_SITE_TXT";
+            _extendedParams["PARA_TEL"] = "ICT_TAG_7_PARA_TEL_TXT";
+            _extendedParams["PARA_AV_DEV"] = "ICT_TAG_7_PARA_AV_DEV_TXT";
+            _extendedParams["PARA_MED_EQUIP"] = "MED_TAG_7_PARA_MED_EQUIP_TXT";
+            _extendedParams["PARA_FIRE_PROT"] = "FLS_TAG_7_PARA_FIRE_PROT_TXT";
+            _extendedParams["PARA_MECH_CTRL"] = "HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT";
+            _extendedParams["PARA_MECH_SETS"] = "HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT";
+            _extendedParams["PARA_DUCT_INS"] = "HVC_TAG_7_PARA_DUCT_INSULATION_TXT";
+            _extendedParams["PARA_DUCT_LINING"] = "HVC_TAG_7_PARA_DUCT_LINING_TXT";
+            _extendedParams["PARA_PIPE_INS"] = "PLM_TAG_7_PARA_PIPE_INSULATION_TXT";
+            _extendedParams["PARA_PLM_EQUIP2"] = "PLM_TAG_7_PARA_PLM_EQUIP_TXT";
+            _extendedParams["PARA_ELC_CONN"] = "ELC_TAG_7_PARA_ELC_CONNECTORS_TXT";
+            _extendedParams["PARA_FAB_CONT"] = "ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT";
+            _extendedParams["PARA_FAB_DUCT"] = "HVC_TAG_7_PARA_FAB_DUCTWORK_TXT";
+            _extendedParams["PARA_FAB_STIFF"] = "HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT";
+            _extendedParams["PARA_FAB_HANG"] = "MEP_TAG_7_PARA_FAB_HANGERS_TXT";
+            _extendedParams["PARA_FAB_PIPE"] = "PLM_TAG_7_PARA_FAB_PIPEWORK_TXT";
+            _extendedParams["PARA_ANCILLARY"] = "MEP_TAG_7_PARA_ANCILLARY_TXT";
+            _extendedParams["PARA_MATERIALS"] = "PROP_TAG_7_PARA_MATERIALS_TXT";
+            _extendedParams["PARA_CURTAIN_PNL"] = "BLE_TAG_7_PARA_CURTAIN_PANELS_TXT";
+            _extendedParams["PARA_CURTAIN_MUL"] = "BLE_TAG_7_PARA_CURTAIN_MULLIONS_TXT";
+            _extendedParams["PARA_WALL_SWEEP"] = "BLE_TAG_7_PARA_WALL_SWEEPS_TXT";
+            _extendedParams["PARA_SLAB_EDGE"] = "BLE_TAG_7_PARA_SLAB_EDGES_TXT";
+            _extendedParams["PARA_ROOF_SOFFIT"] = "BLE_TAG_7_PARA_ROOF_SOFFITS_TXT";
+            _extendedParams["PARA_FASCIA"] = "BLE_TAG_7_PARA_FASCIA_TXT";
+            _extendedParams["PARA_GUTTER"] = "BLE_TAG_7_PARA_GUTTER_TXT";
+            _extendedParams["PARA_HANDRAILS"] = "BLE_TAG_7_PARA_HANDRAILS_TXT";
+            _extendedParams["PARA_RAILINGS"] = "BLE_TAG_7_PARA_RAILINGS_TXT";
+            _extendedParams["PARA_TOP_RAILS"] = "BLE_TAG_7_PARA_TOP_RAILS_TXT";
+            _extendedParams["PARA_STAIR_RUNS"] = "BLE_TAG_7_PARA_STAIR_RUNS_TXT";
+            _extendedParams["PARA_STAIR_LAND"] = "BLE_TAG_7_PARA_STAIR_LANDINGS_TXT";
+            _extendedParams["PARA_STAIR_SUPP"] = "BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT";
+            // Warning thresholds
+            _extendedParams["ELC_PNL_RATED"] = "ELC_PNL_RATED_BOOL";
+            _extendedParams["WARN_RAMP_SLOPE"] = "WARN_BLE_RAMP_SLOPE_PCT_RAMPS";
+            _extendedParams["WARN_VLT_DROP"] = "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI";
+            _extendedParams["WARN_SPR_COVER"] = "WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR";
+            _extendedParams["WARN_NOISE"] = "WARN_HVC_DCT_SOUNDLVL_DB";
+            _extendedParams["WARN_COP_EER"] = "WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI";
+            _extendedParams["WARN_FLEX_VEL"] = "WARN_HVC_VEL_MPS_FLEX_DUCTS";
+            _extendedParams["WARN_CARBON"] = "WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__";
+            _extendedParams["WARN_UVAL_FLR"] = "WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS";
+            _extendedParams["WARN_UVAL_ROOF"] = "WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS";
+            _extendedParams["WARN_UVAL_WALL"] = "WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS";
+            _extendedParams["WARN_HW_FLOW"] = "WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE";
+            _extendedParams["WARN_ACCESS_WIDTH"] = "WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C";
+            // ISO 19650 project-level naming (PRJ_ prefix variants)
+            _extendedParams["PRJ_PROJECT_COD"] = "PRJ_PROJECT_COD_TXT"; _extendedParams["PRJ_ORIGINATOR_COD"] = "PRJ_ORIGINATOR_COD_TXT";
+            _extendedParams["PRJ_VOLUME_COD"] = "PRJ_VOLUME_COD_TXT"; _extendedParams["PRJ_STATUS_COD"] = "PRJ_STATUS_COD_TXT";
+            _extendedParams["PRJ_REV_COD"] = "PRJ_REV_COD_TXT";
+            // COBie / warranty / commissioning / asset management
+            _extendedParams["BARCODE"] = "ASS_BARCODE_TXT"; _extendedParams["ASSET_ID"] = "ASS_ASSET_ID_TXT";
+            _extendedParams["CONDITION"] = "ASS_CONDITION_TXT"; _extendedParams["WARRANTY_START"] = "ASS_WARRANTY_START_TXT";
+            _extendedParams["WARR_GUAR_PARTS"] = "ASS_WARRANTY_PARTS_TXT"; _extendedParams["WARR_DUR_PARTS"] = "ASS_WARRANTY_DURATION_PARTS_YRS";
+            _extendedParams["WARR_GUAR_LABOR"] = "ASS_WARRANTY_LABOR_TXT"; _extendedParams["WARR_DUR_LABOR"] = "ASS_WARRANTY_DURATION_LABOR_YRS";
+            _extendedParams["WARR_DUR_UNIT"] = "ASS_WARRANTY_DUR_UNIT_TXT"; _extendedParams["MODEL_REF"] = "ASS_MODEL_REF_TXT";
+
+            ContainerGroups = Array.Empty<ContainerGroupDef>();
+            UniversalParams = new[]
+            {
+                "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
+                "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
+                "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+                "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
+                "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
+                "ASS_STATUS_TXT", "ASS_INST_DETAIL_NUM_TXT", "MNT_TYPE_TXT",
+            };
+
+            // CRASH FIX: Initialize GUID maps from SourceTokens when JSON is missing.
+            // Without this, _guidByName stays null → AllParamGuids returns empty dict →
+            // all GUID lookups fail → compliance scan fails → commands that check GUIDs crash.
+            _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+            _nameByGuid = new Dictionary<Guid, string>();
+            foreach (var tok in SourceTokens)
+            {
+                if (Guid.TryParse(tok.GuidStr, out Guid g))
+                {
+                    _guidByName[tok.ParamName] = g;
+                    _nameByGuid[g] = tok.ParamName;
+                }
+            }
+
+            // CRASH FIX: Initialize CategoryEnumMap with all 124 taggable categories.
+            // Without this, ResolveUniversalCategoryEnums() returns empty array →
+            // AllCategoryEnums = empty → BuildCategorySet = empty → 0 params bound →
+            // LoadSharedParamsCommand silently does nothing, leaving project unconfigured.
+            CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Air Terminals", "OST_DuctTerminal" },
+                { "Analytical Duct Segments", "OST_AnalyticalDuctSegments" },
+                { "Analytical Links", "OST_AnalyticalLinks" },
+                { "Analytical Members", "OST_AnalyticalMember" },
+                { "Analytical Nodes", "OST_AnalyticalNodes" },
+                { "Analytical Openings", "OST_AnalyticalOpenings" },
+                { "Analytical Panels", "OST_AnalyticalPanels" },
+                { "Analytical Pipe Segments", "OST_AnalyticalPipeSegments" },
+                { "Area Based Loads", "OST_AreaLoads" },
+                { "Area Loads", "OST_AreaLoads" },
+                { "Areas", "OST_Areas" },
+                { "Assemblies", "OST_Assemblies" },
+                { "Audio Visual Devices", "OST_AudioVisualDevices" },
+                { "Boundary Conditions", "OST_BoundaryConditions" },
+                { "Cable Tray Fittings", "OST_CableTrayFitting" },
+                { "Cable Tray Runs", "OST_CableTrayRun" },
+                { "Cable Trays", "OST_CableTray" },
+                { "Casework", "OST_Casework" },
+                { "Ceilings", "OST_Ceilings" },
+                { "Columns", "OST_Columns" },
+                { "Communication Devices", "OST_CommunicationDevices" },
+                { "Conduit Fittings", "OST_ConduitFitting" },
+                { "Conduit Runs", "OST_ConduitRun" },
+                { "Conduits", "OST_Conduit" },
+                { "Coordination Model", "OST_CoordinationModel" },
+                { "Curtain Panels", "OST_CurtainWallPanels" },
+                { "Curtain Wall Mullions", "OST_CurtainWallMullions" },
+                { "Curtain Systems", "OST_Curtain_Systems" },
+                { "Data Devices", "OST_DataDevices" },
+                { "Detail Items", "OST_DetailComponents" },
+                { "Doors", "OST_Doors" },
+                { "Duct Accessories", "OST_DuctAccessory" },
+                { "Duct Fittings", "OST_DuctFitting" },
+                { "Duct Insulation", "OST_DuctInsulations" },
+                { "Duct Lining", "OST_DuctLinings" },
+                { "Duct Placeholders", "OST_PlaceHolderDucts" },
+                { "Ducts", "OST_DuctCurves" },
+                { "Electrical Circuits", "OST_ElectricalCircuit" },
+                { "Electrical Connectors", "OST_ElectricalConnectors" },
+                { "Electrical Equipment", "OST_ElectricalEquipment" },
+                { "Electrical Spare/Space Circuits", "OST_ElectricalInternalCircuits" },
+                { "Electrical Fixtures", "OST_ElectricalFixtures" },
+                { "Entourage", "OST_Entourage" },
+                { "Fascia", "OST_Fascia" },
+                { "Fire Alarm Devices", "OST_FireAlarmDevices" },
+                { "Fire Protection", "OST_FireProtection" },
+                { "Flex Ducts", "OST_FlexDuctCurves" },
+                { "Flex Pipes", "OST_FlexPipeCurves" },
+                { "Floors", "OST_Floors" },
+                { "Food Service Equipment", "OST_FoodServiceEquipment" },
+                { "Furniture", "OST_Furniture" },
+                { "Furniture Systems", "OST_FurnitureSystems" },
+                { "Generic Models", "OST_GenericModel" },
+                { "Gutter", "OST_Gutter" },
+                { "HVAC Zones", "OST_HVAC_Zones" },
+                { "Handrails", "OST_StairsRailingHandRail" },
+                { "Hardscape", "OST_Hardscape" },
+                { "Internal Area Loads", "OST_InternalAreaLoads" },
+                { "Internal Line Loads", "OST_InternalLineLoads" },
+                { "Internal Point Loads", "OST_InternalPointLoads" },
+                { "Lighting Devices", "OST_LightingDevices" },
+                { "Lighting Fixtures", "OST_LightingFixtures" },
+                { "Line Loads", "OST_LineLoads" },
+                { "MEP Ancillary", "OST_MechanicalEquipment" },
+                { "MEP Fabrication Containment", "OST_FabricationContainment" },
+                { "MEP Fabrication Ductwork", "OST_FabricationDuctwork" },
+                { "MEP Fabrication Ductwork Stiffeners", "OST_FabricationDuctworkStiffeners" },
+                { "MEP Fabrication Hangers", "OST_FabricationHangers" },
+                { "MEP Fabrication Pipework", "OST_FabricationPipework" },
+                { "Mass", "OST_Mass" },
+                // NOTE: OST_Materials intentionally EXCLUDED — materials use native Revit
+                // properties (Color, Transparency, ThermalAsset, StructuralAsset) set via
+                // MaterialCommands.cs, NOT shared parameter bindings.
+                { "Mechanical Control Devices", "OST_MechanicalControlDevices" },
+                { "Mechanical Equipment", "OST_MechanicalEquipment" },
+                { "Mechanical Equipment Sets", "OST_MechanicalEquipmentSets" },
+                { "Medical Equipment", "OST_MedicalEquipment" },
+                { "Model Groups", "OST_IOSModelGroups" },
+                { "Nurse Call Devices", "OST_NurseCallDevices" },
+                { "Pads", "OST_BuildingPad" },
+                { "Parking", "OST_Parking" },
+                { "Parts", "OST_Parts" },
+                { "Pipe Accessories", "OST_PipeAccessory" },
+                { "Pipe Fittings", "OST_PipeFitting" },
+                { "Pipe Insulation", "OST_PipeInsulations" },
+                { "Pipe Placeholders", "OST_PlaceHolderPipes" },
+                { "Pipes", "OST_PipeCurves" },
+                { "Piping Systems", "OST_PipingSystem" },
+                { "Planting", "OST_Planting" },
+                { "Plumbing Equipment", "OST_PlumbingEquipment" },
+                { "Plumbing Fixtures", "OST_PlumbingFixtures" },
+                { "Point Loads", "OST_PointLoads" },
+                { "Profiles", "OST_ProfileFamilies" },
+                { "Property Line Segments", "OST_SitePropertyLineSegment" },
+                { "Property Lines", "OST_SiteProperty" },
+                { "RVT Links", "OST_RvtLinks" },
+                { "Railings", "OST_StairsRailing" },
+                { "Ramps", "OST_Ramps" },
+                { "Revision Clouds", "OST_RevisionClouds" },
+                { "Roads", "OST_Roads" },
+                { "Roof Soffits", "OST_RoofSoffit" },
+                { "Roofs", "OST_Roofs" },
+                { "Rooms", "OST_Rooms" },
+                { "Shaft Openings", "OST_ShaftOpening" },
+                { "Security Devices", "OST_SecurityDevices" },
+                { "Signage", "OST_Signage" },
+                { "Site", "OST_Site" },
+                { "Slab Edges", "OST_EdgeSlab" },
+                { "Spaces", "OST_MEPSpaces" },
+                { "Specialty Equipment", "OST_SpecialityEquipment" },
+                { "Sprinklers", "OST_Sprinklers" },
+                { "Stair Landings", "OST_StairsLandings" },
+                { "Stair Runs", "OST_StairsRuns" },
+                { "Stair Supports", "OST_StairsSupports" },
+                { "Stairs", "OST_Stairs" },
+                { "Structural Area Reinforcement", "OST_AreaRein" },
+                { "Structural Beam Systems", "OST_StructuralFramingSystem" },
+                { "Structural Columns", "OST_StructuralColumns" },
+                { "Structural Connections", "OST_StructConnections" },
+                { "Structural Fabric Reinforcement", "OST_FabricReinforcement" },
+                { "Structural Foundations", "OST_StructuralFoundation" },
+                { "Structural Framing", "OST_StructuralFraming" },
+                { "Structural Path Reinforcement", "OST_PathRein" },
+                { "Structural Rebar", "OST_Rebar" },
+                { "Structural Load Cases", "OST_LoadCases" },
+                { "Structural Rebar Couplers", "OST_RebarCoupler" },
+                { "Structural Stiffeners", "OST_StructuralStiffener" },
+                { "Structural Trusses", "OST_StructuralTruss" },
+                { "Telephone Devices", "OST_TelephoneDevices" },
+                { "Temporary Structures", "OST_TemporaryStructure" },
+                { "Top Rails", "OST_RailingTopRail" },
+                { "Toposolid", "OST_Toposolid" },
+                { "Toposolid Links", "OST_Toposolid" },
+                { "Vertical Circulation", "OST_VerticalCirculation" },
+                { "Vibration Dampers", "OST_VibrationDampers" },
+                { "Vibration Isolators", "OST_VibrationIsolators" },
+                { "Vibration Management", "OST_VibrationManagement" },
+                { "Wall Sweeps", "OST_WallSweeps" },
+                { "Walls", "OST_Walls" },
+                { "Wash", "OST_Planting" },
+                { "Windows", "OST_Windows" },
+                { "Wire", "OST_Wire" },
+                { "Zones", "OST_Zones" },
+            };
+
+            // Set UniversalCategories to the full category list so
+            // ResolveUniversalCategoryEnums returns all categories even without JSON.
+            // CRITICAL: Exclude "Materials" — material-specific params are bound via
+            // BuildGroupCategoryOverrides() in LoadSharedParamsCommand. Including Materials
+            // here would bind ALL 2300+ parameters to OST_Materials, polluting every
+            // material's custom properties panel in Revit.
+            UniversalCategories = CategoryEnumMap.Keys
+                .Where(k => !k.Equals("Materials", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            StingLog.Info($"LoadDefaults: {_guidByName.Count} GUIDs, {CategoryEnumMap.Count} categories (v5.0), {UniversalParams.Length} universal params");
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Helper: assemble container value from token values
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Assemble a container tag string from token values using the container's
+        /// token indices and separator. Shared logic used by all combine/build commands.
+        /// </summary>
+        public static string AssembleContainer(ContainerParamDef container, string[] tokenValues)
+        {
+            if (container.TokenIndices == null || container.TokenIndices.Length == 0)
+                return "";
+            var parts = new List<string>();
+            bool anyValue = false;
+            foreach (int idx in container.TokenIndices)
+            {
+                string val = idx >= 0 && idx < tokenValues.Length ? tokenValues[idx] : "";
+                parts.Add(val);
+                if (!string.IsNullOrEmpty(val)) anyValue = true;
+            }
+            if (!anyValue) return "";
+
+            string assembled = string.Join(container.Separator, parts);
+            if (!string.IsNullOrEmpty(container.Prefix)) assembled = container.Prefix + assembled;
+            if (!string.IsNullOrEmpty(container.Suffix)) assembled = assembled + container.Suffix;
+            return assembled;
+        }
+
+        /// <summary>
+        /// Read all 8 token values from an element into an array matching AllTokenParams order.
+        /// </summary>
+        public static string[] ReadTokenValues(Element el)
+        {
+            EnsureLoaded();
+            string[] values = new string[AllTokenParams.Length];
+            for (int i = 0; i < AllTokenParams.Length; i++)
+                values[i] = ParameterHelpers.GetString(el, AllTokenParams[i]);
+            return values;
+        }
+
+        /// <summary>
+        /// Write all applicable containers for an element based on its category.
+        /// Returns count of containers written.
+        /// TAG7 is always skipped here — it requires the narrative builder
+        /// (TagConfig.BuildTag7Narrative) rather than simple token concatenation.
+        /// </summary>
+        // FUT-20: Discipline-to-container prefix mapping for selective writes.
+        // Elements with DISC=M skip ELC_*, PLM_*, FLS_*, COM_*, etc. containers.
+        private static readonly Dictionary<string, HashSet<string>> _discContainerPrefixes =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["M"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "HVC_", "MAT_" },
+                ["E"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "ELC_", "ELE_", "LTG_", "MAT_" },
+                ["P"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "PLM_", "MAT_" },
+                ["A"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "MAT_" },
+                ["S"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "STR_", "MAT_" },
+                ["FP"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "FLS_", "MAT_" },
+                ["LV"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "COM_", "SEC_", "NCL_", "ICT_", "MAT_" },
+                ["G"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "MAT_" },
+            };
+
+        /// <summary>FUT-20: Check if a container param is relevant for the given discipline.</summary>
+        private static bool IsContainerRelevantForDisc(string paramName, string disc)
+        {
+            if (string.IsNullOrEmpty(disc) || !_discContainerPrefixes.TryGetValue(disc, out var prefixes))
+                return true; // Unknown discipline — write all containers
+            foreach (string prefix in prefixes)
+            {
+                if (paramName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        public static int WriteContainers(Element el, string[] tokenValues, string categoryName,
+            bool overwrite = true, string skipParam = null)
+        {
+            if (tokenValues == null || tokenValues.Length < 8) return 0;
+            int written = 0;
+
+            // FUT-20: Get discipline code for selective container writes (60-80% fewer writes)
+            string disc = tokenValues.Length > 0 ? tokenValues[0] : null;
+
+            var containers = ContainersForCategory(categoryName);
+            foreach (var c in containers)
+            {
+                if (c.ParamName == skipParam) continue;
+                // TAG7 + sub-sections use the narrative builder, not token concatenation
+                if (IsTag7Param(c.ParamName)) continue;
+
+                // FUT-20: Skip containers not relevant for this element's discipline
+                if (!IsContainerRelevantForDisc(c.ParamName, disc)) continue;
+
+                string assembled = AssembleContainer(c, tokenValues);
+                if (!string.IsNullOrEmpty(assembled))
+                {
+                    if (ParameterHelpers.SetString(el, c.ParamName, assembled, overwrite))
+                        written++;
+                    else
+                        StingLog.Warn($"WriteContainers: failed to write {c.ParamName} on element {el.Id.Value}");
+                }
+            }
+            return written;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Data types
+        // ════════════════════════════════════════════════════════════════
+
+        public class TokenDef
+        {
+            public int Slot { get; set; }
+            public string Key { get; set; }
+            public string ParamName { get; set; }
+            public string GuidStr { get; set; }
+            public string Description { get; set; }
+        }
+
+        public class ContainerGroupDef
+        {
+            public string Group { get; set; }
+            public string GroupCode { get; set; }
+            public string[] Categories { get; set; }
+            public ContainerParamDef[] Params { get; set; }
+        }
+
+        public class ContainerParamDef
+        {
+            public string ParamName { get; set; }
+            public string GuidStr { get; set; }
+            public int[] TokenIndices { get; set; }
+            public string TokenPresetName { get; set; }
+            public string Separator { get; set; }
+            public string Prefix { get; set; }
+            public string Suffix { get; set; }
+            public string Description { get; set; }
+            public string[] Categories { get; set; }
+        }
+    }
+}

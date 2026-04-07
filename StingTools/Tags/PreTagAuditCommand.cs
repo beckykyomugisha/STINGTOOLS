@@ -1,0 +1,625 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using StingTools.Core;
+
+namespace StingTools.Tags
+{
+    /// <summary>
+    /// Pre-Tag Audit: the highest-logic step in the tagging workflow.
+    /// Performs a complete dry-run of the tagging process WITHOUT writing anything,
+    /// predicting exactly what will happen before the user commits.
+    ///
+    /// Reports:
+    ///   - How many elements will be tagged vs skipped
+    ///   - How many collisions will occur and how they'll be resolved
+    ///   - Missing tokens that need attention before tagging
+    ///   - ISO 19650 code violations found on existing tags
+    ///   - Per-discipline breakdown
+    ///   - Elements that will receive family-aware PROD codes
+    ///   - LOC/ZONE values that will be auto-detected from spatial data
+    ///   - STATUS predictions from Revit phase/workset analysis
+    ///   - REV coverage from project revision sequence
+    ///   - Phase mismatch warnings (detected vs existing STATUS)
+    ///
+    /// This is the "measure twice, cut once" approach — eliminates surprises.
+    /// </summary>
+    /// <summary>
+    /// Describes a single audit issue found during pre-tag audit.
+    /// Stored in <see cref="PreTagAuditCommand.LastAuditIssues"/> for
+    /// downstream integration (e.g., AnomalyAutoFixCommand).
+    /// </summary>
+    public class AuditIssue
+    {
+        public ElementId ElementId { get; set; }
+        public string IssueType { get; set; }
+        public string Description { get; set; }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PreTagAuditCommand : IExternalCommand
+    {
+        /// <summary>Most recent audit issues from the last run.</summary>
+        private static List<AuditIssue> _lastAuditIssues;
+        private static DateTime _lastAuditTime = DateTime.MinValue;
+
+        /// <summary>Read the most recent audit issues (null if no audit has been run).</summary>
+        public static List<AuditIssue> LastAuditIssues => _lastAuditIssues;
+
+        /// <summary>Timestamp of the last audit run.</summary>
+        public static DateTime LastAuditTime => _lastAuditTime;
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            var sw = Stopwatch.StartNew();
+
+            double scanBefore = ComplianceScan.Scan(doc).CompliancePercent;
+
+            // Scope selection
+            TaskDialog scopeDlg = new TaskDialog("Pre-Tag Audit");
+            scopeDlg.MainInstruction = "Audit scope — predict tag assignments";
+            scopeDlg.MainContent =
+                "This is a READ-ONLY audit. No changes will be made.\n" +
+                "It predicts exactly what tagging will do before you commit.";
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Active View", "Audit elements visible in current view");
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Entire Project", "Audit all taggable elements in the model");
+            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            List<Element> targetElements;
+            string scopeLabel;
+            switch (scopeDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1:
+                    if (doc.ActiveView == null) { TaskDialog.Show("Pre-Tag Audit", "No active view."); return Result.Failed; }
+                    {
+                        var auditViewColl = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                            .WhereElementIsNotElementType();
+                        var auditCatEnums = SharedParamGuids.AllCategoryEnums;
+                        if (auditCatEnums != null && auditCatEnums.Length > 0)
+                            auditViewColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(auditCatEnums)));
+                        targetElements = auditViewColl.ToList();
+                    }
+                    scopeLabel = $"active view '{doc.ActiveView.Name}'";
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    {
+                        var auditProjColl = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType();
+                        var auditCatEnums = SharedParamGuids.AllCategoryEnums;
+                        if (auditCatEnums != null && auditCatEnums.Length > 0)
+                            auditProjColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(auditCatEnums)));
+                        targetElements = auditProjColl.ToList();
+                    }
+                    scopeLabel = "entire project";
+                    break;
+                default:
+                    return Result.Cancelled;
+            }
+
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            string projectRev = PhaseAutoDetect.DetectProjectRevision(doc);
+
+            // Counters
+            int totalTaggable = 0;
+            int alreadyTagged = 0;
+            int willBeTagged = 0;
+            int willBeSkipped = 0;
+            int predictedCollisions = 0;
+            int missingLocCount = 0;
+            int missingZoneCount = 0;
+            int locWillAutoDetect = 0;
+            int zoneWillAutoDetect = 0;
+            int familyProdCount = 0;
+            int isoViolations = 0;
+            int missingTokenElements = 0;
+
+            // STATUS/REV prediction counters
+            int statusMissing = 0, statusWillAutoDetect = 0;
+            int revMissing = 0, revWillAutoSet = 0;
+            int phaseMismatches = 0;
+            var statusDistribution = new Dictionary<string, int>();
+
+            // Per-discipline stats
+            var discStats = new Dictionary<string, (int total, int tagged, int untagged, int violations)>();
+
+            // Token coverage
+            var emptyTokenCounts = new Dictionary<string, int>();
+            string[] tokenParams = ParamRegistry.AllTokenParams;
+            foreach (string t in tokenParams) emptyTokenCounts[t] = 0;
+
+            // Family PROD intelligence
+            var familyProdBreakdown = new Dictionary<string, int>();
+
+            // Collect audit issues for downstream auto-fix integration
+            var auditIssues = new List<AuditIssue>();
+
+            // Simulate tagging
+            var simTags = new HashSet<string>(existingTags, StringComparer.Ordinal);
+            var simCounters = new Dictionary<string, int>(seqCounters);
+
+            // CSV audit rows
+            var csvRows = new List<string>();
+            csvRows.Add("ElementId,Category,Family,CurrentTag,PredictedTag,Action,LOC_Source,ZONE_Source,PROD_Source,STATUS,STATUS_Source,REV,ISOErrors");
+
+            foreach (Element el in targetElements)
+            {
+                try
+                {
+                string catName = ParameterHelpers.GetCategoryName(el);
+                if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
+                    continue;
+
+                totalTaggable++;
+
+                string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
+                if (!discStats.TryGetValue(disc, out _))
+                    discStats[disc] = (0, 0, 0, 0);
+
+                string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                bool hasTag = TagConfig.TagIsComplete(existingTag);
+
+                // Check token coverage
+                bool hasEmptyToken = false;
+                int elementEmptyTokens = 0;
+                foreach (string param in tokenParams)
+                {
+                    string val = ParameterHelpers.GetString(el, param);
+                    if (string.IsNullOrEmpty(val))
+                    {
+                        emptyTokenCounts[param]++;
+                        hasEmptyToken = true;
+                        elementEmptyTokens++;
+                    }
+                }
+                if (hasEmptyToken) missingTokenElements++;
+
+                // ISO validation on existing tags
+                int elementIsoErrors = 0;
+                if (hasTag)
+                {
+                    string formatError = ISO19650Validator.ValidateTagFormat(existingTag);
+                    if (formatError != null)
+                    {
+                        elementIsoErrors++;
+                        auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "ISO_FORMAT", Description = formatError });
+                    }
+                    var tokenErrors = ISO19650Validator.ValidateElement(el);
+                    elementIsoErrors += tokenErrors.Count;
+                    foreach (var te in tokenErrors)
+                        auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "ISO_TOKEN", Description = te.Message });
+                }
+
+                if (elementIsoErrors > 0) isoViolations++;
+
+                // Collect missing-token issues
+                if (hasEmptyToken)
+                    auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "MISSING_TOKENS", Description = $"{elementEmptyTokens} tokens empty" });
+                if (!hasTag)
+                    auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "UNTAGGED", Description = $"No tag on {catName}" });
+
+                // Predict LOC/ZONE auto-detection
+                string locSource = "existing";
+                string zoneSource = "existing";
+                string currentLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string currentZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+
+                if (string.IsNullOrEmpty(currentLoc))
+                {
+                    missingLocCount++;
+                    string detectedLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                    if (!string.IsNullOrEmpty(detectedLoc))
+                    {
+                        locWillAutoDetect++;
+                        locSource = "spatial-auto";
+                        currentLoc = detectedLoc;
+                    }
+                    else
+                    {
+                        locSource = "DEFAULT(BLD1)";
+                        currentLoc = "BLD1";
+                    }
+                }
+
+                if (string.IsNullOrEmpty(currentZone))
+                {
+                    missingZoneCount++;
+                    string detectedZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                    if (!string.IsNullOrEmpty(detectedZone))
+                    {
+                        zoneWillAutoDetect++;
+                        zoneSource = "spatial-auto";
+                        currentZone = detectedZone;
+                    }
+                    else
+                    {
+                        zoneSource = "DEFAULT(Z01)";
+                        currentZone = "Z01";
+                    }
+                }
+
+                // Predict STATUS from Revit phases/worksets
+                string statusSource = "existing";
+                string currentStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                // PERF: Call DetectStatus once and reuse for both auto-detect and cross-validation
+                string phaseDetected = PhaseAutoDetect.DetectStatus(doc, el);
+                if (string.IsNullOrEmpty(currentStatus))
+                {
+                    statusMissing++;
+                    if (!string.IsNullOrEmpty(phaseDetected))
+                    {
+                        statusWillAutoDetect++;
+                        statusSource = "phase-auto";
+                        currentStatus = phaseDetected;
+                    }
+                    else
+                    {
+                        statusSource = "DEFAULT(NEW)";
+                        currentStatus = "NEW";
+                    }
+                }
+                else
+                {
+                    // Cross-validate: check if existing STATUS matches phase detection
+                    if (!string.IsNullOrEmpty(phaseDetected) && phaseDetected != currentStatus)
+                        phaseMismatches++;
+                }
+                statusDistribution.TryGetValue(currentStatus, out int sdCount);
+                statusDistribution[currentStatus] = sdCount + 1;
+
+                // Predict REV from project revision (guaranteed default: "P01")
+                string currentRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
+                if (string.IsNullOrEmpty(currentRev))
+                {
+                    revMissing++;
+                    currentRev = !string.IsNullOrEmpty(projectRev) ? projectRev : "P01";
+                    revWillAutoSet++;
+                }
+
+                // Predict PROD code (family-aware)
+                string prodSource = "category";
+                string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
+                string familyName = ParameterHelpers.GetFamilyName(el);
+                string catProd = TagConfig.ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+                if (prod != catProd && !string.IsNullOrEmpty(familyName))
+                {
+                    familyProdCount++;
+                    prodSource = $"family({familyName})";
+                    string fpbKey = $"{prod}({familyName})";
+                    familyProdBreakdown.TryGetValue(fpbKey, out int fpbCount);
+                    familyProdBreakdown[fpbKey] = fpbCount + 1;
+                }
+
+                // Simulate tag generation
+                string action;
+                string predictedTag = "";
+                if (hasTag)
+                {
+                    alreadyTagged++;
+                    action = "SKIP(already-tagged)";
+                    predictedTag = existingTag;
+
+                    var s = discStats[disc];
+                    discStats[disc] = (s.total + 1, s.tagged + 1, s.untagged, s.violations + (elementIsoErrors > 0 ? 1 : 0));
+                }
+                else
+                {
+                    // Simulate tag generation (MEP-aware, matching BuildAndWriteTag logic)
+                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                    if (lvl == "XX") lvl = "L00"; // Guaranteed LVL default
+                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                    if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc); // Guaranteed SYS default
+                    // Apply system-aware DISC correction for pipes
+                    disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
+                    // Ensure corrected disc key exists in stats
+                    if (!discStats.TryGetValue(disc, out _))
+                        discStats[disc] = (0, 0, 0, 0);
+                    string func = TagConfig.GetSmartFuncCode(el, sys);
+                    if (string.IsNullOrEmpty(func))
+                        func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN"; // Guaranteed FUNC default
+
+                    string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, currentZone);
+                    simCounters.TryGetValue(seqKey, out int sc);
+                    simCounters[seqKey] = sc + 1;
+                    string seqSchemeCtx = TagConfig.CurrentSeqScheme == SeqScheme.ZonePrefix ? currentZone
+                                        : TagConfig.CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
+                                        : "";
+                    string seq = TagConfig.BuildSeqString(simCounters[seqKey], TagConfig.CurrentSeqScheme, seqSchemeCtx);
+
+                    predictedTag = string.Join(ParamRegistry.Separator,
+                        disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
+                    // Apply TAG_PREFIX/TAG_SUFFIX for accurate collision simulation
+                    if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                        predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
+                    if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                        predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
+
+                    // Check collision
+                    int collisionCount = 0;
+                    while (simTags.Contains(predictedTag) && collisionCount < TagConfig.MaxCollisionDepth)
+                    {
+                        collisionCount++;
+                        simCounters[seqKey]++;
+                        seq = TagConfig.BuildSeqString(simCounters[seqKey], TagConfig.CurrentSeqScheme, seqSchemeCtx);
+                        predictedTag = string.Join(ParamRegistry.Separator,
+                            disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
+                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                            predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
+                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                            predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
+                    }
+                    if (collisionCount > 0) predictedCollisions++;
+                    simTags.Add(predictedTag);
+
+                    willBeTagged++;
+                    action = collisionCount > 0 ? $"TAG(collision+{collisionCount})" : "TAG";
+
+                    // GAP-008 FIX: Validate predicted token values against ISO 19650 code lists
+                    // Run BEFORE discStats assignment so violation counts are accurate
+                    var tokenChecks = new (string tokenName, string paramName, string value)[]
+                    {
+                        ("DISC", ParamRegistry.DISC, disc),
+                        ("SYS",  ParamRegistry.SYS,  sys),
+                        ("FUNC", ParamRegistry.FUNC, func),
+                        ("PROD", ParamRegistry.PROD, prod),
+                        ("LOC",  ParamRegistry.LOC,  currentLoc),
+                        ("ZONE", ParamRegistry.ZONE, currentZone),
+                    };
+                    foreach (var (tokenName, paramName, value) in tokenChecks)
+                    {
+                        if (string.IsNullOrEmpty(value)) continue;
+                        var tokenErr = ISO19650Validator.ValidateToken(paramName, value);
+                        if (tokenErr != null)
+                        {
+                            elementIsoErrors++;
+                            isoViolations++;
+                            auditIssues.Add(new AuditIssue
+                            {
+                                ElementId = el.Id,
+                                IssueType = "ISO_PREDICTED_TOKEN",
+                                Description = $"Predicted {tokenName}='{value}' is not a valid ISO 19650 code"
+                            });
+                        }
+                    }
+
+                    var s = discStats[disc];
+                    discStats[disc] = (s.total + 1, s.tagged, s.untagged + 1, s.violations + (elementIsoErrors > 0 ? 1 : 0));
+                }
+
+                csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\"," +
+                    $"\"{action}\",\"{locSource}\",\"{zoneSource}\",\"{prodSource}\"," +
+                    $"\"{currentStatus}\",\"{statusSource}\",\"{currentRev}\",{elementIsoErrors}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PreTagAudit: element {el?.Id}: {ex.Message}");
+                }
+            }
+
+            willBeSkipped = totalTaggable - willBeTagged - alreadyTagged;
+            sw.Stop();
+
+            // Store audit results for downstream auto-fix chain (e.g., AnomalyAutoFixCommand)
+            _lastAuditIssues = auditIssues;
+            _lastAuditTime = DateTime.Now;
+            StingLog.Info($"PreTagAudit: stored {auditIssues.Count} audit issues for auto-fix chain");
+
+            // Build rich result panel
+            var panel = UI.StingResultPanel.Create("Pre-Tag Audit")
+                .SetSubtitle($"Will tag {willBeTagged} elements ({alreadyTagged} already tagged, {predictedCollisions} collisions)");
+
+            panel.AddSection("SCOPE", new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x75, 0x75, 0x75)))
+                .Metric("Scope", scopeLabel)
+                .Metric("Duration", $"{sw.Elapsed.TotalSeconds:F1}s");
+
+            panel.AddSection("TAG PREDICTION")
+                .Metric("Total taggable", totalTaggable.ToString())
+                .Metric("Already tagged", alreadyTagged.ToString(), "will be skipped")
+                .MetricHighlight("Will be tagged", willBeTagged.ToString());
+            if (predictedCollisions > 0)
+                panel.MetricWarn("Collisions to resolve", predictedCollisions.ToString(), "SEQ auto-increment");
+
+            panel.AddSection("SPATIAL INTELLIGENCE", new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x00, 0x69, 0x5C)))
+                .Metric("LOC missing", missingLocCount.ToString())
+                .MetricHighlight("LOC auto-detectable", locWillAutoDetect.ToString(), "from rooms/project info")
+                .Metric("ZONE missing", missingZoneCount.ToString())
+                .MetricHighlight("ZONE auto-detectable", zoneWillAutoDetect.ToString(), "from rooms");
+
+            panel.AddSection("STATUS PREDICTION")
+                .Metric("STATUS missing", statusMissing.ToString())
+                .MetricHighlight("Will auto-detect", statusWillAutoDetect.ToString(), "from Revit phases/worksets");
+            if (phaseMismatches > 0)
+                panel.MetricWarn("Phase mismatches", phaseMismatches.ToString(), "existing STATUS differs from detected");
+            if (statusDistribution.Count > 0)
+                panel.Metric("Distribution", string.Join(", ",
+                    statusDistribution.OrderByDescending(x => x.Value).Select(x => $"{x.Key}={x.Value}")));
+
+            panel.AddSection("REVISION PREDICTION")
+                .Metric("REV missing", revMissing.ToString())
+                .MetricHighlight("Will auto-set", revWillAutoSet.ToString(),
+                    string.IsNullOrEmpty(projectRev) ? "no project revisions" : $"revision '{projectRev}'");
+
+            panel.AddSection("FAMILY-AWARE PROD CODES")
+                .Metric("Family-specific PRODs", familyProdCount.ToString());
+            foreach (var kvp in familyProdBreakdown.OrderByDescending(x => x.Value).Take(10))
+                panel.Metric($"  {kvp.Key}", kvp.Value.ToString());
+
+            panel.AddSection("TOKEN COVERAGE")
+                .Metric("Elements with missing tokens", missingTokenElements.ToString());
+            foreach (var kvp in emptyTokenCounts.Where(x => x.Value > 0).OrderByDescending(x => x.Value))
+            {
+                string shortName = kvp.Key.Replace("ASS_", "").Replace("_TXT", "").Replace("_COD", "");
+                panel.MetricError(shortName, $"{kvp.Value} empty");
+            }
+
+            // ISO 19650 compliance section
+            int predictedTokenIssueCount = auditIssues.Count(a => a.IssueType == "ISO_PREDICTED_TOKEN");
+            int existingTagIssueCount = auditIssues.Count(a => a.IssueType == "ISO_FORMAT" || a.IssueType == "ISO_TOKEN");
+            panel.AddSection("ISO 19650 COMPLIANCE", new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28)));
+            if (isoViolations == 0)
+                panel.Info("All tokens conform to ISO 19650");
+            else
+            {
+                panel.MetricError("Elements with ISO violations", isoViolations.ToString());
+                if (existingTagIssueCount > 0)
+                    panel.Metric("Existing tag issues", existingTagIssueCount.ToString());
+                if (predictedTokenIssueCount > 0)
+                {
+                    panel.Metric("Predicted token violations", predictedTokenIssueCount.ToString());
+                    var topInvalid = auditIssues
+                        .Where(a => a.IssueType == "ISO_PREDICTED_TOKEN")
+                        .GroupBy(a => a.Description)
+                        .OrderByDescending(g => g.Count())
+                        .Take(5);
+                    foreach (var g in topInvalid)
+                        panel.Alert($"{g.Count()}× {g.Key}");
+                }
+            }
+
+            // Per-discipline table
+            var discHeaders = new[] { "DISC", "Total", "Tagged", "New", "ISO!" };
+            var discRows = discStats.OrderBy(x => x.Key)
+                .Select(kvp => new[] { kvp.Key, kvp.Value.total.ToString(),
+                    kvp.Value.tagged.ToString(), kvp.Value.untagged.ToString(),
+                    kvp.Value.violations.ToString() }).ToList();
+            if (discRows.Count > 0)
+                panel.AddSection("BY DISCIPLINE").Table(discHeaders, discRows);
+
+            // CSV export path
+            try
+            {
+                string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_PreTagAudit", ".csv");
+                File.WriteAllText(csvPath, string.Join("\n", csvRows));
+                panel.SetCsvPath(csvPath);
+                try
+                {
+                    bool autoOpen = !string.Equals(TagConfig.GetConfigValue("OPEN_EXPORTS_AUTOMATICALLY"), "false",
+                        StringComparison.OrdinalIgnoreCase);
+                    if (autoOpen)
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csvPath)
+                        { UseShellExecute = true })?.Dispose();
+                }
+                catch (Exception ex) { StingLog.Warn($"PreTagAudit: auto-open failed: {ex.Message}"); }
+            }
+            catch (Exception ex) { StingLog.Warn($"PreTagAudit CSV export: {ex.Message}"); }
+
+            // Action buttons
+            panel.Action("Auto-fix all correctable issues",
+                "Runs AnomalyAutoFix + ResolveAllIssues to address fixable issues", win =>
+            {
+                try
+                {
+                    win.Close();
+                    string msg2 = "";
+                    var fixCmd = new Organise.AnomalyAutoFixCommand();
+                    fixCmd.Execute(commandData, ref msg2, elements);
+
+                    var rescan = ComplianceScan.Scan(doc, forceRefresh: true);
+                    if (rescan.CompliancePercent < 80.0)
+                    {
+                        var resolveCmd = new Tags.ResolveAllIssuesCommand();
+                        resolveCmd.Execute(commandData, ref msg2, elements);
+                    }
+
+                    var afterScan = ComplianceScan.Scan(doc, forceRefresh: true);
+                    double improvement = afterScan.CompliancePercent - scanBefore;
+                    UI.StingResultPanel.Create("Pre-Tag Audit — Auto-Fix Complete")
+                        .SetSubtitle($"Compliance: {scanBefore:F1}% → {afterScan.CompliancePercent:F1}% " +
+                            $"({(improvement >= 0 ? "+" : "")}{improvement:F1}%)")
+                        .SetOverallPct(afterScan.CompliancePercent)
+                        .AddSection("RESULTS")
+                        .Metric("Elements now tagged", afterScan.TaggedComplete.ToString())
+                        .Metric("Still untagged", afterScan.Untagged.ToString())
+                        .Show();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("PreTagAudit auto-fix", ex);
+                    TaskDialog.Show("STING", $"Auto-fix encountered an error: {ex.Message}");
+                }
+            });
+
+            // GAP-R21: Create formal issues from audit anomalies for downstream tracking
+            if (auditIssues.Count > 0)
+            {
+                panel.Action("Create issues from anomalies",
+                    $"Record {auditIssues.Count} anomalies as formal issues in _bim_manager/issues.json", win =>
+                {
+                    try
+                    {
+                        string issuesDir = System.IO.Path.Combine(
+                            System.IO.Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager");
+                        if (!System.IO.Directory.Exists(issuesDir)) System.IO.Directory.CreateDirectory(issuesDir);
+                        string issuesPath = System.IO.Path.Combine(issuesDir, "issues.json");
+
+                        Newtonsoft.Json.Linq.JArray issues;
+                        if (System.IO.File.Exists(issuesPath))
+                            issues = Newtonsoft.Json.Linq.JArray.Parse(System.IO.File.ReadAllText(issuesPath));
+                        else
+                            issues = new Newtonsoft.Json.Linq.JArray();
+
+                        // Group anomalies by type
+                        var grouped = auditIssues.GroupBy(a => a.IssueType).ToList();
+                        int created = 0;
+                        foreach (var g in grouped)
+                        {
+                            string issueId = $"SI-{(issues.Count + created + 1):D4}";
+                            var issue = new Newtonsoft.Json.Linq.JObject
+                            {
+                                ["id"] = issueId,
+                                ["title"] = $"Pre-Tag Audit: {g.Key} ({g.Count()} elements)",
+                                ["type"] = "SI",
+                                ["priority"] = g.Count() > 50 ? "HIGH" : "MEDIUM",
+                                ["status"] = "OPEN",
+                                ["created_date"] = System.DateTime.Now.ToString("o"),
+                                ["created_by"] = System.Environment.UserName,
+                                ["description"] = $"Audit found {g.Count()} elements with {g.Key}",
+                                ["auto_created"] = true,
+                                ["source"] = "PreTagAudit",
+                                ["element_count"] = g.Count()
+                            };
+                            issues.Add(issue);
+                            created++;
+                        }
+                        System.IO.File.WriteAllText(issuesPath,
+                            issues.ToString(Newtonsoft.Json.Formatting.Indented));
+                        TaskDialog.Show("STING", $"Created {created} issues from audit anomalies.");
+                        StingLog.Info($"GAP-R21: Created {created} issues from {auditIssues.Count} anomalies");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        StingLog.Warn($"Create issues from audit: {ex.Message}");
+                        TaskDialog.Show("STING", $"Error creating issues: {ex.Message}");
+                    }
+                });
+            }
+
+            panel.Show();
+
+            StingLog.Info($"PreTagAudit: {totalTaggable} elements, {predictedCollisions} predicted collisions, " +
+                $"{isoViolations} ISO violations, {willBeTagged} untagged" +
+                $" (elapsed={sw.Elapsed.TotalSeconds:F1}s)");
+
+            return Result.Succeeded;
+        }
+    }
+}

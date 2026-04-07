@@ -14,21 +14,35 @@ namespace StingTools.Temp
     /// VG Overrides, Object Styles, Fill Patterns.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CreateLinePatternsCommand : IExternalCommand
     {
+        /// <summary>
+        /// Line patterns per ISO 128-2:2020 and UK BIM drawing standards.
+        /// Segments: positive = dash length (ft), negative = space length (ft).
+        /// Values converted from mm: mm / 304.8 = feet.
+        /// </summary>
         private static readonly (string name, double[] segments)[] Patterns = new[]
         {
+            // ISO 128 standard patterns
             ("STING - Dashed", new[] { 6.0/304.8, -3.0/304.8 }),
             ("STING - Dash Dot", new[] { 6.0/304.8, -2.0/304.8, 1.0/304.8, -2.0/304.8 }),
             ("STING - Hidden", new[] { 3.0/304.8, -1.5/304.8 }),
             ("STING - Center", new[] { 12.0/304.8, -3.0/304.8, 3.0/304.8, -3.0/304.8 }),
             ("STING - Demolition", new[] { 1.0/304.8, -2.0/304.8 }),
             ("STING - Setout", new[] { 10.0/304.8, -2.0/304.8, 2.0/304.8, -2.0/304.8, 2.0/304.8, -2.0/304.8 }),
+            // Extended patterns for professional BIM templates
+            ("STING - Long Dash", new[] { 20.0/304.8, -5.0/304.8 }),
+            ("STING - Dot", new[] { 0.5/304.8, -2.0/304.8 }),
+            ("STING - Phase Boundary", new[] { 6.0/304.8, -2.0/304.8, 6.0/304.8, -2.0/304.8, 1.0/304.8, -2.0/304.8 }),
+            ("STING - Fire Compartment", new[] { 8.0/304.8, -3.0/304.8, 1.0/304.8, -3.0/304.8, 1.0/304.8, -3.0/304.8 }),
         };
 
-        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var existing = new HashSet<string>(
                 new FilteredElementCollector(doc)
@@ -36,7 +50,7 @@ namespace StingTools.Temp
                     .Select(e => e.Name));
 
             int created = 0;
-            using (Transaction tx = new Transaction(doc, "Create Line Patterns"))
+            using (Transaction tx = new Transaction(doc, "STING Create Line Patterns"))
             {
                 tx.Start();
                 foreach (var (name, segments) in Patterns)
@@ -55,8 +69,14 @@ namespace StingTools.Temp
                                 segList.Add(new LinePatternSegment(
                                     LinePatternSegmentType.Space, Math.Abs(val)));
                         }
-                        LinePatternElement.Create(doc, new LinePattern(name, segList));
+                        var lp = new LinePattern(name);
+                        lp.SetSegments(segList);
+                        LinePatternElement.Create(doc, lp);
                         created++;
+                    }
+                    catch (Autodesk.Revit.Exceptions.ArgumentException)
+                    {
+                        // Pattern already exists in the document — skip silently
                     }
                     catch (Exception ex)
                     {
@@ -73,58 +93,72 @@ namespace StingTools.Temp
         }
     }
 
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CreatePhasesCommand : IExternalCommand
     {
+        /// <summary>
+        /// Standard phases per ISO 19650 / UK BIM best practice.
+        /// NOTE: "Demolition" is NOT a Revit phase — it is a Phase Status
+        /// (element's "Phase Demolished" property). Never create demolition phases.
+        /// Phases represent construction time periods only.
+        /// </summary>
         private static readonly string[] PhaseNames = new[]
         {
-            "Existing", "Phase 1 - Demolition", "Phase 1 - New Construction",
-            "Phase 2 - Demolition", "Phase 2 - New Construction",
-            "Phase 3 - Future", "Temporary Works",
+            "Existing",                 // Survey/as-built elements
+            "Enabling Works",           // Temporary works, site preparation, early demolition
+            "Phase 1 - Construction",   // First construction stage (demo shown via Phase Demolished)
+            "Phase 2 - Construction",   // Second construction stage
+            "Future Phase",             // Planned but not yet constructed
+            "Temporary Works",          // Hoarding, scaffolding, temporary roads
         };
 
-        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var existingPhases = new HashSet<string>(
                 new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase))
                     .Select(e => e.Name));
 
-            int created = 0;
-            using (Transaction tx = new Transaction(doc, "Create Phases"))
+            // Revit API does not support programmatic phase creation (known limitation).
+            // Report which phases exist and which are missing for manual creation.
+            var missing = PhaseNames.Where(n => !existingPhases.Contains(n)).ToList();
+            var present = PhaseNames.Where(n => existingPhases.Contains(n)).ToList();
+
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"STING Phase Configuration ({PhaseNames.Length} required):");
+            report.AppendLine($"  Present: {present.Count}");
+            report.AppendLine($"  Missing: {missing.Count}");
+
+            if (missing.Count > 0)
             {
-                tx.Start();
-                foreach (string name in PhaseNames)
-                {
-                    if (existingPhases.Contains(name)) continue;
-                    try
-                    {
-                        Phase phase = Phase.Create(doc, name);
-                        if (phase != null) created++;
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"Phase '{name}': {ex.Message}");
-                    }
-                }
-                tx.Commit();
+                report.AppendLine("\nPlease create these phases manually via Manage → Phases:");
+                foreach (string name in missing)
+                    report.AppendLine($"  • {name}");
+            }
+            else
+            {
+                report.AppendLine("\nAll required phases are present.");
             }
 
-            TaskDialog.Show("Create Phases",
-                $"Created {created} phases.\n" +
-                $"Total defined: {PhaseNames.Length}");
+            TaskDialog.Show("Create Phases", report.ToString());
             return Result.Succeeded;
         }
     }
 
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class ApplyFiltersToViewsCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Get all STING filters
             var filters = new FilteredElementCollector(doc)
@@ -152,16 +186,72 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
+            // Discipline prefixes used in STING filter and template names
+            var disciplinePrefixes = new[] { "Mechanical", "Electrical", "Plumbing", "Architectural", "Structural", "Fire", "Low Voltage", "Coordination" };
+
+            // Extract discipline keyword from a STING name (filter or template).
+            // Returns null when the name has no discipline — meaning it is discipline-neutral.
+            static string ExtractDiscipline(string name, string[] prefixes)
+            {
+                foreach (string p in prefixes)
+                {
+                    if (name.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return p;
+                }
+                // Also check short discipline code prefixes like "M_", "E_", "P_", "A_", "S_"
+                // These appear after "STING - " prefix (16 chars) in some filter names
+                string afterSting = name.StartsWith("STING - ", StringComparison.OrdinalIgnoreCase)
+                    ? name.Substring(8).TrimStart()
+                    : name;
+                if (afterSting.Length >= 2 && afterSting[1] == '_')
+                {
+                    char code = char.ToUpperInvariant(afterSting[0]);
+                    return code switch
+                    {
+                        'M' => "Mechanical",
+                        'E' => "Electrical",
+                        'P' => "Plumbing",
+                        'A' => "Architectural",
+                        'S' => "Structural",
+                        _ => null
+                    };
+                }
+                // Check "Disc:" prefix filters like "STING - Disc: Mechanical"
+                if (name.Contains("Disc:", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (string p in prefixes)
+                    {
+                        if (name.Contains(p, StringComparison.OrdinalIgnoreCase))
+                            return p;
+                    }
+                }
+                return null;
+            }
+
             int applied = 0;
-            using (Transaction tx = new Transaction(doc, "Apply Filters to Views"))
+            using (Transaction tx = new Transaction(doc, "STING Apply Filters to Views"))
             {
                 tx.Start();
                 foreach (View template in templates)
                 {
+                    string templateDisc = ExtractDiscipline(template.Name, disciplinePrefixes);
+
                     foreach (var filter in filters)
                     {
                         try
                         {
+                            string filterDisc = ExtractDiscipline(filter.Name, disciplinePrefixes);
+
+                            // Apply filter if:
+                            // 1. Filter is discipline-neutral (no discipline prefix) — applies to all templates
+                            // 2. Filter discipline matches template discipline
+                            // 3. Template is discipline-neutral — receives all filters
+                            if (filterDisc != null && templateDisc != null &&
+                                !string.Equals(filterDisc, templateDisc, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue; // Skip: discipline mismatch
+                            }
+
                             if (!template.GetFilters().Contains(filter.Id))
                             {
                                 template.AddFilter(filter.Id);
@@ -186,39 +276,48 @@ namespace StingTools.Temp
 
     /// <summary>Create cable tray types from MEP_MATERIALS.csv.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CreateCableTraysCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Cable Trays",
                 "MEP_MATERIALS.csv",
                 new[] { "E-TRY" },
-                CompoundTypeCreator.ElementKind.Duct);
+                CompoundTypeCreator.ElementKind.CableTray);
         }
     }
 
     /// <summary>Create conduit types from MEP_MATERIALS.csv.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CreateConduitsCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Conduits",
                 "MEP_MATERIALS.csv",
                 new[] { "E-CDT" },
-                CompoundTypeCreator.ElementKind.Pipe);
+                CompoundTypeCreator.ElementKind.Conduit);
         }
     }
 
     /// <summary>Create material takeoff schedules from CSV.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CreateMaterialSchedulesCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             string[] categories = new[]
             {
@@ -232,7 +331,7 @@ namespace StingTools.Temp
                     .Select(e => e.Name));
 
             int created = 0;
-            using (Transaction tx = new Transaction(doc, "Create Material Schedules"))
+            using (Transaction tx = new Transaction(doc, "STING Create Material Schedules"))
             {
                 tx.Start();
                 foreach (string cat in categories)
@@ -257,7 +356,7 @@ namespace StingTools.Temp
                     try
                     {
                         ViewSchedule vs = ViewSchedule.CreateMaterialTakeoff(
-                            doc, new ElementId(bic));
+                            doc, new ElementId((long)bic));
                         vs.Name = name;
                         created++;
                     }

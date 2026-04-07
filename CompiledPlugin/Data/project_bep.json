@@ -1,0 +1,91 @@
+{
+  "$schema": "STING BIM Execution Plan (BEP) — ISO 19650-2:2018",
+  "version": "1.0",
+  "description": "Sample BEP configuration for STING Tools validation. Customise per project.",
+  "project": {
+    "name": "Sample Project",
+    "code": "PRJ-001",
+    "client": "Client Name",
+    "location": "Kampala, Uganda",
+    "standard": "ISO 19650-2:2018"
+  },
+  "disciplines": {
+    "required": ["M", "E", "P", "A", "S", "FP", "LV"],
+    "optional": ["G", "FM"],
+    "descriptions": {
+      "M": "Mechanical",
+      "E": "Electrical",
+      "P": "Plumbing",
+      "A": "Architectural",
+      "S": "Structural",
+      "FP": "Fire Protection",
+      "LV": "Low Voltage / ELV",
+      "G": "General",
+      "FM": "Facilities Management"
+    }
+  },
+  "naming": {
+    "tag_format": "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ",
+    "separator": "-",
+    "seq_padding": 4,
+    "loc_codes": ["BLD1", "BLD2", "EXT"],
+    "zone_codes": ["Z01", "Z02", "Z03", "Z04"],
+    "level_convention": "L01, L02, GF, B1, RF, PL",
+    "sheet_prefix": "PROJ-ORG-VOL-"
+  },
+  "parameters": {
+    "shared_param_file": "MR_PARAMETERS.txt",
+    "required_tokens": ["DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ"],
+    "status_values": ["NEW", "EXISTING", "DEMOLISHED", "TEMPORARY"],
+    "revision_format": "P01, P02, C01, C02"
+  },
+  "compliance": {
+    "min_compliance_percent": 95.0,
+    "tag_completeness_required": true,
+    "iso_validation_required": true,
+    "duplicate_tags_allowed": false,
+    "placeholder_values_allowed": false,
+    "required_containers": ["ASS_TAG_1_TXT"],
+    "optional_containers": ["ASS_TAG_2_TXT", "ASS_TAG_3_TXT", "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT"]
+  },
+  "deliverables": {
+    "drawing_register": true,
+    "asset_register": true,
+    "boq_export": true,
+    "ifc_export": {
+      "enabled": true,
+      "version": "IFC4",
+      "psets": ["Pset_ManufacturerTypeInformation", "Pset_ServiceLife", "STING_AssetData"]
+    },
+    "sheet_naming_check": true,
+    "tag_audit_csv": true
+  },
+  "schedule": {
+    "phases": [
+      { "name": "Stage 2 — Concept Design", "milestone": "2026-06-01" },
+      { "name": "Stage 3 — Spatial Coordination", "milestone": "2026-09-01" },
+      { "name": "Stage 4 — Technical Design", "milestone": "2027-01-01" },
+      { "name": "Stage 5 — Manufacturing & Construction", "milestone": "2027-06-01" },
+      { "name": "Stage 6 — Handover", "milestone": "2027-09-01" }
+    ]
+  },
+  "responsibilities": {
+    "bim_manager": "BIM Manager Name",
+    "information_manager": "Information Manager Name",
+    "lead_appointed_party": "Lead Design Firm",
+    "appointed_parties": [
+      { "discipline": "M", "firm": "MEP Consultant" },
+      { "discipline": "E", "firm": "MEP Consultant" },
+      { "discipline": "P", "firm": "MEP Consultant" },
+      { "discipline": "A", "firm": "Architect" },
+      { "discipline": "S", "firm": "Structural Engineer" }
+    ]
+  },
+  "quality_checks": {
+    "daily_qa_workflow": true,
+    "pre_handover_workflow": true,
+    "clash_detection": true,
+    "template_compliance": true,
+    "parameter_completeness": true
+  }
+}

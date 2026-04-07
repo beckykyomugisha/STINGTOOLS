@@ -1,0 +1,64 @@
+{
+  "name": "MorningHealthCheck",
+  "description": "BIM coordinator daily morning model health check — compliance gate, stale detection, issue triage, sheet audit, and export",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    {
+      "commandTag": "RetagStale",
+      "label": "1. Re-tag stale elements (moved/changed since last session)",
+      "optional": true,
+      "requiresStaleElements": true,
+      "retryCount": 1,
+      "retryDelayMs": 500
+    },
+    {
+      "commandTag": "PreTagAudit",
+      "label": "2. Pre-tag audit — predict tags and identify gaps",
+      "optional": true,
+      "maxCompliancePct": 98
+    },
+    {
+      "commandTag": "BatchTag",
+      "label": "3. Batch tag new/untagged elements",
+      "optional": false,
+      "condition": "has_untagged"
+    },
+    {
+      "commandTag": "ValidateTags",
+      "label": "4. Validate tag completeness and ISO 19650 codes",
+      "optional": false
+    },
+    {
+      "commandTag": "SheetNamingCheck",
+      "label": "5. Sheet naming ISO 19650 compliance check",
+      "optional": true
+    },
+    {
+      "commandTag": "ModelHealthDashboard",
+      "label": "6. Model health dashboard — overall status report",
+      "optional": true
+    },
+    {
+      "commandTag": "TemplateAudit",
+      "label": "7. View template compliance audit",
+      "optional": true,
+      "minElementCount": 100
+    },
+    {
+      "commandTag": "IssueDashboard",
+      "label": "8. BIM issue dashboard — open issues review",
+      "optional": true
+    },
+    {
+      "commandTag": "RevisionDashboard",
+      "label": "9. Revision tracking dashboard",
+      "optional": true
+    },
+    {
+      "commandTag": "CompletenessDashboard",
+      "label": "10. Tag completeness per-discipline dashboard",
+      "optional": false
+    }
+  ]
+}

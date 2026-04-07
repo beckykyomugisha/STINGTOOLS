@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -14,12 +13,30 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class CreateParametersCommand : IExternalCommand
+    public class CreateParametersCommand : IExternalCommand, IPanelCommand
     {
+        public Result Execute(UIApplication app)
+        {
+            try
+            {
+                // Ensure CurrentApp is set for downstream GetApp(null) fallback
+                // CurrentApp is set by StingCommandHandler.Execute() — no need to set here
+                var cmd = new Tags.LoadSharedParamsCommand();
+                string message = "";
+                var elements = new ElementSet();
+                return cmd.Execute(null, ref message, elements);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreateParametersCommand crashed", ex);
+                try { TaskDialog.Show("Create Parameters", $"Error: {ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
+                return Result.Failed;
+            }
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            // Delegate to the Tags panel LoadSharedParams implementation
             var cmd = new Tags.LoadSharedParamsCommand();
             return cmd.Execute(commandData, ref message, elements);
         }

@@ -21,7 +21,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Walls",
                 "BLE_MATERIALS.csv",
                 new[] { "A-STR", "A-ASM", "A-BLK" },
@@ -36,7 +38,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Floors",
                 "BLE_MATERIALS.csv",
                 new[] { "A-FLR" },
@@ -51,7 +55,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Ceilings",
                 "BLE_MATERIALS.csv",
                 new[] { "A-CLG" },
@@ -66,7 +72,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Roofs",
                 "BLE_MATERIALS.csv",
                 new[] { "A-RF" },
@@ -81,7 +89,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Ducts",
                 "MEP_MATERIALS.csv",
                 new[] { "M-DCT", "M-INS" },
@@ -96,7 +106,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             return CompoundTypeCreator.CreateTypes(doc, "Pipes",
                 "MEP_MATERIALS.csv",
                 new[] { "M-PPE", "P-DRN", "P-WSP" },
@@ -112,7 +124,7 @@ namespace StingTools.Temp
     /// </summary>
     internal static class CompoundTypeCreator
     {
-        public enum ElementKind { Wall, Floor, Ceiling, Roof, Duct, Pipe }
+        public enum ElementKind { Wall, Floor, Ceiling, Roof, Duct, Pipe, CableTray, Conduit }
 
         // CSV column indices (BLE_MATERIALS / MEP_MATERIALS)
         private const int ColElementType = 4;   // MAT_ELEMENT_TYPE
@@ -179,24 +191,44 @@ namespace StingTools.Temp
             // For compound types (wall/floor/ceiling/roof), collect existing type names
             var existingTypeNames = GetExistingTypeNames(doc, kind);
 
+            // PERF-001: Pre-collect base types ONCE before the CSV row loop.
+            // Each CreateXxxType previously ran a FilteredElementCollector per row — O(rows) collectors.
+            WallType    baseWallType     = new FilteredElementCollector(doc).OfClass(typeof(WallType)).Cast<WallType>().FirstOrDefault(wt => wt.Kind == WallKind.Basic);
+            FloorType   baseFloorType    = new FilteredElementCollector(doc).OfClass(typeof(FloorType)).Cast<FloorType>().FirstOrDefault(ft => ft.IsFoundationSlab == false);
+            CeilingType baseCeilingType  = new FilteredElementCollector(doc).OfClass(typeof(CeilingType)).Cast<CeilingType>().FirstOrDefault();
+            RoofType    baseRoofType     = new FilteredElementCollector(doc).OfClass(typeof(RoofType)).Cast<RoofType>().FirstOrDefault();
+            var baseDuctType     = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType)).FirstOrDefault() as ElementType;
+            var basePipeType     = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType)).FirstOrDefault() as ElementType;
+            var baseCableTrayType = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType)).FirstOrDefault() as ElementType;
+            var baseConduitType  = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType)).FirstOrDefault() as ElementType;
+
             int created = 0;
             int skipped = 0;
             int matCreated = 0;
             var errors = new List<string>();
 
+            bool cancelled = false;
             using (Transaction tx = new Transaction(doc, $"Create {label} Types"))
             {
                 tx.Start();
+                int processed = 0;
 
                 foreach (string[] cols in rows)
                 {
+                    // Cancellation check every 50 types
+                    if (++processed % 50 == 0 && EscapeChecker.IsEscapePressed())
+                    {
+                        cancelled = true;
+                        StingLog.Info($"Create {label}: cancelled by user at {processed}/{rows.Count}");
+                        break;
+                    }
                     string matName = cols[ColName].Trim();
                     string category = cols.Length > ColCategory
                         ? cols[ColCategory].Trim() : "";
 
                     // Build a type name from MAT_NAME to ensure uniqueness
                     // (MAT_CATEGORY alone is not unique — many rows share a category)
-                    string typeName = $"STING - {matName}";
+                    string typeName = matName;
 
                     if (existingTypeNames.Contains(typeName))
                     {
@@ -215,6 +247,10 @@ namespace StingTools.Temp
                             {
                                 materialCache[matName] = newMatId;
                                 matCreated++;
+                                // Apply material appearance properties from CSV
+                                Material newMat = doc.GetElement(newMatId) as Material;
+                                if (newMat != null)
+                                    MaterialPropertyHelper.ApplyMaterialProperties(newMat, cols);
                             }
                         }
                         catch (Exception ex)
@@ -236,24 +272,28 @@ namespace StingTools.Temp
                         {
                             case ElementKind.Wall:
                                 success = CreateWallType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache);
+                                    thicknessMm, cols, materialCache, baseWallType);
                                 break;
                             case ElementKind.Floor:
                                 success = CreateFloorType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache);
+                                    thicknessMm, cols, materialCache, baseFloorType);
                                 break;
                             case ElementKind.Ceiling:
                                 success = CreateCeilingType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache);
+                                    thicknessMm, cols, materialCache, baseCeilingType);
                                 break;
                             case ElementKind.Roof:
                                 success = CreateRoofType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache);
+                                    thicknessMm, cols, materialCache, baseRoofType);
                                 break;
                             case ElementKind.Duct:
                             case ElementKind.Pipe:
+                            case ElementKind.CableTray:
+                            case ElementKind.Conduit:
                                 success = CreateMEPType(doc, typeName, matId,
-                                    thicknessMm, kind);
+                                    thicknessMm, kind,
+                                    baseDuctType, basePipeType,
+                                    baseCableTrayType, baseConduitType);
                                 break;
                         }
                     }
@@ -276,10 +316,10 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
-
             string report = $"Created {created} {label.ToLower()} types.\n" +
                 $"Skipped {skipped} (exist or failed).\n" +
                 $"Materials created: {matCreated}\n" +
+                (cancelled ? "CANCELLED by user (Escape key). Types created so far are kept.\n" : "") +
                 $"Source: {Path.GetFileName(csvPath)} " +
                 $"({rows.Count} matching rows)";
             if (errors.Count > 0)
@@ -336,9 +376,11 @@ namespace StingTools.Temp
 
         private static bool CreateWallType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
-            Dictionary<string, ElementId> materialCache)
+            Dictionary<string, ElementId> materialCache,
+            WallType baseWallType = null)
         {
-            var baseType = new FilteredElementCollector(doc)
+            // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
+            var baseType = baseWallType ?? new FilteredElementCollector(doc)
                 .OfClass(typeof(WallType))
                 .Cast<WallType>()
                 .FirstOrDefault(wt => wt.Kind == WallKind.Basic);
@@ -351,8 +393,16 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Layer validation error (too thin, all-finish, etc.) — type created without layers
+                    StingLog.Warn($"Wall '{typeName}' compound structure failed: {ex.Message}");
+                }
             }
 
             return true;
@@ -360,9 +410,11 @@ namespace StingTools.Temp
 
         private static bool CreateFloorType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
-            Dictionary<string, ElementId> materialCache)
+            Dictionary<string, ElementId> materialCache,
+            FloorType baseFloorType = null)
         {
-            var baseType = new FilteredElementCollector(doc)
+            // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
+            var baseType = baseFloorType ?? new FilteredElementCollector(doc)
                 .OfClass(typeof(FloorType))
                 .Cast<FloorType>()
                 .FirstOrDefault(ft => ft.IsFoundationSlab == false);
@@ -375,8 +427,19 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    // BUG-01 FIX: Disable EndCap conditions that are invalid for Floor types.
+                    // Revit applies default EndCap conditions that cause errors on non-wall types.
+                    cs.OpeningWrapping = OpeningWrappingCondition.None;
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // EndCap or other structure error — log and continue (type was created, just no layers)
+                    StingLog.Warn($"Floor '{typeName}' compound structure failed: {ex.Message}");
+                }
             }
 
             return true;
@@ -384,9 +447,11 @@ namespace StingTools.Temp
 
         private static bool CreateCeilingType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
-            Dictionary<string, ElementId> materialCache)
+            Dictionary<string, ElementId> materialCache,
+            CeilingType baseCeilingType = null)
         {
-            var baseType = new FilteredElementCollector(doc)
+            // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
+            var baseType = baseCeilingType ?? new FilteredElementCollector(doc)
                 .OfClass(typeof(CeilingType))
                 .Cast<CeilingType>()
                 .FirstOrDefault();
@@ -399,8 +464,17 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    // BUG-02 FIX: Disable EndCap/wrapping that causes errors on Ceiling types
+                    cs.OpeningWrapping = OpeningWrappingCondition.None;
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Ceiling '{typeName}' compound structure failed: {ex.Message}");
+                }
             }
 
             return true;
@@ -408,9 +482,11 @@ namespace StingTools.Temp
 
         private static bool CreateRoofType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
-            Dictionary<string, ElementId> materialCache)
+            Dictionary<string, ElementId> materialCache,
+            RoofType baseRoofType = null)
         {
-            var baseType = new FilteredElementCollector(doc)
+            // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
+            var baseType = baseRoofType ?? new FilteredElementCollector(doc)
                 .OfClass(typeof(RoofType))
                 .Cast<RoofType>()
                 .FirstOrDefault();
@@ -423,35 +499,68 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    // BUG-03 FIX: Disable EndCap/wrapping that causes errors on Roof types
+                    cs.OpeningWrapping = OpeningWrappingCondition.None;
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Roof '{typeName}' compound structure failed: {ex.Message}");
+                }
             }
 
             return true;
         }
 
         private static bool CreateMEPType(Document doc, string typeName,
-            ElementId matId, double thicknessMm, ElementKind kind)
+            ElementId matId, double thicknessMm, ElementKind kind,
+            ElementType baseDuctType = null, ElementType basePipeType = null,
+            ElementType baseCableTrayType = null, ElementType baseConduitType = null)
         {
-            if (kind == ElementKind.Duct)
+            // PERF-001: base types pre-collected by caller; fall back to per-call collect only if null
+            switch (kind)
             {
-                var baseType = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
-                    .FirstOrDefault();
-
-                if (baseType == null) return false;
-                var newType = baseType.Duplicate(typeName);
-                return newType != null;
-            }
-            else // Pipe
-            {
-                var baseType = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
-                    .FirstOrDefault();
-
-                if (baseType == null) return false;
-                var newType = baseType.Duplicate(typeName);
-                return newType != null;
+                case ElementKind.Duct:
+                {
+                    var bt = baseDuctType ?? new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
+                        .FirstOrDefault() as ElementType;
+                    if (bt == null) return false;
+                    try { return bt.Duplicate(typeName) != null; }
+                    catch (Exception ex) { StingLog.Warn($"Duplicate DuctType '{typeName}': {ex.Message}"); return false; }
+                }
+                case ElementKind.Pipe:
+                {
+                    var bt = basePipeType ?? new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
+                        .FirstOrDefault() as ElementType;
+                    if (bt == null) return false;
+                    try { return bt.Duplicate(typeName) != null; }
+                    catch (Exception ex) { StingLog.Warn($"Duplicate PipeType '{typeName}': {ex.Message}"); return false; }
+                }
+                case ElementKind.CableTray:
+                {
+                    var bt = baseCableTrayType ?? new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType))
+                        .FirstOrDefault() as ElementType;
+                    if (bt == null) return false;
+                    try { return bt.Duplicate(typeName) != null; }
+                    catch (Exception ex) { StingLog.Warn($"Duplicate CableTrayType '{typeName}': {ex.Message}"); return false; }
+                }
+                case ElementKind.Conduit:
+                {
+                    var bt = baseConduitType ?? new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType))
+                        .FirstOrDefault() as ElementType;
+                    if (bt == null) return false;
+                    try { return bt.Duplicate(typeName) != null; }
+                    catch (Exception ex) { StingLog.Warn($"Duplicate ConduitType '{typeName}': {ex.Message}"); return false; }
+                }
+                default:
+                    return false;
             }
         }
 
@@ -493,8 +602,14 @@ namespace StingTools.Temp
                     }
 
                     // Skip cable cross-section values (mm² stored as mm, e.g. 300.0 for a 300mm² conductor)
-                    if (layerThickMm > 500) continue;
+                    if (layerThickMm > 500)
+                    {
+                        StingLog.Warn($"CompoundTypeCreator: Skipping layer '{layerMatName}' with thickness {layerThickMm}mm (>500mm, likely cable cross-section area)");
+                        continue;
+                    }
+                    // Revit requires minimum ~0.8mm layer thickness; enforce 1mm floor
                     if (layerThickMm <= 0) layerThickMm = 10;
+                    if (layerThickMm < 1.0) layerThickMm = 1.0;
 
                     // Convert mm to feet (Revit internal units)
                     double thickFeet = layerThickMm / 304.8;
@@ -535,10 +650,35 @@ namespace StingTools.Temp
             if (layers.Count == 0)
             {
                 double thickFeet = defaultThickMm / 304.8;
+                if (thickFeet < 1.0 / 304.8) thickFeet = 1.0 / 304.8; // min 1mm
                 layers.Add(new CompoundStructureLayer(
                     thickFeet,
                     MaterialFunctionAssignment.Structure,
                     defaultMatId));
+            }
+            else
+            {
+                // Revit compound structures require at least one STRUCTURE layer.
+                // If all layers are FINISH/MEMBRANE/etc., promote the thickest to STRUCTURE.
+                bool hasStructure = false;
+                for (int li = 0; li < layers.Count; li++)
+                {
+                    if (layers[li].Function == MaterialFunctionAssignment.Structure)
+                    { hasStructure = true; break; }
+                }
+                if (!hasStructure)
+                {
+                    int thickestIdx = 0;
+                    double maxThick = layers[0].Width;
+                    for (int li = 1; li < layers.Count; li++)
+                    {
+                        if (layers[li].Width > maxThick)
+                        { maxThick = layers[li].Width; thickestIdx = li; }
+                    }
+                    var old = layers[thickestIdx];
+                    layers[thickestIdx] = new CompoundStructureLayer(
+                        old.Width, MaterialFunctionAssignment.Structure, old.MaterialId);
+                }
             }
 
             return layers;
@@ -601,9 +741,9 @@ namespace StingTools.Temp
             if (upper.Contains("SUBSTRATE"))
                 return MaterialFunctionAssignment.Substrate;
             if (upper.Contains("THERMAL") || upper.Contains("AIR LAYER") || upper.Contains("INSUL"))
-                return MaterialFunctionAssignment.ThermalOrAir;
+                return MaterialFunctionAssignment.Insulation;
             if (upper.Contains("MEMBRANE") || upper.Contains("BARRIER") || upper.Contains("VAPOR"))
-                return MaterialFunctionAssignment.MembraneLayer;
+                return MaterialFunctionAssignment.Membrane;
 
             return MaterialFunctionAssignment.Structure;
         }
@@ -642,6 +782,16 @@ namespace StingTools.Temp
                 case ElementKind.Pipe:
                     names = new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
+                        .Select(e => e.Name);
+                    break;
+                case ElementKind.CableTray:
+                    names = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType))
+                        .Select(e => e.Name);
+                    break;
+                case ElementKind.Conduit:
+                    names = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType))
                         .Select(e => e.Name);
                     break;
                 default:

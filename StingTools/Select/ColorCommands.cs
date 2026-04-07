@@ -1,0 +1,942 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using Newtonsoft.Json;
+using StingTools.Core;
+
+namespace StingTools.Select
+{
+    /// <summary>
+    /// Color By Parameter system — element coloring by any parameter value.
+    /// Provides 10 built-in palettes, custom presets, &lt;No Value&gt; detection, and view filter generation.
+    /// </summary>
+    internal static class ColorHelper
+    {
+        // ── Built-in palettes ──────────────────────────────────────────
+        public static readonly Dictionary<string, Color[]> Palettes =
+            new Dictionary<string, Color[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["STING Discipline"] = new[]
+            {
+                new Color(0, 102, 204),    // M = Blue
+                new Color(255, 204, 0),    // E = Gold
+                new Color(0, 153, 51),     // P = Green
+                new Color(153, 153, 153),  // A = Grey
+                new Color(204, 0, 0),      // S = Red
+                new Color(255, 128, 0),    // FP = Orange
+                new Color(128, 0, 255),    // LV = Purple
+                new Color(139, 90, 43),    // G = Brown
+            },
+            ["RAG Status"] = new[]
+            {
+                new Color(204, 0, 0),      // Red
+                new Color(255, 165, 0),    // Amber
+                new Color(0, 153, 51),     // Green
+            },
+            ["Monochrome"] = new[]
+            {
+                new Color(0, 0, 0),
+                new Color(64, 64, 64),
+                new Color(128, 128, 128),
+                new Color(192, 192, 192),
+                new Color(255, 255, 255),
+            },
+            ["Spectral"] = new[]
+            {
+                new Color(213, 62, 79),
+                new Color(244, 109, 67),
+                new Color(253, 174, 97),
+                new Color(254, 224, 139),
+                new Color(230, 245, 152),
+                new Color(171, 221, 164),
+                new Color(102, 194, 165),
+                new Color(50, 136, 189),
+            },
+            ["Warm"] = new[]
+            {
+                new Color(180, 0, 0),
+                new Color(220, 60, 0),
+                new Color(255, 128, 0),
+                new Color(255, 200, 50),
+                new Color(255, 240, 180),
+            },
+            ["Cool"] = new[]
+            {
+                new Color(0, 0, 128),
+                new Color(0, 51, 204),
+                new Color(0, 153, 204),
+                new Color(0, 204, 204),
+                new Color(153, 230, 179),
+            },
+            ["Pastel"] = new[]
+            {
+                new Color(179, 205, 227),
+                new Color(204, 235, 197),
+                new Color(254, 217, 166),
+                new Color(222, 203, 228),
+                new Color(254, 178, 178),
+                new Color(255, 255, 204),
+                new Color(229, 216, 189),
+                new Color(253, 218, 236),
+            },
+            ["High Contrast"] = new[]
+            {
+                new Color(255, 0, 0),
+                new Color(0, 0, 255),
+                new Color(0, 180, 0),
+                new Color(255, 255, 0),
+                new Color(255, 0, 255),
+                new Color(0, 255, 255),
+                new Color(255, 128, 0),
+                new Color(128, 0, 255),
+            },
+            ["Accessible"] = new[]
+            {
+                new Color(68, 1, 84),
+                new Color(72, 40, 120),
+                new Color(62, 74, 137),
+                new Color(49, 104, 142),
+                new Color(38, 130, 142),
+                new Color(31, 158, 137),
+                new Color(53, 183, 121),
+                new Color(109, 205, 89),
+                new Color(180, 222, 44),
+                new Color(253, 231, 37),
+            },
+        };
+
+        /// <summary>Default color for elements with empty/null parameter values.</summary>
+        public static readonly Color NoValueColor = new Color(255, 0, 0); // Red — instant QA
+
+        /// <summary>Find the solid fill pattern (required for surface overrides). Cached per document.</summary>
+        // TAG-M-05: Use stable string key (PathName/Title) instead of GetHashCode()
+        // which is not guaranteed stable across Revit sessions — avoids stale cache hits.
+        private static readonly Dictionary<string, ElementId> _solidFillCache = new();
+        public static FillPatternElement FindSolidFill(Document doc)
+        {
+            string docKey = doc.PathName ?? doc.Title ?? "Untitled";
+            if (_solidFillCache.TryGetValue(docKey, out ElementId cachedId))
+            {
+                var cached = doc.GetElement(cachedId) as FillPatternElement;
+                if (cached != null && cached.IsValidObject) return cached;
+                _solidFillCache.Remove(docKey);
+            }
+            var result = new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            if (result != null) _solidFillCache[docKey] = result.Id;
+            return result;
+        }
+
+        /// <summary>Build OverrideGraphicSettings for a given color with full surface fill.</summary>
+        public static OverrideGraphicSettings BuildOverride(Color color,
+            FillPatternElement solidFill, int transparency = 0)
+        {
+            var ogs = new OverrideGraphicSettings();
+            ogs.SetProjectionLineColor(color);
+            ogs.SetProjectionLineWeight(3);
+            if (solidFill != null)
+            {
+                ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                ogs.SetSurfaceForegroundPatternColor(color);
+                ogs.SetCutForegroundPatternId(solidFill.Id);
+                ogs.SetCutForegroundPatternColor(color);
+            }
+            ogs.SetSurfaceTransparency(transparency);
+            return ogs;
+        }
+
+        /// <summary>Get distinct parameter values from elements, grouping elements by value.</summary>
+        public static Dictionary<string, List<ElementId>> GroupByParameterValue(
+            Document doc, IEnumerable<Element> elements, string paramName)
+        {
+            var groups = new Dictionary<string, List<ElementId>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (Element elem in elements)
+            {
+                string value = GetParameterValue(elem, paramName);
+                if (string.IsNullOrWhiteSpace(value))
+                    value = "<No Value>";
+
+                if (!groups.TryGetValue(value, out var list))
+                {
+                    list = new List<ElementId>();
+                    groups[value] = list;
+                }
+                list.Add(elem.Id);
+            }
+
+            return groups;
+        }
+
+        /// <summary>Read any parameter (instance or type, text or numeric) as string.</summary>
+        public static string GetParameterValue(Element elem, string paramName)
+        {
+            // Try instance parameter first
+            Parameter p = elem.LookupParameter(paramName);
+            if (p == null)
+            {
+                // Try type parameter
+                ElementId typeId = elem.GetTypeId();
+                if (typeId != ElementId.InvalidElementId)
+                {
+                    Element type = elem.Document.GetElement(typeId);
+                    if (type != null)
+                        p = type.LookupParameter(paramName);
+                }
+            }
+            if (p == null) return null;
+            if (!p.HasValue) return null;
+
+            switch (p.StorageType)
+            {
+                case StorageType.String:
+                    return p.AsString();
+                case StorageType.Integer:
+                    return p.AsInteger().ToString();
+                case StorageType.Double:
+                    return p.AsValueString() ?? p.AsDouble().ToString("F2");
+                case StorageType.ElementId:
+                    var eid = p.AsElementId();
+                    if (eid == ElementId.InvalidElementId) return null;
+                    var refElem = elem.Document.GetElement(eid);
+                    return refElem?.Name ?? eid.ToString();
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>Get available parameter names from a set of elements.</summary>
+        public static List<string> GetAvailableParameters(Document doc, IEnumerable<Element> elements)
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var typeCache = new Dictionary<ElementId, Element>();
+            int sampled = 0;
+            foreach (Element elem in elements)
+            {
+                foreach (Parameter p in elem.Parameters)
+                {
+                    if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
+                        names.Add(p.Definition.Name);
+                }
+                ElementId typeId = elem.GetTypeId();
+                if (typeId != ElementId.InvalidElementId)
+                {
+                    if (!typeCache.TryGetValue(typeId, out Element type))
+                    {
+                        type = doc.GetElement(typeId);
+                        typeCache[typeId] = type;
+                    }
+                    if (type != null)
+                    {
+                        foreach (Parameter p in type.Parameters)
+                        {
+                            if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
+                                names.Add(p.Definition.Name);
+                        }
+                    }
+                }
+                if (++sampled >= 200) break;
+            }
+            var sorted = names.ToList();
+            sorted.Sort(StringComparer.OrdinalIgnoreCase);
+            return sorted;
+        }
+
+        /// <summary>Assign colors from palette to values (cycling if more values than colors).</summary>
+        public static Dictionary<string, Color> AssignColors(
+            IEnumerable<string> values, Color[] palette)
+        {
+            var map = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+            int i = 0;
+            foreach (string val in values)
+            {
+                if (val == "<No Value>")
+                    map[val] = NoValueColor;
+                else
+                    map[val] = palette[i++ % palette.Length];
+            }
+            return map;
+        }
+
+        // ── Preset persistence ─────────────────────────────────────────
+
+        public static string PresetFilePath =>
+            Path.Combine(StingToolsApp.DataPath ?? "", "COLOR_PRESETS.json");
+
+        public static Dictionary<string, ColorPreset> LoadPresets()
+        {
+            string path = PresetFilePath;
+            if (!File.Exists(path))
+                return new Dictionary<string, ColorPreset>(StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                string json = File.ReadAllText(path);
+                return JsonConvert.DeserializeObject<Dictionary<string, ColorPreset>>(json)
+                    ?? new Dictionary<string, ColorPreset>(StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadPresets: {ex.Message}");
+                return new Dictionary<string, ColorPreset>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        public static void SavePresets(Dictionary<string, ColorPreset> presets)
+        {
+            string path = PresetFilePath;
+            try
+            {
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                string json = JsonConvert.SerializeObject(presets, Formatting.Indented);
+                File.WriteAllText(path, json);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("SavePresets failed", ex);
+            }
+        }
+    }
+
+    /// <summary>Serializable color preset for save/load.</summary>
+    public class ColorPreset
+    {
+        public string ParameterName { get; set; }
+        public string PaletteName { get; set; }
+        public Dictionary<string, int[]> ValueColors { get; set; } // value → [R, G, B]
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Color By Parameter — main command
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Color elements by any parameter value. User picks parameter and palette via dialogs.
+    /// Supports active view scope, &lt;No Value&gt; detection (red), and all 10 built-in palettes.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ColorByParameterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            // Reject views that don't support graphic overrides
+            if (view is ViewSchedule || view.ViewType == ViewType.DrawingSheet ||
+                view.ViewType == ViewType.ProjectBrowser || view.ViewType == ViewType.SystemBrowser)
+            {
+                TaskDialog.Show("Color By Parameter", "This feature requires a model view (plan, section, elevation, or 3D).");
+                return Result.Failed;
+            }
+
+            // Collect elements — honour selection if present
+            var selected = uidoc.Selection.GetElementIds();
+            List<Element> elems;
+            if (selected.Count > 0)
+            {
+                elems = selected.Select(id => doc.GetElement(id))
+                    .Where(e => e != null && e.Category != null && e.Category.CategoryType == CategoryType.Model)
+                    .ToList();
+            }
+            else
+            {
+                elems = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
+                    .ToList();
+            }
+
+            if (elems.Count == 0)
+            {
+                TaskDialog.Show("Color By Parameter", "No elements found in active view.\nNote: Linked model elements are not currently supported.");
+                return Result.Succeeded;
+            }
+
+            // Step 1: Pick parameter
+            var paramNames = ColorHelper.GetAvailableParameters(doc, elems);
+            if (paramNames.Count == 0)
+            {
+                TaskDialog.Show("Color By Parameter", "No parameters found.");
+                return Result.Succeeded;
+            }
+
+            // Step 1: Pick parameter via StingListPicker (shows ALL parameters, searchable)
+            var priorityParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.TAG1, "Mark",
+                "Comments", "Type Name", "Family", "Level"
+            };
+
+            // Sort: priority params first, then alphabetical
+            var sortedParams = paramNames
+                .OrderByDescending(p => priorityParams.Contains(p))
+                .ThenBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var paramItems = sortedParams.Select(p => new StingListPicker.ListItem
+            {
+                Label = p,
+                Detail = priorityParams.Contains(p) ? "STING" : "",
+                Tag = p
+            }).ToList();
+
+            var paramPick = StingListPicker.Show(
+                "Color By Parameter — Pick Parameter",
+                $"{elems.Count} elements in view | {paramNames.Count} parameters available",
+                paramItems, allowMultiSelect: false);
+
+            if (paramPick == null || paramPick.Count == 0) return Result.Cancelled;
+            string selectedParam = paramPick[0].Tag as string;
+            if (string.IsNullOrEmpty(selectedParam)) return Result.Cancelled;
+
+            // Step 2: Pick palette via StingListPicker (shows ALL palettes)
+            var paletteItems = ColorHelper.Palettes.Select(kvp => new StingListPicker.ListItem
+            {
+                Label = kvp.Key,
+                Detail = $"{kvp.Value.Length} colors",
+                Tag = kvp.Key
+            }).ToList();
+
+            var palettePick = StingListPicker.Show(
+                "Color By Parameter — Pick Palette",
+                $"Select color palette for '{selectedParam}'",
+                paletteItems, allowMultiSelect: false);
+
+            if (palettePick == null || palettePick.Count == 0) return Result.Cancelled;
+            string paletteName = palettePick[0].Tag as string;
+            if (string.IsNullOrEmpty(paletteName) || !ColorHelper.Palettes.ContainsKey(paletteName))
+                return Result.Cancelled;
+
+            Color[] palette = ColorHelper.Palettes[paletteName];
+
+            // Group elements by parameter value
+            var groups = ColorHelper.GroupByParameterValue(doc, elems, selectedParam);
+            var sortedValues = groups.Keys.OrderBy(v => v).ToList();
+            var colorMap = ColorHelper.AssignColors(sortedValues, palette);
+
+            // Find solid fill pattern
+            var solidFill = ColorHelper.FindSolidFill(doc);
+
+            int colored = 0;
+            int noValueCount = groups.TryGetValue("<No Value>", out var noValGroup) ? noValGroup.Count : 0;
+
+            using (Transaction tx = new Transaction(doc,
+                $"STING Color By {selectedParam}"))
+            {
+                tx.Start();
+                foreach (var kvp in groups)
+                {
+                    Color color = colorMap[kvp.Key];
+                    var ogs = ColorHelper.BuildOverride(color, solidFill);
+                    foreach (ElementId id in kvp.Value)
+                    {
+                        view.SetElementOverrides(id, ogs);
+                        colored++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            // Build legend report
+            var report = new StringBuilder();
+            report.AppendLine($"Colored {colored} elements by '{selectedParam}'");
+            report.AppendLine($"Palette: {paletteName}");
+            report.AppendLine($"Unique values: {groups.Count}");
+            if (noValueCount > 0)
+                report.AppendLine($"⚠ {noValueCount} elements with <No Value> (RED)");
+            report.AppendLine();
+            report.AppendLine("── Legend ──");
+            foreach (string val in sortedValues.Take(20))
+            {
+                Color c = colorMap[val];
+                report.AppendLine($"  [{c.Red:D3},{c.Green:D3},{c.Blue:D3}]  {val}  ({groups[val].Count})");
+            }
+            if (sortedValues.Count > 20)
+                report.AppendLine($"  ... and {sortedValues.Count - 20} more values");
+
+            // Offer legend creation
+            report.AppendLine();
+            report.AppendLine("Click 'Yes' to create a persistent color legend (drafting view).");
+
+            var resultDlg = new TaskDialog("Color By Parameter");
+            resultDlg.MainContent = report.ToString();
+            resultDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            resultDlg.DefaultButton = TaskDialogResult.No;
+
+            if (resultDlg.Show() == TaskDialogResult.Yes)
+            {
+                var legendEntries = Tags.LegendBuilder.FromColorMap(colorMap, groups);
+                var legendConfig = new Tags.LegendBuilder.LegendConfig
+                {
+                    Title = $"Color By {selectedParam}",
+                    Subtitle = $"Palette: {paletteName} | {groups.Count} unique values",
+                    Footer = $"Generated by STING Tools | View: {view.Name}",
+                };
+
+                using (Transaction ltx = new Transaction(doc, "STING Color Legend"))
+                {
+                    ltx.Start();
+                    var legendView = Tags.LegendBuilder.CreateLegendView(doc, legendEntries, legendConfig);
+                    ltx.Commit();
+
+                    if (legendView != null)
+                        TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
+                }
+            }
+
+            StingLog.Info($"ColorByParameter: param={selectedParam}, palette={paletteName}, " +
+                $"elements={colored}, values={groups.Count}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Clear Color Overrides
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>Clear all per-element graphic overrides in the active view.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ClearColorOverridesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            // Check selection first — clear only selected elements if any
+            var selected = uidoc.Selection.GetElementIds();
+            IEnumerable<ElementId> targetIds;
+            string scope;
+
+            if (selected.Count > 0)
+            {
+                targetIds = selected;
+                scope = $"{selected.Count} selected elements";
+            }
+            else
+            {
+                targetIds = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds();
+                scope = "all elements in active view";
+            }
+
+            var idList = targetIds.ToList();
+            var blank = new OverrideGraphicSettings(); // default = clear
+
+            int cleared = 0;
+            using (Transaction tx = new Transaction(doc, "STING Clear Color Overrides"))
+            {
+                tx.Start();
+                foreach (ElementId id in idList)
+                {
+                    var existing = view.GetElementOverrides(id);
+                    // Check all override types — projection, surface, cut, patterns, and transparency
+                    bool hasOverride =
+                        existing.ProjectionLineColor.IsValid ||
+                        existing.ProjectionLineWeight > 0 ||
+                        existing.ProjectionLinePatternId != ElementId.InvalidElementId ||
+                        existing.Halftone ||
+                        existing.SurfaceForegroundPatternColor.IsValid ||
+                        existing.SurfaceBackgroundPatternColor.IsValid ||
+                        existing.CutLineColor.IsValid ||
+                        existing.CutLineWeight > 0 ||
+                        existing.CutLinePatternId != ElementId.InvalidElementId ||
+                        existing.CutForegroundPatternColor.IsValid ||
+                        existing.CutBackgroundPatternColor.IsValid ||
+                        existing.Transparency > 0 ||
+                        existing.SurfaceForegroundPatternId != ElementId.InvalidElementId ||
+                        existing.CutForegroundPatternId != ElementId.InvalidElementId;
+                    if (hasOverride)
+                    {
+                        view.SetElementOverrides(id, blank);
+                        cleared++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Clear Color Overrides",
+                $"Cleared overrides from {cleared} elements ({scope}).");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Save Color Preset
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>Save current view color overrides as a named preset to COLOR_PRESETS.json.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SaveColorPresetCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            // Scan elements for overrides
+            var elems = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            var colorGroups = new Dictionary<string, List<ElementId>>();
+            foreach (Element elem in elems)
+            {
+                var ogs = view.GetElementOverrides(elem.Id);
+                // Check both surface and projection colors — BuildOverride sets both
+                Color c = ogs.SurfaceForegroundPatternColor;
+                if (!c.IsValid)
+                    c = ogs.ProjectionLineColor;
+                if (!c.IsValid) continue;
+
+                string key = $"{c.Red},{c.Green},{c.Blue}";
+                if (!colorGroups.ContainsKey(key))
+                    colorGroups[key] = new List<ElementId>();
+                colorGroups[key].Add(elem.Id);
+            }
+
+            if (colorGroups.Count == 0)
+            {
+                TaskDialog.Show("Save Color Preset",
+                    "No color overrides found in active view.\n" +
+                    "Apply Color By Parameter first, then save.");
+                return Result.Succeeded;
+            }
+
+            // Ask for preset name via searchable list with common options
+            var nameOptions = new List<string>
+            {
+                "Default", "Discipline", "QA Check", "MEP Systems", "By Level",
+                "By Status", "By Zone", "By Location", "Compliance", "Custom"
+            };
+            // Include existing preset names for overwrite
+            var existing = ColorHelper.LoadPresets();
+            foreach (var name in existing.Keys)
+                if (!nameOptions.Contains(name)) nameOptions.Add(name);
+
+            string presetName = StingListPicker.Show("Save Color Preset",
+                $"Save {colorGroups.Count} color groups ({colorGroups.Values.Sum(v => v.Count)} elements).\nSelect or type a preset name:",
+                nameOptions);
+            if (presetName == null) return Result.Cancelled;
+
+            var preset = new ColorPreset
+            {
+                ParameterName = "Manual",
+                PaletteName = "Custom",
+                ValueColors = new Dictionary<string, int[]>()
+            };
+
+            int groupNum = 1;
+            foreach (var kvp in colorGroups)
+            {
+                var parts = kvp.Key.Split(',');
+                if (parts.Length < 3) { groupNum++; continue; }
+                if (!int.TryParse(parts[0], out int r) || !int.TryParse(parts[1], out int g) || !int.TryParse(parts[2], out int b2))
+                { groupNum++; continue; }
+                preset.ValueColors[$"Group_{groupNum++} ({kvp.Value.Count} elements)"] =
+                    new[] { r, g, b2 };
+            }
+
+            var presets = ColorHelper.LoadPresets();
+            presets[presetName] = preset;
+            ColorHelper.SavePresets(presets);
+
+            TaskDialog.Show("Save Color Preset",
+                $"Saved preset '{presetName}' with {colorGroups.Count} color groups " +
+                $"to {ColorHelper.PresetFilePath}.");
+            StingLog.Info($"SaveColorPreset: name={presetName}, groups={colorGroups.Count}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Load Color Preset
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>Load a named color preset from COLOR_PRESETS.json and apply to view.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class LoadColorPresetCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var presets = ColorHelper.LoadPresets();
+            if (presets.Count == 0)
+            {
+                TaskDialog.Show("Load Color Preset",
+                    "No presets found.\n" +
+                    "Use 'Save Color Preset' to create one first.");
+                return Result.Succeeded;
+            }
+
+            // Show all presets in searchable list (no 4-item limit)
+            var presetItems = presets.Select(kvp => $"{kvp.Key} (Param: {kvp.Value.ParameterName})").ToList();
+            string pick = StingListPicker.Show("Load Color Preset",
+                $"{presets.Count} presets available. Select one to apply:", presetItems);
+            if (pick == null) return Result.Cancelled;
+            string selected = pick.Split(new[] { " (Param:" }, StringSplitOptions.None)[0].Trim();
+            if (!presets.ContainsKey(selected)) return Result.Cancelled;
+
+            var preset = presets[selected];
+            string paramName = preset.ParameterName;
+
+            if (paramName == "Manual" || string.IsNullOrEmpty(paramName))
+            {
+                // Apply manual preset: apply each stored color to all view elements
+                // (users can then adjust manually)
+                var solidFillM = ColorHelper.FindSolidFill(doc);
+                int appliedM = 0;
+                using (Transaction txM = new Transaction(doc, $"STING Load Manual Preset '{selected}'"))
+                {
+                    txM.Start();
+                    // Apply colors cyclically to elements in the view
+                    var viewElems = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null)
+                        .ToList();
+                    var colorList = preset.ValueColors.Values.ToList();
+                    if (colorList.Count > 0)
+                    {
+                        int ci = 0;
+                        foreach (var el in viewElems)
+                        {
+                            var rgb = colorList[ci % colorList.Count];
+                            var color = new Color((byte)rgb[0], (byte)rgb[1], (byte)rgb[2]);
+                            var ogs = ColorHelper.BuildOverride(color, solidFillM);
+                            view.SetElementOverrides(el.Id, ogs);
+                            appliedM++;
+                            ci++;
+                        }
+                    }
+                    txM.Commit();
+                }
+                TaskDialog.Show("Load Color Preset",
+                    $"Applied manual preset '{selected}': colored {appliedM} elements with {preset.ValueColors.Count} stored colors.\n\n" +
+                    "Note: Manual presets apply colors to all view elements. " +
+                    "For parameter-based coloring, use 'Color By Parameter' directly.");
+                return Result.Succeeded;
+            }
+
+            // Re-apply: group elements by parameter, assign colors from preset
+            var elems = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null)
+                .ToList();
+
+            var groups = ColorHelper.GroupByParameterValue(doc, elems, paramName);
+            var solidFill = ColorHelper.FindSolidFill(doc);
+
+            int colored = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Load Preset '{selected}'"))
+            {
+                tx.Start();
+                foreach (var kvp in groups)
+                {
+                    Color color;
+                    if (preset.ValueColors.TryGetValue(kvp.Key, out int[] rgb))
+                        color = new Color((byte)rgb[0], (byte)rgb[1], (byte)rgb[2]);
+                    else
+                        color = ColorHelper.NoValueColor;
+
+                    var ogs = ColorHelper.BuildOverride(color, solidFill);
+                    foreach (ElementId id in kvp.Value)
+                    {
+                        view.SetElementOverrides(id, ogs);
+                        colored++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Load Color Preset",
+                $"Applied preset '{selected}': colored {colored} elements.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Create Filters From Colors
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Convert current per-element color overrides into persistent Revit ParameterFilterElements.
+    /// These survive dialog close, are visible in View Templates, and can be applied to other views.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CreateFiltersFromColorsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            // Ask which parameter — dynamic list from view elements (not hardcoded to 4)
+            var viewElems = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
+                .ToList();
+            var availParams = ColorHelper.GetAvailableParameters(doc, viewElems);
+            // Put common STING params at top
+            var priority = new[] { ParamRegistry.DISC, ParamRegistry.SYS, ParamRegistry.LOC,
+                ParamRegistry.ZONE, ParamRegistry.LVL, ParamRegistry.FUNC, ParamRegistry.PROD };
+            var sortedParams = priority.Where(p => availParams.Contains(p)).ToList();
+            sortedParams.AddRange(availParams.Where(p => !sortedParams.Contains(p)));
+
+            string paramName = StingListPicker.Show("Create Filters — Parameter",
+                "Select the parameter to create filters for:", sortedParams);
+            if (paramName == null) return Result.Cancelled;
+
+            // Get distinct values from elements
+            var elems = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null)
+                .ToList();
+
+            var groups = ColorHelper.GroupByParameterValue(doc, elems, paramName);
+            if (groups.Count == 0)
+            {
+                TaskDialog.Show("Create Filters", "No values found for this parameter.");
+                return Result.Succeeded;
+            }
+
+            // Get the shared parameter ID for filter rules
+            ParameterElement paramElem = null;
+            foreach (ParameterElement pe in new FilteredElementCollector(doc)
+                .OfClass(typeof(ParameterElement)))
+            {
+                if (pe.GetDefinition()?.Name == paramName)
+                {
+                    paramElem = pe;
+                    break;
+                }
+            }
+
+            if (paramElem == null)
+            {
+                TaskDialog.Show("Create Filters",
+                    $"Parameter '{paramName}' not found as a project parameter.\n" +
+                    "Run 'Load Params' first.");
+                return Result.Succeeded;
+            }
+
+            // Get categories from elements that actually have this parameter
+            var categories = new List<ElementId>();
+            var seenCats = new HashSet<int>();
+            foreach (var elem in elems)
+            {
+                if (elem.Category != null && seenCats.Add((int)elem.Category.Id.Value))
+                    categories.Add(elem.Category.Id);
+            }
+
+            if (categories.Count == 0)
+            {
+                TaskDialog.Show("Create Filters", "No model categories found.");
+                return Result.Succeeded;
+            }
+
+            // Create filters and apply overrides
+            var solidFill = ColorHelper.FindSolidFill(doc);
+            var palette = ColorHelper.Palettes["STING Discipline"];
+            int created = 0;
+            int existing = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Create Color Filters"))
+            {
+                tx.Start();
+                int colorIdx = 0;
+                foreach (var kvp in groups.OrderBy(g => g.Key))
+                {
+                    if (kvp.Key == "<No Value>") continue;
+
+                    string filterName = $"STING {paramName.Replace("ASS_", "").Replace("_TXT", "")} = {kvp.Key}";
+
+                    // Check if filter already exists
+                    var existingFilter = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ParameterFilterElement))
+                        .Cast<ParameterFilterElement>()
+                        .FirstOrDefault(f => f.Name == filterName);
+
+                    if (existingFilter != null)
+                    {
+                        existing++;
+                        continue;
+                    }
+
+                    try
+                    {
+                        // Create filter rule
+                        var rule = ParameterFilterRuleFactory.CreateEqualsRule(
+                            paramElem.Id, kvp.Key);
+                        var filter = ParameterFilterElement.Create(
+                            doc, filterName, categories,
+                            new ElementParameterFilter(rule));
+
+                        // Add filter to view with color override
+                        Color color = palette[colorIdx++ % palette.Length];
+                        var ogs = ColorHelper.BuildOverride(color, solidFill);
+                        view.AddFilter(filter.Id);
+                        view.SetFilterOverrides(filter.Id, ogs);
+                        created++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"CreateFilter '{filterName}': {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            string result2 = $"Created {created} view filters for '{paramName}'.";
+            if (existing > 0) result2 += $"\n{existing} filters already existed (skipped).";
+            result2 += "\n\nFilters are now visible in Visibility/Graphics → Filters tab.";
+            TaskDialog.Show("Create Filters", result2);
+            StingLog.Info($"CreateFiltersFromColors: param={paramName}, created={created}");
+            return Result.Succeeded;
+        }
+    }
+}

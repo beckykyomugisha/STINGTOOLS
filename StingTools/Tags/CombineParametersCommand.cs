@@ -6,357 +6,107 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Naviate-style "Combine Parameters" command with interactive selection.
+    /// "Combine Parameters" command with interactive selection.
     ///
     /// Presents a multi-step dialog where the user:
     ///   Step 1: Chooses a mode (All Containers, Universal Only, Discipline Only, Pick Containers)
     ///   Step 2: In "Pick" mode, selects which tag container groups to populate
     ///
-    /// Each tag container assembles source tokens with configurable:
-    ///   - Segment selection (which tokens to include)
-    ///   - Separator character
-    ///   - Prefix and suffix strings
-    ///
-    /// Containers supported (16 groups, 37 parameters):
-    ///   - Universal: ASS_TAG_1 through ASS_TAG_6
-    ///   - HVAC: HVC_EQP_TAG, HVC_DCT_TAG, HVC_FLX_TAG
-    ///   - Electrical: ELC_EQP_TAG, ELE_FIX_TAG, LTG_FIX_TAG, ELC_CDT_TAG, ELC_CTR_TAG
-    ///   - Plumbing: PLM_EQP_TAG
-    ///   - Fire/Safety: FLS_DEV_TAG
-    ///   - Comms/LV: COM_DEV_TAG, SEC_DEV_TAG, NCL_DEV_TAG, ICT_DEV_TAG
-    ///   - Material: MAT_TAG_1 through MAT_TAG_6
+    /// All container definitions loaded from ParamRegistry (PARAMETER_REGISTRY.json).
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class CombineParametersCommand : IExternalCommand
     {
-        // ── Source token parameter names ──────────────────────────────
-        private static readonly string[] AllTokenParams = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT",  // 0: DISC
-            "ASS_LOC_TXT",             // 1: LOC
-            "ASS_ZONE_TXT",            // 2: ZONE
-            "ASS_LVL_COD_TXT",         // 3: LVL
-            "ASS_SYSTEM_TYPE_TXT",     // 4: SYS
-            "ASS_FUNC_TXT",            // 5: FUNC
-            "ASS_PRODCT_COD_TXT",      // 6: PROD
-            "ASS_SEQ_NUM_TXT",         // 7: SEQ
-        };
-
-        private static readonly string[] ShortIdTokens = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT"
-        };
-
-        private static readonly string[] LocationTokens = new[]
-        {
-            "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT"
-        };
-
-        private static readonly string[] SystemTokens = new[]
-        {
-            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT"
-        };
-
-        private static readonly string[] Line1Tokens = new[]
-        {
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT"
-        };
-
-        private static readonly string[] Line2Tokens = new[]
-        {
-            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT"
-        };
-
-        private static readonly string[] SysRefTokens = new[]
-        {
-            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT"
-        };
-
-        // ── Container group definitions ──────────────────────────────
-
-        /// <summary>All selectable container groups for the interactive UI.</summary>
-        private static readonly ContainerGroup[] AllGroups = new[]
-        {
-            // Universal (applies to all tagged elements)
-            new ContainerGroup("Universal (ASS_TAG_1-6)", "UNIVERSAL", null, new[]
-            {
-                new ContainerDef("ASS_TAG_1_TXT", AllTokenParams,  "-", "", "", "Full 8-segment tag"),
-                new ContainerDef("ASS_TAG_2_TXT", ShortIdTokens,   "-", "", "", "Short ID (DISC-PROD-SEQ)"),
-                new ContainerDef("ASS_TAG_3_TXT", LocationTokens,  "-", "", "", "Location (LOC-ZONE-LVL)"),
-                new ContainerDef("ASS_TAG_4_TXT", SystemTokens,    "-", "", "", "System (SYS-FUNC)"),
-                new ContainerDef("ASS_TAG_5_TXT", Line1Tokens,     "-", "", "", "Multi-line top"),
-                new ContainerDef("ASS_TAG_6_TXT", Line2Tokens,     "-", "", "", "Multi-line bottom"),
-            }),
-
-            // HVAC Equipment
-            new ContainerGroup("HVAC Equipment", "HVC_EQP",
-                new[] { "Mechanical Equipment" }, new[]
-            {
-                new ContainerDef("HVC_EQP_TAG_01_TXT", AllTokenParams,  "-", "", "", "Full tag"),
-                new ContainerDef("HVC_EQP_TAG_02_TXT", ShortIdTokens,   "-", "", "", "Short ID"),
-                new ContainerDef("HVC_EQP_TAG_03_TXT", SysRefTokens,    "-", "", "", "System ref"),
-            }),
-
-            // HVAC Ductwork
-            new ContainerGroup("HVAC Ductwork", "HVC_DCT",
-                new[] { "Ducts", "Duct Fittings", "Flex Ducts", "Air Terminals", "Duct Accessories" }, new[]
-            {
-                new ContainerDef("HVC_DCT_TAG_01_TXT", AllTokenParams,  "-", "", "", "Full tag"),
-                new ContainerDef("HVC_DCT_TAG_02_TXT", ShortIdTokens,   "-", "", "", "Short ID"),
-                new ContainerDef("HVC_DCT_TAG_03_TXT", SystemTokens,    "-", "", "", "System"),
-            }),
-
-            // Flex Ducts
-            new ContainerGroup("Flex Ducts", "HVC_FLX",
-                new[] { "Flex Ducts" }, new[]
-            {
-                new ContainerDef("HVC_FLX_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-            }),
-
-            // Electrical Equipment
-            new ContainerGroup("Electrical Equipment", "ELC_EQP",
-                new[] { "Electrical Equipment" }, new[]
-            {
-                new ContainerDef("ELC_EQP_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-                new ContainerDef("ELC_EQP_TAG_02_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
-            }),
-
-            // Electrical Fixtures
-            new ContainerGroup("Electrical Fixtures", "ELE_FIX",
-                new[] { "Electrical Fixtures" }, new[]
-            {
-                new ContainerDef("ELE_FIX_TAG_1_TXT", AllTokenParams, "-", "", "", "Full tag"),
-                new ContainerDef("ELE_FIX_TAG_2_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
-            }),
-
-            // Lighting
-            new ContainerGroup("Lighting", "LTG_FIX",
-                new[] { "Lighting Fixtures", "Lighting Devices" }, new[]
-            {
-                new ContainerDef("LTG_FIX_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-                new ContainerDef("LTG_FIX_TAG_02_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
-            }),
-
-            // Pipework / Plumbing
-            new ContainerGroup("Pipework / Plumbing", "PLM_EQP",
-                new[] { "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes", "Plumbing Fixtures" }, new[]
-            {
-                new ContainerDef("PLM_EQP_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-                new ContainerDef("PLM_EQP_TAG_02_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
-            }),
-
-            // Fire & Life Safety
-            new ContainerGroup("Fire & Life Safety", "FLS_DEV",
-                new[] { "Sprinklers", "Fire Alarm Devices" }, new[]
-            {
-                new ContainerDef("FLS_DEV_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-                new ContainerDef("FLS_DEV_TAG_02_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
-            }),
-
-            // Conduits
-            new ContainerGroup("Conduits", "ELC_CDT",
-                new[] { "Conduits", "Conduit Fittings" }, new[]
-            {
-                new ContainerDef("ELC_CDT_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-                new ContainerDef("ELC_CDT_TAG_02_TXT", ShortIdTokens,  "-", "", "", "Short ID"),
-            }),
-
-            // Cable Trays
-            new ContainerGroup("Cable Trays", "ELC_CTR",
-                new[] { "Cable Trays", "Cable Tray Fittings" }, new[]
-            {
-                new ContainerDef("ELC_CTR_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-            }),
-
-            // Communications / Low-voltage
-            new ContainerGroup("Communications", "COM_DEV",
-                new[] { "Communication Devices", "Telephone Devices" }, new[]
-            {
-                new ContainerDef("COM_DEV_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-            }),
-            new ContainerGroup("Security", "SEC_DEV",
-                new[] { "Security Devices" }, new[]
-            {
-                new ContainerDef("SEC_DEV_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-            }),
-            new ContainerGroup("Nurse Call", "NCL_DEV",
-                new[] { "Nurse Call Devices" }, new[]
-            {
-                new ContainerDef("NCL_DEV_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-            }),
-            new ContainerGroup("ICT / Data", "ICT_DEV",
-                new[] { "Data Devices" }, new[]
-            {
-                new ContainerDef("ICT_DEV_TAG_01_TXT", AllTokenParams, "-", "", "", "Full tag"),
-            }),
-
-            // Material Tags (for compound-structure elements)
-            new ContainerGroup("Material Tags (MAT_TAG_1-6)", "MAT_TAG",
-                new[] { "Walls", "Floors", "Ceilings", "Roofs", "Doors", "Windows" }, new[]
-            {
-                new ContainerDef("MAT_TAG_1_TXT", AllTokenParams,  "-", "", "", "Full tag"),
-                new ContainerDef("MAT_TAG_2_TXT", ShortIdTokens,   "-", "", "", "Short ID"),
-                new ContainerDef("MAT_TAG_3_TXT", LocationTokens,  "-", "", "", "Location"),
-                new ContainerDef("MAT_TAG_4_TXT", SystemTokens,    "-", "", "", "System"),
-                new ContainerDef("MAT_TAG_5_TXT", Line1Tokens,     "-", "", "", "Line 1"),
-                new ContainerDef("MAT_TAG_6_TXT", Line2Tokens,     "-", "", "", "Line 2"),
-            }),
-        };
-
-        // ── Main Execute ─────────────────────────────────────────────
-
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
-            // Step 1: Mode selection
-            TaskDialog modeDlg = new TaskDialog("Combine Parameters");
-            modeDlg.MainInstruction = "Which tag containers to populate?";
-            modeDlg.MainContent =
-                "Reads token parameters (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ) " +
-                "and assembles them into tag container parameters.\n\n" +
-                $"Available: {AllGroups.Length} groups, " +
-                $"{AllGroups.Sum(g => g.Containers.Length)} total containers";
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "All Containers",
-                $"Populate all {AllGroups.Length} groups ({AllGroups.Sum(g => g.Containers.Length)} parameters)");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Universal Only (ASS_TAG_1-6)",
-                "6 universal containers applied to all tagged elements");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Discipline Only",
-                "MEP + Comms discipline-specific containers (excludes Universal and Material)");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Pick Container Groups...",
-                "Interactively choose which groups to populate");
-            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            var allGroups = ParamRegistry.ContainerGroups;
 
-            var modeResult = modeDlg.Show();
+            // Build element counts per category for the dialog
+            var catCounts = BuildCategoryCounts(doc);
 
-            HashSet<string> selectedGroupIds;
-            switch (modeResult)
-            {
-                case TaskDialogResult.CommandLink1:
-                    selectedGroupIds = new HashSet<string>(AllGroups.Select(g => g.GroupId));
-                    break;
-                case TaskDialogResult.CommandLink2:
-                    selectedGroupIds = new HashSet<string> { "UNIVERSAL" };
-                    break;
-                case TaskDialogResult.CommandLink3:
-                    selectedGroupIds = new HashSet<string>(
-                        AllGroups.Where(g => g.GroupId != "UNIVERSAL" && g.GroupId != "MAT_TAG")
-                                 .Select(g => g.GroupId));
-                    break;
-                case TaskDialogResult.CommandLink4:
-                    selectedGroupIds = ShowGroupPicker(doc);
-                    if (selectedGroupIds == null || selectedGroupIds.Count == 0)
-                        return Result.Cancelled;
-                    break;
-                default:
-                    return Result.Cancelled;
-            }
+            // Unified single-dialog configuration
+            var configResult = UI.CombineConfigDialog.Show(allGroups, catCounts);
+            if (configResult.Cancelled)
+                return Result.Cancelled;
 
-            var activeGroups = AllGroups.Where(g => selectedGroupIds.Contains(g.GroupId)).ToArray();
+            HashSet<string> selectedGroupCodes = configResult.SelectedGroupCodes;
+
+            var activeGroups = allGroups.Where(g => selectedGroupCodes.Contains(g.GroupCode)).ToArray();
             return ExecuteCombine(doc, activeGroups);
         }
 
-        // ── Group picker: paged TaskDialog selection ─────────────────
+        // ── Category count builder for dialog ────────────────────────
 
-        private HashSet<string> ShowGroupPicker(Document doc)
+        private static Dictionary<string, int> BuildCategoryCounts(Document doc)
         {
-            // Count elements per category to show relevance
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
             var catCounts = new Dictionary<string, int>();
-            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            if (catEnums != null && catEnums.Length > 0)
+                coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            foreach (Element el in coll)
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!knownCategories.Contains(cat)) continue;
-                if (catCounts.ContainsKey(cat)) catCounts[cat]++;
-                else catCounts[cat] = 1;
+                catCounts.TryGetValue(cat, out int cc);
+                catCounts[cat] = cc + 1;
             }
+            return catCounts;
+        }
 
-            var selected = new HashSet<string>();
-            int page = 0;
-            int pageSize = 4; // Revit TaskDialog supports max 4 command links
+        // ── Group picker (backup): StingListPicker selection ─────────
+        // Retained as fallback; primary UI is CombineConfigDialog.
 
-            while (true)
+        [Obsolete("Replaced by CombineConfigDialog. Retained as backup.")]
+        private HashSet<string> ShowGroupPicker(Document doc, ParamRegistry.ContainerGroupDef[] allGroups)
+        {
+            // Reuse BuildCategoryCounts to avoid duplicate FilteredElementCollector scan
+            var catCounts = BuildCategoryCounts(doc);
+
+            var groupItems = allGroups.Select(g =>
             {
-                int start = page * pageSize;
-                if (start >= AllGroups.Length)
+                int elemCount = g.Categories != null
+                    ? g.Categories.Sum(c => catCounts.TryGetValue(c, out int n) ? n : 0)
+                    : catCounts.Values.Sum();
+                return new StingListPicker.ListItem
                 {
-                    // Wrap around or finish
-                    if (selected.Count > 0) break;
-                    page = 0;
-                    start = 0;
-                }
+                    Label = g.Group,
+                    Detail = $"{g.Params.Length} containers | {elemCount} elements",
+                    Tag = g.GroupCode
+                };
+            }).ToList();
 
-                int count = Math.Min(pageSize, AllGroups.Length - start);
-                var pageGroups = AllGroups.Skip(start).Take(count).ToArray();
-                int totalPages = (int)Math.Ceiling((double)AllGroups.Length / pageSize);
+            var picked = StingListPicker.Show(
+                "Combine Parameters — Select Groups",
+                $"{allGroups.Length} container groups available. Select groups to populate.",
+                groupItems, allowMultiSelect: true);
 
-                TaskDialog picker = new TaskDialog("Select Container Groups");
-                picker.MainInstruction = $"Toggle groups (page {page + 1}/{totalPages})";
-                picker.MainContent = selected.Count > 0
-                    ? $"Selected: {string.Join(", ", AllGroups.Where(g => selected.Contains(g.GroupId)).Select(g => g.Label))}"
-                    : "Click a group to select/deselect it. Cancel when done selecting.";
-
-                for (int i = 0; i < pageGroups.Length; i++)
-                {
-                    var g = pageGroups[i];
-                    int elemCount = g.Categories != null
-                        ? g.Categories.Sum(c => catCounts.TryGetValue(c, out int n) ? n : 0)
-                        : catCounts.Values.Sum();
-                    string mark = selected.Contains(g.GroupId) ? "[X] " : "[ ] ";
-                    picker.AddCommandLink(
-                        (TaskDialogCommandLinkId)(i + 201),
-                        $"{mark}{g.Label}",
-                        $"{g.Containers.Length} containers | {elemCount} elements");
-                }
-
-                picker.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                var pickResult = picker.Show();
-
-                int linkIndex = -1;
-                switch (pickResult)
-                {
-                    case TaskDialogResult.CommandLink1: linkIndex = 0; break;
-                    case TaskDialogResult.CommandLink2: linkIndex = 1; break;
-                    case TaskDialogResult.CommandLink3: linkIndex = 2; break;
-                    case TaskDialogResult.CommandLink4: linkIndex = 3; break;
-                    default:
-                        // Cancel or close → advance page, finish if already past end
-                        page++;
-                        if (page * pageSize >= AllGroups.Length)
-                            break;
-                        continue;
-                }
-
-                if (linkIndex >= 0 && linkIndex < pageGroups.Length)
-                {
-                    string id = pageGroups[linkIndex].GroupId;
-                    if (selected.Contains(id))
-                        selected.Remove(id);
-                    else
-                        selected.Add(id);
-                    continue; // Stay on same page for more toggles
-                }
-            }
-
-            return selected.Count > 0 ? selected : null;
+            if (picked == null || picked.Count == 0) return null;
+            return new HashSet<string>(
+                picked.Select(p => p.Tag as string).Where(s => !string.IsNullOrEmpty(s)));
         }
 
         // ── Core combine logic ───────────────────────────────────────
 
-        private Result ExecuteCombine(Document doc, ContainerGroup[] activeGroups)
+        private Result ExecuteCombine(Document doc, ParamRegistry.ContainerGroupDef[] activeGroups)
         {
             var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var combCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (combCatEnums != null && combCatEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(combCatEnums)));
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             int totalElements = 0;
@@ -364,60 +114,186 @@ namespace StingTools.Tags
             int skippedNoDisc = 0;
             var writesPerGroup = new Dictionary<string, int>();
 
+            // H-04 FIX: Use BuildTagIndexAndCounters (merges sidecar data) instead of
+            // GetExistingSequenceCounters (project params only). Prevents SEQ collisions
+            // when sidecar has higher counter state from previous sessions.
+            var tagIndexResult = TagConfig.BuildTagIndexAndCounters(doc);
+            var existingTags = tagIndexResult.Item1;
+            var seqCounters = tagIndexResult.Item2;
+
             foreach (var g in activeGroups)
-                writesPerGroup[g.GroupId] = 0;
+                writesPerGroup[g.GroupCode] = 0;
 
-            using (Transaction tx = new Transaction(doc, "STING Combine Parameters"))
+            // PERF-006 FIX: Collect elements once, count from list instead of second collector
+            var elements = collector.ToList();
+            int elementCount = 0;
+            foreach (var el in elements)
             {
-                tx.Start();
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (knownCategories.Contains(cat)) elementCount++;
+            }
 
-                foreach (Element el in collector)
+            var progress = UI.StingProgressDialog.Show("STING — Combine Parameters", elementCount);
+
+            // TAG-H-03: Process in 200-element batched transactions so Revit doesn't build
+            // a huge undo journal for very large models (which can exhaust memory).
+            // seqCounters and existingTags persist across batches for collision detection.
+            const int BatchSize = 200;
+            int batchStart = 0;
+
+            try
+            {
+            while (batchStart < elements.Count)
+            {
+                int batchEnd = Math.Min(batchStart + BatchSize, elements.Count);
+                var batch = elements.GetRange(batchStart, batchEnd - batchStart);
+                batchStart = batchEnd;
+
+                using (Transaction tx = new Transaction(doc, "STING Combine Parameters"))
                 {
-                    string catName = ParameterHelpers.GetCategoryName(el);
-                    if (string.IsNullOrEmpty(catName) || !knownCategories.Contains(catName))
-                        continue;
+                    tx.Start();
 
-                    string disc = ParameterHelpers.GetString(el, "ASS_DISCIPLINE_COD_TXT");
-                    if (string.IsNullOrEmpty(disc))
+                    foreach (Element el in batch)
                     {
-                        skippedNoDisc++;
-                        continue;
-                    }
+                        // GAP-WS-01: Skip elements on worksets owned by other users
+                        if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
 
-                    totalElements++;
-
-                    // Read all source tokens once
-                    var tokenValues = new Dictionary<string, string>();
-                    foreach (string param in AllTokenParams)
-                        tokenValues[param] = ParameterHelpers.GetString(el, param);
-
-                    foreach (var group in activeGroups)
-                    {
-                        if (group.Categories != null && !group.Categories.Contains(catName))
+                        string catName = ParameterHelpers.GetCategoryName(el);
+                        if (string.IsNullOrEmpty(catName) || !knownCategories.Contains(catName))
                             continue;
 
-                        foreach (var container in group.Containers)
-                        {
-                            string assembled = AssembleFromTokens(
-                                tokenValues, container.SourceTokens,
-                                container.Separator, container.Prefix, container.Suffix);
+                        // GAP-04: Run TypeTokenInherit BEFORE DISC check so type-level
+                        // DISC values are inherited to empty instances before fallback
+                        try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
+                        catch (Exception tiEx) { StingLog.Warn($"CombineParams TypeTokenInherit {el.Id}: {tiEx.Message}"); }
 
-                            if (!string.IsNullOrEmpty(assembled))
+                        string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                        if (string.IsNullOrEmpty(disc))
+                        {
+                            // Fallback chain: 1) category map, 2) skip
+                            disc = TagConfig.DiscMap.TryGetValue(catName, out string autoDisc) ? autoDisc : null;
+                            if (!string.IsNullOrEmpty(disc))
                             {
-                                if (ParameterHelpers.SetString(el, container.ParamName,
-                                    assembled, overwrite: true))
+                                ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc);
+                            }
+                            else
+                            {
+                                skippedNoDisc++;
+                                continue;
+                            }
+                        }
+
+                        totalElements++;
+
+                        // AUTO-R2: Progress reporting and cancellation
+                        if (progress != null)
+                        {
+                            progress.Increment($"Element {totalElements}: {catName}");
+                            if (progress.IsCancelled || EscapeChecker.IsEscapePressed())
+                            {
+                                tx.RollBack();
+                                progress.Close();
+                                TaskDialog.Show("STING", $"Combine cancelled after {totalElements} elements.\n{totalWrites} container writes completed before cancellation.");
+                                return Result.Cancelled;
+                            }
+                        }
+
+                        // Bridge native params before reading tokens
+                        try { NativeParamMapper.MapAll(doc, el); }
+                        catch (Exception enrichEx) { StingLog.Warn($"CombineParams enrich {el.Id}: {enrichEx.Message}"); }
+
+                        // Read all source tokens once (after enrichment)
+                        string[] tokenValues = ParamRegistry.ReadTokenValues(el);
+
+                        // TAG-06: Use BuildAndWriteTag for TAG1 assembly instead of manual string.Join.
+                        // This provides collision detection (auto-increment SEQ on duplicate tags),
+                        // proper PREFIX/SUFFIX application, and SEQ counter tracking.
+                        try
+                        {
+                            TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                                skipComplete: false, existingTags, TagCollisionMode.AutoIncrement);
+                            // Re-read tokens in case BuildAndWriteTag updated SEQ
+                            tokenValues = ParamRegistry.ReadTokenValues(el);
+                        }
+                        catch (Exception bwtEx)
+                        {
+                            StingLog.Warn($"CombineParams BuildAndWriteTag for {el.Id}: {bwtEx.Message}");
+                        }
+
+                        // Phase 67: Pre-validate token values before writing containers.
+                        // Logs cross-validation warnings but does NOT skip — containers are still
+                        // written so partial data is visible in schedules/exports for manual resolution.
+                        if (tokenValues != null && tokenValues.Length >= 8)
+                        {
+                            try
+                            {
+                                var isoErrors = ISO19650Validator.ValidateElement(el);
+                                if (isoErrors.Count > 0)
                                 {
-                                    totalWrites++;
-                                    writesPerGroup[group.GroupId]++;
+                                    foreach (var err in isoErrors.Take(2))
+                                        StingLog.Warn($"CombineParams ISO warn {el.Id}: {err.Message}");
+                                }
+                            }
+                            catch (Exception valEx) { StingLog.Warn($"CombineParams validate: {valEx.Message}"); }
+                        }
+
+                        foreach (var group in activeGroups)
+                        {
+                            if (group.Categories != null && !group.Categories.Contains(catName))
+                                continue;
+
+                            foreach (var container in group.Params)
+                            {
+                                // Skip TAG7 in normal assembly — it uses the narrative builder
+                                if (container.ParamName == ParamRegistry.TAG7)
+                                    continue;
+
+                                string assembled = ParamRegistry.AssembleContainer(container, tokenValues);
+
+                                if (!string.IsNullOrEmpty(assembled))
+                                {
+                                    if (ParameterHelpers.SetString(el, container.ParamName,
+                                        assembled, overwrite: true))
+                                    {
+                                        totalWrites++;
+                                        writesPerGroup[group.GroupCode]++;
+                                    }
                                 }
                             }
                         }
+
+                        // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                        // Only write TAG7 if core + spatial tokens are populated to avoid
+                        // generating incomplete narratives from partially-tagged elements
+                        bool hasCoreTags = tokenValues.Length >= 8
+                            && !string.IsNullOrEmpty(tokenValues[0])   // DISC
+                            && !string.IsNullOrEmpty(tokenValues[1])   // LOC
+                            && !string.IsNullOrEmpty(tokenValues[2])   // ZONE
+                            && !string.IsNullOrEmpty(tokenValues[3])   // LVL
+                            && !string.IsNullOrEmpty(tokenValues[4])   // SYS
+                            && !string.IsNullOrEmpty(tokenValues[6]);  // PROD
+                        int tag7Writes = 0;
+                        if (hasCoreTags)
+                            tag7Writes = TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
+                        totalWrites += tag7Writes;
+                        if (tag7Writes > 0 && writesPerGroup.ContainsKey("UNIVERSAL"))
+                            writesPerGroup["UNIVERSAL"] += tag7Writes;
                     }
+
+                    tx.Commit();
                 }
-
-                tx.Commit();
+            } // end batched loop
             }
-
+            finally
+            {
+                progress?.Close(); // AUTO-R2: Close progress dialog
+            }
+            // GAP-01: Invalidate caches after container writes
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); } // TAG-06: Persist SEQ counters
+            catch (Exception ssEx) { StingLog.Warn($"CombineParams SaveSeqSidecar: {ssEx.Message}"); }
+            TagConfig.CheckComplianceGate(doc, "CombineParameters");
             // Build report
             var report = new StringBuilder();
             report.AppendLine("Combine Parameters Complete");
@@ -432,9 +308,9 @@ namespace StingTools.Tags
             report.AppendLine($"  {new string('─', 43)}");
             foreach (var group in activeGroups)
             {
-                int w = writesPerGroup[group.GroupId];
-                report.AppendLine($"  {group.Label,-35} {w,7}");
-                foreach (var c in group.Containers)
+                int w = writesPerGroup[group.GroupCode];
+                report.AppendLine($"  {group.Group,-35} {w,7}");
+                foreach (var c in group.Params)
                     report.AppendLine($"    -> {c.ParamName,-28} {c.Description}");
             }
 
@@ -448,64 +324,288 @@ namespace StingTools.Tags
 
             return Result.Succeeded;
         }
+    }
 
-        // ── Token assembly ───────────────────────────────────────────
-
-        private static string AssembleFromTokens(Dictionary<string, string> tokenValues,
-            string[] sourceTokens, string separator, string prefix, string suffix)
+    /// <summary>
+    /// Combine Pre-Flight Check: audits token completeness BEFORE writing containers.
+    /// Reports which tokens are missing, how many elements are ready vs incomplete,
+    /// and which disciplines/systems have gaps. Non-destructive ReadOnly audit.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CombinePreFlightCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
         {
-            var parts = new List<string>();
-            foreach (string param in sourceTokens)
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            int total = 0, fullyReady = 0, partial = 0, empty = 0;
+            var missingByToken = new Dictionary<string, int>
             {
-                string val = tokenValues.TryGetValue(param, out string v) ? v : "";
-                parts.Add(val);
+                { "DISC", 0 }, { "LOC", 0 }, { "ZONE", 0 }, { "LVL", 0 },
+                { "SYS", 0 }, { "FUNC", 0 }, { "PROD", 0 }, { "SEQ", 0 },
+                { "STATUS", 0 }, { "REV", 0 }
+            };
+            var readyByDisc = new Dictionary<string, int>();
+            var incompleteByDisc = new Dictionary<string, int>();
+            var placeholderCount = 0;
+            var incompleteTagCount = 0;
+            var existingTagCount = 0;
+
+            string[] tokenNames = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ", "STATUS", "REV" };
+            string[] tokenParams = {
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS, ParamRegistry.REV
+            };
+
+            var pfColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var pfCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (pfCatEnums != null && pfCatEnums.Length > 0)
+                pfColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(pfCatEnums)));
+            foreach (Element el in pfColl)
+            {
+                string catName = ParameterHelpers.GetCategoryName(el);
+                if (!knownCategories.Contains(catName)) continue;
+
+                total++;
+
+                // Check existing tag
+                string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (TagConfig.TagIsComplete(existingTag))
+                    existingTagCount++;
+                else if (!string.IsNullOrEmpty(existingTag))
+                    incompleteTagCount++;
+
+                // Check token completeness
+                int filledCount = 0;
+                bool hasPlaceholder = false;
+                string disc = "";
+
+                for (int i = 0; i < tokenParams.Length; i++)
+                {
+                    string val = ParameterHelpers.GetString(el, tokenParams[i]);
+                    if (string.IsNullOrEmpty(val))
+                    {
+                        missingByToken[tokenNames[i]]++;
+                    }
+                    else
+                    {
+                        filledCount++;
+                        if (val == "XX" || val == "ZZ" || val == "0000")
+                            hasPlaceholder = true;
+                    }
+                    if (i == 0) disc = val;
+                }
+
+                if (hasPlaceholder) placeholderCount++;
+
+                if (filledCount == tokenParams.Length)
+                {
+                    fullyReady++;
+                    if (!string.IsNullOrEmpty(disc))
+                    {
+                        readyByDisc.TryGetValue(disc, out int rc);
+                        readyByDisc[disc] = rc + 1;
+                    }
+                }
+                else if (filledCount > 0)
+                {
+                    partial++;
+                    if (!string.IsNullOrEmpty(disc))
+                    {
+                        incompleteByDisc.TryGetValue(disc, out int ic);
+                        incompleteByDisc[disc] = ic + 1;
+                    }
+                }
+                else
+                {
+                    empty++;
+                }
             }
 
-            if (parts.All(p => string.IsNullOrEmpty(p)))
-                return null;
+            // Build report
+            var report = new StringBuilder();
+            report.AppendLine("Combine Pre-Flight Check");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  Taggable elements:     {total}");
+            report.AppendLine($"  Fully ready ({tokenParams.Length}/{tokenParams.Length}):   {fullyReady}");
+            report.AppendLine($"  Partial tokens:        {partial}");
+            report.AppendLine($"  No tokens at all:      {empty}");
+            report.AppendLine($"  With placeholders:     {placeholderCount}");
+            report.AppendLine($"  Already have TAG1:     {existingTagCount}");
+            if (incompleteTagCount > 0)
+                report.AppendLine($"  Incomplete TAG1:       {incompleteTagCount}");
 
-            return prefix + string.Join(separator, parts) + suffix;
+            double readyPct = total > 0 ? fullyReady * 100.0 / total : 0;
+            report.AppendLine($"  Readiness:             {readyPct:F1}%");
+
+            report.AppendLine();
+            report.AppendLine("Missing Tokens:");
+            report.AppendLine($"  {"Token",-8} {"Missing",8} {"Filled",8} {"%Ready",8}");
+            report.AppendLine($"  {new string('─', 34)}");
+            for (int i = 0; i < tokenNames.Length; i++)
+            {
+                int missing = missingByToken[tokenNames[i]];
+                int filled = total - missing;
+                double pct = total > 0 ? filled * 100.0 / total : 0;
+                string bar = missing > 0 ? " !!!" : "";
+                report.AppendLine($"  {tokenNames[i],-8} {missing,8} {filled,8} {pct,7:F0}%{bar}");
+            }
+
+            if (readyByDisc.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("Ready by Discipline:");
+                foreach (var kvp in readyByDisc.OrderByDescending(x => x.Value))
+                {
+                    int inc = incompleteByDisc.TryGetValue(kvp.Key, out int n) ? n : 0;
+                    report.AppendLine($"  {kvp.Key,-6} {kvp.Value,5} ready, {inc,5} incomplete");
+                }
+            }
+
+            // Recommendation
+            report.AppendLine();
+            if (readyPct >= 95)
+                report.AppendLine("RECOMMENDATION: Ready to combine! High token completeness.");
+            else if (readyPct >= 70)
+                report.AppendLine("RECOMMENDATION: Mostly ready. Run Family-Stage Populate to fill gaps.");
+            else if (readyPct >= 30)
+                report.AppendLine("RECOMMENDATION: Significant gaps. Run Auto Tag or Family-Stage Populate first.");
+            else
+                report.AppendLine("RECOMMENDATION: Too many gaps. Run the full tagging pipeline before combining.");
+
+            TaskDialog td = new TaskDialog("Combine Pre-Flight");
+            td.MainInstruction = $"Pre-Flight: {fullyReady}/{total} ready ({readyPct:F0}%)";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            StingLog.Info($"CombinePreFlight: total={total}, ready={fullyReady}, " +
+                $"partial={partial}, empty={empty}, readiness={readyPct:F1}%");
+            return Result.Succeeded;
         }
+    }
 
-        // ── Data types ───────────────────────────────────────────────
-
-        private class ContainerDef
+    /// <summary>
+    /// Container Pre-Check — verifies all container parameters are bound and writable
+    /// before running Combine Parameters. Reports any unbound or read-only parameters
+    /// that would silently fail during combine.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ContainerPreCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
         {
-            public string ParamName { get; }
-            public string[] SourceTokens { get; }
-            public string Separator { get; }
-            public string Prefix { get; }
-            public string Suffix { get; }
-            public string Description { get; }
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
-            public ContainerDef(string paramName, string[] sourceTokens,
-                string separator, string prefix, string suffix, string description)
+            var allGroups = ParamRegistry.ContainerGroups;
+            if (allGroups == null || allGroups.Length == 0)
             {
-                ParamName = paramName;
-                SourceTokens = sourceTokens;
-                Separator = separator;
-                Prefix = prefix;
-                Suffix = suffix;
-                Description = description;
+                TaskDialog.Show("Container Pre-Check", "No container groups defined in ParamRegistry.");
+                return Result.Failed;
             }
-        }
 
-        private class ContainerGroup
-        {
-            public string Label { get; }
-            public string GroupId { get; }
-            /// <summary>Categories this group applies to. Null = all categories.</summary>
-            public HashSet<string> Categories { get; }
-            public ContainerDef[] Containers { get; }
+            // Get a sample tagged element to test parameter writability
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
 
-            public ContainerGroup(string label, string groupId,
-                string[] categories, ContainerDef[] containers)
+            Element sample = collector.FirstOrDefault(e =>
+                !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
+
+            var report = new StringBuilder();
+            report.AppendLine("Container Parameter Pre-Check");
+            report.AppendLine(new string('═', 55));
+
+            int totalParams = 0;
+            int bound = 0;
+            int unbound = 0;
+            int readOnly = 0;
+            var unboundList = new List<string>();
+
+            foreach (var group in allGroups)
             {
-                Label = label;
-                GroupId = groupId;
-                Categories = categories != null ? new HashSet<string>(categories) : null;
-                Containers = containers;
+                int groupBound = 0;
+                int groupUnbound = 0;
+
+                foreach (var cpd in group.Params)
+                {
+                    string paramName = cpd.ParamName;
+                    totalParams++;
+                    if (sample != null)
+                    {
+                        Parameter p = sample.LookupParameter(paramName);
+                        if (p == null)
+                        {
+                            groupUnbound++;
+                            unbound++;
+                            unboundList.Add(paramName);
+                        }
+                        else if (p.IsReadOnly)
+                        {
+                            readOnly++;
+                            bound++;
+                        }
+                        else
+                        {
+                            bound++;
+                            groupBound++;
+                        }
+                    }
+                    else
+                    {
+                        // No sample element — check definition exists
+                        var def = ParamRegistry.GetGuid(paramName);
+                        if (def != Guid.Empty) bound++;
+                        else { unbound++; unboundList.Add(paramName); }
+                    }
+                }
+
+                string status = groupUnbound == 0 ? "OK" : $"{groupUnbound} missing";
+                report.AppendLine($"  {group.Group,-25} {group.Params.Length,3} params — {status}");
             }
+
+            report.AppendLine();
+            report.AppendLine($"  Total:    {totalParams} container parameters");
+            report.AppendLine($"  Bound:    {bound}");
+            report.AppendLine($"  Unbound:  {unbound}");
+            if (readOnly > 0)
+                report.AppendLine($"  ReadOnly: {readOnly}");
+
+            if (unboundList.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("  Unbound parameters (run Load Shared Params first):");
+                foreach (string p in unboundList.Take(20))
+                    report.AppendLine($"    - {p}");
+                if (unboundList.Count > 20)
+                    report.AppendLine($"    ... and {unboundList.Count - 20} more");
+            }
+
+            report.AppendLine();
+            if (unbound == 0)
+                report.AppendLine("RESULT: All container parameters are bound and ready.");
+            else
+                report.AppendLine($"RESULT: {unbound} parameters not bound. Run Load Shared Params to fix.");
+
+            TaskDialog td = new TaskDialog("Container Pre-Check");
+            td.MainInstruction = unbound == 0
+                ? $"All {totalParams} container parameters ready"
+                : $"{unbound} of {totalParams} container parameters not bound";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            StingLog.Info($"ContainerPreCheck: total={totalParams}, bound={bound}, unbound={unbound}, readOnly={readOnly}");
+            return Result.Succeeded;
         }
     }
 }

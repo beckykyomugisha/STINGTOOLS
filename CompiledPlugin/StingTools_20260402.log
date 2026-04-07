@@ -1,0 +1,43 @@
+2026-04-02 03:19:30 [INFO] STING Tools shutting down
+2026-04-02 03:19:30 [INFO] StingAutoTagger: unregistered
+2026-04-02 09:53:16 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-04-02 09:53:16 [WARN] PYREVIT_SCRIPT_MANIFEST: 18 script path(s) not found on disk.
+2026-04-02 09:53:16 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-04-02 09:53:16 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-04-02 09:53:16 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-04-02 09:53:16 [INFO] Assembly: RevitAPI v26.4.0.0
+2026-04-02 09:53:16 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-04-02 09:53:16 [INFO] Assembly: RevitAPIUI v26.4.0.0
+2026-04-02 09:53:16 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-04-02 09:53:16 [INFO] ThemeManager: applied 'Light' theme
+2026-04-02 09:53:16 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-04-02 09:53:16 [INFO] Dockable panel registered successfully
+2026-04-02 09:53:16 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-04-02 09:53:16 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: starting
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: read 219010 chars, parsing JSON
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: 140 category enum mappings loaded
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: 140 universal categories loaded (Materials excluded)
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-04-02 09:53:16 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-04-02 09:53:16 [INFO] ParamRegistry: supplemented 1816 GUIDs from MR_PARAMETERS.txt
+2026-04-02 09:53:16 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2324 GUIDs
+2026-04-02 09:53:16 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-04-02 09:53:16 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-04-02 09:53:16 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-04-02 09:53:16 [INFO] TagConfig: supplemented 311 additional warning refs from tag config CSVs
+2026-04-02 09:53:16 [INFO] STING Tools dockable panel loaded successfully

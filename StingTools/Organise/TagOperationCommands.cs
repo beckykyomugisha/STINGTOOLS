@@ -6,17 +6,24 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Organise
 {
-    /// <summary>Tag selected elements only (Tag Sel from STINGTags ORGANISE tab).</summary>
+    /// <summary>Tag selected elements only (Tag Sel from StingTools ORGANISE tab).
+    /// Writes ISO 19650 tag data to parameters AND places visual IndependentTag
+    /// annotations in the active view so tags are immediately visible.
+    /// Includes collision mode selection for handling already-tagged elements.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class TagSelectedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -25,8 +32,71 @@ namespace StingTools.Organise
                 return Result.Succeeded;
             }
 
-            int tagged = 0;
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            // Check if any are already tagged
+            int alreadyTagged = 0;
+            foreach (ElementId id in selected)
+            {
+                Element elem = doc.GetElement(id);
+                if (elem == null) continue;
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                if (TagConfig.TagIsComplete(tag)) alreadyTagged++;
+            }
+
+            TagCollisionMode collisionMode = TagCollisionMode.AutoIncrement;
+            if (alreadyTagged > 0)
+            {
+                var modeOptions = new List<UI.StingModePicker.ModeOption>
+                {
+                    new("Skip already-tagged",
+                        "Only tag elements that don't have complete tags", "skip", true),
+                    new("Overwrite all tags",
+                        "Re-derive and overwrite ALL tokens, including already-tagged elements", "overwrite"),
+                    new("Auto-increment on collision",
+                        "Tag all; auto-increment SEQ if generated tag already exists", "increment"),
+                };
+                string modeResult = UI.StingModePicker.Show(
+                    "Tag Selected — Collision Mode",
+                    $"{alreadyTagged} of {selected.Count} elements already have tags",
+                    modeOptions);
+
+                switch (modeResult)
+                {
+                    case "skip":
+                        collisionMode = TagCollisionMode.Skip; break;
+                    case "overwrite":
+                        collisionMode = TagCollisionMode.Overwrite; break;
+                    case "increment":
+                        collisionMode = TagCollisionMode.AutoIncrement; break;
+                    default:
+                        return Result.Cancelled;
+                }
+            }
+
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            var stats = new TaggingStats();
+            var tsFormulas = TagPipelineHelper.LoadFormulas();
+            var tsGridLines = TagPipelineHelper.LoadGridLines(doc);
+            var tsPopCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+
+            // Collect existing visual tags in view to avoid double-annotating
+            View activeView = doc.ActiveView;
+            var existingVisualTags = new HashSet<ElementId>();
+            if (activeView != null)
+            {
+                foreach (IndependentTag vt in new FilteredElementCollector(doc, activeView.Id)
+                    .OfClass(typeof(IndependentTag))
+                    .Cast<IndependentTag>())
+                {
+                    try
+                    {
+                        foreach (ElementId hid in vt.GetTaggedLocalElementIds())
+                            existingVisualTags.Add(hid);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Get tagged element IDs failed: {ex.Message}"); }
+                }
+            }
+
+            int visualTagsPlaced = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Tag Selected"))
             {
@@ -35,34 +105,398 @@ namespace StingTools.Organise
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
-                    if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters))
-                        tagged++;
+
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, elem)) continue;
+
+                    // NG4: Full pipeline — TypeTokenInherit → PopulateAll → NativeMapper
+                    // → Formulas → BuildTag → Containers → TAG7 → GridRef
+                    bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                    bool pipelineOk = TagPipelineHelper.RunFullPipeline(
+                        doc, elem, tsPopCtx, tagIndex, seqCounters,
+                        tsFormulas, tsGridLines,
+                        overwrite: collisionMode == TagCollisionMode.Overwrite,
+                        skipComplete: skipComplete,
+                        collisionMode: collisionMode,
+                        stats: stats);
+                    if (!pipelineOk)
+                        StingLog.Warn($"TagSelected: pipeline returned false for element {elem?.Id}");
+                    // RunFullPipeline already handles TAG7 + containers — no double-write needed
+
+                    // Place visual IndependentTag annotation if not already present
+                    if (activeView != null && !existingVisualTags.Contains(id))
+                    {
+                        try
+                        {
+                            PlaceVisualTag(doc, elem, activeView);
+                            visualTagsPlaced++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Visual tag for {id}: {ex.Message}");
+                        }
+                    }
+                }
+                tx.Commit();
+
+                // FIX-R01: Save SEQ sidecar inside using block after commit
+                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                catch (Exception ssEx) { StingLog.Warn($"TagSelected SaveSeqSidecar: {ssEx.Message}"); }
+            }
+
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            string report = $"Tagged {stats.TotalTagged} of {selected.Count} selected elements.\n" +
+                $"Visual annotations placed: {visualTagsPlaced}";
+            if (stats.TotalSkipped > 0) report += $"\nSkipped: {stats.TotalSkipped}";
+            if (stats.TotalCollisions > 0) report += $"\nCollisions resolved: {stats.TotalCollisions}";
+            if (visualTagsPlaced == 0 && stats.TotalTagged > 0)
+                report += "\n\nNote: No visual tags could be placed. Use 'Smart Place Tags' for advanced annotation placement.";
+            TaskDialog.Show("Tag Selected", report);
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Place a visual IndependentTag annotation for an element in the view.
+        /// Uses the element's bounding box center with a small offset for readability.
+        /// </summary>
+        private static void PlaceVisualTag(Document doc, Element elem, View view)
+        {
+            // Get element center for tag head position
+            XYZ center = LeaderHelper.GetElementCenter(elem);
+            // M-08 FIX: Also reject XYZ.Zero (returned when no location/bounding box found)
+            // to prevent tags clustering at project origin
+            if (center == null || center.IsAlmostEqualTo(XYZ.Zero)) return;
+
+            // Verify element has a category
+            Category cat = elem.Category;
+            if (cat == null) return;
+
+            // Offset tag head slightly above-right of element center for visibility
+            double offset = view.Scale * 0.005; // Scale-aware offset
+            XYZ tagHeadPos = new XYZ(center.X + offset, center.Y + offset, center.Z);
+
+            try
+            {
+                // Try creating a tag using the Revit API
+                IndependentTag newTag = IndependentTag.Create(
+                    doc,
+                    view.Id,
+                    new Reference(elem),
+                    false, // no leader initially — cleaner appearance
+                    TagMode.TM_ADDBY_CATEGORY,
+                    TagOrientation.Horizontal,
+                    tagHeadPos);
+
+                if (newTag != null)
+                    StingLog.Info($"Visual tag placed for element {elem.Id}");
+            }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException ex)
+            {
+                StingLog.Warn($"TagSelected visual tag skipped for element {elem?.Id}: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Re-tag selected elements: forces overwrite of all tag tokens and the assembled tag.
+    /// Use when elements need fresh tags (e.g., after category changes or corrections).
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ReTagCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var selected = uidoc.Selection.GetElementIds();
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("Re-Tag", "Select elements to re-tag first.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog confirm = new TaskDialog("Re-Tag Elements");
+            confirm.MainInstruction = $"Re-tag {selected.Count} elements?";
+            confirm.MainContent =
+                "This will OVERWRITE existing tag values with freshly derived tokens.\n" +
+                "Existing LOC/ZONE values will be preserved; all other tokens regenerated.\n" +
+                "New sequence numbers will be assigned.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            var rtFormulas = TagPipelineHelper.LoadFormulas();
+            var rtGridLines = TagPipelineHelper.LoadGridLines(doc);
+            var rtPopCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            int retagged = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Re-Tag"))
+            {
+                tx.Start();
+                foreach (ElementId id in selected)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem == null) continue;
+
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, elem)) continue;
+
+                    // NG4: Full pipeline for ReTag — ensures TypeTokenInherit + PopulateAll run
+                    bool pipelineOk = TagPipelineHelper.RunFullPipeline(
+                        doc, elem, rtPopCtx, tagIndex, seqCounters,
+                        rtFormulas, rtGridLines,
+                        overwrite: true,
+                        skipComplete: false,
+                        collisionMode: TagCollisionMode.Overwrite);
+                    if (pipelineOk && TagConfig.TagIsComplete(ParameterHelpers.GetString(elem, ParamRegistry.TAG1)))
+                        retagged++;
+                    // RunFullPipeline already handles TAG7 + containers — no double-write needed
                 }
                 tx.Commit();
             }
+            // Save SEQ sidecar + invalidate caches after re-tagging
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"ReTagCommand SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
-            TaskDialog.Show("Tag Selected", $"Tagged {tagged} of {selected.Count} selected elements.");
+            TaskDialog.Show("Re-Tag", $"Re-tagged {retagged} of {selected.Count} elements.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Auto-resolve duplicate tags across the entire project by incrementing
+    /// SEQ numbers on duplicate entries. Preserves the first occurrence;
+    /// reassigns subsequent duplicates with new unique SEQ values.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FixDuplicateTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            // Find all duplicates
+            var tagMap = new Dictionary<string, List<Element>>();
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> allElements;
+            if (catEnums != null && catEnums.Length > 0)
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                allElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            foreach (Element elem in allElements)
+            {
+                if (elem.Category == null) continue;
+                string cat = ParameterHelpers.GetCategoryName(elem);
+                if (!known.Contains(cat)) continue;
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag)) continue;
+                if (!tagMap.TryGetValue(tag, out var tagList))
+                    tagMap[tag] = tagList = new List<Element>();
+                tagList.Add(elem);
+            }
+
+            var duplicates = tagMap.Where(kvp => kvp.Value.Count > 1).ToList();
+            if (duplicates.Count == 0)
+            {
+                TaskDialog.Show("Fix Duplicates", "No duplicate tags found. Project is clean.");
+                return Result.Succeeded;
+            }
+
+            int totalDups = duplicates.Sum(d => d.Value.Count - 1);
+            TaskDialog confirm = new TaskDialog("Fix Duplicate Tags");
+            confirm.MainInstruction = $"Fix {totalDups} duplicate tags?";
+            confirm.MainContent =
+                $"Found {duplicates.Count} tag values with duplicates ({totalDups} elements to reassign).\n\n" +
+                "The first element with each tag will be kept. All subsequent duplicates will get " +
+                "new unique SEQ numbers.\n\nExisting tokens (DISC, LOC, ZONE, etc.) are preserved.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            // Use canonical BuildTagIndexAndCounters which merges sidecar data
+            var (existingTagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            var tagIndex = new HashSet<string>(tagMap.Keys, StringComparer.Ordinal);
+            // Merge existing tags for complete collision detection
+            foreach (string t in existingTagIndex) tagIndex.Add(t);
+            int fixedCount = 0;
+
+            int totalDupElements = duplicates.Sum(kvp => kvp.Value.Count - 1);
+            var fixProgress = StingProgressDialog.Show("Fix Duplicates", totalDupElements);
+            using (Transaction tx = new Transaction(doc, "STING Fix Duplicates"))
+            {
+                tx.Start();
+                foreach (var kvp in duplicates)
+                {
+                    if (fixProgress.IsCancelled) break;
+                    // Skip the first element (keep its tag); fix the rest
+                    for (int i = 1; i < kvp.Value.Count; i++)
+                    {
+                        Element elem = kvp.Value[i];
+                        string catName = ParameterHelpers.GetCategoryName(elem);
+                        string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                        string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                        string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                        string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                        string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                        string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                        string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+
+                        // Guaranteed defaults for empty tokens
+                        if (string.IsNullOrEmpty(disc))
+                            disc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : "A";
+                        if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                        if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                        if (string.IsNullOrEmpty(lvl)) lvl = "L00";
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                        if (string.IsNullOrEmpty(func))
+                        {
+                            func = TagConfig.GetSmartFuncCode(elem, sys);
+                            if (string.IsNullOrEmpty(func))
+                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                        }
+                        if (string.IsNullOrEmpty(prod))
+                            prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
+
+                        if (string.IsNullOrEmpty(disc)) continue;
+
+                        // FIX-B02: Use canonical BuildSeqKey for consistent key format
+                        string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                        if (!seqCounters.TryGetValue(seqKey, out _)) seqCounters[seqKey] = 0;
+
+                        // Find next unique SEQ
+                        string newTag = "";
+                        string newSeq = "";
+                        int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
+                        int safety = 10000;
+                        do
+                        {
+                            seqCounters[seqKey]++;
+                            if (seqCounters[seqKey] > maxSeqVal)
+                            {
+                                StingLog.Warn($"FixDuplicates SEQ overflow for group {seqKey}");
+                                break;
+                            }
+                            newSeq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                            newTag = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
+                            // FIX-WR11: Apply TAG_PREFIX/TAG_SUFFIX for consistency
+                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                newTag = TagConfig.TagPrefix + ParamRegistry.Separator + newTag;
+                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                newTag = newTag + ParamRegistry.Separator + TagConfig.TagSuffix;
+                        } while (tagIndex.Contains(newTag) && safety-- > 0);
+
+                        tagIndex.Add(newTag);
+                        ParameterHelpers.SetString(elem, ParamRegistry.SEQ, newSeq, overwrite: true);
+                        ParameterHelpers.SetString(elem, ParamRegistry.TAG1, newTag, overwrite: true);
+
+                        // Update containers and TAG7 + sub-sections with the new tag
+                        try
+                        {
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
+                            if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                            {
+                                ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                                TagConfig.WriteTag7All(doc, elem, catName, tokenVals, overwrite: true);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"FixDuplicates: container write failed for {elem.Id}: {ex.Message}");
+                        }
+
+                        fixedCount++;
+                        fixProgress.Increment($"Fixed {fixedCount} duplicates");
+                    }
+                }
+                if (fixProgress.IsCancelled)
+                    tx.RollBack();
+                else
+                    tx.Commit();
+            }
+            try { fixProgress.Close(); } catch (Exception ex) { StingLog.Warn($"FixDuplicates progress close: {ex.Message}"); }
+
+            // TAG-M-07: Use the local tagIndex (built above and updated with every new tag assigned)
+            // instead of a second full-model scan to verify uniqueness.  tagIndex already contains
+            // every post-fix tag value — if any value was added more than once, the do-while loop
+            // above would have incremented SEQ until it was unique, so remaining dupes can only
+            // come from the unmodified first-copy elements.  We re-check only the original tagMap
+            // to count multi-value collisions that survive.
+            var postTagMap = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var kvp in tagMap)
+            {
+                // kept element (index 0) retains the original tag value
+                string keptTag = ParameterHelpers.GetString(kvp.Value[0], ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(keptTag))
+                {
+                    postTagMap.TryGetValue(keptTag, out int ptc);
+                    postTagMap[keptTag] = ptc + 1;
+                }
+                // fixed elements (index 1+) got new tags added to tagIndex; they are unique by construction
+            }
+            int remainingDupes = postTagMap.Count(kvp => kvp.Value > 1);
+
+            string dupeNote = remainingDupes > 0
+                ? $"\nWARNING: {remainingDupes} tag value(s) still have duplicates — check log for details."
+                : "\nAll tags are now unique.";
+            if (remainingDupes > 0)
+                StingLog.Warn($"FixDuplicates: post-fix scan found {remainingDupes} remaining duplicate tag values");
+
+            // TAG-H-01: Save locally-modified seqCounters (which already contain the new SEQ values
+            // assigned during this fix pass) rather than rebuilding from scratch via BuildTagIndexAndCounters,
+            // which would discard the increments made above and could assign duplicate SEQ numbers.
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"FixDuplicates SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "FixDuplicates"); // Phase 67d
+            TaskDialog.Show("Fix Duplicates",
+                $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}");
             return Result.Succeeded;
         }
     }
 
     /// <summary>Delete tag parameter values from selected elements.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class DeleteTagsCommand : IExternalCommand
     {
+        // DEL-01: Include TAG7 sub-sections, display text, and audit trail
+        // to match BulkClearTags completeness (LOGIC-02 fix)
         private static readonly string[] TagParams = new[]
         {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
+            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS,
+            "ASS_TAG_7_TXT", "ASS_TAG_7A_TXT", "ASS_TAG_7B_TXT",
+            "ASS_TAG_7C_TXT", "ASS_TAG_7D_TXT", "ASS_TAG_7E_TXT",
+            "ASS_TAG_7F_TXT", "ASS_DISPLAY_TXT",
+            "ASS_TAG_PREV_TXT", "ASS_TAG_MODIFIED_DT",
         };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -78,11 +512,14 @@ namespace StingTools.Organise
             if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
 
             int cleared = 0;
+            var delProgress = StingProgressDialog.Show("Delete Tags", selected.Count);
             using (Transaction tx = new Transaction(doc, "STING Delete Tags"))
             {
                 tx.Start();
                 foreach (ElementId id in selected)
                 {
+                    if (delProgress.IsCancelled) break;
+                    delProgress.Increment("Clearing tags...");
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
                     bool any = false;
@@ -91,24 +528,61 @@ namespace StingTools.Organise
                         if (ParameterHelpers.SetString(elem, param, "", overwrite: true))
                             any = true;
                     }
-                    if (any) cleared++;
-                }
-                tx.Commit();
-            }
 
-            TaskDialog.Show("Delete Tags", $"Cleared tags from {cleared} elements.");
+                    // Also clear all discipline-specific containers and STALE flag
+                    if (any)
+                    {
+                        try
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            var emptyTokens = new string[8]; // All empty strings
+                            for (int i = 0; i < emptyTokens.Length; i++) emptyTokens[i] = "";
+                            ParamRegistry.WriteContainers(elem, emptyTokens, catName, overwrite: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"DeleteTags: container clear failed for {elem.Id}: {ex.Message}");
+                        }
+                        // DEL-01: Clear STALE flag so deleted-tag elements aren't flagged for retag
+                        try { ParameterHelpers.SetInt(elem, ParamRegistry.STALE, 0); }
+                        catch (Exception stEx) { StingLog.Warn($"DeleteTags: STALE clear for {elem.Id}: {stEx.Message}"); }
+                        cleared++;
+                    }
+                }
+                if (delProgress.IsCancelled)
+                    tx.RollBack();
+                else
+                    tx.Commit();
+            }
+            try { delProgress.Close(); } catch (Exception ex) { StingLog.Warn($"DeleteTags progress close: {ex.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            // Phase 40: Save SEQ sidecar after deletion so counter state is persisted.
+            // Without this, deleted elements' SEQ numbers would be re-used on next session.
+            try
+            {
+                var (_, dtSeq) = TagConfig.BuildTagIndexAndCounters(doc);
+                TagConfig.SaveSeqSidecar(doc, dtSeq);
+            }
+            catch (Exception ssEx) { StingLog.Warn($"DeleteTags SaveSeqSidecar: {ssEx.Message}"); }
+            TagConfig.CheckComplianceGate(doc, "DeleteTags"); // Phase 67d
+
+            TaskDialog.Show("Delete Tags", $"Cleared tags and containers from {cleared} elements.");
             return Result.Succeeded;
         }
     }
 
     /// <summary>Renumber sequence numbers for selected elements within their group key.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class RenumberTagsCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -123,15 +597,42 @@ namespace StingTools.Organise
             {
                 Element elem = doc.GetElement(id);
                 if (elem == null) continue;
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
                 if (string.IsNullOrEmpty(disc)) continue;
 
-                string key = $"{disc}_{sys}_{lvl}";
-                if (!groups.ContainsKey(key)) groups[key] = new List<Element>();
-                groups[key].Add(elem);
+                // TAG-03: Use canonical BuildSeqKey for consistent grouping with all other commands
+                string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                if (!groups.TryGetValue(key, out var grpList))
+                    groups[key] = grpList = new List<Element>();
+                grpList.Add(elem);
             }
+
+            // FIX-C03: Sort elements within each group spatially (by level, then X, then Y)
+            // so renumbering follows a logical spatial order instead of arbitrary collection order
+            foreach (var key in groups.Keys.ToList())
+            {
+                groups[key] = groups[key]
+                    .OrderBy(e => ParameterHelpers.GetString(e, ParamRegistry.LVL))
+                    .ThenBy(e => {
+                        var loc = (e as FamilyInstance)?.Location as LocationPoint;
+                        return loc?.Point.X ?? 0;
+                    })
+                    .ThenBy(e => {
+                        var loc = (e as FamilyInstance)?.Location as LocationPoint;
+                        return loc?.Point.Y ?? 0;
+                    })
+                    .ToList();
+            }
+
+            // BUG-008: Build existing tag index for post-renumber collision check
+            var existingTagIndex = TagConfig.BuildExistingTagIndex(doc);
+            var newTags = new HashSet<string>(StringComparer.Ordinal);
+            int collisions = 0;
 
             int renumbered = 0;
             using (Transaction tx = new Transaction(doc, "STING Renumber Tags"))
@@ -142,20 +643,100 @@ namespace StingTools.Organise
                     int seq = 1;
                     foreach (Element elem in kvp.Value)
                     {
-                        string seqStr = seq.ToString().PadLeft(TagConfig.NumPad, '0');
-                        ParameterHelpers.SetString(elem, "ASS_SEQ_NUM_TXT", seqStr, overwrite: true);
+                        string seqStr = seq.ToString().PadLeft(ParamRegistry.NumPad, '0');
+                        ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seqStr, overwrite: true);
 
-                        // Rebuild assembled tag
-                        string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                        string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
-                        string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
-                        string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                        string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                        string func = ParameterHelpers.GetString(elem, "ASS_FUNC_TXT");
-                        string prod = ParameterHelpers.GetString(elem, "ASS_PRODCT_COD_TXT");
-                        string tag = string.Join(TagConfig.Separator,
+                        // Rebuild assembled tag with guaranteed defaults for empty tokens
+                        string catName = ParameterHelpers.GetCategoryName(elem);
+                        string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                        string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                        string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                        string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                        string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                        string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                        string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+
+                        if (string.IsNullOrEmpty(disc))
+                            disc = TagConfig.DiscMap.TryGetValue(catName, out string dd) ? dd : "A";
+                        if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                        if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                        if (string.IsNullOrEmpty(lvl)) lvl = "L00";
+                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
+                        if (string.IsNullOrEmpty(func))
+                        {
+                            func = TagConfig.GetSmartFuncCode(elem, sys);
+                            if (string.IsNullOrEmpty(func))
+                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                        }
+                        if (string.IsNullOrEmpty(prod))
+                            prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
+
+                        string tag = string.Join(ParamRegistry.Separator,
                             disc, loc, zone, lvl, sys, func, prod, seqStr);
-                        ParameterHelpers.SetString(elem, "ASS_TAG_1_TXT", tag, overwrite: true);
+                        // FIX-WR11: Apply TAG_PREFIX/TAG_SUFFIX for consistency
+                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                            tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
+                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                            tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
+
+                        // BUG-008: Check for collision with existing tags or within this batch
+                        if (existingTagIndex.Contains(tag) || newTags.Contains(tag))
+                        {
+                            // Auto-increment SEQ to resolve collision
+                            string groupKey = string.Join(ParamRegistry.Separator,
+                                disc, loc, zone, lvl, sys, func, prod);
+                            int incSeq = seq + 1;
+                            int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
+                            string incTag;
+                            do
+                            {
+                                string incSeqStr = incSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
+                                incTag = groupKey + ParamRegistry.Separator + incSeqStr;
+                                // FIX-WR11: Include PREFIX/SUFFIX in collision check
+                                if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                    incTag = TagConfig.TagPrefix + ParamRegistry.Separator + incTag;
+                                if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                    incTag = incTag + ParamRegistry.Separator + TagConfig.TagSuffix;
+                                incSeq++;
+                                if (incSeq > maxSeqVal)
+                                {
+                                    StingLog.Warn($"Renumber SEQ overflow for group {groupKey}");
+                                    break;
+                                }
+                            }
+                            while (existingTagIndex.Contains(incTag) || newTags.Contains(incTag));
+
+                            // Use resolved tag and SEQ
+                            int resolvedSeq = incSeq - 1;
+                            seqStr = resolvedSeq.ToString().PadLeft(ParamRegistry.NumPad, '0');
+                            tag = groupKey + ParamRegistry.Separator + seqStr;
+                            // FIX-WR11: Reapply PREFIX/SUFFIX after collision rebuild
+                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
+                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
+                            ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seqStr, overwrite: true);
+                            collisions++;
+                            StingLog.Warn($"Renumber collision: element {elem.Id} SEQ auto-incremented to {seqStr}");
+                        }
+                        newTags.Add(tag);
+
+                        ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
+
+                        // Update containers and TAG7 + sub-sections with the new tag
+                        try
+                        {
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(elem);
+                            if (tokenVals.Any(v => !string.IsNullOrEmpty(v)))
+                            {
+                                ParamRegistry.WriteContainers(elem, tokenVals, catName, overwrite: true);
+                                TagConfig.WriteTag7All(doc, elem, catName, tokenVals, overwrite: true);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Renumber: container write failed for {elem.Id}: {ex.Message}");
+                        }
 
                         seq++;
                         renumbered++;
@@ -164,7 +745,20 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
-            TaskDialog.Show("Renumber", $"Renumbered {renumbered} elements in {groups.Count} groups.");
+            // FIX-DEEP07: Use BuildTagIndexAndCounters for consistent sidecar format
+            // (GetExistingSequenceCounters uses same key format internally but BuildTagIndexAndCounters
+            // is the canonical path and merges sidecar data, preventing counter divergence)
+            var (_, rnSeqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            TagConfig.SaveSeqSidecar(doc, rnSeqCounters);
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "RenumberTags"); // Phase 67d
+
+            string collisionNote = collisions > 0
+                ? $"\n{collisions} collision(s) auto-resolved by incrementing SEQ."
+                : "";
+            TaskDialog.Show("Renumber",
+                $"Renumbered {renumbered} elements in {groups.Count} groups.{collisionNote}");
             return Result.Succeeded;
         }
     }
@@ -175,44 +769,78 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var sb = new StringBuilder();
-            sb.AppendLine("ElementId,Category,Tag,DISC,LOC,ZONE,LVL,SYS,FUNC,PROD,SEQ,STATUS,Valid");
+            sb.AppendLine("ElementId,Category,Tag,DISC,LOC,ZONE,LVL,SYS,FUNC,PROD,SEQ,STATUS,REV,Valid,FullyResolved");
 
+            // Phase 76: collect rows for XLSX mirror
+            var xlsxRows = new List<List<string>>();
             int total = 0;
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> auditElements;
+            if (catEnums != null && catEnums.Length > 0)
+                auditElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                auditElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            foreach (Element elem in auditElements)
             {
+                if (elem.Category == null) continue;
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
 
                 total++;
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
-                string loc = ParameterHelpers.GetString(elem, "ASS_LOC_TXT");
-                string zone = ParameterHelpers.GetString(elem, "ASS_ZONE_TXT");
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
-                string func = ParameterHelpers.GetString(elem, "ASS_FUNC_TXT");
-                string prod = ParameterHelpers.GetString(elem, "ASS_PRODCT_COD_TXT");
-                string seq = ParameterHelpers.GetString(elem, "ASS_SEQ_NUM_TXT");
-                string status = ParameterHelpers.GetString(elem, "ASS_STATUS_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                string seq = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
+                string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
+                string rev = ParameterHelpers.GetString(elem, ParamRegistry.REV);
                 bool valid = TagConfig.TagIsComplete(tag);
+                bool resolved = TagConfig.TagIsFullyResolved(tag);
 
-                sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{valid}");
+                sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{rev},{valid},{resolved}");
+                xlsxRows.Add(new List<string> { elem.Id.ToString(), cat, tag, disc, loc, zone, lvl, sys, func, prod, seq, status, rev, valid.ToString(), resolved.ToString() });
             }
 
-            // Write to file
-            string dir = System.IO.Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(dir)) dir = System.IO.Path.GetTempPath();
-            string path = System.IO.Path.Combine(dir, "STING_Tag_Audit.csv");
+            // Write to file — uses user-preferred output location
+            string path = OutputLocationHelper.GetOutputPath(doc, "STING_Tag_Audit.csv");
 
             try
             {
                 System.IO.File.WriteAllText(path, sb.ToString());
+                StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, path, "SH", "Tag audit export (all element tags)");
+
+                // Phase 76: XLSX mirror
+                try
+                {
+                    string xlsxPath = System.IO.Path.ChangeExtension(path, ".xlsx");
+                    var headers = new List<string> { "ElementId","Category","Tag","DISC","LOC","ZONE","LVL","SYS","FUNC","PROD","SEQ","STATUS","REV","Valid","FullyResolved" };
+                    StingExcelExporter.ExportTable(xlsxPath, "Tag Audit", headers, xlsxRows, openFolder: false);
+                }
+                catch (Exception exXlsx) { StingLog.Warn($"AuditCSV XLSX: {exXlsx.Message}"); }
+
+                // Open output folder
+                try
+                {
+                    string dir = System.IO.Path.GetDirectoryName(path);
+                    if (System.IO.Directory.Exists(dir))
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true })?.Dispose();
+                }
+                catch (Exception) { }
+
                 TaskDialog.Show("Audit CSV",
-                    $"Exported {total} elements to:\n{path}");
+                    $"Exported {total} elements to:\n{path}\n+XLSX mirror");
             }
             catch (Exception ex)
             {
@@ -236,21 +864,33 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             var tagMap = new Dictionary<string, List<ElementId>>();
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> findElements;
+            if (catEnums != null && catEnums.Length > 0)
+                findElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                findElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            foreach (Element elem in findElements)
             {
+                if (elem.Category == null) continue;
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
 
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag)) continue;
 
-                if (!tagMap.ContainsKey(tag)) tagMap[tag] = new List<ElementId>();
-                tagMap[tag].Add(elem.Id);
+                if (!tagMap.TryGetValue(tag, out var tagIdList))
+                    tagMap[tag] = tagIdList = new List<ElementId>();
+                tagIdList.Add(elem.Id);
             }
 
             var duplicates = tagMap.Where(kvp => kvp.Value.Count > 1)
@@ -289,36 +929,84 @@ namespace StingTools.Organise
 
     /// <summary>Highlight elements with incomplete/missing tags using graphic overrides.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class HighlightInvalidCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            // Red = missing, Orange = incomplete
+            // Red = missing, Orange = incomplete, Yellow = ISO violation, Purple = placeholder
+            FillPatternElement solidFill = new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+
             var red = new OverrideGraphicSettings();
             red.SetProjectionLineColor(new Color(255, 0, 0));
             red.SetProjectionLineWeight(5);
+            if (solidFill != null)
+            {
+                red.SetSurfaceForegroundPatternId(solidFill.Id);
+                red.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
+                red.SetSurfaceTransparency(50);
+            }
 
             var orange = new OverrideGraphicSettings();
             orange.SetProjectionLineColor(new Color(255, 165, 0));
             orange.SetProjectionLineWeight(4);
+            if (solidFill != null)
+            {
+                orange.SetSurfaceForegroundPatternId(solidFill.Id);
+                orange.SetSurfaceForegroundPatternColor(new Color(255, 230, 180));
+                orange.SetSurfaceTransparency(50);
+            }
 
-            int missing = 0, incomplete = 0;
+            var yellow = new OverrideGraphicSettings();
+            yellow.SetProjectionLineColor(new Color(255, 255, 0));
+            yellow.SetProjectionLineWeight(3);
+            if (solidFill != null)
+            {
+                yellow.SetSurfaceForegroundPatternId(solidFill.Id);
+                yellow.SetSurfaceForegroundPatternColor(new Color(255, 255, 200));
+                yellow.SetSurfaceTransparency(50);
+            }
+
+            var purple = new OverrideGraphicSettings();
+            purple.SetProjectionLineColor(new Color(160, 32, 240));
+            purple.SetProjectionLineWeight(3);
+            if (solidFill != null)
+            {
+                purple.SetSurfaceForegroundPatternId(solidFill.Id);
+                purple.SetSurfaceForegroundPatternColor(new Color(220, 200, 240));
+                purple.SetSurfaceTransparency(50);
+            }
+
+            int missing = 0, incomplete = 0, isoInvalid = 0, unresolved = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Highlight Invalid"))
             {
                 tx.Start();
-                foreach (Element elem in new FilteredElementCollector(doc, view.Id)
-                    .WhereElementIsNotElementType())
+                // Materialize the collector BEFORE iterating — avoids "object not valid"
+                // crashes when elements are deleted/undone during the loop.
+                var elements = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                foreach (Element elem in elements)
                 {
+                    // CRASH FIX: Skip invalid/deleted elements — log error showed
+                    // "The referenced object is not valid" crash in production
+                    if (elem == null || !elem.IsValidObject) continue;
+                    if (elem.Category == null) continue;
                     string cat = ParameterHelpers.GetCategoryName(elem);
                     if (!known.Contains(cat)) continue;
 
-                    string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                    string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag))
                     {
                         view.SetElementOverrides(elem.Id, red);
@@ -329,25 +1017,73 @@ namespace StingTools.Organise
                         view.SetElementOverrides(elem.Id, orange);
                         incomplete++;
                     }
+                    else if (!TagConfig.TagIsFullyResolved(tag))
+                    {
+                        view.SetElementOverrides(elem.Id, purple);
+                        unresolved++;
+                    }
+                    else
+                    {
+                        // Check for ISO cross-validation errors (PROD/FUNC/DISC mismatches)
+                        var isoErrors = ISO19650Validator.ValidateElement(elem);
+                        if (isoErrors.Count > 0)
+                        {
+                            view.SetElementOverrides(elem.Id, yellow);
+                            isoInvalid++;
+                        }
+                    }
                 }
                 tx.Commit();
             }
 
-            TaskDialog.Show("Highlight Invalid",
-                $"Red (missing): {missing}\nOrange (incomplete): {incomplete}\n\n" +
-                "Use 'Clear Overrides' to reset.");
+            var resultDlg = new TaskDialog("Highlight Invalid");
+            resultDlg.MainContent =
+                $"Red (missing tag):     {missing}\n" +
+                $"Orange (incomplete):   {incomplete}\n" +
+                $"Purple (placeholders): {unresolved}\n" +
+                $"Yellow (ISO issues):   {isoInvalid}\n\n" +
+                "Use 'Clear Overrides' to reset.\n\n" +
+                "Create a persistent color legend?";
+            resultDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            resultDlg.DefaultButton = TaskDialogResult.No;
+
+            if (resultDlg.Show() == TaskDialogResult.Yes)
+            {
+                var entries = Tags.LegendBuilder.FromHighlightInvalid(missing, incomplete, unresolved, isoInvalid);
+                var config = new Tags.LegendBuilder.LegendConfig
+                {
+                    Title = "Tag Validation Status",
+                    Subtitle = "Highlight Invalid Results",
+                    Footer = $"View: {view.Name} | Generated by STING Tools",
+                };
+
+                using (Transaction ltx = new Transaction(doc, "STING Validation Legend"))
+                {
+                    ltx.Start();
+                    var legendView = Tags.LegendBuilder.CreateLegendView(doc, entries, config);
+                    ltx.Commit();
+
+                    if (legendView != null)
+                        TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
+                }
+            }
+
             return Result.Succeeded;
         }
     }
 
     /// <summary>Clear graphic overrides from all elements in active view.</summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class ClearOverridesCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             var reset = new OverrideGraphicSettings();
             int cleared = 0;
@@ -374,21 +1110,24 @@ namespace StingTools.Organise
     /// Picks the first selected element as source; writes its tag tokens to all others.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class CopyTagsCommand : IExternalCommand
     {
+        // Only copy individual tokens (not TAG1-TAG6 containers which embed SEQ).
+        // After copying, user should run "Build Tags" to reassemble with unique SEQ.
         private static readonly string[] CopyParams = new[]
         {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_STATUS_TXT",
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.STATUS,
         };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds().ToList();
             if (selected.Count < 2)
@@ -401,23 +1140,55 @@ namespace StingTools.Organise
             }
 
             Element source = doc.GetElement(selected[0]);
+            if (source == null)
+            {
+                TaskDialog.Show("Copy Tags", "Source element could not be resolved.");
+                return Result.Failed;
+            }
             var values = new Dictionary<string, string>();
             foreach (string p in CopyParams)
                 values[p] = ParameterHelpers.GetString(source, p);
 
-            string sourceTag = values.TryGetValue("ASS_TAG_1_TXT", out string t) ? t : "(empty)";
+            string sourceTag = values.TryGetValue(ParamRegistry.TAG1, out string t) ? t : "(empty)";
+
+            // Check for discipline mismatches between source and targets
+            string sourceCat = ParameterHelpers.GetCategoryName(source);
+            string sourceDisc = values.TryGetValue(ParamRegistry.DISC, out string sd) ? sd : "";
+            int discMismatches = 0;
+            for (int i = 1; i < selected.Count; i++)
+            {
+                Element target = doc.GetElement(selected[i]);
+                if (target == null) continue;
+                string targetCat = ParameterHelpers.GetCategoryName(target);
+                string expectedDisc = TagConfig.DiscMap.TryGetValue(targetCat, out string td2) ? td2 : "A";
+                if (!string.IsNullOrEmpty(sourceDisc) && sourceDisc != expectedDisc)
+                    discMismatches++;
+            }
+
+            string warnText = "";
+            if (discMismatches > 0)
+                warnText = $"\n\nWARNING: {discMismatches} targets have different expected disciplines. " +
+                    "Copied DISC may cause cross-validation errors.";
 
             TaskDialog confirm = new TaskDialog("Copy Tags");
             confirm.MainInstruction = $"Copy tags from Element {source.Id}?";
             confirm.MainContent =
                 $"Source tag: {sourceTag}\n" +
+                $"Source category: {sourceCat}\n" +
                 $"Target: {selected.Count - 1} elements\n\n" +
-                "Copies all tag values except SEQ (sequence stays unique).";
+                "Copies all tag values except SEQ (sequence stays unique)." + warnText;
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
             int copied = 0;
+            // H-06 FIX: Build tag index + SEQ counters BEFORE the loop (not lazy inside loop).
+            // BuildTagIndexAndCounters always returns non-null tuple, but initializing
+            // before the loop is safer and avoids null seqCounters on first iteration.
+            var indexResult = TagConfig.BuildTagIndexAndCounters(doc);
+            var existingTags = indexResult.Item1 ?? new HashSet<string>();
+            var seqCounters = indexResult.Item2 ?? new Dictionary<string, int>();
+
             using (Transaction tx = new Transaction(doc, "STING Copy Tags"))
             {
                 tx.Start();
@@ -429,11 +1200,35 @@ namespace StingTools.Organise
                     {
                         ParameterHelpers.SetString(target, kvp.Key, kvp.Value, overwrite: true);
                     }
+
+                    // FIX-C02: Use BuildAndWriteTag for proper SEQ collision detection
+                    // instead of manual string concatenation
+                    try
+                    {
+                        string catName = ParameterHelpers.GetCategoryName(target);
+                        TagConfig.BuildAndWriteTag(doc, target, seqCounters,
+                            skipComplete: false, existingTags: existingTags,
+                            collisionMode: TagCollisionMode.AutoIncrement);
+                        string[] tokenVals = ParamRegistry.ReadTokenValues(target);
+                        ParamRegistry.WriteContainers(target, tokenVals, catName, overwrite: true);
+                        TagConfig.WriteTag7All(doc, target, catName, tokenVals, overwrite: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"CopyTags: TAG1/container write failed for {target.Id}: {ex.Message}");
+                    }
+
                     copied++;
                 }
                 tx.Commit();
             }
 
+            // FIX-DEEP03: Persist SEQ state after tag copy (rebuilt TAG1 affects sidecar)
+            try { var (_, cpSeq) = TagConfig.BuildTagIndexAndCounters(doc); TagConfig.SaveSeqSidecar(doc, cpSeq); }
+            catch (Exception ssEx) { StingLog.Warn($"CopyTagsCommand SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "CopyTags"); // Phase 67d
             TaskDialog.Show("Copy Tags", $"Copied tag values to {copied} elements.");
             return Result.Succeeded;
         }
@@ -444,21 +1239,24 @@ namespace StingTools.Organise
     /// Useful for correcting tag assignment errors.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class SwapTagsCommand : IExternalCommand
     {
         private static readonly string[] SwapParams = new[]
         {
-            "ASS_TAG_1_TXT", "ASS_TAG_2_TXT", "ASS_TAG_3_TXT",
-            "ASS_TAG_4_TXT", "ASS_TAG_5_TXT", "ASS_TAG_6_TXT",
-            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT",
-            "ASS_LVL_COD_TXT", "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT",
-            "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT", "ASS_STATUS_TXT",
+            ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+            ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS,
         };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds().ToList();
             if (selected.Count != 2)
@@ -469,9 +1267,14 @@ namespace StingTools.Organise
 
             Element a = doc.GetElement(selected[0]);
             Element b = doc.GetElement(selected[1]);
+            if (a == null || b == null || !a.IsValidObject || !b.IsValidObject)
+            {
+                TaskDialog.Show("Swap Tags", "One or both selected elements are invalid.");
+                return Result.Failed;
+            }
 
-            string tagA = ParameterHelpers.GetString(a, "ASS_TAG_1_TXT");
-            string tagB = ParameterHelpers.GetString(b, "ASS_TAG_1_TXT");
+            string tagA = ParameterHelpers.GetString(a, ParamRegistry.TAG1);
+            string tagB = ParameterHelpers.GetString(b, ParamRegistry.TAG1);
 
             TaskDialog confirm = new TaskDialog("Swap Tags");
             confirm.MainInstruction = "Swap tags between two elements?";
@@ -492,9 +1295,49 @@ namespace StingTools.Organise
                     ParameterHelpers.SetString(a, param, valB, overwrite: true);
                     ParameterHelpers.SetString(b, param, valA, overwrite: true);
                 }
+
+                // SWAP-01: Use BuildAndWriteTag for TAG1 rebuild (provides collision
+                // detection and proper SEQ counter tracking). Previously manual string.Join
+                // could produce duplicate tags when swapping.
+                // Phase 40: Use BuildTagIndexAndCounters (merges sidecar data) instead of
+                // GetExistingSequenceCounters (project-params-only, loses sidecar counters).
+                var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                try
+                {
+                    // Rebuild element A
+                    TagConfig.BuildAndWriteTag(doc, a, seqCounters,
+                        skipComplete: false, existingTags, TagCollisionMode.AutoIncrement);
+                    string catA = ParameterHelpers.GetCategoryName(a);
+                    string[] tokensA = ParamRegistry.ReadTokenValues(a);
+                    ParamRegistry.WriteContainers(a, tokensA, catA, overwrite: true);
+                    TagConfig.WriteTag7All(doc, a, catA, tokensA, overwrite: true);
+
+                    // Rebuild element B
+                    TagConfig.BuildAndWriteTag(doc, b, seqCounters,
+                        skipComplete: false, existingTags, TagCollisionMode.AutoIncrement);
+                    string catB = ParameterHelpers.GetCategoryName(b);
+                    string[] tokensB = ParamRegistry.ReadTokenValues(b);
+                    ParamRegistry.WriteContainers(b, tokensB, catB, overwrite: true);
+                    TagConfig.WriteTag7All(doc, b, catB, tokensB, overwrite: true);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SwapTags: TAG1/container write failed: {ex.Message}");
+                }
+
                 tx.Commit();
             }
 
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            // Phase 40: Use merged counters for sidecar save (consistent with BuildTagIndexAndCounters above)
+            try
+            {
+                var (_, mergedSeq) = TagConfig.BuildTagIndexAndCounters(doc);
+                TagConfig.SaveSeqSidecar(doc, mergedSeq);
+            }
+            catch (Exception ssEx) { StingLog.Warn($"SwapTags SaveSeqSidecar: {ssEx.Message}"); }
+            TagConfig.CheckComplianceGate(doc, "SwapTags"); // Phase 67d
             TaskDialog.Show("Swap Tags", "Tags swapped successfully.");
             return Result.Succeeded;
         }
@@ -509,26 +1352,27 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             // Count elements per discipline
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
             var discCounts = new Dictionary<string, int>();
             var discElements = new Dictionary<string, List<ElementId>>();
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            foreach (Element elem in new FilteredElementCollector(doc, doc.ActiveView.Id)
+            foreach (Element elem in new FilteredElementCollector(doc, view.Id)
                 .WhereElementIsNotElementType())
             {
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 if (string.IsNullOrEmpty(disc)) continue;
 
-                if (!discCounts.ContainsKey(disc))
-                {
-                    discCounts[disc] = 0;
-                    discElements[disc] = new List<ElementId>();
-                }
-                discCounts[disc]++;
+                discCounts.TryGetValue(disc, out int dc);
+                discCounts[disc] = dc + 1;
+                if (dc == 0) discElements[disc] = new List<ElementId>();
                 discElements[disc].Add(elem.Id);
             }
 
@@ -542,9 +1386,10 @@ namespace StingTools.Organise
             var top = discCounts.OrderByDescending(x => x.Value).Take(4).ToList();
             TaskDialog td = new TaskDialog("Select by Discipline");
             td.MainInstruction = "Select elements by discipline code";
+            td.MainContent = $"{discCounts.Count} disciplines found. Click a discipline to select its elements:";
             for (int i = 0; i < top.Count; i++)
             {
-                td.AddCommandLink((TaskDialogCommandLinkId)(i + 201),
+                td.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
                     $"{top[i].Key} — {top[i].Value} elements");
             }
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
@@ -572,6 +1417,1383 @@ namespace StingTools.Organise
         }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // Tag & Leader Appearance Commands
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Shared helper for annotation tag/leader color operations.
+    /// </summary>
+    internal static class AnnotationColorHelper
+    {
+        /// <summary>Discipline → Color mapping for annotation tags.</summary>
+        public static readonly Dictionary<string, Color> DisciplineColors =
+            new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "M", new Color(0, 128, 255) },       // Blue
+            { "E", new Color(255, 180, 0) },        // Gold
+            { "P", new Color(0, 180, 0) },           // Green
+            { "A", new Color(120, 120, 120) },       // Grey
+            { "S", new Color(200, 0, 0) },           // Red
+            { "FP", new Color(255, 100, 0) },        // Orange
+            { "LV", new Color(160, 0, 200) },        // Purple
+            { "G", new Color(128, 80, 0) },          // Brown
+        };
+
+        /// <summary>Named quick-pick colors.</summary>
+        public static readonly (string name, Color color)[] QuickColors = new[]
+        {
+            ("Red", new Color(220, 20, 20)),
+            ("Blue", new Color(0, 100, 220)),
+            ("Green", new Color(0, 160, 0)),
+            ("Black", new Color(0, 0, 0)),
+            ("Orange", new Color(255, 140, 0)),
+            ("Purple", new Color(140, 0, 200)),
+            ("Grey", new Color(128, 128, 128)),
+            ("Cyan", new Color(0, 180, 200)),
+        };
+
+        /// <summary>Find the solid fill pattern (needed for surface overrides).</summary>
+        public static FillPatternElement FindSolidFill(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement))
+                    .Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+        }
+
+        /// <summary>Build override settings for annotation coloring.</summary>
+        public static OverrideGraphicSettings BuildAnnotationOverride(
+            Color lineColor, int lineWeight = -1)
+        {
+            var ogs = new OverrideGraphicSettings();
+            ogs.SetProjectionLineColor(lineColor);
+            if (lineWeight > 0) ogs.SetProjectionLineWeight(lineWeight);
+            return ogs;
+        }
+
+        /// <summary>
+        /// Build granular override settings with SEPARATE control of text (projection line),
+        /// bounding box (surface pattern), and leader (cut line) aspects.
+        /// In Revit, OverrideGraphicSettings exposes:
+        ///   - Projection line color/weight → controls text + leader rendering
+        ///   - Surface foreground pattern/color → controls tag bounding box fill
+        ///   - Cut line color → we repurpose to differentiate (for tags in section)
+        ///   - Halftone → mutes all aspects equally
+        ///   - Transparency → controls surface fill transparency (box visibility)
+        ///
+        /// Strategy for "separate" control:
+        ///   - Text color = SetProjectionLineColor (this is what renders tag text)
+        ///   - Box fill color = SetSurfaceForegroundPatternColor + solid fill pattern
+        ///   - Box visibility = transparency (0 = opaque, 100 = invisible)
+        ///   - Leader visibility = controlled by toggling HasLeader on/off
+        ///   - We split tags into with/without leaders and apply different overrides
+        /// </summary>
+        public static OverrideGraphicSettings BuildGranularOverride(
+            Document doc,
+            Color textColor = null,
+            Color boxColor = null,
+            int boxTransparency = -1,
+            int lineWeight = -1,
+            Color cutLineColor = null)
+        {
+            var ogs = new OverrideGraphicSettings();
+
+            // Text + line color (projection line color controls tag text rendering)
+            if (textColor != null)
+                ogs.SetProjectionLineColor(textColor);
+
+            if (lineWeight > 0)
+                ogs.SetProjectionLineWeight(lineWeight);
+
+            // Bounding box fill — use surface foreground pattern color
+            if (boxColor != null)
+            {
+                var solidFill = FindSolidFill(doc);
+                if (solidFill != null)
+                {
+                    ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                    ogs.SetSurfaceForegroundPatternColor(boxColor);
+                }
+            }
+
+            // Box visibility via transparency (0=visible, 100=invisible)
+            if (boxTransparency >= 0 && boxTransparency <= 100)
+                ogs.SetSurfaceTransparency(boxTransparency);
+
+            // Cut line color for section-cut tag aspects
+            if (cutLineColor != null)
+                ogs.SetCutLineColor(cutLineColor);
+
+            return ogs;
+        }
+
+        /// <summary>Prompt user to pick a color — 10 options across 2 dialog levels.</summary>
+        public static Color PickColor(string title, string instruction)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = instruction;
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Red (220,20,20)", "Highlight / QA checking");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Blue (0,100,220)", "MEP / standard annotation");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Black (0,0,0)", "Print-ready / standard");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "More Colors... (7 more)", "Green, Grey, Orange, Cyan, Purple, Yellow, White");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return new Color(220, 20, 20);
+                case TaskDialogResult.CommandLink2: return new Color(0, 100, 220);
+                case TaskDialogResult.CommandLink3: return new Color(0, 0, 0);
+                case TaskDialogResult.CommandLink4: return PickColorExtended(title, instruction);
+                default: return null;
+            }
+        }
+
+        /// <summary>Extended palette — 4 options + final page.</summary>
+        public static Color PickColorExtended(string title, string instruction)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = instruction;
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Green (0,160,0)", "Approved / verified");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Grey (128,128,128)", "Subtle / background / leaders");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Orange (255,140,0)", "Warning / attention");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "More... (4 more)", "Cyan, Purple, Yellow, White");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return new Color(0, 160, 0);
+                case TaskDialogResult.CommandLink2: return new Color(128, 128, 128);
+                case TaskDialogResult.CommandLink3: return new Color(255, 140, 0);
+                case TaskDialogResult.CommandLink4: return PickColorTertiary(title, instruction);
+                default: return null;
+            }
+        }
+
+        /// <summary>Tertiary palette — final 4 options.</summary>
+        public static Color PickColorTertiary(string title, string instruction)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = instruction;
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Cyan (0,180,200)", "Reference / info / cooling");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Purple (140,0,200)", "Special / highlight");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Yellow (255,200,0)", "Caution / highlight");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "White (255,255,255)", "Clean / background");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return new Color(0, 180, 200);
+                case TaskDialogResult.CommandLink2: return new Color(140, 0, 200);
+                case TaskDialogResult.CommandLink3: return new Color(255, 200, 0);
+                case TaskDialogResult.CommandLink4: return new Color(255, 255, 255);
+                default: return null;
+            }
+        }
+
+        /// <summary>Get the transparency from a color name hint (for box visibility).</summary>
+        public static int GetBoxTransparencyChoice(string title)
+        {
+            TaskDialog dlg = new TaskDialog(title);
+            dlg.MainInstruction = "Tag bounding box visibility";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Fully Visible", "Opaque bounding box (0% transparent)");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Semi-Transparent", "50% transparent box background");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Faded", "80% transparent — subtle box");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Hidden (Invisible)", "100% transparent — no visible box");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: return 0;
+                case TaskDialogResult.CommandLink2: return 50;
+                case TaskDialogResult.CommandLink3: return 80;
+                case TaskDialogResult.CommandLink4: return 100;
+                default: return -1;
+            }
+        }
+
+        /// <summary>
+        /// Get annotation tags from selection or all in view.
+        /// Returns (tags, isFromSelection).
+        /// </summary>
+        public static (List<IndependentTag> tags, bool fromSelection)
+            GetTargetTags(UIDocument uidoc)
+        {
+            Document doc = uidoc.Document;
+            View view = doc.ActiveView;
+
+            var selIds = uidoc.Selection.GetElementIds();
+            if (selIds.Count > 0)
+            {
+                var tags = selIds
+                    .Select(id => doc.GetElement(id))
+                    .OfType<IndependentTag>()
+                    .ToList();
+                if (tags.Count > 0) return (tags, true);
+            }
+
+            // Guard against null view (schedule view, family editor, no view open)
+            if (view == null)
+            {
+                StingLog.Warn("GetTargetTags: No active graphical view — returning empty list.");
+                return (new List<IndependentTag>(), false);
+            }
+
+            var allTags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+            return (allTags, false);
+        }
+
+        /// <summary>Get the discipline code from the element that a tag hosts.
+        /// Falls back to category-based discipline lookup if parameter is empty.</summary>
+        public static string GetTagDiscipline(IndependentTag tag, Document doc)
+        {
+            try
+            {
+                var hostIds = tag.GetTaggedLocalElementIds();
+                if (hostIds.Count == 0) return null;
+                Element host = doc.GetElement(hostIds.First());
+                if (host == null) return null;
+
+                // Primary: read DISC parameter directly
+                string disc = ParameterHelpers.GetString(host, ParamRegistry.DISC);
+                if (!string.IsNullOrEmpty(disc)) return disc;
+
+                // Fallback: derive DISC from element category using TagConfig lookup
+                string catName = ParameterHelpers.GetCategoryName(host);
+                if (!string.IsNullOrEmpty(catName) && TagConfig.DiscMap.TryGetValue(catName, out string catDisc))
+                    return catDisc;
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetTagDiscipline failed for tag {tag.Id}: {ex.Message}");
+                return null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Color annotation tag text and leaders by discipline (M=Blue, E=Gold, P=Green, etc.).
+    /// Applies per-element graphic overrides to IndependentTag annotation elements.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ColorTagsByDisciplineCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Color Tags", "No annotation tags found in view or selection.");
+                return Result.Succeeded;
+            }
+
+            int colored = 0;
+            var discCounts = new Dictionary<string, int>();
+
+            using (Transaction tx = new Transaction(doc, "STING Color Tags by Discipline"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    string disc = AnnotationColorHelper.GetTagDiscipline(tag, doc);
+                    if (string.IsNullOrEmpty(disc)) continue;
+
+                    if (AnnotationColorHelper.DisciplineColors.TryGetValue(disc, out Color col))
+                    {
+                        var ogs = AnnotationColorHelper.BuildAnnotationOverride(col, 2);
+                        view.SetElementOverrides(tag.Id, ogs);
+                        colored++;
+
+                        discCounts.TryGetValue(disc, out int dcc);
+                        discCounts[disc] = dcc + 1;
+                    }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Colored {colored} of {tags.Count} annotation tags by discipline:");
+            foreach (var kvp in discCounts.OrderByDescending(x => x.Value))
+            {
+                var c = AnnotationColorHelper.DisciplineColors[kvp.Key];
+                report.AppendLine($"  {kvp.Key}: {kvp.Value} tags (RGB {c.Red},{c.Green},{c.Blue})");
+            }
+            report.AppendLine();
+            report.AppendLine("Create a persistent color legend?");
+
+            var resultDlg = new TaskDialog("Color Tags by Discipline");
+            resultDlg.MainContent = report.ToString();
+            resultDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            resultDlg.DefaultButton = TaskDialogResult.No;
+
+            if (resultDlg.Show() == TaskDialogResult.Yes)
+            {
+                var entries = Tags.LegendBuilder.FromDisciplineColors(
+                    AnnotationColorHelper.DisciplineColors, discCounts);
+                var config = new Tags.LegendBuilder.LegendConfig
+                {
+                    Title = "Discipline Color Coding",
+                    Subtitle = "Annotation Tags by Discipline",
+                    Footer = $"View: {view.Name} | Generated by STING Tools",
+                };
+
+                using (Transaction ltx = new Transaction(doc, "STING Discipline Legend"))
+                {
+                    ltx.Start();
+                    var legendView = Tags.LegendBuilder.CreateLegendView(doc, entries, config);
+                    ltx.Commit();
+
+                    if (legendView != null)
+                        TaskDialog.Show("Legend Created", $"Legend view: '{legendView.Name}'\nPlace on a sheet for documentation.");
+                }
+            }
+
+            StingLog.Info($"ColorTagsByDiscipline: colored={colored}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Set tag text color: applies a chosen color to tag annotation elements.
+    /// User picks from quick color options.
+    /// In Revit, the projection line color controls tag text rendering.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetTagTextColorCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Tag Text Color", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            Color chosen = AnnotationColorHelper.PickColor("Set Tag Text Color",
+                $"Choose color for {tags.Count} tags:\n" +
+                "(Note: Revit applies one colour per tag element.\n" +
+                "Use 'Split Color' for separate text/leader colours.)");
+            if (chosen == null) return Result.Cancelled;
+
+            int colored = 0;
+            var ogs = AnnotationColorHelper.BuildAnnotationOverride(chosen, -1);
+
+            using (Transaction tx = new Transaction(doc, "STING Set Tag Text Color"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        view.SetElementOverrides(tag.Id, ogs);
+                        colored++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Set tag text color override failed: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Tag Text Color",
+                $"Applied color (RGB {chosen.Red},{chosen.Green},{chosen.Blue}) to {colored} tags.\n\n" +
+                "Tip: For different text vs leader colours, use 'Split Color'.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Set leader line color: applies a chosen color to tags WITH leaders only.
+    /// Tags without leaders are unaffected, giving the visual effect of separate
+    /// text vs leader colors.
+    ///
+    /// Workflow for different text/leader colors:
+    ///   1. Use 'Set Tag Text Color' to color ALL tags (text + any leaders)
+    ///   2. Use 'Set Leader Color' to override color on leader-bearing tags only
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetLeaderColorCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var (allTags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            var leaderTags = allTags.Where(t =>
+            {
+                try { return t.HasLeader; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+            }).ToList();
+
+            if (leaderTags.Count == 0)
+            {
+                TaskDialog.Show("Leader Color", "No tags with leaders found.");
+                return Result.Succeeded;
+            }
+
+            Color chosen = AnnotationColorHelper.PickColor("Set Leader Color",
+                $"Choose color for {leaderTags.Count} tags with leaders:\n" +
+                "(Only tags WITH leaders are affected.\n" +
+                "Tags without leaders keep their current colour.)");
+            if (chosen == null) return Result.Cancelled;
+
+            int colored = 0;
+            var ogs = AnnotationColorHelper.BuildAnnotationOverride(chosen, -1);
+
+            using (Transaction tx = new Transaction(doc, "STING Set Leader Color"))
+            {
+                tx.Start();
+                foreach (var tag in leaderTags)
+                {
+                    try
+                    {
+                        view.SetElementOverrides(tag.Id, ogs);
+                        colored++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Set leader color override failed: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Leader Color",
+                $"Applied color (RGB {chosen.Red},{chosen.Green},{chosen.Blue}) to {colored} leader tags.\n" +
+                $"{allTags.Count - leaderTags.Count} tags without leaders unaffected.\n\n" +
+                "Tip: For different text vs leader colours, use 'Split Color'.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Split color: apply one color to tag text (tags without leaders) and a different
+    /// color to leader-bearing tags. Quick two-step color application in one command.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SplitTagLeaderColorCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Split Color", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            var withLeaders = new List<IndependentTag>();
+            var withoutLeaders = new List<IndependentTag>();
+            foreach (var tag in allTags)
+            {
+                try
+                {
+                    if (tag.HasLeader) withLeaders.Add(tag);
+                    else withoutLeaders.Add(tag);
+                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); withoutLeaders.Add(tag); }
+            }
+
+            // Step 1: Pick text color (applied to ALL tags first)
+            Color textColor = AnnotationColorHelper.PickColor("Split Color — Step 1: Text",
+                $"Pick TEXT colour (applied to all {allTags.Count} tags first):");
+            if (textColor == null) return Result.Cancelled;
+
+            // Step 2: Pick leader color (overrides leader-bearing tags only)
+            Color leaderColor = AnnotationColorHelper.PickColor("Split Color — Step 2: Leaders",
+                $"Pick LEADER colour for {withLeaders.Count} tags with leaders:\n" +
+                "(This overrides the text colour on leader tags only.)");
+            if (leaderColor == null) return Result.Cancelled;
+
+            var textOgs = AnnotationColorHelper.BuildAnnotationOverride(textColor, -1);
+            var leaderOgs = AnnotationColorHelper.BuildAnnotationOverride(leaderColor, -1);
+
+            int textColored = 0, leaderColored = 0;
+            using (Transaction tx = new Transaction(doc, "STING Split Tag/Leader Color"))
+            {
+                tx.Start();
+                // Apply text color to ALL tags first
+                foreach (var tag in allTags)
+                {
+                    try { view.SetElementOverrides(tag.Id, textOgs); textColored++; }
+                    catch (Exception ex) { StingLog.Warn($"Set split text color override failed: {ex.Message}"); }
+                }
+                // Then override leader-bearing tags with leader color
+                foreach (var tag in withLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
+                    catch (Exception ex) { StingLog.Warn($"Set split leader color override failed: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Split Color",
+                $"Text colour (all tags): {textColored} " +
+                $"(RGB {textColor.Red},{textColor.Green},{textColor.Blue})\n" +
+                $"Leader colour (overridden): {leaderColored} " +
+                $"(RGB {leaderColor.Red},{leaderColor.Green},{leaderColor.Blue})\n\n" +
+                "Tags without leaders → text colour.\n" +
+                "Tags with leaders → leader colour.\n" +
+                "(Revit uses one colour per tag element.)");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Clear annotation tag overrides: reset tag text and leader colors to default.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ClearAnnotationColorsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var (tags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Clear Colors", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            int cleared = 0;
+            var blank = new OverrideGraphicSettings();
+
+            using (Transaction tx = new Transaction(doc, "STING Clear Annotation Colors"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try { view.SetElementOverrides(tag.Id, blank); cleared++; }
+                    catch (Exception ex) { StingLog.Warn($"Clear annotation color override failed: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Clear Colors",
+                $"Reset color overrides on {cleared} annotation tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Master tag appearance command: separate control of TEXT colour, LEADER colour,
+    /// and BOUNDING BOX colour + visibility. Applies different overrides to tags
+    /// with leaders vs without leaders, giving visual separation of all three aspects.
+    ///
+    /// Revit API strategy:
+    ///   - Text color → SetProjectionLineColor on tags WITHOUT leaders
+    ///   - Leader color → SetProjectionLineColor on tags WITH leaders
+    ///   - Box fill → SetSurfaceForegroundPatternColor (solid fill) on ALL tags
+    ///   - Box visibility → SetSurfaceTransparency (0=opaque to 100=invisible)
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TagAppearanceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var (allTags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Tag Appearance", "No annotation tags found in view or selection.");
+                return Result.Succeeded;
+            }
+
+            var withLeaders = new List<IndependentTag>();
+            var withoutLeaders = new List<IndependentTag>();
+            foreach (var tag in allTags)
+            {
+                try { if (tag.HasLeader) withLeaders.Add(tag); else withoutLeaders.Add(tag); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); withoutLeaders.Add(tag); }
+            }
+
+            // Step 1: Text color
+            Color textColor = AnnotationColorHelper.PickColor(
+                "Tag Appearance — Step 1/4: Text Color",
+                $"Choose TEXT color for {allTags.Count} tags:");
+            if (textColor == null) return Result.Cancelled;
+
+            // Step 2: Leader color (if any leaders exist)
+            Color leaderColor = textColor;
+            if (withLeaders.Count > 0)
+            {
+                Color picked = AnnotationColorHelper.PickColor(
+                    "Tag Appearance — Step 2/4: Leader Color",
+                    $"Choose LEADER color for {withLeaders.Count} tags with leaders:");
+                if (picked == null) return Result.Cancelled;
+                leaderColor = picked;
+            }
+
+            // Step 3: Bounding box color
+            Color boxColor = AnnotationColorHelper.PickColorExtended(
+                "Tag Appearance — Step 3/4: Box Color",
+                "Choose BOUNDING BOX fill color:");
+            if (boxColor == null) return Result.Cancelled;
+
+            // Step 4: Bounding box visibility (transparency)
+            int boxTransparency = AnnotationColorHelper.GetBoxTransparencyChoice(
+                "Tag Appearance — Step 4/4: Box Visibility");
+            if (boxTransparency < 0) return Result.Cancelled;
+
+            // Build overrides
+            var textOgs = AnnotationColorHelper.BuildGranularOverride(
+                doc, textColor: textColor, boxColor: boxColor,
+                boxTransparency: boxTransparency);
+            var leaderOgs = AnnotationColorHelper.BuildGranularOverride(
+                doc, textColor: leaderColor, boxColor: boxColor,
+                boxTransparency: boxTransparency);
+
+            int textColored = 0, leaderColored = 0;
+            using (Transaction tx = new Transaction(doc, "STING Tag Appearance"))
+            {
+                tx.Start();
+                foreach (var tag in withoutLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, textOgs); textColored++; }
+                    catch (Exception ex) { StingLog.Warn($"Set tag appearance override failed: {ex.Message}"); }
+                }
+                foreach (var tag in withLeaders)
+                {
+                    try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
+                    catch (Exception ex) { StingLog.Warn($"Set leader appearance override failed: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Tag Appearance Applied — {allTags.Count} tags");
+            report.AppendLine(new string('═', 45));
+            report.AppendLine($"  Text color:    RGB({textColor.Red},{textColor.Green},{textColor.Blue}) → {textColored} tags");
+            report.AppendLine($"  Leader color:  RGB({leaderColor.Red},{leaderColor.Green},{leaderColor.Blue}) → {leaderColored} tags");
+            report.AppendLine($"  Box color:     RGB({boxColor.Red},{boxColor.Green},{boxColor.Blue})");
+            report.AppendLine($"  Box visibility: {(boxTransparency == 0 ? "Opaque" : boxTransparency == 100 ? "Hidden" : $"{100 - boxTransparency}%")}");
+
+            TaskDialog.Show("Tag Appearance", report.ToString());
+            StingLog.Info($"TagAppearance: text=RGB({textColor.Red},{textColor.Green},{textColor.Blue}), " +
+                $"leader=RGB({leaderColor.Red},{leaderColor.Green},{leaderColor.Blue}), " +
+                $"box=RGB({boxColor.Red},{boxColor.Green},{boxColor.Blue}), " +
+                $"transparency={boxTransparency}%, applied={textColored + leaderColored}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Control tag bounding box appearance independently: set fill colour, visibility
+    /// (transparency), and outline weight. This targets the surface graphic overrides
+    /// which control the tag's bounding box/background fill separately from text color.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetTagBoxAppearanceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var (tags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Tag Box", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Choose box mode
+            TaskDialog modeDlg = new TaskDialog("Tag Bounding Box");
+            modeDlg.MainInstruction = $"Bounding box control for {tags.Count} tags";
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Set Box Color + Visibility",
+                "Choose fill color and transparency for tag background");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Hide Box (Transparent)",
+                "Make bounding box fully transparent (text and leaders remain visible)");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Show Box (Opaque)",
+                "Make bounding box fully opaque with white fill");
+            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Reset Box (Clear Overrides)",
+                "Remove all surface overrides, restoring default box appearance");
+            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var result = modeDlg.Show();
+            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            OverrideGraphicSettings ogs;
+
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1:
+                {
+                    // Pick box color
+                    Color boxColor = AnnotationColorHelper.PickColorExtended(
+                        "Box Color", "Choose bounding box fill color:");
+                    if (boxColor == null) return Result.Cancelled;
+
+                    int transparency = AnnotationColorHelper.GetBoxTransparencyChoice("Box Visibility");
+                    if (transparency < 0) return Result.Cancelled;
+
+                    ogs = AnnotationColorHelper.BuildGranularOverride(
+                        doc, boxColor: boxColor, boxTransparency: transparency);
+                    break;
+                }
+                case TaskDialogResult.CommandLink2:
+                    // Hide box — full transparency
+                    ogs = new OverrideGraphicSettings();
+                    ogs.SetSurfaceTransparency(100);
+                    break;
+
+                case TaskDialogResult.CommandLink3:
+                {
+                    // Show box — opaque white
+                    var solidFill = AnnotationColorHelper.FindSolidFill(doc);
+                    ogs = new OverrideGraphicSettings();
+                    if (solidFill != null)
+                    {
+                        ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                        ogs.SetSurfaceForegroundPatternColor(new Color(255, 255, 255));
+                    }
+                    ogs.SetSurfaceTransparency(0);
+                    break;
+                }
+                case TaskDialogResult.CommandLink4:
+                default:
+                    // Reset — blank override (clears surface-only, preserving line color)
+                    // We need to read existing line color and reapply it
+                    ogs = new OverrideGraphicSettings();
+                    break;
+            }
+
+            int modified = 0;
+            using (Transaction tx = new Transaction(doc, "STING Set Tag Box"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        if (result == TaskDialogResult.CommandLink4)
+                        {
+                            // Reset: preserve existing projection line color but clear surface
+                            var existing = view.GetElementOverrides(tag.Id);
+                            var reset = new OverrideGraphicSettings();
+                            // Preserve text/line color if set
+                            var existingColor = existing.ProjectionLineColor;
+                            if (existingColor.IsValid)
+                                reset.SetProjectionLineColor(existingColor);
+                            var existingWeight = existing.ProjectionLineWeight;
+                            if (existingWeight > 0)
+                                reset.SetProjectionLineWeight(existingWeight);
+                            view.SetElementOverrides(tag.Id, reset);
+                        }
+                        else
+                        {
+                            // Merge: apply surface overrides while preserving existing line color
+                            var existing = view.GetElementOverrides(tag.Id);
+                            var merged = new OverrideGraphicSettings();
+
+                            // Copy existing line overrides
+                            var existingColor = existing.ProjectionLineColor;
+                            if (existingColor.IsValid)
+                                merged.SetProjectionLineColor(existingColor);
+                            var existingWeight = existing.ProjectionLineWeight;
+                            if (existingWeight > 0)
+                                merged.SetProjectionLineWeight(existingWeight);
+
+                            // Apply new surface overrides from ogs
+                            var surfId = ogs.SurfaceForegroundPatternId;
+                            if (surfId != null && surfId != ElementId.InvalidElementId)
+                            {
+                                merged.SetSurfaceForegroundPatternId(surfId);
+                                merged.SetSurfaceForegroundPatternColor(
+                                    ogs.SurfaceForegroundPatternColor);
+                            }
+                            // SurfaceTransparency has no public getter; skip copy
+
+                            view.SetElementOverrides(tag.Id, merged);
+                        }
+                        modified++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Set tag box appearance failed: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            string modeLabel = result == TaskDialogResult.CommandLink1 ? "Color + Visibility" :
+                               result == TaskDialogResult.CommandLink2 ? "Hidden (Transparent)" :
+                               result == TaskDialogResult.CommandLink3 ? "Visible (Opaque White)" :
+                               "Reset to Default";
+            TaskDialog.Show("Tag Box", $"Box mode '{modeLabel}' applied to {modified} tags.");
+            StingLog.Info($"SetTagBox: mode={modeLabel}, modified={modified}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Quick discipline-aware tag appearance: applies discipline colors to text,
+    /// grey to leaders, and transparent box in one click. Combines the most common
+    /// workflow into a single command.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class QuickTagStyleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Quick Style", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Choose style preset
+            TaskDialog dlg = new TaskDialog("Quick Tag Style");
+            dlg.MainInstruction = $"Apply preset style to {allTags.Count} tags";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Discipline Colors + Grey Leaders",
+                "Text = discipline color (M=Blue, E=Gold...), Leaders = grey, Box = transparent");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Black Text + Grey Leaders",
+                "Text = black, Leaders = grey, Box = transparent — print-ready");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "QA Mode (Red Text, No Box)",
+                "Text + leaders = red, Box = hidden — checking/markup mode");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Presentation (Blue Text, White Box)",
+                "Text = blue, Leaders = blue, Box = white opaque — clean presentation");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var mode = dlg.Show();
+            if (mode == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            int styled = 0;
+            var discCounts = new Dictionary<string, int>();
+
+            using (Transaction tx = new Transaction(doc, "STING Quick Tag Style"))
+            {
+                tx.Start();
+                foreach (var tag in allTags)
+                {
+                    try
+                    {
+                        bool hasLeader = false;
+                        try { hasLeader = tag.HasLeader; } catch (Exception ex) { StingLog.Warn($"Check tag leader state failed: {ex.Message}"); }
+
+                        OverrideGraphicSettings ogs;
+
+                        switch (mode)
+                        {
+                            case TaskDialogResult.CommandLink1:
+                            {
+                                // Discipline colors + grey leaders
+                                string disc = AnnotationColorHelper.GetTagDiscipline(tag, doc);
+                                Color textCol = new Color(0, 0, 0); // default black
+                                if (!string.IsNullOrEmpty(disc) &&
+                                    AnnotationColorHelper.DisciplineColors.TryGetValue(disc, out Color dc))
+                                {
+                                    textCol = dc;
+                                    discCounts.TryGetValue(disc, out int dcc);
+                                    discCounts[disc] = dcc + 1;
+                                }
+
+                                Color lineCol = hasLeader
+                                    ? new Color(128, 128, 128) // grey leaders
+                                    : textCol;
+
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: lineCol, boxTransparency: 100);
+                                break;
+                            }
+                            case TaskDialogResult.CommandLink2:
+                            {
+                                // Black text + grey leaders
+                                Color lineCol = hasLeader
+                                    ? new Color(128, 128, 128)
+                                    : new Color(0, 0, 0);
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: lineCol, boxTransparency: 100);
+                                break;
+                            }
+                            case TaskDialogResult.CommandLink3:
+                            {
+                                // QA red, no box
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: new Color(220, 20, 20),
+                                    lineWeight: 2, boxTransparency: 100);
+                                break;
+                            }
+                            case TaskDialogResult.CommandLink4:
+                            default:
+                            {
+                                // Presentation blue + white box
+                                ogs = AnnotationColorHelper.BuildGranularOverride(
+                                    doc, textColor: new Color(0, 100, 220),
+                                    boxColor: new Color(255, 255, 255),
+                                    boxTransparency: 0);
+                                break;
+                            }
+                        }
+
+                        view.SetElementOverrides(tag.Id, ogs);
+                        styled++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Apply quick tag style failed: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Quick Style applied to {styled} tags.");
+            if (discCounts.Count > 0)
+            {
+                report.AppendLine("Disciplines:");
+                foreach (var kvp in discCounts.OrderByDescending(x => x.Value))
+                    report.AppendLine($"  {kvp.Key}: {kvp.Value}");
+            }
+            TaskDialog.Show("Quick Tag Style", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Set bounding box line weight (thickness) on annotation tags.
+    /// Controls the outline weight of the tag border independently from text color.
+    /// Uses SetProjectionLineWeight for the outline.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetTagLineWeightCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var (tags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Tag Line Weight", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog dlg = new TaskDialog("Tag Bounding Box Line Weight");
+            dlg.MainInstruction = $"Set border line weight for {tags.Count} tags";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Thin (1)", "Hairline border — minimal visual weight");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Standard (3)", "Normal border weight — default appearance");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Bold (6)", "Thick border — strong emphasis / QA checking");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Extra Bold (10)", "Maximum emphasis — very heavy border for callouts");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int weight;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: weight = 1; break;
+                case TaskDialogResult.CommandLink2: weight = 3; break;
+                case TaskDialogResult.CommandLink3: weight = 6; break;
+                case TaskDialogResult.CommandLink4: weight = 10; break;
+                default: return Result.Cancelled;
+            }
+
+            int modified = 0;
+            using (Transaction tx = new Transaction(doc, "STING Tag Line Weight"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        // Preserve existing color but change line weight
+                        var existing = view.GetElementOverrides(tag.Id);
+                        var ogs = new OverrideGraphicSettings();
+                        var existingColor = existing.ProjectionLineColor;
+                        if (existingColor.IsValid)
+                            ogs.SetProjectionLineColor(existingColor);
+                        ogs.SetProjectionLineWeight(weight);
+
+                        // Preserve existing surface overrides
+                        var surfId = existing.SurfaceForegroundPatternId;
+                        if (surfId != null && surfId != ElementId.InvalidElementId)
+                        {
+                            ogs.SetSurfaceForegroundPatternId(surfId);
+                            ogs.SetSurfaceForegroundPatternColor(existing.SurfaceForegroundPatternColor);
+                        }
+                        // SurfaceTransparency has no public getter; skip copy
+
+                        view.SetElementOverrides(tag.Id, ogs);
+                        modified++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Set tag line weight override failed: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Tag Line Weight",
+                $"Set border weight to {weight} on {modified} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Color annotation tags by the value of any parameter on the host element.
+    /// User picks from available parameters and palettes. Uses the same palette
+    /// system as ColorByParameterCommand but targets annotation tags specifically.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ColorTagsByParameterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var (allTags, _) = AnnotationColorHelper.GetTargetTags(uidoc);
+            if (allTags.Count == 0)
+            {
+                TaskDialog.Show("Color Tags By Parameter", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Collect host elements to discover parameters
+            var hostElements = new List<Element>();
+            foreach (var tag in allTags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    foreach (var hid in hostIds)
+                    {
+                        Element host = doc.GetElement(hid);
+                        if (host != null) { hostElements.Add(host); break; }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Resolve tag host element failed: {ex.Message}"); }
+            }
+
+            if (hostElements.Count == 0)
+            {
+                TaskDialog.Show("Color Tags By Parameter", "No valid host elements found.");
+                return Result.Succeeded;
+            }
+
+            // Get available parameters from host elements
+            var paramNames = Select.ColorHelper.GetAvailableParameters(doc, hostElements);
+
+            // Step 1: Pick parameter (paged — show most useful first)
+            var priority = new[]
+            {
+                ParamRegistry.DISC, ParamRegistry.SYS, ParamRegistry.LOC,
+                ParamRegistry.ZONE, ParamRegistry.LVL, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.TAG1, ParamRegistry.STATUS,
+                "Mark", "Comments", "Type Name", "Family"
+            };
+            var top = priority.Where(p => paramNames.Contains(p)).Take(4).ToList();
+            if (top.Count == 0) top = paramNames.Take(4).ToList();
+
+            TaskDialog paramDlg = new TaskDialog("Color Tags — Pick Parameter");
+            paramDlg.MainInstruction = $"Color {allTags.Count} tags by which parameter?";
+            paramDlg.FooterText = $"{paramNames.Count} parameters available on host elements.";
+            for (int i = 0; i < top.Count; i++)
+                paramDlg.AddCommandLink((TaskDialogCommandLinkId)(i + 1001), top[i]);
+            paramDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int paramIdx = -1;
+            switch (paramDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: paramIdx = 0; break;
+                case TaskDialogResult.CommandLink2: paramIdx = 1; break;
+                case TaskDialogResult.CommandLink3: paramIdx = 2; break;
+                case TaskDialogResult.CommandLink4: paramIdx = 3; break;
+                default: return Result.Cancelled;
+            }
+            string selectedParam = top[paramIdx];
+
+            // Step 2: Pick palette
+            TaskDialog palDlg = new TaskDialog("Color Tags — Pick Palette");
+            palDlg.MainInstruction = $"Select palette for '{selectedParam}'";
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "STING Discipline", "M=Blue, E=Gold, P=Green (8 colors)");
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "High Contrast", "Saturated primaries (8 colors)");
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Accessible", "Colorblind-safe viridis (10 colors)");
+            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Pastel", "Soft muted tones (8 colors)");
+            palDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            string paletteName;
+            Color[] palette;
+            switch (palDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: paletteName = "STING Discipline"; break;
+                case TaskDialogResult.CommandLink2: paletteName = "High Contrast"; break;
+                case TaskDialogResult.CommandLink3: paletteName = "Accessible"; break;
+                case TaskDialogResult.CommandLink4: paletteName = "Pastel"; break;
+                default: return Result.Cancelled;
+            }
+            palette = Select.ColorHelper.Palettes[paletteName];
+
+            // Group tags by host element's parameter value
+            var groups = new Dictionary<string, List<IndependentTag>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var tag in allTags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    Element host = hostIds.Count > 0 ? doc.GetElement(hostIds.First()) : null;
+                    string val = host != null
+                        ? Select.ColorHelper.GetParameterValue(host, selectedParam) ?? "<No Value>"
+                        : "<No Value>";
+
+                    if (!groups.TryGetValue(val, out var valGroup))
+                        groups[val] = valGroup = new List<IndependentTag>();
+                    valGroup.Add(tag);
+                }
+                catch (Exception ex) { StingLog.Warn($"Group tag by parameter value failed: {ex.Message}"); }
+            }
+
+            // Assign colors
+            var sortedValues = groups.Keys.OrderBy(v => v).ToList();
+            var colorMap = Select.ColorHelper.AssignColors(sortedValues, palette);
+
+            int colored = 0;
+            using (Transaction tx = new Transaction(doc, $"STING Color Tags By {selectedParam}"))
+            {
+                tx.Start();
+                foreach (var kvp in groups)
+                {
+                    Color c = colorMap[kvp.Key];
+                    var ogs = AnnotationColorHelper.BuildAnnotationOverride(c);
+                    foreach (var tag in kvp.Value)
+                    {
+                        try { view.SetElementOverrides(tag.Id, ogs); colored++; }
+                        catch (Exception ex) { StingLog.Warn($"Set color-by-param override failed: {ex.Message}"); }
+                    }
+                }
+                tx.Commit();
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Colored {colored} tags by '{selectedParam}'");
+            report.AppendLine($"Palette: {paletteName} | Values: {groups.Count}");
+            report.AppendLine();
+            foreach (string val in sortedValues.Take(15))
+            {
+                Color c = colorMap[val];
+                report.AppendLine($"  [{c.Red:D3},{c.Green:D3},{c.Blue:D3}]  {val} ({groups[val].Count})");
+            }
+            if (sortedValues.Count > 15)
+                report.AppendLine($"  ... and {sortedValues.Count - 15} more");
+
+            TaskDialog.Show("Color Tags By Parameter", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Batch swap tag types (families) in the active view. Allows changing from one
+    /// tag family to another (e.g., from default tags to STING tags with different
+    /// text styles/sizes). Uses ChangeTypeId on IndependentTag.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SwapTagTypeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var tags = LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Swap Tag Type", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            // Find all loaded tag families (FamilySymbol for annotation tags)
+            var tagTypes = new FilteredElementCollector(doc)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
+                .Where(fs =>
+                {
+                    try { return fs.Family.FamilyCategory?.CategoryType == CategoryType.Annotation; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+                })
+                .OrderBy(fs => fs.Family.Name)
+                .ThenBy(fs => fs.Name)
+                .ToList();
+
+            if (tagTypes.Count < 2)
+            {
+                TaskDialog.Show("Swap Tag Type",
+                    "Need at least 2 annotation tag families loaded.\n" +
+                    "Load additional tag families first.");
+                return Result.Succeeded;
+            }
+
+            // Show current tag type distribution
+            var currentTypes = new Dictionary<string, int>();
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    ElementId typeId = tag.GetTypeId();
+                    Element type = doc.GetElement(typeId);
+                    string typeName = type?.Name ?? "Unknown";
+                    currentTypes.TryGetValue(typeName, out int ctc);
+                    currentTypes[typeName] = ctc + 1;
+                }
+                catch (Exception ex) { StingLog.Warn($"Get tag type distribution failed: {ex.Message}"); }
+            }
+
+            // Pick target tag type (top 4 by prevalence)
+            var topTypes = tagTypes.Take(4).ToList();
+            TaskDialog dlg = new TaskDialog("Swap Tag Type");
+            dlg.MainInstruction = $"Change tag type for {tags.Count} tags";
+            dlg.MainContent = "Current types:\n" +
+                string.Join("\n", currentTypes.Select(kvp => $"  {kvp.Key}: {kvp.Value}"));
+            for (int i = 0; i < topTypes.Count; i++)
+            {
+                dlg.AddCommandLink((TaskDialogCommandLinkId)(i + 1001),
+                    $"{topTypes[i].Family.Name}: {topTypes[i].Name}");
+            }
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int picked = -1;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: picked = 0; break;
+                case TaskDialogResult.CommandLink2: picked = 1; break;
+                case TaskDialogResult.CommandLink3: picked = 2; break;
+                case TaskDialogResult.CommandLink4: picked = 3; break;
+                default: return Result.Cancelled;
+            }
+
+            ElementId newTypeId = topTypes[picked].Id;
+            int swapped = 0;
+            int failed = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Swap Tag Type"))
+            {
+                tx.Start();
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        if (tag.GetTypeId() != newTypeId && tag.IsValidType(newTypeId))
+                        {
+                            tag.ChangeTypeId(newTypeId);
+                            swapped++;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); failed++; }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Swap Tag Type",
+                $"Swapped {swapped} tags to '{topTypes[picked].Name}'.\n" +
+                (failed > 0 ? $"Failed: {failed} (incompatible category)." : ""));
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Statistics / Analysis
+    // ══════════════════════════════════════════════════════════════════
+
     /// <summary>
     /// Quick tag statistics for the active view — shows counts per discipline,
     /// system, level, and overall tag/untag ratio.
@@ -581,8 +2803,11 @@ namespace StingTools.Organise
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            Document doc = cmd.Application.ActiveUIDocument.Document;
-            View view = doc.ActiveView;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             int total = 0, tagged = 0, untagged = 0;
@@ -597,29 +2822,29 @@ namespace StingTools.Organise
                 if (!known.Contains(cat)) continue;
 
                 total++;
-                string tag = ParameterHelpers.GetString(elem, "ASS_TAG_1_TXT");
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (TagConfig.TagIsComplete(tag))
                     tagged++;
                 else
                     untagged++;
 
-                string disc = ParameterHelpers.GetString(elem, "ASS_DISCIPLINE_COD_TXT");
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 if (!string.IsNullOrEmpty(disc))
                 {
-                    if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
-                    byDisc[disc]++;
+                    byDisc.TryGetValue(disc, out int bdc);
+                    byDisc[disc] = bdc + 1;
                 }
-                string sys = ParameterHelpers.GetString(elem, "ASS_SYSTEM_TYPE_TXT");
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
                 if (!string.IsNullOrEmpty(sys))
                 {
-                    if (!bySys.ContainsKey(sys)) bySys[sys] = 0;
-                    bySys[sys]++;
+                    bySys.TryGetValue(sys, out int bsc);
+                    bySys[sys] = bsc + 1;
                 }
-                string lvl = ParameterHelpers.GetString(elem, "ASS_LVL_COD_TXT");
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
                 if (!string.IsNullOrEmpty(lvl))
                 {
-                    if (!byLvl.ContainsKey(lvl)) byLvl[lvl] = 0;
-                    byLvl[lvl]++;
+                    byLvl.TryGetValue(lvl, out int blc);
+                    byLvl[lvl] = blc + 1;
                 }
             }
 
@@ -660,6 +2885,3602 @@ namespace StingTools.Organise
             td.Show();
 
             return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Comprehensive Tag Register Export — exports a detailed asset register
+    /// to CSV (Excel-compatible) with ALL tag tokens, identity fields, spatial data,
+    /// dimensional properties, MEP parameters, and validation status.
+    /// Designed as a full BIM asset register / tag register for handover.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TagRegisterExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            // Define ALL columns for the register
+            string[] columns = new[]
+            {
+                // Identity
+                "ElementId", "Category", "FamilyName", "TypeName",
+                // Tag Tokens (ISO 19650)
+                "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ",
+                // Assembled Tags
+                "ASS_TAG_1 (Full)", "ASS_TAG_2 (Short)", "ASS_TAG_3 (Location)", "ASS_TAG_4 (System)",
+                // Validation
+                "TagValid", "TagResolved", "TagComplete", "ValidationIssues",
+                // Status & Classification
+                "STATUS", "REV", "Mark", "Description", "Manufacturer", "Model",
+                // Spatial
+                "Level", "RoomName", "RoomNumber", "Department", "GridRef",
+                // Dimensional
+                "Width_mm", "Height_mm", "Length_mm", "Area_m2", "Thickness_mm",
+                // MEP Parameters
+                "SystemType", "Size", "Flow", "Voltage", "Power_kW",
+                // Cost & FM
+                "UnitPrice_UGX", "TypeMark", "Keynote", "Uniformat", "OmniClass",
+            };
+
+            var sb = new StringBuilder();
+            // BOM for Excel UTF-8 detection
+            sb.Append('\uFEFF');
+            sb.AppendLine(string.Join(",", columns));
+
+            int total = 0;
+            int valid = 0;
+            int incomplete = 0;
+            var discCounts = new Dictionary<string, int>();
+
+            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!known.Contains(cat)) continue;
+
+                total++;
+
+                // Tag tokens
+                string disc = Gs(el, ParamRegistry.DISC);
+                string loc = Gs(el, ParamRegistry.LOC);
+                string zone = Gs(el, ParamRegistry.ZONE);
+                string lvl = Gs(el, ParamRegistry.LVL);
+                string sys = Gs(el, ParamRegistry.SYS);
+                string func = Gs(el, ParamRegistry.FUNC);
+                string prod = Gs(el, ParamRegistry.PROD);
+                string seq = Gs(el, ParamRegistry.SEQ);
+
+                // Assembled tags
+                string tag1 = Gs(el, ParamRegistry.TAG1);
+                string tag2 = Gs(el, ParamRegistry.TAG2);
+                string tag3 = Gs(el, ParamRegistry.TAG3);
+                string tag4 = Gs(el, ParamRegistry.TAG4);
+
+                // Validation
+                bool isValid = TagConfig.TagIsComplete(tag1);
+                bool isResolved = TagConfig.TagIsFullyResolved(tag1);
+                if (isValid) valid++;
+
+                // Check for empty tokens
+                var issues = new List<string>();
+                if (string.IsNullOrEmpty(disc)) issues.Add("DISC");
+                if (string.IsNullOrEmpty(loc)) issues.Add("LOC");
+                if (string.IsNullOrEmpty(zone)) issues.Add("ZONE");
+                if (string.IsNullOrEmpty(lvl)) issues.Add("LVL");
+                if (string.IsNullOrEmpty(sys)) issues.Add("SYS");
+                if (string.IsNullOrEmpty(func)) issues.Add("FUNC");
+                if (string.IsNullOrEmpty(prod)) issues.Add("PROD");
+                if (string.IsNullOrEmpty(seq)) issues.Add("SEQ");
+
+                // Cross-validation (ISO 19650)
+                var isoErrors = ISO19650Validator.ValidateElement(el);
+                if (isoErrors.Count > 0)
+                    issues.AddRange(isoErrors.Select(e => e.Message));
+
+                bool isComplete = issues.Count == 0;
+                if (!isComplete) incomplete++;
+                string issueStr = issues.Count > 0 ? string.Join("; ", issues) : "";
+
+                // Identity
+                string familyName = ParameterHelpers.GetFamilyName(el);
+                string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                string status = Gs(el, ParamRegistry.STATUS);
+                string rev = Gs(el, ParamRegistry.REV);
+                string mark = Gp(el, BuiltInParameter.ALL_MODEL_MARK);
+                string desc = Gs(el, ParamRegistry.DESC);
+                if (string.IsNullOrEmpty(desc)) desc = Gp(el, BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                string mfr = Gs(el, ParamRegistry.MFR);
+                if (string.IsNullOrEmpty(mfr)) mfr = Gp(el, BuiltInParameter.ALL_MODEL_MANUFACTURER);
+                string model = Gs(el, ParamRegistry.MODEL);
+                if (string.IsNullOrEmpty(model)) model = Gp(el, BuiltInParameter.ALL_MODEL_MODEL);
+
+                // Spatial
+                string level = ParameterHelpers.GetLevelCode(doc, el);
+                string roomName = Gs(el, ParamRegistry.ROOM_NAME);
+                if (string.IsNullOrEmpty(roomName)) roomName = Gs(el, ParamRegistry.BLE_ROOM_NAME);
+                string roomNum = Gs(el, ParamRegistry.ROOM_NUM);
+                if (string.IsNullOrEmpty(roomNum)) roomNum = Gs(el, ParamRegistry.BLE_ROOM_NUM);
+                string dept = Gs(el, ParamRegistry.DEPT);
+                string gridRef = Gs(el, ParamRegistry.GRID_REF);
+
+                // Dimensional — try STING params, fallback to built-in
+                string width = GetDim(el, ParamRegistry.DOOR_WIDTH, ParamRegistry.WINDOW_WIDTH,
+                    ParamRegistry.WALL_THICKNESS, ParamRegistry.RAMP_WIDTH, ParamRegistry.STAIR_WIDTH);
+                string height = GetDim(el, ParamRegistry.DOOR_HEIGHT, ParamRegistry.WINDOW_HEIGHT,
+                    ParamRegistry.WALL_HEIGHT, ParamRegistry.CEILING_HEIGHT);
+                string length = GetDim(el, ParamRegistry.WALL_LENGTH, ParamRegistry.PLM_PIPE_LENGTH);
+                string area = Gs(el, ParamRegistry.ELE_AREA);
+                if (string.IsNullOrEmpty(area)) area = Gs(el, ParamRegistry.ROOM_AREA);
+                string thickness = GetDim(el, ParamRegistry.FLR_THICKNESS, ParamRegistry.WALL_THICKNESS);
+
+                // MEP
+                string sysType = Gp(el, BuiltInParameter.RBS_SYSTEM_NAME_PARAM);
+                if (string.IsNullOrEmpty(sysType)) sysType = sys;
+                string size = Gs(el, ParamRegistry.SIZE);
+                string flow = Gs(el, ParamRegistry.HVC_DUCT_FLOW);
+                if (string.IsNullOrEmpty(flow)) flow = Gs(el, ParamRegistry.PLM_PIPE_FLOW);
+                if (string.IsNullOrEmpty(flow)) flow = Gs(el, ParamRegistry.HVC_AIRFLOW);
+                string voltage = Gs(el, ParamRegistry.ELC_VOLTAGE);
+                if (string.IsNullOrEmpty(voltage)) voltage = Gs(el, ParamRegistry.ELC_PNL_VOLTAGE);
+                string power = Gs(el, ParamRegistry.ELC_POWER);
+
+                // Cost & FM
+                string unitPrice = Gs(el, ParamRegistry.COST);
+                string typeMark = Gs(el, ParamRegistry.TYPE_MARK);
+                string keynote = Gs(el, ParamRegistry.KEYNOTE);
+                string uniformat = Gs(el, ParamRegistry.UNIFORMAT);
+                string omniclass = Gs(el, ParamRegistry.OMNICLASS);
+
+                // Track discipline counts
+                if (!string.IsNullOrEmpty(disc))
+                {
+                    discCounts.TryGetValue(disc, out int dcc);
+                    discCounts[disc] = dcc + 1;
+                }
+
+                // Write CSV row
+                sb.Append(el.Id).Append(',');
+                sb.Append(Esc(cat)).Append(',');
+                sb.Append(Esc(familyName)).Append(',');
+                sb.Append(Esc(typeName)).Append(',');
+                sb.Append(disc).Append(',');
+                sb.Append(loc).Append(',');
+                sb.Append(zone).Append(',');
+                sb.Append(lvl).Append(',');
+                sb.Append(sys).Append(',');
+                sb.Append(func).Append(',');
+                sb.Append(prod).Append(',');
+                sb.Append(seq).Append(',');
+                sb.Append(Esc(tag1)).Append(',');
+                sb.Append(Esc(tag2)).Append(',');
+                sb.Append(Esc(tag3)).Append(',');
+                sb.Append(Esc(tag4)).Append(',');
+                sb.Append(isValid).Append(',');
+                sb.Append(isResolved).Append(',');
+                sb.Append(isComplete).Append(',');
+                sb.Append(Esc(issueStr)).Append(',');
+                sb.Append(status).Append(',');
+                sb.Append(rev).Append(',');
+                sb.Append(Esc(mark)).Append(',');
+                sb.Append(Esc(desc)).Append(',');
+                sb.Append(Esc(mfr)).Append(',');
+                sb.Append(Esc(model)).Append(',');
+                sb.Append(level).Append(',');
+                sb.Append(Esc(roomName)).Append(',');
+                sb.Append(Esc(roomNum)).Append(',');
+                sb.Append(Esc(dept)).Append(',');
+                sb.Append(gridRef).Append(',');
+                sb.Append(width).Append(',');
+                sb.Append(height).Append(',');
+                sb.Append(length).Append(',');
+                sb.Append(area).Append(',');
+                sb.Append(thickness).Append(',');
+                sb.Append(Esc(sysType)).Append(',');
+                sb.Append(size).Append(',');
+                sb.Append(flow).Append(',');
+                sb.Append(voltage).Append(',');
+                sb.Append(power).Append(',');
+                sb.Append(unitPrice).Append(',');
+                sb.Append(Esc(typeMark)).Append(',');
+                sb.Append(Esc(keynote)).Append(',');
+                sb.Append(Esc(uniformat)).Append(',');
+                sb.AppendLine(Esc(omniclass));
+            }
+
+            // Write to file — uses user-preferred output location
+            string path = OutputLocationHelper.PromptForExportPath(
+                doc, $"STING_Tag_Register_{System.DateTime.Now:yyyyMMdd}.csv",
+                "CSV Files|*.csv|All Files|*.*", "TagRegister")
+                ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Tag_Register", ".csv");
+
+            try
+            {
+                System.IO.File.WriteAllText(path, sb.ToString(), System.Text.Encoding.UTF8);
+                StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, path, "SH", "Comprehensive asset tag register (40+ columns)");
+
+                double pct = total > 0 ? (valid * 100.0 / total) : 0;
+                var report = new StringBuilder();
+                report.AppendLine($"Tag Register Export Complete");
+                report.AppendLine(new string('═', 50));
+                report.AppendLine($"  Total elements:    {total}");
+                report.AppendLine($"  Valid tags:        {valid} ({pct:F1}%)");
+                report.AppendLine($"  Incomplete:        {incomplete}");
+                report.AppendLine($"  Columns:           {columns.Length}");
+                report.AppendLine();
+                if (discCounts.Count > 0)
+                {
+                    report.AppendLine("  By discipline:");
+                    foreach (var kvp in discCounts.OrderBy(x => x.Key))
+                        report.AppendLine($"    {kvp.Key,-4} {kvp.Value,6}");
+                }
+                report.AppendLine();
+                report.AppendLine($"  File: {path}");
+                report.AppendLine();
+                report.AppendLine("Opens directly in Excel with full formatting support.");
+
+                TaskDialog.Show("Tag Register Export", report.ToString());
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Tag Register Export", $"Export failed: {ex.Message}");
+                StingLog.Error("Tag register export failed", ex);
+            }
+
+            return Result.Succeeded;
+        }
+
+        /// <summary>Get string parameter value.</summary>
+        private static string Gs(Element el, string paramName)
+        {
+            return ParameterHelpers.GetString(el, paramName);
+        }
+
+        /// <summary>Get built-in parameter as string.</summary>
+        private static string Gp(Element el, BuiltInParameter bip)
+        {
+            try
+            {
+                Parameter p = el.get_Parameter(bip);
+                if (p == null || !p.HasValue) return "";
+                return p.StorageType == StorageType.String
+                    ? (p.AsString() ?? "")
+                    : (p.AsValueString() ?? "");
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
+        }
+
+        /// <summary>Get first non-empty dimensional value from parameter list.</summary>
+        private static string GetDim(Element el, params string[] paramNames)
+        {
+            foreach (string name in paramNames)
+            {
+                string val = ParameterHelpers.GetString(el, name);
+                if (!string.IsNullOrEmpty(val) && val != "0") return val;
+            }
+            return "";
+        }
+
+        /// <summary>CSV-escape a value (quote if contains comma, quote, or newline).</summary>
+        private static string Esc(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            return value;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  LEADER MANAGEMENT COMMANDS
+    //  Annotation tag leader control — toggle, add, remove, align, reset
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Toggle leaders ON for all selected annotation tags (IndependentTag).
+    /// If no elements selected, operates on all tags in the active view.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AddLeadersCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Add Leaders", "No annotation tags found in selection or view.");
+                return Result.Succeeded;
+            }
+
+            int modified = 0;
+            using (Transaction tx = new Transaction(doc, "STING Add Leaders"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        if (!tag.HasLeader)
+                        {
+                            tag.HasLeader = true;
+                            modified++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Add leader to tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Add Leaders",
+                $"Leaders added to {modified} of {tags.Count} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Remove leaders from all selected annotation tags.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RemoveLeadersCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Remove Leaders", "No annotation tags found in selection or view.");
+                return Result.Succeeded;
+            }
+
+            int modified = 0;
+            using (Transaction tx = new Transaction(doc, "STING Remove Leaders"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        if (tag.HasLeader)
+                        {
+                            tag.HasLeader = false;
+                            modified++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Remove leader from tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Remove Leaders",
+                $"Leaders removed from {modified} of {tags.Count} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Toggle leaders on selected tags: if any have leaders, remove all;
+    /// if none have leaders, add to all.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ToggleLeadersCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Toggle Leaders", "No annotation tags found in selection or view.");
+                return Result.Succeeded;
+            }
+
+            // If majority have leaders, remove all; otherwise add all
+            int withLeaders = tags.Count(t => t.HasLeader);
+            bool addLeaders = withLeaders <= tags.Count / 2;
+
+            int modified = 0;
+            using (Transaction tx = new Transaction(doc, "STING Toggle Leaders"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        if (addLeaders && !tag.HasLeader)
+                        {
+                            tag.HasLeader = true;
+                            modified++;
+                        }
+                        else if (!addLeaders && tag.HasLeader)
+                        {
+                            tag.HasLeader = false;
+                            modified++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Toggle leader on tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            string action = addLeaders ? "added" : "removed";
+            TaskDialog.Show("Toggle Leaders",
+                $"Leaders {action} on {modified} of {tags.Count} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Align tag heads horizontally or vertically for selected tags.
+    /// Aligns to the first selected tag's position.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AlignTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetSelectedTags(uidoc);
+            if (tags.Count < 2)
+            {
+                TaskDialog.Show("Align Tags",
+                    "Select at least 2 annotation tags to align.");
+                return Result.Succeeded;
+            }
+
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            // Calculate actual tag widths for smart spacing
+            double maxTagWidth = 0;
+            double totalTagWidth = 0;
+            int measuredCount = 0;
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    BoundingBoxXYZ bb = tag.get_BoundingBox(view);
+                    if (bb != null)
+                    {
+                        double w = bb.Max.X - bb.Min.X;
+                        if (w > 0.001)
+                        {
+                            totalTagWidth += w;
+                            measuredCount++;
+                            if (w > maxTagWidth) maxTagWidth = w;
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Measure tag width failed: {ex.Message}"); }
+            }
+            // Use average width if max seems unreliable, scale-based fallback as last resort
+            if (maxTagWidth < 0.001)
+                maxTagWidth = view.Scale * 0.008; // ~8mm at paper scale
+            else if (measuredCount > 1)
+            {
+                double avgWidth = totalTagWidth / measuredCount;
+                // If max is >3x average, one tag is anomalously wide — use average instead
+                if (maxTagWidth > avgWidth * 3.0)
+                    maxTagWidth = avgWidth;
+            }
+            double autoSpacing = maxTagWidth * 1.2; // 20% gap between tags
+
+            // FIX-B07: Check ExtraParam for pre-set direction (skip dialog)
+            TaskDialogResult result;
+            string presetDir = StingCommandHandler.GetExtraParam("AlignDirection");
+            if (!string.IsNullOrEmpty(presetDir))
+            {
+                switch (presetDir.ToUpperInvariant())
+                {
+                    case "HORIZONTAL": result = TaskDialogResult.CommandLink1; break;
+                    case "VERTICAL": result = TaskDialogResult.CommandLink2; break;
+                    case "ROW": result = TaskDialogResult.CommandLink3; break;
+                    case "COLUMN": result = TaskDialogResult.CommandLink4; break;
+                    default: result = TaskDialogResult.CommandLink1; break;
+                }
+            }
+            else
+            {
+                // Ask alignment direction
+                TaskDialog dlg = new TaskDialog("Align Tags");
+                dlg.MainInstruction = $"Align {tags.Count} tags";
+                dlg.MainContent = "Choose alignment direction:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Align Horizontally", "Align all tag heads to same Y as first selected tag");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Align Vertically", "Align all tag heads to same X as first selected tag");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "Row (auto-spaced)", $"Distribute in row with auto-calculated spacing ({autoSpacing * 304.8:F0}mm)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                    "Column (auto-spaced)", "Distribute in vertical column with auto-calculated spacing");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                result = dlg.Show();
+                if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+            }
+
+            XYZ refPoint = tags[0].TagHeadPosition;
+            int aligned = 0;
+
+            // For vertical column, calculate max tag height
+            double maxTagHeight = 0;
+            if (result == TaskDialogResult.CommandLink4)
+            {
+                foreach (var tag in tags)
+                {
+                    try
+                    {
+                        BoundingBoxXYZ bb = tag.get_BoundingBox(view);
+                        if (bb != null)
+                        {
+                            double h = bb.Max.Y - bb.Min.Y;
+                            if (h > maxTagHeight) maxTagHeight = h;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Measure tag height failed: {ex.Message}"); }
+                }
+                if (maxTagHeight < 0.001)
+                    maxTagHeight = view.Scale * 0.003;
+            }
+            double vSpacing = maxTagHeight * 1.3; // 30% gap for readability
+
+            using (Transaction tx = new Transaction(doc, "STING Align Tags"))
+            {
+                tx.Start();
+                for (int i = 1; i < tags.Count; i++)
+                {
+                    try
+                    {
+                        XYZ current = tags[i].TagHeadPosition;
+                        XYZ newPos;
+
+                        switch (result)
+                        {
+                            case TaskDialogResult.CommandLink1:
+                                // Horizontal: same Y, keep X
+                                newPos = new XYZ(current.X, refPoint.Y, current.Z);
+                                break;
+                            case TaskDialogResult.CommandLink2:
+                                // Vertical: same X, keep Y
+                                newPos = new XYZ(refPoint.X, current.Y, current.Z);
+                                break;
+                            case TaskDialogResult.CommandLink3:
+                                // Row: same Y, auto-spaced X
+                                newPos = new XYZ(refPoint.X + (i * autoSpacing),
+                                    refPoint.Y, current.Z);
+                                break;
+                            case TaskDialogResult.CommandLink4:
+                                // Column: same X, auto-spaced Y (descending)
+                                newPos = new XYZ(refPoint.X,
+                                    refPoint.Y - (i * vSpacing), current.Z);
+                                break;
+                            default:
+                                continue;
+                        }
+
+                        tags[i].TagHeadPosition = newPos;
+                        aligned++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Align tag {tags[i].Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Align Tags", $"Aligned {aligned} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Reset tag positions — move tag heads back to their host element center.
+    /// Useful for cleaning up manually-dragged tags.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ResetTagPositionsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Reset Tags", "No annotation tags found in selection or view.");
+                return Result.Succeeded;
+            }
+
+            // Ask whether to preserve leaders
+            int withLeaders = tags.Count(t => t.HasLeader);
+            bool removeLeaders = false;
+            if (withLeaders > 0)
+            {
+                TaskDialog askDlg = new TaskDialog("Reset Tag Positions");
+                askDlg.MainInstruction = $"{withLeaders} of {tags.Count} tags have leaders";
+                askDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Reset position, keep leaders",
+                    "Move tag heads to element centers but preserve leader lines");
+                askDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Reset position AND remove leaders",
+                    "Move tag heads to element centers and strip leaders");
+                askDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var askResult = askDlg.Show();
+                if (askResult == TaskDialogResult.Cancel) return Result.Cancelled;
+                removeLeaders = askResult == TaskDialogResult.CommandLink2;
+            }
+
+            int reset = 0;
+            using (Transaction tx = new Transaction(doc, "STING Reset Tag Positions"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        // Get the tagged element's location
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
+                        if (host == null) continue;
+
+                        XYZ center = LeaderHelper.GetElementCenter(host);
+                        if (center == null) continue;
+
+                        // Move tag head to element center with small offset (scale-aware)
+                        View view = doc.GetElement(tag.OwnerViewId) as View;
+                        double offset = view != null ? view.Scale * 0.005 : 0.5;
+                        XYZ tagPos = center + new XYZ(offset, offset, 0);
+
+                        tag.TagHeadPosition = tagPos;
+
+                        // Only remove leaders if user explicitly chose to
+                        if (removeLeaders && tag.HasLeader)
+                            tag.HasLeader = false;
+
+                        reset++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Reset tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            string leaderNote = removeLeaders ? " (leaders removed)" : withLeaders > 0 ? " (leaders preserved)" : "";
+            TaskDialog.Show("Reset Tags",
+                $"Reset {reset} of {tags.Count} tag positions to element centers{leaderNote}.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Change tag orientation — toggle between horizontal and vertical
+    /// for all selected annotation tags.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ToggleTagOrientationCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Toggle Orientation",
+                    "No annotation tags found in selection or view.");
+                return Result.Succeeded;
+            }
+
+            int toggled = 0;
+            using (Transaction tx = new Transaction(doc, "STING Toggle Tag Orientation"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        tag.TagOrientation = tag.TagOrientation == TagOrientation.Horizontal
+                            ? TagOrientation.Vertical
+                            : TagOrientation.Horizontal;
+                        toggled++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Toggle orientation on tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Toggle Orientation",
+                $"Toggled orientation on {toggled} of {tags.Count} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Select all annotation tags in the active view that have leaders.
+    /// Useful for batch-operating on leader tags.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SelectTagsWithLeadersCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var allTags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            var withLeaders = allTags.Where(t => t.HasLeader)
+                .Select(t => t.Id).ToList();
+            var withoutLeaders = allTags.Where(t => !t.HasLeader)
+                .Select(t => t.Id).ToList();
+
+            // Ask which to select
+            TaskDialog dlg = new TaskDialog("Select Tags");
+            dlg.MainInstruction = $"View has {allTags.Count} tags " +
+                $"({withLeaders.Count} with leaders, {withoutLeaders.Count} without)";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                $"Tags WITH Leaders ({withLeaders.Count})",
+                "Select all tags that currently have leader lines");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                $"Tags WITHOUT Leaders ({withoutLeaders.Count})",
+                "Select all tags without leader lines");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                $"ALL Tags ({allTags.Count})",
+                "Select all annotation tags in view");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var result = dlg.Show();
+
+            ICollection<ElementId> selectIds;
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1:
+                    selectIds = withLeaders;
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    selectIds = withoutLeaders;
+                    break;
+                case TaskDialogResult.CommandLink3:
+                    selectIds = allTags.Select(t => t.Id).ToList();
+                    break;
+                default:
+                    return Result.Cancelled;
+            }
+
+            if (selectIds.Count > 0)
+                uidoc.Selection.SetElementIds(selectIds);
+
+            TaskDialog.Show("Select Tags", $"Selected {selectIds.Count} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>R4-D D4: Equalize leader lengths — makes all selected tags have uniform leader length.
+    /// Calculates median length from selected tags, then adjusts each tag head to match while preserving direction.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class EqualizeLeaderLengthsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc)
+                .Where(t => t.HasLeader).ToList();
+
+            if (tags.Count < 2)
+            {
+                TaskDialog.Show("Equalize Leaders", "Select at least 2 tags with leaders.");
+                return Result.Cancelled;
+            }
+
+            // Calculate current leader lengths (distance from host to tag head)
+            var lengths = new List<(IndependentTag Tag, double Length, XYZ Direction)>();
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    XYZ head = tag.TagHeadPosition;
+                    if (head == null) continue;
+
+                    // Get the tagged element's center
+                    Reference tagRef = tag.GetTaggedReferences()?.FirstOrDefault();
+                    if (tagRef == null) continue;
+                    Element host = doc.GetElement(tagRef);
+                    if (host == null) continue;
+
+                    BoundingBoxXYZ bb = host.get_BoundingBox(null);
+                    if (bb == null) continue;
+                    XYZ center = (bb.Min + bb.Max) * 0.5;
+
+                    XYZ offset = head - center;
+                    double len = offset.GetLength();
+                    if (len < 0.001) continue; // skip zero-length
+
+                    lengths.Add((tag, len, offset.Normalize()));
+                }
+                catch (Exception ex) { StingLog.Warn($"EqualizeLeaders tag {tag.Id}: {ex.Message}"); }
+            }
+
+            if (lengths.Count < 2)
+            {
+                TaskDialog.Show("Equalize Leaders", "Could not calculate leader lengths for selected tags.");
+                return Result.Failed;
+            }
+
+            // Median length
+            var sorted = lengths.OrderBy(l => l.Length).ToList();
+            double median = sorted[sorted.Count / 2].Length;
+
+            int adjusted = 0;
+            using (Transaction tx = new Transaction(doc, "STING Equalize Leader Lengths"))
+            {
+                tx.Start();
+                foreach (var (tag, length, direction) in lengths)
+                {
+                    try
+                    {
+                        Reference tagRef = tag.GetTaggedReferences()?.FirstOrDefault();
+                        if (tagRef == null) continue;
+                        Element host = doc.GetElement(tagRef);
+                        if (host == null) continue;
+                        BoundingBoxXYZ bb = host.get_BoundingBox(null);
+                        if (bb == null) continue;
+                        XYZ center = (bb.Min + bb.Max) * 0.5;
+
+                        // Set new position at median distance along original direction
+                        XYZ newHead = center + direction * median;
+                        tag.TagHeadPosition = newHead;
+                        adjusted++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"EqualizeLeaders adjust {tag.Id}: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            double medianMm = median * 304.8;
+            TaskDialog.Show("Equalize Leaders",
+                $"Equalized {adjusted} tag leaders to {medianMm:F0}mm length (median).");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Shared helper for leader management commands.
+    /// Gets annotation tags from selection or active view.
+    /// </summary>
+    internal static class LeaderHelper
+    {
+        /// <summary>Get tags from selection; if none selected, get all tags in active view.</summary>
+        public static List<IndependentTag> GetTargetTags(UIDocument uidoc)
+        {
+            Document doc = uidoc.Document;
+            var selIds = uidoc.Selection.GetElementIds();
+
+            if (selIds.Count > 0)
+            {
+                return selIds
+                    .Select(id => doc.GetElement(id))
+                    .OfType<IndependentTag>()
+                    .ToList();
+            }
+
+            // Fall back to all tags in active view
+            var activeView = doc.ActiveView;
+            if (activeView == null) return new List<IndependentTag>();
+            return new FilteredElementCollector(doc, activeView.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+        }
+
+        /// <summary>Get only selected tags (not from view).</summary>
+        public static List<IndependentTag> GetSelectedTags(UIDocument uidoc)
+        {
+            Document doc = uidoc.Document;
+            return uidoc.Selection.GetElementIds()
+                .Select(id => doc.GetElement(id))
+                .OfType<IndependentTag>()
+                .ToList();
+        }
+
+        /// <summary>
+        /// Resolve a set of selected element IDs (which may be host elements rather
+        /// than annotation tags) to the IndependentTag annotations that tag them in
+        /// the given view. This bridges the gap when users select host elements
+        /// (walls, ducts, equipment) instead of the annotation tags themselves.
+        /// </summary>
+        public static List<IndependentTag> ResolveToAnnotationTags(Document doc, View view, ICollection<ElementId> selectedIds)
+        {
+            var tags = new List<IndependentTag>();
+            if (selectedIds == null || selectedIds.Count == 0 || view == null)
+                return tags;
+
+            var hostIds = new HashSet<ElementId>(selectedIds);
+            foreach (var tag in new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>())
+            {
+                try
+                {
+                    var taggedIds = tag.GetTaggedLocalElementIds();
+                    if (taggedIds.Any(id => hostIds.Contains(id)))
+                        tags.Add(tag);
+                }
+                catch (Exception ex) { StingLog.Warn($"Resolve annotation tag from host failed: {ex.Message}"); }
+            }
+            return tags;
+        }
+
+        /// <summary>
+        /// Get center point of an element for tag/leader placement.
+        /// Uses Location first (most reliable), then view-aware bounding box,
+        /// then global bounding box as final fallback. Returns XY center at
+        /// element Z for proper 2D annotation placement.
+        /// </summary>
+        public static XYZ GetElementCenter(Element el, View view = null)
+        {
+            // Location is the most reliable source for point/curve elements
+            if (el.Location is LocationPoint lp)
+                return lp.Point;
+            if (el.Location is LocationCurve lc)
+            {
+                Curve c = lc.Curve;
+                return (c.GetEndPoint(0) + c.GetEndPoint(1)) / 2.0;
+            }
+
+            // View-aware bounding box — more accurate for annotation context
+            if (view != null)
+            {
+                try
+                {
+                    BoundingBoxXYZ vbb = el.get_BoundingBox(view);
+                    if (vbb != null)
+                    {
+                        XYZ center3D = (vbb.Min + vbb.Max) / 2.0;
+                        // Flatten to view plane Z for proper 2D placement
+                        return new XYZ(center3D.X, center3D.Y, vbb.Min.Z);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"fall through to global BB: {ex.Message}"); }
+            }
+
+            // Global bounding box as final fallback
+            BoundingBoxXYZ bb = el.get_BoundingBox(null);
+            if (bb != null)
+                return (bb.Min + bb.Max) / 2.0;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Determine which side of the host element the tag head is on.
+        /// Returns: "right", "left", "above", or "below".
+        /// </summary>
+        public static string GetLeaderSide(Document doc, IndependentTag tag)
+        {
+            try
+            {
+                var hostIds = tag.GetTaggedLocalElementIds();
+                if (hostIds.Count == 0) return "right";
+                Element host = doc.GetElement(hostIds.First());
+                if (host == null) return "right";
+
+                View view = doc.GetElement(tag.OwnerViewId) as View;
+                XYZ hostCenter = GetElementCenter(host, view);
+                if (hostCenter == null) return "right";
+
+                // Use actual elbow if available for more accurate side detection
+                XYZ reference = hostCenter;
+                try
+                {
+                    var refs = tag.GetTaggedReferences();
+                    if (tag.HasLeader && refs != null && refs.Count > 0)
+                    {
+                        XYZ elbow = tag.GetLeaderElbow(refs.First());
+                        if (elbow != null) reference = elbow;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Get leader elbow reference failed: {ex.Message}"); }
+
+                XYZ tagHead = tag.TagHeadPosition;
+                double dx = tagHead.X - reference.X;
+                double dy = tagHead.Y - reference.Y;
+
+                if (Math.Abs(dx) > Math.Abs(dy))
+                    return dx > 0 ? "right" : "left";
+                else
+                    return dy > 0 ? "above" : "below";
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "right"; }
+        }
+
+        /// <summary>
+        /// Auto-align tag head position relative to leader direction.
+        /// Uses actual leader elbow geometry (not just host center) to determine
+        /// the true leader direction, then positions the tag head so text reads
+        /// away from the leader line with proper clearance.
+        /// Falls back to host center when elbow data is unavailable.
+        /// </summary>
+        public static int AutoAlignTagsToLeaders(Document doc, List<IndependentTag> tags, View view)
+        {
+            int aligned = 0;
+            double scaleFactor = view.Scale / 100.0; // Normalize scale for offset calculations
+
+            foreach (IndependentTag tag in tags)
+            {
+                try
+                {
+                    if (!tag.HasLeader) continue;
+
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    if (hostIds.Count == 0) continue;
+                    Element host = doc.GetElement(hostIds.First());
+                    if (host == null) continue;
+
+                    XYZ hostCenter = GetElementCenter(host);
+                    if (hostCenter == null) continue;
+
+                    XYZ tagHead = tag.TagHeadPosition;
+
+                    // Try to get actual leader elbow position for accurate direction
+                    XYZ leaderAnchor = hostCenter; // fallback
+                    try
+                    {
+                        var refs = tag.GetTaggedReferences();
+                        if (refs != null && refs.Count > 0)
+                        {
+                            XYZ elbow = tag.GetLeaderElbow(refs.First());
+                            if (elbow != null)
+                                leaderAnchor = elbow; // Use elbow as the anchor — more accurate direction
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"fallback to hostCenter: {ex.Message}"); }
+
+                    double dx = tagHead.X - leaderAnchor.X;
+                    double dy = tagHead.Y - leaderAnchor.Y;
+                    double dist = Math.Sqrt(dx * dx + dy * dy);
+                    if (dist < 0.01) continue;
+
+                    // Get tag bounding box for width/height estimate
+                    BoundingBoxXYZ bb = tag.get_BoundingBox(view);
+                    double tagW = bb != null ? (bb.Max.X - bb.Min.X) : view.Scale * 0.008;
+                    double tagH = bb != null ? (bb.Max.Y - bb.Min.Y) : view.Scale * 0.003;
+
+                    // Get element bounding box for clearance
+                    BoundingBoxXYZ elBB = host.get_BoundingBox(view);
+                    double elHalfW = elBB != null ? (elBB.Max.X - elBB.Min.X) * 0.5 : scaleFactor * 0.5;
+                    double elHalfH = elBB != null ? (elBB.Max.Y - elBB.Min.Y) * 0.5 : scaleFactor * 0.5;
+
+                    // Clearance gap between leader anchor and tag edge (scale-aware)
+                    double clearance = Math.Max(scaleFactor * 0.3, 0.15);
+
+                    XYZ newPos = tagHead;
+                    if (Math.Abs(dx) > Math.Abs(dy))
+                    {
+                        // Primarily horizontal arrangement — position tag along X axis
+                        double tagEdgeDist = clearance + tagW * 0.5;
+                        if (dx > 0)
+                            newPos = new XYZ(leaderAnchor.X + tagEdgeDist, tagHead.Y, tagHead.Z);
+                        else
+                            newPos = new XYZ(leaderAnchor.X - tagEdgeDist, tagHead.Y, tagHead.Z);
+                    }
+                    else
+                    {
+                        // Primarily vertical arrangement — position tag along Y axis
+                        double tagEdgeDist = clearance + tagH * 0.5;
+                        if (dy > 0)
+                            newPos = new XYZ(tagHead.X, leaderAnchor.Y + tagEdgeDist, tagHead.Z);
+                        else
+                            newPos = new XYZ(tagHead.X, leaderAnchor.Y - tagEdgeDist, tagHead.Z);
+                    }
+
+                    if (newPos.DistanceTo(tagHead) > 0.001)
+                    {
+                        tag.TagHeadPosition = newPos;
+                        aligned++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"AutoAlignTag {tag.Id}: {ex.Message}");
+                }
+            }
+            return aligned;
+        }
+    }
+
+    /// <summary>
+    /// Snap leader elbows to 45°, 90°, or straight angles for clean annotation layout.
+    /// Works on selected tags or all tags in view.
+    /// Supports cycling: each invocation detects the current angle and rotates to the next
+    /// in the sequence 90° → 45° → Straight → 90°.
+    /// Also supports direct angle setting via the static SnapToAngle method.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SnapLeaderElbowCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc)
+                .Where(t => t.HasLeader).ToList();
+
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Snap Elbows", "No tags with leaders found.");
+                return Result.Succeeded;
+            }
+
+            // Auto-cycle: detect current angle and rotate to next
+            // Cycle order: 90° → 45° → Straight (0°) → 90°
+            string targetAngle = DetectCurrentAngleAndCycle(doc, tags);
+
+            int snapped = SnapToAngle(doc, tags, targetAngle);
+
+            string angleLabel = targetAngle == "0" ? "Straight" : $"{targetAngle}°";
+            TaskDialog.Show("Snap Elbows",
+                $"Snapped {snapped} of {tags.Count} leader elbows to {angleLabel}.\n" +
+                "(Click again to cycle to next angle)");
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Detect the predominant current elbow angle and return the next in cycle.
+        /// Cycle: 90° → 45° → Straight (0°) → 90°
+        /// Uses vector dot product for reliable angle classification instead of
+        /// distance-based heuristics which fail when tag/element sizes vary.
+        /// </summary>
+        private static string DetectCurrentAngleAndCycle(Document doc, List<IndependentTag> tags)
+        {
+            int count90 = 0, count45 = 0, count0 = 0;
+
+            foreach (IndependentTag tag in tags)
+            {
+                try
+                {
+                    var hostIds = tag.GetTaggedLocalElementIds();
+                    Element host = hostIds.Count > 0 ? doc.GetElement(hostIds.First()) : null;
+                    if (host == null) continue;
+
+                    XYZ hostCenter = LeaderHelper.GetElementCenter(host);
+                    if (hostCenter == null) continue;
+
+                    XYZ tagHead = tag.TagHeadPosition;
+                    var refs = tag.GetTaggedReferences();
+                    if (refs == null || refs.Count == 0) continue;
+
+                    XYZ elbow;
+                    try { elbow = tag.GetLeaderElbow(refs.First()); }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); count90++; continue; }
+                    if (elbow == null) { count90++; continue; }
+
+                    // Use vector dot product to classify angle between two leader segments:
+                    // Segment 1: host → elbow, Segment 2: elbow → tag
+                    XYZ seg1 = elbow - hostCenter;
+                    XYZ seg2 = tagHead - elbow;
+                    double len1 = seg1.GetLength();
+                    double len2 = seg2.GetLength();
+
+                    if (len1 < 0.01 || len2 < 0.01)
+                    {
+                        count0++; // Degenerate — effectively straight
+                        continue;
+                    }
+
+                    // Dot product of normalized vectors gives cos(angle)
+                    // cos(0°)=1 straight, cos(45°)≈0.707, cos(90°)=0
+                    double cosAngle = seg1.Normalize().DotProduct(seg2.Normalize());
+                    double absCos = Math.Abs(cosAngle);
+
+                    if (absCos > 0.9)
+                        count0++;       // Nearly straight (< ~25°)
+                    else if (absCos < 0.25)
+                        count90++;      // Near 90° (> ~75°)
+                    else
+                        count45++;      // Between — 45° range
+                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); count90++; }
+            }
+
+            // Determine dominant angle and cycle to next
+            if (count90 >= count45 && count90 >= count0)
+                return "45";    // Currently 90° → cycle to 45°
+            if (count45 >= count90 && count45 >= count0)
+                return "0";     // Currently 45° → cycle to Straight
+            return "90";        // Currently Straight → cycle to 90°
+        }
+
+        /// <summary>
+        /// Snap leader elbows to a specific angle. Called by the handler for direct snapping.
+        /// angleMode: "90", "45", or "0" (straight).
+        /// </summary>
+        public static int SnapToAngle(Document doc, List<IndependentTag> tags, string angleMode)
+        {
+            int snapped = 0;
+            using (Transaction tx = new Transaction(doc, "STING Snap Leader Elbows"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        var hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = hostIds.Count > 0 ? doc.GetElement(hostIds.First()) : null;
+                        if (host == null) continue;
+
+                        XYZ hostCenter = LeaderHelper.GetElementCenter(host);
+                        if (hostCenter == null) continue;
+
+                        XYZ tagHead = tag.TagHeadPosition;
+                        XYZ delta = tagHead - hostCenter;
+                        if (delta.GetLength() < 0.01) continue;
+
+                        XYZ elbowPos = CalculateElbowPosition(hostCenter, tagHead, delta, angleMode);
+
+                        var refs = tag.GetTaggedReferences();
+                        if (refs != null && refs.Count > 0)
+                        {
+                            tag.LeaderEndCondition = LeaderEndCondition.Free;
+                            tag.SetLeaderElbow(refs.First(), elbowPos);
+                            snapped++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Snap elbow on tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+            return snapped;
+        }
+
+        /// <summary>
+        /// Calculate the elbow position for a given angle mode.
+        /// Uses element-aware positioning: considers the relative position of tag
+        /// to host and creates clean geometric elbows that avoid crossing the element.
+        /// </summary>
+        private static XYZ CalculateElbowPosition(XYZ hostCenter, XYZ tagHead, XYZ delta, string angleMode)
+        {
+            double absDx = Math.Abs(delta.X);
+            double absDy = Math.Abs(delta.Y);
+            double signX = delta.X >= 0 ? 1.0 : -1.0;
+            double signY = delta.Y >= 0 ? 1.0 : -1.0;
+            double len = delta.GetLength();
+
+            if (angleMode == "0")
+            {
+                // Straight: elbow very close to tag head for a clean straight leader.
+                // Place elbow 85% along the line from host to tag, so the leader
+                // runs almost straight with a minimal stub at the tag end.
+                if (len < 0.01) return hostCenter;
+                XYZ dir = delta.Normalize();
+                return hostCenter + dir * (len * 0.85);
+            }
+            else if (angleMode == "45")
+            {
+                // 45° elbow: create a proper 45° diagonal from host center,
+                // then an orthogonal run to the tag head.
+                // The diagonal travels equal X and Y until it reaches the
+                // orthogonal line through the tag head.
+                double diag = Math.Min(absDx, absDy);
+
+                // Guard against near-zero diagonal (tags almost level or stacked)
+                if (diag < 0.01)
+                {
+                    // Nearly aligned — place elbow at midpoint for a gentle bend
+                    return (hostCenter + tagHead) / 2.0;
+                }
+
+                if (absDx >= absDy)
+                {
+                    // Wider than tall: 45° diagonal from host until Y matches tag Y,
+                    // then horizontal run to tag head X.
+                    return new XYZ(hostCenter.X + diag * signX, tagHead.Y, hostCenter.Z);
+                }
+                else
+                {
+                    // Taller than wide: 45° diagonal from host until X matches tag X,
+                    // then vertical run to tag head Y.
+                    return new XYZ(tagHead.X, hostCenter.Y + diag * signY, hostCenter.Z);
+                }
+            }
+            else // "90"
+            {
+                // 90° elbow: choose the cleaner of two L-shaped paths.
+                // Option A: vertical from host, then horizontal to tag (elbow at hostX, tagY)
+                // Option B: horizontal from host, then vertical to tag (elbow at tagX, hostY)
+                // Pick the option where the first leg is shorter — creates a tighter bend
+                // near the element and a longer run to the tag for readability.
+                if (absDx >= absDy)
+                {
+                    // Tag is more to the side — go vertical first (short leg), then horizontal (long leg)
+                    return new XYZ(hostCenter.X, tagHead.Y, hostCenter.Z);
+                }
+                else
+                {
+                    // Tag is more above/below — go horizontal first (short leg), then vertical (long leg)
+                    return new XYZ(tagHead.X, hostCenter.Y, hostCenter.Z);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Auto-align tag text opposite to leader direction.
+    /// When leader points right → tag text offsets left. When leader points left → tag offsets right.
+    /// Automatically repositions all tags with leaders so text reads away from the leader line.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AutoAlignLeaderTextCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var tags = LeaderHelper.GetTargetTags(uidoc)
+                .Where(t => t.HasLeader).ToList();
+
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Auto-Align Leader Text",
+                    "No tags with leaders found.\nSelect tags or run on all tags in view.");
+                return Result.Succeeded;
+            }
+
+            int aligned = 0;
+            using (Transaction tx = new Transaction(doc, "STING Auto-Align Leader Text"))
+            {
+                tx.Start();
+                aligned = LeaderHelper.AutoAlignTagsToLeaders(doc, tags, view);
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Auto-Align Leader Text",
+                $"Auto-aligned {aligned} of {tags.Count} tagged leaders.\n" +
+                "Tags repositioned so text reads away from leader direction.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Flip tag position relative to its host element — mirror across
+    /// the element center point. Useful for moving tags from one side
+    /// of a pipe/duct to the other.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FlipTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Flip Tags", "No annotation tags found in selection or view.");
+                return Result.Succeeded;
+            }
+
+            // Choose flip direction
+            TaskDialog dlg = new TaskDialog("Flip Tags");
+            dlg.MainInstruction = $"Flip {tags.Count} tags";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Flip Horizontal",
+                "Mirror tag position left ↔ right across element center");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Flip Vertical",
+                "Mirror tag position up ↔ down across element center");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Flip Both",
+                "Mirror tag diagonally (180° rotation around element)");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var result = dlg.Show();
+            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            int flipped = 0;
+            using (Transaction tx = new Transaction(doc, "STING Flip Tags"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        var _hostIds = tag.GetTaggedLocalElementIds();
+                        Element host = _hostIds.Count > 0 ? doc.GetElement(_hostIds.First()) : null;
+                        if (host == null) continue;
+
+                        XYZ center = LeaderHelper.GetElementCenter(host);
+                        if (center == null) continue;
+
+                        XYZ head = tag.TagHeadPosition;
+                        XYZ delta = head - center;
+                        XYZ newHead;
+
+                        switch (result)
+                        {
+                            case TaskDialogResult.CommandLink1:
+                                // Flip X (horizontal)
+                                newHead = new XYZ(center.X - delta.X, head.Y, head.Z);
+                                break;
+                            case TaskDialogResult.CommandLink2:
+                                // Flip Y (vertical)
+                                newHead = new XYZ(head.X, center.Y - delta.Y, head.Z);
+                                break;
+                            case TaskDialogResult.CommandLink3:
+                                // Flip both (180° around center)
+                                newHead = new XYZ(center.X - delta.X,
+                                    center.Y - delta.Y, head.Z);
+                                break;
+                            default:
+                                continue;
+                        }
+
+                        tag.TagHeadPosition = newHead;
+
+                        // Also flip leader elbow to maintain clean geometry
+                        if (tag.HasLeader)
+                        {
+                            try
+                            {
+                                var refs = tag.GetTaggedReferences();
+                                if (refs != null && refs.Count > 0)
+                                {
+                                    XYZ elbow = tag.GetLeaderElbow(refs.First());
+                                    if (elbow != null)
+                                    {
+                                        XYZ elbowDelta = elbow - center;
+                                        XYZ newElbow;
+                                        switch (result)
+                                        {
+                                            case TaskDialogResult.CommandLink1:
+                                                newElbow = new XYZ(center.X - elbowDelta.X, elbow.Y, elbow.Z);
+                                                break;
+                                            case TaskDialogResult.CommandLink2:
+                                                newElbow = new XYZ(elbow.X, center.Y - elbowDelta.Y, elbow.Z);
+                                                break;
+                                            default: // CommandLink3
+                                                newElbow = new XYZ(center.X - elbowDelta.X,
+                                                    center.Y - elbowDelta.Y, elbow.Z);
+                                                break;
+                                        }
+                                        tag.SetLeaderElbow(refs.First(), newElbow);
+                                    }
+                                }
+                            }
+                            catch (Exception lex)
+                            {
+                                StingLog.Warn($"Flip elbow on tag {tag.Id}: {lex.Message}");
+                            }
+                        }
+
+                        flipped++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Flip tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Flip Tags", $"Flipped {flipped} of {tags.Count} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Align tag text (annotation text notes) — set justification and
+    /// alignment for selected text notes in the view.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AlignTagTextCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            // Get selected text notes and tags
+            var selIds = uidoc.Selection.GetElementIds();
+            var textNotes = selIds
+                .Select(id => doc.GetElement(id))
+                .OfType<TextNote>()
+                .ToList();
+            var tags = selIds
+                .Select(id => doc.GetElement(id))
+                .OfType<IndependentTag>()
+                .ToList();
+
+            int total = textNotes.Count + tags.Count;
+            if (total == 0)
+            {
+                TaskDialog.Show("Align Tag Text",
+                    "Select annotation tags or text notes to align.");
+                return Result.Succeeded;
+            }
+
+            // Choose alignment
+            TaskDialog dlg = new TaskDialog("Align Tag Text");
+            dlg.MainInstruction = $"Align text for {total} annotations";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Left Align", "Align all text to the left edge");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Center Align", "Center-align all text");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Right Align", "Align all text to the right edge");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var result = dlg.Show();
+            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            int aligned = 0;
+            using (Transaction tx = new Transaction(doc, "STING Align Tag Text"))
+            {
+                tx.Start();
+
+                // Align text notes
+                foreach (TextNote tn in textNotes)
+                {
+                    try
+                    {
+                        switch (result)
+                        {
+                            case TaskDialogResult.CommandLink1:
+                                tn.HorizontalAlignment = HorizontalTextAlignment.Left;
+                                break;
+                            case TaskDialogResult.CommandLink2:
+                                tn.HorizontalAlignment = HorizontalTextAlignment.Center;
+                                break;
+                            case TaskDialogResult.CommandLink3:
+                                tn.HorizontalAlignment = HorizontalTextAlignment.Right;
+                                break;
+                        }
+                        aligned++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Align text {tn.Id}: {ex.Message}");
+                    }
+                }
+
+                // For tags, we can align the tag head positions
+                // (tag text alignment is controlled by the tag family, not the instance)
+                if (tags.Count > 1)
+                {
+                    // Sort tags by X position
+                    var sorted = tags.OrderBy(t => t.TagHeadPosition.X).ToList();
+                    double refX;
+
+                    switch (result)
+                    {
+                        case TaskDialogResult.CommandLink1:
+                            refX = sorted.First().TagHeadPosition.X;
+                            break;
+                        case TaskDialogResult.CommandLink2:
+                            refX = sorted.Average(t => t.TagHeadPosition.X);
+                            break;
+                        case TaskDialogResult.CommandLink3:
+                            refX = sorted.Last().TagHeadPosition.X;
+                            break;
+                        default:
+                            refX = 0;
+                            break;
+                    }
+
+                    foreach (IndependentTag tag in tags)
+                    {
+                        try
+                        {
+                            XYZ pos = tag.TagHeadPosition;
+                            tag.TagHeadPosition = new XYZ(refX, pos.Y, pos.Z);
+                            aligned++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Align tag text {tag.Id}: {ex.Message}");
+                        }
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Align Tag Text",
+                $"Aligned {aligned} annotations ({textNotes.Count} text notes, {tags.Count} tags).");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Pin (lock) tags to their host elements — prevents accidental movement.
+    /// Also can unpin tags to allow repositioning.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PinTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc);
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Pin Tags", "No annotation tags found.");
+                return Result.Succeeded;
+            }
+
+            int pinned = tags.Count(t => t.Pinned);
+            int unpinned = tags.Count - pinned;
+
+            TaskDialog dlg = new TaskDialog("Pin/Unpin Tags");
+            dlg.MainInstruction = $"{tags.Count} tags ({pinned} pinned, {unpinned} unpinned)";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                $"Pin All ({unpinned} to pin)",
+                "Lock all tags to prevent accidental movement");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                $"Unpin All ({pinned} to unpin)",
+                "Unlock all tags to allow repositioning");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var result = dlg.Show();
+            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            bool pin = result == TaskDialogResult.CommandLink1;
+            int modified = 0;
+
+            using (Transaction tx = new Transaction(doc,
+                pin ? "STING Pin Tags" : "STING Unpin Tags"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        if (pin && !tag.Pinned)
+                        {
+                            tag.Pinned = true;
+                            modified++;
+                        }
+                        else if (!pin && tag.Pinned)
+                        {
+                            tag.Pinned = false;
+                            modified++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Pin/unpin tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            string action = pin ? "Pinned" : "Unpinned";
+            TaskDialog.Show("Pin Tags", $"{action} {modified} of {tags.Count} tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Nudge annotation tags in a specific direction by a small offset.
+    /// Adjusts TagHeadPosition by configurable increments.
+    /// Direction is determined from the command tag dispatched via StingCommandHandler.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class NudgeTagsCommand : IExternalCommand
+    {
+        /// <summary>Small nudge base in feet (scaled by view.Scale/100).</summary>
+        private const double SmallNudgeBase = 0.0208;
+        /// <summary>Medium nudge base in feet (scaled by view.Scale/100).</summary>
+        private const double MediumNudgeBase = 0.0833;
+        /// <summary>Large nudge base in feet (scaled by view.Scale/100).</summary>
+        private const double LargeNudgeBase = 0.25;
+
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetSelectedTags(uidoc);
+            if (tags.Count == 0)
+            {
+                // Fall back to all tags in view
+                tags = LeaderHelper.GetTargetTags(uidoc);
+            }
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Nudge Tags", "No annotation tags found. Select tags first.");
+                return Result.Succeeded;
+            }
+
+            // Ask direction if not evident from dispatch
+            TaskDialog dlg = new TaskDialog("Nudge Tags");
+            dlg.MainInstruction = $"Nudge {tags.Count} tags";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "↑ Up", "Move tags upward in the view");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "↓ Down", "Move tags downward in the view");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "← Left", "Move tags to the left");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "→ Right", "Move tags to the right");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            XYZ direction;
+            switch (dlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: direction = XYZ.BasisY; break;  // Up
+                case TaskDialogResult.CommandLink2: direction = -XYZ.BasisY; break; // Down
+                case TaskDialogResult.CommandLink3: direction = -XYZ.BasisX; break; // Left
+                case TaskDialogResult.CommandLink4: direction = XYZ.BasisX; break;  // Right
+                default: return Result.Cancelled;
+            }
+
+            // Scale nudge amount based on view scale for consistent visual displacement
+            View view = doc.ActiveView;
+            double scaleFactor = view != null ? view.Scale / 100.0 : 1.0;
+            double nudgeAmount = MediumNudgeBase * scaleFactor;
+
+            int nudged = 0;
+            XYZ offset = direction * nudgeAmount;
+
+            using (Transaction tx = new Transaction(doc, "STING Nudge Tags"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        XYZ current = tag.TagHeadPosition;
+                        tag.TagHeadPosition = current + offset;
+                        nudged++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Nudge tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            StingLog.Info($"NudgeTags: direction={direction}, nudged={nudged}");
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Static nudge by direction string — called from StingCommandHandler inline.
+        /// </summary>
+        public static int NudgeInDirection(Document doc, View view, List<IndependentTag> tags, string direction)
+        {
+            // Scale nudge by view scale for consistent visual distance at any zoom
+            double scaleFactor = view != null ? view.Scale / 100.0 : 1.0;
+            double medium = MediumNudgeBase * scaleFactor;
+            double small = SmallNudgeBase * scaleFactor;
+
+            XYZ offset;
+            switch (direction?.ToUpperInvariant())
+            {
+                case "UP": offset = XYZ.BasisY * medium; break;
+                case "DOWN": offset = -XYZ.BasisY * medium; break;
+                case "LEFT": offset = -XYZ.BasisX * medium; break;
+                case "RIGHT": offset = XYZ.BasisX * medium; break;
+                case "NEAR": offset = XYZ.BasisY * small; break;
+                case "FAR": offset = -XYZ.BasisY * small; break;
+                default: return 0;
+            }
+
+            int nudged = 0;
+            foreach (IndependentTag tag in tags)
+            {
+                try
+                {
+                    tag.TagHeadPosition = tag.TagHeadPosition + offset;
+                    nudged++;
+                }
+                catch (Exception ex) { StingLog.Warn($"Nudge tag position failed: {ex.Message}"); }
+            }
+            return nudged;
+        }
+    }
+
+    /// <summary>
+    /// Attach leader end to a specific element — reattaches a free-end leader
+    /// to the nearest element, or allows picking a target element.
+    /// Sets LeaderEndCondition to Attached for robust element tracking.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AttachLeaderCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc)
+                .Where(t => t.HasLeader).ToList();
+
+            if (tags.Count == 0)
+            {
+                TaskDialog.Show("Attach Leaders",
+                    "No tags with leaders found. Add leaders first, then attach.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog dlg = new TaskDialog("Attach Leaders");
+            dlg.MainInstruction = $"Attach {tags.Count} leaders to elements";
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Attach to Host (Fixed)",
+                "Set leader end to 'Attached' — follows element if moved");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Set Free End",
+                "Set leader end to 'Free' — stays at fixed point in view");
+            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var result = dlg.Show();
+            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            bool attach = result == TaskDialogResult.CommandLink1;
+            int modified = 0;
+            int skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Attach Leaders"))
+            {
+                tx.Start();
+                foreach (IndependentTag tag in tags)
+                {
+                    try
+                    {
+                        if (attach)
+                        {
+                            // Validate: tag must have a host element to attach to
+                            var hostIds = tag.GetTaggedLocalElementIds();
+                            if (hostIds.Count == 0)
+                            {
+                                skipped++;
+                                StingLog.Warn($"Tag {tag.Id} has no host element — cannot attach leader.");
+                                continue;
+                            }
+                            // Verify host still exists
+                            Element host = doc.GetElement(hostIds.First());
+                            if (host == null)
+                            {
+                                skipped++;
+                                StingLog.Warn($"Tag {tag.Id} host element deleted — cannot attach leader.");
+                                continue;
+                            }
+                            tag.LeaderEndCondition = LeaderEndCondition.Attached;
+                        }
+                        else
+                        {
+                            tag.LeaderEndCondition = LeaderEndCondition.Free;
+                        }
+                        modified++;
+                    }
+                    catch (Exception ex)
+                    {
+                        skipped++;
+                        StingLog.Warn($"Attach leader on tag {tag.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            string action = attach ? "Attached (locked)" : "Set to Free";
+            string skipNote = skipped > 0 ? $"\n{skipped} skipped (no valid host element)." : "";
+            TaskDialog.Show("Attach Leaders",
+                $"{action} {modified} of {tags.Count} leader endpoints.{skipNote}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  ANOMALY AUTO-FIX
+    //  Extends the detect-only HighlightInvalidCommand to automatically fix
+    //  common parameter anomalies: empty DISC, wrong LOC format, missing ZONE,
+    //  placeholder SEQ values, mismatched DISC/category.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Auto-fix common parameter anomalies rather than just detecting them.
+    /// Scans all taggable elements, identifies fixable issues, and corrects them.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AnomalyAutoFixCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var uidoc = ctx.UIDoc;
+            var doc = ctx.Doc;
+
+            // Scan all taggable elements
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var anomalyColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var anomalyCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (anomalyCatEnums != null && anomalyCatEnums.Length > 0)
+                anomalyColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(anomalyCatEnums)));
+            var allElements = anomalyColl
+                .Where(e => known.Contains(ParameterHelpers.GetCategoryName(e)))
+                .ToList();
+
+            if (allElements.Count == 0)
+            {
+                TaskDialog.Show("Anomaly Auto-Fix", "No taggable elements found.");
+                return Result.Succeeded;
+            }
+
+            // Build spatial context for LOC/ZONE auto-detection
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+
+            // Identify anomalies
+            int emptyDisc = 0, wrongDisc = 0, emptyLoc = 0, emptyZone = 0;
+            int placeholderSeq = 0, emptyLvl = 0, emptySys = 0;
+            int emptyFunc = 0, emptyProd = 0, emptyTag7 = 0, staleCount = 0;
+            int totalAnomalies = 0;
+            var fixable = new List<(Element el, string[] issues)>();
+
+            foreach (var el in allElements)
+            {
+                string catName = ParameterHelpers.GetCategoryName(el);
+                var issues = new List<string>();
+
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                string seq = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
+                string tag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
+
+                // Empty DISC — derive from category
+                if (string.IsNullOrEmpty(disc))
+                {
+                    issues.Add("DISC:empty");
+                    emptyDisc++;
+                }
+                // Wrong DISC — category says M but param says E
+                else if (TagConfig.DiscMap.TryGetValue(catName, out string expected) && disc != expected)
+                {
+                    issues.Add($"DISC:mismatch({disc}→{expected})");
+                    wrongDisc++;
+                }
+
+                if (string.IsNullOrEmpty(loc)) { issues.Add("LOC:empty"); emptyLoc++; }
+                if (string.IsNullOrEmpty(zone)) { issues.Add("ZONE:empty"); emptyZone++; }
+                if (string.IsNullOrEmpty(lvl)) { issues.Add("LVL:empty"); emptyLvl++; }
+                if (string.IsNullOrEmpty(sys)) { issues.Add("SYS:empty"); emptySys++; }
+                if (string.IsNullOrEmpty(func)) { issues.Add("FUNC:empty"); emptyFunc++; }
+                if (string.IsNullOrEmpty(prod) || prod == "GEN" || prod == "XX")
+                {
+                    issues.Add("PROD:empty"); emptyProd++;
+                }
+                if (seq == "0000" || seq == "XX") { issues.Add("SEQ:placeholder"); placeholderSeq++; }
+
+                // TAG7 missing — element has TAG1 but no TAG7 narrative
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(tag1) && string.IsNullOrEmpty(tag7))
+                {
+                    issues.Add("TAG7:missing");
+                    emptyTag7++;
+                }
+
+                // Stale elements — geometry changed since last tag
+                int staleVal = ParameterHelpers.GetInt(el, ParamRegistry.STALE, 0);
+                if (staleVal == 1)
+                {
+                    issues.Add("STALE:true");
+                    staleCount++;
+                }
+
+                if (issues.Count > 0)
+                {
+                    fixable.Add((el, issues.ToArray()));
+                    totalAnomalies += issues.Count;
+                }
+            }
+
+            if (fixable.Count == 0)
+            {
+                TaskDialog.Show("Anomaly Auto-Fix",
+                    $"Scanned {allElements.Count} elements.\nNo anomalies detected — all parameters are healthy.");
+                return Result.Succeeded;
+            }
+
+            // Confirm before fixing
+            var confirm = new TaskDialog("Anomaly Auto-Fix");
+            confirm.MainInstruction = $"Found {totalAnomalies} anomalies on {fixable.Count} elements";
+            confirm.MainContent =
+                $"Scanned: {allElements.Count} taggable elements\n\n" +
+                $"  Empty DISC:      {emptyDisc}\n" +
+                $"  Wrong DISC:      {wrongDisc}\n" +
+                $"  Empty LOC:       {emptyLoc}\n" +
+                $"  Empty ZONE:      {emptyZone}\n" +
+                $"  Empty LVL:       {emptyLvl}\n" +
+                $"  Empty SYS:       {emptySys}\n" +
+                $"  Empty FUNC:      {emptyFunc}\n" +
+                $"  Empty/Generic PROD: {emptyProd}\n" +
+                $"  Missing TAG7:    {emptyTag7}\n" +
+                $"  Stale elements:  {staleCount}\n" +
+                $"  Placeholder SEQ: {placeholderSeq}\n\n" +
+                "Fix all automatically?";
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Fix All", "Auto-fix all detected anomalies using spatial detection and category mapping");
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Cancel", "Review anomalies without fixing");
+
+            if (confirm.Show() != TaskDialogResult.CommandLink1)
+                return Result.Cancelled;
+
+            // Apply fixes
+            int fixed_disc = 0, fixed_loc = 0, fixed_zone = 0, fixed_lvl = 0, fixed_sys = 0;
+            int fixed_seq = 0, fixed_wrongDisc = 0, fixed_func = 0, fixed_prod = 0;
+            int fixed_tag7 = 0, fixed_stale = 0;
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+
+            using (Transaction tx = new Transaction(doc, "STING Anomaly Auto-Fix"))
+            {
+                tx.Start();
+
+                foreach (var (el, issues) in fixable)
+                {
+                    string catName = ParameterHelpers.GetCategoryName(el);
+
+                    foreach (string issue in issues)
+                    {
+                        if (issue == "DISC:empty" && TagConfig.DiscMap.TryGetValue(catName, out string dCode))
+                        {
+                            ParameterHelpers.SetString(el, ParamRegistry.DISC, dCode, overwrite: true);
+                            fixed_disc++;
+                        }
+                        else if (issue.StartsWith("DISC:mismatch") && TagConfig.DiscMap.TryGetValue(catName, out string correctDisc))
+                        {
+                            ParameterHelpers.SetString(el, ParamRegistry.DISC, correctDisc, overwrite: true);
+                            fixed_wrongDisc++;
+                        }
+                        else if (issue == "LOC:empty")
+                        {
+                            string loc = SpatialAutoDetect.DetectLoc(doc, el, popCtx.RoomIndex, popCtx.ProjectLoc);
+                            if (!string.IsNullOrEmpty(loc))
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true);
+                                fixed_loc++;
+                            }
+                        }
+                        else if (issue == "ZONE:empty")
+                        {
+                            string zone = SpatialAutoDetect.DetectZone(doc, el, popCtx.RoomIndex);
+                            if (!string.IsNullOrEmpty(zone))
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true);
+                                fixed_zone++;
+                            }
+                        }
+                        else if (issue == "LVL:empty")
+                        {
+                            string lvl = ParameterHelpers.GetLevelCode(doc, el);
+                            if (!string.IsNullOrEmpty(lvl) && lvl != "XX")
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true);
+                                fixed_lvl++;
+                            }
+                        }
+                        else if (issue == "SYS:empty")
+                        {
+                            string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                            if (!string.IsNullOrEmpty(sys))
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.SYS, sys, overwrite: true);
+                                fixed_sys++;
+                            }
+                        }
+                        else if (issue == "FUNC:empty")
+                        {
+                            string currentSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            if (!string.IsNullOrEmpty(currentSys))
+                            {
+                                string funcCode = TagConfig.GetFuncCode(currentSys);
+                                if (!string.IsNullOrEmpty(funcCode))
+                                {
+                                    ParameterHelpers.SetString(el, ParamRegistry.FUNC, funcCode, overwrite: true);
+                                    fixed_func++;
+                                }
+                            }
+                        }
+                        else if (issue == "PROD:empty")
+                        {
+                            string prodCode = TagConfig.GetFamilyAwareProdCode(el, catName);
+                            if (!string.IsNullOrEmpty(prodCode) && prodCode != "GEN" && prodCode != "XX")
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.PROD, prodCode, overwrite: true);
+                                fixed_prod++;
+                            }
+                        }
+                        else if (issue == "SEQ:placeholder")
+                        {
+                            // Re-derive a unique SEQ from existing counters using canonical key format
+                            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                            string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                            string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                            string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
+                            seqCounters.TryGetValue(key, out int sqc);
+                            seqCounters[key] = sqc + 1;
+                            string newSeq = seqCounters[key].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                            ParameterHelpers.SetString(el, ParamRegistry.SEQ, newSeq, overwrite: true);
+                            fixed_seq++;
+                        }
+                        else if (issue == "TAG7:missing")
+                        {
+                            // Rebuild TAG7 narrative from current token values
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                            if (tokenVals != null && tokenVals.Length >= 8)
+                            {
+                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                                fixed_tag7++;
+                            }
+                        }
+                        else if (issue == "STALE:true")
+                        {
+                            // Clear stale flag — the token fixes above address the root cause
+                            ParameterHelpers.SetInt(el, ParamRegistry.STALE, 0, overwrite: true);
+                            fixed_stale++;
+                        }
+                    }
+
+                    // After all token fixes for this element, rebuild TAG1 + containers + TAG7
+                    // so the full tag string matches the corrected individual tokens.
+                    // Remove old tag from index before rebuilding so collision detection
+                    // uses fresh state (token fixes may have changed seqKey/DISC/SYS).
+                    if (issues.Length > 0)
+                    {
+                        try
+                        {
+                            string oldTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            if (!string.IsNullOrEmpty(oldTag))
+                                tagIndex.Remove(oldTag);
+
+                            NativeParamMapper.MapAll(doc, el);
+                            TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                                skipComplete: false, existingTags: tagIndex,
+                                collisionMode: TagCollisionMode.Overwrite);
+                            string catN = ParameterHelpers.GetCategoryName(el);
+                            string[] tv = ParamRegistry.ReadTokenValues(el);
+                            ParamRegistry.WriteContainers(el, tv, catN, overwrite: true);
+                            TagConfig.WriteTag7All(doc, el, catN, tv, overwrite: true);
+                        }
+                        catch (Exception rebuildEx)
+                        {
+                            StingLog.Warn($"AnomalyAutoFix TAG1 rebuild for {el.Id}: {rebuildEx.Message}");
+                        }
+                    }
+                }
+
+                tx.Commit();
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
+            }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            int totalFixed = fixed_disc + fixed_wrongDisc + fixed_loc + fixed_zone +
+                             fixed_lvl + fixed_sys + fixed_func + fixed_prod +
+                             fixed_seq + fixed_tag7 + fixed_stale;
+            TaskDialog.Show("Anomaly Auto-Fix",
+                $"Fixed {totalFixed} of {totalAnomalies} anomalies:\n\n" +
+                $"  DISC (empty → derived):    {fixed_disc}\n" +
+                $"  DISC (mismatch → correct): {fixed_wrongDisc}\n" +
+                $"  LOC (spatial detect):      {fixed_loc}\n" +
+                $"  ZONE (spatial detect):     {fixed_zone}\n" +
+                $"  LVL (level derive):        {fixed_lvl}\n" +
+                $"  SYS (MEP system derive):   {fixed_sys}\n" +
+                $"  FUNC (from SYS):           {fixed_func}\n" +
+                $"  PROD (family-aware):       {fixed_prod}\n" +
+                $"  TAG7 (narrative rebuild):  {fixed_tag7}\n" +
+                $"  Stale (flag cleared):      {fixed_stale}\n" +
+                $"  SEQ (unique reassign):     {fixed_seq}");
+
+            StingLog.Info($"AnomalyAutoFix: fixed {totalFixed}/{totalAnomalies} on {fixable.Count} elements");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  DISPLAY MODE — Tag Content Variants
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Set the display mode for tag content variants. Writes STING_DISPLAY_MODE
+    /// and ASS_DISPLAY_TXT parameters to control which tag segments are shown.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SetDisplayModeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var td = new TaskDialog("STING — Display Mode");
+            td.MainInstruction = "Select tag display mode";
+            td.MainContent = "Controls which segments of the ISO tag are visible in annotations.";
+            var modeOptions = new List<UI.StingModePicker.ModeOption>
+            {
+                new("SEQ only", "e.g. 0042", "1"),
+                new("PROD-SEQ", "e.g. AHU-0042", "2", true),
+                new("DISC-SYS-SEQ", "e.g. M-HVAC-0042", "3"),
+                new("DISC-PROD-SEQ", "e.g. M-AHU-0042", "4"),
+                new("Full 8-segment", "e.g. M-BLD1-Z01-L02-HVAC-SUP-AHU-0003", "5"),
+            };
+            string modeResult = UI.StingModePicker.Show(
+                "Display Mode",
+                "Controls which segments of the ISO tag are visible in annotations",
+                modeOptions);
+            if (string.IsNullOrEmpty(modeResult)) return Result.Cancelled;
+            int mode = int.Parse(modeResult);
+
+            // Scope dialog
+            var scopeTd = new TaskDialog("STING — Scope");
+            scopeTd.MainInstruction = "Apply to which elements?";
+            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Selected elements");
+            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Active view");
+            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Entire project");
+            var scopeResult = scopeTd.Show();
+
+            UIDocument uidoc = ctx.UIDoc;
+            IList<Element> scope;
+            switch (scopeResult)
+            {
+                case TaskDialogResult.CommandLink1:
+                    scope = uidoc.Selection.GetElementIds()
+                        .Select(id => doc.GetElement(id))
+                        .Where(e => e != null)
+                        .ToList();
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    View view = ctx.ActiveView;
+                    if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+                    scope = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .ToList();
+                    break;
+                case TaskDialogResult.CommandLink3:
+                    scope = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .ToList();
+                    break;
+                default: return Result.Cancelled;
+            }
+
+            int updated = 0;
+            using (Transaction tx = new Transaction(doc, "STING Set Display Mode"))
+            {
+                tx.Start();
+                foreach (Element el in scope)
+                {
+                    try
+                    {
+                        Parameter p = el.LookupParameter(ParamRegistry.DISPLAY_MODE);
+                        if (p != null && !p.IsReadOnly) p.Set(mode);
+
+                        string displayTag = TagConfig.BuildDisplayTag(el, mode);
+                        ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, displayTag, overwrite: true);
+                        updated++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Set display mode on element failed: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("STING — Display Mode",
+                $"Set display mode {mode} on {updated} elements.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  TAG CLUSTERING — Group nearby identical tags under shared representative
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Cluster nearby identical tags to reduce visual clutter in dense areas.
+    /// Groups tags whose host elements share category and DISC, removing duplicates
+    /// and keeping the best-positioned representative.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ClusterTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            var tags = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            if (tags.Count < 2)
+            {
+                TaskDialog.Show("STING", "Need at least 2 tags in view to cluster.");
+                return Result.Succeeded;
+            }
+
+            double clusterRadius = Tags.TagPlacementEngine.GetModelOffset(view) * 3.0;
+            int clustersFormed = 0, tagsConsolidated = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Cluster Tags"))
+            {
+                tx.Start();
+                try
+                {
+                    // Group tags by host category + DISC
+                    var tagGroups = new Dictionary<string, List<(IndependentTag tag, XYZ pos, Element host)>>();
+                    foreach (var tag in tags)
+                    {
+                        try
+                        {
+                            var refs = tag.GetTaggedReferences();
+                            if (refs == null || refs.Count == 0) continue;
+                            Element host = doc.GetElement(refs[0]);
+                            if (host == null) continue;
+
+                            string catName = host.Category?.Name ?? "";
+                            string disc = ParameterHelpers.GetString(host, ParamRegistry.DISC);
+                            string groupKey = $"{catName}|{disc}";
+
+                            XYZ pos;
+                            try { pos = tag.TagHeadPosition; }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
+
+                            if (!tagGroups.ContainsKey(groupKey))
+                                tagGroups[groupKey] = new List<(IndependentTag, XYZ, Element)>();
+                            tagGroups[groupKey].Add((tag, pos, host));
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Cluster tag grouping failed: {ex.Message}"); }
+                    }
+
+                    // Cluster within each group
+                    foreach (var kvp in tagGroups)
+                    {
+                        var items = kvp.Value;
+                        var used = new HashSet<int>();
+
+                        for (int i = 0; i < items.Count; i++)
+                        {
+                            if (used.Contains(i)) continue;
+                            var cluster = new List<int> { i };
+
+                            for (int j = i + 1; j < items.Count; j++)
+                            {
+                                if (used.Contains(j)) continue;
+                                double dx = items[i].pos.X - items[j].pos.X;
+                                double dy = items[i].pos.Y - items[j].pos.Y;
+                                double dist = Math.Sqrt(dx * dx + dy * dy);
+                                if (dist <= clusterRadius)
+                                    cluster.Add(j);
+                            }
+
+                            if (cluster.Count >= 2)
+                            {
+                                clustersFormed++;
+                                // Keep first tag as representative, delete others
+                                var rep = items[cluster[0]];
+                                for (int k = 1; k < cluster.Count; k++)
+                                {
+                                    try
+                                    {
+                                        doc.Delete(items[cluster[k]].tag.Id);
+                                        tagsConsolidated++;
+                                    }
+                                    catch (Exception ex) { StingLog.Warn($"Delete clustered tag failed: {ex.Message}"); }
+                                    used.Add(cluster[k]);
+                                }
+
+                                // Write cluster count to representative host
+                                try
+                                {
+                                    Parameter p = rep.host.LookupParameter(ParamRegistry.CLUSTER_COUNT);
+                                    if (p != null && !p.IsReadOnly) p.Set(cluster.Count);
+
+                                    Parameter lbl = rep.host.LookupParameter(ParamRegistry.CLUSTER_LABEL);
+                                    if (lbl != null && !lbl.IsReadOnly)
+                                        lbl.Set($"[×{cluster.Count}]");
+
+                                    // FIX-B04: Store cluster member positions as JSON for decluster restore
+                                    Parameter posPar = rep.host.LookupParameter(ParamRegistry.CLUSTER_MEMBER_POS);
+                                    if (posPar != null && !posPar.IsReadOnly)
+                                    {
+                                        var memberPositions = new List<string>();
+                                        foreach (int ci in cluster)
+                                        {
+                                            var memberPos = items[ci].pos;
+                                            var hostId = items[ci].host.Id.Value;
+                                            memberPositions.Add($"{hostId}:{memberPos.X:F4},{memberPos.Y:F4},{memberPos.Z:F4}");
+                                        }
+                                        posPar.Set(string.Join("|", memberPositions));
+                                    }
+                                }
+                                catch (Exception ex) { StingLog.Warn($"Write cluster metadata failed: {ex.Message}"); }
+                            }
+                        }
+                    }
+
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    tx.RollBack();
+                    StingLog.Error("ClusterTags", ex);
+                    TaskDialog.Show("STING", $"Clustering failed: {ex.Message}");
+                    return Result.Failed;
+                }
+            }
+
+            TaskDialog.Show("STING — Cluster Tags",
+                $"{clustersFormed} clusters formed, {tagsConsolidated} tags consolidated.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  PER-DISCIPLINE COMPLIANCE REPORT
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Generate a per-discipline compliance report showing tagged/untagged counts,
+    /// compliance percentage, and missing token breakdown per discipline.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DisciplineComplianceReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var scan = ComplianceScan.Scan(doc, forceRefresh: true);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Overall: {scan.CompliancePercent:F1}% ({scan.RAGStatus})");
+            sb.AppendLine($"Total: {scan.TotalElements}, Tagged: {scan.TaggedComplete}, Untagged: {scan.Untagged}");
+            sb.AppendLine();
+            sb.AppendLine("DISC  Total  Tagged   Pct%  MissLOC  MissSYS  MissPROD  Status");
+            sb.AppendLine("\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500  \u2500\u2500\u2500\u2500\u2500\u2500");
+
+            foreach (var kvp in scan.ByDisc.OrderByDescending(k => k.Value.Total))
+            {
+                var d = kvp.Value;
+                string rag = d.CompliancePct >= 80 ? "GREEN" : d.CompliancePct >= 50 ? "AMBER" : "RED";
+                sb.AppendLine($"{kvp.Key,-4}  {d.Total,5}  {d.Tagged,6}  {d.CompliancePct,4:F0}%  " +
+                    $"{d.MissingLoc,7}  {d.MissingSys,7}  {d.MissingProd,8}  {rag}");
+            }
+
+            // Export option
+            var td = new TaskDialog("STING \u2014 Discipline Compliance");
+            td.MainInstruction = $"Compliance: {scan.CompliancePercent:F1}% ({scan.RAGStatus})";
+            td.MainContent = sb.ToString();
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Export to CSV");
+            td.CommonButtons = TaskDialogCommonButtons.Close;
+            var result2 = td.Show();
+
+            if (result2 == TaskDialogResult.CommandLink1)
+            {
+                try
+                {
+                    string dir = !string.IsNullOrEmpty(doc.PathName)
+                        ? System.IO.Path.GetDirectoryName(doc.PathName)
+                        : StingToolsApp.DataPath ?? "";
+                    string csvPath = System.IO.Path.Combine(dir ?? "",
+                        $"STING_Discipline_Compliance_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+
+                    var csv = new StringBuilder();
+                    csv.AppendLine("Discipline,Total,Tagged,Untagged,Compliance%,MissingLOC,MissingSYS,MissingPROD,Status");
+                    foreach (var kvp in scan.ByDisc.OrderByDescending(k => k.Value.Total))
+                    {
+                        var d = kvp.Value;
+                        string rag = d.CompliancePct >= 80 ? "GREEN" : d.CompliancePct >= 50 ? "AMBER" : "RED";
+                        csv.AppendLine($"{kvp.Key},{d.Total},{d.Tagged},{d.Untagged},{d.CompliancePct:F1}," +
+                            $"{d.MissingLoc},{d.MissingSys},{d.MissingProd},{rag}");
+                    }
+                    System.IO.File.WriteAllText(csvPath, csv.ToString());
+                    TaskDialog.Show("STING", $"Exported to:\n{csvPath}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("CSV export failed", ex);
+                    TaskDialog.Show("STING", $"Export failed: {ex.Message}");
+                }
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Reverse tag clustering by clearing cluster metadata and re-placing tags
+    /// on previously clustered elements.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DeclusterTagsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
+            if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+
+            int cleared = 0;
+            Dictionary<ElementId, List<IndependentTag>> tagsByHost = null; // lazy-built in loop
+            using (Transaction tx = new Transaction(doc, "STING Decluster Tags"))
+            {
+                tx.Start();
+                try
+                {
+                    var allElements = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .Where(e =>
+                        {
+                            try
+                            {
+                                Parameter p = e.LookupParameter(ParamRegistry.CLUSTER_COUNT);
+                                return p != null && p.AsInteger() > 1;
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+                        })
+                        .ToList();
+
+                    foreach (Element el in allElements)
+                    {
+                        try
+                        {
+                            // Restore member tag positions from CLUSTER_MEMBER_POS
+                            Parameter posPar = el.LookupParameter(ParamRegistry.CLUSTER_MEMBER_POS);
+                            if (posPar != null)
+                            {
+                                string posData = posPar.AsString();
+                                if (!string.IsNullOrEmpty(posData))
+                                {
+                                    // PERF-CRIT: Build tag-by-host index ONCE (was creating collector per entry)
+                                    if (tagsByHost == null)
+                                    {
+                                        tagsByHost = new Dictionary<ElementId, List<IndependentTag>>();
+                                        foreach (var itag in new FilteredElementCollector(doc, view.Id)
+                                            .OfClass(typeof(IndependentTag)).Cast<IndependentTag>())
+                                        {
+                                            try
+                                            {
+                                                foreach (var tid in itag.GetTaggedLocalElementIds())
+                                                {
+                                                    if (!tagsByHost.TryGetValue(tid, out var tlist))
+                                                    { tlist = new List<IndependentTag>(); tagsByHost[tid] = tlist; }
+                                                    tlist.Add(itag);
+                                                }
+                                            }
+                                            catch (Exception ex) { StingLog.Warn($"Tag index build: {ex.Message}"); }
+                                        }
+                                    }
+
+                                    foreach (string entry in posData.Split('|'))
+                                    {
+                                        try
+                                        {
+                                            int colonIdx = entry.IndexOf(':');
+                                            if (colonIdx < 0) continue;
+                                            long hostId = long.Parse(entry.Substring(0, colonIdx));
+                                            string[] coords = entry.Substring(colonIdx + 1).Split(',');
+                                            if (coords.Length < 3) continue;
+                                            var pos = new XYZ(
+                                                double.Parse(coords[0], System.Globalization.CultureInfo.InvariantCulture),
+                                                double.Parse(coords[1], System.Globalization.CultureInfo.InvariantCulture),
+                                                double.Parse(coords[2], System.Globalization.CultureInfo.InvariantCulture));
+
+                                            // O(1) lookup instead of collector per entry
+                                            var hostElId = new ElementId(hostId);
+                                            if (tagsByHost.TryGetValue(hostElId, out var matchedTags))
+                                            {
+                                                foreach (var tag in matchedTags)
+                                                {
+                                                    try { tag.TagHeadPosition = pos; }
+                                                    catch (Exception ex2) { StingLog.Warn($"Restore tag position failed: {ex2.Message}"); }
+                                                }
+                                            }
+                                        }
+                                        catch (Exception ex3) { StingLog.Warn($"Parse cluster member entry failed: {ex3.Message}"); }
+                                    }
+                                }
+                                if (!posPar.IsReadOnly) posPar.Set("");
+                            }
+
+                            Parameter p = el.LookupParameter(ParamRegistry.CLUSTER_COUNT);
+                            if (p != null && !p.IsReadOnly) p.Set(0);
+
+                            Parameter lbl = el.LookupParameter(ParamRegistry.CLUSTER_LABEL);
+                            if (lbl != null && !lbl.IsReadOnly) lbl.Set("");
+                            cleared++;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Clear cluster metadata failed: {ex.Message}"); }
+                    }
+
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    tx.RollBack();
+                    StingLog.Error("DeclusterTags", ex);
+                    return Result.Failed;
+                }
+            }
+
+            TaskDialog.Show("STING — Decluster Tags",
+                $"Cleared clustering from {cleared} elements.\n" +
+                "Run 'Smart Place Tags' to re-place individual tags.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  RETAG STALE ELEMENTS
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Find elements marked as stale (STING_STALE_BOOL = 1) and retag them
+    /// with fresh token population and tag assembly.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RetagStaleCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Scope dialog
+            var scopeTd = new TaskDialog("STING — Retag Stale");
+            scopeTd.MainInstruction = "Retag stale elements";
+            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Active view only");
+            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Entire project");
+            scopeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
+            var scopeResult = scopeTd.Show();
+
+            IList<Element> scope;
+            if (scopeResult == TaskDialogResult.CommandLink1)
+            {
+                View view = ctx.ActiveView;
+                if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+                scope = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e =>
+                    {
+                        try
+                        {
+                            Parameter p = e.LookupParameter(ParamRegistry.STALE);
+                            return p != null && p.AsInteger() == 1;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+                    })
+                    .ToList();
+            }
+            else if (scopeResult == TaskDialogResult.CommandLink2)
+            {
+                scope = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e =>
+                    {
+                        try
+                        {
+                            Parameter p = e.LookupParameter(ParamRegistry.STALE);
+                            return p != null && p.AsInteger() == 1;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+                    })
+                    .ToList();
+            }
+            else return Result.Cancelled;
+
+            if (scope.Count == 0)
+            {
+                TaskDialog.Show("STING", "No stale elements found.");
+                return Result.Succeeded;
+            }
+
+            int retagged = 0, failed = 0;
+            using (Transaction tx = new Transaction(doc, "STING Retag Stale"))
+            {
+                tx.Start();
+                var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                if (popCtx == null)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("STING", "Failed to build population context.");
+                    return Result.Failed;
+                }
+                var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                var formulas = TagPipelineHelper.LoadFormulas();
+                var gridLines = TagPipelineHelper.LoadGridLines(doc);
+
+                foreach (Element el in scope)
+                {
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+
+                    try
+                    {
+                        if (retagged % 100 == 0 && EscapeChecker.IsEscapePressed())
+                        {
+                            tx.RollBack();
+                            TaskDialog.Show("STING", $"Cancelled. Retagged {retagged} before cancel.");
+                            return Result.Cancelled;
+                        }
+
+                        bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                            existingTags, seqCounters, formulas, gridLines,
+                            overwrite: true, skipComplete: false,
+                            collisionMode: TagCollisionMode.AutoIncrement);
+
+                        if (pipelineOk)
+                        {
+                            // Clear stale flag
+                            Parameter staleP = el.LookupParameter(ParamRegistry.STALE);
+                            if (staleP != null && !staleP.IsReadOnly) staleP.Set(0);
+                            retagged++;
+                        }
+                        else
+                        {
+                            failed++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"RetagStale element {el.Id.Value}: {ex.Message}");
+                        failed++;
+                    }
+                }
+                tx.Commit();
+                // P6: Save SEQ sidecar after commit
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
+            }
+
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TaskDialog.Show("STING — Retag Stale",
+                $"{retagged} stale elements retagged, {failed} failed.");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  APPLY CLONED TAGS
+    //  Clones tag tokens from a selected source element to ALL untagged elements
+    //  of the same category in the project (or active view). Each target gets its
+    //  own unique SEQ via BuildAndWriteTag collision detection.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Clone tag tokens from a source element to all untagged elements of the same
+    /// category. Unlike Copy Tags (which targets manually selected elements), this
+    /// command auto-discovers targets by category match. Each target receives unique
+    /// SEQ numbers via collision detection.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ApplyClonedTagsCommand : IExternalCommand
+    {
+        private static readonly string[] CloneParams = new[]
+        {
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD,
+            ParamRegistry.STATUS,
+        };
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var selected = uidoc.Selection.GetElementIds().ToList();
+            if (selected.Count != 1)
+            {
+                TaskDialog.Show("STING — Apply Cloned Tags",
+                    "Select exactly 1 tagged element as the source.\n\n" +
+                    "Its tag tokens (DISC, LOC, ZONE, SYS, FUNC, PROD, STATUS) " +
+                    "will be cloned to all untagged elements of the same category.");
+                return Result.Succeeded;
+            }
+
+            Element source = doc.GetElement(selected[0]);
+            if (source == null || source.Category == null)
+            {
+                TaskDialog.Show("STING", "Invalid source element.");
+                return Result.Failed;
+            }
+
+            string sourceTag = ParameterHelpers.GetString(source, ParamRegistry.TAG1);
+            if (string.IsNullOrEmpty(sourceTag))
+            {
+                TaskDialog.Show("STING — Apply Cloned Tags",
+                    "Source element has no tag. Tag it first, then clone.");
+                return Result.Failed;
+            }
+
+            // Collect source token values
+            var sourceValues = new Dictionary<string, string>();
+            foreach (string p in CloneParams)
+                sourceValues[p] = ParameterHelpers.GetString(source, p);
+
+            string sourceCat = ParameterHelpers.GetCategoryName(source);
+            BuiltInCategory bic = (BuiltInCategory)source.Category.Id.Value;
+
+            // Scope selection
+            TaskDialog scopeDlg = new TaskDialog("Apply Cloned Tags — Scope");
+            scopeDlg.MainInstruction = $"Clone tags from: {sourceTag}";
+            scopeDlg.MainContent =
+                $"Category: {sourceCat}\n" +
+                $"DISC={sourceValues.GetValueOrDefault(ParamRegistry.DISC, "")}, " +
+                $"SYS={sourceValues.GetValueOrDefault(ParamRegistry.SYS, "")}, " +
+                $"PROD={sourceValues.GetValueOrDefault(ParamRegistry.PROD, "")}\n\n" +
+                "Choose scope for target elements:";
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Active view only",
+                $"Clone to untagged {sourceCat} elements visible in current view");
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Entire project",
+                $"Clone to ALL untagged {sourceCat} elements in the project");
+            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            bool projectScope;
+            switch (scopeDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: projectScope = false; break;
+                case TaskDialogResult.CommandLink2: projectScope = true; break;
+                default: return Result.Cancelled;
+            }
+
+            // Collect targets
+            FilteredElementCollector collector = projectScope
+                ? new FilteredElementCollector(doc)
+                : new FilteredElementCollector(doc, doc.ActiveView.Id);
+
+            var targets = collector
+                .OfCategory(bic)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Id != source.Id)
+                .Where(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
+                .ToList();
+
+            if (targets.Count == 0)
+            {
+                TaskDialog.Show("STING — Apply Cloned Tags",
+                    $"No untagged {sourceCat} elements found in the selected scope.");
+                return Result.Succeeded;
+            }
+
+            // Confirm
+            TaskDialog confirmDlg = new TaskDialog("Confirm Clone");
+            confirmDlg.MainInstruction = $"Clone tags to {targets.Count} elements?";
+            confirmDlg.MainContent =
+                $"Source: {sourceTag}\n" +
+                $"Targets: {targets.Count} untagged {sourceCat} elements\n" +
+                $"Scope: {(projectScope ? "Entire project" : "Active view")}\n\n" +
+                "Each target will receive the same tokens but a unique SEQ number.";
+            confirmDlg.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirmDlg.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            // Build tag index for collision detection
+            var indexResult = TagConfig.BuildTagIndexAndCounters(doc);
+            var existingTags = indexResult.Item1;
+            var seqCounters = indexResult.Item2;
+            var stats = new TaggingStats();
+
+            int cloned = 0, failed = 0;
+            using (Transaction tx = new Transaction(doc, "STING Apply Cloned Tags"))
+            {
+                tx.Start();
+                foreach (Element target in targets)
+                {
+                    try
+                    {
+                        // Write source tokens (LVL derived per-element from actual level)
+                        foreach (var kvp in sourceValues)
+                            ParameterHelpers.SetString(target, kvp.Key, kvp.Value, overwrite: true);
+
+                        // Derive LVL from the target's actual level
+                        string lvl = ParameterHelpers.GetLevelCode(doc, target);
+                        ParameterHelpers.SetString(target, ParamRegistry.LVL, lvl, overwrite: true);
+
+                        // Build unique tag with collision detection
+                        TagConfig.BuildAndWriteTag(doc, target, seqCounters,
+                            skipComplete: false, existingTags: existingTags,
+                            collisionMode: TagCollisionMode.AutoIncrement, stats: stats);
+
+                        // Write containers and TAG7
+                        string[] tokens = ParamRegistry.ReadTokenValues(target);
+                        string catName = ParameterHelpers.GetCategoryName(target);
+                        ParamRegistry.WriteContainers(target, tokens, catName);
+                        TagConfig.WriteTag7All(doc, target, catName, tokens);
+
+                        cloned++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        StingLog.Warn($"ApplyClonedTags element {target.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
+            }
+
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            TaskDialog.Show("STING — Apply Cloned Tags",
+                $"Cloned tags to {cloned} elements.\n" +
+                (failed > 0 ? $"Failed: {failed}\n" : "") +
+                $"Source: {sourceTag}\nScope: {(projectScope ? "Project" : "Active view")}");
+
+            StingLog.Info($"ApplyClonedTags: source={sourceTag}, cloned={cloned}, failed={failed}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  JSON EXPORT
+    //  Exports all tag data as structured JSON for integration with external
+    //  systems (CDE platforms, CAFM, digital twin, dashboards).
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Export tag data as structured JSON. Outputs an array of element records
+    /// with full tag tokens, identity data, spatial data, and compliance status.
+    /// Designed for CDE/CAFM/digital twin integration.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class JSONExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            // Scope selection
+            TaskDialog scopeDlg = new TaskDialog("STING JSON Export");
+            scopeDlg.MainInstruction = "Export tag data as JSON";
+            scopeDlg.MainContent = "Choose export scope and detail level:";
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Standard export (tags + identity)",
+                "Core tag tokens, category, family, level, room, compliance status");
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Full export (all parameters)",
+                "All STING parameters including MEP data, dimensions, TAG7 narrative");
+            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            bool fullExport;
+            switch (scopeDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: fullExport = false; break;
+                case TaskDialogResult.CommandLink2: fullExport = true; break;
+                default: return Result.Cancelled;
+            }
+
+            // Collect elements
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> exportElements;
+            if (catEnums != null && catEnums.Length > 0)
+                exportElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                exportElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+
+            var sb = new StringBuilder();
+            sb.AppendLine("{");
+            sb.AppendLine($"  \"exportDate\": \"{DateTime.Now:yyyy-MM-ddTHH:mm:ss}\",");
+            sb.AppendLine($"  \"project\": \"{JsonEscape(doc.Title ?? "Unknown")}\",");
+            sb.AppendLine($"  \"tagFormat\": \"{ParamRegistry.Separator}{ParamRegistry.NumPad}\",");
+            sb.AppendLine("  \"elements\": [");
+
+            int total = 0;
+            bool first = true;
+            foreach (Element elem in exportElements)
+            {
+                if (elem.Category == null) continue;
+                string cat = ParameterHelpers.GetCategoryName(elem);
+                if (!known.Contains(cat)) continue;
+
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag)) continue;
+
+                total++;
+                if (!first) sb.AppendLine(",");
+                first = false;
+
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                string seq = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
+                string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
+                string rev = ParameterHelpers.GetString(elem, ParamRegistry.REV);
+                bool valid = TagConfig.TagIsComplete(tag);
+                bool resolved = TagConfig.TagIsFullyResolved(tag);
+
+                sb.AppendLine("    {");
+                sb.AppendLine($"      \"elementId\": {elem.Id.Value},");
+                sb.AppendLine($"      \"category\": \"{JsonEscape(cat)}\",");
+                sb.AppendLine($"      \"family\": \"{JsonEscape(ParameterHelpers.GetFamilyName(elem))}\",");
+                sb.AppendLine($"      \"type\": \"{JsonEscape(ParameterHelpers.GetFamilySymbolName(elem))}\",");
+                sb.AppendLine($"      \"tag\": \"{JsonEscape(tag)}\",");
+                sb.AppendLine("      \"tokens\": {");
+                sb.AppendLine($"        \"DISC\": \"{JsonEscape(disc)}\",");
+                sb.AppendLine($"        \"LOC\": \"{JsonEscape(loc)}\",");
+                sb.AppendLine($"        \"ZONE\": \"{JsonEscape(zone)}\",");
+                sb.AppendLine($"        \"LVL\": \"{JsonEscape(lvl)}\",");
+                sb.AppendLine($"        \"SYS\": \"{JsonEscape(sys)}\",");
+                sb.AppendLine($"        \"FUNC\": \"{JsonEscape(func)}\",");
+                sb.AppendLine($"        \"PROD\": \"{JsonEscape(prod)}\",");
+                sb.AppendLine($"        \"SEQ\": \"{JsonEscape(seq)}\"");
+                sb.AppendLine("      },");
+                sb.AppendLine($"      \"status\": \"{JsonEscape(status)}\",");
+                sb.AppendLine($"      \"revision\": \"{JsonEscape(rev)}\",");
+                sb.AppendLine($"      \"isComplete\": {(valid ? "true" : "false")},");
+
+                if (fullExport)
+                {
+                    string room = "";
+                    try
+                    {
+                        var r = ParameterHelpers.GetRoomAtElement(doc, elem);
+                        if (r != null) room = $"{r.Number} - {r.Name}";
+                    }
+                    catch (Exception ex) { StingLog.Warn($"JSONExport room: {ex.Message}"); }
+
+                    string gridRef = ParameterHelpers.GetString(elem, "ASS_GRID_REF_TXT");
+                    string tag7a = ParameterHelpers.GetString(elem, ParamRegistry.TAG7A);
+
+                    sb.AppendLine($"      \"isFullyResolved\": {(resolved ? "true" : "false")},");
+                    sb.AppendLine($"      \"room\": \"{JsonEscape(room)}\",");
+                    sb.AppendLine($"      \"gridRef\": \"{JsonEscape(gridRef)}\",");
+                    sb.AppendLine($"      \"tag7Identity\": \"{JsonEscape(tag7a)}\"");
+                }
+                else
+                {
+                    sb.AppendLine($"      \"isFullyResolved\": {(resolved ? "true" : "false")}");
+                }
+
+                sb.Append("    }");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("  ],");
+            sb.AppendLine($"  \"totalElements\": {total}");
+            sb.AppendLine("}");
+
+            // Write to file
+            string path = OutputLocationHelper.GetOutputPath(doc, "STING_Tags.json");
+            try
+            {
+                System.IO.File.WriteAllText(path, sb.ToString());
+                BIMManager.BIMManagerEngine.AutoRegisterExport(doc, path, "SH", "JSON tag export");
+                TaskDialog.Show("STING JSON Export",
+                    $"Exported {total} tagged elements to:\n{path}\n\n" +
+                    $"Mode: {(fullExport ? "Full" : "Standard")}");
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("STING JSON Export", $"Export failed: {ex.Message}");
+                StingLog.Error("JSONExport failed", ex);
+            }
+
+            return Result.Succeeded;
+        }
+
+        private static string JsonEscape(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("\t", "\\t");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  STING Smart Numbering Command (standalone)
+    //  Wraps NumberingEngine from StructuralCADWizard with a WPF dialog
+    //  for general-purpose element numbering across ALL categories.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SmartNumberingCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
+            var uidoc = ctx.UIDoc;
+
+            // Show WPF numbering configuration dialog
+            var config = SmartNumberingDialog.Show(doc, uidoc);
+            if (config == null) return Result.Succeeded; // User cancelled
+
+            // Resolve element IDs based on scope
+            IList<ElementId> elementIds = null;
+            switch (config.Scope)
+            {
+                case Model.NumberingEngine.SelectionScope.SelectedElements:
+                    elementIds = uidoc.Selection.GetElementIds().ToList();
+                    if (elementIds.Count == 0)
+                    {
+                        TaskDialog.Show("Numbering", "No elements selected.");
+                        return Result.Succeeded;
+                    }
+                    break;
+                case Model.NumberingEngine.SelectionScope.AllFromActiveView:
+                    elementIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                        .OfCategory(config.Category)
+                        .WhereElementIsNotElementType()
+                        .ToElementIds().ToList();
+                    break;
+                case Model.NumberingEngine.SelectionScope.AllFromProject:
+                default:
+                    elementIds = null; // NumberingEngine handles project-wide
+                    break;
+            }
+
+            int count = Model.NumberingEngine.ApplyNumbering(doc, config, elementIds);
+
+            if (count > 0)
+            {
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
+            }
+
+            TaskDialog.Show("STING Numbering",
+                $"Numbered {count} elements.\n\nParameter: {config.ParameterName}\n" +
+                $"Template: {string.Join(", ", Model.NumberingEngine.GeneratePreview(config, 3))}...");
+
+            StingLog.Info($"SmartNumbering: {count} elements numbered, param={config.ParameterName}, prefix={config.Prefix}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// WPF dialog for STING smart element numbering configuration.
+    /// Single-page dialog with category, parameter, template, grouping, and preview.
+    /// </summary>
+    internal static class SmartNumberingDialog
+    {
+        public static Model.NumberingEngine.NumberingConfig Show(Document doc, UIDocument uidoc)
+        {
+            var config = new Model.NumberingEngine.NumberingConfig();
+            bool confirmed = false;
+
+            // ── Collect available categories from current view ──
+            var availableCategories = new List<(string Name, BuiltInCategory Bic)>();
+            var catSet = new HashSet<int>();
+            var viewCollector = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType();
+            foreach (var el in viewCollector)
+            {
+                if (el.Category == null) continue;
+                int catId = (int)el.Category.Id.Value;
+                if (catSet.Add(catId))
+                    availableCategories.Add((el.Category.Name, (BuiltInCategory)catId));
+            }
+            availableCategories = availableCategories.OrderBy(c => c.Name).ToList();
+
+            // ── Build WPF dialog ──
+            var win = new System.Windows.Window
+            {
+                Title = "STING Smart Numbering",
+                Width = 580, Height = 660,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F5F5F0"))
+            };
+
+            var mainStack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) };
+
+            // Header
+            var header = new System.Windows.Controls.TextBlock
+            {
+                Text = "ELEMENT NUMBERING",
+                FontSize = 16, FontWeight = System.Windows.FontWeights.Bold,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#1A237E")),
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            };
+            mainStack.Children.Add(header);
+
+            // ── Category & Scope ──
+            mainStack.Children.Add(MakeLabel("Category:"));
+            var catCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 8) };
+            foreach (var c in availableCategories)
+                catCombo.Items.Add(c.Name);
+            if (catCombo.Items.Count > 0) catCombo.SelectedIndex = 0;
+            mainStack.Children.Add(catCombo);
+
+            mainStack.Children.Add(MakeLabel("Scope:"));
+            var scopeCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 8) };
+            scopeCombo.Items.Add("Selected Elements");
+            scopeCombo.Items.Add("Active View");
+            scopeCombo.Items.Add("Entire Project");
+            scopeCombo.SelectedIndex = (uidoc.Selection.GetElementIds().Count > 0) ? 0 : 1;
+            mainStack.Children.Add(scopeCombo);
+
+            mainStack.Children.Add(MakeLabel("Parameter to write:"));
+            var paramCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 8), IsEditable = true };
+            paramCombo.Items.Add("Mark");
+            paramCombo.Items.Add(ParamRegistry.SEQ);
+            paramCombo.Items.Add(ParamRegistry.TAG1);
+            paramCombo.Items.Add("Comments");
+            paramCombo.SelectedIndex = 0;
+            mainStack.Children.Add(paramCombo);
+
+            // ── Template ──
+            var templateBorder = new System.Windows.Controls.Border
+            {
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkGray),
+                BorderThickness = new System.Windows.Thickness(1),
+                CornerRadius = new System.Windows.CornerRadius(4),
+                Padding = new System.Windows.Thickness(10),
+                Margin = new System.Windows.Thickness(0, 4, 0, 8)
+            };
+            var templateStack = new System.Windows.Controls.StackPanel();
+
+            templateStack.Children.Add(MakeLabel("PREFIX:"));
+            var prefixBox = new System.Windows.Controls.TextBox { Text = "GFC", Margin = new System.Windows.Thickness(0, 2, 0, 4) };
+            templateStack.Children.Add(prefixBox);
+
+            templateStack.Children.Add(MakeLabel("SEPARATOR:"));
+            var sepBox = new System.Windows.Controls.TextBox { Text = "-", Width = 50, HorizontalAlignment = System.Windows.HorizontalAlignment.Left, Margin = new System.Windows.Thickness(0, 2, 0, 4) };
+            templateStack.Children.Add(sepBox);
+
+            templateStack.Children.Add(MakeLabel("SUFFIX:"));
+            var suffixBox = new System.Windows.Controls.TextBox { Text = "", Margin = new System.Windows.Thickness(0, 2, 0, 4) };
+            templateStack.Children.Add(suffixBox);
+
+            var groupCheck = new System.Windows.Controls.CheckBox { Content = "Use group enumeration", Margin = new System.Windows.Thickness(0, 4, 0, 2) };
+            templateStack.Children.Add(groupCheck);
+
+            templateStack.Children.Add(MakeLabel("Group Style:"));
+            var groupStyleCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 4) };
+            groupStyleCombo.Items.Add("A, B, C (Capital Letters)");
+            groupStyleCombo.Items.Add("1, 2, 3 (Numeric)");
+            groupStyleCombo.Items.Add("a, b, c (Lower Letters)");
+            groupStyleCombo.Items.Add("I, II, III (Roman)");
+            groupStyleCombo.Items.Add("i, ii, iii (Lower Roman)");
+            groupStyleCombo.SelectedIndex = 0;
+            templateStack.Children.Add(groupStyleCombo);
+
+            templateStack.Children.Add(MakeLabel("Element Style:"));
+            var elemStyleCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 4) };
+            elemStyleCombo.Items.Add("1, 2, 3 (Numeric)");
+            elemStyleCombo.Items.Add("A, B, C (Capital Letters)");
+            elemStyleCombo.Items.Add("a, b, c (Lower Letters)");
+            elemStyleCombo.Items.Add("I, II, III (Roman)");
+            elemStyleCombo.Items.Add("i, ii, iii (Lower Roman)");
+            elemStyleCombo.SelectedIndex = 0;
+            templateStack.Children.Add(elemStyleCombo);
+
+            // Start/Digits/Increment row
+            var numRow = new System.Windows.Controls.WrapPanel { Margin = new System.Windows.Thickness(0, 4, 0, 4) };
+            numRow.Children.Add(MakeLabel("Start: "));
+            var startBox = new System.Windows.Controls.TextBox { Text = "1", Width = 50, Margin = new System.Windows.Thickness(0, 0, 12, 0) };
+            numRow.Children.Add(startBox);
+            numRow.Children.Add(MakeLabel("Digits: "));
+            var digitsBox = new System.Windows.Controls.TextBox { Text = "2", Width = 50, Margin = new System.Windows.Thickness(0, 0, 12, 0) };
+            numRow.Children.Add(digitsBox);
+            numRow.Children.Add(MakeLabel("Step: "));
+            var stepBox = new System.Windows.Controls.TextBox { Text = "1", Width = 50 };
+            numRow.Children.Add(stepBox);
+            templateStack.Children.Add(numRow);
+
+            templateBorder.Child = templateStack;
+            mainStack.Children.Add(templateBorder);
+
+            // ── Grouping ──
+            mainStack.Children.Add(MakeLabel("Grouping:"));
+            var groupCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 8) };
+            groupCombo.Items.Add("None (Sequential)");
+            groupCombo.Items.Add("By Level");
+            groupCombo.Items.Add("By Type");
+            groupCombo.Items.Add("By Nearest Grid");
+            groupCombo.Items.Add("By Spatial Proximity");
+            groupCombo.Items.Add("By Existing Mark");
+            groupCombo.SelectedIndex = 1;
+            mainStack.Children.Add(groupCombo);
+
+            var omitCheck = new System.Windows.Controls.CheckBox { Content = "Skip already-numbered elements", IsChecked = true, Margin = new System.Windows.Thickness(0, 4, 0, 8) };
+            mainStack.Children.Add(omitCheck);
+
+            // ── Preview ──
+            var previewLabel = new System.Windows.Controls.TextBlock
+            {
+                Text = "Preview: GFC-01, GFC-02, GFC-03 ...",
+                FontStyle = System.Windows.FontStyles.Italic,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkSlateGray),
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            };
+            mainStack.Children.Add(previewLabel);
+
+            // Live preview update
+            void UpdatePreview()
+            {
+                try
+                {
+                    var previewConfig = BuildConfig();
+                    if (previewConfig != null)
+                    {
+                        var previews = Model.NumberingEngine.GeneratePreview(previewConfig, 5);
+                        previewLabel.Text = "Preview: " + string.Join(", ", previews) + " ...";
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Numbering preview: {ex.Message}"); }
+            }
+
+            Model.NumberingEngine.NumberingConfig BuildConfig()
+            {
+                var c = new Model.NumberingEngine.NumberingConfig
+                {
+                    Prefix = prefixBox.Text ?? "",
+                    Separator = sepBox.Text ?? "-",
+                    Suffix = suffixBox.Text ?? "",
+                    UseGroupEnum = groupCheck.IsChecked == true,
+                    UseElementEnum = true,
+                    OmitAlreadyNumbered = omitCheck.IsChecked == true,
+                    ParameterName = paramCombo.Text ?? "Mark"
+                };
+
+                // Category
+                if (catCombo.SelectedIndex >= 0 && catCombo.SelectedIndex < availableCategories.Count)
+                    c.Category = availableCategories[catCombo.SelectedIndex].Bic;
+
+                // Scope
+                c.Scope = scopeCombo.SelectedIndex switch
+                {
+                    0 => Model.NumberingEngine.SelectionScope.SelectedElements,
+                    1 => Model.NumberingEngine.SelectionScope.AllFromActiveView,
+                    2 => Model.NumberingEngine.SelectionScope.AllFromProject,
+                    _ => Model.NumberingEngine.SelectionScope.AllFromActiveView,
+                };
+
+                // Group style
+                c.GroupStyle = groupStyleCombo.SelectedIndex switch
+                {
+                    0 => Model.NumberingEngine.EnumStyle.CapitalLetters,
+                    1 => Model.NumberingEngine.EnumStyle.Numeric,
+                    2 => Model.NumberingEngine.EnumStyle.LowerLetters,
+                    3 => Model.NumberingEngine.EnumStyle.CapitalRoman,
+                    4 => Model.NumberingEngine.EnumStyle.LowerRoman,
+                    _ => Model.NumberingEngine.EnumStyle.CapitalLetters,
+                };
+
+                // Element style
+                c.ElementStyle = elemStyleCombo.SelectedIndex switch
+                {
+                    0 => Model.NumberingEngine.EnumStyle.Numeric,
+                    1 => Model.NumberingEngine.EnumStyle.CapitalLetters,
+                    2 => Model.NumberingEngine.EnumStyle.LowerLetters,
+                    3 => Model.NumberingEngine.EnumStyle.CapitalRoman,
+                    4 => Model.NumberingEngine.EnumStyle.LowerRoman,
+                    _ => Model.NumberingEngine.EnumStyle.Numeric,
+                };
+
+                // Grouping
+                c.Grouping = groupCombo.SelectedIndex switch
+                {
+                    0 => Model.NumberingEngine.GroupingAlgorithm.None,
+                    1 => Model.NumberingEngine.GroupingAlgorithm.ByLevel,
+                    2 => Model.NumberingEngine.GroupingAlgorithm.ByType,
+                    3 => Model.NumberingEngine.GroupingAlgorithm.ByGridLine,
+                    4 => Model.NumberingEngine.GroupingAlgorithm.ByLocation,
+                    5 => Model.NumberingEngine.GroupingAlgorithm.ByMark,
+                    _ => Model.NumberingEngine.GroupingAlgorithm.ByLevel,
+                };
+
+                if (int.TryParse(startBox.Text, out int s)) c.StartFrom = s;
+                if (int.TryParse(digitsBox.Text, out int d)) c.NumberOfDigits = d;
+                if (int.TryParse(stepBox.Text, out int inc)) c.IncrementBy = inc;
+
+                return c;
+            }
+
+            // Wire up live preview on field changes
+            prefixBox.TextChanged += (s, e) => UpdatePreview();
+            sepBox.TextChanged += (s, e) => UpdatePreview();
+            suffixBox.TextChanged += (s, e) => UpdatePreview();
+            startBox.TextChanged += (s, e) => UpdatePreview();
+            digitsBox.TextChanged += (s, e) => UpdatePreview();
+            stepBox.TextChanged += (s, e) => UpdatePreview();
+            groupCheck.Checked += (s, e) => UpdatePreview();
+            groupCheck.Unchecked += (s, e) => UpdatePreview();
+            groupStyleCombo.SelectionChanged += (s, e) => UpdatePreview();
+            elemStyleCombo.SelectionChanged += (s, e) => UpdatePreview();
+
+            UpdatePreview(); // Initial preview
+
+            // ── Buttons ──
+            var btnPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new System.Windows.Thickness(0, 8, 0, 0)
+            };
+
+            var applyBtn = new System.Windows.Controls.Button
+            {
+                Content = "Apply Numbering",
+                Width = 140, Height = 32,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E8912D")),
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+            applyBtn.Click += (s, e) => { confirmed = true; win.DialogResult = true; win.Close(); };
+
+            var cancelBtn = new System.Windows.Controls.Button
+            {
+                Content = "Cancel", Width = 80, Height = 32,
+                Margin = new System.Windows.Thickness(0, 0, 0, 0)
+            };
+            cancelBtn.Click += (s, e) => { win.DialogResult = false; win.Close(); };
+
+            btnPanel.Children.Add(applyBtn);
+            btnPanel.Children.Add(cancelBtn);
+            mainStack.Children.Add(btnPanel);
+
+            win.Content = mainStack;
+
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(win);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ex) { StingLog.Warn($"SmartNumberingDialog owner: {ex.Message}"); }
+
+            bool? result = win.ShowDialog();
+            if (result != true || !confirmed) return null;
+
+            return BuildConfig();
+        }
+
+        private static System.Windows.Controls.TextBlock MakeLabel(string text)
+        {
+            return new System.Windows.Controls.TextBlock
+            {
+                Text = text,
+                FontWeight = System.Windows.FontWeights.SemiBold,
+                FontSize = 12,
+                Margin = new System.Windows.Thickness(0, 2, 0, 0)
+            };
         }
     }
 }

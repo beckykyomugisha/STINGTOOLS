@@ -1,0 +1,529 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using StingTools.Core;
+
+namespace StingTools.Docs
+{
+    /// <summary>
+    /// Delete views that are NOT placed on any sheet.
+    /// Cleans up the model by removing orphaned views that clutter the project browser.
+    /// Protects system views, templates, and user-selected exclusions.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DeleteUnusedViewsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var allViews = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => !v.IsTemplate && v.CanBePrinted)
+                .ToList();
+
+            // Build set of all views placed on sheets
+            var allSheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>().ToList();
+            var placedViewIds = new HashSet<ElementId>(allSheets.SelectMany(s => s.GetAllPlacedViews()));
+
+            // Get the active view to protect it
+            ElementId activeViewId = ctx.ActiveView.Id;
+
+            // Phase 40: Build multi-sheet placement map for safety reporting
+            var viewToSheets = new Dictionary<ElementId, List<string>>();
+            foreach (var sheet in allSheets)
+            {
+                foreach (var vId in sheet.GetAllPlacedViews())
+                {
+                    if (!viewToSheets.ContainsKey(vId))
+                        viewToSheets[vId] = new List<string>();
+                    viewToSheets[vId].Add(sheet.SheetNumber);
+                }
+            }
+
+            // Phase 40: Filter out dependent views (deleting a dependent can crash Revit
+            // or orphan the parent view's crop region and annotation references).
+            // Also protect views placed on multiple sheets (viewToSheets count > 1).
+            var unplaced = allViews
+                .Where(v => !placedViewIds.Contains(v.Id) && v.Id != activeViewId
+                    && v.GetPrimaryViewId() == ElementId.InvalidElementId) // exclude dependent views
+                .ToList();
+
+            if (unplaced.Count == 0)
+            {
+                TaskDialog.Show("Delete Unused Views",
+                    "All views are placed on sheets (or are the active view).\nNothing to delete.");
+                return Result.Succeeded;
+            }
+
+            // Group by type for the report
+            var byType = unplaced.GroupBy(v => v.ViewType).OrderBy(g => g.Key.ToString());
+
+            var report = new StringBuilder();
+            report.AppendLine("Unused views (not placed on any sheet):");
+            report.AppendLine();
+            foreach (var group in byType)
+            {
+                report.AppendLine($"  {group.Key}: {group.Count()} views");
+                foreach (var v in group.OrderBy(x => x.Name).Take(10))
+                    report.AppendLine($"    • {v.Name}");
+                if (group.Count() > 10)
+                    report.AppendLine($"    ... and {group.Count() - 10} more");
+            }
+
+            TaskDialog confirm = new TaskDialog("Delete Unused Views");
+            confirm.MainInstruction = $"Delete {unplaced.Count} unused views?";
+            confirm.MainContent = report.ToString() +
+                "\n\nProtected: active view, templates, sheets.\n" +
+                "This action can be undone with Ctrl+Z.";
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                $"Delete all {unplaced.Count} unused views",
+                "Remove all views not placed on any sheet");
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Delete only Drafting Views",
+                $"Remove only unused Drafting Views ({unplaced.Count(v => v.ViewType == ViewType.DraftingView)})");
+            confirm.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            IEnumerable<View> toDelete;
+            switch (confirm.Show())
+            {
+                case TaskDialogResult.CommandLink1:
+                    toDelete = unplaced;
+                    break;
+                case TaskDialogResult.CommandLink2:
+                    toDelete = unplaced.Where(v => v.ViewType == ViewType.DraftingView);
+                    break;
+                default:
+                    return Result.Cancelled;
+            }
+
+            int deleted = 0;
+            int failedDel = 0;
+            var deleteList = toDelete.ToList();
+            var idsToDelete = deleteList.Select(v => v.Id).ToList();
+            using (Transaction tx = new Transaction(doc, "STING Delete Unused Views"))
+            {
+                tx.Start();
+                try
+                {
+                    // Batch delete — safer than one-by-one which can trigger
+                    // cascading graphics cache invalidation and crash Revit
+                    doc.Delete(idsToDelete);
+                    deleted = idsToDelete.Count;
+                }
+                catch
+                {
+                    // Fallback: delete individually
+                    foreach (View v in deleteList)
+                    {
+                        try
+                        {
+                            doc.Delete(v.Id);
+                            deleted++;
+                        }
+                        catch (Exception ex)
+                        {
+                            failedDel++;
+                            StingLog.Warn($"Could not delete view '{v.Name}': {ex.Message}");
+                        }
+                    }
+                }
+                tx.Commit();
+            }
+
+            string result2 = $"Deleted {deleted} unused views.";
+            if (failedDel > 0)
+                result2 += $"\n{failedDel} views could not be deleted (system or dependent views).";
+
+            TaskDialog.Show("Delete Unused Views", result2);
+            StingLog.Info($"DeleteUnusedViews: deleted={deleted}, failed={failedDel}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    internal class SheetNamingRow
+    {
+        public string SheetNumber { get; set; }
+        public string SheetName { get; set; }
+        public string Status { get; set; }
+        public string Issue { get; set; }
+        public string Suggestion { get; set; }
+    }
+
+    /// <summary>
+    /// ISO 19650 Sheet Naming Compliance Check.
+    /// Validates that all sheet numbers and names follow ISO 19650 document naming convention:
+    ///   {Project}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{Number}
+    /// Reports non-compliant sheets and suggests corrections.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SheetNamingCheckCommand : IExternalCommand
+    {
+        // ISO 19650 common document type codes
+        private static readonly HashSet<string> ValidTypeCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "DR", // Drawing
+            "SH", // Schedule
+            "SP", // Specification
+            "RP", // Report
+            "CM", // Correspondence
+            "PP", // Presentation
+            "MO", // Model
+            "VS", // Visualisation
+            "AN", // Animation
+            "HS", // Health & Safety
+            "DB", // Database
+            "FN", // File note
+            "MS", // Method statement
+            "CP", // Cost plan
+            "CR", // Clash report
+            "MI", // Minutes
+            "PR", // Programme
+            "RI", // Risk register
+            "SA", // Safety
+            "SU", // Survey
+        };
+
+        // ISO 19650 role codes (discipline)
+        private static readonly HashSet<string> ValidRoleCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "A",  // Architect
+            "S",  // Structural
+            "M",  // Mechanical
+            "E",  // Electrical
+            "P",  // Plumbing/Public Health
+            "C",  // Civil
+            "L",  // Landscape
+            "G",  // Generic
+            "B",  // Building Services
+            "T",  // Town Planning
+            "F",  // Fire
+            "D",  // Drainage
+            "Z",  // General/non-discipline
+        };
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (sheets.Count == 0)
+            {
+                TaskDialog.Show("Sheet Naming Check", "No sheets found.");
+                return Result.Succeeded;
+            }
+
+            string projectNumber = doc.ProjectInformation?.Number ?? "";
+            string originator = doc.ProjectInformation?.get_Parameter(BuiltInParameter.PROJECT_ORGANIZATION_NAME)?.AsString() ?? "";
+
+            int compliant = 0;
+            int nonCompliant = 0;
+            var issues = new List<(string sheetNum, string name, string issue)>();
+            var csvRows = new List<string>();
+            csvRows.Add("Sheet_Number,Sheet_Name,Status,Issue,Suggestion");
+
+            foreach (var sheet in sheets)
+            {
+                string num = sheet.SheetNumber;
+                string name = sheet.Name;
+                string issue = ValidateSheetNumber(num, projectNumber, originator);
+
+                if (issue == null)
+                {
+                    compliant++;
+                    csvRows.Add($"\"{num}\",\"{name}\",COMPLIANT,,");
+                }
+                else
+                {
+                    nonCompliant++;
+                    issues.Add((num, name, issue));
+
+                    // Suggest a compliant number
+                    string suggestion = SuggestCompliantNumber(num, name, projectNumber, originator);
+                    csvRows.Add($"\"{num}\",\"{name}\",NON-COMPLIANT,\"{issue}\",\"{suggestion}\"");
+                }
+            }
+
+            double pct = sheets.Count > 0 ? compliant * 100.0 / sheets.Count : 0;
+
+            // Build interactive DataGrid dialog
+            var rows = sheets.Select(sheet =>
+            {
+                string num = sheet.SheetNumber;
+                string name = sheet.Name;
+                string issue = ValidateSheetNumber(num, projectNumber, originator);
+                string suggestion = issue != null ? SuggestCompliantNumber(num, name, projectNumber, originator) : "";
+                return new SheetNamingRow
+                {
+                    SheetNumber = num,
+                    SheetName = name,
+                    Status = issue == null ? "OK" : "FAIL",
+                    Issue = issue ?? "",
+                    Suggestion = suggestion
+                };
+            }).ToList();
+
+            var dlg = new UI.StingDataGridDialog("Sheet Naming Check (ISO 19650)",
+                $"Compliance: {pct:F1}% ({compliant}/{sheets.Count}) | Format: Project-Originator-Volume-Level-Type-Role-Number",
+                1050, 600);
+
+            dlg.AddTextColumn("Sheet #", "SheetNumber", 100);
+            dlg.AddTextColumn("Sheet Name", "SheetName");
+            dlg.AddTextColumn("Status", "Status", 55,
+                foreground: System.Windows.Media.Color.FromRgb(40, 40, 50));
+            dlg.AddTextColumn("Issue", "Issue", 220);
+            dlg.AddTextColumn("Suggested Fix", "Suggestion", 200,
+                foreground: System.Windows.Media.Color.FromRgb(30, 120, 30));
+
+            // Status filter
+            string filterStatus = "All";
+            void ApplyFilters()
+            {
+                var filtered = rows.AsEnumerable();
+                if (filterStatus == "FAIL") filtered = filtered.Where(r => r.Status == "FAIL");
+                else if (filterStatus == "OK") filtered = filtered.Where(r => r.Status == "OK");
+                string search = dlg.SearchText;
+                if (!string.IsNullOrEmpty(search))
+                    filtered = filtered.Where(r => r.SheetNumber.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
+                        || r.SheetName.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0);
+                var list = filtered.ToList();
+                dlg.RefreshItems(list);
+                dlg.SetStatus($"{list.Count} of {rows.Count} sheets | {list.Count(r => r.Status == "FAIL")} non-compliant");
+            }
+
+            dlg.AddFilter("Status", new[] { "All", "FAIL", "OK" }, s => { filterStatus = s; ApplyFilters(); });
+            dlg.SearchChanged += _ => ApplyFilters();
+
+            dlg.AddActionButton("Export CSV", "ExportCSV");
+            dlg.AddActionButton("Close", "Cancel");
+
+            dlg.ActionClicked += tag =>
+            {
+                if (tag == "ExportCSV")
+                {
+                    try
+                    {
+                        string csvPath = Core.OutputLocationHelper.GetTimestampedPath(doc, "SheetNamingCheck", ".csv");
+                        File.WriteAllText(csvPath, string.Join("\n", csvRows));
+                        dlg.SetStatus($"Exported to: {csvPath}");
+                    }
+                    catch (Exception ex) { Core.StingLog.Warn($"SheetNamingCheck CSV: {ex.Message}"); }
+                }
+            };
+
+            dlg.SetItems(rows);
+            dlg.ShowDialog();
+
+            return Result.Succeeded;
+        }
+
+        private static string ValidateSheetNumber(string num, string projectNum, string originator)
+        {
+            if (string.IsNullOrEmpty(num))
+                return "Sheet number is empty";
+
+            // Check if it follows a segmented pattern (at least 3 segments with a separator)
+            string[] parts = num.Split(new[] { '-', '_', '.' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length < 3)
+                return $"Sheet number '{num}' has fewer than 3 segments (need Project-Role-Number minimum)";
+
+            // Check if first segment could be a discipline/role code
+            string firstPart = parts[0].Trim();
+            if (firstPart.Length > 6)
+                return $"First segment '{firstPart}' is too long for a discipline/role code";
+
+            // Check for common non-ISO patterns
+            if (num.All(c => char.IsDigit(c)))
+                return "Sheet number is purely numeric — needs discipline prefix";
+
+            // Check for role code presence (usually in first 1-2 characters)
+            bool hasRole = false;
+            foreach (string code in ValidRoleCodes)
+            {
+                if (firstPart.StartsWith(code, StringComparison.OrdinalIgnoreCase))
+                {
+                    hasRole = true;
+                    break;
+                }
+            }
+
+            if (!hasRole && parts.Length < 4)
+                return $"No recognised role code in '{num}' — expected A/S/M/E/P/C prefix";
+
+            // Phase 39: ISO 19650 strict mode — validate full 7-segment format
+            // Format: Project-Originator-Volume-Level-Type-Role-Number
+            // Enabled via project_config.json SHEET_NAMING_STRICT_MODE = true
+            string strictMode = Core.TagConfig.GetConfigValue("SHEET_NAMING_STRICT_MODE");
+            if (!string.IsNullOrEmpty(strictMode) && (strictMode == "true" || strictMode == "1"))
+            {
+                if (parts.Length < 5)
+                    return $"ISO 19650 strict: '{num}' has {parts.Length} segments (need 5+ for Project-Originator-Volume-Level-Type-Role-Number)";
+                // Validate type code segment (usually DR, SH, SP, etc.)
+                bool hasTypeCode = false;
+                foreach (string part in parts)
+                {
+                    if (ValidTypeCodes.Contains(part)) { hasTypeCode = true; break; }
+                }
+                if (!hasTypeCode)
+                    return $"ISO 19650 strict: '{num}' missing document type code (DR/SH/SP/RP/MO)";
+                // Validate role code is a known discipline
+                bool hasStrictRole = false;
+                foreach (string part in parts)
+                {
+                    if (ValidRoleCodes.Contains(part)) { hasStrictRole = true; break; }
+                }
+                if (!hasStrictRole)
+                    return $"ISO 19650 strict: '{num}' missing recognised role code (A/S/M/E/P/C)";
+            }
+
+            return null; // compliant
+        }
+
+        private static string SuggestCompliantNumber(string num, string name, string projectNum, string originator)
+        {
+            // Try to extract a discipline code from the name or existing number
+            string role = "Z"; // default: general
+            string nameUpper = (name ?? "").ToUpperInvariant();
+            if (nameUpper.Contains("MECHANICAL") || nameUpper.Contains("HVAC")) role = "M";
+            else if (nameUpper.Contains("ELECTRICAL") || nameUpper.Contains("LIGHT")) role = "E";
+            else if (nameUpper.Contains("PLUMB") || nameUpper.Contains("SANIT")) role = "P";
+            else if (nameUpper.Contains("STRUCT")) role = "S";
+            else if (nameUpper.Contains("ARCH") || nameUpper.Contains("PLAN")) role = "A";
+            else if (nameUpper.Contains("FIRE")) role = "F";
+
+            // Build suggestion
+            string proj = string.IsNullOrEmpty(projectNum) ? "PRJ" : projectNum;
+            string orig = string.IsNullOrEmpty(originator) ? "STG" : originator.Length > 3 ? originator.Substring(0, 3).ToUpper() : originator.ToUpper();
+            string seq = "001";
+
+            // Try to extract number from original
+            string digits = new string(num.Where(char.IsDigit).ToArray());
+            if (!string.IsNullOrEmpty(digits))
+                seq = digits.PadLeft(3, '0');
+            if (seq.Length > 3) seq = seq.Substring(seq.Length - 3);
+
+            return $"{proj}-{orig}-ZZ-XX-DR-{role}-{seq}";
+        }
+    }
+
+    /// <summary>
+    /// Auto-Number Sheets: assigns sequential sheet numbers following a discipline-based
+    /// ISO 19650 pattern. Groups sheets by their discipline prefix and renumbers sequentially.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AutoNumberSheetsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (sheets.Count == 0)
+            {
+                TaskDialog.Show("Auto-Number Sheets", "No sheets found.");
+                return Result.Succeeded;
+            }
+
+            // Group by first 2 chars (discipline prefix) — materialize to avoid
+            // deferred re-evaluation after Phase 1 mutates sheet numbers
+            var groups = sheets
+                .GroupBy(s => s.SheetNumber.Length >= 2 ? s.SheetNumber.Substring(0, 2).ToUpperInvariant() : "XX")
+                .OrderBy(g => g.Key)
+                .Select(g => new { Key = g.Key, Sheets = g.ToList() })
+                .ToList();
+
+            int totalRenamed = 0;
+            var report = new StringBuilder();
+            report.AppendLine($"Will renumber {sheets.Count} sheets in {groups.Count} discipline groups.");
+            report.AppendLine();
+            foreach (var g in groups)
+                report.AppendLine($"  [{g.Key}] — {g.Sheets.Count} sheets");
+
+            TaskDialog confirm = new TaskDialog("Auto-Number Sheets");
+            confirm.MainInstruction = $"Renumber {sheets.Count} sheets?";
+            confirm.MainContent = report.ToString() +
+                "\n\nEach group will be numbered sequentially: XX-001, XX-002, etc.\n" +
+                "This action can be undone with Ctrl+Z.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            using (Transaction tx = new Transaction(doc, "STING Auto-Number Sheets"))
+            {
+                tx.Start();
+
+                // Phase 1: Temp names to avoid conflicts
+                int temp = 1;
+                foreach (var sheet in sheets)
+                {
+                    try
+                    {
+                        sheet.SheetNumber = $"_TEMP_{temp++:D4}";
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Sheet temp rename: {ex.Message}");
+                    }
+                }
+
+                // Phase 2: Assign final numbers by group (using materialized groups)
+                foreach (var group in groups)
+                {
+                    int seq = 1;
+                    foreach (var sheet in group.Sheets.OrderBy(s => s.Name))
+                    {
+                        string newNum = $"{group.Key}-{seq:D3}";
+                        try
+                        {
+                            sheet.SheetNumber = newNum;
+                            totalRenamed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Sheet renumber '{newNum}': {ex.Message}");
+                        }
+                        seq++;
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Auto-Number Sheets",
+                $"Renumbered {totalRenamed} of {sheets.Count} sheets.");
+            return Result.Succeeded;
+        }
+    }
+}

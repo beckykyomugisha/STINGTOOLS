@@ -1,18 +1,29 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
     /// <summary>
     /// Automatically applies ISO 19650 asset tags to all taggable elements in the active view.
-    /// Assembles: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ → ASS_TAG_1_TXT.
-    /// Uses TagConfig.BuildAndWriteTag for shared tag-building logic.
-    /// Continues sequence numbering from the highest existing numbers in the project.
+    /// Assembles: DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ -> ASS_TAG_1_TXT.
+    ///
+    /// Intelligence layers:
+    ///   1. Smart element ordering by Level -> Discipline -> Category
+    ///   2. Pre-flight taggable/tagged/untagged counts shown in collision mode dialog
+    ///   3. Full 9-token auto-population via TokenAutoPopulator (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV)
+    ///   4. MEP system-aware SYS derivation
+    ///   5. Phase-aware STATUS auto-detection from Revit phases/worksets
+    ///   6. REV auto-population from project revision sequence
+    ///   7. O(1) collision detection with mode selection
+    ///   8. Rich per-discipline/level/system reporting via TaggingStats
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -21,41 +32,485 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
-            View activeView = doc.ActiveView;
-
-            if (activeView == null)
+            try { return ExecuteCore(commandData, ref message, elements); }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
             {
-                TaskDialog.Show("Auto Tag", "No active view.");
+                StingLog.Error("AutoTagCommand crashed", ex);
+                try { TaskDialog.Show("STING Tools", $"Auto Tag failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
+        }
 
+        private Result ExecuteCore(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx.ActiveView == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc; Document doc = ctx.Doc;
+            View activeView = ctx.ActiveView;
+
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level
+            var catEnums = SharedParamGuids.AllCategoryEnums;
             var collector = new FilteredElementCollector(doc, activeView.Id)
                 .WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            var viewElements = collector.Cast<Element>();
 
-            int tagged = 0;
-            int skipped = 0;
-            var sequenceCounters = TagConfig.GetExistingSequenceCounters(doc);
+            // Intelligence Layer: detect relevant disciplines from view name/template/VG
+            var relevantDiscs = TagConfig.GetViewRelevantDisciplines(activeView);
+            string discFilterLabel = relevantDiscs != null
+                ? string.Join(", ", relevantDiscs.OrderBy(x => x))
+                : "ALL";
 
-            using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
+            // Pre-flight: count taggable, already-tagged, untagged
+            int taggable = 0, alreadyTagged = 0, filteredOut = 0;
+            int skippedWorkset = 0, skippedDemolished = 0;
+            var taggableElements = new List<Element>();
+            foreach (Element e in viewElements)
             {
-                tx.Start();
+                string cat = ParameterHelpers.GetCategoryName(e);
+                if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
 
-                foreach (Element el in collector)
+                // GAP-WS-01: Skip elements on worksets owned by other users
+                if (!TagPipelineHelper.IsEditableInWorksharing(doc, e))
+                { skippedWorkset++; continue; }
+
+                // GAP-PH-01: Skip demolished elements
+                if (TagPipelineHelper.IsDemolished(e))
+                { skippedDemolished++; continue; }
+
+                // Discipline-aware filtering: skip categories not relevant to this view
+                if (relevantDiscs != null)
                 {
-                    if (TagConfig.BuildAndWriteTag(doc, el, sequenceCounters))
-                        tagged++;
-                    else
-                        skipped++;
+                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string dd) ? dd : "A";
+                    if (!relevantDiscs.Contains(disc))
+                    {
+                        filteredOut++;
+                        continue;
+                    }
                 }
 
-                tx.Commit();
+                taggable++;
+                taggableElements.Add(e);
+                if (TagConfig.TagIsComplete(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
+                    alreadyTagged++;
             }
 
-            TaskDialog.Show("Auto Tag",
-                $"Tagged {tagged} elements in '{activeView.Name}'.\n" +
-                $"Skipped {skipped} (already tagged or unsupported category).");
+            if (taggable == 0)
+            {
+                var skipParts = new List<string>();
+                if (filteredOut > 0) skipParts.Add($"{filteredOut} by discipline filter [{discFilterLabel}]");
+                if (skippedWorkset > 0) skipParts.Add($"{skippedWorkset} on other users' worksets");
+                if (skippedDemolished > 0) skipParts.Add($"{skippedDemolished} demolished");
+                string filterMsg = skipParts.Count > 0
+                    ? $"\n(Skipped: {string.Join(", ", skipParts)})"
+                    : "";
+                TaskDialog.Show("Auto Tag", "No taggable elements in this view." + filterMsg);
+                return Result.Succeeded;
+            }
+
+            int untagged = taggable - alreadyTagged;
+
+            // Phase 66b: Count elements with placeholder tokens (GEN/XX/ZZ/0000)
+            // so user knows how many tags have placeholders when choosing collision mode.
+            // Note: TagIsComplete returns false for placeholders, so we count them separately
+            // from the main tagged count — they appear as "incomplete" but have 8 segments.
+            int withPlaceholders = 0;
+            foreach (var e in taggableElements)
+            {
+                string tag1 = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(tag1) && !TagConfig.TagIsComplete(tag1) && TagConfig.TagHasPlaceholders(tag1))
+                    withPlaceholders++;
+            }
+            int fullyResolved = alreadyTagged; // TagIsComplete already excludes placeholders
+
+            // Collision mode — auto-select via ExtraParam or show dialog
+            TagCollisionMode collisionMode = TagCollisionMode.Skip;
+            string presetMode = UI.StingCommandHandler.GetExtraParam("AutoTagMode");
+            if (!string.IsNullOrEmpty(presetMode))
+            {
+                // Auto-select without dialog when mode pre-set by dockable panel or workflow
+                collisionMode = presetMode.ToLowerInvariant() switch
+                {
+                    "overwrite" => TagCollisionMode.Overwrite,
+                    "increment" => TagCollisionMode.AutoIncrement,
+                    _ => TagCollisionMode.Skip,
+                };
+                StingLog.Info($"AutoTag: collision mode auto-selected from ExtraParam: {collisionMode}");
+            }
+            else if (alreadyTagged > 0)
+            {
+                string filtInfo = filteredOut > 0 ? $" ({filteredOut} skipped by [{discFilterLabel}] filter)" : "";
+                string placeholderInfo = withPlaceholders > 0
+                    ? $"\n{fullyResolved} fully resolved, {withPlaceholders} with placeholders (GEN/XX/ZZ)"
+                    : "";
+                var modeOptions = new List<UI.StingModePicker.ModeOption>
+                {
+                    new($"Skip existing — tag {untagged} new only",
+                        "Only tag untagged elements in this view", "skip", true),
+                    new($"Overwrite all {taggable}" + (withPlaceholders > 0 ? $" (incl. {withPlaceholders} placeholders)" : ""),
+                        "Re-derive and overwrite all tags including existing ones", "overwrite"),
+                    new("Auto-increment on collision",
+                        "Tag untagged; auto-increment SEQ if collision found", "increment"),
+                };
+                string modeResult = UI.StingModePicker.Show(
+                    "Auto Tag — Collision Mode",
+                    $"{taggable} taggable, {alreadyTagged} tagged, {untagged} new{filtInfo}{placeholderInfo}",
+                    modeOptions);
+
+                if (modeResult == null) return Result.Cancelled;
+                collisionMode = modeResult switch
+                {
+                    "overwrite" => TagCollisionMode.Overwrite,
+                    "increment" => TagCollisionMode.AutoIncrement,
+                    _ => TagCollisionMode.Skip,
+                };
+            }
+
+            // GAP-020: Pre-flight audit trail log
+            StingLog.Info($"AutoTag pre-flight: {taggable} taggable, {alreadyTagged} tagged, {untagged} new, mode={collisionMode}");
+
+            // Smart sort for contiguous SEQ assignment
+            var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
+
+            var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null || !popCtx.IsValid())
+            {
+                string diag = popCtx?.DiagnosticSummary ?? "Context build returned null (possible document corruption)";
+                StingLog.Error($"AutoTag: PopulationContext failed — {diag}");
+                TaskDialog.Show("Auto Tag",
+                    $"Failed to build population context.\n\nDiagnostics: {diag}\n\n" +
+                    "Check: rooms placed? Levels defined? Shared parameters bound?");
+                return Result.Failed;
+            }
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
+            var stats = new TaggingStats();
+
+            bool cancelled = false;
+            var progress = StingProgressDialog.Show("Auto Tag", taggable);
+
+            // GAP-03: Chunked 200-element transactions for partial-commit on cancellation.
+            // Previously, cancel rolled back ALL work. Now committed batches are preserved.
+            const int ChunkSize = 200;
+
+            try
+            {
+                for (int batchStart = 0; batchStart < sorted.Count; batchStart += ChunkSize)
+                {
+                    if (cancelled) break;
+
+                    int batchEnd = Math.Min(batchStart + ChunkSize, sorted.Count);
+                    int batchNum = (batchStart / ChunkSize) + 1;
+
+                    using (Transaction tx = new Transaction(doc, $"STING Auto Tag #{batchNum}"))
+                    {
+                        tx.Start();
+
+                        for (int idx = batchStart; idx < batchEnd; idx++)
+                        {
+                            Element el = sorted[idx];
+
+                            if (progress.IsCancelled)
+                            {
+                                StingLog.Info($"AutoTag: cancelled by user at {idx}/{taggable}");
+                                cancelled = true;
+                                break;
+                            }
+
+                            try
+                            {
+                                bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                                bool ow = (collisionMode == TagCollisionMode.Overwrite);
+                                bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                                    tagIndex, sequenceCounters, formulas, gridLines,
+                                    overwrite: ow, skipComplete: skipComplete,
+                                    collisionMode: collisionMode, stats: stats);
+                                if (!pipelineOk)
+                                    StingLog.Warn($"AutoTag: pipeline returned false for element {el?.Id}");
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Error($"AutoTag: failed on element {el?.Id}: {ex.Message}", ex);
+                                stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
+                            }
+
+                            progress.Increment($"Tagging element {idx + 1}/{taggable}");
+                        }
+
+                        if (cancelled)
+                            tx.RollBack();
+                        else
+                        {
+                            tx.Commit();
+                            TagConfig.SaveSeqSidecar(doc, sequenceCounters);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                progress.Close();
+            }
+            TagPipelineHelper.PostTagCleanup(doc, sequenceCounters, "AutoTag");
+            if (cancelled && stats.TotalTagged == 0)
+            {
+                TaskDialog.Show("Auto Tag", "Cancelled by user. No elements were tagged.");
+                return Result.Cancelled;
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Auto Tag — '{activeView.Name}'");
+            report.AppendLine(new string('=', 50));
+            if (cancelled)
+                report.AppendLine("  *** Cancelled — committed batches preserved ***");
+            report.AppendLine($"  Mode:       {collisionMode}");
+            report.AppendLine($"  Disciplines: {discFilterLabel}");
+            if (filteredOut > 0)
+                report.AppendLine($"  Filtered:   {filteredOut} (wrong discipline for view)");
+            report.AppendLine();
+
+            // PERF-02: Inline FUNC/PROD gap counting — accumulated during the tagging loop
+            // instead of re-scanning all elements post-commit. Uses stats.EmptyFuncCount/EmptyProdCount.
+            if (stats.TotalTagged > 0 && taggable > 0)
+            {
+                int pctFunc = stats.EmptyFuncCount * 100 / taggable;
+                int pctProd = stats.EmptyProdCount * 100 / taggable;
+                if (pctFunc > 10)
+                    report.AppendLine($"  WARNING: {stats.EmptyFuncCount} elements ({pctFunc}%) missing FUNC codes — run FamilyStagePopulate");
+                if (pctProd > 10)
+                    report.AppendLine($"  WARNING: {stats.EmptyProdCount} elements ({pctProd}%) missing PROD codes — run FamilyStagePopulate");
+            }
+
+            report.Append(stats.BuildReport());
+
+            TaskDialog td = new TaskDialog("Auto Tag");
+            td.MainInstruction = $"Tagged {stats.TotalTagged} of {taggable} elements in '{activeView.Name}'";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            StingLog.Info($"AutoTag: view='{activeView.Name}', tagged={stats.TotalTagged}, " +
+                $"skipped={stats.TotalSkipped}, collisions={stats.TotalCollisions}, " +
+                $"mode={collisionMode}");
+
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Tag only NEW (untagged) elements in the project. Unlike BatchTag which processes
+    /// all elements, this command pre-filters to only elements with empty ASS_TAG_1_TXT,
+    /// making it much faster for incremental tagging after adding new elements.
+    /// Auto-populates all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
+    /// via TokenAutoPopulator, then assigns SEQ and builds tags.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TagNewOnlyCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            // FIX-08: Scope selection — auto-select via ExtraParam or show dialog
+            string presetScope = UI.StingCommandHandler.GetExtraParam("TagNewScope");
+            bool viewScopeOnly;
+            string scopeLabel;
+            if (!string.IsNullOrEmpty(presetScope))
+            {
+                // Auto-select without dialog when scope pre-set by workflow or dockable panel
+                viewScopeOnly = !presetScope.Equals("project", StringComparison.OrdinalIgnoreCase);
+                scopeLabel = viewScopeOnly ? "Active View (auto)" : "Entire Project (auto)";
+                StingLog.Info($"TagNewOnly: scope auto-selected from ExtraParam: {scopeLabel}");
+            }
+            else
+            {
+                // Use scope auto-detection with session memory
+                string autoScope = TagConfig.AutoDetectScope(ctx.UIDoc);
+                if (autoScope == "selection" || autoScope == "active_view")
+                {
+                    viewScopeOnly = true;
+                    scopeLabel = "Active View";
+                }
+                else
+                {
+                    var scopeDlg = new TaskDialog("Tag New Only — Scope");
+                    scopeDlg.MainInstruction = "Select scope for tagging new elements";
+                    scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Active view only", "Tag untagged elements visible in the current view");
+                    scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Entire project", "Tag all untagged elements across the entire model");
+                    scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    scopeDlg.DefaultButton = TaskDialogResult.CommandLink1;
+                    var scopeResult = scopeDlg.Show();
+                    if (scopeResult == TaskDialogResult.Cancel) return Result.Cancelled;
+                    viewScopeOnly = (scopeResult == TaskDialogResult.CommandLink1);
+                    scopeLabel = viewScopeOnly ? "Active View" : "Entire Project";
+                    TagConfig.LastScope = viewScopeOnly ? "active_view" : "project";
+                }
+            }
+
+            // Pre-filter: only elements with empty ASS_TAG_1_TXT
+            // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            FilteredElementCollector tagNewCollector;
+            if (viewScopeOnly && doc.ActiveView != null)
+                tagNewCollector = new FilteredElementCollector(doc, doc.ActiveView.Id).WhereElementIsNotElementType();
+            else
+                tagNewCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                tagNewCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            int skippedWorkset = 0, skippedDemolished = 0;
+            var untagged = new List<Element>();
+            foreach (Element el in tagNewCollector)
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (string.IsNullOrEmpty(cat))
+                {
+                    StingLog.Warn($"TagNewOnly: skipping element {el?.Id} — null/empty category");
+                    continue;
+                }
+                if (!known.Contains(cat)) continue;
+
+                // GAP-WS-01: Skip elements on worksets owned by other users
+                if (!TagPipelineHelper.IsEditableInWorksharing(doc, el))
+                { skippedWorkset++; continue; }
+
+                // GAP-PH-01: Skip demolished elements
+                if (TagPipelineHelper.IsDemolished(el))
+                { skippedDemolished++; continue; }
+
+                string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(existingTag))
+                    untagged.Add(el);
+            }
+
+            if (untagged.Count == 0)
+            {
+                TaskDialog.Show("Tag New Only",
+                    "All taggable elements already have tags.\nNo new elements to tag.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog confirm = new TaskDialog("Tag New Only");
+            confirm.MainInstruction = $"Tag {untagged.Count} new elements?";
+            confirm.MainContent =
+                $"Scope: {scopeLabel}\n" +
+                $"Found {untagged.Count} taggable elements without tags.\n" +
+                "This will auto-populate tokens and assign tags to only these elements.\n" +
+                "Existing tags will not be modified.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            // Smart sort for contiguous SEQ
+            var sorted = BatchTagCommand.SmartSortElements(doc, untagged);
+
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null || !popCtx.IsValid())
+            {
+                string diag = popCtx?.DiagnosticSummary ?? "Context build returned null";
+                StingLog.Error($"TagNewOnly: PopulationContext failed — {diag}");
+                TaskDialog.Show("Tag New Only",
+                    $"Failed to build population context.\n\nDiagnostics: {diag}\n\n" +
+                    "Check: rooms placed? Levels defined? Shared parameters bound?");
+                return Result.Failed;
+            }
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
+            var stats = new TaggingStats();
+            var sw = Stopwatch.StartNew();
+
+            bool cancelled = false;
+
+            // CHUNK-01: Convert monolithic transaction to chunked 200-element batches
+            // with StingProgressDialog, matching AutoTagCommand pattern. On cancel,
+            // committed batches are preserved instead of losing all work.
+            const int ChunkSize = 200;
+            var progress = UI.StingProgressDialog.Show("Tag New Only", sorted.Count);
+            try
+            {
+                int batchNum = 0;
+                for (int batchStart = 0; batchStart < sorted.Count; batchStart += ChunkSize)
+                {
+                    if (cancelled) break;
+                    batchNum++;
+                    int batchEnd = Math.Min(batchStart + ChunkSize, sorted.Count);
+                    using (Transaction tx = new Transaction(doc, $"STING Tag New Only #{batchNum}"))
+                    {
+                        tx.Start();
+                        for (int i = batchStart; i < batchEnd; i++)
+                        {
+                            Element el = sorted[i];
+                            try
+                            {
+                                bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                                    tagIndex, seqCounters, formulas, gridLines,
+                                    overwrite: false, skipComplete: true,
+                                    collisionMode: TagCollisionMode.Skip, stats: stats);
+                                if (!pipelineOk)
+                                    StingLog.Warn($"TagNewOnly: pipeline returned false for element {el?.Id}");
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Error($"TagNewOnly: failed on element {el?.Id}: {ex.Message}", ex);
+                                stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
+                            }
+                            progress.Increment($"Tagging {i + 1} of {sorted.Count}");
+                            if (progress.IsCancelled)
+                            {
+                                cancelled = true;
+                                tx.RollBack();
+                                StingLog.Info($"TagNewOnly: cancelled at batch #{batchNum}, element {i + 1}/{sorted.Count}");
+                                break;
+                            }
+                        }
+                        if (!cancelled) tx.Commit();
+                    }
+                }
+            }
+            finally
+            {
+                progress.Close();
+            }
+            sw.Stop();
+            if (cancelled)
+            {
+                // Committed batches preserved; show partial result
+                TaskDialog.Show("Tag New Only",
+                    $"Cancelled by user after {stats.TotalTagged} elements tagged.\n" +
+                    "Committed batches preserved.");
+                TagPipelineHelper.PostTagCleanup(doc, seqCounters, "TagNewOnly");
+                return Result.Cancelled;
+            }
+            TagPipelineHelper.PostTagCleanup(doc, seqCounters, "TagNewOnly");
+
+            var report = new StringBuilder();
+            report.AppendLine($"Tag New Only — {untagged.Count} elements");
+            report.AppendLine(new string('=', 50));
+            report.AppendLine($"  Duration:  {sw.Elapsed.TotalSeconds:F1}s");
+            report.AppendLine();
+            report.Append(stats.BuildReport());
+
+            TaskDialog td = new TaskDialog("Tag New Only");
+            td.MainInstruction = $"Tagged {stats.TotalTagged} new elements";
+            td.MainContent = report.ToString();
+            td.Show();
+
+            StingLog.Info($"TagNewOnly: tagged={stats.TotalTagged}, " +
+                $"collisions={stats.TotalCollisions}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;
         }

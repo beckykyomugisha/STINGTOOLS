@@ -1,0 +1,1059 @@
+STING TAG FAMILY — EDIT LABEL CONFIGURATION GUIDE
+Generated: 2026-03-09 22:43
+================================================================================
+
+HOW TO USE THIS GUIDE:
+  1. Open each STING tag family in the Family Editor
+  2. Select the Label text element
+  3. Click 'Edit Label' in Properties
+  4. Add parameters listed below for each tier
+  5. Set Prefix, Suffix, Spaces, Break as specified
+  6. For Tier 2/3: use Calculated Values (fv button) with
+     visibility gate formulas shown below each tier
+  7. Set 'Wrap between parameters only' = checked
+
+VISIBILITY CONTROL:
+  TAG_PARA_STATE_1_BOOL = Compact (always ON)
+  TAG_PARA_STATE_2_BOOL = Standard (ON for Technical/Presentation/BOQ)
+  TAG_PARA_STATE_3_BOOL = Comprehensive (ON for Full Specification)
+  TAG_WARN_VISIBLE_BOOL = Warnings (ON for Technical/Full Specification)
+
+================================================================================
+
+═══ Air Terminals ═══
+  Family: STING - Air Terminal Tag
+  Paragraph: HVC_TAG_7_PARA_AT_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ASS_DESCRIPTION_TXT  | ""        | ""        | 0   | YES
+  HVC_DCT_FLW_CFM      | "Flow: "  | " CFM"    | 0   | 
+  HVC_VEL_MPS          | " | "     | " m/s"    | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  HVC_TAG_7_PARA_AT... | ""        | ""        | 0   | YES
+
+═══ Cable Tray Fittings ═══
+  Family: STING - Cable Tray Fitting Tag
+  Paragraph: ELC_TAG_7_PARA_TRAY_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_CTR_MAT_TXT      | ""        | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_TAG_7_PARA_TR... | ""        | ""        | 0   | YES
+
+═══ Cable Trays ═══
+  Family: STING - Cable Tray Tag
+  Paragraph: ELC_TAG_7_PARA_TRAY_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_CTR_MAT_TXT      | ""        | ""        | 0   | 
+  MNT_HGT_MM           | " | Ht: " | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_TAG_7_PARA_TR... | ""        | ""        | 0   | YES
+
+═══ Casework ═══
+  Family: STING - Casework Tag
+  Paragraph: 
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ASS_DESCRIPTION_TXT  | ""        | ""        | 0   | YES
+  ASS_MANUFACTURER_TXT | "Mfr: "   | ""        | 0   | 
+  ASS_MODEL_NR_TXT     | " | "     | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  (none)
+
+═══ Ceilings ═══
+  Family: STING - Ceiling Tag
+  Paragraph: ARCH_TAG_7_PARA_CEIL_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  BLE_CEILING_SYSTE... | ""        | ""        | 0   | 
+  BLE_CEILING_HEIGH... | "["       | " mm]"    | 1   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_CEILING_SYSTE... | ""        | ""        | 0   | 
+  BLE_CEIL_GRID_MM     | " | Grid: "| " mm"     | 0   | YES
+  PER_THERM_U_VALUE... | "U="      | " W/m²K"  | 0   | 
+  FLS_PROT_FLS_RESI... | " | FRR: "| " min"    | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ARCH_TAG_7_PARA_C... | ""        | ""        | 0   | YES
+
+═══ Communication Devices ═══
+  Family: STING - Communication Device Tag
+  Paragraph: COM_TAG_7_PARA_BMS_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  COM_C_PROTOCOL_TXT   | ""        | ""        | 0   | 
+  COM_C_NETWORK_ADD... | " | "     | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  COM_TAG_7_PARA_BM... | ""        | ""        | 0   | YES
+
+═══ Conduit Fittings ═══
+  Family: STING - Conduit Fitting Tag
+  Paragraph: ELC_TAG_7_PARA_CONDUIT_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_CDT_SZ_MM        | "Conduit: "| " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_TAG_7_PARA_CO... | ""        | ""        | 0   | YES
+
+═══ Conduits ═══
+  Family: STING - Conduit Tag
+  Paragraph: ELC_TAG_7_PARA_CONDUIT_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ELC_CDT_SZ_MM        | "Conduit: "| " mm"     | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_CKT_NR           | "Ckt: "   | ""        | 0   | 
+  ELC_CDT_MAT_TXT      | " | "     | ""        | 0   | YES
+  ELC_CBL_SOURCE_TXT   | "From: "  | ""        | 0   | 
+  ELC_CBL_DEST_TXT     | " → "     | ""        | 0   | YES
+  ELC_CBL_INSTALL_M... | "Install: "| ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_TAG_7_PARA_CO... | ""        | ""        | 0   | YES
+
+═══ Data Devices ═══
+  Family: STING - Data Device Tag
+  Paragraph: ICT_TAG_7_PARA_DATA_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ICT_OUTLET_TYPE_TXT  | ""        | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ICT_TAG_7_PARA_DA... | ""        | ""        | 0   | YES
+
+═══ Doors ═══
+  Family: STING - Door Tag
+  Paragraph: ARCH_TAG_7_PARA_DOOR_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  BLE_DOOR_WIDTH_MM    | ""        | ""        | 0   | 
+  BLE_DOOR_HEIGHT_MM   | " x "     | " mm"     | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_DOOR_OPERATIO... | ""        | ""        | 0   | 
+  BLE_DOOR_MAT_TXT     | " | "     | ""        | 0   | YES
+  FLS_PROT_FLS_RESI... | "FRR: "   | " min"    | 0   | 
+  BLE_DOOR_HARDWARE... | " | "     | ""        | 0   | YES
+  BLE_DOOR_FRAME_MA... | "Frame: " | ""        | 0   | 
+  BLE_DOOR_GLAZING_... | " | Glazing: "| ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ARCH_TAG_7_PARA_D... | ""        | ""        | 0   | YES
+
+═══ Duct Accessories ═══
+  Family: STING - Duct Accessory Tag
+  Paragraph: HVC_TAG_7_PARA_DCTACC_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ASS_DESCRIPTION_TXT  | ""        | ""        | 0   | 
+  HVC_DCT_PROPERTY_TXT | " | "     | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  HVC_TAG_7_PARA_DC... | ""        | ""        | 0   | YES
+
+═══ Duct Fittings ═══
+  Family: STING - Duct Fitting Tag
+  Paragraph: HVC_TAG_7_PARA_DCTACC_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  HVC_DCT_PROPERTY_TXT | ""        | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  HVC_TAG_7_PARA_DC... | ""        | ""        | 0   | YES
+
+═══ Ducts ═══
+  Family: STING - Duct Tag
+  Paragraph: HVC_TAG_7_PARA_DUCT_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  HVC_DCT_PROPERTY_TXT | "["       | "]"       | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  HVC_DCT_FLW_CFM      | "Flow: "  | " CFM"    | 0   | 
+  HVC_VEL_MPS          | " | "     | " m/s"    | 0   | 
+  HVC_PIPE_PRESSURE... | " | "     | " kPa"    | 0   | YES
+  HVC_DCT_MAT_TXT      | "Mat: "   | ""        | 0   | 
+  HVC_INSULATION_TXT   | " | Insul: "| ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  HVC_TAG_7_PARA_DU... | ""        | ""        | 0   | YES
+
+═══ Electrical Equipment ═══
+  Family: STING - Electrical Equipment Tag
+  Paragraph: ELC_TAG_7_PARA_PANEL_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ELC_PNL_DESIGNATI... | "Panel: " | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_PNL_VLT_V        | ""        | " V"      | 0   | 
+  ELC_PNL_PHS_COUNT_NR | " | "     | " Ph"     | 0   | 
+  ELC_PNL_NUM_OF_WA... | " | "     | " Ways"   | 0   | YES
+  ELC_PNL_RATED_KW     | "Rated: " | " kW"     | 0   | 
+  ELC_PNL_CONNECTED... | " | Load: "| " kW"     | 0   | YES
+  ELC_PNL_MAIN_BRK_A   | "MCB: "   | " A"      | 0   | 
+  ELC_PNL_SPARE_WAY... | " | Spare: "| ""        | 0   | YES
+  ELC_VLT_DROP_PCT     | "VD: "    | "%"       | 0   | 
+  ELC_PNL_SHORT_CIR... | " | Fault: "| " kA"     | 0   | YES
+  ELC_CBL_FEEDER_SZ... | "Feeder: "| " mm²"    | 0   | 
+  ELC_PNL_IP_RATING... | " | "     | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_TAG_7_PARA_PA... | ""        | ""        | 0   | YES
+
+═══ Electrical Fixtures ═══
+  Family: STING - Electrical Fixture Tag
+  Paragraph: ELC_TAG_7_PARA_CIRCUIT_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_PWR_KW           | "Power: " | " kW"     | 0   | 
+  ELC_VLT_PRIMARY_R... | " | "     | " V"      | 0   | YES
+  ELC_CKT_NR           | "Ckt: "   | ""        | 0   | 
+  ELC_PNL_DESIGNATI... | " | "     | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_TAG_7_PARA_CI... | ""        | ""        | 0   | YES
+
+═══ Fire Alarm Devices ═══
+  Family: STING - Fire Alarm Device Tag
+  Paragraph: FLS_TAG_7_PARA_FA_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  FLS_SFTY_DEV_TYPE... | ""        | ""        | 0   | 
+  FLS_SFTY_DEV_ZONE... | " | "     | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  FLS_TAG_7_PARA_FA... | ""        | ""        | 0   | YES
+
+═══ Flex Ducts ═══
+  Family: STING - Flex Duct Tag
+  Paragraph: HVC_TAG_7_PARA_FLEXDUCT_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  HVC_DCT_FLW_CFM      | "Flow: "  | " CFM"    | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  HVC_TAG_7_PARA_FL... | ""        | ""        | 0   | YES
+
+═══ Flex Pipes ═══
+  Family: STING - Flex Pipe Tag
+  Paragraph: PLM_TAG_7_PARA_PIPE_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  PLM_PPE_SZ_MM        | "DN"      | ""        | 0   | 
+  PLM_PPE_MAT_TXT      | " | "     | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  PLM_TAG_7_PARA_PI... | ""        | ""        | 0   | YES
+
+═══ Floors ═══
+  Family: STING - Floor Tag
+  Paragraph: ARCH_TAG_7_PARA_FLOOR_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  BLE_FLR_THICKNESS_MM | "["       | " mm]"    | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_FLR_TYPE_TXT     | ""        | ""        | 0   | 
+  BLE_FLR_FINISH_TXT   | " | "     | ""        | 0   | YES
+  BLE_FLR_LD_CAP_KPA   | "Load: "  | " kPa"    | 0   | 
+  PER_THERM_U_VALUE... | " | "     | " W/m²K"  | 0   | YES
+  FLS_PROT_FLS_RESI... | "FRR: "   | " min"    | 0   | 
+  PER_SUST_RECYCLED... | " | Recycled: "| "%"       | 0   | 
+  PER_SUST_CARBON_F... | " | CO₂: "| " kg"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ARCH_TAG_7_PARA_F... | ""        | ""        | 0   | YES
+
+═══ Furniture ═══
+  Family: STING - Furniture Tag
+  Paragraph: 
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ASS_DESCRIPTION_TXT  | ""        | ""        | 0   | YES
+  ASS_MANUFACTURER_TXT | "Mfr: "   | ""        | 0   | 
+  ASS_MODEL_NR_TXT     | " | "     | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  (none)
+
+═══ Generic Models ═══
+  Family: STING - Generic Model Tag
+  Paragraph: ASS_TAG_7_PARA_EQUIPMENT_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ASS_DESCRIPTION_TXT  | ""        | ""        | 0   | YES
+  ASS_MANUFACTURER_TXT | "Mfr: "   | ""        | 0   | 
+  ASS_MODEL_NR_TXT     | " | "     | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ASS_TAG_7_PARA_EQ... | ""        | ""        | 0   | YES
+
+═══ Lighting Devices ═══
+  Family: STING - Lighting Device Tag
+  Paragraph: ELC_TAG_7_PARA_CIRCUIT_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_CKT_NR           | "Ckt: "   | ""        | 0   | 
+  ELC_PNL_DESIGNATI... | " | "     | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_TAG_7_PARA_CI... | ""        | ""        | 0   | YES
+
+═══ Lighting Fixtures ═══
+  Family: STING - Lighting Fixture Tag
+  Paragraph: ELC_TAG_7_PARA_CIRCUIT_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  LTG_FIX_TYPE_CLAS... | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  LTG_FIX_LMP_WATTA... | ""        | " W"      | 0   | 
+  CST_FIX_LUMEN_OUT... | " | "     | " lm"     | 0   | 
+  LTG_CLR_TEMP_K       | " | "     | " K"      | 0   | YES
+  LTG_EFFICACY_LM_W    | "Eff: "   | " lm/W"   | 0   | 
+  ELC_CKT_NR           | " | Ckt: "| ""        | 0   | YES
+  ASS_MANUFACTURER_TXT | "Mfr: "   | ""        | 0   | 
+  ASS_MODEL_NR_TXT     | " | "     | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ELC_TAG_7_PARA_CI... | ""        | ""        | 0   | YES
+
+═══ Mechanical Equipment ═══
+  Family: STING - Mechanical Equipment Tag
+  Paragraph: HVC_TAG_7_PARA_SPEC_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ASS_DESCRIPTION_TXT  | ""        | ""        | 0   | YES
+  HVC_CAP_KW           | "Cooling: "| " kW"     | 0   | 
+  HVC_PWR_KW           | " / "     | " kW"     | 0   | 
+  HVC_DCT_FLW_CFM      | " | "     | " CFM"    | 0   | YES
+  HVC_REFRIGERANT_TXT  | "Ref: "   | ""        | 0   | 
+  HVC_EFF_RATIO_NR     | " | EER: "| ""        | 0   | YES
+  HVC_BMS_CONTROL_T... | "BMS: "   | ""        | 0   | 
+  MNT_HGT_MM           | " | Ht: " | " mm"     | 0   | YES
+  ASS_MANUFACTURER_TXT | "Mfr: "   | ""        | 0   | 
+  ASS_MODEL_NR_TXT     | " | "     | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  HVC_TAG_7_PARA_SP... | ""        | ""        | 0   | YES
+
+═══ Nurse Call Devices ═══
+  Family: STING - Nurse Call Device Tag
+  Paragraph: NCL_TAG_7_PARA_NURSECALL_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  NCL_ZONE_TXT         | "Zone: "  | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  NCL_TAG_7_PARA_NU... | ""        | ""        | 0   | YES
+
+═══ Pipe Accessories ═══
+  Family: STING - Pipe Accessory Tag
+  Paragraph: PLM_TAG_7_PARA_PIPEACC_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  PLM_PPE_SZ_MM        | "DN"      | ""        | 0   | 
+  ASS_DESCRIPTION_TXT  | " | "     | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  PLM_TAG_7_PARA_PI... | ""        | ""        | 0   | YES
+
+═══ Pipe Fittings ═══
+  Family: STING - Pipe Fitting Tag
+  Paragraph: PLM_TAG_7_PARA_PIPEACC_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  PLM_PPE_SZ_MM        | "DN"      | ""        | 0   | 
+  PLM_PPE_MAT_TXT      | " | "     | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  PLM_TAG_7_PARA_PI... | ""        | ""        | 0   | YES
+
+═══ Pipes ═══
+  Family: STING - Pipe Tag
+  Paragraph: PLM_TAG_7_PARA_PIPE_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  PLM_PPE_SZ_MM        | "DN"      | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  PLM_PPE_FLW_LPS      | "Flow: "  | " L/s"    | 0   | 
+  PLM_VEL_MPS          | " | "     | " m/s"    | 0   | 
+  PLM_PSR_KPA          | " | "     | " kPa"    | 0   | YES
+  PLM_PPE_MAT_TXT      | "Mat: "   | ""        | 0   | 
+  PLM_INSULATION_TXT   | " | Insul: "| ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  PLM_TAG_7_PARA_PI... | ""        | ""        | 0   | YES
+
+═══ Plumbing Fixtures ═══
+  Family: STING - Plumbing Fixture Tag
+  Paragraph: PLM_TAG_7_PARA_FIXTURE_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  PLM_PPE_SZ_MM        | "DN"      | ""        | 0   | 
+  PLM_PPE_FLW_LPS      | " | "     | " L/s"    | 0   | YES
+  ASS_MANUFACTURER_TXT | "Mfr: "   | ""        | 0   | 
+  ASS_MODEL_NR_TXT     | " | "     | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  PLM_TAG_7_PARA_FI... | ""        | ""        | 0   | YES
+
+═══ Ramps ═══
+  Family: STING - Ramp Tag
+  Paragraph: ARCH_TAG_7_PARA_RAMP_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_RAMP_SLOPE_PCT   | "Slope: " | ""        | 0   | 
+  BLE_RAMP_WIDTH_MM    | " | Width: "| " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ARCH_TAG_7_PARA_R... | ""        | ""        | 0   | YES
+
+═══ Roofs ═══
+  Family: STING - Roof Tag
+  Paragraph: ARCH_TAG_7_PARA_ROOF_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  BLE_ROOF_COVERING... | ""        | ""        | 0   | 
+  BLE_ROOF_SLOPE_DEG   | "Slope: " | "°"       | 1   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_ROOF_PRIMARY_... | ""        | ""        | 0   | 
+  BLE_ROOF_SLOPE_DEG   | " | "     | "°"       | 0   | YES
+  PER_THERM_U_VALUE... | "U="      | " W/m²K"  | 0   | 
+  FLS_PROT_FLS_RESI... | " | FRR: "| " min"    | 0   | YES
+  PER_SUST_RECYCLED... | "Recycled: "| "%"       | 0   | 
+  PER_SUST_CARBON_F... | " | CO₂: "| " kg"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ARCH_TAG_7_PARA_R... | ""        | ""        | 0   | YES
+
+═══ Rooms ═══
+  Family: STING - Room Tag
+  Paragraph: 
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ASS_DESCRIPTION_TXT  | ""        | ""        | 0   | YES
+  ASS_LVL_COD_TXT      | "Level: " | ""        | 0   | 
+  ASS_LOC_TXT          | " | Loc: "| ""        | 0   | 
+  ASS_ZONE_TXT         | " | Zone: "| ""        | 0   | YES
+  AREA_SQ_M            | "Area: "  | " m²"     | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  (none)
+
+═══ Security Devices ═══
+  Family: STING - Security Device Tag
+  Paragraph: SEC_TAG_7_PARA_SECURITY_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  SEC_DEV_ZONE_TXT     | "Zone: "  | ""        | 0   | 
+  ASS_DESCRIPTION_TXT  | " | "     | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  SEC_TAG_7_PARA_SE... | ""        | ""        | 0   | YES
+
+═══ Specialty Equipment ═══
+  Family: STING - Specialty Equipment Tag
+  Paragraph: ASS_TAG_7_PARA_EQUIPMENT_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ASS_DESCRIPTION_TXT  | ""        | ""        | 0   | YES
+  ASS_MANUFACTURER_TXT | "Mfr: "   | ""        | 0   | 
+  ASS_MODEL_NR_TXT     | " | "     | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ASS_TAG_7_PARA_EQ... | ""        | ""        | 0   | YES
+
+═══ Sprinklers ═══
+  Family: STING - Sprinkler Tag
+  Paragraph: FLS_TAG_7_PARA_SPR_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  FLS_SFTY_COVERAGE... | "Coverage: "| " m²"     | 0   | 
+  FLS_SFTY_K_FACTOR_NR | " | K="   | ""        | 0   | YES
+  MNT_HGT_MM           | "Ht: "    | " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  FLS_TAG_7_PARA_SP... | ""        | ""        | 0   | YES
+
+═══ Stairs ═══
+  Family: STING - Stair Tag
+  Paragraph: ARCH_TAG_7_PARA_STAIR_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_STAIR_RISE_MM    | "Rise: "  | " mm"     | 0   | 
+  BLE_STAIR_GOING_MM   | " / "     | " mm"     | 0   | 
+  BLE_STAIR_WIDTH_MM   | " | Width: "| " mm"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ARCH_TAG_7_PARA_S... | ""        | ""        | 0   | YES
+
+═══ Structural Columns ═══
+  Family: STING - Structural Column Tag
+  Paragraph: STR_TAG_7_PARA_COL_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_STRUCT_COLUMN... | ""        | ""        | 0   | 
+  BLE_STRUCT_MAT_TXT   | " | "     | ""        | 0   | YES
+  BLE_STRUCT_CONCRE... | "Grade: " | ""        | 0   | 
+  BLE_STRUCT_LD_CAP... | " | "     | " kN"     | 0   | YES
+  BLE_STRUCT_REINFO... | "Rebar: " | ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  STR_TAG_7_PARA_CO... | ""        | ""        | 0   | YES
+
+═══ Structural Foundations ═══
+  Family: STING - Structural Foundation Tag
+  Paragraph: STR_TAG_7_PARA_FDN_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_STRUCT_FOUNDA... | ""        | ""        | 0   | 
+  BLE_STRUCT_FOUNDA... | " | "     | ""        | 0   | YES
+  BLE_STRUCT_FOUNDA... | "Depth: " | " mm"     | 0   | 
+  BLE_STRUCT_CONCRE... | " | "     | ""        | 0   | YES
+  BLE_STRUCT_LD_CAP... | "Capacity: "| " kN"     | 0   | 
+  BLE_STRUCT_REINFO... | " | Rebar: "| ""        | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  STR_TAG_7_PARA_FD... | ""        | ""        | 0   | YES
+
+═══ Structural Framing ═══
+  Family: STING - Structural Framing Tag
+  Paragraph: STR_TAG_7_PARA_BEAM_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_STRUCT_BEAM_S... | ""        | ""        | 0   | 
+  BLE_STRUCT_MAT_TXT   | " | "     | ""        | 0   | YES
+  BLE_STRUCT_CONCRE... | "Grade: " | ""        | 0   | 
+  BLE_STRUCT_REINFO... | " | "     | ""        | 0   | YES
+  BLE_STRUCT_LD_CAP... | "Capacity: "| " kN"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  STR_TAG_7_PARA_BE... | ""        | ""        | 0   | YES
+
+═══ Walls ═══
+  Family: STING - Wall Tag
+  Paragraph: ARCH_TAG_7_PARA_WALL_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  BLE_WALL_FUNCTION... | ""        | ""        | 0   | 
+  BLE_WALL_THICKNES... | "["       | " mm]"    | 1   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_WALL_FUNCTION... | ""        | ""        | 0   | 
+  BLE_WALL_TYPE_CLA... | " | "     | ""        | 0   | YES
+  BLE_WALL_PRIMARY_... | "Material: "| ""        | 0   | 
+  BLE_WALL_CST_METH... | " | "     | ""        | 0   | YES
+  PER_THERM_U_VALUE... | "U="      | " W/m²K"  | 0   | 
+  PER_THERM_R_VALUE... | " | R="   | " m²K/W"  | 0   | 
+  PER_THERM_CONDENS... | " | "     | ""        | 0   | YES
+  FLS_PROT_FLS_RESI... | "FRR: "   | " min"    | 0   | 
+  BLE_WALL_SOUND_TR... | " | STC: "| " dB"     | 0   | YES
+  BLE_WALL_INTERIOR... | "Int: "   | ""        | 0   | 
+  BLE_WALL_EXTERIOR... | " | Ext: "| ""        | 0   | 
+  BLE_WALL_MOISTURE... | " | Moisture: "| ""        | 0   | YES
+  PER_SUST_RECYCLED... | "Recycled: "| "%"       | 0   | 
+  PER_SUST_CARBON_F... | " | CO₂: "| " kg"     | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ARCH_TAG_7_PARA_W... | ""        | ""        | 0   | YES
+
+═══ Windows ═══
+  Family: STING - Window Tag
+  Paragraph: ARCH_TAG_7_PARA_WIN_TXT
+
+  ── TIER 1 (Always Visible) ──
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_1_TXT        | ""        | ""        | 0   | YES
+  BLE_WINDOW_WIDTH_MM  | ""        | ""        | 0   | 
+  BLE_WINDOW_HEIGHT_MM | " x "     | " mm"     | 0   | YES
+  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  BLE_WINDOW_FRAME_... | "Frame: " | ""        | 0   | 
+  BLE_WINDOW_GLAZIN... | " | "     | ""        | 0   | YES
+  BLE_WINDOW_U_VALU... | "U="      | " W/m²K"  | 0   | YES
+  RGL_STD_TXT          | "Std: "   | ""        | 0   | YES
+  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──
+  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, "")
+  Parameter            | Prefix      | Suffix      | Spc | Brk
+  ----------------------------------------------------------------------
+  ASS_TAG_2_TXT        | ""        | ""        | 0   | YES
+  ARCH_TAG_7_PARA_W... | ""        | ""        | 0   | YES
+

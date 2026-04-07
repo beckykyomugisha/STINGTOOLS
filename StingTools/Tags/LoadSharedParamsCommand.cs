@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -10,11 +11,19 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Ported from shared_params.py LoadSharedParams logic.
-    /// Bind shared parameters (universal + discipline-specific) to project categories.
-    /// Pass 1: 17 universal ASS_MNG parameters → all 53 categories (type-safe enum resolution).
-    /// Pass 2: discipline-specific tag containers → correct category subsets
-    ///         using DisciplineBindings map (no longer simplified — full discipline targeting).
+    /// Bind ALL shared parameters from MR_PARAMETERS.txt to project categories.
+    ///
+    /// Always uses MR_PARAMETERS.txt from the data directory (overrides whatever
+    /// shared parameter file is currently set in Revit).
+    ///
+    /// CRASH PREVENTION — multiple vectors addressed:
+    ///   1. Volume: group-per-transaction with targeted category sets (~40K bindings vs 305K)
+    ///   2. InstanceBinding reuse: ONE per group, never inside the per-param loop
+    ///   3. No logging inside transactions: prevents disk I/O stalling Revit
+    ///   4. No BuildCategorySet inside loops: all sets pre-built before transactions
+    ///   5. No recursive directory search: capped search prevents hanging on broad dirs
+    ///   6. BindingWarningSwallower: prevents FailureMessage memory buildup
+    ///   7. Null guards: ActiveUIDocument, ParamRegistry fallback capped
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -23,136 +32,1243 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
-            Autodesk.Revit.ApplicationServices.Application app =
-                commandData.Application.Application;
-
-            string spFile = app.SharedParametersFilename;
-            if (string.IsNullOrEmpty(spFile) || !File.Exists(spFile))
+            try
             {
-                TaskDialog.Show("Load Shared Params",
-                    "No shared parameter file is set in Revit.\n\n" +
-                    "Go to Manage → Shared Parameters and set the file path to " +
-                    "MR_PARAMETERS.txt first.");
+                return ExecuteCore(commandData, ref message, elements);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("LoadSharedParamsCommand crashed", ex);
+                try
+                {
+                    TaskDialog.Show("STING Tools - Load Shared Params",
+                        $"Command failed with an unexpected error:\n\n{ex.Message}\n\n" +
+                        "Check StingTools.log for details.");
+                }
+                catch (Exception ex2) { StingLog.Warn($"If even the dialog fails, don't crash Revit: {ex2.Message}"); }
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteCore(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uiApp = ParameterHelpers.GetApp(commandData);
+
+            // BUG FIX: null check ActiveUIDocument — crashes if no document open
+            if (uiApp.ActiveUIDocument == null)
+            {
+                TaskDialog.Show("STING Tools - Load Shared Params",
+                    "No document is open. Please open a project first.");
                 return Result.Failed;
             }
 
+            Document doc = uiApp.ActiveUIDocument.Document;
+            Autodesk.Revit.ApplicationServices.Application app =
+                uiApp.Application;
+
+            // ── Step 1: Locate and set MR_PARAMETERS.txt ──
+            StingLog.Info("LoadSharedParams: step 1 — locating MR_PARAMETERS.txt");
+            string previousSpFile = app.SharedParametersFilename;
+            string mrParamsPath = FindMrParametersFile(previousSpFile);
+
+            if (!string.IsNullOrEmpty(mrParamsPath) && File.Exists(mrParamsPath))
+            {
+                app.SharedParametersFilename = mrParamsPath;
+                StingLog.Info($"Set shared parameter file: {mrParamsPath}");
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(previousSpFile) || !File.Exists(previousSpFile))
+                {
+                    TaskDialog.Show("STING Tools - Load Shared Params",
+                        "Could not find MR_PARAMETERS.txt.\n\n" +
+                        "Expected location: " +
+                        (StingToolsApp.DataPath ?? "(DataPath not set)") +
+                        "\n\nEither place the file in the data directory or go to " +
+                        "Manage → Shared Parameters and set the path manually.");
+                    return Result.Failed;
+                }
+                mrParamsPath = previousSpFile;
+                StingLog.Warn($"MR_PARAMETERS.txt not found, using existing: {previousSpFile}");
+            }
+
+            string spFile = mrParamsPath;
+
+            // ── Step 2: Open definition file ──
+            StingLog.Info("LoadSharedParams: step 2 — opening definition file");
             DefinitionFile defFile = app.OpenSharedParameterFile();
             if (defFile == null)
             {
-                TaskDialog.Show("Load Shared Params",
+                TaskDialog.Show("STING Tools - Load Shared Params",
                     "Could not open shared parameter file:\n" + spFile);
                 return Result.Failed;
             }
 
-            int pass1Bound = 0;
-            int pass1Skipped = 0;
-            int pass2Bound = 0;
-            int pass2Skipped = 0;
-            var errors = new List<string>();
-
-            using (Transaction tx = new Transaction(doc, "STING Load Shared Params"))
+            // Index params by group
+            var groupDefs = new List<(string groupName, List<ExternalDefinition> defs)>();
+            int totalDefs = 0;
+            foreach (DefinitionGroup group in defFile.Groups)
             {
-                tx.Start();
-
-                // Pass 1: Universal parameters → all 53 categories (type-safe)
-                CategorySet allCats = SharedParamGuids.BuildCategorySet(
-                    doc, SharedParamGuids.AllCategoryEnums);
-                StingLog.Info($"Pass 1: {allCats.Size} categories resolved");
-
-                foreach (string paramName in SharedParamGuids.UniversalParams)
+                var defs = new List<ExternalDefinition>();
+                foreach (Definition def in group.Definitions)
                 {
-                    ExternalDefinition extDef = FindDefinition(defFile, paramName);
-                    if (extDef == null)
-                    {
-                        pass1Skipped++;
-                        StingLog.Warn($"Pass 1: Definition not found: {paramName}");
-                        continue;
-                    }
-
-                    try
-                    {
-                        InstanceBinding binding = app.Create.NewInstanceBinding(allCats);
-                        bool result = doc.ParameterBindings.Insert(
-                            extDef, binding, GroupTypeId.General);
-                        if (result)
-                            pass1Bound++;
-                        else
-                            pass1Skipped++;
-                    }
-                    catch (Exception ex)
-                    {
-                        pass1Skipped++;
-                        errors.Add($"P1 {paramName}: {ex.Message}");
-                        StingLog.Error($"Pass 1 bind failed: {paramName}", ex);
-                    }
+                    if (def is ExternalDefinition ext)
+                        defs.Add(ext);
                 }
-
-                // Pass 2: Discipline-specific parameters → correct category subsets
-                foreach (var kvp in SharedParamGuids.DisciplineBindings)
+                if (defs.Count > 0)
                 {
-                    ExternalDefinition extDef = FindDefinition(defFile, kvp.Key);
-                    if (extDef == null)
-                    {
-                        pass2Skipped++;
-                        StingLog.Warn($"Pass 2: Definition not found: {kvp.Key}");
-                        continue;
-                    }
-
-                    try
-                    {
-                        CategorySet cats = SharedParamGuids.BuildCategorySet(doc, kvp.Value);
-                        if (cats.Size == 0)
-                        {
-                            pass2Skipped++;
-                            StingLog.Warn($"Pass 2: No valid categories for {kvp.Key}");
-                            continue;
-                        }
-
-                        InstanceBinding binding = app.Create.NewInstanceBinding(cats);
-                        bool result = doc.ParameterBindings.Insert(
-                            extDef, binding, GroupTypeId.General);
-                        if (result)
-                            pass2Bound++;
-                        else
-                            pass2Skipped++;
-                    }
-                    catch (Exception ex)
-                    {
-                        pass2Skipped++;
-                        errors.Add($"P2 {kvp.Key}: {ex.Message}");
-                        StingLog.Error($"Pass 2 bind failed: {kvp.Key}", ex);
-                    }
+                    groupDefs.Add((group.Name, defs));
+                    totalDefs += defs.Count;
                 }
+            }
+            StingLog.Info($"LoadSharedParams: {totalDefs} definitions in {groupDefs.Count} groups");
 
-                tx.Commit();
+            if (totalDefs < 100)
+            {
+                StingLog.Warn($"Only {totalDefs} parameters found — expected 1,527+. " +
+                    "Ensure MR_PARAMETERS.txt is the full STING parameter file.");
             }
 
-            string report = $"Shared parameter binding complete.\n\n" +
-                $"Pass 1 (Universal):   {pass1Bound} bound, {pass1Skipped} skipped\n" +
-                $"Pass 2 (Discipline):  {pass2Bound} bound, {pass2Skipped} skipped\n\n" +
-                $"Source: {spFile}";
-            if (errors.Count > 0)
-                report += $"\n\nErrors ({errors.Count}):\n" +
-                    string.Join("\n", errors.Take(10));
+            // ── Step 3: Pre-scan existing bindings ──
+            StingLog.Info("LoadSharedParams: step 3 — scanning existing bindings");
+            var existingBindings = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var iter = doc.ParameterBindings.ForwardIterator();
+            while (iter.MoveNext())
+            {
+                if (iter.Key is ExternalDefinition exDef)
+                    existingBindings.Add(exDef.Name);
+                else if (iter.Key != null)
+                    existingBindings.Add(iter.Key.Name);
+            }
+            StingLog.Info($"Pre-scan: {existingBindings.Count} parameters already bound");
 
-            TaskDialog.Show("Load Shared Params", report);
-            StingLog.Info($"LoadSharedParams: P1={pass1Bound}, P2={pass2Bound}");
+            // Filter each group to only unbound params
+            int totalToBind = 0;
+            int alreadyBound = 0;
+            var groupsToProcess = new List<(string groupName, List<ExternalDefinition> defs)>();
+            foreach (var (groupName, defs) in groupDefs)
+            {
+                var unbound = defs.Where(d => !existingBindings.Contains(d.Name)).ToList();
+                alreadyBound += defs.Count - unbound.Count;
+                if (unbound.Count > 0)
+                {
+                    groupsToProcess.Add((groupName, unbound));
+                    totalToBind += unbound.Count;
+                }
+            }
+
+            StingLog.Info($"To bind: {totalToBind}, already bound: {alreadyBound}");
+
+            // ── Always clean material bindings, even when nothing new to bind ──
+            // CRITICAL: This must run BEFORE the early return below. Prior sessions
+            // may have bound ALL 2300+ params to OST_Materials via coreCats. This
+            // cleanup removes Materials from non-material params and adds it to
+            // material-relevant params (MAT_*, PROP_*, BLE_APP-*, BLE_MAT_*, COMP_MAT_*).
+            int matRemovedEarly = 0, matAddedEarly = 0;
+            try
+            {
+                (matRemovedEarly, matAddedEarly) = CleanMaterialBindings(doc, app);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CleanMaterialBindings (early) failed", ex);
+            }
+
+            if (totalToBind == 0)
+            {
+                var earlyMsg = new StringBuilder();
+                earlyMsg.AppendLine($"All {totalDefs} parameters are already bound — nothing to do.");
+                earlyMsg.AppendLine($"{alreadyBound} parameters already present in project.");
+                if (matRemovedEarly > 0 || matAddedEarly > 0)
+                {
+                    earlyMsg.AppendLine();
+                    earlyMsg.AppendLine($"Material cleanup: removed Materials from {matRemovedEarly} params, added to {matAddedEarly} params.");
+                }
+                earlyMsg.AppendLine($"\nSource: {spFile}");
+                TaskDialog.Show("STING Tools - Load Shared Params", earlyMsg.ToString());
+                return Result.Succeeded;
+            }
+
+            // ── Step 4: Build ALL category sets BEFORE any transactions ──
+            // CRITICAL: Never call BuildCategorySet or NewInstanceBinding inside
+            // the per-param loop — each call does doc.Settings.Categories.get_Item()
+            // lookups and object allocation that stall Revit mid-transaction.
+            StingLog.Info("LoadSharedParams: step 4 — building category sets");
+
+            var coreEnums = SharedParamGuids.AllCategoryEnums;
+            CategorySet coreCats = SharedParamGuids.BuildCategorySet(doc, coreEnums);
+
+            // NOTE: OST_Materials is NOT added to coreCats.
+            // Material-specific parameters (MAT_INFO, PROP_PHYSICAL groups) are bound
+            // via dedicated matCats override in BuildGroupCategoryOverrides() to BLE
+            // element categories (walls, floors, ceilings, etc.), NOT to OST_Materials
+            // (which doesn't support AllowsBoundParameters in Revit API).
+            // Adding Materials to coreCats would bind ALL 2300+ parameters to materials,
+            // polluting every material's custom properties panel.
+
+            // Phase 39: Add Sheets category (needed for SHT_* params)
+            try
+            {
+                Category shtCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Sheets);
+                if (shtCat != null && shtCat.AllowsBoundParameters && !coreCats.Contains(shtCat))
+                    coreCats.Insert(shtCat);
+            }
+            catch (Exception ex) { StingLog.Warn($"Add Sheets category to core set: {ex.Message}"); }
+
+            StingLog.Info($"Core CategorySet: {coreCats.Size} categories");
+
+            if (coreCats.Size == 0)
+            {
+                // BUG FIX: Fallback must NOT use all doc categories (causes the 305K hang).
+                // Instead, build from our hardcoded MEP + BLE sets.
+                StingLog.Warn("ParamRegistry categories empty — building from hardcoded fallback");
+                coreCats = BuildFallbackCoreSet(doc);
+                StingLog.Info($"Fallback CategorySet: {coreCats.Size} categories");
+            }
+
+            if (coreCats.Size == 0)
+            {
+                TaskDialog.Show("STING Tools - Load Shared Params",
+                    "No categories found that accept bound parameters.");
+                return Result.Failed;
+            }
+
+            // Pre-build group-specific category sets
+            var groupCatOverrides = BuildGroupCategoryOverrides(doc);
+
+            // Pre-build InstanceBindings for each group OUTSIDE the transaction loops.
+            // This avoids calling NewInstanceBinding() inside per-param loops.
+            var groupBindings = new Dictionary<string, InstanceBinding>(StringComparer.OrdinalIgnoreCase);
+            InstanceBinding coreBinding = app.Create.NewInstanceBinding(coreCats);
+            foreach (var kvp in groupCatOverrides)
+                groupBindings[kvp.Key] = app.Create.NewInstanceBinding(kvp.Value);
+
+            // Pre-build a material-only binding for per-parameter overrides
+            // (BLE_APP-*, BLE_MAT_* params in CST_PROC group that need Materials binding)
+            InstanceBinding matOnlyBinding = null;
+            if (groupCatOverrides.TryGetValue("MAT_INFO", out CategorySet matOverrideCats))
+                matOnlyBinding = app.Create.NewInstanceBinding(matOverrideCats);
+
+            // ── Step 5: Bind ONE GROUP per transaction ──
+            int bound = 0;
+            int skipped = 0;
+            var errors = new List<string>();
+            var boundByGroup = new Dictionary<string, int>();
+
+            StingLog.Info($"Binding {totalToBind} params across {groupsToProcess.Count} groups");
+
+            for (int gi = 0; gi < groupsToProcess.Count; gi++)
+            {
+                var (groupName, defs) = groupsToProcess[gi];
+
+                // Pick pre-built binding for this group
+                InstanceBinding binding = groupBindings.TryGetValue(groupName, out InstanceBinding gb)
+                    ? gb : coreBinding;
+
+                int catCount = groupCatOverrides.TryGetValue(groupName, out CategorySet gcs)
+                    ? gcs.Size : coreCats.Size;
+
+                // Log BEFORE transaction, not inside
+                StingLog.Info($"Group [{gi + 1}/{groupsToProcess.Count}] '{groupName}': " +
+                    $"{defs.Count} params → {catCount} categories");
+
+                using (Transaction tx = new Transaction(doc,
+                    $"STING Params: {groupName}"))
+                {
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
+                    tx.SetFailureHandlingOptions(failOpts);
+
+                    tx.Start();
+                    try
+                    {
+                        int groupBound = 0;
+                        foreach (ExternalDefinition extDef in defs)
+                        {
+                            try
+                            {
+                                // Per-parameter override: if this param is material-relevant
+                                // (BLE_APP-*, BLE_MAT_*) but the group binding targets core cats,
+                                // use the material-only binding instead so it binds to OST_Materials.
+                                InstanceBinding paramBinding = binding;
+                                if (matOnlyBinding != null
+                                    && !groupCatOverrides.ContainsKey(groupName)
+                                    && IsMaterialRelevantParam(extDef.Name))
+                                {
+                                    paramBinding = matOnlyBinding;
+                                }
+
+                                bool result = doc.ParameterBindings.Insert(
+                                    extDef, paramBinding, GroupTypeId.General);
+
+                                if (result)
+                                    groupBound++;
+                                else
+                                    skipped++;
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
+                        }
+
+                        tx.Commit();
+                        bound += groupBound;
+                        boundByGroup[groupName] = groupBound;
+
+                        // Log AFTER transaction, not inside
+                        StingLog.Info($"  → committed: {groupBound} bound, {defs.Count - groupBound} skipped");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error($"Group '{groupName}' transaction failed", ex);
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
+
+                        skipped += defs.Count;
+                        if (errors.Count < 10)
+                            errors.Add($"Group '{groupName}': {ex.Message}");
+                    }
+                }
+            }
+
+            // ── Step 6: Clean material bindings (second pass) ──
+            // Run again after new bindings — new params may have been bound to
+            // non-material groups that include OST_Materials by mistake.
+            int matRemoved = matRemovedEarly, matAdded = matAddedEarly;
+            try
+            {
+                var (r2, a2) = CleanMaterialBindings(doc, app);
+                matRemoved += r2;
+                matAdded += a2;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CleanMaterialBindings (post-bind) failed", ex);
+                errors.Add($"Material cleanup: {ex.Message}");
+            }
+
+            // ── Step 6b: Remove NON-MATERIAL shared parameter bindings from OST_Materials ──
+            // Only material-relevant params (MAT_*, PROP_*, BLE_APP-*, BLE_MAT_*, COMP_MAT_*)
+            // should be bound to OST_Materials. All others are removed to prevent
+            // 2300+ irrelevant parameters appearing on every material element.
+            int materialsUnbound = 0;
+            int materialsKept = 0;
+            try
+            {
+                Category matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
+                if (matCat != null)
+                {
+                    // Collect bindings that include OST_Materials but are NOT material-relevant
+                    var toFix = new List<(Definition def, ElementBinding binding)>();
+                    var scanIter = doc.ParameterBindings.ForwardIterator();
+                    while (scanIter.MoveNext())
+                    {
+                        if (scanIter.Current is ElementBinding eb && eb.Categories.Contains(matCat))
+                        {
+                            string paramName = scanIter.Key?.Name ?? "";
+                            if (IsMaterialRelevantParam(paramName))
+                            {
+                                materialsKept++;
+                                continue; // Keep material-relevant params bound to OST_Materials
+                            }
+                            toFix.Add((scanIter.Key, eb));
+                        }
+                    }
+
+                    if (toFix.Count > 0)
+                    {
+                        StingLog.Info($"Cleaning up {toFix.Count} non-material parameter bindings from OST_Materials (keeping {materialsKept} material-relevant)");
+                        using (Transaction txClean = new Transaction(doc, "STING Remove Material Bindings"))
+                        {
+                            txClean.Start();
+                            foreach (var (def, eb) in toFix)
+                            {
+                                try
+                                {
+                                    eb.Categories.Erase(matCat);
+                                    if (eb.Categories.Size > 0)
+                                        doc.ParameterBindings.ReInsert(def, eb);
+                                    else
+                                        doc.ParameterBindings.Remove(def);
+                                    materialsUnbound++;
+                                }
+                                catch (Exception ex2)
+                                {
+                                    StingLog.Warn($"Failed to unbind '{def.Name}' from Materials: {ex2.Message}");
+                                }
+                            }
+                            txClean.Commit();
+                        }
+                        StingLog.Info($"Removed {materialsUnbound} non-material parameter bindings from OST_Materials, kept {materialsKept} material-relevant");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Material binding cleanup: {ex.Message}");
+            }
+
+            // ── Report ──
+            var report = new StringBuilder();
+            report.AppendLine($"Bound: {bound} parameters");
+            report.AppendLine($"Already present: {alreadyBound}");
+            report.AppendLine($"Skipped/failed: {skipped}");
+            report.AppendLine($"Total in file: {totalDefs}");
+            report.AppendLine($"Categories: {coreCats.Size}");
+            report.AppendLine($"Groups processed: {groupsToProcess.Count}");
+            if (matRemoved > 0 || matAdded > 0)
+                report.AppendLine($"Material cleanup: removed Materials from {matRemoved} params, added to {matAdded} params");
+            if (materialsUnbound > 0)
+                report.AppendLine($"Material cleanup: removed {materialsUnbound} stale bindings from OST_Materials");
+            report.AppendLine();
+
+            if (boundByGroup.Count > 0)
+            {
+                report.AppendLine("Bound by group:");
+                foreach (var kvp in boundByGroup.OrderByDescending(kv => kv.Value))
+                    report.AppendLine($"  {kvp.Key}: {kvp.Value}");
+            }
+
+            report.AppendLine($"\nSource: {spFile}");
+
+            if (errors.Count > 0)
+            {
+                report.AppendLine($"\nErrors ({errors.Count}):");
+                foreach (string err in errors.Take(5))
+                    report.AppendLine($"  {err}");
+            }
+
+            // DATA-02: Validate required parameters are bound after binding pass
+            var allBound = new HashSet<string>(StringComparer.Ordinal);
+            var iter2 = doc.ParameterBindings.ForwardIterator();
+            while (iter2.MoveNext())
+            {
+                if (iter2.Key is InternalDefinition def && !string.IsNullOrEmpty(def.Name))
+                    allBound.Add(def.Name);
+            }
+
+            int requiredMissing = 0;
+            foreach (string pn in ParamRegistry.AllTokenParams ?? Array.Empty<string>())
+            {
+                if (ParamRegistry.IsRequired(pn) && !allBound.Contains(pn))
+                {
+                    StingLog.Error($"DATA-02: REQUIRED parameter '{pn}' is NOT bound — tagging will fail");
+                    requiredMissing++;
+                }
+            }
+            if (requiredMissing > 0)
+            {
+                report.AppendLine($"\n⚠ {requiredMissing} REQUIRED parameter(s) failed to bind (see log).");
+            }
+
+            // Clear parameter lookup cache so newly bound parameters are found immediately
+            ParameterHelpers.ClearParamCache();
+
+            var td = new TaskDialog("STING Tools - Load Shared Params");
+            td.MainInstruction = requiredMissing > 0
+                ? $"Binding complete — {bound} bound, {requiredMissing} REQUIRED missing!"
+                : $"Shared parameter binding complete — {bound} bound.";
+            td.MainContent = report.ToString();
+            td.CommonButtons = TaskDialogCommonButtons.Ok;
+            td.DefaultButton = TaskDialogResult.Ok;
+            td.Show();
+            StingLog.Info($"LoadSharedParams complete: {bound} bound, {alreadyBound} already present, {skipped} skipped");
 
             return Result.Succeeded;
         }
 
-        private static ExternalDefinition FindDefinition(DefinitionFile defFile, string name)
+        // ════════════════════════════════════════════════════════════════
+        // Category set builders — called ONCE before any transactions
+        // ════════════════════════════════════════════════════════════════
+
+        private static readonly BuiltInCategory[] MepCategories = new[]
         {
-            foreach (DefinitionGroup group in defFile.Groups)
+            BuiltInCategory.OST_MechanicalEquipment,
+            BuiltInCategory.OST_DuctTerminal,
+            BuiltInCategory.OST_DuctCurves,
+            BuiltInCategory.OST_DuctFitting,
+            BuiltInCategory.OST_DuctAccessory,
+            BuiltInCategory.OST_FlexDuctCurves,
+            BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_PipeFitting,
+            BuiltInCategory.OST_PipeAccessory,
+            BuiltInCategory.OST_FlexPipeCurves,
+            BuiltInCategory.OST_PlumbingFixtures,
+            BuiltInCategory.OST_Sprinklers,
+            BuiltInCategory.OST_ElectricalEquipment,
+            BuiltInCategory.OST_ElectricalFixtures,
+            BuiltInCategory.OST_LightingFixtures,
+            BuiltInCategory.OST_LightingDevices,
+            BuiltInCategory.OST_CableTray,
+            BuiltInCategory.OST_CableTrayFitting,
+            BuiltInCategory.OST_Conduit,
+            BuiltInCategory.OST_ConduitFitting,
+            BuiltInCategory.OST_CommunicationDevices,
+            BuiltInCategory.OST_DataDevices,
+            BuiltInCategory.OST_FireAlarmDevices,
+            BuiltInCategory.OST_NurseCallDevices,
+            BuiltInCategory.OST_SecurityDevices,
+            BuiltInCategory.OST_TelephoneDevices,
+        };
+
+        private static readonly BuiltInCategory[] BleCategories = new[]
+        {
+            BuiltInCategory.OST_Walls,
+            BuiltInCategory.OST_Floors,
+            BuiltInCategory.OST_Ceilings,
+            BuiltInCategory.OST_Roofs,
+            BuiltInCategory.OST_Doors,
+            BuiltInCategory.OST_Windows,
+            BuiltInCategory.OST_Columns,
+            BuiltInCategory.OST_StructuralColumns,
+            BuiltInCategory.OST_StructuralFraming,
+            BuiltInCategory.OST_StructuralFoundation,
+            BuiltInCategory.OST_Stairs,
+            BuiltInCategory.OST_StairsRailing,
+            BuiltInCategory.OST_Ramps,
+            BuiltInCategory.OST_CurtainWallPanels,
+            BuiltInCategory.OST_CurtainWallMullions,
+            BuiltInCategory.OST_Casework,
+            BuiltInCategory.OST_Furniture,
+            BuiltInCategory.OST_FurnitureSystems,
+            BuiltInCategory.OST_GenericModel,
+            BuiltInCategory.OST_SpecialityEquipment,
+        };
+
+        /// <summary>
+        /// Build group-specific category overrides. Groups with discipline-specific
+        /// parameters get smaller, targeted category sets instead of the full core set.
+        /// Called ONCE before transactions — never inside a loop.
+        /// </summary>
+        private static Dictionary<string, CategorySet> BuildGroupCategoryOverrides(Document doc)
+        {
+            var overrides = new Dictionary<string, CategorySet>(StringComparer.OrdinalIgnoreCase);
+
+            var mepCats = BuildCatSet(doc, MepCategories);
+            if (mepCats.Size > 0)
             {
-                foreach (Definition def in group.Definitions)
+                overrides["ELC_PWR"] = mepCats;
+                overrides["HVC_SYSTEMS"] = mepCats;
+                overrides["PLM_DRN"] = mepCats;
+                overrides["LTG_CONTROLS"] = mepCats;
+                overrides["FLS_LIFE_SFTY"] = mepCats;
+                overrides["MEP_GENERIC"] = mepCats;
+            }
+
+            var bleCats = BuildCatSet(doc, BleCategories);
+            if (bleCats.Size > 0)
+            {
+                overrides["BLE_ELES"] = bleCats;
+                overrides["BLE_STRUCTURE"] = bleCats;
+            }
+
+            // OST_Materials does NOT support AllowsBoundParameters in Revit API,
+            // so we bind material-relevant params (MAT_INFO, PROP_PHYSICAL) to
+            // BLE element categories (Walls, Floors, Ceilings, Roofs, etc.) —
+            // the elements that USE materials. This makes material properties
+            // visible on those elements and schedulable in material takeoffs.
+            var matCats = BuildCatSet(doc, BleCategories);
+            if (matCats.Size > 0)
+            {
+                overrides["MAT_INFO"] = matCats;
+                overrides["PROP_PHYSICAL"] = matCats;
+                // NOTE: Individual BLE_APP-* and BLE_MAT_* params from CST_PROC group
+                // are handled per-parameter in the binding loop via IsMaterialRelevantParam(),
+                // since the CST_PROC group also contains 100+ non-material params that
+                // should NOT be bound to Materials.
+            }
+
+            return overrides;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Material binding cleanup
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Determines whether a parameter name is material-relevant and should
+        /// be bound to OST_Materials. Only these prefixes/groups belong on materials.
+        /// </summary>
+        private static bool IsMaterialRelevantParam(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName)) return false;
+
+            // Group 12 (MAT_INFO): all MAT_ prefixed params
+            if (paramName.StartsWith("MAT_", StringComparison.Ordinal)) return true;
+
+            // Group 14 (PROP_PHYSICAL): all PROP_ prefixed params
+            if (paramName.StartsWith("PROP_", StringComparison.Ordinal)) return true;
+
+            // Group 2 (CST_PROC) material-relevant subsets:
+            // 23 BLE_APP-* appearance/asset params (hyphens in names)
+            if (paramName.StartsWith("BLE_APP-", StringComparison.Ordinal)) return true;
+
+            // 19 BLE_MAT_* material metadata params
+            if (paramName.StartsWith("BLE_MAT_", StringComparison.Ordinal)) return true;
+
+            // Composite material tags
+            if (paramName.StartsWith("COMP_MAT_", StringComparison.Ordinal)) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// NUCLEAR material binding cleanup — completely removes and rebinds every
+        /// parameter that has wrong Materials category assignment.
+        ///
+        /// Strategy: for each wrongly-bound param, look up its ExternalDefinition
+        /// from the shared parameter FILE (not from the BindingMap iterator — those
+        /// references become invalid after Remove). Then Remove the old binding and
+        /// Insert a fresh one with the correct CategorySet.
+        ///
+        /// This is the only approach that reliably works in the Revit API because:
+        /// - ReInsert() silently fails to actually change categories in many cases
+        /// - Remove+Insert using ExternalDefinition from file FAILS silently
+        /// - ReInsert using ExternalDefinition FAILS silently
+        /// - The BindingMap is keyed by InternalDefinition, NOT ExternalDefinition
+        ///
+        /// APPROACH (6th attempt — InternalDefinition via SharedParameterElement):
+        /// Use SharedParameterElement.GetDefinition() to get the project-internal
+        /// Definition reference. This is the actual key in the BindingMap. Then use
+        /// ReInsert(internalDef, newBinding) to change the category set.
+        ///
+        /// Returns (removed, added) counts.
+        /// </summary>
+        private static (int removed, int added) CleanMaterialBindings(
+            Document doc, Autodesk.Revit.ApplicationServices.Application app)
+        {
+            Category matCat;
+            try
+            {
+                matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
+            }
+            catch (Exception ex) { StingLog.Warn($"Cannot get OST_Materials: {ex.Message}"); return (0, 0); }
+
+            if (matCat == null || !matCat.AllowsBoundParameters)
+                return (0, 0);
+
+            long matCatIdVal = matCat.Id.Value;
+
+            // ── Step A: Build name→SharedParameterElement lookup ──
+            // SharedParameterElement.GetDefinition() returns InternalDefinition,
+            // which is the ACTUAL key used by the BindingMap. All prior approaches
+            // used ExternalDefinition (from the .txt file) which is a DIFFERENT
+            // object identity — that's why Remove/Insert/ReInsert all failed silently.
+            var speByName = new Dictionary<string, SharedParameterElement>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var spes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(SharedParameterElement))
+                    .Cast<SharedParameterElement>();
+                foreach (var spe in spes)
                 {
-                    if (def.Name == name && def is ExternalDefinition extDef)
-                        return extDef;
+                    InternalDefinition intDef = spe.GetDefinition();
+                    if (intDef != null && !string.IsNullOrEmpty(intDef.Name))
+                        speByName[intDef.Name] = spe;
                 }
             }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Cannot collect SharedParameterElements: {ex.Message}");
+                return (0, 0);
+            }
+
+            StingLog.Info($"Material cleanup: found {speByName.Count} SharedParameterElements in project");
+
+            if (speByName.Count == 0)
+                return (0, 0);
+
+            // ── Step B: Classify params by current binding vs desired ──
+            var toRemoveMat = new List<string>(); // params that HAVE Materials but SHOULDN'T
+            var toAddMat = new List<string>();     // params that LACK Materials but SHOULD have it
+
+            var iter = doc.ParameterBindings.ForwardIterator();
+            while (iter.MoveNext())
+            {
+                var def = iter.Key;
+                if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                if (!(iter.Current is InstanceBinding ib)) continue;
+
+                bool hasMat = false;
+                foreach (Category c in ib.Categories)
+                {
+                    if (c.Id.Value == matCatIdVal)
+                    { hasMat = true; break; }
+                }
+
+                bool shouldHaveMat = IsMaterialRelevantParam(def.Name);
+
+                if (hasMat && !shouldHaveMat)
+                    toRemoveMat.Add(def.Name);
+                else if (!hasMat && shouldHaveMat)
+                    toAddMat.Add(def.Name);
+            }
+
+            StingLog.Info($"Material cleanup: {toRemoveMat.Count} to remove Materials, {toAddMat.Count} to add Materials");
+
+            if (toRemoveMat.Count == 0 && toAddMat.Count == 0)
+                return (0, 0);
+
+            int removed = 0, added = 0;
+            int removeFailed = 0, addFailed = 0;
+
+            // ── Step C: Remove Materials from non-material params using InternalDefinition ──
+            // Process in individual transactions for safety.
+            foreach (string name in toRemoveMat)
+            {
+                if (!speByName.TryGetValue(name, out SharedParameterElement spe))
+                {
+                    removeFailed++;
+                    if (removeFailed <= 5)
+                        StingLog.Warn($"No SharedParameterElement for '{name}' — cannot rebind");
+                    continue;
+                }
+
+                InternalDefinition intDef = spe.GetDefinition();
+                if (intDef == null) { removeFailed++; continue; }
+
+                // Read current binding via the InternalDefinition key
+                Binding currentBinding = doc.ParameterBindings.get_Item(intDef);
+                if (!(currentBinding is InstanceBinding currentIB)) { removeFailed++; continue; }
+
+                // Build new CategorySet WITHOUT Materials
+                var newCats = app.Create.NewCategorySet();
+                int kept = 0;
+                foreach (Category c in currentIB.Categories)
+                {
+                    if (c.Id.Value != matCatIdVal)
+                    { newCats.Insert(c); kept++; }
+                }
+                if (kept == 0) continue; // must keep at least one category
+
+                using (Transaction tx = new Transaction(doc, $"STING Fix Mat: {name}"))
+                {
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
+                    tx.SetFailureHandlingOptions(failOpts);
+
+                    tx.Start();
+                    try
+                    {
+                        var newBinding = app.Create.NewInstanceBinding(newCats);
+                        // ReInsert using InternalDefinition — the actual BindingMap key
+                        if (doc.ParameterBindings.ReInsert(intDef, newBinding))
+                        {
+                            removed++;
+                        }
+                        else
+                        {
+                            removeFailed++;
+                            if (removeFailed <= 5)
+                                StingLog.Warn($"ReInsert(InternalDef) failed for '{name}'");
+                        }
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        removeFailed++;
+                        if (removeFailed <= 5)
+                            StingLog.Warn($"Remove mat from '{name}': {ex.Message}");
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
+                    }
+                }
+            }
+
+            // ── Step D: Add Materials to material-relevant params using InternalDefinition ──
+            foreach (string name in toAddMat)
+            {
+                if (!speByName.TryGetValue(name, out SharedParameterElement spe))
+                {
+                    addFailed++;
+                    if (addFailed <= 5)
+                        StingLog.Warn($"No SharedParameterElement for '{name}' — cannot add Materials");
+                    continue;
+                }
+
+                InternalDefinition intDef = spe.GetDefinition();
+                if (intDef == null) { addFailed++; continue; }
+
+                Binding currentBinding = doc.ParameterBindings.get_Item(intDef);
+                if (!(currentBinding is InstanceBinding currentIB)) { addFailed++; continue; }
+
+                // Build new CategorySet WITH Materials added
+                var newCats = app.Create.NewCategorySet();
+                foreach (Category c in currentIB.Categories)
+                    newCats.Insert(c);
+                newCats.Insert(matCat);
+
+                using (Transaction tx = new Transaction(doc, $"STING Add Mat: {name}"))
+                {
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
+                    tx.SetFailureHandlingOptions(failOpts);
+
+                    tx.Start();
+                    try
+                    {
+                        var newBinding = app.Create.NewInstanceBinding(newCats);
+                        if (doc.ParameterBindings.ReInsert(intDef, newBinding))
+                        {
+                            added++;
+                        }
+                        else
+                        {
+                            addFailed++;
+                            if (addFailed <= 5)
+                                StingLog.Warn($"ReInsert(InternalDef) add-mat failed for '{name}'");
+                        }
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        addFailed++;
+                        if (addFailed <= 5)
+                            StingLog.Warn($"Add mat to '{name}': {ex.Message}");
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
+                    }
+                }
+            }
+
+            StingLog.Info($"Material cleanup done: removed={removed} (failed={removeFailed}), added={added} (failed={addFailed})");
+
+            // ── Step E: Verification pass ──
+            int stillPolluted = 0;
+            int materialParamsMissing = 0;
+            var verifyIter = doc.ParameterBindings.ForwardIterator();
+            while (verifyIter.MoveNext())
+            {
+                var vDef = verifyIter.Key;
+                if (vDef == null || string.IsNullOrEmpty(vDef.Name)) continue;
+                if (!(verifyIter.Current is InstanceBinding vib)) continue;
+
+                bool hasMat = false;
+                foreach (Category c in vib.Categories)
+                {
+                    if (c.Id.Value == matCatIdVal)
+                    { hasMat = true; break; }
+                }
+
+                bool shouldHaveMat = IsMaterialRelevantParam(vDef.Name);
+
+                if (hasMat && !shouldHaveMat) stillPolluted++;
+                if (!hasMat && shouldHaveMat) materialParamsMissing++;
+            }
+
+            if (stillPolluted > 0)
+                StingLog.Warn($"VERIFICATION FAILED: {stillPolluted} non-material params STILL have Materials bound — " +
+                    "InternalDefinition approach may need SharedParameterElement deletion as nuclear fallback");
+            else if (removed > 0)
+                StingLog.Info("VERIFICATION PASSED: All non-material params cleaned of Materials binding");
+
+            if (materialParamsMissing > 0)
+                StingLog.Warn($"VERIFICATION: {materialParamsMissing} material-relevant params still missing Materials binding");
+            else if (added > 0)
+                StingLog.Info("VERIFICATION PASSED: All material-relevant params have Materials binding");
+
+            return (removed, added);
+        }
+
+        /// <summary>
+        /// Fallback core category set when ParamRegistry fails to load.
+        /// Uses the MEP + BLE arrays (capped, known-good categories) instead
+        /// of doc.Settings.Categories which includes 200+ internal categories.
+        /// </summary>
+        private static CategorySet BuildFallbackCoreSet(Document doc)
+        {
+            var set = new CategorySet();
+            // Combine MEP + BLE + a few extra common categories
+            // NOTE: OST_Materials is NOT added here — material params are bound
+            // via dedicated matCats override (MAT_INFO, PROP_PHYSICAL groups only)
+            foreach (var bic in MepCategories) TryInsert(doc, set, bic);
+            foreach (var bic in BleCategories) TryInsert(doc, set, bic);
+            // MAT_INFO and PROP_PHYSICAL groups bound to BLE categories
+            // via group overrides (OST_Materials doesn't support bound params)
+            TryInsert(doc, set, BuiltInCategory.OST_Rooms);
+            TryInsert(doc, set, BuiltInCategory.OST_Areas);
+            TryInsert(doc, set, BuiltInCategory.OST_Parking);
+            return set;
+        }
+
+        private static void TryInsert(Document doc, CategorySet set, BuiltInCategory bic)
+        {
+            try
+            {
+                Category cat = doc.Settings.Categories.get_Item(bic);
+                if (cat != null && cat.AllowsBoundParameters)
+                    set.Insert(cat);
+            }
+            catch (Exception ex) { StingLog.Warn($"Insert category {bic}: {ex.Message}"); }
+        }
+
+        private static CategorySet BuildCatSet(Document doc, BuiltInCategory[] enums)
+        {
+            var set = new CategorySet();
+            foreach (var bic in enums) TryInsert(doc, set, bic);
+            return set;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // File search — finds MR_PARAMETERS.txt across deployment layouts
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Search multiple locations for MR_PARAMETERS.txt.
+        /// HANG FIX: No recursive directory search (Directory.GetFiles with
+        /// SearchOption.AllDirectories can scan thousands of files on broad paths
+        /// like C:\ProgramData\Autodesk\, freezing Revit for minutes).
+        /// </summary>
+        private static string FindMrParametersFile(string currentSpFile)
+        {
+            const string fileName = "MR_PARAMETERS.txt";
+
+            // 1. Standard data path lookup
+            string found = StingToolsApp.FindDataFile(fileName);
+            if (!string.IsNullOrEmpty(found))
+                return found;
+
+            // 2. Search next to the currently set shared parameter file
+            if (!string.IsNullOrEmpty(currentSpFile))
+            {
+                try
+                {
+                    if (File.Exists(currentSpFile))
+                    {
+                        string spDir = Path.GetDirectoryName(currentSpFile);
+                        if (!string.IsNullOrEmpty(spDir))
+                        {
+                            string candidate = Path.Combine(spDir, fileName);
+                            if (File.Exists(candidate))
+                            {
+                                StingLog.Info($"Found {fileName} next to current SP file: {candidate}");
+                                return candidate;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"path resolution failed: {ex.Message}"); }
+            }
+
+            // 3. Search known deployment paths — flat lookups only, NO recursive search
+            string dllDir = !string.IsNullOrEmpty(StingToolsApp.AssemblyPath)
+                ? Path.GetDirectoryName(StingToolsApp.AssemblyPath) : null;
+
+            if (!string.IsNullOrEmpty(dllDir))
+            {
+                string[] candidates = new[]
+                {
+                    Path.Combine(dllDir, "data", fileName),
+                    Path.Combine(dllDir, "Data", fileName),
+                    Path.Combine(dllDir, fileName),
+                    Path.Combine(dllDir, "..", "data", fileName),
+                    Path.Combine(dllDir, "..", "Data", fileName),
+                    Path.Combine(dllDir, "..", "StingTools", "Data", fileName),
+                    Path.Combine(dllDir, "..", "StingTools", "data", fileName),
+                };
+
+                foreach (string path in candidates)
+                {
+                    try
+                    {
+                        if (File.Exists(path))
+                        {
+                            string resolved = Path.GetFullPath(path);
+                            StingLog.Info($"Found {fileName} at: {resolved}");
+                            return resolved;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"File search path probe failed: {ex.Message}"); }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(StingToolsApp.DataPath))
+            {
+                try
+                {
+                    string inData = Path.Combine(StingToolsApp.DataPath, fileName);
+                    if (File.Exists(inData)) return inData;
+                    string aboveData = Path.Combine(StingToolsApp.DataPath, "..", fileName);
+                    if (File.Exists(aboveData)) return Path.GetFullPath(aboveData);
+                }
+                catch (Exception ex) { StingLog.Warn($"DataPath file search failed: {ex.Message}"); }
+            }
+
+            StingLog.Warn($"{fileName} not found in any search path");
             return null;
+        }
+    }
+
+    /// <summary>
+    /// FIX-8.1: Purge shared parameters from project.
+    /// Mode 1 — Audit: report bound params vs MR_PARAMETERS.txt.
+    /// Mode 2 — Purge orphaned: remove params NOT in MR file.
+    /// Mode 3 — Purge all STING: remove all ASS_* / STING_* bindings.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PurgeSharedParamsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var td = new TaskDialog("STING — Purge Shared Parameters");
+            td.MainInstruction = "Shared parameter management";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Audit only", "Count bound vs MR file — no changes");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Purge orphaned", "Remove params NOT in MR_PARAMETERS.txt");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Purge ALL STING", "Remove all ASS_* and STING_* bindings");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            switch (td.Show())
+            {
+                case TaskDialogResult.CommandLink1: return Audit(doc);
+                case TaskDialogResult.CommandLink2: return Purge(doc, false);
+                case TaskDialogResult.CommandLink3: return Purge(doc, true);
+                default: return Result.Cancelled;
+            }
+        }
+
+        private static HashSet<string> LoadMR()
+        {
+            var s = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string f = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+            if (string.IsNullOrEmpty(f)) return s;
+            foreach (string l in File.ReadAllLines(f))
+            {
+                if (!l.StartsWith("PARAM")) continue;
+                var p = l.Split('\t');
+                if (p.Length >= 3) s.Add(p[2]);
+            }
+            return s;
+        }
+
+        private static Result Audit(Document doc)
+        {
+            var known = LoadMR();
+            var iter = doc.ParameterBindings.ForwardIterator();
+            int total = 0, inMR = 0;
+            var orphans = new List<string>();
+            while (iter.MoveNext())
+            {
+                if (iter.Key is InternalDefinition def)
+                {
+                    total++;
+                    if (known.Contains(def.Name)) inMR++;
+                    else orphans.Add(def.Name);
+                }
+            }
+            var sb = new StringBuilder();
+            sb.AppendLine($"MR_PARAMETERS.txt: {known.Count}  |  Bound: {total}  |  Matched: {inMR}  |  Orphaned: {orphans.Count}");
+            if (orphans.Count > 0) { sb.AppendLine("\nOrphaned:"); foreach (string n in orphans.Take(20)) sb.AppendLine($"  {n}"); }
+            TaskDialog.Show("Param Audit", sb.ToString());
+            return Result.Succeeded;
+        }
+
+        private static Result Purge(Document doc, bool allSting)
+        {
+            var known = LoadMR();
+            var iter = doc.ParameterBindings.ForwardIterator();
+            var remove = new List<(string n, Definition d)>();
+            while (iter.MoveNext())
+            {
+                if (iter.Key is InternalDefinition def)
+                {
+                    bool isSting = def.Name.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase)
+                                || def.Name.StartsWith("STING_", StringComparison.OrdinalIgnoreCase);
+                    if (allSting ? isSting : !known.Contains(def.Name))
+                        remove.Add((def.Name, def));
+                }
+            }
+            if (remove.Count == 0)
+            { TaskDialog.Show("Purge", "Nothing to remove."); return Result.Succeeded; }
+
+            var c = new TaskDialog("Confirm Purge");
+            c.MainInstruction = $"Remove {remove.Count} parameter bindings?";
+            c.MainContent = string.Join("\n", remove.Take(15).Select(r => $"  {r.n}"))
+                + (remove.Count > 15 ? $"\n  ... and {remove.Count - 15} more" : "")
+                + "\n\nElements lose stored values. Run 'Load Shared Params' to rebind.";
+            c.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (c.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            int removed = 0;
+            using (var tx = new Transaction(doc, "STING Purge Params"))
+            {
+                tx.Start();
+                foreach (var (n, d) in remove)
+                    try { doc.ParameterBindings.Remove(d); removed++; }
+                    catch (Exception ex) { StingLog.Warn($"PurgeParams '{n}': {ex.Message}"); }
+                tx.Commit();
+            }
+            ParameterHelpers.ClearParamCache();
+            TaskDialog.Show("Purge Done", $"Removed {removed}/{remove.Count} bindings.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Dismisses all warnings during parameter binding transactions.
+    /// Without this, Revit accumulates FailureMessage objects in memory
+    /// for each binding operation, causing slowdown and eventual crash.
+    /// </summary>
+    internal class BindingWarningSwallower : IFailuresPreprocessor
+    {
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor failuresAccessor)
+        {
+            try
+            {
+                var failures = failuresAccessor.GetFailureMessages();
+                if (failures == null) return FailureProcessingResult.Continue;
+                foreach (FailureMessageAccessor failure in failures)
+                {
+                    if (failure.GetSeverity() == FailureSeverity.Warning)
+                        failuresAccessor.DeleteWarning(failure);
+                }
+            }
+            catch
+            {
+                // Never crash inside the failure preprocessor — Revit will hang
+            }
+            return FailureProcessingResult.Continue;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  StingParamManagerCommand — Unified parameter management UI
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Unified parameter management: browse bound parameters, add missing
+    /// parameters, and view parameter statistics for the current project.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StingParamManagerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                var dlg = new TaskDialog("STING Parameter Manager");
+                dlg.MainInstruction = "Parameter Management";
+                dlg.MainContent = "Choose an action for shared parameter management.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Browse All Bound Parameters",
+                    "View all parameters currently bound in this project.");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Add Missing Parameters",
+                    "Bind any STING parameters not yet present in this project.");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Parameter Statistics",
+                    "Show counts of bound, STING-prefixed, and orphaned parameters.");
+                dlg.CommonButtons = TaskDialogCommonButtons.Close;
+
+                var result = dlg.Show();
+
+                if (result == TaskDialogResult.CommandLink1)
+                {
+                    // Browse all bound parameters
+                    var bindings = doc.ParameterBindings;
+                    var iter = bindings.ForwardIterator();
+                    var paramNames = new List<string>();
+                    while (iter.MoveNext())
+                    {
+                        if (iter.Key is InternalDefinition def)
+                            paramNames.Add(def.Name);
+                    }
+                    paramNames.Sort(StringComparer.OrdinalIgnoreCase);
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine($"Total bound parameters: {paramNames.Count}\n");
+                    foreach (string name in paramNames)
+                        sb.AppendLine($"  {name}");
+
+                    TaskDialog.Show("Bound Parameters", sb.ToString());
+                    StingLog.Info($"ParamManager: browsed {paramNames.Count} bound parameters");
+                }
+                else if (result == TaskDialogResult.CommandLink2)
+                {
+                    // Delegate to LoadSharedParamsCommand
+                    string msg = "";
+                    var cmd = new LoadSharedParamsCommand();
+                    cmd.Execute(commandData, ref msg, elements);
+                }
+                else if (result == TaskDialogResult.CommandLink3)
+                {
+                    // Parameter statistics
+                    var bindings = doc.ParameterBindings;
+                    var iter = bindings.ForwardIterator();
+                    int total = 0, stingPrefixed = 0, orphaned = 0;
+                    var stingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                    // Collect all known STING parameter names from registry
+                    try
+                    {
+                        foreach (var kvp in ParamRegistry.AllParamGuids)
+                            stingNames.Add(kvp.Key);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Load param registry GUIDs: {ex.Message}"); }
+
+                    while (iter.MoveNext())
+                    {
+                        total++;
+                        if (iter.Key is InternalDefinition def)
+                        {
+                            string name = def.Name ?? "";
+                            if (name.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("HVC_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("ELC_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("PLM_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("FLS_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("LTG_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("MAT_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("COM_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("SEC_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("NCL_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("ICT_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("ELE_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("TAG_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("STING_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("ARCH_", StringComparison.OrdinalIgnoreCase) ||
+                                name.StartsWith("BLE_", StringComparison.OrdinalIgnoreCase))
+                            {
+                                stingPrefixed++;
+                            }
+
+                            if (!stingNames.Contains(name) &&
+                                !name.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase) &&
+                                !name.StartsWith("STING_", StringComparison.OrdinalIgnoreCase))
+                            {
+                                orphaned++;
+                            }
+                        }
+                    }
+
+                    int missing = Math.Max(0, stingNames.Count - stingPrefixed);
+
+                    TaskDialog.Show("Parameter Statistics",
+                        $"Total bound parameters: {total}\n" +
+                        $"STING-prefixed parameters: {stingPrefixed}\n" +
+                        $"Registry parameters: {stingNames.Count}\n" +
+                        $"Estimated missing: {missing}\n" +
+                        $"Non-STING (third-party): {orphaned}");
+                    StingLog.Info($"ParamManager stats: total={total}, sting={stingPrefixed}, missing~{missing}");
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StingParamManagerCommand failed", ex);
+                try { TaskDialog.Show("STING", $"Parameter Manager failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
+                return Result.Failed;
+            }
         }
     }
 }

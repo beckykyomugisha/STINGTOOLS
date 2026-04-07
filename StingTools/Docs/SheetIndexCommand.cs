@@ -3,6 +3,7 @@ using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using StingTools.Core;
 
 namespace StingTools.Docs
 {
@@ -17,7 +18,9 @@ namespace StingTools.Docs
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             // Check if a sheet index schedule already exists
             var existing = new FilteredElementCollector(doc)
@@ -33,11 +36,11 @@ namespace StingTools.Docs
                 return Result.Succeeded;
             }
 
-            using (Transaction tx = new Transaction(doc, "Create Sheet Index"))
+            using (Transaction tx = new Transaction(doc, "STING Create Sheet Index"))
             {
                 tx.Start();
 
-                ElementId catId = new ElementId(BuiltInCategory.OST_Sheets);
+                ElementId catId = new ElementId((long)BuiltInCategory.OST_Sheets);
                 ViewSchedule schedule = ViewSchedule.CreateSchedule(doc, catId);
                 schedule.Name = "STING - Sheet Index";
 

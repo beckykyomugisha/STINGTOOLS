@@ -15,15 +15,17 @@ namespace StingTools.Docs
     /// Organise and manage project sheets with a structured discipline tree.
     /// Groups sheets by discipline prefix and provides batch renumber/reorder.
     /// </summary>
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class SheetOrganizerCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
@@ -42,7 +44,8 @@ namespace StingTools.Docs
                 .GroupBy(s => s.SheetNumber.Length >= 2
                     ? s.SheetNumber.Substring(0, 2)
                     : "XX")
-                .OrderBy(g => g.Key);
+                .OrderBy(g => g.Key)
+                .ToList();
 
             var report = new System.Text.StringBuilder();
             report.AppendLine("Sheet Organizer — " + doc.Title);

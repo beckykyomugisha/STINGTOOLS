@@ -1,0 +1,117 @@
+2026-03-26 11:10:13 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-26 11:10:13 [WARN] PYREVIT_SCRIPT_MANIFEST: 18 script path(s) not found on disk.
+2026-03-26 11:10:13 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-26 11:10:13 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-26 11:10:13 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-26 11:10:13 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-26 11:10:13 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-26 11:10:13 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-26 11:10:13 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-26 11:10:13 [INFO] ThemeManager: applied 'Light' theme
+2026-03-26 11:10:13 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-26 11:10:13 [INFO] Dockable panel registered successfully
+2026-03-26 11:10:13 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-26 11:10:13 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: read 219063 chars, parsing JSON
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-26 11:10:13 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-26 11:10:13 [INFO] ParamRegistry: supplemented 1808 GUIDs from MR_PARAMETERS.txt
+2026-03-26 11:10:13 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2316 GUIDs
+2026-03-26 11:10:13 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-26 11:10:13 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-26 11:10:13 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-26 11:10:13 [INFO] TagConfig: supplemented 311 additional warning refs from tag config CSVs
+2026-03-26 11:10:13 [INFO] STING Tools dockable panel loaded successfully
+2026-03-26 11:11:24 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 11:11:28 [WARN] TagConfig: unknown config key(s) in project_config.json: PROJECT_FOLDER_ROOT, LAST_WORKFLOW_NAME — check for typos
+2026-03-26 11:11:28 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-26 11:11:28 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-26 11:11:28 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-26 11:11:28 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-26 11:11:28 [INFO] SharedParamGuids.AllCategoryEnums: resolving (first access)
+2026-03-26 11:11:28 [INFO] ResolveUniversalCategoryEnums: resolving 141 categories
+2026-03-26 11:11:28 [INFO] ResolveUniversalCategoryEnums: resolved to 129 BuiltInCategory enums
+2026-03-26 11:11:28 [INFO] SharedParamGuids.AllCategoryEnums: 129 categories resolved
+2026-03-26 11:11:28 [WARN] Formula 'CST_S_CON_SAND_VOLUME_CU_M': invalid Dependency_Level '36863979-00ed-54f3-af15-db3364b8316d', defaulting to 0
+2026-03-26 11:11:28 [WARN] Formula 'CST_S_MAS_SAND_VOLUME_CU_M': invalid Dependency_Level '02663996-87e7-56b1-8abf-2e9bc32d777b', defaulting to 0
+2026-03-26 11:11:28 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_PHS_COUNT_NR', defaulting to 0
+2026-03-26 11:11:28 [WARN] Formula 'S2=standard': suspect Discipline value '(DB Panels). S1=compact' — check CSV quoting
+2026-03-26 11:11:28 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ELC_PNL_DESIGNATION_NAME_TXT', defaulting to 0
+2026-03-26 11:11:28 [WARN] Formula 'S2=standard': suspect Discipline value '(Points & Sockets). S1=compact' — check CSV quoting
+2026-03-26 11:11:28 [WARN] Formula 'S2=standard': invalid Dependency_Level 'COM_C_NETWORK_ADDRESS_TXT', defaulting to 0
+2026-03-26 11:11:28 [WARN] Formula 'S2=standard': suspect Discipline value '(BMS). S1=compact' — check CSV quoting
+2026-03-26 11:11:28 [WARN] Formula 'S2=standard': invalid Dependency_Level 'ASS_SYSTEM_TYPE_TXT', defaulting to 0
+2026-03-26 11:11:28 [WARN] Formula 'S2=standard': suspect Discipline value '(Lifts/Gen/ATS). S1=compact' — check CSV quoting
+2026-03-26 11:11:28 [WARN] TagPipelineHelper.LoadFormulas: An item with the same key has already been added. Key: S2=standard
+2026-03-26 11:11:28 [INFO] FUT-19: Background pre-warming completed (formulas, grids, compliance)
+2026-03-26 11:21:55 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 11:22:00 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:16:13 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:16:20 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:42:14 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:42:32 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:42:35 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:52:53 [INFO] Tab 6 content loaded (lazy)
+2026-03-26 12:52:56 [INFO] Tab 2 content loaded (lazy)
+2026-03-26 12:53:03 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:53:09 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:53:10 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:53:11 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:53:13 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:53:14 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:53:18 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:53:19 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:53:22 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:53:25 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 12:53:28 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 14:02:42 [INFO] Tab 3 content loaded (lazy)
+2026-03-26 14:02:44 [INFO] Tab 7 content loaded (lazy)
+2026-03-26 14:02:46 [INFO] BIMCoordCenter built: health=94, warnings=10, compliance=0.0%
+2026-03-26 14:13:21 [INFO] BIMManager: saved issues.json
+2026-03-26 14:14:29 [INFO] Issue raised: CHANGE-0001 (CHANGE, LOW)
+2026-03-26 14:14:29 [INFO] DispatchCoordAction: executed 'RaiseIssue' → RaiseIssueCommand
+2026-03-26 14:14:30 [INFO] BIMCoordCenter built: health=94, warnings=10, compliance=0.0%
+2026-03-26 14:14:40 [INFO] 4D BIM: Auto-generating construction schedule...
+2026-03-26 14:14:43 [INFO] BIMManager: saved schedule_4d.json
+2026-03-26 14:14:48 [INFO] 4D schedule: 28 tasks, 46.6 weeks
+2026-03-26 14:14:48 [INFO] DispatchCoordAction: executed 'AutoSchedule4D' → AutoSchedule4DCommand
+2026-03-26 14:14:48 [INFO] BIMCoordCenter built: health=94, warnings=10, compliance=0.0%
+2026-03-26 14:15:08 [INFO] BIMCoordCenter built: health=94, warnings=10, compliance=0.0%
+2026-03-26 16:12:23 [INFO] Tab 1 content loaded (lazy)
+2026-03-26 16:34:33 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 16:36:28 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 16:36:30 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 16:36:36 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 16:36:40 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 16:48:07 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 16:48:19 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 16:48:21 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 16:48:28 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 18:06:45 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-26 18:16:00 [INFO] RunCommand<CoordinationCenterCommand>: start
+2026-03-26 18:16:00 [ERROR] CoordinationCenter: Object reference not set to an instance of an object.
+2026-03-26 18:16:00 [INFO] RunCommand<CoordinationCenterCommand>: done
+2026-03-26 18:27:18 [INFO] RunCommand<StrExcelTemplateCommand>: start
+2026-03-26 18:27:26 [INFO] RunCommand<StrExcelTemplateCommand>: done
+2026-03-26 18:28:05 [INFO] RunCommand<StrExcelTemplateCommand>: start
+2026-03-26 18:28:15 [INFO] RunCommand<StrExcelTemplateCommand>: done
+2026-03-26 18:35:40 [INFO] DocumentClosing: cleared parameter, compliance, formula, selection, and deferred caches
+2026-03-26 18:35:45 [INFO] STING Tools shutting down
+2026-03-26 18:35:45 [INFO] StingAutoTagger: unregistered

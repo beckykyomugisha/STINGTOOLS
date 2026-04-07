@@ -1,17 +1,21 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Media.Imaging;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.Attributes;
+using StingTools.UI;
 
 namespace StingTools.Core
 {
     /// <summary>
-    /// Main Revit external application. Creates a single "STING Tools" ribbon
-    /// tab with five panels: Select, Docs, Tags, Organise, Temp — porting the
-    /// three PyRevit extensions (StingDocs, STINGTags, STINGTemp) into one
-    /// compiled plugin with full feature coverage.
+    /// Main Revit external application. Registers the STING Tools dockable panel
+    /// as the single unified UI for all 160+ commands across 6 tabs:
+    /// SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW.
+    /// The ribbon tab contains only a single toggle button to show/hide the panel.
     /// </summary>
     public class StingToolsApp : IExternalApplication
     {
@@ -27,16 +31,58 @@ namespace StingTools.Core
                     Path.GetDirectoryName(AssemblyPath) ?? string.Empty,
                     "data");
 
-                const string tabName = "STING Tools";
-                application.CreateRibbonTab(tabName);
+                // Validate data directory and critical files at startup
+                ValidateDataFiles();
 
-                BuildSelectPanel(application, tabName);
-                BuildDocsPanel(application, tabName);
-                BuildTagsPanel(application, tabName);
-                BuildOrganisePanel(application, tabName);
-                BuildTempPanel(application, tabName);
+                // Pre-flight: log assembly environment for crash diagnostics
+                LogAssemblyEnvironment();
 
-                StingLog.Info("STING Tools ribbon loaded successfully");
+                // Register the dockable panel — the single unified UI
+                RegisterDockablePanel(application);
+
+                // Register the real-time auto-tagger (IUpdater) — starts disabled
+                StingAutoTagger.Register(application);
+
+                // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
+                // on first command. This ensures:
+                //   1. JSON parsing errors surface at startup where they're diagnosable
+                //   2. Newtonsoft.Json assembly conflicts are caught before any command runs
+                //   3. All subsequent commands get pre-loaded data with zero crash risk
+                //   4. The data file path is validated once, not on every button click
+                try
+                {
+                    ParamRegistry.EnsureLoaded();
+                    StingLog.Info("ParamRegistry pre-loaded at startup successfully");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("ParamRegistry pre-load failed (commands will use defaults)", ex);
+                }
+
+                // Load user-preferred output directory from project_config.json
+                try { OutputLocationHelper.LoadFromConfig(); }
+                catch (Exception ex) { StingLog.Warn($"OutputLocationHelper config load: {ex.Message}"); }
+
+                // Load project folder root from project_config.json
+                try { ProjectFolderEngine.LoadRootFromConfig(); }
+                catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine config load: {ex.Message}"); }
+
+                // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
+                // ElementId-based caches and Definition caches become invalid when a
+                // document closes. Using them against a new document causes native crashes.
+                application.ControlledApplication.DocumentClosing += OnDocumentClosing;
+                // BUG-05: Also clear param cache on document open to prevent cross-document
+                // cache collisions when switching between documents.
+                application.ControlledApplication.DocumentOpened += OnDocumentOpened;
+                // FIX-15: Removed duplicate DocumentOpened subscription (was ENH-06)
+
+                // FIX-06: Invalidate auto-tagger cache when switching between open documents
+                application.ViewActivated += OnViewActivated;
+
+                // R-02: Retry deferred auto-tag elements after sync-to-central
+                application.ControlledApplication.DocumentSynchronizedWithCentral += OnDocumentSynchronizedWithCentral;
+
+                StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -48,477 +94,692 @@ namespace StingTools.Core
             }
         }
 
-        public Result OnShutdown(UIControlledApplication application)
+        /// <summary>
+        /// CRASH FIX: Clear all static caches that hold ElementId or Definition references.
+        /// These become invalid when a document closes and cause native crashes if used
+        /// against a different document.
+        /// </summary>
+        private static void OnDocumentClosing(object sender,
+            Autodesk.Revit.DB.Events.DocumentClosingEventArgs e)
         {
-            StingLog.Info("STING Tools shutting down");
-            return Result.Succeeded;
-        }
-
-        // ── Select Panel ──────────────────────────────────────────────────
-        private void BuildSelectPanel(UIControlledApplication app, string tab)
-        {
-            var panel = app.CreateRibbonPanel(tab, "Select");
-            string asmPath = AssemblyPath;
-
-            // Category selectors pulldown
-            var catGroup = panel.AddItem(
-                new PulldownButtonData("grpCatSelect", "Category")) as PulldownButton;
-            if (catGroup != null)
-            {
-                catGroup.LongDescription = "Select elements by category in active view";
-                AddPulldownItem(catGroup, "btnSelLgt", "Lighting",
-                    asmPath, typeof(Select.SelectLightingCommand).FullName,
-                    "Select all lighting fixtures");
-                AddPulldownItem(catGroup, "btnSelElc", "Electrical",
-                    asmPath, typeof(Select.SelectElectricalCommand).FullName,
-                    "Select all electrical equipment");
-                AddPulldownItem(catGroup, "btnSelMch", "Mechanical",
-                    asmPath, typeof(Select.SelectMechanicalCommand).FullName,
-                    "Select all mechanical equipment");
-                AddPulldownItem(catGroup, "btnSelPlb", "Plumbing",
-                    asmPath, typeof(Select.SelectPlumbingCommand).FullName,
-                    "Select all plumbing fixtures");
-                AddPulldownItem(catGroup, "btnSelAir", "Air Terminals",
-                    asmPath, typeof(Select.SelectAirTerminalsCommand).FullName,
-                    "Select all air terminals");
-                AddPulldownItem(catGroup, "btnSelFur", "Furniture",
-                    asmPath, typeof(Select.SelectFurnitureCommand).FullName,
-                    "Select all furniture");
-                AddPulldownItem(catGroup, "btnSelDr", "Doors",
-                    asmPath, typeof(Select.SelectDoorsCommand).FullName,
-                    "Select all doors");
-                AddPulldownItem(catGroup, "btnSelWin", "Windows",
-                    asmPath, typeof(Select.SelectWindowsCommand).FullName,
-                    "Select all windows");
-                AddPulldownItem(catGroup, "btnSelRm", "Rooms",
-                    asmPath, typeof(Select.SelectRoomsCommand).FullName,
-                    "Select all rooms");
-                AddPulldownItem(catGroup, "btnSelSpr", "Sprinklers",
-                    asmPath, typeof(Select.SelectSprinklersCommand).FullName,
-                    "Select all sprinklers");
-                AddPulldownItem(catGroup, "btnSelPipe", "Pipes",
-                    asmPath, typeof(Select.SelectPipesCommand).FullName,
-                    "Select all pipes");
-                AddPulldownItem(catGroup, "btnSelDuct", "Ducts",
-                    asmPath, typeof(Select.SelectDuctsCommand).FullName,
-                    "Select all ducts");
-                AddPulldownItem(catGroup, "btnSelCnd", "Conduits",
-                    asmPath, typeof(Select.SelectConduitsCommand).FullName,
-                    "Select all conduits");
-                AddPulldownItem(catGroup, "btnSelCbl", "Cable Trays",
-                    asmPath, typeof(Select.SelectCableTraysCommand).FullName,
-                    "Select all cable trays");
-                AddPulldownItem(catGroup, "btnSelAll", "ALL Taggable",
-                    asmPath, typeof(Select.SelectAllTaggableCommand).FullName,
-                    "Select all taggable elements in active view");
-            }
-
-            // State selectors pulldown
-            var stateGroup = panel.AddItem(
-                new PulldownButtonData("grpStateSelect", "State")) as PulldownButton;
-            if (stateGroup != null)
-            {
-                stateGroup.LongDescription = "Select elements by tag/pin/mark state";
-                AddPulldownItem(stateGroup, "btnSelUntagged", "Untagged",
-                    asmPath, typeof(Select.SelectUntaggedCommand).FullName,
-                    "Select elements without ISO tags");
-                AddPulldownItem(stateGroup, "btnSelTagged", "Tagged",
-                    asmPath, typeof(Select.SelectTaggedCommand).FullName,
-                    "Select elements with complete ISO tags");
-                AddPulldownItem(stateGroup, "btnSelEmptyMark", "Empty Mark",
-                    asmPath, typeof(Select.SelectEmptyMarkCommand).FullName,
-                    "Select elements with empty Mark parameter");
-                AddPulldownItem(stateGroup, "btnSelPinned", "Pinned",
-                    asmPath, typeof(Select.SelectPinnedCommand).FullName,
-                    "Select pinned elements");
-                AddPulldownItem(stateGroup, "btnSelUnpinned", "Unpinned",
-                    asmPath, typeof(Select.SelectUnpinnedCommand).FullName,
-                    "Select unpinned elements");
-            }
-
-            // Spatial selectors pulldown
-            var spatialGroup = panel.AddItem(
-                new PulldownButtonData("grpSpatialSelect", "Spatial")) as PulldownButton;
-            if (spatialGroup != null)
-            {
-                spatialGroup.LongDescription = "Select elements by spatial criteria";
-                AddPulldownItem(spatialGroup, "btnSelByLevel", "By Level",
-                    asmPath, typeof(Select.SelectByLevelCommand).FullName,
-                    "Select elements on the active view's level");
-                AddPulldownItem(spatialGroup, "btnSelByRoom", "By Room",
-                    asmPath, typeof(Select.SelectByRoomCommand).FullName,
-                    "Select all elements in the same room as selected element");
-            }
-
-            // Bulk operations
-            AddButton(panel, "btnBulkWrite", "Bulk\nParam",
-                asmPath, typeof(Select.BulkParamWriteCommand).FullName,
-                "Write parameter values to all selected elements");
-        }
-
-        // ── Docs Panel ──────────────────────────────────────────────────
-        private void BuildDocsPanel(UIControlledApplication app, string tab)
-        {
-            var panel = app.CreateRibbonPanel(tab, "Docs");
-            string asmPath = AssemblyPath;
-
-            AddButton(panel, "btnSheetOrganizer",
-                "Sheet\nOrganizer",
-                asmPath,
-                typeof(Docs.SheetOrganizerCommand).FullName,
-                "Organise and manage project sheets by discipline prefix");
-
-            AddButton(panel, "btnViewOrganizer",
-                "View\nOrganizer",
-                asmPath,
-                typeof(Docs.ViewOrganizerCommand).FullName,
-                "Organise views by discipline, type, and level");
-
-            AddButton(panel, "btnSheetIndex",
-                "Sheet\nIndex",
-                asmPath,
-                typeof(Docs.SheetIndexCommand).FullName,
-                "Generate a sheet index schedule with revision tracking");
-
-            AddButton(panel, "btnTransmittal",
-                "Document\nTransmittal",
-                asmPath,
-                typeof(Docs.TransmittalCommand).FullName,
-                "Create ISO 19650-compliant document transmittal records");
-
-            // Viewport operations pulldown
-            var vpGroup = panel.AddItem(
-                new PulldownButtonData("grpViewports", "Viewports")) as PulldownButton;
-            if (vpGroup != null)
-            {
-                vpGroup.LongDescription = "Viewport alignment, numbering, and text tools";
-                AddPulldownItem(vpGroup, "btnAlignVP", "Align Viewports",
-                    asmPath, typeof(Docs.AlignViewportsCommand).FullName,
-                    "Align viewports on a sheet (top/left/center)");
-                AddPulldownItem(vpGroup, "btnRenumVP", "Renumber Viewports",
-                    asmPath, typeof(Docs.RenumberViewportsCommand).FullName,
-                    "Renumber viewports left-to-right, top-to-bottom");
-                AddPulldownItem(vpGroup, "btnTextCase", "Text Case",
-                    asmPath, typeof(Docs.TextCaseCommand).FullName,
-                    "Convert text notes to UPPER/lower/Title case");
-                AddPulldownItem(vpGroup, "btnSumAreas", "Sum Areas",
-                    asmPath, typeof(Docs.SumAreasCommand).FullName,
-                    "Calculate total area of selected rooms");
-            }
-        }
-
-        // ── Tags Panel (CREATE tab from STINGTags) ────────────────────────
-        private void BuildTagsPanel(UIControlledApplication app, string tab)
-        {
-            var panel = app.CreateRibbonPanel(tab, "Tags");
-            string asmPath = AssemblyPath;
-
-            AddButton(panel, "btnAutoTag",
-                "Auto\nTag",
-                asmPath,
-                typeof(Tags.AutoTagCommand).FullName,
-                "Apply ISO 19650 asset tags to elements in the active view");
-
-            AddButton(panel, "btnBatchTag",
-                "Batch\nTag",
-                asmPath,
-                typeof(Tags.BatchTagCommand).FullName,
-                "Batch-apply tags to all taggable elements in the project");
-
-            AddButton(panel, "btnTagAndCombine",
-                "Tag &\nCombine",
-                asmPath,
-                typeof(Tags.TagAndCombineCommand).FullName,
-                "One-click: auto-populate tokens + tag + combine all containers");
-
-            // Setup pulldown
-            var setupGroup = panel.AddItem(
-                new PulldownButtonData("grpTagSetup", "Setup")) as PulldownButton;
-            if (setupGroup != null)
-            {
-                setupGroup.LongDescription = "Tag configuration and shared parameter setup";
-                AddPulldownItem(setupGroup, "btnTagConfig", "Tag Config",
-                    asmPath, typeof(Tags.TagConfigCommand).FullName,
-                    "Configure discipline/system/product/function lookup tables");
-                AddPulldownItem(setupGroup, "btnLoadParams", "Load Params",
-                    asmPath, typeof(Tags.LoadSharedParamsCommand).FullName,
-                    "Bind shared parameters (universal + discipline) to categories");
-                AddPulldownItem(setupGroup, "btnConfigEditor", "Configure",
-                    asmPath, typeof(Tags.ConfigEditorCommand).FullName,
-                    "View/edit/save tag lookup tables (DISC, SYS, PROD, FUNC, LOC, ZONE)");
-            }
-
-            // Token writers pulldown
-            var tokenGroup = panel.AddItem(
-                new PulldownButtonData("grpTokens", "Tokens")) as PulldownButton;
-            if (tokenGroup != null)
-            {
-                tokenGroup.LongDescription = "Set individual ISO 19650 token values";
-                AddPulldownItem(tokenGroup, "btnSetLoc", "Set Location",
-                    asmPath, typeof(Tags.SetLocCommand).FullName,
-                    "Set LOC token (BLD1, BLD2, BLD3, EXT)");
-                AddPulldownItem(tokenGroup, "btnSetZone", "Set Zone",
-                    asmPath, typeof(Tags.SetZoneCommand).FullName,
-                    "Set ZONE token (Z01-Z04)");
-                AddPulldownItem(tokenGroup, "btnSetStatus", "Set Status",
-                    asmPath, typeof(Tags.SetStatusCommand).FullName,
-                    "Set STATUS token (EXISTING, NEW, DEMOLISHED, TEMPORARY)");
-                AddPulldownItem(tokenGroup, "btnAssignNums", "Assign Numbers",
-                    asmPath, typeof(Tags.AssignNumbersCommand).FullName,
-                    "Assign sequential numbers grouped by discipline/system/level");
-                AddPulldownItem(tokenGroup, "btnBuildTags", "Build Tags",
-                    asmPath, typeof(Tags.BuildTagsCommand).FullName,
-                    "Rebuild assembled tags from existing token values");
-                AddPulldownItem(tokenGroup, "btnCombineParams", "Combine Parameters",
-                    asmPath, typeof(Tags.CombineParametersCommand).FullName,
-                    "Populate all tag containers (ASS_TAG_1-6 + discipline tags) from tokens");
-            }
-
-            // QA pulldown
-            var qaGroup = panel.AddItem(
-                new PulldownButtonData("grpQA", "QA")) as PulldownButton;
-            if (qaGroup != null)
-            {
-                qaGroup.LongDescription = "Tag quality assurance and validation";
-                AddPulldownItem(qaGroup, "btnValidateTags", "Validate",
-                    asmPath, typeof(Tags.ValidateTagsCommand).FullName,
-                    "Validate tag completeness and token counts");
-                AddPulldownItem(qaGroup, "btnFindDups", "Find Duplicates",
-                    asmPath, typeof(Organise.FindDuplicateTagsCommand).FullName,
-                    "Find and select elements with duplicate tag values");
-                AddPulldownItem(qaGroup, "btnHighlight", "Highlight Invalid",
-                    asmPath, typeof(Organise.HighlightInvalidCommand).FullName,
-                    "Colour-code missing (red) and incomplete (orange) tags");
-                AddPulldownItem(qaGroup, "btnClearOverrides", "Clear Overrides",
-                    asmPath, typeof(Organise.ClearOverridesCommand).FullName,
-                    "Reset graphic overrides in active view");
-                AddPulldownItem(qaGroup, "btnDashboard", "Completeness Dashboard",
-                    asmPath, typeof(Tags.CompletenessDashboardCommand).FullName,
-                    "ISO 19650 compliance dashboard by discipline");
-            }
-        }
-
-        // ── Organise Panel (ORGANISE tab from STINGTags) ──────────────────
-        private void BuildOrganisePanel(UIControlledApplication app, string tab)
-        {
-            var panel = app.CreateRibbonPanel(tab, "Organise");
-            string asmPath = AssemblyPath;
-
-            // Tag operations pulldown
-            var tagOps = panel.AddItem(
-                new PulldownButtonData("grpTagOps", "Tag Ops")) as PulldownButton;
-            if (tagOps != null)
-            {
-                tagOps.LongDescription = "Tag creation, deletion, and management";
-                AddPulldownItem(tagOps, "btnTagSelected", "Tag Selected",
-                    asmPath, typeof(Organise.TagSelectedCommand).FullName,
-                    "Apply ISO tags to selected elements only");
-                AddPulldownItem(tagOps, "btnDelTags", "Delete Tags",
-                    asmPath, typeof(Organise.DeleteTagsCommand).FullName,
-                    "Clear all tag parameters from selected elements");
-                AddPulldownItem(tagOps, "btnRenumber", "Renumber",
-                    asmPath, typeof(Organise.RenumberTagsCommand).FullName,
-                    "Re-sequence tag numbers for selected elements");
-                AddPulldownItem(tagOps, "btnCopyTags", "Copy Tags",
-                    asmPath, typeof(Organise.CopyTagsCommand).FullName,
-                    "Copy tag values from first selected element to all others");
-                AddPulldownItem(tagOps, "btnSwapTags", "Swap Tags",
-                    asmPath, typeof(Organise.SwapTagsCommand).FullName,
-                    "Swap tag values between two selected elements");
-            }
-
-            // Analysis pulldown
-            var analysisOps = panel.AddItem(
-                new PulldownButtonData("grpAnalysis", "Analysis")) as PulldownButton;
-            if (analysisOps != null)
-            {
-                analysisOps.LongDescription = "Tag analysis, filtering, and export";
-                AddPulldownItem(analysisOps, "btnAuditCSV", "Audit to CSV",
-                    asmPath, typeof(Organise.AuditTagsCSVCommand).FullName,
-                    "Export complete tag audit to CSV file");
-                AddPulldownItem(analysisOps, "btnSelByDisc", "Select by Discipline",
-                    asmPath, typeof(Organise.SelectByDisciplineCommand).FullName,
-                    "Select all elements of a specific discipline (M, E, P, A, S)");
-                AddPulldownItem(analysisOps, "btnTagStats", "Tag Statistics",
-                    asmPath, typeof(Organise.TagStatsCommand).FullName,
-                    "Quick tag counts by discipline/system/level for active view");
-            }
-        }
-
-        // ── Temp Panel ──────────────────────────────────────────────────
-        private void BuildTempPanel(UIControlledApplication app, string tab)
-        {
-            var panel = app.CreateRibbonPanel(tab, "Temp");
-            string asmPath = AssemblyPath;
-
-            // Setup group
-            var setupGroup = panel.AddItem(
-                new PulldownButtonData("grpSetup", "Setup")) as PulldownButton;
-            if (setupGroup != null)
-            {
-                setupGroup.LongDescription =
-                    "Project setup: parameters, data verification";
-                AddPulldownItem(setupGroup, "btnCreateParams",
-                    "Create Parameters",
-                    asmPath,
-                    typeof(Temp.CreateParametersCommand).FullName,
-                    "Bind shared parameters to the active project");
-                AddPulldownItem(setupGroup, "btnCheckData",
-                    "Check Data Files",
-                    asmPath,
-                    typeof(Temp.CheckDataCommand).FullName,
-                    "Verify data files and show file inventory with SHA hashes");
-                AddPulldownItem(setupGroup, "btnMasterSetup",
-                    "Master Setup",
-                    asmPath,
-                    typeof(Temp.MasterSetupCommand).FullName,
-                    "One-click full project setup: params, materials, types, schedules, templates");
-            }
-
-            // Materials group
-            var matGroup = panel.AddItem(
-                new PulldownButtonData("grpMaterials", "Materials")) as PulldownButton;
-            if (matGroup != null)
-            {
-                matGroup.LongDescription =
-                    "Create and manage Revit materials from CSV data";
-                AddPulldownItem(matGroup, "btnCreateBLE",
-                    "Create BLE Materials",
-                    asmPath,
-                    typeof(Temp.CreateBLEMaterialsCommand).FullName,
-                    "Create building-element materials from BLE_MATERIALS.csv (815 materials)");
-                AddPulldownItem(matGroup, "btnCreateMEP",
-                    "Create MEP Materials",
-                    asmPath,
-                    typeof(Temp.CreateMEPMaterialsCommand).FullName,
-                    "Create MEP materials from MEP_MATERIALS.csv (464 materials)");
-            }
-
-            // Families group
-            var famGroup = panel.AddItem(
-                new PulldownButtonData("grpFamilies", "Families")) as PulldownButton;
-            if (famGroup != null)
-            {
-                famGroup.LongDescription =
-                    "Create wall, ceiling, floor, roof, and MEP family types";
-                AddPulldownItem(famGroup, "btnCreateWalls", "Create Walls",
-                    asmPath, typeof(Temp.CreateWallsCommand).FullName,
-                    "Create wall types with compound layers from BLE_MATERIALS.csv");
-                AddPulldownItem(famGroup, "btnCreateFloors", "Create Floors",
-                    asmPath, typeof(Temp.CreateFloorsCommand).FullName,
-                    "Create floor types from BLE_MATERIALS.csv");
-                AddPulldownItem(famGroup, "btnCreateCeilings", "Create Ceilings",
-                    asmPath, typeof(Temp.CreateCeilingsCommand).FullName,
-                    "Create ceiling types from BLE_MATERIALS.csv");
-                AddPulldownItem(famGroup, "btnCreateRoofs", "Create Roofs",
-                    asmPath, typeof(Temp.CreateRoofsCommand).FullName,
-                    "Create roof types from BLE_MATERIALS.csv");
-                AddPulldownItem(famGroup, "btnCreateDucts", "Create Ducts",
-                    asmPath, typeof(Temp.CreateDuctsCommand).FullName,
-                    "Create duct types from MEP_MATERIALS.csv");
-                AddPulldownItem(famGroup, "btnCreatePipes", "Create Pipes",
-                    asmPath, typeof(Temp.CreatePipesCommand).FullName,
-                    "Create pipe types from MEP_MATERIALS.csv");
-                AddPulldownItem(famGroup, "btnCreateCableTrays", "Create Cable Trays",
-                    asmPath, typeof(Temp.CreateCableTraysCommand).FullName,
-                    "Create cable tray types from MEP_MATERIALS.csv");
-                AddPulldownItem(famGroup, "btnCreateConduits", "Create Conduits",
-                    asmPath, typeof(Temp.CreateConduitsCommand).FullName,
-                    "Create conduit types from MEP_MATERIALS.csv");
-            }
-
-            // Schedules group
-            var schGroup = panel.AddItem(
-                new PulldownButtonData("grpSchedules", "Schedules")) as PulldownButton;
-            if (schGroup != null)
-            {
-                schGroup.LongDescription =
-                    "Schedule creation, auto-populate, and CSV export";
-                AddPulldownItem(schGroup, "btnBatchSchedules",
-                    "Batch Create Schedules",
-                    asmPath,
-                    typeof(Temp.BatchSchedulesCommand).FullName,
-                    "Multi-discipline schedule creation (168 definitions)");
-                AddPulldownItem(schGroup, "btnMatSchedules",
-                    "Material Takeoffs",
-                    asmPath,
-                    typeof(Temp.CreateMaterialSchedulesCommand).FullName,
-                    "Create material takeoff schedules for 8 categories");
-                AddPulldownItem(schGroup, "btnAutoPopulate",
-                    "Auto-Populate",
-                    asmPath,
-                    typeof(Temp.AutoPopulateCommand).FullName,
-                    "Auto-populate DISC/PROD/SYS/FUNC/LVL on all elements");
-                AddPulldownItem(schGroup, "btnExportCSV",
-                    "Export to CSV",
-                    asmPath,
-                    typeof(Temp.ExportCSVCommand).FullName,
-                    "Export schedule data to CSV files");
-            }
-
-            // Templates group
-            var tplGroup = panel.AddItem(
-                new PulldownButtonData("grpTemplates", "Templates")) as PulldownButton;
-            if (tplGroup != null)
-            {
-                tplGroup.LongDescription =
-                    "View templates, filters, line patterns, worksets, and project phases";
-                AddPulldownItem(tplGroup, "btnCreateFilters",
-                    "Create Filters",
-                    asmPath,
-                    typeof(Temp.CreateFiltersCommand).FullName,
-                    "Create 6 discipline view filters");
-                AddPulldownItem(tplGroup, "btnApplyFilters",
-                    "Apply Filters to Views",
-                    asmPath,
-                    typeof(Temp.ApplyFiltersToViewsCommand).FullName,
-                    "Apply STING filters to STING view templates");
-                AddPulldownItem(tplGroup, "btnCreateWorksets",
-                    "Create Worksets",
-                    asmPath,
-                    typeof(Temp.CreateWorksetsCommand).FullName,
-                    "Create 27 discipline worksets");
-                AddPulldownItem(tplGroup, "btnViewTemplates",
-                    "View Templates",
-                    asmPath,
-                    typeof(Temp.ViewTemplatesCommand).FullName,
-                    "Create 7 discipline view templates");
-                AddPulldownItem(tplGroup, "btnLinePatterns",
-                    "Line Patterns",
-                    asmPath,
-                    typeof(Temp.CreateLinePatternsCommand).FullName,
-                    "Create 6 standard line patterns (dashed, center, hidden, etc.)");
-                AddPulldownItem(tplGroup, "btnPhases",
-                    "Phases",
-                    asmPath,
-                    typeof(Temp.CreatePhasesCommand).FullName,
-                    "Create 7 project phases");
-            }
-        }
-
-        // ── Data file utilities ───────────────────────────────────────
-
-        /// <summary>Find a data file by name, searching DataPath and subdirectories.</summary>
-        public static string FindDataFile(string fileName)
-        {
-            if (string.IsNullOrEmpty(DataPath))
-                return null;
-
-            string direct = Path.Combine(DataPath, fileName);
-            if (File.Exists(direct)) return direct;
-
             try
             {
-                foreach (string f in Directory.GetFiles(
-                    DataPath, fileName, SearchOption.AllDirectories))
+                // GAP-FIX: Auto-save warning baseline on document close
+                if (TagConfig.AutoSaveWarningBaseline)
                 {
-                    return f;
+                    try
+                    {
+                        var doc = e.Document;
+                        if (doc != null && !doc.IsFamilyDocument)
+                        {
+                            WarningsEngine.SaveBaseline(doc);
+                            StingLog.Info("DocumentClosing: auto-saved warning baseline");
+                        }
+                    }
+                    catch (Exception wex) { StingLog.Warn($"Auto-save warning baseline: {wex.Message}"); }
+                }
+
+                ParameterHelpers.ClearParamCache();
+                ParameterHelpers.InvalidateSessionCaches();
+                ComplianceScan.InvalidateCache();
+                Temp.FormulaEngine.InvalidateFormulaCache();
+                UI.StingCommandHandler.ClearStaticState();
+                // Phase 78: Save dropped element IDs to sidecar before clearing queue
+                StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
+                // R-02: Clear deferred elements on document close
+                StingAutoTagger.ClearDeferredQueue();
+                // PERF-CRIT: Clear stale marker room index cache
+                StingStaleMarker.ClearRoomIndexCache();
+                // GAP-STP-02: Clear cached tag types on document close
+                Tags.TagPlacementEngine.ClearTagTypeCache();
+                // ME-HIGH-01: Clear per-document workset ID cache to prevent stale workset IDs
+                // from the closed document being applied to subsequently opened documents.
+                Model.ModelWorksetAssigner.ClearCache();
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocumentClosing cleanup: {ex.Message}");
+            }
+        }
+
+        /// <summary>R-02: Retry deferred auto-tag elements after sync-to-central completes.
+        /// Elements skipped during auto-tagging due to workset ownership are retried here.</summary>
+        private static void OnDocumentSynchronizedWithCentral(object sender,
+            Autodesk.Revit.DB.Events.DocumentSynchronizedWithCentralEventArgs e)
+        {
+            try
+            {
+                var deferredIds = StingAutoTagger.DrainDeferredQueue();
+                if (deferredIds.Count == 0) return;
+
+                Document doc = e.Document;
+                if (doc == null || !doc.IsValidObject) return;
+
+                var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+                var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                var formulas = TagPipelineHelper.LoadFormulas();
+                var gridLines = TagPipelineHelper.LoadGridLines(doc);
+                var stats = new TaggingStats();
+                int processed = 0;
+
+                using (var tx = new Transaction(doc, "STING AutoTag deferred retry"))
+                {
+                    tx.Start();
+                    foreach (var id in deferredIds)
+                    {
+                        try
+                        {
+                            Element el = doc.GetElement(id);
+                            if (el == null || !el.IsValidObject) continue;
+                            string cat = ParameterHelpers.GetCategoryName(el);
+                            if (!known.Contains(cat)) continue;
+
+                            bool ok = TagPipelineHelper.RunFullPipeline(
+                                doc, el, popCtx, tagIndex, seqCounters,
+                                formulas, gridLines,
+                                overwrite: false,
+                                skipComplete: true,
+                                collisionMode: TagCollisionMode.AutoIncrement,
+                                stats: stats);
+                            if (ok) processed++;
+                        }
+                        catch (Exception elEx) { StingLog.Warn($"AutoTagger deferred retry element {id.Value}: {elEx.Message}"); }
+                    }
+                    tx.Commit();
+                }
+
+                if (processed > 0)
+                {
+                    try { TagConfig.SaveSeqSidecar(doc, seqCounters); } catch (Exception ex) { StingLog.Warn($"Deferred retry SEQ sidecar: {ex.Message}"); }
+                    ComplianceScan.InvalidateCache();
+                    StingAutoTagger.InvalidateContext();
+                }
+
+                StingLog.Info($"AutoTagger deferred retry: processed {processed}/{deferredIds.Count} elements after sync-to-central");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"OnDocumentSynchronizedWithCentral deferred retry: {ex.Message}");
+            }
+        }
+
+        /// <summary>BUG-05: Clear param cache on document open to prevent cross-document collisions.</summary>
+        private static void OnDocumentOpened(object sender,
+            Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
+        {
+            try
+            {
+                Temp.FormulaEngine.ClearCache();
+                ParameterHelpers.ClearParamCache();
+                StingAutoTagger.InvalidateContext();
+                ComplianceScan.InvalidateCache();
+
+                // FIX-C01: Reset selection scope to view-only on document switch
+                // Prevents stale project-wide scope from carrying over between projects
+                Select.SelectionScopeHelper.SetScope(false);
+
+                // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
+                // to prevent config bleed between projects
+                try
+                {
+                    string configPath = null;
+                    // First: look alongside the .rvt file for project-specific config
+                    string docPath = e.Document?.PathName;
+                    if (!string.IsNullOrEmpty(docPath))
+                    {
+                        string projectDir = System.IO.Path.GetDirectoryName(docPath);
+                        if (!string.IsNullOrEmpty(projectDir))
+                        {
+                            string adjacent = System.IO.Path.Combine(projectDir, "project_config.json");
+                            if (System.IO.File.Exists(adjacent))
+                                configPath = adjacent;
+                        }
+                    }
+                    // Fallback: look in plugin data directory
+                    if (configPath == null)
+                        configPath = FindDataFile("project_config.json");
+
+                    if (configPath != null)
+                        TagConfig.LoadFromFile(configPath);
+                    else
+                        TagConfig.LoadDefaults();
+                }
+                catch (Exception cfgEx)
+                {
+                    StingLog.Warn($"DocumentOpened TagConfig reload: {cfgEx.Message}");
+                    TagConfig.LoadDefaults();
+                }
+
+                Temp.FormulaEngine.InvalidateFormulaCache();
+                StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
+
+                // FUT-19: Pre-warm ONLY non-Revit-API caches (file I/O) on background thread.
+                // PERF-CRIT: Revit API is NOT thread-safe — ComplianceScan.Scan() and
+                // LoadGridLines() use FilteredElementCollector which MUST run on the UI thread.
+                // Previously this caused native Revit instability and slowdowns.
+                try
+                {
+                    System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                    {
+                        try
+                        {
+                            // Pre-load formulas from CSV — pure file I/O, safe on background thread
+                            TagPipelineHelper.LoadFormulas();
+                            StingLog.Info("FUT-19: Background pre-warming completed (formulas only — Revit API deferred)");
+                        }
+                        catch (Exception prEx) { StingLog.Warn($"FUT-19 pre-warm: {prEx.Message}"); }
+                    });
+                }
+                catch (Exception pwEx) { StingLog.Warn($"FUT-19 pre-warm launch: {pwEx.Message}"); }
+
+                // FIX-B10: Restore auto-tagger state from persisted config
+                try
+                {
+                    if (TagConfig.AutoTaggerEnabled.HasValue)
+                    {
+                        bool want = TagConfig.AutoTaggerEnabled.Value;
+                        if (want != StingAutoTagger.IsEnabled) StingAutoTagger.Toggle();
+                    }
+                    if (TagConfig.AutoTaggerVisual.HasValue)
+                        StingAutoTagger.SetVisualTagging(TagConfig.AutoTaggerVisual.Value);
+                    if (TagConfig.AutoTaggerStaleMarker.HasValue)
+                        StingStaleMarker.SetEnabled(TagConfig.AutoTaggerStaleMarker.Value);
+                    // GAP-AT-03: Restore discipline filter from project config
+                    StingAutoTagger.RestoreDisciplineFilter();
+                }
+                catch (Exception atEx)
+                {
+                    StingLog.Warn($"AutoTagger state restore: {atEx.Message}");
+                }
+
+                // AL-07: Notify user of auto-run workflow on open
+                try
+                {
+                    string autoWorkflow = TagConfig.AutoRunWorkflowOnOpen;
+                    if (!string.IsNullOrEmpty(autoWorkflow))
+                    {
+                        StingLog.Info($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN configured: '{autoWorkflow}'. " +
+                            "Use 'Workflow Preset' command to execute manually.");
+                    }
+                }
+                catch (Exception arwEx)
+                {
+                    StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
+                }
+
+                // Phase 77: Consume any pending workflow presets from WorkflowScheduler triggers
+                // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
+                try
+                {
+                    WorkflowScheduler.CheckDocumentOpenTriggers(e.Document);
+                    while (WorkflowScheduler.HasPendingPresets)
+                    {
+                        string presetName = WorkflowScheduler.DequeuePendingPreset();
+                        if (!string.IsNullOrEmpty(presetName))
+                        {
+                            StingLog.Info($"WorkflowScheduler: executing queued preset '{presetName}'");
+                            UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", presetName);
+                            // Actual execution happens via ExternalEvent in StingCommandHandler
+                            break; // Execute one at a time; remaining will execute on next idle
+                        }
+                    }
+                }
+                catch (Exception wsEx)
+                {
+                    StingLog.Warn($"WorkflowScheduler document-open execution: {wsEx.Message}");
+                }
+
+                // PERF-CRIT: Morning briefing DEFERRED to Idling event.
+                // Previously ran ComplianceScan.Scan() (iterates ALL elements), GetWarnings(),
+                // CheckSLAViolations (disk I/O), ComplianceTrendTracker (disk I/O), and showed
+                // a BLOCKING TaskDialog — all inside the DocumentOpened event handler.
+                // This blocked the Revit UI thread for 5-30+ seconds on large models, making
+                // even native Revit buttons unresponsive.
+                //
+                // Now deferred to Revit's Idling event which fires after the UI is fully ready.
+                // The briefing runs ONCE on first idle after document open, then unsubscribes.
+                try
+                {
+                    _pendingBriefingDoc = e.Document;
+                    // Idling event fires repeatedly when Revit is idle — we use a flag to run once
+                    if (!_briefingSubscribed)
+                    {
+                        _briefingSubscribed = true;
+                        // We can't subscribe to Idling from ControlledApplication — use static flag
+                        // and check in StingCommandHandler's first Execute() call instead
+                        _briefingPending = true;
+                        StingLog.Info("Morning briefing deferred to first idle/command");
+                    }
+                }
+                catch (Exception mbEx)
+                {
+                    StingLog.Warn($"Morning briefing defer: {mbEx.Message}");
                 }
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"FindDataFile '{fileName}': {ex.Message}");
+                StingLog.Warn($"DocumentOpened cleanup: {ex.Message}");
             }
+        }
+
+        // PERF-CRIT: Deferred morning briefing state — runs on first command after document open
+        private static Document _pendingBriefingDoc;
+        internal static volatile bool _briefingPending;
+        private static bool _briefingSubscribed;
+
+        /// <summary>PERF-CRIT: Run the morning briefing on demand (called from StingCommandHandler
+        /// on first command execution after document open, NOT from DocumentOpened event).
+        /// This prevents blocking the Revit UI thread during document load.</summary>
+        internal static void RunDeferredMorningBriefing(Document doc)
+        {
+            if (!_briefingPending) return;
+            _briefingPending = false;
+
+            if (doc == null || !doc.IsValidObject) return;
+
+            try
+            {
+                var briefing = new System.Text.StringBuilder();
+                bool hasAlerts = false;
+
+                // 1. Compliance scan (now runs on demand, not during document open)
+                var comp = ComplianceScan.Scan(doc);
+                if (comp != null)
+                {
+                    try { ComplianceTrendTracker.RecordSnapshot(doc, comp); }
+                    catch (Exception ex) { StingLog.Warn($"Trend snapshot: {ex.Message}"); }
+
+                    string trendDir = "unknown"; double trendDelta = 0;
+                    try { (trendDir, trendDelta) = ComplianceTrendTracker.GetTrend(doc); }
+                    catch (Exception ex) { StingLog.Warn($"Trend read: {ex.Message}"); }
+
+                    briefing.AppendLine($"Tag Compliance: {comp.CompliancePercent:F0}% ({comp.RAGStatus})" +
+                        (trendDir != "unknown" && trendDir != "insufficient data" ?
+                        $"  [{trendDir} {trendDelta:+0.0;-0.0}% over 7 days]" : ""));
+                    briefing.AppendLine($"  Tagged: {comp.TaggedComplete}/{comp.TotalElements}  |  " +
+                        $"Untagged: {comp.Untagged}  |  Stale: {comp.StaleCount}");
+                    if (comp.PlaceholderCount > 0)
+                        briefing.AppendLine($"  Placeholders (GEN/XX/ZZ): {comp.PlaceholderCount}");
+                    if (comp.StaleCount > 0) hasAlerts = true;
+                    if (comp.CompliancePercent < 60) hasAlerts = true;
+                    if (trendDir == "declining") hasAlerts = true;
+                }
+
+                // 2. Warnings — lightweight count only (no full classification)
+                try
+                {
+                    int warnCount = doc.GetWarnings()?.Count ?? 0;
+                    briefing.AppendLine($"\nModel Warnings: {warnCount}");
+                    if (warnCount > 100) { briefing.AppendLine("  (HIGH warning count — run Warnings Auto-Fix)"); hasAlerts = true; }
+                }
+                catch (Exception wEx) { StingLog.Warn($"Morning briefing warnings: {wEx.Message}"); }
+
+                // 3. SLA violations (disk I/O — acceptable here since we're not in event handler)
+                try
+                {
+                    var overdue = BIMManager.BIMManagerEngine.CheckSLAViolations(doc);
+                    if (overdue.Count > 0)
+                    {
+                        hasAlerts = true;
+                        int critCount = overdue.Count(o => o.priority == "CRITICAL");
+                        int highCount = overdue.Count(o => o.priority == "HIGH");
+                        briefing.AppendLine($"\nOverdue Issues: {overdue.Count}");
+                        if (critCount > 0) briefing.AppendLine($"  CRITICAL: {critCount} (SLA: 4 hrs)");
+                        if (highCount > 0) briefing.AppendLine($"  HIGH: {highCount} (SLA: 24 hrs)");
+                        briefing.AppendLine($"  Most overdue: {overdue[0].issueId} ({overdue[0].hoursOverdue:F0}h)");
+                    }
+                }
+                catch (Exception slaEx) { StingLog.Warn($"Morning briefing SLA: {slaEx.Message}"); }
+
+                // 4. Show briefing only if alerts — now safe to show TaskDialog (not in event handler)
+                if (hasAlerts)
+                {
+                    briefing.AppendLine("\n────────────────────────────────────");
+                    briefing.AppendLine("Open BIM Coordination Center for full details.");
+                    var dlg = new TaskDialog("STING Morning Briefing");
+                    dlg.MainInstruction = "Model Status Summary";
+                    dlg.MainContent = briefing.ToString();
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Run Morning Health Check workflow", "Auto-fix stale elements, warnings, and validate tags");
+                    dlg.CommonButtons = TaskDialogCommonButtons.Close;
+                    var dlgResult = dlg.Show();
+
+                    if (dlgResult == TaskDialogResult.CommandLink1)
+                    {
+                        UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", "MorningHealthCheck");
+                        StingLog.Info("Morning briefing: user requested MorningHealthCheck workflow");
+                    }
+                }
+                else
+                {
+                    StingLog.Info($"Morning briefing: model healthy — {comp?.CompliancePercent:F0}% compliance, no alerts");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Deferred morning briefing: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// FIX-06: Invalidate auto-tagger cache when switching between documents.
+        /// ViewActivated fires when user switches active view or document — clear cached
+        /// context so the auto-tagger picks up the correct document's data.
+        /// </summary>
+        private static Document _lastActiveDoc;
+        private static void OnViewActivated(object sender,
+            Autodesk.Revit.UI.Events.ViewActivatedEventArgs e)
+        {
+            try
+            {
+                Document currentDoc = e.CurrentActiveView?.Document;
+                if (currentDoc != null && currentDoc != _lastActiveDoc)
+                {
+                    _lastActiveDoc = currentDoc;
+                    StingAutoTagger.InvalidateContext();
+                    ComplianceScan.InvalidateCache();
+                    // GAP-05: Clear parameter lookup cache on document switch to prevent
+                    // stale Definition objects from a different document being reused
+                    ParameterHelpers.ClearParamCache();
+                    StingLog.Info("ViewActivated: document switch detected — caches invalidated");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ViewActivated handler: {ex.Message}");
+            }
+        }
+
+        public Result OnShutdown(UIControlledApplication application)
+        {
+            StingLog.Info("STING Tools shutting down");
+            StingPluginHooks.ClearAll();
+            StingAutoTagger.Unregister();
+            UI.ThemeManager.ClearTarget(); // H-02: Prevent memory leak from static WPF reference
+            StingLog.Shutdown();
+            return Result.Succeeded;
+        }
+
+        // ── Assembly Pre-Flight Check ────────────────────────────────
+
+        /// <summary>
+        /// Logs the assembly environment at startup for crash diagnostics.
+        /// Detects known conflict patterns (version mismatches for key assemblies)
+        /// that have been observed to cause native Revit crashes.
+        /// </summary>
+        private static void LogAssemblyEnvironment()
+        {
+            try
+            {
+                var stingAsm = Assembly.GetExecutingAssembly().GetName();
+                StingLog.Info($"STING Tools v{stingAsm.Version} loaded from {AssemblyPath}");
+
+                // Check for assemblies we depend on that may conflict with other addins
+                var criticalAssemblies = new[] {
+                    "Newtonsoft.Json", "ClosedXML", "DocumentFormat.OpenXml",
+                    "System.IO.Packaging", "WindowsBase", "RevitAPI", "RevitAPIUI"
+                };
+
+                var loaded = AppDomain.CurrentDomain.GetAssemblies();
+                var conflicts = new List<string>();
+
+                // Group loaded assemblies by short name to detect version conflicts
+                var grouped = loaded
+                    .Where(a => !a.IsDynamic)
+                    .GroupBy(a => a.GetName().Name, StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Count() > 1 || criticalAssemblies.Contains(g.Key));
+
+                foreach (var g in grouped)
+                {
+                    var versions = g.Select(a => a.GetName().Version?.ToString() ?? "?").Distinct().ToList();
+                    if (versions.Count > 1)
+                    {
+                        string msg = $"CONFLICT: {g.Key} loaded with {versions.Count} versions: " +
+                            string.Join(", ", versions);
+                        StingLog.Warn(msg);
+                        conflicts.Add(msg);
+                    }
+                    else if (criticalAssemblies.Contains(g.Key))
+                    {
+                        StingLog.Info($"Assembly: {g.Key} v{versions[0]}");
+                    }
+                }
+
+                if (conflicts.Count > 0)
+                {
+                    StingLog.Warn($"Assembly pre-flight: {conflicts.Count} version conflict(s) detected. " +
+                        "These may cause intermittent crashes. Check log for details.");
+                }
+                else
+                {
+                    StingLog.Info("Assembly pre-flight: no version conflicts detected.");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Pre-flight check is diagnostic only — never block startup
+                StingLog.Warn($"Assembly pre-flight check failed: {ex.Message}");
+            }
+        }
+
+        // ── Data File Validation ─────────────────────────────────────
+
+        /// <summary>
+        /// Validates that the data directory and critical data files exist at startup.
+        /// Logs warnings for missing files and shows a one-time dialog if the data
+        /// directory is completely missing — this is the #1 cause of command crashes.
+        /// </summary>
+        private static void ValidateDataFiles()
+        {
+            if (!Directory.Exists(DataPath))
+            {
+                StingLog.Warn($"Data directory not found: {DataPath}");
+                StingLog.Warn("Data-dependent commands will use fallback defaults. " +
+                    "Deploy the data/ folder alongside StingTools.dll.");
+                // Don't block startup with a dialog — log is sufficient.
+                // Commands that need data files already show their own error dialogs.
+                return;
+            }
+
+            // Critical files that many commands depend on
+            string[] criticalFiles = new[]
+            {
+                "PARAMETER_REGISTRY.json",
+                "MR_PARAMETERS.txt",
+                "MR_PARAMETERS.csv",
+                "BLE_MATERIALS.csv",
+                "MEP_MATERIALS.csv",
+                "MR_SCHEDULES.csv",
+                "FORMULAS_WITH_DEPENDENCIES.csv",
+                "CATEGORY_BINDINGS.csv",
+                "LABEL_DEFINITIONS.json",
+            };
+
+            var missing = new List<string>();
+            foreach (string file in criticalFiles)
+            {
+                string path = FindDataFile(file);
+                if (path == null)
+                    missing.Add(file);
+            }
+
+            if (missing.Count > 0)
+            {
+                string list = string.Join(", ", missing);
+                StingLog.Warn($"Missing {missing.Count} critical data files: {list}");
+                StingLog.Warn($"Data path: {DataPath}");
+                StingLog.Warn("Commands that depend on these files will show individual error messages.");
+            }
+            else
+            {
+                StingLog.Info($"Data validation passed: all {criticalFiles.Length} critical files found in {DataPath}");
+            }
+
+            // IG-04: Verify pyRevit manifest
+            string manifestPath = FindDataFile("PYREVIT_SCRIPT_MANIFEST.csv");
+            if (manifestPath != null)
+            {
+                try
+                {
+                    var mLines = File.ReadAllLines(manifestPath).Skip(1).ToList();
+                    int missingScripts = mLines.Count(l => {
+                        var p = ParseCsvLine(l);
+                        return p.Length >= 2 && !string.IsNullOrEmpty(p[1].Trim()) && !File.Exists(p[1].Trim());
+                    });
+                    if (missingScripts > 0)
+                        StingLog.Warn($"PYREVIT_SCRIPT_MANIFEST: {missingScripts} script path(s) not found on disk.");
+                }
+                catch (Exception ex) { StingLog.Warn($"PyRevit manifest check: {ex.Message}"); }
+            }
+
+            // DATA-01: Validate schema version headers on TAG_CONFIG CSVs
+            string[] versionedCsvs = new[]
+            {
+                "STING_TAG_CONFIG_v5_0_GEN.csv",
+                "STING_TAG_CONFIG_v5_0_ARCH.csv",
+                "STING_TAG_CONFIG_v5_0_STR.csv",
+                "STING_TAG_CONFIG_v5_0_MEP.csv",
+            };
+            foreach (string csv in versionedCsvs)
+            {
+                string path = FindDataFile(csv);
+                if (path != null)
+                    GetCsvSchemaVersion(path);
+            }
+        }
+
+        // ── Dockable Panel Registration ──────────────────────────────
+
+        private void RegisterDockablePanel(UIControlledApplication application)
+        {
+            try
+            {
+                // Initialise the external event handler for panel button dispatching
+                StingDockPanel.Initialise(application);
+
+                // Register the dockable pane with Revit
+                var provider = new StingDockPanelProvider();
+                application.RegisterDockablePane(
+                    StingDockPanelProvider.PaneId,
+                    "STING Tools",
+                    provider);
+
+                // Create a minimal ribbon tab with just a toggle button
+                const string tabName = "STING Tools";
+                application.CreateRibbonTab(tabName);
+                string asmPath = AssemblyPath;
+                var togglePanel = application.CreateRibbonPanel(tabName, "Panel");
+                AddButton(togglePanel, "btnTogglePanel", "STING\nPanel",
+                    asmPath, typeof(ToggleDockPanelCommand).FullName,
+                    "Show/hide the STING Tools dockable panel");
+
+                StingLog.Info("Dockable panel registered successfully");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Failed to register dockable panel", ex);
+            }
+        }
+
+        /* Ribbon panels removed — all commands now accessible via the dockable panel.
+           Original panels: Select (22 cmds), Docs (17 cmds), Tags (28 cmds),
+           Organise (32 cmds), Temp (64 cmds). */
+
+        // ── Data file utilities ───────────────────────────────────────
+
+        /// <summary>Find a data file by name, searching DataPath, subdirectories,
+        /// and common alternative locations relative to the DLL.</summary>
+        public static string FindDataFile(string fileName)
+        {
+            if (string.IsNullOrEmpty(DataPath) && string.IsNullOrEmpty(AssemblyPath))
+                return null;
+
+            // 1. Primary: DataPath/fileName (e.g. .../CompiledPlugin/data/BLE_MATERIALS.csv)
+            if (!string.IsNullOrEmpty(DataPath))
+            {
+                try
+                {
+                    string direct = Path.Combine(DataPath, fileName);
+                    if (File.Exists(direct)) return direct;
+                }
+                catch (Exception ex) { StingLog.Warn($"Path.Combine or File.Exists can fail on invalid paths: {ex.Message}"); }
+            }
+
+            // 2. Search DataPath subdirectories (only if directory actually exists)
+            if (!string.IsNullOrEmpty(DataPath))
+            {
+                try
+                {
+                    if (Directory.Exists(DataPath))
+                    {
+                        foreach (string f in Directory.GetFiles(
+                            DataPath, fileName, SearchOption.AllDirectories))
+                        {
+                            return f;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"FindDataFile '{fileName}': {ex.Message}");
+                }
+            }
+
+            // 3. Fallback: search alternative paths relative to DLL location
+            //    Handles deployment where data/ is at a sibling or parent level
+            string dllDir = Path.GetDirectoryName(AssemblyPath) ?? "";
+            string[] alternativePaths = new[]
+            {
+                Path.Combine(dllDir, "Data", fileName),          // Data/ (capital D, source layout)
+                Path.Combine(dllDir, "..", "data", fileName),    // ../data/ (parent)
+                Path.Combine(dllDir, "..", "Data", fileName),    // ../Data/ (parent, capital)
+                Path.Combine(dllDir, "..", "StingTools", "Data", fileName), // sibling project
+            };
+
+            foreach (string alt in alternativePaths)
+            {
+                try
+                {
+                    string resolved = Path.GetFullPath(alt);
+                    if (File.Exists(resolved))
+                    {
+                        StingLog.Info($"FindDataFile '{fileName}' found at fallback: {resolved}");
+                        return resolved;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"path resolution failed, skip: {ex.Message}"); }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// DATA-01: Parse the schema version from a CSV file's first line.
+        /// Supports both `#SCHEMA_VERSION=X.Y` and `#!SCHEMA_VERSION=X.Y` formats.
+        /// Returns null if not present or unreadable.
+        /// </summary>
+        public static string GetCsvSchemaVersion(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return null;
+                using (var reader = new StreamReader(filePath))
+                {
+                    string firstLine = reader.ReadLine();
+                    if (firstLine == null) return null;
+                    if (firstLine.StartsWith("#!SCHEMA_VERSION="))
+                        return firstLine.Substring("#!SCHEMA_VERSION=".Length).Trim();
+                    if (firstLine.StartsWith("#SCHEMA_VERSION="))
+                    {
+                        string versionPart = firstLine.Substring("#SCHEMA_VERSION=".Length);
+                        int comma = versionPart.IndexOf(',');
+                        return (comma >= 0 ? versionPart.Substring(0, comma) : versionPart).Trim();
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Schema version read failed for {filePath}: {ex.Message}"); }
             return null;
         }
 
@@ -567,6 +828,44 @@ namespace StingTools.Core
             var data = new PushButtonData(name, text, asmPath, className);
             data.ToolTip = tooltip;
             pulldown.AddPushButton(data);
+        }
+    }
+
+    /// <summary>
+    /// Toggle the STING Tools dockable panel visibility.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ToggleDockPanelCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                DockablePane pane = ParameterHelpers.GetApp(commandData)
+                    .GetDockablePane(StingDockPanelProvider.PaneId);
+
+                if (pane == null)
+                {
+                    TaskDialog.Show("STING Panel",
+                        "Dockable panel not found. Restart Revit to register it.");
+                    return Result.Failed;
+                }
+
+                if (pane.IsShown())
+                    pane.Hide();
+                else
+                    pane.Show();
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Toggle dockable panel failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
         }
     }
 }

@@ -1,0 +1,18 @@
+{
+  "platform_name": "STING BIM Manager",
+  "project_name": "Project Name",
+  "project_number": "Project Number",
+  "webhook_url": "",
+  "notification_email": "",
+  "last_sync": "2026-03-20T10:08:47.3295056Z",
+  "sync_history": [
+    {
+      "timestamp": "2026-03-20T10:08:47.3303319Z",
+      "changes_detected": 42,
+      "delta_file": "sync_delta_20260320_130847.json",
+      "user": "del"
+    }
+  ],
+  "auto_sync_enabled": false,
+  "sync_interval_minutes": 60
+}

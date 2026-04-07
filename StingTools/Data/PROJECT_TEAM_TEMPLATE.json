@@ -1,0 +1,95 @@
+{
+  "version": "1.0",
+  "project_name": "",
+  "project_code": "",
+  "last_updated": "",
+  "roles": [
+    { "id": "PM", "title": "Project Manager", "iso_role": "Appointing Party Representative", "level": "Lead" },
+    { "id": "BIM_MGR", "title": "BIM Manager", "iso_role": "Lead Appointed Party", "level": "Lead" },
+    { "id": "BIM_COORD", "title": "BIM Coordinator", "iso_role": "Lead Appointed Party", "level": "Coordinator" },
+    { "id": "ARCH_LEAD", "title": "Architectural Lead", "iso_role": "Appointed Party", "level": "Lead" },
+    { "id": "STR_LEAD", "title": "Structural Lead", "iso_role": "Appointed Party", "level": "Lead" },
+    { "id": "MEP_LEAD", "title": "MEP Lead", "iso_role": "Appointed Party", "level": "Lead" },
+    { "id": "ARCH", "title": "Architect", "iso_role": "Task Team Member", "level": "Member" },
+    { "id": "STR_ENG", "title": "Structural Engineer", "iso_role": "Task Team Member", "level": "Member" },
+    { "id": "MECH_ENG", "title": "Mechanical Engineer", "iso_role": "Task Team Member", "level": "Member" },
+    { "id": "ELEC_ENG", "title": "Electrical Engineer", "iso_role": "Task Team Member", "level": "Member" },
+    { "id": "PLM_ENG", "title": "Plumbing Engineer", "iso_role": "Task Team Member", "level": "Member" },
+    { "id": "FP_ENG", "title": "Fire Protection Engineer", "iso_role": "Task Team Member", "level": "Member" },
+    { "id": "QS", "title": "Quantity Surveyor", "iso_role": "Task Team Member", "level": "Member" },
+    { "id": "CDM", "title": "CDM Coordinator", "iso_role": "Task Team Member", "level": "Coordinator" },
+    { "id": "CLIENT", "title": "Client Representative", "iso_role": "Appointing Party", "level": "External" },
+    { "id": "CONTRACTOR", "title": "Main Contractor", "iso_role": "Appointed Party", "level": "External" },
+    { "id": "FM_MGR", "title": "Facilities Manager", "iso_role": "Asset Owner", "level": "External" },
+    { "id": "REVIEWER", "title": "Reviewer", "iso_role": "Appointed Party", "level": "Member" },
+    { "id": "APPROVER", "title": "Approver", "iso_role": "Appointing Party", "level": "Lead" }
+  ],
+  "companies": [
+    { "id": "LEAD", "name": "Lead Design Company", "type": "Lead Appointed Party", "disciplines": ["A", "S", "M", "E", "P"] },
+    { "id": "CLIENT_ORG", "name": "Client Organisation", "type": "Appointing Party", "disciplines": [] },
+    { "id": "CONTRACTOR_ORG", "name": "Main Contractor", "type": "Appointed Party", "disciplines": [] }
+  ],
+  "members": [
+    {
+      "id": "MBR-0001",
+      "name": "",
+      "email": "",
+      "phone": "",
+      "role_id": "BIM_COORD",
+      "company_id": "LEAD",
+      "discipline": "M",
+      "status": "ACTIVE",
+      "cde_access": "EDITOR",
+      "added_date": "",
+      "notes": ""
+    }
+  ],
+  "distribution_groups": [
+    { "id": "DG-ALL", "name": "All Project Members", "description": "Entire project team", "member_ids": [], "auto_rule": "ALL_ACTIVE" },
+    { "id": "DG-LEADS", "name": "Discipline Leads", "description": "All lead engineers and architects", "member_ids": [], "auto_rule": "LEVEL:Lead" },
+    { "id": "DG-COORDS", "name": "Coordinators", "description": "BIM coordinators and CDM", "member_ids": [], "auto_rule": "LEVEL:Coordinator" },
+    { "id": "DG-MECH", "name": "Mechanical Team", "description": "All mechanical discipline members", "member_ids": [], "auto_rule": "DISC:M" },
+    { "id": "DG-ELEC", "name": "Electrical Team", "description": "All electrical discipline members", "member_ids": [], "auto_rule": "DISC:E" },
+    { "id": "DG-PLM", "name": "Plumbing Team", "description": "All plumbing discipline members", "member_ids": [], "auto_rule": "DISC:P" },
+    { "id": "DG-ARCH", "name": "Architecture Team", "description": "All architectural discipline members", "member_ids": [], "auto_rule": "DISC:A" },
+    { "id": "DG-STR", "name": "Structural Team", "description": "All structural discipline members", "member_ids": [], "auto_rule": "DISC:S" },
+    { "id": "DG-EXTERNAL", "name": "External Parties", "description": "Client, contractor, FM", "member_ids": [], "auto_rule": "LEVEL:External" },
+    { "id": "DG-REVIEW", "name": "Review Panel", "description": "Members assigned to review/approve", "member_ids": [], "auto_rule": "ROLE:REVIEWER,APPROVER" },
+    { "id": "DG-ISO", "name": "ISO 19650 Responsible", "description": "BIM Manager + Coordinators for ISO compliance", "member_ids": [], "auto_rule": "ROLE:BIM_MGR,BIM_COORD" }
+  ],
+  "sla_rules": {
+    "CRITICAL": { "response_hours": 4, "resolution_hours": 24, "escalation_after_hours": 8 },
+    "HIGH": { "response_hours": 24, "resolution_hours": 72, "escalation_after_hours": 48 },
+    "MEDIUM": { "response_hours": 48, "resolution_hours": 168, "escalation_after_hours": 120 },
+    "LOW": { "response_hours": 168, "resolution_hours": 720, "escalation_after_hours": 504 },
+    "INFO": { "response_hours": 0, "resolution_hours": 0, "escalation_after_hours": 0 }
+  },
+  "escalation_chain": [
+    { "level": 1, "role_ids": ["BIM_COORD"], "notify": true },
+    { "level": 2, "role_ids": ["BIM_MGR", "MEP_LEAD", "ARCH_LEAD", "STR_LEAD"], "notify": true },
+    { "level": 3, "role_ids": ["PM"], "notify": true }
+  ],
+  "notification_preferences": {
+    "transmittal_created": ["DG-ALL"],
+    "issue_created_critical": ["DG-LEADS", "DG-COORDS"],
+    "issue_created_high": ["DG-COORDS"],
+    "action_overdue": ["DG-COORDS"],
+    "meeting_scheduled": ["DG-ALL"],
+    "revision_published": ["DG-ALL"],
+    "cde_status_changed": ["DG-LEADS"]
+  },
+  "raci_matrix": {
+    "tag_management": { "R": ["BIM_COORD"], "A": ["BIM_MGR"], "C": ["MEP_LEAD", "ARCH_LEAD", "STR_LEAD"], "I": ["PM"] },
+    "model_coordination": { "R": ["BIM_COORD"], "A": ["BIM_MGR"], "C": ["ARCH_LEAD", "STR_LEAD", "MEP_LEAD"], "I": ["CLIENT"] },
+    "document_control": { "R": ["BIM_COORD"], "A": ["PM"], "C": ["BIM_MGR"], "I": ["DG-ALL"] },
+    "cobie_delivery": { "R": ["BIM_COORD", "FM_MGR"], "A": ["BIM_MGR"], "C": ["MEP_LEAD"], "I": ["CLIENT"] },
+    "clash_resolution": { "R": ["BIM_COORD"], "A": ["BIM_MGR"], "C": ["ARCH_LEAD", "STR_LEAD", "MEP_LEAD"], "I": ["PM", "CONTRACTOR"] },
+    "transmittal_approval": { "R": ["BIM_COORD"], "A": ["PM"], "C": ["BIM_MGR"], "I": ["CLIENT"] },
+    "stage_sign_off": { "R": ["BIM_MGR"], "A": ["PM"], "C": ["DG-LEADS"], "I": ["CLIENT", "FM_MGR"] }
+  },
+  "recurring_meetings": [
+    { "type": "BIM Coordination Meeting", "frequency": "WEEKLY", "day": "Wednesday", "time": "10:00", "duration_min": 60, "default_attendee_groups": ["DG-COORDS", "DG-LEADS"], "auto_create": false },
+    { "type": "Design Review", "frequency": "FORTNIGHTLY", "day": "Friday", "time": "14:00", "duration_min": 90, "default_attendee_groups": ["DG-LEADS", "DG-EXTERNAL"], "auto_create": false },
+    { "type": "Client Review", "frequency": "MONTHLY", "day": "Last Friday", "time": "10:00", "duration_min": 120, "default_attendee_groups": ["DG-LEADS", "DG-EXTERNAL"], "auto_create": false }
+  ]
+}

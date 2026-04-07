@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang='en'><head>
+<meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>
+<title> — BIM Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', -apple-system, sans-serif; background: #f0f2f5; color: #333; }
+.header { background: linear-gradient(135deg, #582C83, #7B1FA2); color: white; padding: 30px 40px; }
+.header h1 { font-size: 24px; font-weight: 300; } .header .code { opacity: 0.8; font-size: 14px; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 16px 0; }
+.card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.card h2 { font-size: 16px; color: #582C83; margin-bottom: 12px; border-bottom: 2px solid #E1BEE7; padding-bottom: 8px; }
+.metric { font-size: 32px; font-weight: 700; color: #582C83; } .metric-label { font-size: 12px; color: #888; text-transform: uppercase; }
+table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+th { background: #582C83; color: white; padding: 10px 12px; text-align: left; font-size: 13px; }
+td { padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+tr:hover { background: #f8f4fc; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: white; }
+.green { background: #4CAF50; } .amber { background: #FF9800; } .red { background: #F44336; } .blue { background: #2196F3; }
+.footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
+</style></head><body>
+<div class='header'><h1></h1>
+<div class='code'>Project Code: PROJ | ISO 19650 | Generated: 2026-03-14 14:00</div></div>
+<div class='container'>
+<div class='grid'>
+<div class='card'><div class='metric-label'>Total Elements</div><div class='metric'>158</div></div>
+<div class='card'><div class='metric-label'>Tag Completeness</div><div class='metric'>0%</div></div>
+<div class='card'><div class='metric-label'>Sheets</div><div class='metric'>22</div></div>
+<div class='card'><div class='metric-label'>Revisions</div><div class='metric'>1</div></div>
+</div>
+<div class='card'><h2>Compliance Status</h2>
+<p>Overall: <span class='badge red'>RED</span></p>
+<p>Complete: 0 | Incomplete: 0 | Untagged: 158</p>
+</div>
+<div class='card'><h2>Deliverables</h2>
+<table><tr><th>Folder</th><th>File</th><th>Size</th></tr>
+<tr><td>02_SHARED</td><td>project_dashboard.json</td><td>529 B</td></tr>
+<tr><td>05_BEP</td><td>project_bep.json</td><td>13 KB</td></tr>
+</table></div>
+<div class='footer'>StingTools V2.1 — BS EN ISO 19650 Compliant BIM Management</div>
+</div></body></html>

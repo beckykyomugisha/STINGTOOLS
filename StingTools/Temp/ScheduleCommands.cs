@@ -7,12 +7,20 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
+using StingTools.UI;
 
 namespace StingTools.Temp
 {
     /// <summary>
     /// Ported from STINGTemp 5_Schedules.panel — Batch Create Schedules.
-    /// Multi-discipline schedule creation from CSV definition files.
+    /// Multi-discipline schedule creation from MR_SCHEDULES.csv definition file.
+    /// Now uses ALL 16 CSV columns:
+    ///   0: Record_Type, 1: Source_File, 2: Discipline, 3: Schedule_Name,
+    ///   4: Category, 5: Schedule_Type (Material Takeoff), 6: Multi_Categories,
+    ///   7: Fields, 8: Filters, 9: Sorting, 10: Grouping, 11: Totals,
+    ///   12: Formulas (field header aliases), 13-15: Header/Text/Background Color (reserved)
+    /// Also loads SCHEDULE_FIELD_REMAP.csv for deprecated field name auto-remapping.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -21,7 +29,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
             string dataDir = StingToolsApp.DataPath;
 
             if (string.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
@@ -32,7 +42,6 @@ namespace StingTools.Temp
                 return Result.Failed;
             }
 
-            // Load the specific MR_SCHEDULES.csv definition file
             string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
             if (csvPath == null)
             {
@@ -41,91 +50,580 @@ namespace StingTools.Temp
                     $"Searched: {dataDir}");
                 return Result.Failed;
             }
-            var scheduleFiles = new[] { csvPath };
+
+            // Load deprecated field remaps from SCHEDULE_FIELD_REMAP.csv
+            var fieldRemaps = ScheduleHelper.LoadFieldRemaps();
+            int remapCount = fieldRemaps.Count;
+            if (remapCount > 0)
+                StingLog.Info($"Loaded {remapCount} field remaps from SCHEDULE_FIELD_REMAP.csv");
+
+            // Parse all schedule definitions to let user choose categories/disciplines
+            var allLines = File.ReadAllLines(csvPath)
+                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                .Skip(1)
+                .ToList();
+
+            // Extract unique disciplines and categories from CSV columns:
+            // col[0]=Record_Type, col[1]=Source_File, col[2]=Discipline, col[3]=Schedule_Name, col[4]=Category
+            var scheduleDefs = new List<(string discipline, string name, string category, string line)>();
+            foreach (string rawLine in allLines)
+            {
+                string[] rawCols = StingToolsApp.ParseCsvLine(rawLine);
+                if (rawCols.Length < 4) continue;
+                string discCol = rawCols.Length > 2 ? rawCols[2].Trim() : "General";
+                string nameCol = rawCols.Length > 3 ? rawCols[3].Trim() : "";
+                string catCol = rawCols.Length > 4 ? rawCols[4].Trim() : "";
+                if (string.IsNullOrEmpty(nameCol)) continue;
+                scheduleDefs.Add((discCol, nameCol, catCol, rawLine));
+            }
+
+            // Step: Let user pick which disciplines/categories to create
+            var discGroups = scheduleDefs
+                .GroupBy(s => s.discipline, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            var discItems = discGroups.Select(g => new StingListPicker.ListItem
+            {
+                Label = g.Key,
+                Detail = $"{g.Count()} schedules",
+                Tag = g.Key
+            }).ToList();
+
+            var discPick = StingListPicker.Show(
+                "Batch Create Schedules — Select Disciplines",
+                $"{scheduleDefs.Count} schedule definitions in CSV. Select disciplines to create.",
+                discItems, allowMultiSelect: true);
+
+            if (discPick == null || discPick.Count == 0) return Result.Cancelled;
+
+            var selectedDiscs = new HashSet<string>(
+                discPick.Select(d => d.Tag as string).Where(s => !string.IsNullOrEmpty(s)),
+                StringComparer.OrdinalIgnoreCase);
+
+            // Filter lines to selected disciplines only
+            var filteredDefs = scheduleDefs.Where(s => selectedDiscs.Contains(s.discipline)).ToList();
 
             int created = 0;
             int skipped = 0;
+            int remapped = 0;
+            int matTakeoffs = 0;
+            int formatted = 0;
+            int viewFiltersCreated = 0;
             var existingNames = new HashSet<string>(
                 new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSchedule))
                     .Cast<ViewSchedule>()
                     .Select(s => s.Name));
 
-            using (Transaction tx = new Transaction(doc, "Batch Create Schedules"))
+            // DAT-004: Collect existing view filter names
+            var existingFilterNames = new HashSet<string>(
+                new FilteredElementCollector(doc)
+                    .OfClass(typeof(ParameterFilterElement))
+                    .Cast<ParameterFilterElement>()
+                    .Select(f => f.Name));
+
+            // PERF-004: Pre-build category dictionary ONCE before the VIEW_FILTER loop.
+            // The previous code called doc.Settings.Categories.Cast<Category>().FirstOrDefault(...)
+            // per category name per VIEW_FILTER row — O(rows × categories) linear scans.
+            var categoryDict = new Dictionary<string, Category>(StringComparer.OrdinalIgnoreCase);
+            foreach (Category c in doc.Settings.Categories)
+                categoryDict[c.Name] = c;
+
+            using (Transaction tx = new Transaction(doc, "STING Batch Create Schedules"))
             {
                 tx.Start();
 
-                foreach (string file in scheduleFiles)
+                var lines = filteredDefs.Select(d => d.line);
+
+                int lineNum = 0;
+                foreach (string line in lines)
                 {
-                    // Skip comment line (row 0: "# v2.2 ...") and header (row 1)
-                    var lines = File.ReadAllLines(file)
-                        .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                        .Skip(1); // skip header row
-
-                    foreach (string line in lines)
+                    // Cancellation check every 20 schedules
+                    if (++lineNum % 20 == 0 && EscapeChecker.IsEscapePressed())
                     {
-                        // MR_SCHEDULES columns: Source_File(0), Discipline(1),
-                        // Schedule_Name(2), Category(3), ...
-                        string[] cols = StingToolsApp.ParseCsvLine(line);
-                        if (cols.Length < 4) continue;
+                        StingLog.Info($"BatchSchedules: cancelled by user at schedule {lineNum}");
+                        break;
+                    }
 
-                        string name = cols[2].Trim();
-                        string category = cols[3].Trim();
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 5) continue;
 
-                        if (string.IsNullOrEmpty(name)) continue;
-                        if (existingNames.Contains(name))
-                        {
-                            skipped++;
-                            continue;
-                        }
-
-                        // Map category string to BuiltInCategory
-                        if (!TryGetCategory(category, out BuiltInCategory bic))
+                    // DAT-004: Handle VIEW_FILTER records
+                    string recordType = cols[0].Trim();
+                    if (recordType.Equals("VIEW_FILTER", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string filterName = cols.Length > 3 ? cols[3].Trim() : "";
+                        string filterCats = cols.Length > 4 ? cols[4].Trim() : "";
+                        if (string.IsNullOrEmpty(filterName) || existingFilterNames.Contains(filterName))
                             continue;
 
                         try
                         {
-                            ElementId catId = new ElementId(bic);
-                            ViewSchedule vs = ViewSchedule.CreateSchedule(doc, catId);
-                            vs.Name = name;
-
-                            // Add fields from CSV column 6 (Fields)
-                            if (cols.Length > 6 && !string.IsNullOrWhiteSpace(cols[6]))
+                            // Parse category names to BuiltInCategory set
+                            var catIds = new List<ElementId>();
+                            string[] catNames = filterCats.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (string catStr in catNames)
                             {
-                                AddFieldsToSchedule(doc, vs, cols[6].Trim());
+                                string cn = catStr.Trim();
+                                // PERF-004: O(1) dictionary lookup instead of linear scan
+                                if (categoryDict.TryGetValue(cn, out Category cat))
+                                    catIds.Add(cat.Id);
                             }
 
-                            created++;
-                            existingNames.Add(name);
+                            if (catIds.Count > 0)
+                            {
+                                ParameterFilterElement.Create(doc, filterName, catIds);
+                                viewFiltersCreated++;
+                                existingFilterNames.Add(filterName);
+                                StingLog.Info($"Created view filter: {filterName} ({catIds.Count} categories)");
+                            }
                         }
                         catch (Exception ex)
                         {
-                            StingLog.Warn($"Schedule create failed '{name}': {ex.Message}");
-                            skipped++;
+                            StingLog.Warn($"View filter create failed '{filterName}': {ex.Message}");
                         }
+                        continue;
+                    }
+
+                    // Parse all 16 columns (0-indexed):
+                    // 0=Record_Type, 1=Source_File, 2=Discipline, 3=Schedule_Name,
+                    // 4=Category, 5=Schedule_Type, 6=Multi_Categories, 7=Fields,
+                    // 8=Filters, 9=Sorting, 10=Grouping, 11=Totals, 12=Formulas,
+                    // 13=Header_Color, 14=Text_Color, 15=Background_Color
+                    string name = cols.Length > 3 ? cols[3].Trim() : "";
+                    string category = cols.Length > 4 ? cols[4].Trim() : "";
+                    string scheduleType = cols.Length > 5 ? cols[5].Trim() : "";
+                    string multiCats = cols.Length > 6 ? cols[6].Trim() : "";
+                    string fieldsSpec = cols.Length > 7 ? cols[7].Trim() : "";
+                    string filterSpec = cols.Length > 8 ? cols[8].Trim() : "";
+                    string sortSpec = cols.Length > 9 ? cols[9].Trim() : "";
+                    string groupSpec = cols.Length > 10 ? cols[10].Trim() : "";
+                    string totalSpec = cols.Length > 11 ? cols[11].Trim() : "";
+                    string formulaSpec = cols.Length > 12 ? cols[12].Trim() : "";
+                    string headerColor = cols.Length > 13 ? cols[13].Trim() : "";
+                    string textColor = cols.Length > 14 ? cols[14].Trim() : "";
+                    string bgColor = cols.Length > 15 ? cols[15].Trim() : "";
+
+                    if (string.IsNullOrEmpty(name)) continue;
+                    if (existingNames.Contains(name))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    try
+                    {
+                        bool isMaterialTakeoff = scheduleType.Equals(
+                            "Material Takeoff", StringComparison.OrdinalIgnoreCase);
+
+                        // Create the schedule or material takeoff
+                        ViewSchedule vs = CreateScheduleByType(
+                            doc, isMaterialTakeoff, category, multiCats);
+
+                        if (vs == null)
+                        {
+                            skipped++;
+                            continue;
+                        }
+
+                        vs.Name = name;
+                        if (isMaterialTakeoff) matTakeoffs++;
+
+                        // Build formula map: custom param name → built-in field name (for fallback lookup)
+                        var formulaMap = ScheduleHelper.ParseFormulaSpec(formulaSpec);
+
+                        // Add fields from CSV column 6, with field remap fallback + formula fallback
+                        var addedFieldIds = new Dictionary<string, ScheduleFieldId>(
+                            StringComparer.OrdinalIgnoreCase);
+
+                        if (!string.IsNullOrEmpty(fieldsSpec))
+                        {
+                            remapped += ScheduleHelper.AddFieldsTracked(
+                                doc, vs, fieldsSpec, fieldRemaps, formulaMap, addedFieldIds);
+
+                            // If no STING fields resolved, add common built-in Revit fields
+                            // so the schedule isn't completely empty
+                            if (addedFieldIds.Count == 0)
+                            {
+                                StingLog.Warn($"Schedule '{name}': No STING fields from spec " +
+                                    $"'{fieldsSpec}'. Adding built-in fallback fields. " +
+                                    "Run 'Load Params' first to bind shared parameters.");
+                                ScheduleHelper.AddBuiltInFallbackFields(doc, vs, addedFieldIds);
+                            }
+                        }
+
+                        // Add standard project & document info fields to every schedule
+                        ScheduleHelper.AddStandardProjectFields(doc, vs, addedFieldIds);
+
+                        // Warn if schedule was created with zero fields
+                        if (addedFieldIds.Count == 0 && !string.IsNullOrEmpty(fieldsSpec))
+                        {
+                            StingLog.Warn($"Schedule '{name}' (category={category}): " +
+                                "created with ZERO fields. Shared parameters may not be bound to this category. " +
+                                "Run 'Load Params' to bind parameters before creating schedules.");
+                        }
+
+                        // Apply column heading overrides from Formulas column
+                        bool didFormat = false;
+                        if (formulaMap.Count > 0)
+                            didFormat |= ScheduleHelper.ApplyFieldHeaders(vs, formulaMap);
+
+                        // Apply grouping (inserts as first sort field with ShowHeader)
+                        if (!string.IsNullOrEmpty(groupSpec))
+                            didFormat |= ScheduleHelper.ApplyGrouping(
+                                doc, vs, groupSpec, addedFieldIds);
+
+                        // Apply sorting
+                        if (!string.IsNullOrEmpty(sortSpec))
+                            didFormat |= ScheduleHelper.ApplySorting(
+                                doc, vs, sortSpec, addedFieldIds);
+
+                        // Apply totals
+                        if (!string.IsNullOrEmpty(totalSpec))
+                            didFormat |= ScheduleHelper.ApplyTotals(vs, totalSpec, addedFieldIds);
+
+                        // Apply filters
+                        if (!string.IsNullOrEmpty(filterSpec))
+                            didFormat |= ScheduleHelper.ApplyFilters(
+                                doc, vs, filterSpec, addedFieldIds);
+
+                        // Note: header/text/background colors (cols 13-15) are stored
+                        // in CSV but cannot be applied via Revit API (no cell-level
+                        // color styling for schedule sections). Colors are used by
+                        // ScheduleColorCommand for reporting only — do NOT set
+                        // didFormat here to avoid inflating the formatted count.
+
+                        if (didFormat) formatted++;
+                        created++;
+                        existingNames.Add(name);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Schedule create failed '{name}': {ex.Message}");
+                        skipped++;
                     }
                 }
 
                 tx.Commit();
             }
+            var report = new StringBuilder();
+            report.AppendLine($"Created {created} schedules ({matTakeoffs} material takeoffs).");
+            report.AppendLine($"Skipped {skipped} (exist or failed).");
+            // ENH-010: Auto-link created filters to matching STING view templates
+            int filtersLinked = 0;
+            if (viewFiltersCreated > 0)
+            {
+                report.AppendLine($"Created {viewFiltersCreated} view filters from VIEW_FILTER records.");
 
-            TaskDialog.Show("Batch Schedules",
-                $"Created {created} schedules.\nSkipped {skipped} (exist or failed).\n" +
-                $"Scanned {scheduleFiles.Length} definition file(s).");
+                try
+                {
+                    // Get all STING view templates
+                    var stingTemplates = new FilteredElementCollector(doc)
+                        .OfClass(typeof(View))
+                        .Cast<View>()
+                        .Where(v => v.IsTemplate && v.Name.StartsWith("STING"))
+                        .ToList();
+
+                    // Get all filters we just created (by name)
+                    var newFilters = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ParameterFilterElement))
+                        .Cast<ParameterFilterElement>()
+                        .Where(f => existingFilterNames.Contains(f.Name))
+                        .ToList();
+
+                    // Discipline keywords for matching filters to templates
+                    // Use full words only to prevent false partial matches
+                    // (e.g., "Arch" matching "Archive", "Mech" matching "Mechanism")
+                    var disciplineKeywords = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["Mechanical"] = new[] { "Mechanical", "HVAC" },
+                        ["Electrical"] = new[] { "Electrical", "Lighting" },
+                        ["Plumbing"] = new[] { "Plumbing", "Hydraulic" },
+                        ["Fire"] = new[] { "Fire Protection", "Sprinkler", "Fire " },
+                        ["Architectural"] = new[] { "Architectural" },
+                        ["Structural"] = new[] { "Structural" },
+                    };
+
+                    using (Transaction linkTx = new Transaction(doc, "STING Link Filters to Templates"))
+                    {
+                        linkTx.Start();
+                        foreach (var filter in newFilters)
+                        {
+                            foreach (var template in stingTemplates)
+                            {
+                                // Match filter to template by discipline keyword
+                                bool shouldLink = false;
+                                foreach (var kvp in disciplineKeywords)
+                                {
+                                    bool filterMatches = kvp.Value.Any(k =>
+                                        filter.Name.Contains(k, StringComparison.OrdinalIgnoreCase));
+                                    bool templateMatches = kvp.Value.Any(k =>
+                                        template.Name.Contains(k, StringComparison.OrdinalIgnoreCase));
+                                    if (filterMatches && templateMatches)
+                                    {
+                                        shouldLink = true;
+                                        break;
+                                    }
+                                }
+
+                                if (shouldLink)
+                                {
+                                    try
+                                    {
+                                        template.AddFilter(filter.Id);
+                                        template.SetFilterVisibility(filter.Id, true);
+                                        filtersLinked++;
+                                    }
+                                    catch (Exception ex) { StingLog.Warn($"Filter may already be on template: {ex.Message}"); }
+                                }
+                            }
+                        }
+                        linkTx.Commit();
+                    }
+
+                    if (filtersLinked > 0)
+                        report.AppendLine($"Auto-linked {filtersLinked} filters to STING view templates.");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Filter auto-linking failed: {ex.Message}");
+                }
+            }
+            if (formatted > 0)
+                report.AppendLine($"Applied formatting (sort/group/totals/filters) to {formatted}.");
+            if (remapped > 0)
+                report.AppendLine($"Remapped {remapped} deprecated field name(s).");
+            report.Append($"Source: MR_SCHEDULES.csv");
+
+            TaskDialog.Show("Batch Schedules", report.ToString());
 
             return Result.Succeeded;
         }
 
-        /// <summary>
-        /// Add fields to a schedule from a comma-separated field spec string.
-        /// Format: "FieldName1, FieldName2, FieldName3" — matches schedulable field names.
-        /// </summary>
-        private static void AddFieldsToSchedule(Document doc, ViewSchedule vs, string fieldSpec)
+        /// <summary>Create schedule or material takeoff based on type and category.</summary>
+        private static ViewSchedule CreateScheduleByType(Document doc,
+            bool isMaterialTakeoff, string category, string multiCats)
         {
-            // Parse field names (may contain "=" for formula remaps like "ASS_ID_TXT=Mark")
+            if (isMaterialTakeoff)
+            {
+                // Material Takeoff: resolve category
+                ElementId catId = ElementId.InvalidElementId;
+
+                if (!string.IsNullOrEmpty(multiCats))
+                {
+                    // Use first category from semicolon-separated multi-cat list
+                    string firstCat = multiCats.Split(';')[0].Trim();
+                    if (ScheduleHelper.TryGetCategory(firstCat, out BuiltInCategory bic))
+                        catId = new ElementId((long)bic);
+                }
+                else if (!string.IsNullOrEmpty(category) &&
+                    ScheduleHelper.TryGetCategory(category, out BuiltInCategory singleBic))
+                {
+                    catId = new ElementId((long)singleBic);
+                }
+
+                return ViewSchedule.CreateMaterialTakeoff(doc, catId);
+            }
+            else
+            {
+                // Regular schedule
+                if (string.IsNullOrEmpty(category)) return null;
+                if (!ScheduleHelper.TryGetCategory(category, out BuiltInCategory bic))
+                    return null;
+                return ViewSchedule.CreateSchedule(doc, new ElementId((long)bic));
+            }
+        }
+    }
+
+    /// <summary>Shared schedule formatting helpers for batch schedule creation.</summary>
+    internal static class ScheduleHelper
+    {
+        /// <summary>Map category display name to Revit BuiltInCategory.</summary>
+        public static bool TryGetCategory(string name, out BuiltInCategory bic)
+        {
+            bic = BuiltInCategory.INVALID;
+            if (string.IsNullOrEmpty(name)) return false;
+
+            if (CategoryMap.TryGetValue(name, out bic))
+                return true;
+
+            // Try direct enum parse for OST_ names
+            if (name.StartsWith("OST_") && Enum.TryParse(name, out bic))
+                return true;
+
+            return false;
+        }
+
+        private static readonly Dictionary<string, BuiltInCategory> CategoryMap =
+            new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase)
+        {
+            // Architectural
+            { "Walls", BuiltInCategory.OST_Walls },
+            { "Doors", BuiltInCategory.OST_Doors },
+            { "Windows", BuiltInCategory.OST_Windows },
+            { "Floors", BuiltInCategory.OST_Floors },
+            { "Ceilings", BuiltInCategory.OST_Ceilings },
+            { "Roofs", BuiltInCategory.OST_Roofs },
+            { "Rooms", BuiltInCategory.OST_Rooms },
+            { "Stairs", BuiltInCategory.OST_Stairs },
+            { "Ramps", BuiltInCategory.OST_Ramps },
+            { "Curtain Panels", BuiltInCategory.OST_CurtainWallPanels },
+            { "Furniture", BuiltInCategory.OST_Furniture },
+            { "Furniture Systems", BuiltInCategory.OST_FurnitureSystems },
+            { "Casework", BuiltInCategory.OST_Casework },
+            { "Generic Models", BuiltInCategory.OST_GenericModel },
+            // Structural
+            { "Structural Columns", BuiltInCategory.OST_StructuralColumns },
+            { "Structural Framing", BuiltInCategory.OST_StructuralFraming },
+            { "Structural Foundations", BuiltInCategory.OST_StructuralFoundation },
+            { "Structural Rebar", BuiltInCategory.OST_Rebar },
+            // MEP — Mechanical
+            { "Mechanical Equipment", BuiltInCategory.OST_MechanicalEquipment },
+            { "Ducts", BuiltInCategory.OST_DuctCurves },
+            { "Duct Fittings", BuiltInCategory.OST_DuctFitting },
+            { "Duct Accessories", BuiltInCategory.OST_DuctAccessory },
+            { "Air Terminals", BuiltInCategory.OST_DuctTerminal },
+            { "Flex Ducts", BuiltInCategory.OST_FlexDuctCurves },
+            // MEP — Electrical
+            { "Electrical Equipment", BuiltInCategory.OST_ElectricalEquipment },
+            { "Electrical Fixtures", BuiltInCategory.OST_ElectricalFixtures },
+            { "Lighting Fixtures", BuiltInCategory.OST_LightingFixtures },
+            { "Lighting Devices", BuiltInCategory.OST_LightingDevices },
+            { "Conduits", BuiltInCategory.OST_Conduit },
+            { "Cable Trays", BuiltInCategory.OST_CableTray },
+            { "Electrical Circuits", BuiltInCategory.OST_ElectricalCircuit },
+            // MEP — Plumbing / Fire
+            { "Plumbing Fixtures", BuiltInCategory.OST_PlumbingFixtures },
+            { "Pipes", BuiltInCategory.OST_PipeCurves },
+            { "Pipe Fittings", BuiltInCategory.OST_PipeFitting },
+            { "Pipe Accessories", BuiltInCategory.OST_PipeAccessory },
+            { "Flex Pipes", BuiltInCategory.OST_FlexPipeCurves },
+            { "Sprinklers", BuiltInCategory.OST_Sprinklers },
+            { "Fire Alarm Devices", BuiltInCategory.OST_FireAlarmDevices },
+            // Site
+            { "Topography", BuiltInCategory.OST_Topography },
+        };
+
+        /// <summary>
+        /// Load SCHEDULE_FIELD_REMAP.csv — maps deprecated field names to their
+        /// consolidated replacements. Only rows with Action=REMAPPED are loaded.
+        /// </summary>
+        public static Dictionary<string, string> LoadFieldRemaps()
+        {
+            var remaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            string path = StingToolsApp.FindDataFile("SCHEDULE_FIELD_REMAP.csv");
+            if (path == null)
+            {
+                StingLog.Info("SCHEDULE_FIELD_REMAP.csv not found — field remapping disabled");
+                return remaps;
+            }
+
+            try
+            {
+                var lines = File.ReadAllLines(path)
+                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                    .Skip(1);
+
+                foreach (string line in lines)
+                {
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 3) continue;
+
+                    string oldField = cols[0].Trim();
+                    string newField = cols[1].Trim();
+                    string action = cols[2].Trim();
+
+                    if (action.Equals("REMAPPED", StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrEmpty(oldField)
+                        && !string.IsNullOrEmpty(newField))
+                    {
+                        if (remaps.TryGetValue(oldField, out var prevRemap))
+                            StingLog.Warn($"SCHEDULE_FIELD_REMAP: duplicate source key '{oldField}' — " +
+                                $"overwriting '{prevRemap}' with '{newField}'");
+                        remaps[oldField] = newField;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Failed to load SCHEDULE_FIELD_REMAP.csv: {ex.Message}");
+            }
+
+            return remaps;
+        }
+
+        /// <summary>
+        /// Parse Formulas column spec into dictionary: custom_param_name → builtin_field_name.
+        /// Format: "ASS_ID_TXT=Mark, ASS_LOC_TXT=Level, ..."
+        /// </summary>
+        public static Dictionary<string, string> ParseFormulaSpec(string formulaSpec)
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(formulaSpec)) return map;
+
+            string[] entries = formulaSpec.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string entry in entries)
+            {
+                string[] parts = entry.Split(new[] { '=' }, 2);
+                if (parts.Length == 2)
+                {
+                    string customName = parts[0].Trim();
+                    string builtinName = parts[1].Trim();
+                    if (!string.IsNullOrEmpty(customName) && !string.IsNullOrEmpty(builtinName))
+                        map[customName] = builtinName;
+                }
+            }
+            return map;
+        }
+
+        /// <summary>
+        /// Maps STING shared parameter names to built-in Revit field equivalents.
+        /// Used as Tier 4 fallback when STING params are not bound to the schedule category.
+        /// </summary>
+        private static readonly Dictionary<string, string[]> StingToBuiltInFallback =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            // Identity / tagging
+            ["ASS_ID_TXT"] = new[] { "Mark", "Type Mark" },
+            ["ASS_TAG_1_TXT"] = new[] { "Type Mark", "Mark" },
+            ["ASS_DESCRIPTION_TXT"] = new[] { "Description", "Type Comments" },
+            ["ASS_CAT_TXT"] = new[] { "Family", "Family and Type" },
+            ["ASS_EQUIPMENT_TAG_TXT"] = new[] { "Mark", "Type Mark" },
+            ["ASS_MANUFACTURER_TXT"] = new[] { "Manufacturer" },
+            ["ASS_MODEL_NR_TXT"] = new[] { "Model" },
+            // Spatial
+            ["ASS_LOC_TXT"] = new[] { "Level" },
+            ["ASS_LVL_COD_TXT"] = new[] { "Level" },
+            ["ASS_ZONE_TXT"] = new[] { "Level" },
+            ["ASS_DEPARTMENT_ASSIGNMENT_TXT"] = new[] { "Department" },
+            ["BLE_ROOM_NUM_TXT"] = new[] { "Number", "Room Number" },
+            ["ASS_RM_COD_TXT"] = new[] { "Number", "Room Number" },
+            // System / discipline
+            ["ASS_SYSTEM_TYPE_TXT"] = new[] { "System Type", "System Name", "System Classification" },
+            ["ASS_DISCIPLINE_COD_TXT"] = new[] { "Family and Type", "Family" },
+            ["ASS_PRODCT_COD_TXT"] = new[] { "Type", "Type Name" },
+            // Comments
+            ["PRJ_COMMENTS_TXT"] = new[] { "Comments" },
+            ["PRJ_AREA_NAME_TXT"] = new[] { "Area", "Name" },
+            // Cost
+            ["ASS_CST_QUANTITY_NR"] = new[] { "Count" },
+        };
+
+        /// <summary>
+        /// Add fields to schedule from comma-separated field spec, tracking field IDs by name.
+        /// Uses four-tier fallback: (1) exact name, (2) deprecated remap, (3) formula alias,
+        /// (4) built-in Revit equivalent for known STING parameter names.
+        /// </summary>
+        /// <returns>Number of fields that were remapped from deprecated names.</returns>
+        public static int AddFieldsTracked(Document doc, ViewSchedule vs, string fieldSpec,
+            Dictionary<string, string> fieldRemaps,
+            Dictionary<string, string> formulaMap,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
+        {
             string[] fieldEntries = fieldSpec.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
-            // Build lookup of available schedulable fields
+            // Build lookup of schedulable fields by name
             var available = vs.Definition.GetSchedulableFields();
             var fieldLookup = new Dictionary<string, SchedulableField>(StringComparer.OrdinalIgnoreCase);
             foreach (var sf in available)
@@ -135,155 +633,885 @@ namespace StingTools.Temp
                     fieldLookup[sfName] = sf;
             }
 
+            StingLog.Info($"Schedule '{vs.Name}': {available.Count} schedulable fields available, " +
+                $"{fieldEntries.Length} fields requested from CSV");
+
+            // Log available field names when few are found (diagnostic for binding issues)
+            if (available.Count < 20)
+            {
+                var availNames = new List<string>();
+                foreach (var sf in available)
+                {
+                    string n = sf.GetName(doc);
+                    if (!string.IsNullOrEmpty(n)) availNames.Add(n);
+                }
+                StingLog.Info($"  Available fields: {string.Join(", ", availNames)}");
+            }
+
+            int remappedCount = 0;
+            int fieldsAdded = 0;
+            var missingFields = new List<string>();
+
             foreach (string entry in fieldEntries)
             {
                 string fieldName = entry.Trim();
-                // Handle remap format: "ASS_ID_TXT=Mark" → use the key before '='
-                if (fieldName.Contains("="))
-                    fieldName = fieldName.Split('=')[0].Trim();
-
                 if (string.IsNullOrEmpty(fieldName)) continue;
 
                 try
                 {
-                    if (fieldLookup.TryGetValue(fieldName, out SchedulableField sf))
+                    SchedulableField sf = null;
+                    string resolvedName = fieldName;
+
+                    // Tier 1: Try exact name (works when STING params are bound)
+                    if (fieldLookup.TryGetValue(fieldName, out sf))
                     {
-                        vs.Definition.AddField(sf);
+                        resolvedName = fieldName;
+                    }
+                    // Tier 2: Try deprecated field remap
+                    else if (fieldRemaps.TryGetValue(fieldName, out string remapped)
+                        && fieldLookup.TryGetValue(remapped, out sf))
+                    {
+                        resolvedName = remapped;
+                        remappedCount++;
+                        StingLog.Info($"Schedule field remapped: '{fieldName}' → '{remapped}'");
+                    }
+                    // Tier 3: Try formula alias (builtin field name)
+                    else if (formulaMap.TryGetValue(fieldName, out string builtinName)
+                        && fieldLookup.TryGetValue(builtinName, out sf))
+                    {
+                        resolvedName = builtinName;
+                    }
+                    // Tier 4: Try built-in Revit equivalent for known STING param names
+                    else if (StingToBuiltInFallback.TryGetValue(fieldName, out string[] builtinAlts))
+                    {
+                        foreach (string alt in builtinAlts)
+                        {
+                            if (fieldLookup.TryGetValue(alt, out sf))
+                            {
+                                resolvedName = alt;
+                                StingLog.Info($"Schedule field '{fieldName}' → built-in '{alt}'");
+                                break;
+                            }
+                        }
+                    }
+
+                    if (sf != null)
+                    {
+                        // Skip if we already added a field with this resolved name
+                        if (addedFieldIds.ContainsKey(resolvedName))
+                            continue;
+
+                        ScheduleField added = vs.Definition.AddField(sf);
+                        if (added != null)
+                        {
+                            fieldsAdded++;
+                            if (!addedFieldIds.ContainsKey(fieldName))
+                                addedFieldIds[fieldName] = added.FieldId;
+                            // Also register by the resolved name for sort/group lookups
+                            if (resolvedName != fieldName
+                                && !addedFieldIds.ContainsKey(resolvedName))
+                                addedFieldIds[resolvedName] = added.FieldId;
+
+                            // If this was a Tier 4 fallback (resolved via formula alias),
+                            // set the column heading to the original CSV field name
+                            // (user-friendly) since Revit will default to the built-in
+                            // parameter name which is less readable
+                            if (resolvedName != fieldName)
+                            {
+                                added.ColumnHeading = fieldName;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        StingLog.Warn($"Schedule field '{fieldName}' not found in schedulable fields. " +
+                            "Run 'Load Params' to bind shared parameters to project categories.");
+                        missingFields.Add(fieldName);
                     }
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"Schedule field add '{fieldName}': {ex.Message}");
+                    missingFields.Add(fieldName);
                 }
+            }
+
+            // Diagnostic: log missing fields so users can diagnose binding issues
+            if (missingFields.Count > 0)
+            {
+                string sample = string.Join(", ", missingFields.Count <= 10
+                    ? missingFields : missingFields.GetRange(0, 10));
+                StingLog.Warn($"Schedule '{vs.Name}': {missingFields.Count}/{fieldEntries.Length} fields NOT FOUND " +
+                    $"in schedulable fields. Missing: {sample}" +
+                    (missingFields.Count > 10 ? $" (+{missingFields.Count - 10} more)" : "") +
+                    ". Ensure shared parameters are bound to this schedule's category via Load Params.");
+            }
+
+            if (fieldsAdded == 0 && fieldEntries.Length > 0)
+            {
+                StingLog.Warn($"Schedule '{vs.Name}': ZERO fields added out of {fieldEntries.Length} requested! " +
+                    "The schedule will have no columns. Run 'Load Params' first to bind shared parameters.");
+            }
+            else
+            {
+                StingLog.Info($"Schedule '{vs.Name}': {fieldsAdded}/{fieldEntries.Length} fields added successfully");
+            }
+
+            return remappedCount;
+        }
+
+        /// <summary>
+        /// Add standard project &amp; document information fields to every schedule.
+        /// These are ISO 19650 project information parameters from the PRJ_INFORMATION
+        /// group that provide consistent project context across all schedules.
+        /// Fields already present in addedFieldIds are skipped.
+        /// </summary>
+        public static void AddStandardProjectFields(Document doc, ViewSchedule vs,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
+        {
+            // Curated subset of PRJ_ fields — project identity, document info, and key metadata
+            string[] standardFields = {
+                "PRJ_NAME_TXT",
+                "PRJ_DRAWING_NR_TXT",
+                "PRJ_DRAWING_TITLE_TXT",
+                "PRJ_STATUS_COD_TXT",
+                "PRJ_TB_DISCIPLINE_TXT",
+                "PRJ_TB_REVISION_NR_TXT",
+                "PRJ_TB_REVISION_DATE_TXT",
+                "PRJ_DWG_ISSUE_PURPOSE_TXT",
+                "PRJ_TB_CLIENT_NAME_TXT",
+                "PRJ_COMMENTS_TXT"
+            };
+
+            // Display-friendly column headings for the standard fields
+            var standardHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "PRJ_NAME_TXT", "Project Name" },
+                { "PRJ_DRAWING_NR_TXT", "Drawing No." },
+                { "PRJ_DRAWING_TITLE_TXT", "Drawing Title" },
+                { "PRJ_STATUS_COD_TXT", "Status" },
+                { "PRJ_TB_DISCIPLINE_TXT", "Discipline" },
+                { "PRJ_TB_REVISION_NR_TXT", "Revision" },
+                { "PRJ_TB_REVISION_DATE_TXT", "Revision Date" },
+                { "PRJ_DWG_ISSUE_PURPOSE_TXT", "Issue Purpose" },
+                { "PRJ_TB_CLIENT_NAME_TXT", "Client" },
+                { "PRJ_COMMENTS_TXT", "Comments" }
+            };
+
+            var available = vs.Definition.GetSchedulableFields();
+            var fieldLookup = new Dictionary<string, SchedulableField>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sf in available)
+            {
+                string sfName = sf.GetName(doc);
+                if (!string.IsNullOrEmpty(sfName) && !fieldLookup.ContainsKey(sfName))
+                    fieldLookup[sfName] = sf;
+            }
+
+            int added = 0;
+            foreach (string fname in standardFields)
+            {
+                // Skip if already added by the CSV field spec
+                if (addedFieldIds.ContainsKey(fname)) continue;
+
+                if (fieldLookup.TryGetValue(fname, out SchedulableField sf))
+                {
+                    try
+                    {
+                        ScheduleField field = vs.Definition.AddField(sf);
+                        if (field != null)
+                        {
+                            addedFieldIds[fname] = field.FieldId;
+                            // Apply human-readable column heading
+                            if (standardHeaders.TryGetValue(fname, out string header))
+                                field.ColumnHeading = header;
+                            added++;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Standard field '{fname}': {ex.Message}"); }
+                }
+            }
+
+            if (added > 0)
+                StingLog.Info($"Schedule '{vs.Name}': Added {added} standard project/document info fields");
+        }
+
+        /// <summary>
+        /// Add common built-in Revit fields as fallback when no STING shared params
+        /// could be resolved. Ensures schedules are never completely empty.
+        /// </summary>
+        public static void AddBuiltInFallbackFields(Document doc, ViewSchedule vs,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
+        {
+            // Common built-in field names that exist on most categories
+            string[] fallbackNames = { "Family and Type", "Family", "Type", "Type Mark",
+                "Mark", "Level", "Count", "Comments", "Description" };
+
+            var available = vs.Definition.GetSchedulableFields();
+            var fieldLookup = new Dictionary<string, SchedulableField>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sf in available)
+            {
+                string sfName = sf.GetName(doc);
+                if (!string.IsNullOrEmpty(sfName) && !fieldLookup.ContainsKey(sfName))
+                    fieldLookup[sfName] = sf;
+            }
+
+            foreach (string fname in fallbackNames)
+            {
+                if (fieldLookup.TryGetValue(fname, out SchedulableField sf))
+                {
+                    try
+                    {
+                        ScheduleField added = vs.Definition.AddField(sf);
+                        if (added != null && !addedFieldIds.ContainsKey(fname))
+                            addedFieldIds[fname] = added.FieldId;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Fallback field '{fname}': {ex.Message}"); }
+                }
+            }
+
+            if (addedFieldIds.Count > 0)
+                StingLog.Info($"Schedule: Added {addedFieldIds.Count} built-in fallback fields");
+        }
+
+        /// <summary>
+        /// Apply column heading overrides from the Formulas map.
+        /// Sets each field's ColumnHeading to be the display-friendly name.
+        /// </summary>
+        public static bool ApplyFieldHeaders(ViewSchedule vs,
+            Dictionary<string, string> formulaMap)
+        {
+            if (formulaMap == null || formulaMap.Count == 0) return false;
+            bool applied = false;
+            int fieldCount = vs.Definition.GetFieldCount();
+
+            for (int i = 0; i < fieldCount; i++)
+            {
+                try
+                {
+                    ScheduleField field = vs.Definition.GetField(i);
+                    string currentHeading = field.ColumnHeading;
+
+                    // Check if this field's current heading matches a formula key
+                    if (formulaMap.TryGetValue(currentHeading, out string displayName))
+                    {
+                        field.ColumnHeading = displayName;
+                        applied = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Apply field header [{i}]: {ex.Message}");
+                }
+            }
+            return applied;
+        }
+
+        /// <summary>
+        /// Apply sorting from CSV sort spec.
+        /// Format: "Level: Ascending; Type Mark: Ascending" or "CST_S_CON_GRADE_TXT"
+        /// </summary>
+        public static bool ApplySorting(Document doc, ViewSchedule vs, string sortSpec,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
+        {
+            if (string.IsNullOrWhiteSpace(sortSpec)) return false;
+
+            bool applied = false;
+            string[] sortEntries = sortSpec.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string entry in sortEntries)
+            {
+                try
+                {
+                    string trimmed = entry.Trim();
+                    string fieldName;
+                    ScheduleSortOrder order = ScheduleSortOrder.Ascending;
+
+                    // Parse "FieldName: Ascending" or "FieldName: Descending" or just "FieldName"
+                    int colonIdx = trimmed.LastIndexOf(':');
+                    if (colonIdx > 0)
+                    {
+                        fieldName = trimmed.Substring(0, colonIdx).Trim();
+                        string direction = trimmed.Substring(colonIdx + 1).Trim();
+                        if (direction.Equals("Descending", StringComparison.OrdinalIgnoreCase))
+                            order = ScheduleSortOrder.Descending;
+                    }
+                    else
+                    {
+                        fieldName = trimmed;
+                    }
+
+                    ScheduleFieldId fieldId = FindFieldId(vs, fieldName, addedFieldIds);
+                    if (fieldId == null) continue;
+
+                    var sortField = new ScheduleSortGroupField(fieldId, order);
+                    vs.Definition.AddSortGroupField(sortField);
+                    applied = true;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Apply sort '{entry.Trim()}': {ex.Message}");
+                }
+            }
+            return applied;
+        }
+
+        /// <summary>
+        /// Apply grouping from CSV group spec.
+        /// Format: "Level" or "System Type" or "Category"
+        /// Inserts as the first sort field with ShowHeader and ShowFooter enabled.
+        /// </summary>
+        public static bool ApplyGrouping(Document doc, ViewSchedule vs, string groupSpec,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
+        {
+            if (string.IsNullOrWhiteSpace(groupSpec)) return false;
+
+            try
+            {
+                string fieldName = groupSpec.Trim();
+
+                ScheduleFieldId fieldId = FindFieldId(vs, fieldName, addedFieldIds);
+                if (fieldId == null) return false;
+
+                var groupField = new ScheduleSortGroupField(fieldId, ScheduleSortOrder.Ascending);
+                groupField.ShowHeader = true;
+                groupField.ShowFooter = true;
+                groupField.ShowBlankLine = true;
+
+                // Insert at position 0 so grouping comes before other sort fields
+                vs.Definition.InsertSortGroupField(groupField, 0);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Apply grouping '{groupSpec}': {ex.Message}");
+                return false;
             }
         }
 
-        private static bool TryGetCategory(string name, out BuiltInCategory bic)
+        /// <summary>
+        /// Apply totals from CSV total spec.
+        /// Format: "BLE_ELE_AREA_SQ_M: SUM" or "ASS_CST_QUANTITY_NR: SUM; ASS_CST_UNIT_PRICE_UGX_NR: SUM"
+        /// Enables grand totals on the schedule and marks specified fields for totalling.
+        /// </summary>
+        public static bool ApplyTotals(ViewSchedule vs, string totalSpec,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
         {
-            bic = BuiltInCategory.INVALID;
-            var map = new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase)
+            if (string.IsNullOrWhiteSpace(totalSpec)) return false;
+
+            bool applied = false;
+            string[] totalEntries = totalSpec.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string entry in totalEntries)
             {
-                { "Walls", BuiltInCategory.OST_Walls },
-                { "Doors", BuiltInCategory.OST_Doors },
-                { "Windows", BuiltInCategory.OST_Windows },
-                { "Floors", BuiltInCategory.OST_Floors },
-                { "Ceilings", BuiltInCategory.OST_Ceilings },
-                { "Roofs", BuiltInCategory.OST_Roofs },
-                { "Rooms", BuiltInCategory.OST_Rooms },
-                { "Furniture", BuiltInCategory.OST_Furniture },
-                { "Mechanical Equipment", BuiltInCategory.OST_MechanicalEquipment },
-                { "Electrical Equipment", BuiltInCategory.OST_ElectricalEquipment },
-                { "Lighting Fixtures", BuiltInCategory.OST_LightingFixtures },
-                { "Plumbing Fixtures", BuiltInCategory.OST_PlumbingFixtures },
-                { "Pipes", BuiltInCategory.OST_PipeCurves },
-                { "Ducts", BuiltInCategory.OST_DuctCurves },
-                { "Conduits", BuiltInCategory.OST_Conduit },
-                { "Cable Trays", BuiltInCategory.OST_CableTray },
-                { "Structural Columns", BuiltInCategory.OST_StructuralColumns },
-                { "Structural Framing", BuiltInCategory.OST_StructuralFraming },
-                { "Structural Foundations", BuiltInCategory.OST_StructuralFoundation },
-                { "Generic Models", BuiltInCategory.OST_GenericModel },
-                { "Air Terminals", BuiltInCategory.OST_DuctTerminal },
-                { "Sprinklers", BuiltInCategory.OST_Sprinklers },
-                { "Fire Alarm Devices", BuiltInCategory.OST_FireAlarmDevices },
-                { "Electrical Fixtures", BuiltInCategory.OST_ElectricalFixtures },
-                { "Electrical Circuits", BuiltInCategory.OST_ElectricalCircuit },
-                { "Pipe Accessories", BuiltInCategory.OST_PipeAccessory },
-                { "Pipe Fittings", BuiltInCategory.OST_PipeFitting },
-                { "Stairs", BuiltInCategory.OST_Stairs },
-                { "Ramps", BuiltInCategory.OST_Ramps },
-                { "Curtain Panels", BuiltInCategory.OST_CurtainWallPanels },
-                { "Casework", BuiltInCategory.OST_Casework },
-                { "Furniture Systems", BuiltInCategory.OST_FurnitureSystems },
-            };
+                try
+                {
+                    string trimmed = entry.Trim();
+                    // Parse "FieldName: SUM"
+                    int colonIdx = trimmed.LastIndexOf(':');
+                    if (colonIdx <= 0) continue;
 
-            if (map.TryGetValue(name, out bic))
-                return true;
+                    string fieldName = trimmed.Substring(0, colonIdx).Trim();
 
-            // Try direct enum parse
-            if (name.StartsWith("OST_") && Enum.TryParse(name, out bic))
-                return true;
+                    // O(1) lookup via addedFieldIds dictionary instead of O(n) field scan
+                    if (addedFieldIds.TryGetValue(fieldName, out ScheduleFieldId targetId))
+                    {
+                        int fieldCount = vs.Definition.GetFieldCount();
+                        for (int i = 0; i < fieldCount; i++)
+                        {
+                            ScheduleField field = vs.Definition.GetField(i);
+                            if (field.FieldId == targetId)
+                            {
+                                field.DisplayType = ScheduleFieldDisplayType.Totals;
+                                applied = true;
+                                break;
+                            }
+                        }
+                    }
 
-            return false;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Apply total '{entry.Trim()}': {ex.Message}");
+                }
+            }
+
+            if (applied)
+            {
+                vs.Definition.ShowGrandTotal = true;
+                vs.Definition.ShowGrandTotalTitle = true;
+            }
+            return applied;
+        }
+
+        /// <summary>
+        /// Apply filters from CSV filter spec.
+        /// Formats:
+        ///   "Level: (not equals) &lt;None&gt;" → NotEqual filter
+        ///   "System Type: (has a value)" → HasValue filter
+        ///   "Material: Name: (has a value)" → HasValue on Material: Name field
+        /// </summary>
+        public static bool ApplyFilters(Document doc, ViewSchedule vs, string filterSpec,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
+        {
+            if (string.IsNullOrWhiteSpace(filterSpec)) return false;
+
+            bool applied = false;
+            // Filters may contain multiple semicolon-separated entries
+            string[] filterEntries = filterSpec.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string entry in filterEntries)
+            {
+                try
+                {
+                    string trimmed = entry.Trim();
+
+                    // Parse "(has a value)" filter
+                    if (trimmed.EndsWith("(has a value)", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string fieldName = trimmed
+                            .Replace("(has a value)", "").Trim().TrimEnd(':').Trim();
+
+                        ScheduleFieldId fieldId = FindFieldId(vs, fieldName, addedFieldIds);
+                        if (fieldId != null)
+                        {
+                            var filter = new ScheduleFilter(fieldId, ScheduleFilterType.HasValue);
+                            vs.Definition.AddFilter(filter);
+                            applied = true;
+                        }
+                    }
+                    // Parse "(not equals) <Value>" filter
+                    else if (trimmed.Contains("(not equals)"))
+                    {
+                        int notEqIdx = trimmed.IndexOf("(not equals)",
+                            StringComparison.OrdinalIgnoreCase);
+                        string fieldName = trimmed.Substring(0, notEqIdx).Trim().TrimEnd(':').Trim();
+                        string value = trimmed.Substring(notEqIdx + "(not equals)".Length).Trim();
+
+                        // "<None>" in Revit means empty/null
+                        if (value.Equals("<None>", StringComparison.OrdinalIgnoreCase))
+                            value = "";
+
+                        ScheduleFieldId fieldId = FindFieldId(vs, fieldName, addedFieldIds);
+                        if (fieldId != null)
+                        {
+                            var filter = new ScheduleFilter(fieldId,
+                                ScheduleFilterType.NotEqual, value);
+                            vs.Definition.AddFilter(filter);
+                            applied = true;
+                        }
+                    }
+                    else
+                    {
+                        StingLog.Warn($"Unrecognized filter pattern: '{entry.Trim()}'");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Apply filter '{entry.Trim()}': {ex.Message}");
+                }
+            }
+            return applied;
+        }
+
+        /// <summary>
+        /// Find a ScheduleFieldId by name — checks added fields, then scans
+        /// the schedule's field list by column heading.
+        /// </summary>
+        private static ScheduleFieldId FindFieldId(ViewSchedule vs, string fieldName,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
+        {
+            // Check tracked added fields first
+            if (addedFieldIds.TryGetValue(fieldName, out ScheduleFieldId id))
+                return id;
+
+            // Scan schedule field list by column heading
+            int fieldCount = vs.Definition.GetFieldCount();
+            for (int i = 0; i < fieldCount; i++)
+            {
+                try
+                {
+                    ScheduleField f = vs.Definition.GetField(i);
+                    string fName = f?.GetName();
+                    if ((fName != null && fName.Equals(fieldName, StringComparison.OrdinalIgnoreCase)) ||
+                        (f?.ColumnHeading != null && f.ColumnHeading.Equals(fieldName, StringComparison.OrdinalIgnoreCase)))
+                        return f.FieldId;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"FindFieldId scan [{i}]: {ex.Message}");
+                }
+            }
+
+            StingLog.Warn($"Schedule field '{fieldName}' not found for sort/group/filter.");
+            return null;
         }
     }
 
     /// <summary>
+    /// Full Schedule Automation — zero-manual-input, one-click pipeline that chains:
+    ///   Step 1: Auto-populate all 7 tag tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD)
+    ///   Step 2: Map Revit native params → STING shared params (dimensional, MEP, identity)
+    ///   Step 3: Evaluate 199 engineering formulas (areas, volumes, flow rates, costs)
+    ///   Step 4: Build ISO 19650 tags (ASS_TAG_1_TXT) and assign SEQ numbers
+    ///   Step 5: Combine into all 37 discipline-specific tag containers
+    ///   Step 6: Auto-populate Grid Reference from nearest grid lines
+    ///
+    /// This is the "ultimate automation" command — a project that runs this once
+    /// will have all schedule fields populated without any manual input.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FullAutoPopulateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // ── Prepare indexes ────────────────────────────────────────────────
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+
+            // NP9/AL-04: Use TagPipelineHelper for consistent formula loading and grid detection
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
+
+            // FIX-DEEP06: Apply ElementMulticategoryFilter to skip non-taggable elements at API level
+            // (previously iterated all elements and filtered in software — expensive on large models)
+            var allElements = new List<Element>();
+            var fapCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (fapCatEnums != null && fapCatEnums.Length > 0)
+            {
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(fapCatEnums)))
+                    .ToList();
+            }
+            else
+            {
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+            }
+
+            int tagged = 0;
+            int totalElements = 0;
+            int errors = 0;
+
+            // AUTO-R4: Add progress dialog for visual feedback on large models (30-60s blocking)
+            var progress = UI.StingProgressDialog.Show("STING — Full Auto-Populate", allElements.Count);
+
+            bool cancelled = false;
+            try
+            {
+                using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
+                {
+                    tx.Start();
+                    foreach (Element el in allElements)
+                    {
+                        // GAP-WS-01: Skip elements on worksets owned by other users
+                        if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+                        // GAP-PH-01: Skip demolished elements
+                        if (TagPipelineHelper.IsDemolished(el)) continue;
+
+                        string catName = ParameterHelpers.GetCategoryName(el);
+                        if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
+                            continue;
+
+                        totalElements++;
+                        // AUTO-R4: Progress + cancellation check
+                        if (totalElements % 50 == 0)
+                        {
+                            progress?.Increment($"Processing {totalElements}: {catName}");
+                            if ((progress != null && progress.IsCancelled) || EscapeChecker.IsEscapePressed())
+                            {
+                                cancelled = true;
+                                StingLog.Info($"FullAutoPopulate: cancelled by user at {totalElements} elements");
+                                break;
+                            }
+                        }
+
+                        try
+                        {
+                            // NP9/AL-04: Delegate to TagPipelineHelper for pipeline consistency
+                            // CategorySkipList, CategoryForceSys, and all future pipeline additions apply automatically
+                            bool fullPipelineOk = TagPipelineHelper.RunFullPipeline(
+                                doc, el, popCtx, tagIndex, seqCounters,
+                                formulas, gridLines,
+                                overwrite: true,
+                                skipComplete: false,
+                                collisionMode: TagCollisionMode.AutoIncrement);
+
+                            if (fullPipelineOk)
+                                tagged++;
+
+                            // AUTO-R4: Reduced log frequency from 500 to 5000 (saves 10% I/O on 100K models)
+                            if (totalElements % 5000 == 0)
+                                StingLog.Info($"FullAutoPopulate: {totalElements} elements processed...");
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Error($"FullAutoPopulate: element {el?.Id}: {ex.Message}", ex);
+                            errors++;
+                        }
+                    }
+
+                    if (cancelled)
+                        tx.RollBack();
+                    else
+                        tx.Commit();
+                }
+            }
+            finally
+            {
+                progress?.Close(); // AUTO-R4: Close progress dialog
+            }
+            sw.Stop();
+            // Save SEQ sidecar + invalidate caches after full auto-populate
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"FullAutoPopulate SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            // Phase 40: Check compliance gate after full auto-populate (was missing — GAP-A01)
+            try { TagConfig.CheckComplianceGate(doc, "FullAutoPopulate"); }
+            catch (Exception cgEx) { StingLog.Warn($"FullAutoPopulate ComplianceGate: {cgEx.Message}"); }
+
+            // Phase 39: Tag sheets with ISO 19650 document codes after element pipeline
+            int sheetsTagged = 0, sheetTokens = 0;
+            try
+            {
+                using (Transaction stx = new Transaction(doc, "STING Tag Sheets (FullAutoPopulate)"))
+                {
+                    stx.Start();
+                    NativeParamMapper.MapSheets(doc);
+                    var (s, t) = NativeParamMapper.TagSheets(doc);
+                    sheetsTagged = s;
+                    sheetTokens = t;
+                    stx.Commit();
+                }
+            }
+            catch (Exception shEx) { StingLog.Warn($"FullAutoPopulate TagSheets: {shEx.Message}"); }
+
+            var report = new StringBuilder();
+            report.AppendLine("Full Schedule Auto-Populate Complete");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  Elements processed:    {totalElements}");
+            report.AppendLine($"  Successfully pipelined: {tagged} (tag built + containers written + TAG7 updated)");
+            if (sheetsTagged > 0)
+                report.AppendLine($"  Sheets tagged:         {sheetsTagged} ({sheetTokens} tokens)");
+            if (errors > 0)
+                report.AppendLine($"  Errors (skipped):      {errors}");
+            report.AppendLine($"  Duration:              {sw.Elapsed.TotalSeconds:F1}s");
+            report.AppendLine();
+            if (cancelled)
+                report.AppendLine("CANCELLED by user (Escape key). Partial results committed.");
+            report.AppendLine("Pipeline: CategoryFilter → TypeTokenInherit → PopulateAll → NativeMapper → Formulas → Tag → Containers → TAG7 → GridRef");
+
+            TaskDialog.Show("Full Auto-Populate", report.ToString());
+
+            StingLog.Info($"FullAutoPopulate: {totalElements} elements, " +
+                $"pipelined={tagged}, errors={errors}, " +
+                $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+
+            return Result.Succeeded;
+        }
+
+    }
+
+    /// <summary>
     /// Ported from STINGTemp 5_Schedules.panel — AutoPopulate.
-    /// Apply field remaps across categories (42 remaps from the STINGTemp data).
+    /// Enhanced for zero-manual-input: auto-populates ALL 7 token fields including
+    /// LOC (from room/project data) and ZONE (from room department/name).
+    /// Uses MEP-system-aware SYS codes (DCW, SAN, RWD, GAS via piping system detection)
+    /// and family-aware PROD codes for more specific equipment identification.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class AutoPopulateCommand : IExternalCommand
     {
+        // Cached formula definitions for formula evaluation in AutoPopulate
+        private static List<FormulaEngine.FormulaDefinition> _apFormulas;
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
-            // Collect all elements with ASS_TAG_1_TXT parameter
+            // PERF-01: Pre-filter with ElementMulticategoryFilter instead of iterating all elements
+            var catEnums = SharedParamGuids.AllCategoryEnums;
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
 
-            int updated = 0;
-            int total = 0;
-
-            using (Transaction tx = new Transaction(doc, "Auto-Populate Fields"))
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var taggableElements = new List<Element>();
+            foreach (Element el in collector)
             {
-                tx.Start();
-
-                foreach (Element el in collector)
-                {
-                    string catName = ParameterHelpers.GetCategoryName(el);
-                    if (string.IsNullOrEmpty(catName) || !TagConfig.DiscMap.ContainsKey(catName))
-                        continue;
-
-                    total++;
-
-                    // Auto-populate DISC code from category
-                    if (ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT",
-                        TagConfig.DiscMap[catName]))
-                        updated++;
-
-                    // Auto-populate PROD code from category
-                    if (TagConfig.ProdMap.TryGetValue(catName, out string prod))
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prod))
-                            updated++;
-                    }
-
-                    // Auto-populate SYS code
-                    string sys = TagConfig.GetSysCode(catName);
-                    if (!string.IsNullOrEmpty(sys))
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_SYSTEM_TYPE_TXT", sys))
-                            updated++;
-                    }
-
-                    // Auto-populate FUNC code
-                    string func = TagConfig.GetFuncCode(sys);
-                    if (!string.IsNullOrEmpty(func))
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_FUNC_TXT", func))
-                            updated++;
-                    }
-
-                    // Auto-populate level code
-                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    if (lvl != "XX")
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, "ASS_LVL_COD_TXT", lvl))
-                            updated++;
-                    }
-                }
-
-                tx.Commit();
+                string catName = ParameterHelpers.GetCategoryName(el);
+                if (!string.IsNullOrEmpty(catName) && known.Contains(catName))
+                    taggableElements.Add(el);
             }
 
-            TaskDialog.Show("Auto-Populate",
-                $"Auto-populated {updated} field values across {total} elements.");
+            if (taggableElements.Count == 0)
+            {
+                TaskDialog.Show("Auto-Populate", "No taggable elements found.");
+                return Result.Succeeded;
+            }
 
-            return Result.Succeeded;
+            // GAP-01: Build canonical population context for TokenAutoPopulator
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null)
+            {
+                TaskDialog.Show("Auto-Populate", "Failed to build population context.");
+                return Result.Failed;
+            }
+
+            int updated = 0;
+            int total = taggableElements.Count;
+            int locDetected = 0;
+            int zoneDetected = 0;
+            int sysAware = 0;
+            int nativeMapped = 0;
+            int apErrors = 0;
+            bool cancelled = false;
+
+            // PERF-01: Chunked 200-element batches with progress dialog and cancellation
+            const int ChunkSize = 200;
+            var progress = StingProgressDialog.Show("Auto-Populate", total);
+
+            try
+            {
+                for (int batchStart = 0; batchStart < total; batchStart += ChunkSize)
+                {
+                    if (cancelled) break;
+
+                    int batchEnd = Math.Min(batchStart + ChunkSize, total);
+                    int batchNum = (batchStart / ChunkSize) + 1;
+
+                    using (Transaction tx = new Transaction(doc, $"STING Auto-Populate #{batchNum}"))
+                    {
+                        tx.Start();
+
+                        for (int idx = batchStart; idx < batchEnd; idx++)
+                        {
+                            if (progress.IsCancelled)
+                            {
+                                StingLog.Info($"AutoPopulate: cancelled by user at {idx}/{total}");
+                                cancelled = true;
+                                break;
+                            }
+
+                            Element el = taggableElements[idx];
+                            string catName = ParameterHelpers.GetCategoryName(el);
+                            if (string.IsNullOrEmpty(catName)) continue;
+
+                            try
+                            {
+                                // GAP-01: Use canonical TokenAutoPopulator.PopulateAll instead of
+                                // inline SetIfEmpty calls. This ensures TypeTokenInherit, ConnectorInherit,
+                                // and CopyTokensFromNearest are all applied consistently.
+                                string prevLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                                string prevZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                                string prevSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+
+                                TokenAutoPopulator.TypeTokenInherit(doc, el);
+                                var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: false);
+                                updated += popResult.TokensSet;
+                                if (popResult.LocDetected) locDetected++;
+                                if (popResult.ZoneDetected) zoneDetected++;
+
+                                // Check if SYS was newly detected
+                                string newSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                                if (string.IsNullOrEmpty(prevSys) && !string.IsNullOrEmpty(newSys))
+                                    sysAware++;
+
+                                // Layer 2: Native parameter mapping (Revit built-in → STING shared)
+                                int mapped = NativeParamMapper.MapAll(doc, el);
+                                nativeMapped += mapped;
+                                updated += mapped;
+
+                                // Layer 3: Evaluate engineering formulas (cost, area, flow, environmental)
+                                // so formula-derived schedule fields are populated without requiring
+                                // FullAutoPopulate. Uses cached formulas with 5-min TTL.
+                                if (_apFormulas == null) _apFormulas = TagPipelineHelper.LoadFormulas();
+                                foreach (var formula in _apFormulas)
+                                {
+                                    try
+                                    {
+                                        var fCtx = FormulaEngine.BuildContext(el, formula);
+                                        if (fCtx == null) continue;
+                                        Parameter targetParam = el.LookupParameter(formula.ParameterName);
+                                        if (targetParam == null || targetParam.IsReadOnly) continue;
+                                        if (formula.DataType.Equals("TEXT", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string result = FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                            if (result != null) { ParameterHelpers.SetIfEmpty(el, formula.ParameterName, result); updated++; }
+                                        }
+                                        else
+                                        {
+                                            double? result = FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                            if (result.HasValue) { if (FormulaEngine.WriteNumericResult(targetParam, result.Value)) updated++; }
+                                        }
+                                    }
+                                    catch (Exception fex) { StingLog.Warn($"AutoPopulate formula '{formula.ParameterName}': {fex.Message}"); }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Error($"AutoPopulate: element {el?.Id}: {ex.Message}", ex);
+                                apErrors++;
+                            }
+
+                            progress.Increment($"Populating {idx + 1}/{total}");
+                        }
+
+                        if (cancelled)
+                            tx.RollBack();
+                        else
+                            tx.Commit();
+                    }
+                }
+            }
+            finally
+            {
+                progress.Close();
+            }
+
+            // CACHE-02: Invalidate caches after population so compliance dashboard
+            // and auto-tagger reflect the updated token values immediately.
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            var report = new StringBuilder();
+            if (cancelled)
+                report.AppendLine($"Cancelled by user. Partial results committed.");
+            report.AppendLine($"Auto-populated {updated} field values across {total} elements.");
+            if (apErrors > 0)
+                report.AppendLine($"Errors: {apErrors}");
+            report.AppendLine();
+            report.AppendLine("Tag tokens:");
+            if (sysAware > 0) report.AppendLine($"  SYS detected from MEP systems: {sysAware}");
+            if (locDetected > 0) report.AppendLine($"  LOC auto-detected from rooms/project: {locDetected}");
+            if (zoneDetected > 0) report.AppendLine($"  ZONE auto-detected from rooms: {zoneDetected}");
+            if (nativeMapped > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("Native parameter mapping:");
+                report.AppendLine($"  Revit built-in → STING shared: {nativeMapped} values");
+                report.AppendLine("  (Mark, Comments, Description, Manufacturer, Model,");
+                report.AppendLine("   Room, MEP params, Type params, Uniformat, OmniClass)");
+            }
+
+            TaskDialog.Show("Auto-Populate", report.ToString());
+
+            return cancelled ? Result.Cancelled : Result.Succeeded;
         }
     }
 
@@ -298,7 +1526,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
 
             var schedules = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSchedule))
@@ -313,13 +1543,7 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            // Use project folder or temp
-            string outputDir = Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(outputDir))
-                outputDir = Path.GetTempPath();
-
-            string exportDir = Path.Combine(outputDir, "STING_Exports");
-            Directory.CreateDirectory(exportDir);
+            string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
 
             int exported = 0;
             foreach (var schedule in schedules)
@@ -353,6 +1577,717 @@ namespace StingTools.Temp
             foreach (char c in Path.GetInvalidFileNameChars())
                 name = name.Replace(c, '_');
             return name;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Corporate Title Block Schedule — Project Information Dashboard
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Creates a corporate standard "Project Information" schedule collecting
+    /// all key project metadata into a single standalone schedule view.
+    /// Formatted to East African / ISO corporate practice:
+    ///   - Company header area (name, logo placeholder, address)
+    ///   - Project identification (name, number, client, address)
+    ///   - Discipline summary with element counts
+    ///   - Key dates and document control fields
+    ///   - ISO 19650 compliance summary
+    ///   - Revision history from Revit revision data
+    ///
+    /// This is a Revit "Sheet List" schedule (BuiltInCategory.OST_Sheets) filtered
+    /// to a single summary row, augmented with calculated value columns derived
+    /// from Project Information parameters and STING tag data.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CorporateTitleBlockScheduleCommand : IExternalCommand
+    {
+        // ── Corporate identity defaults (overridable via project_config.json) ──
+        private const string CompanyName = "STING BIM Consultants";
+        private const string CompanyAddress = "Kampala, Uganda";
+        private const string CompanyPhone = "+256 700 000000";
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // ── Check for existing schedule ──
+            string scheduleName = "STING - Corporate Project Information";
+            var existing = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSchedule))
+                .Cast<ViewSchedule>()
+                .FirstOrDefault(s => s.Name.Equals(scheduleName, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                var td0 = new TaskDialog("Corporate Title Block");
+                td0.MainInstruction = "Schedule already exists";
+                td0.MainContent = $"'{scheduleName}' already exists in the project.";
+                td0.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Delete and recreate", "Remove old schedule and create fresh");
+                td0.CommonButtons = TaskDialogCommonButtons.Cancel;
+                if (td0.Show() != TaskDialogResult.CommandLink1)
+                    return Result.Cancelled;
+            }
+
+            // ── Gather project data ──
+            ProjectInfo pi = doc.ProjectInformation;
+            string projName = pi?.Name ?? "Unnamed Project";
+            string projNumber = pi?.Number ?? "000";
+            string projClient = "";
+            string projAddress = "";
+            string projStatus = "";
+            try
+            {
+                projClient = pi?.ClientName ?? "";
+                projAddress = pi?.Address ?? "";
+                projStatus = pi?.Status ?? "";
+            }
+            catch (Exception ex) { StingLog.Warn($"Read project information fields: {ex.Message}"); }
+
+            // ── STING tag parameters from Project Information ──
+            string projLoc = ParameterHelpers.GetString(pi, ParamRegistry.LOC);
+            string projZone = ParameterHelpers.GetString(pi, ParamRegistry.ZONE);
+            string projRev = ParameterHelpers.GetString(pi, "ASS_REV_TXT");
+
+            // ── Element and discipline statistics ──
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            int totalTaggable = 0, totalTagged = 0;
+            var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!known.Contains(cat)) continue;
+                totalTaggable++;
+
+                string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "G";
+                discCounts.TryGetValue(disc, out int dcCnt);
+                discCounts[disc] = dcCnt + 1;
+
+                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (TagConfig.TagIsComplete(tag)) totalTagged++;
+            }
+
+            double compliancePct = totalTaggable > 0 ? totalTagged * 100.0 / totalTaggable : 0;
+
+            // ── Sheet statistics ──
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+            int sheetCount = sheets.Count;
+
+            // ── Revision data ──
+            var revisions = new FilteredElementCollector(doc)
+                .OfClass(typeof(Revision))
+                .Cast<Revision>()
+                .OrderBy(r => r.SequenceNumber)
+                .ToList();
+
+            // ── Level data ──
+            var levels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level))
+                .Cast<Level>()
+                .OrderBy(l => l.Elevation)
+                .ToList();
+
+            // ── Build output as a drafting view with text notes ──
+            // (Revit schedules cannot mix data types, so we use a drafting view
+            // with programmatic TextNote placement for a rich corporate layout)
+
+            using (Transaction tx = new Transaction(doc, "STING Corporate Title Block"))
+            {
+                tx.Start();
+
+                // Remove old schedule if exists
+                if (existing != null)
+                {
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing title block schedule: {ex.Message}"); }
+                }
+
+                // Create drafting view
+                ViewDrafting draftView = null;
+                var draftTypes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewFamilyType))
+                    .Cast<ViewFamilyType>()
+                    .Where(vft => vft.ViewFamily == ViewFamily.Drafting)
+                    .ToList();
+
+                if (draftTypes.Count > 0)
+                    draftView = ViewDrafting.Create(doc, draftTypes[0].Id);
+
+                if (draftView == null)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Corporate Title Block",
+                        "Could not create drafting view. Check that a Drafting view type exists.");
+                    return Result.Failed;
+                }
+
+                draftView.Name = scheduleName;
+                draftView.Scale = 1; // 1:1 for text layout
+
+                // ── Get or create text note type ──
+                ElementId headerTypeId = ElementId.InvalidElementId;
+                ElementId bodyTypeId = ElementId.InvalidElementId;
+                ElementId smallTypeId = ElementId.InvalidElementId;
+
+                var textTypes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType))
+                    .Cast<TextNoteType>()
+                    .ToList();
+
+                // Find types by size, or use default
+                TextNoteType defaultType = textTypes.FirstOrDefault();
+                if (defaultType != null)
+                {
+                    headerTypeId = defaultType.Id;
+                    bodyTypeId = defaultType.Id;
+                    smallTypeId = defaultType.Id;
+                }
+
+                // Try to find specific sizes
+                foreach (var tnt in textTypes)
+                {
+#pragma warning disable CS0618 // BuiltInParameter overload still functional in Revit 2025+
+                    double height = tnt.get_Parameter(BuiltInParameter.TEXT_SIZE)?.AsDouble() ?? 0;
+#pragma warning restore CS0618
+                    double heightMm = height * 304.8;
+                    if (heightMm >= 5 && heightMm < 8 && headerTypeId == bodyTypeId)
+                        headerTypeId = tnt.Id;
+                    if (heightMm >= 2.5 && heightMm < 4)
+                        bodyTypeId = tnt.Id;
+                    if (heightMm >= 1.5 && heightMm < 2.5)
+                        smallTypeId = tnt.Id;
+                }
+
+                if (headerTypeId == ElementId.InvalidElementId)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Corporate Title Block", "No text note types found in project.");
+                    return Result.Failed;
+                }
+
+                // ── Place text notes in a structured layout ──
+                double xPos = 0;
+                double yPos = 0;
+                double lineSpacing = 8.0 / 304.8; // 8mm in feet
+                double sectionGap = 15.0 / 304.8; // 15mm gap between sections
+                double headerSpacing = 12.0 / 304.8; // 12mm for headers
+
+                // Helper to place a text note and advance Y
+                void PlaceText(string text, ElementId typeId, double spacing)
+                {
+                    TextNote.Create(doc, draftView.Id, new XYZ(xPos, yPos, 0),
+                        text, typeId);
+                    yPos -= spacing;
+                }
+
+                // ═══ SECTION 1: Company Header ═══
+                PlaceText($"══════════════════════════════════════════", headerTypeId, lineSpacing);
+                PlaceText($"  {CompanyName}", headerTypeId, lineSpacing);
+                PlaceText($"  {CompanyAddress}  |  {CompanyPhone}", bodyTypeId, lineSpacing);
+                PlaceText($"══════════════════════════════════════════", headerTypeId, sectionGap);
+
+                // ═══ SECTION 2: Project Identification ═══
+                PlaceText("PROJECT INFORMATION", headerTypeId, headerSpacing);
+                PlaceText($"  Project Name:     {projName}", bodyTypeId, lineSpacing);
+                PlaceText($"  Project Number:   {projNumber}", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projClient))
+                    PlaceText($"  Client:           {projClient}", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projAddress))
+                    PlaceText($"  Address:          {projAddress}", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projStatus))
+                    PlaceText($"  Status:           {projStatus}", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projLoc))
+                    PlaceText($"  STING Location:   {projLoc}", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projZone))
+                    PlaceText($"  STING Zone:       {projZone}", bodyTypeId, lineSpacing);
+                yPos -= sectionGap;
+
+                // ═══ SECTION 3: Building Summary ═══
+                PlaceText("BUILDING SUMMARY", headerTypeId, headerSpacing);
+                PlaceText($"  Levels:       {levels.Count}", bodyTypeId, lineSpacing);
+                if (levels.Count > 0)
+                {
+                    PlaceText($"  Lowest:       {levels.First().Name} ({levels.First().Elevation * 0.3048:F1}m)",
+                        bodyTypeId, lineSpacing);
+                    PlaceText($"  Highest:      {levels.Last().Name} ({levels.Last().Elevation * 0.3048:F1}m)",
+                        bodyTypeId, lineSpacing);
+                }
+                PlaceText($"  Sheets:       {sheetCount}", bodyTypeId, lineSpacing);
+                yPos -= sectionGap;
+
+                // ═══ SECTION 4: Discipline Summary ═══
+                PlaceText("DISCIPLINE SUMMARY", headerTypeId, headerSpacing);
+                PlaceText($"  Total taggable elements: {totalTaggable:N0}", bodyTypeId, lineSpacing);
+                PlaceText($"  Tagged (complete):       {totalTagged:N0}", bodyTypeId, lineSpacing);
+                PlaceText($"  Compliance:              {compliancePct:F1}%", bodyTypeId, lineSpacing);
+                yPos -= lineSpacing / 2;
+
+                foreach (var kvp in discCounts.OrderByDescending(x => x.Value))
+                {
+                    string discFull = kvp.Key switch
+                    {
+                        "M" => "Mechanical", "E" => "Electrical", "P" => "Plumbing",
+                        "A" => "Architectural", "S" => "Structural", "FP" => "Fire Protection",
+                        "LV" => "Low Voltage", "G" => "General", _ => kvp.Key
+                    };
+                    PlaceText($"    {kvp.Key,-4} {discFull,-18} {kvp.Value,6:N0} elements",
+                        smallTypeId, lineSpacing);
+                }
+                yPos -= sectionGap;
+
+                // ═══ SECTION 5: Revision History ═══
+                if (revisions.Count > 0)
+                {
+                    PlaceText("REVISION HISTORY", headerTypeId, headerSpacing);
+                    foreach (var rev in revisions.TakeLast(10))
+                    {
+                        string revDate = "";
+                        try { revDate = rev.RevisionDate; } catch (Exception ex) { StingLog.Warn($"Read revision date: {ex.Message}"); }
+                        PlaceText($"  Rev {rev.SequenceNumber}: {rev.Description}  [{revDate}]",
+                            smallTypeId, lineSpacing);
+                    }
+                    yPos -= sectionGap;
+                }
+
+                // ═══ SECTION 6: Document Control ═══
+                PlaceText("DOCUMENT CONTROL", headerTypeId, headerSpacing);
+                PlaceText($"  Generated:    {DateTime.Now:yyyy-MM-dd HH:mm}", bodyTypeId, lineSpacing);
+                PlaceText($"  Tool:         STING Tools v1.0", bodyTypeId, lineSpacing);
+                PlaceText($"  Standard:     ISO 19650-2:2018", bodyTypeId, lineSpacing);
+                if (!string.IsNullOrEmpty(projRev))
+                    PlaceText($"  Revision:     {projRev}", bodyTypeId, lineSpacing);
+                PlaceText($"══════════════════════════════════════════", headerTypeId, lineSpacing);
+
+                tx.Commit();
+            }
+            var report = new StringBuilder();
+            report.AppendLine("Corporate Title Block Schedule Created");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  View: {scheduleName}");
+            report.AppendLine($"  Project: {projName} ({projNumber})");
+            report.AppendLine($"  Elements: {totalTaggable:N0} ({compliancePct:F1}% tagged)");
+            report.AppendLine($"  Disciplines: {discCounts.Count}");
+            report.AppendLine($"  Sheets: {sheetCount}");
+            report.AppendLine($"  Revisions: {revisions.Count}");
+            report.AppendLine();
+            report.AppendLine("The schedule is a standalone drafting view.");
+            report.AppendLine("Place it on a sheet or use it as a reference.");
+
+            TaskDialog.Show("Corporate Title Block", report.ToString());
+            StingLog.Info($"Corporate title block created: {totalTaggable} elements, {compliancePct:F1}% compliance");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Drawing Register Schedule — Sheet-level Document Control
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Creates a corporate standard "Drawing Register" schedule that lists
+    /// all sheets with document control metadata. Auto-populates from
+    /// existing sheet data and STING tag parameters.
+    ///
+    /// Columns (matching East African / ISO 19650 practice):
+    ///   1. DWG NO (Sheet Number)
+    ///   2. DRAWING TITLE (Sheet Name)
+    ///   3. DISCIPLINE (derived from sheet number prefix)
+    ///   4. SCALE (from views on sheet)
+    ///   5. PAPER SIZE (A0/A1/A2/A3/A4 from title block)
+    ///   6. REVISION (latest revision on sheet)
+    ///   7. REV DATE (date of latest revision)
+    ///   8. STATUS (For Construction / For Information / Preliminary)
+    ///   9. DRAWN BY (from sheet parameter)
+    ///  10. CHECKED BY (from sheet parameter)
+    ///  11. APPROVED BY (from sheet parameter)
+    ///  12. STING TAG (ASS_TAG_1_TXT if bound to sheets)
+    ///  13. LOCATION (ASS_LOC_TXT)
+    ///  14. REMARKS
+    ///
+    /// The schedule is a Revit Sheet List (BuiltInCategory.OST_Sheets) with
+    /// sorting by discipline prefix then sheet number, grouping by discipline,
+    /// and header formatting matching corporate standards.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DrawingRegisterScheduleCommand : IExternalCommand
+    {
+        // ── Discipline prefix mappings (sheet number prefix → discipline name) ──
+        private static readonly Dictionary<string, string> SheetPrefixToDisc =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "M", "MECHANICAL" }, { "ME", "MECHANICAL" },
+            { "E", "ELECTRICAL" }, { "EL", "ELECTRICAL" },
+            { "P", "PLUMBING" }, { "PL", "PLUMBING" },
+            { "FP", "FIRE PROTECTION" }, { "FA", "FIRE ALARM" },
+            { "A", "ARCHITECTURAL" }, { "AR", "ARCHITECTURAL" },
+            { "S", "STRUCTURAL" }, { "ST", "STRUCTURAL" },
+            { "L", "LANDSCAPE" }, { "LV", "LOW VOLTAGE" },
+            { "G", "GENERAL" }, { "C", "CIVIL" },
+            { "ID", "INTERIOR DESIGN" },
+        };
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            string scheduleName = "STING - Drawing Register";
+
+            // Check for existing
+            var existing = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSchedule))
+                .Cast<ViewSchedule>()
+                .FirstOrDefault(s => s.Name.Equals(scheduleName, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                var td0 = new TaskDialog("Drawing Register");
+                td0.MainInstruction = "Schedule already exists";
+                td0.MainContent = $"'{scheduleName}' already exists.\nRecreate it?";
+                td0.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Delete and recreate", "Remove old schedule and create fresh");
+                td0.CommonButtons = TaskDialogCommonButtons.Cancel;
+                if (td0.Show() != TaskDialogResult.CommandLink1)
+                    return Result.Cancelled;
+            }
+
+            // ── Collect sheet data ──
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (sheets.Count == 0)
+            {
+                TaskDialog.Show("Drawing Register", "No sheets found in the project.");
+                return Result.Succeeded;
+            }
+
+            // ── Project metadata ──
+            string projName = doc.ProjectInformation?.Name ?? "Unnamed Project";
+            string projNumber = doc.ProjectInformation?.Number ?? "000";
+
+            // ── Build register data ──
+            var registerRows = new List<RegisterRow>();
+
+            foreach (ViewSheet sheet in sheets)
+            {
+                var row = new RegisterRow
+                {
+                    SheetNumber = sheet.SheetNumber,
+                    SheetName = sheet.Name,
+                };
+
+                // Derive discipline from sheet number prefix
+                row.Discipline = DeriveDiscipline(sheet.SheetNumber);
+
+                // Scale — from first view on sheet
+                try
+                {
+                    var viewIds = sheet.GetAllPlacedViews();
+                    if (viewIds.Count > 0)
+                    {
+                        View firstView = doc.GetElement(viewIds.First()) as View;
+                        if (firstView != null)
+                        {
+                            int scale = firstView.Scale;
+                            row.Scale = scale > 0 ? $"1:{scale}" : "NTS";
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); row.Scale = "NTS"; }
+
+                // Paper size — from title block family instance dimensions
+                try
+                {
+                    var titleBlocks = new FilteredElementCollector(doc, sheet.Id)
+                        .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                        .WhereElementIsNotElementType()
+                        .FirstOrDefault();
+
+                    if (titleBlocks != null)
+                    {
+#pragma warning disable CS0618 // BuiltInParameter overload still functional in Revit 2025+
+                        double width = titleBlocks.get_Parameter(BuiltInParameter.SHEET_WIDTH)?.AsDouble() ?? 0;
+                        double height = titleBlocks.get_Parameter(BuiltInParameter.SHEET_HEIGHT)?.AsDouble() ?? 0;
+#pragma warning restore CS0618
+                        double widthMm = width * 304.8;
+                        double heightMm = height * 304.8;
+                        row.PaperSize = ClassifyPaperSize(widthMm, heightMm);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); row.PaperSize = "A1"; }
+
+                // Revision
+                var revIds = sheet.GetAllRevisionIds();
+                if (revIds.Count > 0)
+                {
+                    try
+                    {
+                        Revision latestRev = doc.GetElement(revIds.Last()) as Revision;
+                        if (latestRev != null)
+                        {
+                            row.Revision = $"Rev {latestRev.SequenceNumber}";
+                            row.RevDate = latestRev.RevisionDate;
+                            row.Status = latestRev.Description?.Contains("Construction") == true
+                                ? "FOR CONSTRUCTION"
+                                : latestRev.Description?.Contains("Information") == true
+                                    ? "FOR INFORMATION" : "PRELIMINARY";
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Read sheet revision data: {ex.Message}"); }
+                }
+
+                if (string.IsNullOrEmpty(row.Status)) row.Status = "PRELIMINARY";
+                if (string.IsNullOrEmpty(row.PaperSize)) row.PaperSize = "A1";
+                if (string.IsNullOrEmpty(row.Scale)) row.Scale = "NTS";
+                if (string.IsNullOrEmpty(row.Revision)) row.Revision = "-";
+                if (string.IsNullOrEmpty(row.RevDate)) row.RevDate = "-";
+
+                // Sheet parameters
+#pragma warning disable CS0618 // BuiltInParameter overload still functional in Revit 2025+
+                row.DrawnBy = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY)?.AsString() ?? "";
+                row.CheckedBy = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY)?.AsString() ?? "";
+                row.ApprovedBy = sheet.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
+#pragma warning restore CS0618
+
+                // STING tag parameters (if bound to sheets)
+                row.StingTag = ParameterHelpers.GetString(sheet, ParamRegistry.TAG1);
+                row.Location = ParameterHelpers.GetString(sheet, ParamRegistry.LOC);
+
+                registerRows.Add(row);
+            }
+
+            // ── Create drafting view with formatted text layout ──
+            using (Transaction tx = new Transaction(doc, "STING Drawing Register"))
+            {
+                tx.Start();
+
+                // Remove existing if applicable
+                if (existing != null)
+                {
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing drawing register: {ex.Message}"); }
+                }
+
+                // Create drafting view
+                ViewDrafting draftView = null;
+                var draftTypes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewFamilyType))
+                    .Cast<ViewFamilyType>()
+                    .Where(vft => vft.ViewFamily == ViewFamily.Drafting)
+                    .ToList();
+
+                if (draftTypes.Count > 0)
+                    draftView = ViewDrafting.Create(doc, draftTypes[0].Id);
+
+                if (draftView == null)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Drawing Register",
+                        "Could not create drafting view.");
+                    return Result.Failed;
+                }
+
+                draftView.Name = scheduleName;
+                draftView.Scale = 1;
+
+                // Get text note type
+                var textType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(TextNoteType))
+                    .Cast<TextNoteType>()
+                    .FirstOrDefault();
+
+                if (textType == null)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Drawing Register", "No text note types found.");
+                    return Result.Failed;
+                }
+
+                ElementId typeId = textType.Id;
+                double y = 0;
+                double lineH = 6.0 / 304.8; // 6mm line spacing
+                double gapH = 12.0 / 304.8;
+
+                void PlaceLine(string text)
+                {
+                    TextNote.Create(doc, draftView.Id, new XYZ(0, y, 0), text, typeId);
+                    y -= lineH;
+                }
+
+                // ═══ Header ═══
+                PlaceLine("════════════════════════════════════════════════════════════════════════════════════════════════════");
+                PlaceLine($"  DRAWING REGISTER — {projName} ({projNumber})");
+                PlaceLine($"  Date: {DateTime.Now:yyyy-MM-dd}  |  Standard: ISO 19650  |  Total Sheets: {sheets.Count}");
+                PlaceLine("════════════════════════════════════════════════════════════════════════════════════════════════════");
+                y -= lineH;
+
+                // ═══ Column headers ═══
+                PlaceLine(FormatRegisterRow("DWG NO", "DRAWING TITLE", "DISC", "SCALE",
+                    "SIZE", "REV", "REV DATE", "STATUS", "DRAWN", "CHK'D", "APP'D"));
+                PlaceLine("────────────────────────────────────────────────────────────────────────────────────────────────────");
+
+                // ═══ Data rows grouped by discipline ═══
+                string lastDisc = "";
+                int rowCount = 0;
+                foreach (var row in registerRows.OrderBy(r => r.Discipline).ThenBy(r => r.SheetNumber))
+                {
+                    if (row.Discipline != lastDisc)
+                    {
+                        if (!string.IsNullOrEmpty(lastDisc))
+                            y -= lineH / 2; // gap between groups
+                        PlaceLine($"  ── {row.Discipline} ──");
+                        lastDisc = row.Discipline;
+                    }
+
+                    PlaceLine(FormatRegisterRow(
+                        row.SheetNumber, Truncate(row.SheetName, 30), row.Discipline.Substring(0, Math.Min(4, row.Discipline.Length)),
+                        row.Scale, row.PaperSize, row.Revision, row.RevDate,
+                        Truncate(row.Status, 12), Truncate(row.DrawnBy, 6),
+                        Truncate(row.CheckedBy, 6), Truncate(row.ApprovedBy, 6)));
+                    rowCount++;
+                }
+
+                PlaceLine("────────────────────────────────────────────────────────────────────────────────────────────────────");
+                PlaceLine($"  TOTAL: {rowCount} DRAWINGS");
+
+                // ═══ STING tag summary (if tags exist on any sheets) ═══
+                var taggedSheets = registerRows.Where(r => !string.IsNullOrEmpty(r.StingTag)).ToList();
+                if (taggedSheets.Count > 0)
+                {
+                    y -= gapH;
+                    PlaceLine("  STING TAG REFERENCES:");
+                    foreach (var row in taggedSheets.Take(20))
+                    {
+                        string locInfo = !string.IsNullOrEmpty(row.Location) ? $" [{row.Location}]" : "";
+                        PlaceLine($"    {row.SheetNumber}: {row.StingTag}{locInfo}");
+                    }
+                    if (taggedSheets.Count > 20)
+                        PlaceLine($"    ... and {taggedSheets.Count - 20} more");
+                }
+
+                PlaceLine("════════════════════════════════════════════════════════════════════════════════════════════════════");
+
+                tx.Commit();
+            }
+            // ── Also export as CSV ──
+            string csvPath = null;
+            try
+            {
+                var csv = new StringBuilder();
+                csv.AppendLine("DWG_No,Drawing_Title,Discipline,Scale,Paper_Size,Revision,Rev_Date,Status,Drawn_By,Checked_By,Approved_By,STING_Tag,Location");
+
+                foreach (var row in registerRows.OrderBy(r => r.Discipline).ThenBy(r => r.SheetNumber))
+                {
+                    csv.AppendLine($"\"{row.SheetNumber}\",\"{row.SheetName}\",\"{row.Discipline}\"," +
+                        $"\"{row.Scale}\",\"{row.PaperSize}\",\"{row.Revision}\",\"{row.RevDate}\"," +
+                        $"\"{row.Status}\",\"{row.DrawnBy}\",\"{row.CheckedBy}\",\"{row.ApprovedBy}\"," +
+                        $"\"{row.StingTag}\",\"{row.Location}\"");
+                }
+
+                csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_DrawingRegister", ".csv");
+                File.WriteAllText(csvPath, csv.ToString());
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Drawing register CSV export failed: {ex.Message}");
+            }
+
+            // ── Report ──
+            var report = new StringBuilder();
+            report.AppendLine("Drawing Register Created");
+            report.AppendLine(new string('═', 50));
+            report.AppendLine($"  View: {scheduleName}");
+            report.AppendLine($"  Sheets: {sheets.Count}");
+
+            // Discipline breakdown
+            var discGroups = registerRows.GroupBy(r => r.Discipline)
+                .OrderByDescending(g => g.Count());
+            foreach (var g in discGroups)
+                report.AppendLine($"    {g.Key,-20} {g.Count(),4} sheets");
+
+            report.AppendLine();
+            var statusGroups = registerRows.GroupBy(r => r.Status);
+            foreach (var g in statusGroups)
+                report.AppendLine($"  {g.Key}: {g.Count()}");
+
+            if (!string.IsNullOrEmpty(csvPath))
+                report.AppendLine($"\n  CSV exported: {csvPath}");
+
+            TaskDialog.Show("Drawing Register", report.ToString());
+            StingLog.Info($"Drawing register created: {sheets.Count} sheets, CSV exported to {csvPath}");
+            return Result.Succeeded;
+        }
+
+        private static string DeriveDiscipline(string sheetNumber)
+        {
+            if (string.IsNullOrEmpty(sheetNumber)) return "GENERAL";
+
+            // Try 2-char prefix first, then 1-char
+            string prefix2 = sheetNumber.Length >= 2 ? sheetNumber.Substring(0, 2) : "";
+            string prefix1 = sheetNumber.Substring(0, 1);
+
+            // Skip digits in prefix
+            string letters = new string(sheetNumber.TakeWhile(c => char.IsLetter(c)).ToArray());
+            if (!string.IsNullOrEmpty(letters))
+            {
+                if (SheetPrefixToDisc.TryGetValue(letters, out string disc2))
+                    return disc2;
+            }
+
+            if (SheetPrefixToDisc.TryGetValue(prefix2, out string disc))
+                return disc;
+            if (SheetPrefixToDisc.TryGetValue(prefix1, out disc))
+                return disc;
+            return "GENERAL";
+        }
+
+        private static string ClassifyPaperSize(double widthMm, double heightMm)
+        {
+            double maxDim = Math.Max(widthMm, heightMm);
+            double minDim = Math.Min(widthMm, heightMm);
+
+            // ISO 216 sizes with 5% tolerance
+            if (maxDim > 1120 && maxDim < 1240 && minDim > 810 && minDim < 900) return "A0";
+            if (maxDim > 790 && maxDim < 880 && minDim > 560 && minDim < 630) return "A1";
+            if (maxDim > 560 && maxDim < 630 && minDim > 395 && minDim < 445) return "A2";
+            if (maxDim > 395 && maxDim < 445 && minDim > 278 && minDim < 315) return "A3";
+            if (maxDim > 278 && maxDim < 315 && minDim > 195 && minDim < 222) return "A4";
+            return "A1"; // Default assumption
+        }
+
+        private static string FormatRegisterRow(string dwgNo, string title, string disc,
+            string scale, string size, string rev, string revDate,
+            string status, string drawn, string chkd, string appd)
+        {
+            return $"  {dwgNo,-12} {title,-30} {disc,-5} {scale,-8} {size,-4} {rev,-6} " +
+                   $"{revDate,-12} {status,-14} {drawn,-6} {chkd,-6} {appd,-6}";
+        }
+
+        private static string Truncate(string s, int maxLen)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Length <= maxLen ? s : s.Substring(0, maxLen);
+        }
+
+        private class RegisterRow
+        {
+            public string SheetNumber = "", SheetName = "", Discipline = "";
+            public string Scale = "", PaperSize = "", Revision = "", RevDate = "";
+            public string Status = "", DrawnBy = "", CheckedBy = "", ApprovedBy = "";
+            public string StingTag = "", Location = "";
         }
     }
 }

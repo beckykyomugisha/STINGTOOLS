@@ -1,0 +1,25 @@
+{
+  "total_elements": 158,
+  "tagged": 0,
+  "untagged": 158,
+  "tag_completeness_pct": 0.0,
+  "discipline_breakdown": {},
+  "model_statistics": {
+    "levels": 2,
+    "rooms": 0,
+    "views": 89,
+    "sheets": 22,
+    "linked_models": 0,
+    "is_workshared": false
+  },
+  "issue_summary": {
+    "total": 0
+  },
+  "document_count": 0,
+  "documents_incoming": 0,
+  "documents_outgoing": 0,
+  "bep_exists": true,
+  "bep_revision": "P01",
+  "bep_stage": "0 — Strategic Definition",
+  "rag_status": "AMBER"
+}

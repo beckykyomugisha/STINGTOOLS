@@ -1,0 +1,237 @@
+# MATERIAL_LOOKUP.csv v1.0
+# Material variation lookup tables for formula engine.
+# Used by FormulaEngine.Lookup(category, type_key, property) function.
+# Format: Category, TypeKey, Property, Value, Unit, Description
+# TypeKey matches element parameter values (e.g., BLE_BRICK_BOND_TYPE_TXT).
+# Property is the constant name used in formulas via lookup().
+#
+# CONCRETE GRADES (BS 8500 / UNBS)
+# TypeKey sourced from: BLE_STRUCT_CONCRETE_GRADE_TXT
+Category,TypeKey,Property,Value,Unit,Description
+CONCRETE,C15,CEMENT_BAGS_PER_M3,4.5,bags/m³,Cement bags per cubic metre (1:3:6 mix)
+CONCRETE,C15,AGGREGATE_RATIO,0.92,,Coarse aggregate volume fraction
+CONCRETE,C15,SAND_RATIO,0.46,,Fine aggregate (sand) volume fraction
+CONCRETE,C15,WATER_PER_BAG,28,L,Water per 50kg bag (W/C 0.56)
+CONCRETE,C15,STEEL_KG_PER_M3,50,kg/m³,Typical reinforcement (lightly reinforced)
+CONCRETE,C15,CARBON_KG_PER_M3,280,kgCO₂/m³,Embodied carbon
+CONCRETE,C20,CEMENT_BAGS_PER_M3,5.0,bags/m³,Cement bags per cubic metre (1:2:4 mix lean)
+CONCRETE,C20,AGGREGATE_RATIO,0.90,,Coarse aggregate volume fraction
+CONCRETE,C20,SAND_RATIO,0.45,,Fine aggregate volume fraction
+CONCRETE,C20,WATER_PER_BAG,27,L,Water per 50kg bag (W/C 0.54)
+CONCRETE,C20,STEEL_KG_PER_M3,75,kg/m³,Typical reinforcement (moderate)
+CONCRETE,C20,CARBON_KG_PER_M3,310,kgCO₂/m³,Embodied carbon
+CONCRETE,C25,CEMENT_BAGS_PER_M3,5.8,bags/m³,Cement bags per cubic metre (1:2:4 standard)
+CONCRETE,C25,AGGREGATE_RATIO,0.88,,Coarse aggregate volume fraction
+CONCRETE,C25,SAND_RATIO,0.44,,Fine aggregate volume fraction
+CONCRETE,C25,WATER_PER_BAG,25,L,Water per 50kg bag (W/C 0.50)
+CONCRETE,C25,STEEL_KG_PER_M3,90,kg/m³,Typical reinforcement (standard)
+CONCRETE,C25,CARBON_KG_PER_M3,330,kgCO₂/m³,Embodied carbon
+CONCRETE,C30,CEMENT_BAGS_PER_M3,6.5,bags/m³,Cement bags per cubic metre (1:1.5:3 mix)
+CONCRETE,C30,AGGREGATE_RATIO,0.85,,Coarse aggregate volume fraction
+CONCRETE,C30,SAND_RATIO,0.42,,Fine aggregate volume fraction
+CONCRETE,C30,WATER_PER_BAG,23,L,Water per 50kg bag (W/C 0.46)
+CONCRETE,C30,STEEL_KG_PER_M3,110,kg/m³,Typical reinforcement (moderate-heavy)
+CONCRETE,C30,CARBON_KG_PER_M3,345,kgCO₂/m³,Embodied carbon
+CONCRETE,C35,CEMENT_BAGS_PER_M3,7.0,bags/m³,Cement bags per cubic metre (1:1.5:3 rich)
+CONCRETE,C35,AGGREGATE_RATIO,0.83,,Coarse aggregate volume fraction
+CONCRETE,C35,SAND_RATIO,0.41,,Fine aggregate volume fraction
+CONCRETE,C35,WATER_PER_BAG,22,L,Water per 50kg bag (W/C 0.44)
+CONCRETE,C35,STEEL_KG_PER_M3,130,kg/m³,Typical reinforcement (heavy)
+CONCRETE,C35,CARBON_KG_PER_M3,365,kgCO₂/m³,Embodied carbon
+CONCRETE,C40,CEMENT_BAGS_PER_M3,7.5,bags/m³,Cement bags per cubic metre (1:1:2 mix)
+CONCRETE,C40,AGGREGATE_RATIO,0.80,,Coarse aggregate volume fraction
+CONCRETE,C40,SAND_RATIO,0.40,,Fine aggregate volume fraction
+CONCRETE,C40,WATER_PER_BAG,20,L,Water per 50kg bag (W/C 0.40)
+CONCRETE,C40,STEEL_KG_PER_M3,150,kg/m³,Typical reinforcement (very heavy)
+CONCRETE,C40,CARBON_KG_PER_M3,380,kgCO₂/m³,Embodied carbon
+CONCRETE,C45,CEMENT_BAGS_PER_M3,8.0,bags/m³,Cement bags per cubic metre
+CONCRETE,C45,AGGREGATE_RATIO,0.78,,Coarse aggregate volume fraction
+CONCRETE,C45,SAND_RATIO,0.39,,Fine aggregate volume fraction
+CONCRETE,C45,WATER_PER_BAG,19,L,Water per 50kg bag (W/C 0.38)
+CONCRETE,C45,STEEL_KG_PER_M3,170,kg/m³,Typical reinforcement (very heavy)
+CONCRETE,C45,CARBON_KG_PER_M3,400,kgCO₂/m³,Embodied carbon
+CONCRETE,DEFAULT,CEMENT_BAGS_PER_M3,6.5,bags/m³,Default: C25/30 mix
+CONCRETE,DEFAULT,AGGREGATE_RATIO,0.88,,Default coarse aggregate
+CONCRETE,DEFAULT,SAND_RATIO,0.44,,Default fine aggregate
+CONCRETE,DEFAULT,WATER_PER_BAG,25,L,Default W/C 0.50
+CONCRETE,DEFAULT,STEEL_KG_PER_M3,90,kg/m³,Default reinforcement
+CONCRETE,DEFAULT,CARBON_KG_PER_M3,350,kgCO₂/m³,Default embodied carbon
+#
+# REINFORCEMENT LAP LENGTHS (BS 8666)
+# TypeKey sourced from: BLE_STRUCT_CONCRETE_GRADE_TXT
+REBAR_LAP,C20,TENSION_LAP_FACTOR,50,,Bar diameters for tension lap (C20)
+REBAR_LAP,C25,TENSION_LAP_FACTOR,45,,Bar diameters for tension lap (C25)
+REBAR_LAP,C30,TENSION_LAP_FACTOR,40,,Bar diameters for tension lap (C30)
+REBAR_LAP,C35,TENSION_LAP_FACTOR,38,,Bar diameters for tension lap (C35)
+REBAR_LAP,C40,TENSION_LAP_FACTOR,35,,Bar diameters for tension lap (C40)
+REBAR_LAP,C45,TENSION_LAP_FACTOR,33,,Bar diameters for tension lap (C45)
+REBAR_LAP,DEFAULT,TENSION_LAP_FACTOR,40,,Default: C30 tension lap
+REBAR_LAP,C20,COMPRESSION_LAP_FACTOR,32,,Bar diameters for compression lap (C20)
+REBAR_LAP,C25,COMPRESSION_LAP_FACTOR,29,,Bar diameters for compression lap (C25)
+REBAR_LAP,C30,COMPRESSION_LAP_FACTOR,26,,Bar diameters for compression lap (C30)
+REBAR_LAP,C35,COMPRESSION_LAP_FACTOR,25,,Bar diameters for compression lap (C35)
+REBAR_LAP,C40,COMPRESSION_LAP_FACTOR,23,,Bar diameters for compression lap (C40)
+REBAR_LAP,DEFAULT,COMPRESSION_LAP_FACTOR,26,,Default compression lap
+#
+# BRICK BOND TYPES
+# TypeKey sourced from: BLE_BRICK_BOND_TYPE_TXT
+BRICK_BOND,STRETCHER,BRICKS_PER_M2,60,bricks/m²,Standard stretcher/running bond (half-brick wall)
+BRICK_BOND,STRETCHER,MORTAR_RATIO,0.025,,Mortar volume per m² (10mm joints)
+BRICK_BOND,STRETCHER,WASTE_PCT,5,%,Cutting waste percentage
+BRICK_BOND,HEADER,BRICKS_PER_M2,120,bricks/m²,Header bond (all headers one-brick wall)
+BRICK_BOND,HEADER,MORTAR_RATIO,0.030,,Mortar volume per m²
+BRICK_BOND,HEADER,WASTE_PCT,5,%,Cutting waste
+BRICK_BOND,ENGLISH,BRICKS_PER_M2,89,bricks/m²,English bond (alternating stretcher/header courses)
+BRICK_BOND,ENGLISH,MORTAR_RATIO,0.035,,Mortar volume per m²
+BRICK_BOND,ENGLISH,WASTE_PCT,7,%,More cutting waste (closers needed)
+BRICK_BOND,FLEMISH,BRICKS_PER_M2,79,bricks/m²,Flemish bond (alternating in same course)
+BRICK_BOND,FLEMISH,MORTAR_RATIO,0.032,,Mortar volume per m²
+BRICK_BOND,FLEMISH,WASTE_PCT,8,%,Most cutting waste
+BRICK_BOND,ENGLISH_GARDEN_WALL,BRICKS_PER_M2,74,bricks/m²,English garden wall bond (3 stretcher to 1 header course)
+BRICK_BOND,ENGLISH_GARDEN_WALL,MORTAR_RATIO,0.028,,Mortar volume per m²
+BRICK_BOND,ENGLISH_GARDEN_WALL,WASTE_PCT,6,%,Moderate cutting waste
+BRICK_BOND,STACK,BRICKS_PER_M2,60,bricks/m²,Stack bond (aligned vertical joints)
+BRICK_BOND,STACK,MORTAR_RATIO,0.025,,Mortar volume per m²
+BRICK_BOND,STACK,WASTE_PCT,3,%,Minimal cutting
+BRICK_BOND,DEFAULT,BRICKS_PER_M2,60,bricks/m²,Default: stretcher bond
+BRICK_BOND,DEFAULT,MORTAR_RATIO,0.025,,Default mortar ratio
+BRICK_BOND,DEFAULT,WASTE_PCT,5,%,Default waste
+#
+# BLOCK SIZES
+# TypeKey sourced from: BLE_BLOCK_SIZE_TXT (format: "LxH" e.g. "440x215")
+BLOCK,440x215,BLOCKS_PER_M2,10.0,blocks/m²,Standard 440×215mm block (all thicknesses)
+BLOCK,440x190,BLOCKS_PER_M2,11.9,blocks/m²,440×190mm block
+BLOCK,390x190,BLOCKS_PER_M2,13.5,blocks/m²,390×190mm block (common in East Africa)
+BLOCK,400x200,BLOCKS_PER_M2,12.5,blocks/m²,400×200mm block
+BLOCK,450x225,BLOCKS_PER_M2,9.9,blocks/m²,450×225mm block
+BLOCK,DEFAULT,BLOCKS_PER_M2,12.5,blocks/m²,Default: 400×200mm
+BLOCK,440x215,MORTAR_VOLUME_FACTOR,0.01,m³/m²,Mortar volume per m² wall area
+BLOCK,390x190,MORTAR_VOLUME_FACTOR,0.012,m³/m²,Mortar volume per m²
+BLOCK,400x200,MORTAR_VOLUME_FACTOR,0.011,m³/m²,Mortar volume per m²
+BLOCK,DEFAULT,MORTAR_VOLUME_FACTOR,0.011,m³/m²,Default mortar factor
+#
+# MORTAR MIX RATIOS
+# TypeKey sourced from: BLE_MORTAR_MIX_TXT
+MORTAR,1:3,CEMENT_BAGS_PER_M3,12,bags/m³,Strong mortar (retaining walls below DPC)
+MORTAR,1:3,SAND_RATIO,0.75,,Sand volume fraction
+MORTAR,1:4,CEMENT_BAGS_PER_M3,9,bags/m³,Medium-strong mortar (exposed external walls)
+MORTAR,1:4,SAND_RATIO,0.80,,Sand volume fraction
+MORTAR,1:5,CEMENT_BAGS_PER_M3,7.5,bags/m³,General purpose mortar (standard brickwork)
+MORTAR,1:5,SAND_RATIO,0.83,,Sand volume fraction
+MORTAR,1:6,CEMENT_BAGS_PER_M3,6,bags/m³,Weak mortar (internal non-loadbearing walls)
+MORTAR,1:6,SAND_RATIO,0.86,,Sand volume fraction
+MORTAR,1:8,CEMENT_BAGS_PER_M3,4.5,bags/m³,Very weak mortar (temporary or infill)
+MORTAR,1:8,SAND_RATIO,0.89,,Sand volume fraction
+MORTAR,DEFAULT,CEMENT_BAGS_PER_M3,6,bags/m³,Default: 1:6 mix
+MORTAR,DEFAULT,SAND_RATIO,0.86,,Default sand fraction
+#
+# PAINT TYPES
+# TypeKey sourced from: BLE_PAINT_TYPE_TXT
+PAINT,PRIMER,COVERAGE_M2_PER_L,10,m²/L,Primer/undercoat coverage
+PAINT,EMULSION,COVERAGE_M2_PER_L,9,m²/L,Emulsion (vinyl silk/matt) coverage
+PAINT,GLOSS,COVERAGE_M2_PER_L,14,m²/L,Oil-based gloss/satin coverage
+PAINT,EGGSHELL,COVERAGE_M2_PER_L,12,m²/L,Eggshell/semi-gloss coverage
+PAINT,TEXTURED,COVERAGE_M2_PER_L,6,m²/L,Textured/masonry paint coverage
+PAINT,ANTI_FUNGAL,COVERAGE_M2_PER_L,8,m²/L,Anti-fungal coating coverage
+PAINT,FIRE_RETARDANT,COVERAGE_M2_PER_L,7,m²/L,Intumescent fire-retardant paint
+PAINT,EPOXY,COVERAGE_M2_PER_L,5,m²/L,Epoxy floor/wall coating
+PAINT,DEFAULT,COVERAGE_M2_PER_L,10,m²/L,Default: primer/standard coverage
+#
+# TILE SIZES (waste varies by size and pattern)
+# TypeKey sourced from: BLE_TILE_SIZE_TXT
+TILE,MOSAIC,WASTE_PCT,20,%,Mosaic tiles (<100mm) - high waste
+TILE,MOSAIC,ADHESIVE_KG_PER_M2,4.0,kg/m²,Thin-bed adhesive
+TILE,SMALL,WASTE_PCT,12,%,Small tiles (100-299mm) - moderate waste
+TILE,SMALL,ADHESIVE_KG_PER_M2,4.5,kg/m²,Standard adhesive
+TILE,MEDIUM,WASTE_PCT,10,%,Medium tiles (300-599mm) - standard waste
+TILE,MEDIUM,ADHESIVE_KG_PER_M2,5.5,kg/m²,Standard adhesive
+TILE,LARGE,WASTE_PCT,8,%,Large tiles (600mm+) - low waste but heavy
+TILE,LARGE,ADHESIVE_KG_PER_M2,7.0,kg/m²,Thick-bed adhesive for large format
+TILE,DEFAULT,WASTE_PCT,10,%,Default: medium tile waste
+TILE,DEFAULT,ADHESIVE_KG_PER_M2,5.5,kg/m²,Default adhesive
+#
+# TILE GROUT (by joint width)
+# TypeKey sourced from: BLE_TILE_JOINT_WIDTH_MM (as string)
+GROUT,2,GROUT_KG_PER_M2,0.3,kg/m²,2mm joint width
+GROUT,3,GROUT_KG_PER_M2,0.5,kg/m²,3mm joint width
+GROUT,5,GROUT_KG_PER_M2,0.8,kg/m²,5mm joint width
+GROUT,8,GROUT_KG_PER_M2,1.1,kg/m²,8mm joint width
+GROUT,10,GROUT_KG_PER_M2,1.3,kg/m²,10mm joint width
+GROUT,DEFAULT,GROUT_KG_PER_M2,0.8,kg/m²,Default: 5mm joints
+#
+# PLASTER TYPES
+# TypeKey sourced from: BLE_PLASTER_TYPE_TXT
+PLASTER,THIN_COAT,THICKNESS_M,0.008,m,Thin coat render (8mm)
+PLASTER,THIN_COAT,WASTE_PCT,15,%,Thin coat waste
+PLASTER,STANDARD,THICKNESS_M,0.013,m,Standard 2-coat plaster (13mm)
+PLASTER,STANDARD,WASTE_PCT,20,%,Standard waste
+PLASTER,THICK,THICKNESS_M,0.020,m,Thick coat / rough cast (20mm)
+PLASTER,THICK,WASTE_PCT,25,%,Thick coat waste
+PLASTER,LIME,THICKNESS_M,0.015,m,Lime plaster (15mm)
+PLASTER,LIME,WASTE_PCT,20,%,Lime waste
+PLASTER,DEFAULT,THICKNESS_M,0.015,m,Default: 15mm
+PLASTER,DEFAULT,WASTE_PCT,25,%,Default waste
+#
+# ROOFING SHEET PROFILES
+# TypeKey sourced from: BLE_ROOF_SHEET_PROFILE_TXT
+ROOF_SHEET,CORRUGATED,COVERAGE_M2,2.7,m²/sheet,Corrugated iron/aluminium
+ROOF_SHEET,CORRUGATED,FASTENERS_PER_M2,8,,Standard fastener density
+ROOF_SHEET,BOX_PROFILE,COVERAGE_M2,3.2,m²/sheet,Box profile steel
+ROOF_SHEET,BOX_PROFILE,FASTENERS_PER_M2,6,,Box profile fastener density
+ROOF_SHEET,STANDING_SEAM,COVERAGE_M2,3.5,m²/sheet,Standing seam panels
+ROOF_SHEET,STANDING_SEAM,FASTENERS_PER_M2,4,,Concealed fixing
+ROOF_SHEET,FIBRE_CEMENT,COVERAGE_M2,1.8,m²/sheet,Fibre cement sheets
+ROOF_SHEET,FIBRE_CEMENT,FASTENERS_PER_M2,10,,More fixings needed
+ROOF_SHEET,CLAY_TILE,COVERAGE_M2,0.04,m²/tile,Clay roof tile (per tile)
+ROOF_SHEET,CLAY_TILE,FASTENERS_PER_M2,0,,Nailed every other course
+ROOF_SHEET,CONCRETE_TILE,COVERAGE_M2,0.03,m²/tile,Concrete roof tile (per tile)
+ROOF_SHEET,CONCRETE_TILE,FASTENERS_PER_M2,0,,Nailed/clipped
+ROOF_SHEET,DEFAULT,COVERAGE_M2,3.0,m²/sheet,Default: standard metal sheet
+ROOF_SHEET,DEFAULT,FASTENERS_PER_M2,8,,Default fastener density
+#
+# PURLIN SPACING (by load class)
+# TypeKey sourced from: BLE_ROOF_LOAD_CLASS_TXT
+PURLIN,LIGHT,SPACING_M,1.8,m,Light load (aluminium sheets)
+PURLIN,MEDIUM,SPACING_M,1.2,m,Medium load (steel corrugated)
+PURLIN,HEAVY,SPACING_M,0.8,m,Heavy load (concrete tiles)
+PURLIN,DEFAULT,SPACING_M,1.2,m,Default: medium load
+#
+# FORMWORK TYPES
+# TypeKey sourced from: CST_FORMWORK_TYPE_TXT
+FORMWORK,SLAB,TIMBER_THICKNESS_M,0.020,m,Slab soffit formwork (20mm ply)
+FORMWORK,SLAB,PROPS_PER_M2,0.67,,Props per m² (1 per 1.5m²)
+FORMWORK,SLAB,RELEASE_AGENT_M2_PER_L,30,m²/L,Release agent coverage
+FORMWORK,BEAM,TIMBER_THICKNESS_M,0.025,m,Beam formwork (25mm timber)
+FORMWORK,BEAM,PROPS_PER_M2,1.0,,Props per m²
+FORMWORK,BEAM,RELEASE_AGENT_M2_PER_L,25,m²/L,Release agent coverage
+FORMWORK,COLUMN,TIMBER_THICKNESS_M,0.020,m,Column formwork (20mm ply)
+FORMWORK,COLUMN,PROPS_PER_M2,0,,No props (self-standing)
+FORMWORK,COLUMN,RELEASE_AGENT_M2_PER_L,25,m²/L,Release agent coverage
+FORMWORK,FOUNDATION,TIMBER_THICKNESS_M,0.025,m,Foundation formwork (25mm)
+FORMWORK,FOUNDATION,PROPS_PER_M2,0,,No props
+FORMWORK,FOUNDATION,RELEASE_AGENT_M2_PER_L,30,m²/L,Release agent coverage
+FORMWORK,DEFAULT,TIMBER_THICKNESS_M,0.025,m,Default: 25mm
+FORMWORK,DEFAULT,PROPS_PER_M2,0.67,,Default: 1 per 1.5m²
+FORMWORK,DEFAULT,RELEASE_AGENT_M2_PER_L,30,m²/L,Default coverage
+#
+# SAND BULKING (by moisture class)
+# TypeKey sourced from: CST_SAND_MOISTURE_TXT
+SAND,DRY,BULKING_FACTOR,1.15,,Dry sand bulking (+15%)
+SAND,DAMP,BULKING_FACTOR,1.25,,Damp sand bulking (+25%)
+SAND,WET,BULKING_FACTOR,1.10,,Wet sand bulking (+10%)
+SAND,DEFAULT,BULKING_FACTOR,1.20,,Default: moderate bulking (+20%)
+#
+# PLYWOOD SHEET SIZES
+# TypeKey sourced from: CST_PLYWOOD_SIZE_TXT
+PLYWOOD,STANDARD,AREA_M2,2.88,m²/sheet,1220×2440mm (4×8 ft)
+PLYWOOD,LARGE,AREA_M2,4.50,m²/sheet,1500×3000mm
+PLYWOOD,METRIC,AREA_M2,3.00,m²/sheet,1500×2000mm
+PLYWOOD,DEFAULT,AREA_M2,2.88,m²/sheet,Default: standard 4×8
+#
+# PUTTY APPLICATION (by surface condition)
+# TypeKey sourced from: BLE_SURFACE_CONDITION_TXT
+PUTTY,SMOOTH,KG_PER_M2,0.8,kg/m²,Smooth surface (minimal filling)
+PUTTY,FAIR,KG_PER_M2,1.2,kg/m²,Fair-faced surface
+PUTTY,ROUGH,KG_PER_M2,1.8,kg/m²,Rough surface (moderate filling)
+PUTTY,VERY_ROUGH,KG_PER_M2,2.5,kg/m²,Very rough surface (heavy filling)
+PUTTY,DEFAULT,KG_PER_M2,1.5,kg/m²,Default: medium surface

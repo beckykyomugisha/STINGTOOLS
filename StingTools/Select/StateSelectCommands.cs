@@ -1,40 +1,45 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Select
 {
     /// <summary>
-    /// State-based selection commands from STINGTags v9.6 SELECT tab:
-    /// Untagged, Tagged, EmptyMark, Pinned, Unpinned.
+    /// State-based selection commands: Untagged, Tagged, EmptyMark, Pinned, Unpinned.
+    /// Each supports project-wide or view-only scope via SelectionScopeHelper.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class SelectUntaggedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var collector = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView);
+            var ids = collector
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
+                    if (e.Category == null) return false;
                     string cat = ParameterHelpers.GetCategoryName(e);
                     if (!known.Contains(cat)) return false;
-                    string tag = ParameterHelpers.GetString(e, "ASS_TAG_1_TXT");
+                    string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
                     return string.IsNullOrEmpty(tag);
                 })
                 .Select(e => e.Id).ToList();
 
-            uidoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Untagged", $"Selected {ids.Count} untagged elements.");
+            ctx.UIDoc.Selection.SetElementIds(ids);
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Untagged", $"Selected {ids.Count} untagged elements ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -44,23 +49,27 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var collector = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView);
+            var ids = collector
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
+                    if (e.Category == null) return false;
                     string cat = ParameterHelpers.GetCategoryName(e);
                     if (!known.Contains(cat)) return false;
-                    string tag = ParameterHelpers.GetString(e, "ASS_TAG_1_TXT");
-                    return TagConfig.TagIsComplete(tag);
+                    string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                    // Tagged = has any non-empty tag value (not just complete 8-segment tags)
+                    return !string.IsNullOrEmpty(tag);
                 })
                 .Select(e => e.Id).ToList();
 
-            uidoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Tagged", $"Selected {ids.Count} tagged elements.");
+            ctx.UIDoc.Selection.SetElementIds(ids);
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Tagged", $"Selected {ids.Count} tagged elements ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -70,10 +79,10 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView)
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -84,8 +93,9 @@ namespace StingTools.Select
                 })
                 .Select(e => e.Id).ToList();
 
-            uidoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Empty Mark", $"Selected {ids.Count} elements with empty Mark.");
+            ctx.UIDoc.Selection.SetElementIds(ids);
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Empty Mark", $"Selected {ids.Count} elements with empty Mark ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -95,16 +105,17 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView)
                 .WhereElementIsNotElementType()
                 .Where(e => e.Pinned)
                 .Select(e => e.Id).ToList();
 
-            uidoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Pinned", $"Selected {ids.Count} pinned elements.");
+            ctx.UIDoc.Selection.SetElementIds(ids);
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Pinned", $"Selected {ids.Count} pinned elements ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -114,61 +125,137 @@ namespace StingTools.Select
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(doc, doc.ActiveView.Id)
+            var ids = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView)
                 .WhereElementIsNotElementType()
-                .Where(e => !e.Pinned && known.Contains(ParameterHelpers.GetCategoryName(e)))
+                .Where(e => !e.Pinned && e.Category != null && known.Contains(ParameterHelpers.GetCategoryName(e)))
                 .Select(e => e.Id).ToList();
 
-            uidoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Unpinned", $"Selected {ids.Count} unpinned elements.");
+            ctx.UIDoc.Selection.SetElementIds(ids);
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Unpinned", $"Selected {ids.Count} unpinned elements ({scope}).");
             return Result.Succeeded;
         }
     }
 
-    /// <summary>Select elements by level in active view.</summary>
+    /// <summary>
+    /// Select elements by level. Works in ALL view types (not just plan views):
+    /// - Plan views: uses associated level directly
+    /// - Section/3D/other: shows a level picker with element counts per level
+    /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class SelectByLevelCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+            View view = ctx.ActiveView;
 
-            // Use the active view's associated level if it's a plan view
-            View view = doc.ActiveView;
+            // Try to get level from plan view directly
             ElementId levelId = null;
             if (view is ViewPlan vp)
                 levelId = vp.GenLevel?.Id;
 
-            if (levelId == null || levelId == ElementId.InvalidElementId)
+            if (levelId != null && levelId != ElementId.InvalidElementId)
             {
-                TaskDialog.Show("Select by Level", "Active view has no associated level.");
+                // Direct plan view: select elements on this level
+                var ids = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.LevelId == levelId)
+                    .Select(e => e.Id).ToList();
+
+                Level lvl = doc.GetElement(levelId) as Level;
+                uidoc.Selection.SetElementIds(ids);
+                TaskDialog.Show("Select by Level",
+                    $"Selected {ids.Count} elements on '{lvl?.Name ?? "level"}'.");
                 return Result.Succeeded;
             }
 
-            var ids = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .Where(e => e.LevelId == levelId)
-                .Select(e => e.Id).ToList();
+            // Non-plan view: show level picker with counts
+            var levels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level))
+                .Cast<Level>()
+                .OrderBy(l => l.Elevation)
+                .ToList();
 
-            uidoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select by Level", $"Selected {ids.Count} elements on this level.");
+            if (levels.Count == 0)
+            {
+                TaskDialog.Show("Select by Level", "No levels found in project.");
+                return Result.Succeeded;
+            }
+
+            // Count elements per level in active view
+            var elemsByLevel = new Dictionary<ElementId, List<ElementId>>();
+            foreach (Level l in levels)
+                elemsByLevel[l.Id] = new List<ElementId>();
+
+            foreach (Element e in new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType())
+            {
+                if (e.LevelId != null && elemsByLevel.TryGetValue(e.LevelId, out var lvlList))
+                    lvlList.Add(e.Id);
+            }
+
+            var nonEmpty = levels.Where(l => elemsByLevel[l.Id].Count > 0).ToList();
+            if (nonEmpty.Count == 0)
+            {
+                TaskDialog.Show("Select by Level", "No elements with assigned levels in this view.");
+                return Result.Succeeded;
+            }
+
+            // Show scrollable WPF list picker (replaces paginated TaskDialog)
+            var picked = StingListPicker.Show(
+                "Select by Level",
+                $"{nonEmpty.Count} levels with elements in view",
+                nonEmpty.Select(l => new StingListPicker.ListItem
+                {
+                    Label = l.Name,
+                    Detail = $"{elemsByLevel[l.Id].Count} elements  (elev {l.Elevation:F1})",
+                    Tag = l.Id
+                }).ToList(),
+                allowMultiSelect: true);
+
+            if (picked == null || picked.Count == 0)
+                return Result.Cancelled;
+
+            var pickedIds = new List<ElementId>();
+            foreach (var item in picked)
+            {
+                if (item.Tag is ElementId lvlId && elemsByLevel.TryGetValue(lvlId, out var lvlElems))
+                    pickedIds.AddRange(lvlElems);
+            }
+
+            uidoc.Selection.SetElementIds(pickedIds);
+            string lvlNames = string.Join(", ", picked.Select(p => p.Label));
+            TaskDialog.Show("Select by Level",
+                $"Selected {pickedIds.Count} elements on: {lvlNames}");
+
             return Result.Succeeded;
         }
     }
 
-    /// <summary>Select elements in the same room as the first selected element.</summary>
+    /// <summary>
+    /// Select elements in the same room as the first selected element.
+    /// Works with ALL element types (not just FamilyInstance) by using:
+    /// 1. FamilyInstance.Room property (direct)
+    /// 2. Spatial lookup via ParameterHelpers.GetRoomAtElement (bounding box point-in-room)
+    /// 3. Room name from STING LOC/ZONE parameters as fallback
+    /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class SelectByRoomCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("Select", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -180,27 +267,89 @@ namespace StingTools.Select
             Element seed = doc.GetElement(selected.First());
             if (seed == null) return Result.Succeeded;
 
-            // Get the room of the seed element
-            var fi = seed as FamilyInstance;
-            if (fi == null)
-            {
-                TaskDialog.Show("Select by Room", "Selected element is not a family instance.");
-                return Result.Succeeded;
-            }
+            // Try multiple strategies to find the seed element's room
+            Room room = null;
 
-            Room room = fi.Room;
+            // Strategy 1: FamilyInstance.Room
+            if (seed is FamilyInstance fi)
+                room = fi.Room;
+
+            // Strategy 2: spatial lookup via helper
+            if (room == null)
+                room = ParameterHelpers.GetRoomAtElement(doc, seed);
+
+            // Strategy 3: if still null, try all rooms to find one containing the element's point
             if (room == null)
             {
-                TaskDialog.Show("Select by Room", "Selected element is not in a room.");
+                XYZ point = null;
+                if (seed.Location is LocationPoint lp) point = lp.Point;
+                else if (seed.Location is LocationCurve lc)
+                    point = (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) / 2.0;
+                else
+                {
+                    var bb = seed.get_BoundingBox(null);
+                    if (bb != null) point = (bb.Min + bb.Max) / 2.0;
+                }
+
+                if (point != null)
+                {
+                    room = doc.GetRoomAtPoint(point);
+                }
+            }
+
+            if (room == null)
+            {
+                TaskDialog.Show("Select by Room",
+                    "Cannot determine room for selected element.\n" +
+                    "The element may not be inside a room boundary.");
                 return Result.Succeeded;
             }
 
-            // Find all family instances in the same room
-            var ids = new FilteredElementCollector(doc)
-                .OfClass(typeof(FamilyInstance))
-                .Cast<FamilyInstance>()
-                .Where(f => f.Room?.Id == room.Id)
-                .Select(f => f.Id).ToList();
+            // Find ALL elements in the same room (not just FamilyInstance)
+            var roomId = room.Id;
+            var ids = new List<ElementId>();
+            var activeView = ctx.ActiveView ?? doc.ActiveView;
+            if (activeView == null)
+            {
+                TaskDialog.Show("Select by Room", "No active view. Switch to a model view first.");
+                return Result.Succeeded;
+            }
+
+            foreach (Element e in new FilteredElementCollector(doc, activeView.Id)
+                .WhereElementIsNotElementType())
+            {
+                try
+                {
+                    // Check FamilyInstance.Room first
+                    if (e is FamilyInstance fInst && fInst.Room?.Id == roomId)
+                    {
+                        ids.Add(e.Id);
+                        continue;
+                    }
+
+                    // Check via spatial helper
+                    Room elemRoom = ParameterHelpers.GetRoomAtElement(doc, e);
+                    if (elemRoom?.Id == roomId)
+                    {
+                        ids.Add(e.Id);
+                        continue;
+                    }
+
+                    // Check via point-in-room
+                    XYZ pt = null;
+                    if (e.Location is LocationPoint lp2) pt = lp2.Point;
+                    else if (e.Location is LocationCurve lc2)
+                        pt = (lc2.Curve.GetEndPoint(0) + lc2.Curve.GetEndPoint(1)) / 2.0;
+
+                    if (pt != null)
+                    {
+                        Room r = doc.GetRoomAtPoint(pt);
+                        if (r?.Id == roomId)
+                            ids.Add(e.Id);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"SelectByRoom element {e.Id}: {ex.Message}"); }
+            }
 
             uidoc.Selection.SetElementIds(ids);
             TaskDialog.Show("Select by Room",
@@ -209,14 +358,19 @@ namespace StingTools.Select
         }
     }
 
-    /// <summary>Bulk write a parameter value to all selected elements.</summary>
+    /// <summary>
+    /// Bulk write parameter values to selected elements. Provides quick-access
+    /// presets for common operations plus multi-page options for all token types.
+    /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class BulkParamWriteCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
         {
-            UIDocument uidoc = cmd.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("Bulk Param Write", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
 
             var selected = uidoc.Selection.GetElementIds();
             if (selected.Count == 0)
@@ -225,64 +379,471 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            // Prompt for parameter name and value
-            // Use TaskDialog with input (Revit doesn't have input dialogs, use common params)
-            TaskDialog td = new TaskDialog("Bulk Param Write");
-            td.MainInstruction = $"Write parameter to {selected.Count} selected elements";
-            td.MainContent =
-                "This will write a value to a named parameter on all selected elements.\n\n" +
-                "Common parameters:\n" +
-                "  ASS_LOC_TXT, ASS_ZONE_TXT, ASS_STATUS_TXT,\n" +
-                "  ASS_DISCIPLINE_COD_TXT, ASS_SYSTEM_TYPE_TXT";
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC to BLD1");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE to Z01");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS to EXISTING");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Clear all tags");
-            td.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var result = td.Show();
-            string paramName = null;
-            string paramValue = null;
-            bool overwrite = false;
-
-            switch (result)
+            // Build preview data for the first few elements
+            var previewData = new List<BulkOperationDialog.PreviewEntry>();
+            int previewMax = Math.Min(selected.Count, 10);
+            int previewIdx = 0;
+            foreach (ElementId id in selected)
             {
-                case TaskDialogResult.CommandLink1:
-                    paramName = "ASS_LOC_TXT"; paramValue = "BLD1"; break;
-                case TaskDialogResult.CommandLink2:
-                    paramName = "ASS_ZONE_TXT"; paramValue = "Z01"; break;
-                case TaskDialogResult.CommandLink3:
-                    paramName = "ASS_STATUS_TXT"; paramValue = "EXISTING"; break;
-                case TaskDialogResult.CommandLink4:
-                    paramName = "ASS_TAG_1_TXT"; paramValue = ""; overwrite = true; break;
+                if (previewIdx >= previewMax) break;
+                Element elem = doc.GetElement(id);
+                if (elem == null) continue;
+                previewData.Add(new BulkOperationDialog.PreviewEntry
+                {
+                    CategoryName = ParameterHelpers.GetCategoryName(elem),
+                    CurrentTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1),
+                    CurrentLoc = ParameterHelpers.GetString(elem, ParamRegistry.LOC),
+                    CurrentZone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE),
+                    CurrentStatus = ParameterHelpers.GetString(elem, ParamRegistry.STATUS)
+                });
+                previewIdx++;
+            }
+
+            // Show unified WPF dialog
+            var result = BulkOperationDialog.Show(selected.Count, previewData);
+            if (result.Cancelled)
+                return Result.Cancelled;
+
+            switch (result.Operation)
+            {
+                case BulkOperation.SetToken:
+                    return BulkSetToken(doc, selected, result.TokenName, result.TokenValue, result.AutoDetectStatus);
+                case BulkOperation.AutoPopulate:
+                    return BulkAutoPopulate(doc, selected);
+                case BulkOperation.ClearTags:
+                    return BulkClearTags(doc, selected);
+                case BulkOperation.Retag:
+                    return BulkRetag(doc, selected);
                 default:
                     return Result.Cancelled;
             }
+        }
 
+        private static Result BulkSetToken(Document doc, ICollection<ElementId> selected,
+            string paramName, string paramValue, bool autoDetectStatus)
+        {
             int written = 0;
-            using (Transaction tx = new Transaction(doc, "Bulk Parameter Write"))
+            int skipped = 0;
+            using (Transaction tx = new Transaction(doc, "STING Bulk Set Token"))
+            {
+                tx.Start();
+                foreach (ElementId id in selected)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem == null) { skipped++; continue; }
+
+                    if (autoDetectStatus)
+                    {
+                        string status = PhaseAutoDetect.DetectStatus(doc, elem);
+                        if (string.IsNullOrEmpty(status)) status = "NEW";
+                        if (ParameterHelpers.SetString(elem, ParamRegistry.STATUS, status, overwrite: true))
+                            written++;
+                        else
+                            skipped++;
+                    }
+                    else
+                    {
+                        if (ParameterHelpers.SetString(elem, paramName, paramValue, overwrite: true))
+                            written++;
+                        else
+                            skipped++;
+                    }
+                }
+                tx.Commit();
+            }
+
+            var sb = new StringBuilder();
+            if (autoDetectStatus)
+                sb.AppendLine($"Auto-detected STATUS from Revit phases on {written} of {selected.Count} elements.");
+            else
+                sb.AppendLine($"Set '{paramName}' = '{paramValue}' on {written} of {selected.Count} elements.");
+            if (skipped > 0)
+                sb.AppendLine($"Skipped {skipped} elements (parameter not bound or read-only).");
+            TaskDialog.Show("Bulk Set Token", sb.ToString());
+            return Result.Succeeded;
+        }
+
+        private static Result BulkAutoPopulate(Document doc, ICollection<ElementId> selected)
+        {
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            // GAP-BA: Load formulas for evaluation after token population
+            var baFormulas = TagPipelineHelper.LoadFormulas();
+            int populated = 0;
+            int statusDetected = 0, revSet = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Bulk Auto-Populate"))
             {
                 tx.Start();
                 foreach (ElementId id in selected)
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
-                    if (overwrite)
+
+                    // GAP-BA: TypeTokenInherit before PopulateAll
+                    TokenAutoPopulator.TypeTokenInherit(doc, elem);
+
+                    // Full 9-token auto-population via shared helper
+                    var result = TokenAutoPopulator.PopulateAll(doc, elem, popCtx);
+                    populated += result.TokensSet;
+                    // Bridge native params after token population
+                    try { NativeParamMapper.MapAll(doc, elem); }
+                    catch (Exception nmEx9) { StingLog.Warn($"BulkAutoPopulate NativeMapper for {id}: {nmEx9.Message}"); }
+
+                    // GAP-BA: Evaluate formulas after NativeMapper
+                    if (baFormulas != null && baFormulas.Count > 0)
                     {
-                        if (ParameterHelpers.SetString(elem, paramName, paramValue, overwrite: true))
-                            written++;
+                        try
+                        {
+                            foreach (var formula in baFormulas)
+                            {
+                                Parameter fp = elem.LookupParameter(formula.ParameterName);
+                                if (fp == null || fp.IsReadOnly) continue;
+                                var fCtx = Temp.FormulaEngine.BuildContext(elem, formula);
+                                if (fCtx == null) continue;
+                                if (formula.DataType == "TEXT")
+                                {
+                                    string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                    if (fResult != null && fp.StorageType == StorageType.String
+                                        && string.IsNullOrEmpty(fp.AsString()))
+                                        fp.Set(fResult);
+                                }
+                                else
+                                {
+                                    double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                    if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                        Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                }
+                            }
+                        }
+                        catch (Exception fEx) { StingLog.Warn($"BulkAutoPopulate formula eval for {id}: {fEx.Message}"); }
                     }
-                    else
-                    {
-                        if (ParameterHelpers.SetIfEmpty(elem, paramName, paramValue))
-                            written++;
-                    }
+
+                    if (result.StatusDetected) statusDetected++;
+                    if (result.RevSet) revSet++;
                 }
                 tx.Commit();
             }
 
-            TaskDialog.Show("Bulk Param Write",
-                $"Set '{paramName}' on {written} of {selected.Count} elements.");
+            // GAP-BA: Invalidate caches after bulk populate
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            var msg = new System.Text.StringBuilder();
+            msg.AppendLine($"Auto-populated {populated} token values on {selected.Count} elements.");
+            msg.AppendLine($"Tokens: DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, STATUS, REV");
+            if (statusDetected > 0)
+                msg.AppendLine($"STATUS auto-detected: {statusDetected} (from Revit phases/worksets)");
+            if (revSet > 0)
+                msg.AppendLine($"REV auto-set: {revSet} (revision '{popCtx.ProjectRev}')");
+            TaskDialog.Show("Bulk Auto-Populate", msg.ToString());
+            return Result.Succeeded;
+        }
+
+        private static Result BulkClearTags(Document doc, ICollection<ElementId> selected)
+        {
+            // Confirmation already handled by BulkOperationDialog warning panel
+            // LOGIC-02: Include TAG7 sub-sections, STALE flag, display text, and audit trail
+            // so cleared elements don't retain stale narrative or stale markers
+            string[] clearParams = ParamRegistry.AllTokenParams
+                .Concat(new[] {
+                    ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
+                    ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
+                    ParamRegistry.STATUS,
+                    "ASS_TAG_7_TXT", "ASS_TAG_7A_TXT", "ASS_TAG_7B_TXT",
+                    "ASS_TAG_7C_TXT", "ASS_TAG_7D_TXT", "ASS_TAG_7E_TXT",
+                    "ASS_TAG_7F_TXT", "ASS_DISPLAY_TXT",
+                    "ASS_TAG_PREV_TXT", "ASS_TAG_MODIFIED_DT",
+                }).Distinct().ToArray();
+
+            int cleared = 0;
+            using (Transaction tx = new Transaction(doc, "STING Clear Tags"))
+            {
+                tx.Start();
+                foreach (ElementId id in selected)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem == null) continue;
+                    bool any = false;
+                    foreach (string p in clearParams)
+                        if (ParameterHelpers.SetString(elem, p, "", overwrite: true)) any = true;
+                    // LOGIC-02: Clear STALE flag (integer parameter)
+                    try
+                    {
+                        ParameterHelpers.SetInt(elem, ParamRegistry.STALE, 0);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BulkClear STALE flag: {ex.Message}"); }
+                    if (any) cleared++;
+                }
+                tx.Commit();
+            }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TaskDialog.Show("Clear Tags", $"Cleared tags from {cleared} elements.");
+            return Result.Succeeded;
+        }
+
+        private static Result BulkRetag(Document doc, ICollection<ElementId> selected)
+        {
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            if (tagIndex == null) tagIndex = new HashSet<string>();
+            if (seqCounters == null) seqCounters = new Dictionary<string, int>();
+            // GAP-04: Load pipeline context once for RunFullPipeline
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
+            int retagged = 0;
+            int failed = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Bulk Re-Tag"))
+            {
+                tx.Start();
+                foreach (ElementId id in selected)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem == null) continue;
+                    try
+                    {
+                        // GAP-04: Use unified RunFullPipeline for all 11 canonical steps
+                        bool ok = TagPipelineHelper.RunFullPipeline(
+                            doc, elem, popCtx, tagIndex, seqCounters,
+                            formulas, gridLines,
+                            overwrite: true,
+                            skipComplete: false,
+                            collisionMode: TagCollisionMode.Overwrite);
+
+                        if (ok) retagged++;
+                        else failed++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        StingLog.Warn($"BulkRetag failed for element {id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+            // Save SEQ sidecar + invalidate caches after bulk re-tag
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"BulkRetag SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            string report = $"Re-tagged {retagged} of {selected.Count} elements.";
+            if (failed > 0) report += $"\nFailed: {failed} elements (check log for details).";
+            TaskDialog.Show("Bulk Re-Tag", report);
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Manages project-wide vs view-only selection scope.
+    /// Toggle via SetSelectionScopeCommand; remembered per session.
+    /// </summary>
+    internal static class SelectionScopeHelper
+    {
+        private static bool _projectScope = false;
+
+        /// <summary>True if currently selecting from entire project, false for active view only.</summary>
+        public static bool IsProjectScope => _projectScope;
+
+        /// <summary>Toggle between project and view scope. Returns the new state.</summary>
+        public static bool Toggle()
+        {
+            _projectScope = !_projectScope;
+            return _projectScope;
+        }
+
+        /// <summary>Set scope explicitly.</summary>
+        public static void SetScope(bool projectWide) => _projectScope = projectWide;
+
+        /// <summary>
+        /// Get the appropriate FilteredElementCollector based on current scope.
+        /// </summary>
+        public static FilteredElementCollector GetCollector(Document doc, View activeView)
+        {
+            if (_projectScope)
+                return new FilteredElementCollector(doc);
+            return new FilteredElementCollector(doc, activeView.Id);
+        }
+    }
+
+    /// <summary>Toggle selection scope between project-wide and active view.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class SetSelectionScopeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            bool newScope = SelectionScopeHelper.Toggle();
+            string label = newScope ? "WHOLE PROJECT" : "ACTIVE VIEW ONLY";
+            TaskDialog.Show("Selection Scope", $"Selection scope set to: {label}\n\nAll selection commands will now operate on the {label.ToLower()}.");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Select elements with stale tags — where current spatial/category context
+    /// no longer matches the stored token values. Enables targeted re-tagging
+    /// of only the elements that have moved, changed level, or been recategorised.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class SelectStaleElementsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var collector = SelectionScopeHelper.GetCollector(doc, ctx.ActiveView)
+                .WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+
+            var staleIds = new List<ElementId>();
+            var staleDetails = new Dictionary<string, int>(); // token → count
+
+            foreach (Element elem in collector)
+            {
+                string tag1 = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag1)) continue;
+
+                string catName = ParameterHelpers.GetCategoryName(elem);
+                if (string.IsNullOrEmpty(catName)) continue;
+
+                bool stale = false;
+
+                // Check LVL
+                string storedLvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string currentLvl = ParameterHelpers.GetLevelCode(doc, elem);
+                if (!string.IsNullOrEmpty(currentLvl) && !string.IsNullOrEmpty(storedLvl)
+                    && !string.Equals(storedLvl, currentLvl, StringComparison.OrdinalIgnoreCase))
+                {
+                    stale = true;
+                    staleDetails["LVL"] = staleDetails.TryGetValue("LVL", out int c) ? c + 1 : 1;
+                }
+
+                // Check SYS
+                string storedSys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string currentSys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
+                if (!string.IsNullOrEmpty(currentSys) && !string.IsNullOrEmpty(storedSys)
+                    && !string.Equals(storedSys, currentSys, StringComparison.OrdinalIgnoreCase))
+                {
+                    stale = true;
+                    staleDetails["SYS"] = staleDetails.TryGetValue("SYS", out int c) ? c + 1 : 1;
+                }
+
+                // Check PROD
+                string storedProd = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                string currentProd = TagConfig.GetFamilyAwareProdCode(elem, catName);
+                if (!string.IsNullOrEmpty(currentProd) && !string.IsNullOrEmpty(storedProd)
+                    && !string.Equals(storedProd, currentProd, StringComparison.OrdinalIgnoreCase))
+                {
+                    stale = true;
+                    staleDetails["PROD"] = staleDetails.TryGetValue("PROD", out int c) ? c + 1 : 1;
+                }
+
+                // M-03 FIX: Check FUNC (was missing — FUNC can change when SYS changes)
+                string storedFunc = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string currentSysForFunc = !string.IsNullOrEmpty(currentSys) ? currentSys
+                    : ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string currentFunc = TagConfig.GetSmartFuncCode(elem, currentSysForFunc);
+                if (string.IsNullOrEmpty(currentFunc) && !string.IsNullOrEmpty(currentSysForFunc))
+                    currentFunc = TagConfig.FuncMap.TryGetValue(currentSysForFunc, out string fv) ? fv : null;
+                if (!string.IsNullOrEmpty(currentFunc) && !string.IsNullOrEmpty(storedFunc)
+                    && !string.Equals(storedFunc, currentFunc, StringComparison.OrdinalIgnoreCase))
+                {
+                    stale = true;
+                    staleDetails["FUNC"] = staleDetails.TryGetValue("FUNC", out int c2) ? c2 + 1 : 1;
+                }
+
+                if (stale) staleIds.Add(elem.Id);
+            }
+
+            if (staleIds.Count == 0)
+            {
+                TaskDialog.Show("Select Stale", "No stale elements found. All tags are current.");
+                return Result.Succeeded;
+            }
+
+            ctx.UIDoc.Selection.SetElementIds(staleIds);
+
+            var detail = string.Join(", ", staleDetails.Select(kv => $"{kv.Key}: {kv.Value}"));
+            TaskDialog.Show("Select Stale",
+                $"Selected {staleIds.Count} elements with stale tags.\n\nStale tokens: {detail}\n\n" +
+                "Use Re-Tag or Auto Tag (overwrite) to update these elements.");
+            StingLog.Info($"SelectStale: {staleIds.Count} stale elements ({detail})");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Quick tag preview — shows the predicted tag value for selected element(s)
+    /// without making any changes. Useful for verifying tag format before tagging.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class QuickTagPreviewCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
+
+            var selected = uidoc.Selection.GetElementIds();
+            if (selected.Count == 0)
+            {
+                TaskDialog.Show("Quick Tag Preview", "Select one or more elements to preview their tags.");
+                return Result.Succeeded;
+            }
+
+            var preview = new StringBuilder();
+            preview.AppendLine("Tag Preview (read-only — no changes made)");
+            preview.AppendLine(new string('═', 55));
+            preview.AppendLine($"  Format: sep=\"{ParamRegistry.Separator}\", pad={ParamRegistry.NumPad}");
+            preview.AppendLine();
+
+            int count = 0;
+            int maxShow = Math.Min(selected.Count, 20);
+
+            foreach (ElementId id in selected)
+            {
+                if (count >= maxShow) break;
+                Element elem = doc.GetElement(id);
+                if (elem == null) continue;
+
+                string catName = ParameterHelpers.GetCategoryName(elem);
+                string famName = ParameterHelpers.GetFamilyName(elem);
+                string[] tokens = ParamRegistry.ReadTokenValues(elem);
+                string currentTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                string predictedTag = string.Join(ParamRegistry.Separator, tokens);
+                // Apply PREFIX/SUFFIX for accurate display
+                if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                    predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
+                if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                    predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
+
+                // Check for empty tokens
+                int emptyCount = tokens.Count(t => string.IsNullOrEmpty(t) || t == "XX" || t == "0000");
+
+                preview.AppendLine($"  [{catName}] {famName ?? ""}");
+                if (!string.IsNullOrEmpty(currentTag))
+                    preview.AppendLine($"    Current:   {currentTag}");
+                preview.AppendLine($"    Predicted: {predictedTag}");
+                if (emptyCount > 0)
+                    preview.AppendLine($"    Gaps:      {emptyCount} token(s) empty/default");
+                preview.AppendLine();
+                count++;
+            }
+
+            if (selected.Count > maxShow)
+                preview.AppendLine($"  ... and {selected.Count - maxShow} more elements");
+
+            TaskDialog td = new TaskDialog("Quick Tag Preview");
+            td.MainInstruction = $"Preview of {Math.Min(selected.Count, maxShow)} element(s)";
+            td.MainContent = preview.ToString();
+            td.Show();
             return Result.Succeeded;
         }
     }
