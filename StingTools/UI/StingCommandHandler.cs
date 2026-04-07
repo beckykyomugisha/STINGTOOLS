@@ -2715,9 +2715,13 @@ namespace StingTools.UI
                     case "PrintQRTags": RunCommand<Tags.QRCodeCommand>(app); break;
 
                     // ── 4D/5D ──
-                    case "ExportMilestones": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "ExportCashFlow": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "SaveWorkingCalendar": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportMilestones":        RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportCashFlow":          RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "SaveWorkingCalendar":     RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportTimeline4DPNG":     ExportTimeline4DPng(app); break;
+
+                    // ── Reports ──
+                    case "ExportReport":            RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
 
                     // ── Model Health ──
                     case "FixContainers": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
@@ -2762,11 +2766,30 @@ namespace StingTools.UI
                     case "StingBIMTeams":          StingBIMGenerateTeamsMessage(app); break;
                     case "StingBIMWhatsApp":       StingBIMGenerateWhatsApp(app); break;
                     case "StingBIMQR":             RunCommand<Tags.QRCodeCommand>(app); break;
+                    case "StingBIMQRCode":         RunCommand<Tags.QRCodeCommand>(app); break;   // Phase 78 alias
                     case "StingBIMHTML":           StingBIMExportHtml(app); break;
+                    case "StingBIMHTMLDashboard":  StingBIMExportHtml(app); break;              // Phase 78 alias
                     case "StingBIMConnect":        RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
                     case "StingBIMDisconnect":     BIMManager.StingBIMServerClient.Instance.Disconnect();
                                                    TaskDialog.Show("StingBIM", "Disconnected from StingBIM server."); break;
                     case "StingBIMSyncNow":        BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app); break;
+                    // Phase 78 Section 6.1: Additional StingBIM action tags
+                    case "StingBIMAddMember":      RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
+                    case "StingBIMRemoveMember":   RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
+                    case "StingBIMExportTeam":     RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "StingBIMShareReport":    RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
+                    case "StingBIMLinkProject":    RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
+                    case "StingBIMUnlinkProject":  BIMManager.StingBIMServerClient.Instance.Disconnect(); break;
+                    case "StingBIMTestConnection": RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
+                    case "StingBIMClearCredentials": BIMManager.StingBIMServerClient.Instance.Disconnect(); break;
+                    case "StingBIMExportConfig":   RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "StingBIMOpenBrowser":    BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app); break;
+                    // Phase 78 Section 6.1: TeamReport
+                    case "TeamReport":             RunCommand<BIMManager.ExportPermissionMatrixCommand>(app); break;
+                    // Phase 78 Section 6.1: MeetingTemplates
+                    case "MeetingTemplates":       RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    // Phase 78 Section 6.1: ConfigureCostFile
+                    case "ConfigureCostFile":      RunCommand<BIMManager.ConfigureCostFileCommand>(app); break;
                     case "SendMeetingInvites":     TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
                     case "ExportMeetingAnalytics": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
                     case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect StingBIM or configure email in Settings > Notifications."); break;
@@ -7357,6 +7380,16 @@ namespace StingTools.UI
         {
             StingLog.Info("View snapshot captured for issue");
             SetExtraParam("IssueSnapshot", "captured");
+        }
+
+        private static void ExportTimeline4DPng(UIApplication app)
+        {
+            // Push result to BCC inline panel; file export via SchedulingCostDashboard
+            BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Export Timeline PNG",
+                "Timeline image export: open the 4D Timeline view, then use\n" +
+                "File → Export → Image to save as PNG.\n\n" +
+                "Automated PNG render will be available in a future phase.");
+            StingLog.Info("ExportTimeline4DPNG dispatched");
         }
 
         private static void ImportTeamFromCsv(UIApplication app)

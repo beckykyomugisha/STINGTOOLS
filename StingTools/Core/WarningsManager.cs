@@ -4822,15 +4822,9 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"SelectWarningElements: {ex.Message}"); }
         }
 
-        /// <summary>
-        /// Dispatches a BIM Coordination Center action tag to the matching IExternalCommand.
-        /// Maps action tags from dialog buttons to command classes and executes them directly
-        /// (we are already on the Revit API thread inside StingCommandHandler.Execute).
-        /// </summary>
-        private static void DispatchCoordAction(string action, ExternalCommandData commandData)
-        {
-            // Map action tags to command tags used by StingCommandHandler / WorkflowEngine
-            var actionToCommandTag = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        // Phase 78 Section 9.4: Moved to static readonly — was being rebuilt on every call.
+        private static readonly Dictionary<string, string> _actionToCommandTag =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 // Overview quick actions
                 { "RunDailyQA", "DailyQA" },
@@ -4969,6 +4963,15 @@ namespace StingTools.Core
                 { "ExportReport", "ExportModelHealth" },
                 { "DiscComplianceReport", "DiscComplianceReport" },
             };
+
+        /// <summary>
+        /// Dispatches a BIM Coordination Center action tag to the matching IExternalCommand.
+        /// Maps action tags from dialog buttons to command classes and executes them directly
+        /// (we are already on the Revit API thread inside StingCommandHandler.Execute).
+        /// </summary>
+        private static void DispatchCoordAction(string action, ExternalCommandData commandData)
+        {
+            var actionToCommandTag = _actionToCommandTag;
 
             // Handle RepeatLastWorkflow by resolving the last workflow name
             if (string.Equals(action, "RepeatLastWorkflow", StringComparison.OrdinalIgnoreCase))
