@@ -1,0 +1,7 @@
+"Name","CreatedBy","CreatedOn","Category","ExternalSystem","ExternalObject","ExternalIdentifier","Description"
+"FM Technician","del","2026-03-20","Labour","STING","Resource","FM_Technician","FM Technician resource for planned maintenance"
+"Electrical Engineer","del","2026-03-20","Labour","STING","Resource","Electrical_Engineer","Electrical Engineer resource for planned maintenance"
+"Mechanical Engineer","del","2026-03-20","Labour","STING","Resource","Mechanical_Engineer","Mechanical Engineer resource for planned maintenance"
+"Plumber","del","2026-03-20","Labour","STING","Resource","Plumber","Plumber resource for planned maintenance"
+"Fire Safety Officer","del","2026-03-20","Labour","STING","Resource","Fire_Safety_Officer","Fire Safety Officer resource for planned maintenance"
+"HVAC Specialist","del","2026-03-20","Labour","STING","Resource","HVAC_Specialist","HVAC Specialist resource for planned maintenance"

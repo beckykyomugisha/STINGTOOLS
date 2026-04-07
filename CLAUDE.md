@@ -8,17 +8,19 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **169 source files** (166 C# + 3 XAML, ~214,000 lines of code) across 10 directories
-- **750+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **49 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
-- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard + 1 BIM Coordination Center (13 tabs)
+- **193 source files** (190 C# + 3 XAML, ~250,000 lines of code) across 12 directories
+- **755+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **51 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
+- **WPF dockable panel** (9 tabs, primary UI) + 1 BIM Coordination Center (13 tabs) + 1 Material Manager (7 tabs) + 1 Document Management Center (8 tabs) + ribbon retained for legacy compat
+- **Phase 76 additions**: Revisions inline panels, Workflow ToggleButton tabs, QR code generation (ZXing.Net), Code Legend (120+ entries), Project Members unified tab, Material Manager 7-tab dialog, Issues dynamic context panels
+- **Phase 77 additions**: BCC complete UX overhaul — Deliverables inline editable grid + transmittal section, Meetings 4-sub-tab inline panel (Meetings List, Action Items, Minutes Editor, Automation), Model Health inline action panels, QR Codes section in Overview, 20 issue types with color coding, StingCommandHandler wired for all BCC action tags, keyboard navigation (Escape/F5), ShowStatus helper, RefreshBadges method, Overview quick actions toolbar
 
 ## Technology Stack
 
 - **Platform**: Autodesk Revit 2025/2026/2027 (BIM software)
 - **Language**: C# / .NET 8.0 (`net8.0-windows`)
 - **Plugin type**: `IExternalApplication` + `IExternalEventHandler` + `IDockablePaneProvider` + `IUpdater` with `IExternalCommand` classes
-- **Dependencies**: `Newtonsoft.Json` 13.0.3, `ClosedXML` 0.104.2 (XLSX/BOQ export), Revit API assemblies (`RevitAPI.dll`, `RevitAPIUI.dll`)
+- **Dependencies**: `Newtonsoft.Json` 13.0.3, `ClosedXML` 0.104.2 (XLSX/BOQ export), `ZXing.Net` 0.16.9 (QR code generation), Revit API assemblies (`RevitAPI.dll`, `RevitAPIUI.dll`)
 - **Data formats**: CSV and JSON files for configuration data (materials, parameters, schedules)
 - **Deployment**: `StingTools.addin` (XML manifest) + `extract_plugin.sh` (Bash)
 
@@ -66,7 +68,7 @@ STINGTOOLS/
     │   ├── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │   └── TagSelectorCommands.cs      # Multi-criteria tag selector (text, size, arrowhead, leader, family, host category, orientation, discipline)
     │
-    ├── UI/                             # WPF dockable panel UI + wizards + theme engine (30 C# files + 3 XAML, ~30,000 lines)
+    ├── UI/                             # WPF dockable panel UI + wizards + theme engine (40 C# files + 3 XAML, ~35,000 lines)
     │   ├── StingDockPanel.xaml         # WPF markup for 9-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM/TAGS)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
     │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 1100+ button tags to 750+ command classes + inline helpers
@@ -76,7 +78,7 @@ STINGTOOLS/
     │   ├── StingModePicker.cs          # Reusable WPF mode picker dialog for command mode selection
     │   ├── StingWizardDialog.cs        # Base multi-page WPF wizard framework (448 lines) — reusable page navigation, validation, summary
     │   ├── StingDataGridDialog.cs      # Reusable WPF data grid dialog for tabular data display with search/filter
-    │   ├── StingExportDialog.cs        # BIMLink-style export dialog with column mapping, preview, and format selection
+    │   ├── StingExportDialog.cs        # ExLink-style export dialog with column mapping, preview, and format selection
     │   ├── StingResultPanel.cs         # Reusable rich WPF result display: sections, metrics, RAG bars, tables, action buttons, CSV export
     │   ├── BatchRenameDialog.cs        # Single-step WPF batch rename dialog with live preview, 7 operations
     │   ├── ParameterLookupDialog.cs    # Enhanced WPF parameter lookup with 11-operator condition builder
@@ -607,7 +609,7 @@ STINGTOOLS/
 | `UI/StingWizardDialog.cs` | 0 (base multi-page WPF wizard framework) | 448 |
 | `UI/StingDataGridDialog.cs` | 0 (reusable WPF data grid dialog with search/filter) | 295 |
 | `UI/DocumentManagementDialog.cs` | 0 (ISO 19650 Document Management Center: 7-tab action bar, code legend, 14 data loaders, quick transmittal/issue creation, keyboard shortcuts) | 3,100+ |
-| `UI/StingExportDialog.cs` | 0 (BIMLink-style export dialog with column mapping) | 1,020 |
+| `UI/StingExportDialog.cs` | 0 (ExLink-style export dialog with column mapping) | 1,020 |
 | `UI/BatchRenameDialog.cs` | 0 (single-step batch rename dialog with live preview) | 693 |
 | `UI/ParameterLookupDialog.cs` | 0 (enhanced parameter lookup with conditions) | 590 |
 | `UI/BulkOperationDialog.cs` | 0 (unified bulk parameter operations dialog) | 891 |
@@ -858,7 +860,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `StingWizardDialog` | `UI/StingWizardDialog.cs` | Base multi-page WPF wizard framework with page navigation, validation, summary |
 | `StingDataGridDialog` | `UI/StingDataGridDialog.cs` | Reusable WPF data grid dialog for tabular data display with search/filter |
 | `DocumentManagementDialog` | `UI/DocumentManagementDialog.cs` | ISO 19650 Document Management Center: 7-tab action bar (FILE/BULK, DOCS/CDE, ISSUES, REVISIONS, COORDINATION, HANDOVER, NOTES/BEP), code legend (all ISO 19650 codes), dashboard strip with clickable RAG metrics, navigator tree (17 grouping modes), 14 data loaders, quick transmittal/issue creation, bulk CDE/status operations, keyboard shortcuts, VirtualizingStackPanel, drag-drop import |
-| `StingExportDialog` | `UI/StingExportDialog.cs` | BIMLink-style export dialog with column mapping, preview, and format selection |
+| `StingExportDialog` | `UI/StingExportDialog.cs` | ExLink-style export dialog with column mapping, preview, and format selection |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 590+ dockable panel button tags to 374 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
@@ -3141,3 +3143,34 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 846. **MEDIUM: DocumentManager loop stale document reference** — `StingCommandHandler.cs`: DocumentManager keep-dialog-open loop captured `dmDoc = app.ActiveUIDocument?.Document` once before the loop. Recursive `Execute()` could switch documents, leaving `dmDoc` pointing to a closed/disposed document. Re-acquisition moved inside loop iteration with null-break guard.
 847. **HIGH: DocumentManagementDialog.Show() blocks UI with full ComplianceScan** — `DocumentManagementDialog.cs`: `ComplianceScan.Scan(doc)` called synchronously in `Show()`, blocking Revit UI thread for 2-5s on large models before the dialog appeared. Changed to `GetCached() ?? Scan(doc)` to use the 30-second TTL cached result when available.
 848. **MEDIUM: Static ElementSet cross-command mutation risk** — `StingCommandHandler.cs`: Reverted static `_emptyElementSet` (Phase 79 entry 770) to per-call `new ElementSet()`. If any `IExternalCommand.Execute()` implementation mutated the shared set (added elements), those elements persisted for all subsequent command invocations. Per-call allocation is negligible for an empty wrapper object.
+
+#### Completed (Phase 77 — BCC Complete UX Overhaul & Feature Completion)
+
+**Items implemented (Phase 77):**
+- Item 1: Warnings tab full inline panel with Warning Tree (TreeView with instance nodes, right-click context menu, Zoom dispatch)
+- Item 2: 4D/5D tab — all 10 action tags wired to inline panels; MakeExcelDataGrid helper with Excel-grade features; ExportDataGridToXlsx using ClosedXML; SchedulingCostDashboard no longer opened from BCC
+- Item 3: Project Members tab replaced with 3-sub-tab inline TabControl (Member Directory, Permission Groups, CDE Access Matrix)
+- Item 4: Platform tab replaced with two-column tile+detail layout; no more stepped wizard dialogs
+- Item 5: Deliverables tab replaced with inline DataGrid + transmittal section; no stepped dialogs
+- Item 6: Meetings tab replaced with 4-sub-tab inline TabControl (Meetings List, Action Items, Minutes Editor, Automation)
+- Item 7: Model Health tab — _modelHealthActionArea ContentControl added; ShowModelHealthAction() method with 4 inline panels
+- Item 8: QR Codes section added to Overview tab; GenerateQRCode/GenerateQRSheet/PrintQRTags wired in StingCommandHandler
+- Item 9: Issues tab expanded to 20 issue types with color coding; GetIssueTypeBrush() helper
+- Item 10: StingCommandHandler wired for all unhandled BCC action tags; HandleProjectMembersAction() method on BCC
+- Item 11A: Keyboard navigation — Escape clears inline panels, F5 refreshes current tab
+- Item 11B: ShowStatus() helper replaces MessageBox for success/info messages
+- Item 11C: RefreshBadges() method for live badge updates
+- Item 11D: Coord Log tab filter bar with text search, category filter, Export Log button (already present from Phase 76)
+- Item 11E: Overview tab Quick Actions toolbar with 5 action buttons
+
+#### Completed (Phase 82 — Server Gaps, Plugin Enhancements, Infrastructure)
+
+- **Email Service**: IEmailService interface + SmtpEmailService (MailKit) + NullEmailService fallback. Invite emails wired in ProjectMembersController.
+- **Refresh Token Flow**: SyncClient.cs EnsureAuthenticatedAsync now calls /api/auth/refresh — plugin reconnects after 8h token expiry.
+- **Hangfire Background Jobs**: 3 recurring jobs — ComplianceCheckJob (hourly), SlaEscalationJob (15min), StaleWarningCleanupJob (daily). HangfireAuthorizationFilter for dashboard.
+- **Global Search**: SearchController — cross-project search across tags, issues, documents, meetings with tenant isolation.
+- **Notification Service**: INotificationService + SignalR NotificationHub at /hubs/notifications for real-time alerts.
+- **EF Core Migrations**: Replaced EnsureCreated() with Database.Migrate() for production-safe schema management. Added EF Core Design package.
+- **Revision Cloud Audit**: RevisionCloudAuditCommand — per-revision/per-sheet cloud breakdown. BCC revision tab now shows live cloud counts instead of static placeholder.
+- **DocumentSaved Auto-Sync**: StingToolsApp hooks DocumentSaved event, runs lightweight ComplianceScan, queues data for SyncScheduler (non-blocking).
+- **CLAUDE.md**: Fixed file counts (193 files), UI directory (40 C# files), BCC tabs (13).

@@ -1,0 +1,61 @@
+{
+  "name": "WeeklyDataDrop",
+  "description": "Weekly BIM data drop — comprehensive export for CDE submission per ISO 19650 information exchange",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    {
+      "commandTag": "RetagStale",
+      "label": "1. Re-tag stale elements before export",
+      "optional": true,
+      "requiresStaleElements": true
+    },
+    {
+      "commandTag": "ResolveAllIssues",
+      "label": "2. Auto-resolve placeholder tags (GEN/XX/ZZ)",
+      "optional": true,
+      "maxCompliancePct": 95
+    },
+    {
+      "commandTag": "ValidateTags",
+      "label": "3. Final tag validation",
+      "optional": false
+    },
+    {
+      "commandTag": "AuditTagsCSV",
+      "label": "4. Export tag audit CSV",
+      "optional": false
+    },
+    {
+      "commandTag": "COBieExport",
+      "label": "5. COBie V2.4 export",
+      "optional": true,
+      "minElementCount": 50
+    },
+    {
+      "commandTag": "ExportToExcel",
+      "label": "6. Export element data to Excel",
+      "optional": true
+    },
+    {
+      "commandTag": "SheetComplianceCheck",
+      "label": "7. Sheet ISO 19650 compliance audit",
+      "optional": true
+    },
+    {
+      "commandTag": "ExportSheetRegister",
+      "label": "8. Export sheet register CSV",
+      "optional": true
+    },
+    {
+      "commandTag": "ExportModelHealth",
+      "label": "9. Export model health report",
+      "optional": true
+    },
+    {
+      "commandTag": "FullComplianceDashboard",
+      "label": "10. Full compliance dashboard — final review",
+      "optional": false
+    }
+  ]
+}

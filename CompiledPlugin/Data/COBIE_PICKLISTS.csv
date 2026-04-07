@@ -1,0 +1,124 @@
+ListName,Value,Description
+AssetType,Fixed,Permanently installed asset
+AssetType,Moveable,Moveable/portable asset
+FloorType,Floor,Building storey/level
+FloorType,Site,External site/grounds level
+FloorType,Roof,Roof level
+CategoryType-Space,Office,General office space
+CategoryType-Space,Meeting Room,Meeting/conference room
+CategoryType-Space,Corridor,Circulation corridor
+CategoryType-Space,Lobby,Entrance lobby/reception
+CategoryType-Space,Stairwell,Staircase/stairwell
+CategoryType-Space,WC,Toilet/washroom
+CategoryType-Space,Kitchen,Kitchen/kitchenette
+CategoryType-Space,Plant Room,Mechanical/electrical plant room
+CategoryType-Space,Riser,Vertical services riser
+CategoryType-Space,Store,Storage/cupboard
+CategoryType-Space,Server Room,IT/comms server room
+CategoryType-Space,Loading Bay,Loading/delivery bay
+CategoryType-Space,Car Park,Parking area
+CategoryType-Space,Roof Space,Roof void/plant deck
+CategoryType-Space,External,External area
+ZoneType,Lighting Zone,Lighting control zone
+ZoneType,HVAC Zone,Heating/cooling control zone
+ZoneType,Fire Zone,Fire compartment zone
+ZoneType,Security Zone,Access control security zone
+ZoneType,Acoustic Zone,Acoustic separation zone
+ZoneType,Occupancy Zone,Occupancy/department zone
+ZoneType,Smoke Zone,Smoke ventilation zone
+ZoneType,Cleaning Zone,Cleaning/maintenance zone
+ZoneType,Electrical Zone,Electrical distribution zone
+ZoneType,Ventilation Zone,Ventilation zone
+DurationUnit,year,Duration in years
+DurationUnit,month,Duration in months
+DurationUnit,week,Duration in weeks
+DurationUnit,day,Duration in days
+LinearUnit,meters,SI meters
+LinearUnit,millimeters,SI millimeters
+LinearUnit,feet,Imperial feet
+LinearUnit,inches,Imperial inches
+AreaUnit,squaremeters,SI square meters
+AreaUnit,squarefeet,Imperial square feet
+VolumeUnit,cubicmeters,SI cubic meters
+VolumeUnit,cubicfeet,Imperial cubic feet
+CurrencyUnit,GBP,British Pound Sterling
+CurrencyUnit,USD,US Dollar
+CurrencyUnit,EUR,Euro
+CurrencyUnit,UGX,Ugandan Shilling
+CurrencyUnit,AED,UAE Dirham
+AreaMeasurement,IPMS,International Property Measurement Standards
+AreaMeasurement,NRM,New Rules of Measurement (RICS)
+AreaMeasurement,GIA,Gross Internal Area
+AreaMeasurement,NIA,Net Internal Area
+AreaMeasurement,GEA,Gross External Area
+DocumentType,As-Built Drawing,As-built construction drawing
+DocumentType,O&M Manual,Operation and maintenance manual
+DocumentType,Test Certificate,Commissioning/test certificate
+DocumentType,Warranty Certificate,Manufacturer warranty document
+DocumentType,Data Sheet,Product technical data sheet
+DocumentType,Risk Assessment,Health and safety risk assessment
+DocumentType,Method Statement,Construction method statement
+DocumentType,Specification,Technical specification
+DocumentType,Schedule,Equipment/material schedule
+DocumentType,Inspection Report,Inspection/survey report
+DocumentType,Insurance Certificate,Insurance documentation
+DocumentType,Compliance Certificate,Regulatory compliance certificate
+DocumentType,Training Record,Operator training record
+DocumentType,Maintenance Log,Maintenance history log
+DocumentType,Energy Certificate,EPC/DEC energy certificate
+DocumentType,Fire Safety Certificate,Fire safety compliance cert
+DocumentType,Commissioning Report,System commissioning report
+DocumentType,BIM Model,BIM model file (IFC/RVT)
+StageType,Requirement,Client brief/requirement phase
+StageType,Design,Design development phase
+StageType,Install,Construction/installation phase
+StageType,Commission,Commissioning/testing phase
+StageType,Operation,In-use/operational phase
+StageType,Modification,Alteration/refurbishment phase
+StageType,Demolition,Decommission/demolition phase
+JobType,Preventive,Scheduled preventive maintenance
+JobType,Corrective,Reactive/corrective repair
+JobType,Condition,Condition-based monitoring
+JobType,Inspection,Periodic inspection/survey
+JobType,Statutory,Legally required inspection/test
+JobType,Cleaning,Cleaning and housekeeping
+JobStatusType,NotStarted,Task not yet commenced
+JobStatusType,Started,Task in progress
+JobStatusType,Completed,Task finished
+JobStatusType,Overdue,Task past due date
+ImpactType,Acquisition,Capital acquisition cost
+ImpactType,Operation,Annual operating cost
+ImpactType,Maintenance,Maintenance lifecycle cost
+ImpactType,Replacement,Asset replacement cost
+ImpactType,Disposal,Disposal/decommission cost
+ImpactType,CO2,Carbon dioxide emissions
+ImpactType,Energy,Energy consumption
+ImpactStage,Design,During design stage
+ImpactStage,Construction,During construction
+ImpactStage,Operation,During operational use
+ImpactStage,Disposal,At end of life
+IssueType,Design,Design deficiency
+IssueType,Installation,Installation quality issue
+IssueType,Compliance,Regulatory compliance concern
+IssueType,Safety,Health and safety risk
+IssueType,Performance,Performance shortfall
+IssueRisk,High,Significant impact on operations
+IssueRisk,Medium,Moderate impact
+IssueRisk,Low,Minor impact
+IssueChance,High,Likely to occur
+IssueChance,Medium,Possible occurrence
+IssueChance,Low,Unlikely to occur
+IssueImpact,High,Major consequence
+IssueImpact,Medium,Moderate consequence
+IssueImpact,Low,Minor consequence
+ResourceType,Material,Physical material/consumable
+ResourceType,Tool,Equipment/tool required
+ResourceType,Training,Training course/certification
+ConnectionType,Mechanical,Mechanical/flanged connection
+ConnectionType,Electrical,Electrical wired connection
+ConnectionType,Control,Control signal/data connection
+ConnectionType,Pipework,Pipe/fitting connection
+ConnectionType,Ductwork,Duct/fitting connection
+CoordinateType,point,Single XYZ point
+CoordinateType,box-lowerleft,Bounding box lower-left point
+CoordinateType,box-upperright,Bounding box upper-right point

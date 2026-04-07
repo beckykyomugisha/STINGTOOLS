@@ -1,0 +1,15 @@
+{
+  "project_name": "Project Name",
+  "generated_date": "2026-03-13 22:19",
+  "currency": "GBP",
+  "line_items": [],
+  "subtotal": 0.0,
+  "preliminaries_pct": 12,
+  "preliminaries": 0.0,
+  "contingency_pct": 10,
+  "contingency": 0.0,
+  "overhead_profit_pct": 8,
+  "overhead_profit": 0.0,
+  "grand_total": 0.0,
+  "discipline_totals": {}
+}

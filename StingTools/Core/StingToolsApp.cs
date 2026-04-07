@@ -82,6 +82,9 @@ namespace StingTools.Core
                 // R-02: Retry deferred auto-tag elements after sync-to-central
                 application.ControlledApplication.DocumentSynchronizedWithCentral += OnDocumentSynchronizedWithCentral;
 
+                // AUTO-SYNC: Queue lightweight compliance sync on document save
+                application.ControlledApplication.DocumentSaved += OnDocumentSaved;
+
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }
@@ -492,9 +495,73 @@ namespace StingTools.Core
             }
         }
 
+        // ── Auto-Sync on DocumentSaved ─────────────────────────────
+        private static volatile bool _isSyncing;
+        internal static string _pendingSyncDoc;
+        internal static DateTime _pendingSyncTime;
+
+        /// <summary>
+        /// AUTO-SYNC: Collect a lightweight compliance summary when the user saves
+        /// and queue the data for the next SyncScheduler tick.
+        /// HTTP calls must NOT happen inside Revit event handlers — they block the UI.
+        /// </summary>
+        private static void OnDocumentSaved(object sender,
+            Autodesk.Revit.DB.Events.DocumentSavedEventArgs e)
+        {
+            if (_isSyncing) return;
+            _isSyncing = true;
+            try
+            {
+                var doc = e.Document;
+                if (doc == null || doc.IsFamilyDocument) return;
+
+                StingLog.Info($"DocumentSaved: {doc.Title} — queuing server sync");
+
+                // Collect lightweight compliance summary (cached scan — fast path)
+                int totalElements = 0;
+                int taggedCount = 0;
+                double compliancePct = 0;
+                try
+                {
+                    var comp = ComplianceScan.Scan(doc);
+                    if (comp != null)
+                    {
+                        totalElements = comp.TotalElements;
+                        taggedCount = comp.TaggedComplete;
+                        compliancePct = comp.CompliancePercent;
+                    }
+                }
+                catch (Exception compEx)
+                {
+                    StingLog.Warn($"DocumentSaved compliance scan: {compEx.Message}");
+                }
+
+                // Queue sync data for next SyncScheduler tick
+                // (Don't make HTTP calls inside Revit events — they block the UI)
+                _pendingSyncDoc = doc.Title;
+                _pendingSyncTime = DateTime.UtcNow;
+
+                StingLog.Info($"DocumentSaved: {doc.Title} — compliance {compliancePct:F1}% " +
+                    $"({taggedCount}/{totalElements}) queued for sync");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"DocumentSaved handler error: {ex.Message}");
+            }
+            finally
+            {
+                _isSyncing = false;
+            }
+        }
+
         public Result OnShutdown(UIControlledApplication application)
         {
             StingLog.Info("STING Tools shutting down");
+
+            // Unhook DocumentSaved sync handler
+            try { application.ControlledApplication.DocumentSaved -= OnDocumentSaved; }
+            catch (Exception ex) { StingLog.Warn($"DocumentSaved unhook: {ex.Message}"); }
+
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             UI.ThemeManager.ClearTarget(); // H-02: Prevent memory leak from static WPF reference

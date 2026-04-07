@@ -150,11 +150,7 @@ public class AdminController : ControllerBase
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 
     private static string HashPassword(string password)
-    {
-        // Simplified — use BCrypt.Net-Next in production
-        return Convert.ToBase64String(
-            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(password)));
-    }
+        => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
 }
 
 public record CreateUserRequest(string Email, string DisplayName, string Password, string? Role, string? Iso19650Role);

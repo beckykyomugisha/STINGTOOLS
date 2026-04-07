@@ -142,18 +142,14 @@ namespace StingTools.ExLink
                 return Result.Succeeded;
             }
 
-            // Pick all .link files via list picker
-            var names = files.Select(f => f.FileName).ToList();
-            var picks = StingListPicker.Show("Select .link files to export", names, multiSelect: true);
-            if (picks == null || picks.Count == 0) return Result.Succeeded;
-
+            // Export all found .link files
             var outputDir = ExLinkHelpers.PickFolderPath("Select output folder for exports");
             if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
             int exported = 0, failed = 0;
-            foreach (var pick in picks)
+            foreach (var fileInfo in files)
             {
-                var info = files.FirstOrDefault(f => f.FileName == pick);
+                var info = fileInfo;
                 if (info == null) continue;
                 try
                 {
@@ -164,7 +160,7 @@ namespace StingTools.ExLink
                 }
                 catch (Exception ex)
                 {
-                    StingLog.Warn($"Multi-export failed for {pick}: {ex.Message}");
+                    StingLog.Warn($"Multi-export failed for {info.FileName}: {ex.Message}");
                     failed++;
                 }
             }
@@ -285,19 +281,31 @@ namespace StingTools.ExLink
             var doc = uidoc?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
-            // Pick category
-            var categories = new List<string>
-            {
-                "Walls", "Doors", "Windows", "Rooms", "Floors", "Ceilings", "Roofs",
+            // Pick category via TaskDialog command links
+            var categories = new[] { "Walls", "Doors", "Windows", "Rooms", "Floors", "Ceilings", "Roofs",
                 "Structural Columns", "Structural Framing", "Furniture",
                 "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures",
                 "Plumbing Fixtures", "Ducts", "Pipes", "Cable Trays", "Conduits",
-                "Sheets", "Views", "Generic Models"
-            };
-            var catPick = StingListPicker.Show("Select element category", categories);
-            if (catPick == null || catPick.Count == 0) return Result.Succeeded;
+                "Sheets", "Views", "Generic Models" };
+            var catDlg = new TaskDialog("STING — Select Category");
+            catDlg.MainInstruction = "Select the element category to export";
+            catDlg.MainContent = string.Join("\n", categories.Select((c, i) => $"{i + 1}. {c}"));
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Architectural (Walls/Doors/Windows/Rooms/Floors/Ceilings/Roofs)");
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Structural (Columns/Framing/Furniture)");
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "MEP (Mechanical/Electrical/Lighting/Plumbing/Ducts/Pipes)");
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Other (Sheets/Views/Generic Models)");
+            var catResult = catDlg.Show();
 
-            var elementType = catPick[0];
+            // Map group selection to specific categories for discovery
+            string elementType;
+            switch (catResult)
+            {
+                case TaskDialogResult.CommandLink1: elementType = "WALLS"; break;
+                case TaskDialogResult.CommandLink2: elementType = "STRUCTURAL_COLUMNS"; break;
+                case TaskDialogResult.CommandLink3: elementType = "MECHANICAL_EQUIPMENT"; break;
+                case TaskDialogResult.CommandLink4: elementType = "SHEETS"; break;
+                default: return Result.Succeeded;
+            }
 
             // Build a basic link definition from selected category
             var def = new LinkDefinition
@@ -306,59 +314,17 @@ namespace StingTools.ExLink
                 ElementType = elementType.ToUpperInvariant().Replace(" ", "_")
             };
 
-            // Collect sample element to discover available parameters
-            var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-            var sample = ExLinkEngine.CollectElements(doc, def).FirstOrDefault();
-            if (sample == null)
+            // Use universal property discovery engine to find ALL available parameters
+            var discovered = ExLinkPropertyDiscovery.DiscoverProperties(doc, def.ElementType);
+            if (discovered.Count == 0)
             {
                 TaskDialog.Show("STING — Custom Link", $"No {elementType} elements found in the model.");
                 return Result.Succeeded;
             }
 
-            // List parameters from the sample element
-            var paramNames = new List<string>();
-            foreach (Parameter p in sample.Parameters)
-            {
-                if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
-                    paramNames.Add(p.Definition.Name);
-            }
-            paramNames = paramNames.Distinct().OrderBy(n => n).ToList();
-
-            // Add calculated properties
-            paramNames.InsertRange(0, new[] { "[Element ID]", "[Category]", "[Family]", "[Type]", "[Family and Type]", "[Level]" });
-
-            var paramPicks = StingListPicker.Show("Select properties to export", paramNames, multiSelect: true);
-            if (paramPicks == null || paramPicks.Count == 0) return Result.Succeeded;
-
-            // Build properties
-            foreach (var pName in paramPicks)
-            {
-                var prop = new PropertyDef { Name = pName.TrimStart('[').TrimEnd(']') };
-                if (pName.StartsWith("["))
-                {
-                    prop.PropertyType = "CALCULATED_PROPERTY";
-                    prop.LookupType = "CALCULATED_PROPERTY";
-                    prop.IsReadOnly = true;
-                }
-                else
-                {
-                    var p = sample.LookupParameter(pName);
-                    if (p != null)
-                    {
-                        prop.IsReadOnly = p.IsReadOnly;
-                        if (p.Definition is Autodesk.Revit.DB.InternalDefinition intDef)
-                        {
-                            prop.PropertyType = "BUILT_IN_PARAMETER";
-                            prop.BuiltInName = intDef.BuiltInParameter.ToString();
-                        }
-                        else
-                        {
-                            prop.PropertyType = "SHARED_PARAMETER";
-                        }
-                    }
-                }
-                def.Properties.Add(prop);
-            }
+            // Add all discovered properties to the link definition
+            foreach (var ap in discovered)
+                def.Properties.Add(ap.ToPropertyDef());
 
             // Export with custom definition
             var outputPath = ExLinkHelpers.PickSavePath(def.FileName, "xlsx");

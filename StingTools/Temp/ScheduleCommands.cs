@@ -1449,7 +1449,7 @@ namespace StingTools.Temp
                                         if (fCtx == null) continue;
                                         Parameter targetParam = el.LookupParameter(formula.ParameterName);
                                         if (targetParam == null || targetParam.IsReadOnly) continue;
-                                        if (formula.Type.Equals("TEXT", StringComparison.OrdinalIgnoreCase))
+                                        if (formula.DataType.Equals("TEXT", StringComparison.OrdinalIgnoreCase))
                                         {
                                             string result = FormulaEngine.EvaluateText(formula.Expression, fCtx);
                                             if (result != null) { ParameterHelpers.SetIfEmpty(el, formula.ParameterName, result); updated++; }

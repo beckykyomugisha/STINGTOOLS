@@ -67,10 +67,10 @@ public class MimController : ControllerBase
             Manufacturer = req.Manufacturer,
             ModelNumber = req.ModelNumber,
             SerialNumber = req.SerialNumber,
-            WarrantyExpiresAt = req.WarrantyExpiresAt,
+            WarrantyEnd = req.WarrantyExpiresAt,
             InstallationDate = req.InstallationDate,
             ExpectedLifeYears = req.ExpectedLifeYears,
-            ConditionScore = req.ConditionScore,
+            ConditionScore = req.ConditionScore.HasValue ? (double?)req.ConditionScore.Value : null,
             CriticalityRating = req.CriticalityRating
         };
 
@@ -186,7 +186,7 @@ public class MimController : ControllerBase
             .Where(m => m.Asset!.ProjectId == projectId).ToListAsync();
 
         var overdueCount = tasks.Count(t => t.NextDueDate < DateTime.UtcNow && t.Status != "COMPLETED");
-        var avgCondition = assets.Where(a => a.ConditionScore > 0).Select(a => a.ConditionScore).DefaultIfEmpty(0).Average();
+        var avgCondition = assets.Where(a => a.ConditionScore > 0).Select(a => a.ConditionScore ?? 0.0).DefaultIfEmpty(0.0).Average();
 
         var byDiscipline = assets.GroupBy(a => a.Discipline)
             .ToDictionary(g => g.Key, g => g.Count());

@@ -777,6 +777,8 @@ namespace StingTools.Organise
             var sb = new StringBuilder();
             sb.AppendLine("ElementId,Category,Tag,DISC,LOC,ZONE,LVL,SYS,FUNC,PROD,SEQ,STATUS,REV,Valid,FullyResolved");
 
+            // Phase 76: collect rows for XLSX mirror
+            var xlsxRows = new List<List<string>>();
             int total = 0;
             var catEnums = SharedParamGuids.AllCategoryEnums;
             IEnumerable<Element> auditElements;
@@ -808,6 +810,7 @@ namespace StingTools.Organise
                 bool resolved = TagConfig.TagIsFullyResolved(tag);
 
                 sb.AppendLine($"{elem.Id},\"{CsvEscape(cat)}\",\"{CsvEscape(tag)}\",{disc},{loc},{zone},{lvl},{sys},{func},{prod},{seq},{status},{rev},{valid},{resolved}");
+                xlsxRows.Add(new List<string> { elem.Id.ToString(), cat, tag, disc, loc, zone, lvl, sys, func, prod, seq, status, rev, valid.ToString(), resolved.ToString() });
             }
 
             // Write to file — uses user-preferred output location
@@ -817,8 +820,27 @@ namespace StingTools.Organise
             {
                 System.IO.File.WriteAllText(path, sb.ToString());
                 StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, path, "SH", "Tag audit export (all element tags)");
+
+                // Phase 76: XLSX mirror
+                try
+                {
+                    string xlsxPath = System.IO.Path.ChangeExtension(path, ".xlsx");
+                    var headers = new List<string> { "ElementId","Category","Tag","DISC","LOC","ZONE","LVL","SYS","FUNC","PROD","SEQ","STATUS","REV","Valid","FullyResolved" };
+                    StingExcelExporter.ExportTable(xlsxPath, "Tag Audit", headers, xlsxRows, openFolder: false);
+                }
+                catch (Exception exXlsx) { StingLog.Warn($"AuditCSV XLSX: {exXlsx.Message}"); }
+
+                // Open output folder
+                try
+                {
+                    string dir = System.IO.Path.GetDirectoryName(path);
+                    if (System.IO.Directory.Exists(dir))
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true })?.Dispose();
+                }
+                catch (Exception) { }
+
                 TaskDialog.Show("Audit CSV",
-                    $"Exported {total} elements to:\n{path}");
+                    $"Exported {total} elements to:\n{path}\n+XLSX mirror");
             }
             catch (Exception ex)
             {

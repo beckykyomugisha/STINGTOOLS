@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using StingBIM.Core.DTOs;
+using StingBIM.Core.Entities;
 using StingBIM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
@@ -22,6 +25,9 @@ public class AuthController : ControllerBase
         _config = config;
     }
 
+    // ── Login ──────────────────────────────────────────────────────────────────
+
+    [EnableRateLimiting("auth")]
     [HttpPost("login")]
     public async Task<ActionResult<AuthLoginResponse>> Login([FromBody] AuthLoginRequest req)
     {
@@ -50,6 +56,149 @@ public class AuthController : ControllerBase
             MimEnabled = user.Tenant?.MimEnabled ?? false
         });
     }
+
+    // ── Refresh Token ──────────────────────────────────────────────────────────
+
+    [HttpPost("refresh")]
+    public async Task<ActionResult> RefreshToken([FromBody] RefreshTokenRequest req)
+    {
+        var user = await _db.Users
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u => u.RefreshToken == req.RefreshToken && u.IsActive);
+
+        if (user == null || user.RefreshTokenExpiresAt < DateTime.UtcNow)
+            return Unauthorized(new { message = "Invalid or expired refresh token" });
+
+        var newAccessToken  = GenerateJwt(user);
+        var newRefreshToken = Guid.NewGuid().ToString("N");
+        user.RefreshToken          = newRefreshToken;
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            accessToken  = newAccessToken,
+            refreshToken = newRefreshToken,
+            expiresAt    = DateTime.UtcNow.AddHours(8)
+        });
+    }
+
+    // ── Self-Registration (first-time tenant setup only) ───────────────────────
+
+    [EnableRateLimiting("auth")]
+    [HttpPost("register")]
+    public async Task<ActionResult> Register([FromBody] RegisterRequest req)
+    {
+        // Only allow registration if the tenant slug is not yet taken
+        if (await _db.Tenants.AnyAsync(t => t.Slug == req.TenantSlug))
+            return Conflict(new { message = $"Organisation slug '{req.TenantSlug}' is already taken" });
+
+        if (await _db.Users.AnyAsync(u => u.Email == req.Email))
+            return Conflict(new { message = "Email already registered" });
+
+        if (req.Password.Length < 8)
+            return BadRequest(new { message = "Password must be at least 8 characters" });
+
+        // Create tenant
+        var tenant = new Tenant
+        {
+            Name          = req.OrganisationName,
+            Slug          = req.TenantSlug.ToLowerInvariant().Trim(),
+            ContactEmail  = req.Email,
+            Tier          = LicenseTier.Starter,
+            MaxUsers      = 5,
+            MaxProjects   = 1,
+            MimEnabled    = false,
+            TrialExpiresAt = DateTime.UtcNow.AddDays(30)
+        };
+        _db.Tenants.Add(tenant);
+
+        // Create owner account
+        var owner = new AppUser
+        {
+            TenantId      = tenant.Id,
+            Email         = req.Email.Trim().ToLowerInvariant(),
+            DisplayName   = req.DisplayName,
+            PasswordHash  = HashPassword(req.Password),
+            Role          = UserRole.Owner,
+            Iso19650Role  = "A"
+        };
+        _db.Users.Add(owner);
+
+        // Seed a trial license key
+        var licenseKey = new LicenseKey
+        {
+            TenantId       = tenant.Id,
+            Key            = $"STING-TRIAL-{Guid.NewGuid():N}".ToUpper()[..28],
+            Tier           = LicenseTier.Starter,
+            MaxActivations = 3,
+            MimEnabled     = false,
+            ExpiresAt      = DateTime.UtcNow.AddDays(30)
+        };
+        _db.LicenseKeys.Add(licenseKey);
+
+        await _db.SaveChangesAsync();
+
+        var token = GenerateJwt(owner);
+        return CreatedAtAction(null, null, new
+        {
+            accessToken    = token,
+            refreshToken   = (string?)null,  // user must login to get refresh token
+            expiresAt      = DateTime.UtcNow.AddHours(8),
+            userName       = owner.DisplayName,
+            tier           = "Starter",
+            trialExpiresAt = tenant.TrialExpiresAt,
+            licenseKey     = licenseKey.Key,
+            message        = "Account created. 30-day Starter trial active. Add your licence key from the Admin panel to upgrade."
+        });
+    }
+
+    // ── Change Password (authenticated) ───────────────────────────────────────
+
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
+    {
+        var userId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value, out var id) ? id : Guid.Empty;
+        var user = await _db.Users.FindAsync(userId);
+        if (user == null) return NotFound();
+
+        if (!BCryptVerify(req.CurrentPassword, user.PasswordHash))
+            return Unauthorized(new { message = "Current password is incorrect" });
+
+        if (req.NewPassword.Length < 8)
+            return BadRequest(new { message = "New password must be at least 8 characters" });
+
+        user.PasswordHash = HashPassword(req.NewPassword);
+        // Invalidate all existing refresh tokens
+        user.RefreshToken          = null;
+        user.RefreshTokenExpiresAt = null;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = "Password changed. Please log in again." });
+    }
+
+    // ── Me (current user info) ─────────────────────────────────────────────────
+
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<ActionResult> Me()
+    {
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : Guid.Empty;
+        var user = await _db.Users.Include(u => u.Tenant).FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return NotFound();
+
+        return Ok(new
+        {
+            user.Id, user.Email, user.DisplayName, user.Role, user.Iso19650Role,
+            Tier = user.Tenant?.Tier.ToString() ?? "Starter",
+            user.Tenant?.MimEnabled,
+            user.LastLoginAt
+        });
+    }
+
+    // ── Licence activation ─────────────────────────────────────────────────────
 
     [HttpPost("license/activate")]
     public async Task<ActionResult<LicenseActivationResponse>> ActivateLicense([FromBody] LicenseActivationRequest req)
@@ -93,6 +242,7 @@ public class AuthController : ControllerBase
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim("tenant_id", user.TenantId.ToString()),
+            new Claim("tenant_slug", user.Tenant?.Slug ?? ""),
             new Claim("role", user.Role.ToString()),
             new Claim("iso_role", user.Iso19650Role),
             new Claim("display_name", user.DisplayName)
@@ -109,9 +259,11 @@ public class AuthController : ControllerBase
     }
 
     private static bool BCryptVerify(string password, string hash)
-    {
-        // Simplified — use BCrypt.Net-Next in production
-        return hash == Convert.ToBase64String(
-            System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(password)));
-    }
+        => BCrypt.Net.BCrypt.Verify(password, hash);
+
+    /// <summary>
+    /// Hashes a password using BCrypt (work factor 12).
+    /// </summary>
+    public static string HashPassword(string password)
+        => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
 }

@@ -115,6 +115,16 @@ namespace StingTools.Tags
             // HC-003: Configurable batch size from project_config.json (default 500)
             int BatchSize = TagConfig.ResolveBatchSize;
             int processed = 0;
+
+            // Declare tracking variables outside try block so they're accessible in post-processing
+            HashSet<string> tagIndex = null;
+            Dictionary<string, int> sequenceCounters = null;
+            var stats = new TaggingStats();
+            var sw = new Stopwatch();
+            int populated = 0, statusFixed = 0, revFixed = 0;
+            int tagsRebuilt = 0, containersWritten = 0;
+            int duplicatesResolved = 0;
+
             var progress = StingProgressDialog.Show("Resolve All Issues", totalTaggable);
 
             try
@@ -129,19 +139,15 @@ namespace StingTools.Tags
             // Use existing SEQ counters so we don't collide with tags on elements
             // that may be excluded from this run (e.g., unfamiliar categories).
             // BuildTagIndexAndCounters merges sidecar data for session continuity.
-            var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             // GAP-A7 fix: Do NOT clear the tag index. Preserve existing tags for
             // O(1) collision detection. BuildAndWriteTag adds newly generated tags
             // to the index, preventing duplicates both within this batch and against
             // pre-existing project tags. Clearing caused duplicate tag generation.
-            var stats = new TaggingStats();
             // GAP-03: Load pipeline context once (formulas + grid lines) for RunFullPipeline
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
-            var sw = Stopwatch.StartNew();
-            int populated = 0, statusFixed = 0, revFixed = 0;
-            int tagsRebuilt = 0, containersWritten = 0;
-            int duplicatesResolved = 0;
+            sw.Start();
 
             StingLog.Info($"ResolveAllIssues: starting — {totalTaggable} elements, " +
                 $"{totalIssues} issues (noTag={noTag}, incomplete={incompleteTag}, " +

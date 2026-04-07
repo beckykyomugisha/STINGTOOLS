@@ -1544,6 +1544,139 @@ namespace StingTools.BIMManager
                 return Result.Failed;
             }
         }
+
+        // ── StingBIM Server Sync ──────────────────────────────────────────────
+        /// <summary>
+        /// Push all tagged elements in the document to the connected StingBIM server.
+        /// Called when the "Sync Now" button is pressed on the StingBIM platform panel.
+        /// Requires prior authentication via StingBIMConnectCommand.
+        /// </summary>
+        internal static void SyncToStingBIMServer(UIApplication app)
+        {
+            var client = StingBIMServerClient.Instance;
+            if (!client.IsConnected)
+            {
+                TaskDialog.Show("StingBIM", "Not connected to StingBIM server.\n\nUse the PLATFORM tab → StingBIM → Connect to authenticate first.");
+                return;
+            }
+
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) { TaskDialog.Show("StingBIM", "No document open."); return; }
+
+            // Collect all elements that have a Tag1 parameter
+            var elements = new List<TagElementPayload>();
+            using var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            foreach (Element el in collector)
+            {
+                string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
+                if (string.IsNullOrEmpty(tag1)) continue;
+
+                string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
+                string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
+                string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
+                string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
+                string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
+                string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
+                string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
+                string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
+                string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
+                string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
+                string rev   = ParameterHelpers.GetString(el, "ASS_REV")    ?? "";
+                string cat   = ParameterHelpers.GetCategoryName(el);
+                string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
+
+                bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
+                bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
+
+                elements.Add(new TagElementPayload
+                {
+                    RevitElementId  = el.Id.Value,
+                    UniqueId        = el.UniqueId,
+                    Disc            = disc, Loc = loc, Zone = zone, Lvl = lvl,
+                    Sys = sys, Func = func, Prod = prod, Seq = seq,
+                    Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
+                    CategoryName    = cat, FamilyName = fam,
+                    Status          = string.IsNullOrEmpty(status) ? null : status,
+                    Rev             = string.IsNullOrEmpty(rev) ? null : rev,
+                    IsComplete      = isComplete, IsFullyResolved = isFullyResolved
+                });
+            }
+
+            if (elements.Count == 0)
+            {
+                TaskDialog.Show("StingBIM", "No tagged elements found.\n\nRun Tag → Auto Tag or Batch Tag first to populate ASS_TAG_1 parameters.");
+                return;
+            }
+
+            // Load project ID from connection config
+            string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+            string cfgPath = Path.Combine(bimDir, "stingbim_connection.json");
+            Guid projectId = LoadStingBIMProjectId(cfgPath);
+
+            if (projectId == Guid.Empty)
+            {
+                TaskDialog.Show("StingBIM", "No StingBIM project linked.\n\nIn the StingBIM connection settings, select or create a project on the server first.");
+                return;
+            }
+
+            string revitVer = app.Application.VersionNumber;
+            string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
+
+            // Blocking async call — safe in ExternalEvent context
+            SyncResult result;
+            try
+            {
+                result = client.SyncElementsAsync(projectId, revitVer, pluginVer, elements)
+                               .GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("StingBIM Sync Error", $"Sync failed: {ex.Message}");
+                return;
+            }
+
+            if (!result.Success)
+            {
+                TaskDialog.Show("StingBIM Sync Failed", $"The server returned an error:\n\n{result.Error}");
+                return;
+            }
+
+            // Update sync timestamp
+            try
+            {
+                var cfg = File.Exists(cfgPath)
+                    ? JObject.Parse(File.ReadAllText(cfgPath))
+                    : new JObject();
+                cfg["lastSyncAt"] = DateTime.UtcNow.ToString("o");
+                cfg["lastSyncElements"] = result.Received;
+                cfg["lastCompliancePct"] = result.CompliancePercent;
+                cfg["lastRagStatus"] = result.RagStatus;
+                File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+            }
+            catch { /* non-fatal */ }
+
+            string ragEmoji = result.RagStatus == "GREEN" ? "🟢" : result.RagStatus == "AMBER" ? "🟡" : "🔴";
+            TaskDialog.Show("StingBIM Sync — Complete",
+                $"✅ Sync to StingBIM server complete!\n\n" +
+                $"Elements sent:    {result.Received:N0}\n" +
+                $"New records:      {result.Created:N0}\n" +
+                $"Updated records:  {result.Updated:N0}\n\n" +
+                $"{ragEmoji} Project compliance: {result.CompliancePercent:F1}% ({result.RagStatus})\n\n" +
+                $"Server: {client.ServerUrl}\n" +
+                $"User: {client.ConnectedUser}");
+        }
+
+        private static Guid LoadStingBIMProjectId(string cfgPath)
+        {
+            try
+            {
+                if (!File.Exists(cfgPath)) return Guid.Empty;
+                var json = JObject.Parse(File.ReadAllText(cfgPath));
+                string? id = json["projectId"]?.Value<string>();
+                return Guid.TryParse(id, out var g) ? g : Guid.Empty;
+            }
+            catch { return Guid.Empty; }
+        }
     }
 
     #endregion
@@ -1666,6 +1799,96 @@ namespace StingTools.BIMManager
             {
                 StingLog.Error("SharePointExportCommand failed", ex);
                 TaskDialog.Show("STING Error", $"SharePoint export failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
+
+    #endregion
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  StingBIM Server — Connect / Authenticate
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    #region ── StingBIM Connect ──
+
+    /// <summary>
+    /// Authenticates the current user with the StingBIM server.
+    /// The server URL, email, and project ID are passed via SetExtraParam before raising this command.
+    /// Password is never written to disk — only held in memory for the Revit session.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StingBIMConnectCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                string serverUrl = StingCommandHandler.GetExtraParam("StingBIMServerUrl") ?? "";
+                string email     = StingCommandHandler.GetExtraParam("StingBIMEmail")     ?? "";
+                string password  = StingCommandHandler.GetExtraParam("StingBIMPassword")  ?? "";
+                string projectId = StingCommandHandler.GetExtraParam("StingBIMProjectId") ?? "";
+
+                if (string.IsNullOrWhiteSpace(serverUrl) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+                {
+                    TaskDialog.Show("StingBIM Connect", "Please enter the server URL, email, and password.");
+                    return Result.Cancelled;
+                }
+
+                // Blocking async call — safe in ExternalEvent context
+                bool ok = StingBIMServerClient.Instance
+                    .LoginAsync(serverUrl.Trim(), email.Trim(), password)
+                    .GetAwaiter().GetResult();
+
+                if (!ok)
+                {
+                    TaskDialog.Show("StingBIM Connect — Failed",
+                        $"Authentication failed.\n\n{StingBIMServerClient.Instance.LastError ?? "Unknown error"}\n\n" +
+                        $"Please check:\n  • Server URL is reachable\n  • Email and password are correct\n  • Network connection is available");
+                    return Result.Failed;
+                }
+
+                // Persist connection settings (no password stored)
+                var doc = commandData.Application.ActiveUIDocument?.Document;
+                if (doc != null)
+                {
+                    string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+                    string cfgPath = Path.Combine(bimDir, "stingbim_connection.json");
+                    StingBIMServerClient.Instance.SaveConnectionSettings(cfgPath, email.Trim());
+
+                    // Save the project ID if provided
+                    if (!string.IsNullOrWhiteSpace(projectId))
+                    {
+                        try
+                        {
+                            JObject cfg = File.Exists(cfgPath)
+                                ? JObject.Parse(File.ReadAllText(cfgPath))
+                                : new JObject();
+                            cfg["projectId"] = projectId.Trim();
+                            File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
+                        }
+                        catch { /* non-fatal */ }
+                    }
+                }
+
+                var client = StingBIMServerClient.Instance;
+                TaskDialog.Show("StingBIM — Connected",
+                    $"✅ Successfully connected to StingBIM!\n\n" +
+                    $"Server:  {client.ServerUrl}\n" +
+                    $"User:    {client.ConnectedUser}\n" +
+                    $"Tier:    {client.TierName}\n" +
+                    $"MIM:     {(client.MimEnabled ? "Enabled" : "Not enabled")}\n\n" +
+                    "You can now use 'Sync Now' to push tagged elements to the server.");
+
+                StingLog.Info($"StingBIM: Connected — {client.ConnectedUser} @ {client.ServerUrl}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StingBIMConnectCommand failed", ex);
+                TaskDialog.Show("StingBIM Connect Error", $"Connection error: {ex.Message}");
                 return Result.Failed;
             }
         }

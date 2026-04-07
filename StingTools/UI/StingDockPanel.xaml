@@ -1233,6 +1233,7 @@
                             <WrapPanel>
                                 <Button Style="{StaticResource ActionBtn}" Content="BLE (815)" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="815 building materials"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="MEP (464)" Tag="CreateMEPMaterials" Click="Cmd_Click" ToolTip="464 MEP materials"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Material Manager" Tag="MaterialManagerFull" Click="Cmd_Click" ToolTip="7-tab Material Manager: Library, Editor, Layers, Paint, Audit, Import/Export, BOQ Link"/>
                             </WrapPanel>
                         </Border>
 
@@ -1265,7 +1266,7 @@
                                 <Button Style="{StaticResource GreenBtn}" Content="Export BOQ" Tag="BOQExport" Click="Cmd_Click"
                                         ToolTip="Export grouped Bill of Quantities (NRM2 + TAG7 descriptions)"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="Excel Link" Tag="ExcelLinkExport" Click="Cmd_Click"
-                                        ToolTip="BIMLink-style export: pick categories and properties, export to Excel" FontWeight="Bold"/>
+                                        ToolTip="ExLink-style export: pick categories and properties, export to Excel" FontWeight="Bold"/>
                             </WrapPanel>
                         </Border>
 
@@ -1523,6 +1524,8 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Find Duplicates" Tag="FindDuplicates" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Select Stale" Tag="SelectStale" Click="Cmd_Click" ToolTip="Select elements with stale tags (moved/changed since tagging)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Container Check" Tag="ContainerPreCheck" Click="Cmd_Click" ToolTip="Verify all container parameters are bound and writable"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="QR Code" Tag="QRCode" Click="Cmd_Click" ToolTip="Generate QR code PNG for each selected element (encodes ASS_TAG_1_TXT as sting:// asset URL)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Code Legend" Tag="CodeLegend" Click="Cmd_Click" ToolTip="Browse all ISO 19650, CDE, discipline, STING parameter and RIBA stage codes in a searchable reference window"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1612,7 +1615,7 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Export Tag Map" Tag="ExportTagMap" Click="Cmd_Click" ToolTip="Export all tags to .sting_tagmap.json for cross-project transfer"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Import Tag Map" Tag="ImportTagMap" Click="Cmd_Click" ToolTip="Import tags from another project's tag map file"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport" Click="Cmd_Click"
-                                        ToolTip="BIMLink-style export: choose categories, parameters, family/type, format and location" FontWeight="Bold"/>
+                                        ToolTip="ExLink-style export: choose categories, parameters, family/type, format and location" FontWeight="Bold"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Combine Parameters" Tag="CombineParameters" Click="Cmd_Click" ToolTip="Auto-fill tokens into all 36 tag containers"/>
                             </WrapPanel>
                         </Border>
@@ -2811,13 +2814,13 @@
                         </Border>
 
                         <!-- EXCEL LINK — BIDIRECTIONAL -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA EXPORT — BIMLINK STYLE"/>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA EXPORT — EXLINK STYLE"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#E8912D">
                             <StackPanel>
                                 <TextBlock Text="Unified export with category, parameter, family/type filtering and format choice" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport" Click="Cmd_Click"
-                                            ToolTip="BIMLink-style unified export: choose categories, parameters, family/type filters, format (CSV/Excel/JSON), and location" FontWeight="Bold"/>
+                                            ToolTip="ExLink-style unified export: choose categories, parameters, family/type filters, format (CSV/Excel/JSON), and location" FontWeight="Bold"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2954,7 +2957,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelImport" Click="Cmd_Click"
                                             ToolTip="Import BOQ data from Excel back into Revit"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Excel Link" Tag="ExcelLinkExport" Click="Cmd_Click"
-                                            ToolTip="BIMLink-style category/property picker export to Excel"/>
+                                            ToolTip="ExLink-style category/property picker export to Excel"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click"

@@ -3306,26 +3306,68 @@ namespace StingTools.Core
     /// <summary>Phase 47: Open unified BIM Coordination Center with all dashboards merged.</summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
+    /// <summary>ExternalEvent handler for BCC modeless action dispatch.</summary>
+    internal class BCCActionEventHandler : IExternalEventHandler
+    {
+        private volatile string _pendingAction = null;
+        internal void Post(string action) => _pendingAction = action;
+
+        public void Execute(UIApplication app)
+        {
+            string action = System.Threading.Interlocked.Exchange(ref _pendingAction, null);
+            if (!string.IsNullOrEmpty(action))
+            {
+                var doc = app?.ActiveUIDocument?.Document;
+                if (doc != null)
+                    BIMCoordinationCenterCommand.ProcessAction(action, doc, app);
+            }
+        }
+        public string GetName() => "BCCAction";
+    }
+
     public class BIMCoordinationCenterCommand : IExternalCommand
     {
+        private static BCCActionEventHandler _bccHandler;
+        private static ExternalEvent _bccEvent;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
             {
-                var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+                var uiApp = ParameterHelpers.GetApp(commandData);
+                var uidoc = uiApp?.ActiveUIDocument;
                 Document doc = uidoc?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
-                // Keep-dialog-open loop: re-open after each dispatched command
-                while (true)
+                // Phase 76: Singleton — if BCC is already open, just activate it
+                if (UI.BIMCoordinationCenter.CurrentInstance != null)
                 {
-                    var coordData = BuildCoordData(doc);
-                    if (coordData == null) break;
-                    string action = UI.BIMCoordinationCenter.Show(coordData);
-                    if (string.IsNullOrEmpty(action)) break;
-                    ProcessAction(action, doc, ParameterHelpers.GetApp(commandData));
+                    UI.BIMCoordinationCenter.CurrentInstance.Dispatcher.Invoke(() =>
+                    {
+                        UI.BIMCoordinationCenter.CurrentInstance.Activate();
+                        UI.BIMCoordinationCenter.CurrentInstance.Focus();
+                    });
+                    return Result.Succeeded;
                 }
 
+                // Create ExternalEvent for modeless dispatch (once per Revit session)
+                if (_bccHandler == null)
+                {
+                    _bccHandler = new BCCActionEventHandler();
+                    _bccEvent   = ExternalEvent.Create(_bccHandler);
+                }
+
+                // Wire ActionDispatcher so BCC button clicks go through ExternalEvent
+                UI.BIMCoordinationCenter.ActionDispatcher = action =>
+                {
+                    _bccHandler.Post(action);
+                    _bccEvent.Raise();
+                };
+
+                var coordData = BuildCoordData(doc);
+                if (coordData == null) { message = "Could not build coordination data."; return Result.Failed; }
+
+                UI.BIMCoordinationCenter.Show(coordData);
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -3626,14 +3668,42 @@ namespace StingTools.Core
 
                 // Load revision data
                 int revisionCount = 0, revisionClouds = 0;
+                int cloudsUnresolved = 0;
+                int revisionsThisWeek = 0;
+                var cloudsBySheetDict = new Dictionary<string, int>();
+                var cloudsByDisciplineDict = new Dictionary<string, int>();
                 try
                 {
                     var revisions = new FilteredElementCollector(doc).OfClass(typeof(Revision)).ToElements();
                     revisionCount = revisions.Count;
+
+                    // Count revisions created this week
+                    var weekAgo = DateTime.Now.AddDays(-7);
+                    foreach (var rev in revisions.Cast<Revision>())
+                    {
+                        try
+                        {
+                            string dateStr = rev.RevisionDate;
+                            if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out DateTime revDate))
+                            {
+                                if (revDate >= weekAgo) revisionsThisWeek++;
+                            }
+                        }
+                        catch { /* date parse failure is non-critical */ }
+                    }
+
                     // Pre-collect all revision clouds once and group by revision ID
                     var allClouds = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
                         .WhereElementIsNotElementType().ToElements();
                     var cloudsByRevId = new Dictionary<ElementId, int>();
+
+                    // Build set of issued revision IDs for unresolved count
+                    var issuedRevIds = new HashSet<ElementId>();
+                    foreach (var rev in revisions.Cast<Revision>())
+                    {
+                        if (!rev.Issued) issuedRevIds.Add(rev.Id);
+                    }
+
                     foreach (var c in allClouds)
                     {
                         var revId = c.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId();
@@ -3641,8 +3711,79 @@ namespace StingTools.Core
                         {
                             cloudsByRevId.TryGetValue(revId, out int cnt);
                             cloudsByRevId[revId] = cnt + 1;
+
+                            // Count clouds on non-issued (draft) revisions as unresolved
+                            if (issuedRevIds.Contains(revId))
+                                cloudsUnresolved++;
                         }
+                        else
+                        {
+                            // Cloud with no valid revision is unresolved
+                            cloudsUnresolved++;
+                        }
+
+                        // Clouds by sheet
+                        try
+                        {
+                            var ownerViewId = c.OwnerViewId;
+                            if (ownerViewId != null && ownerViewId != ElementId.InvalidElementId)
+                            {
+                                var ownerView = doc.GetElement(ownerViewId);
+                                string sheetKey = null;
+                                if (ownerView is ViewSheet vs)
+                                {
+                                    sheetKey = $"{vs.SheetNumber} - {vs.Name}";
+                                }
+                                else if (ownerView is View v)
+                                {
+                                    // Find sheet hosting this view
+                                    var titleParam = v.get_Parameter(BuiltInParameter.VIEW_SHEET_REFERENCING_SHEET);
+                                    if (titleParam != null)
+                                    {
+                                        string sheetNum = titleParam.AsString();
+                                        if (!string.IsNullOrEmpty(sheetNum))
+                                            sheetKey = sheetNum;
+                                    }
+                                }
+                                if (!string.IsNullOrEmpty(sheetKey))
+                                {
+                                    cloudsBySheetDict.TryGetValue(sheetKey, out int sCnt);
+                                    cloudsBySheetDict[sheetKey] = sCnt + 1;
+                                }
+                            }
+                        }
+                        catch (Exception shEx) { StingLog.Warn($"Cloud sheet lookup: {shEx.Message}"); }
+
+                        // Clouds by discipline (derive from revision description or cloud's view discipline)
+                        try
+                        {
+                            string disc = "General";
+                            var ownerView2 = c.OwnerViewId != null && c.OwnerViewId != ElementId.InvalidElementId
+                                ? doc.GetElement(c.OwnerViewId) as View : null;
+                            if (ownerView2 != null)
+                            {
+                                var viewDisc = ownerView2.get_Parameter(BuiltInParameter.VIEW_DISCIPLINE);
+                                if (viewDisc != null)
+                                {
+                                    int discVal = viewDisc.AsInteger();
+                                    disc = discVal switch
+                                    {
+                                        1 => "Architectural",
+                                        2 => "Structural",
+                                        4 => "Mechanical",
+                                        16 => "Electrical",
+                                        32 => "Plumbing",
+                                        4095 => "Coordination",
+                                        _ => "General"
+                                    };
+                                }
+                            }
+                            cloudsByDisciplineDict.TryGetValue(disc, out int dCnt);
+                            cloudsByDisciplineDict[disc] = dCnt + 1;
+                        }
+                        catch (Exception dEx) { StingLog.Warn($"Cloud discipline lookup: {dEx.Message}"); }
                     }
+
                     foreach (var rev in revisions.Cast<Revision>())
                     {
                         cloudsByRevId.TryGetValue(rev.Id, out int clouds);
@@ -3837,6 +3978,10 @@ namespace StingTools.Core
                     Issues = issueRows,
                     RevisionCount = revisionCount,
                     RevisionClouds = revisionClouds,
+                    CloudsUnresolved = cloudsUnresolved,
+                    RevisionsThisWeek = revisionsThisWeek,
+                    CloudsBySheet = cloudsBySheetDict,
+                    CloudsByDiscipline = cloudsByDisciplineDict,
                     Revisions = revisionRows,
                     LastSyncTime = lastSyncTime,
                     SyncChanges = syncChanges,
@@ -3958,6 +4103,30 @@ namespace StingTools.Core
                 // Current user info
                 coordData.CurrentUserName = Environment.UserName;
                 coordData.FilePath = doc.PathName ?? "";
+
+                // Phase 76: Restore permissions from project_config.json "permissions" key
+                try
+                {
+                    if (!string.IsNullOrEmpty(doc.PathName))
+                    {
+                        string cfgPath = Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
+                        if (File.Exists(cfgPath))
+                        {
+                            var cfgObj = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(cfgPath));
+                            var perms = cfgObj["permissions"];
+                            if (perms != null)
+                            {
+                                var rolesArr = perms["roles"] as Newtonsoft.Json.Linq.JArray;
+                                if (rolesArr != null && rolesArr.Count > 0)
+                                    coordData.Roles = rolesArr.ToObject<List<UI.BIMCoordinationCenter.RoleDefinition>>();
+                                var foldersArr = perms["folders"] as Newtonsoft.Json.Linq.JArray;
+                                if (foldersArr != null && foldersArr.Count > 0)
+                                    coordData.FolderPermissions = foldersArr.ToObject<List<UI.BIMCoordinationCenter.FolderPermission>>();
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: permissions restore failed: {ex.Message}"); }
 
                 StingLog.Info($"BIMCoordCenter built: health={healthScore}, warnings={warningReport.Total}, compliance={tagPct:F1}%");
                 return coordData;
@@ -4151,12 +4320,45 @@ namespace StingTools.Core
                     case "EditUserRole":
                         EditUserRoleInline(doc);
                         return;
+                    case "SavePermissions":
+                        SavePermissionsInline(doc);
+                        return;
                     case "TakeSnapshot":
                         TakeModelSnapshot(doc);
                         return;
                     case "EscalateActions":
                         EscalateOverdueActions(doc);
                         return;
+                    case "BCCSnapshot":
+                        BCCSnapshotInline(doc);
+                        return;
+                    case "BCCExportPDF":
+                        BCCSnapshotInline(doc);
+                        return;
+                    case "BCCExportExcel":
+                        BCCSnapshotInline(doc);
+                        return;
+                    case "BCCExportWord":
+                        BCCSnapshotInline(doc);
+                        return;
+                    case "WarningsSelectElements":
+                    {
+                        var uiDoc = app?.ActiveUIDocument;
+                        if (uiDoc == null) return;
+                        var rawIds = UI.BIMCoordinationCenter.SelectedWarningIds;
+                        if (rawIds != null && rawIds.Count > 0)
+                        {
+                            var ids = rawIds.Select(v => new ElementId(v)).ToList();
+                            uiDoc.Selection.SetElementIds(ids);
+                            try { uiDoc.ShowElements(ids); } catch { }
+                        }
+                        else
+                        {
+                            // Fallback: run via command dispatch
+                            DispatchCoordAction("WarningsSelectElements", null);
+                        }
+                        return;
+                    }
                 }
 
                 // Dispatch through command resolution
@@ -4166,6 +4368,62 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"ProcessAction({action}): {ex.Message}");
             }
+        }
+
+        /// <summary>Renders the BCC window to a PNG snapshot and opens the output folder.</summary>
+        private static void BCCSnapshotInline(Document doc)
+        {
+            var bcc = UI.BIMCoordinationCenter.CurrentInstance;
+            if (bcc == null) { TaskDialog.Show("STING", "BIM Coordination Center is not open."); return; }
+            bcc.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                        (int)bcc.ActualWidth, (int)bcc.ActualHeight, 96, 96,
+                        System.Windows.Media.PixelFormats.Pbgra32);
+                    rtb.Render(bcc);
+                    string dir = OutputLocationHelper.GetOutputDirectory(doc);
+                    string path = Path.Combine(dir, $"bcc_snapshot_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+                    var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                    encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+                    using var fs = System.IO.File.Create(path);
+                    encoder.Save(fs);
+                    StingLog.Info($"BCCSnapshot saved: {path}");
+                    System.Diagnostics.Process.Start(
+                        new System.Diagnostics.ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true })?.Dispose();
+                }
+                catch (Exception ex) { StingLog.Warn($"BCCSnapshot: {ex.Message}"); }
+            });
+        }
+
+        /// <summary>Save permissions (roles + folder matrix) to project_config.json "permissions" key.</summary>
+        private static void SavePermissionsInline(Document doc)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(doc?.PathName)) { TaskDialog.Show("STING", "Save the Revit project before saving permissions."); return; }
+                string configPath = Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
+                Newtonsoft.Json.Linq.JObject cfg = File.Exists(configPath)
+                    ? Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(configPath))
+                    : new Newtonsoft.Json.Linq.JObject();
+
+                var roles    = UI.BIMCoordinationCenter.GetLastPermissionsRoles();
+                var folders  = UI.BIMCoordinationCenter.GetLastPermissionsFolders();
+
+                cfg["permissions"] = new Newtonsoft.Json.Linq.JObject
+                {
+                    ["roles"]   = Newtonsoft.Json.Linq.JToken.FromObject(roles),
+                    ["folders"] = Newtonsoft.Json.Linq.JToken.FromObject(folders),
+                    ["saved_by"] = Environment.UserName,
+                    ["saved_at"] = DateTime.Now.ToString("o")
+                };
+                Directory.CreateDirectory(Path.GetDirectoryName(configPath));
+                File.WriteAllText(configPath, cfg.ToString(Newtonsoft.Json.Formatting.Indented));
+                TaskDialog.Show("STING", $"Permissions saved to:\n{configPath}");
+                StingLog.Info($"SavePermissions: wrote {roles.Count} roles, {folders.Count} folders to project_config.json");
+            }
+            catch (Exception ex) { StingLog.Error("SavePermissionsInline failed", ex); TaskDialog.Show("STING", $"Save failed:\n{ex.Message}"); }
         }
 
         /// <summary>Edit user role inline — WPF dialog for role selection with CDE permission preview.</summary>
@@ -4745,11 +5003,15 @@ namespace StingTools.Core
                 { "MilestoneRegister", "MilestoneRegister" },
                 { "PhaseSummary", "PhaseSummary" },
 
-                // Permission actions (handled inline)
-                { "SavePermissions", "ConfigEditor" },
+                // Permission actions (SavePermissions handled inline in ProcessAction)
                 { "CreateFolders", "CreateFolders" },
                 { "ExportPermissionMatrix", "ExportModelHealth" },
                 { "EditUserRole", "ConfigEditor" },
+
+                // 4D/5D extended scheduling commands (dispatched from BCC 4D/5D tab)
+                { "WorkingCalendar", "WorkingCalendar" },
+                { "NavisworksTimeLiner", "NavisworksTimeLiner" },
+                { "ElementCostTrace", "ElementCostTrace" },
 
                 // Deliverables actions
                 { "AddDocument", "AddDocument" },
@@ -4902,7 +5164,7 @@ namespace StingTools.Core
             else
             {
                 StingLog.Warn($"DispatchCoordAction: unrecognised action '{action}'");
-                TaskDialog.Show("STING", $"Action '{action}' is not yet available.");
+                TaskDialog.Show("STING", $"Action '{action}' is not handled. Check StingCommandHandler for the command binding.");
             }
         }
     }

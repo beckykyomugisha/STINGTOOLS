@@ -92,3 +92,25 @@ public record LicenseActivationResponse
     public DateTime? ExpiresAt { get; init; }
     public string? Message { get; init; }
 }
+
+// ── Auth request DTOs ─────────────────────────────────────────────────────────
+
+public record RefreshTokenRequest
+{
+    public string RefreshToken { get; init; } = "";
+}
+
+public record RegisterRequest
+{
+    public string OrganisationName { get; init; } = "";
+    public string TenantSlug       { get; init; } = "";  // subdomain / identifier
+    public string DisplayName      { get; init; } = "";
+    public string Email            { get; init; } = "";
+    public string Password         { get; init; } = "";
+}
+
+public record ChangePasswordRequest
+{
+    public string CurrentPassword { get; init; } = "";
+    public string NewPassword     { get; init; } = "";
+}

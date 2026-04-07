@@ -2364,7 +2364,7 @@ namespace StingTools.Model
         }
 
         /// <summary>Find entry bounding box by ID (for circular distance filtering).</summary>
-        private BoundingBox2D? FindEntry(RTreeNode node, int id)
+        private BoundingBox2D FindEntry(RTreeNode node, int id)
         {
             if (node.IsLeaf)
             {

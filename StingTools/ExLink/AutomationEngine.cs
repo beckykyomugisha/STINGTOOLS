@@ -371,11 +371,11 @@ namespace StingTools.ExLink
                             case StorageType.String: val = p.AsString() ?? ""; break;
                             case StorageType.Integer: val = p.AsInteger().ToString(); break;
                             case StorageType.Double: val = p.AsDouble().ToString("F4"); break;
-                            case StorageType.ElementId: val = p.AsElementId()?.IntegerValue.ToString() ?? ""; break;
+                            case StorageType.ElementId: val = p.AsElementId()?.Value.ToString() ?? ""; break;
                             default: val = p.AsValueString() ?? ""; break;
                         }
 
-                        ws.Cell(row, 1).Value = el.Id.IntegerValue;
+                        ws.Cell(row, 1).Value = el.Id.Value;
                         ws.Cell(row, 2).Value = el.Category?.Name ?? "";
                         ws.Cell(row, 3).Value = (el is FamilyInstance fi) ? fi.Symbol?.Family?.Name ?? "" : "";
                         ws.Cell(row, 4).Value = (el is FamilyInstance fi2) ? fi2.Symbol?.Name ?? "" : el.Name ?? "";
@@ -599,7 +599,6 @@ namespace StingTools.ExLink
                 var doc = ctx.Doc;
 
                 // Purge unused elements via API
-                int purged = 0;
                 using (var tx = new Transaction(doc, "STING Model Compact"))
                 {
                     tx.Start();
@@ -616,13 +615,13 @@ namespace StingTools.ExLink
                     foreach (var v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>())
                     {
                         if (!v.IsTemplate && v.ViewTemplateId != ElementId.InvalidElementId)
-                            usedTemplateIds.Add(v.ViewTemplateId.IntegerValue);
+                            usedTemplateIds.Add(v.ViewTemplateId.Value);
                     }
 
                     int unusedTemplates = 0;
                     foreach (var t in templates)
                     {
-                        if (!usedTemplateIds.Contains(t.Id.IntegerValue))
+                        if (!usedTemplateIds.Contains(t.Id.Value))
                             unusedTemplates++;
                     }
 

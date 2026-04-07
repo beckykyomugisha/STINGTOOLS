@@ -32,9 +32,7 @@ public static class SeedData
             TenantId = tenant.Id,
             Email = "admin@stingbim.demo",
             DisplayName = "BIM Coordinator",
-            PasswordHash = Convert.ToBase64String(
-                System.Security.Cryptography.SHA256.HashData(
-                    System.Text.Encoding.UTF8.GetBytes("admin123"))),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123", workFactor: 12),
             Role = UserRole.Admin,
             Iso19650Role = "A" // Appointing Party
         };
