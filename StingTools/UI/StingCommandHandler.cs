@@ -730,6 +730,7 @@ namespace StingTools.UI
                     case "MaterialSchedules": RunCommand<Temp.CreateMaterialSchedulesCommand>(app); break;
                     case "AutoPopulate": RunCommand<Temp.AutoPopulateCommand>(app); break;
                     case "FormulaEvaluator": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
+                    case "EvaluateFormulas": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
                     case "ExportCSV": RunCommand<Temp.ExportCSVCommand>(app); break;
 
                     // ── Corporate Schedules ──
@@ -1343,6 +1344,7 @@ namespace StingTools.UI
                     case "IssueRevisionLink": RunCommand<BIMManager.IssueRevisionLinkCommand>(app); break;
                     case "AutoMeetingMinutes": RunCommand<BIMManager.AutoMeetingMinutesCommand>(app); break;
                     case "TagRevisionDiff": RunCommand<BIMManager.TagRevisionDiffCommand>(app); break;
+                    case "WeeklyCoordinatorReport": RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
                     case "AutoScheduleMeetings": RunCommand<BIMManager.AutoScheduleMeetingsCommand>(app); break;
                     case "WeeklyReport": RunCommand<BIMManager.WeeklyCoordinatorReportCommand>(app); break;
                     case "COBieHandoverExport": RunCommand<Docs.COBieHandoverExportCommand>(app); break;
@@ -1397,9 +1399,13 @@ namespace StingTools.UI
                     case "WarningsBaseline": RunCommand<Core.WarningsBaselineCommand>(app); break;
                     case "WarningsSelect":
                     case "WarningsSelectElements": RunCommand<Core.WarningsSelectElementsCommand>(app); break;
+                    case "ZoomToWarnings": RunCommand<Core.WarningsSelectElementsCommand>(app); break;
                     case "WarningsSuppress": RunCommand<Core.WarningsSuppressCommand>(app); break;
                     case "WarningsCompliance": RunCommand<Core.WarningsComplianceCommand>(app); break;
                     case "WarningsMonitor": RunCommand<Core.WarningsMonitorCommand>(app); break;
+                    case "WarningsExportExcel":   RunCommand<Core.WarningsExportCommand>(app); break;
+                    case "WarningsExportBCF":     RunCommand<Core.WarningsExportCommand>(app); break;
+                    case "SetWarningBaseline":    RunCommand<Core.WarningsBaselineCommand>(app); break;
 
                     // Phase 69: Acoustic & Sustainability
                     case "AcousticAnalysis":
@@ -2424,7 +2430,30 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                var dlgResult = UI.IssueTrackerDashboard.Show();
+                                var memberNames = new List<string>();
+                                var itdDoc = app.ActiveUIDocument?.Document;
+                                if (itdDoc != null)
+                                {
+                                    string issPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(itdDoc, "issues.json");
+                                    SetExtraParam("LastIssuesPath", issPath);
+                                    string membersPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(itdDoc, "team_members.json");
+                                    if (System.IO.File.Exists(membersPath))
+                                    {
+                                        try
+                                        {
+                                            var membersArr = Newtonsoft.Json.Linq.JArray.Parse(System.IO.File.ReadAllText(membersPath));
+                                            foreach (var m in membersArr)
+                                            {
+                                                string name = m["name"]?.ToString() ?? m["Name"]?.ToString() ?? "";
+                                                if (!string.IsNullOrEmpty(name)) memberNames.Add(name);
+                                            }
+                                        }
+                                        catch (Exception ex) { StingLog.Warn("Load team_members: " + ex.Message); }
+                                    }
+                                    if (memberNames.Count == 0 && UI.BIMCoordinationCenter.CurrentInstance != null)
+                                        memberNames = UI.BIMCoordinationCenter.CurrentInstance.GetTeamMemberNames();
+                                }
+                                var dlgResult = UI.IssueTrackerDashboard.Show(memberNames.Count > 0 ? memberNames : null);
                                 if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
                                     break;
                                 SetCommand(dlgResult.Operation);
@@ -2856,6 +2885,21 @@ namespace StingTools.UI
                     // ── Unmapped command tag ──
                     default:
                         // ── Dynamic-prefix routing ──
+                        if (tag.StartsWith("SelectElement_"))
+                        {
+                            string rawId = tag.Substring(14);
+                            if (long.TryParse(rawId, out long eid))
+                            {
+                                var uidoc = app.ActiveUIDocument;
+                                if (uidoc != null)
+                                {
+                                    var elemId = new ElementId(eid);
+                                    uidoc.Selection.SetElementIds(new List<ElementId> { elemId });
+                                    uidoc.ShowElements(elemId);
+                                }
+                            }
+                            break;
+                        }
                         if (tag.StartsWith("ZoomToIssue_"))       { ZoomToIssueElement(app, tag.Substring(12));    break; }
                         if (tag.StartsWith("ZoomToRevision_"))    { ZoomToRevisionView(app, tag.Substring(15));    break; }
                         if (tag.StartsWith("ZoomToWarning_"))     { ZoomToWarningElements(app, tag.Substring(13)); break; }

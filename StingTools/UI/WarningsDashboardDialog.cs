@@ -73,6 +73,14 @@ namespace StingTools.UI
         private static Border _activeCard;
         private static TextBlock _statusText;
 
+        /// <summary>Phase 91: Shared panel state for embedded warnings panel inside BCC.</summary>
+        internal class WarningsPanelState
+        {
+            public string SelectedOperation { get; set; }
+            public TextBlock StatusText { get; set; }
+            public List<int> SelectedElementIds { get; } = new();
+        }
+
         /// <summary>
         /// Show the Warnings Dashboard dialog and return the user's selection.
         /// </summary>
@@ -227,7 +235,7 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 1: OVERVIEW
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildOverviewTab()
+        internal static TabItem BuildOverviewTab()
         {
             var tab = MakeTab("OVERVIEW");
             var content = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };
@@ -276,7 +284,7 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 2: BROWSE & SELECT
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildBrowseSelectTab()
+        internal static TabItem BuildBrowseSelectTab()
         {
             var tab = MakeTab("BROWSE & SELECT");
 
@@ -824,7 +832,7 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 3: AUTO-FIX
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildAutoFixTab()
+        internal static TabItem BuildAutoFixTab()
         {
             var tab = MakeTab("AUTO-FIX");
             var content = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };
@@ -894,7 +902,7 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 3: SELECT & INSPECT
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildSelectInspectTab()
+        internal static TabItem BuildSelectInspectTab()
         {
             var tab = MakeTab("SELECT & INSPECT");
             var content = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };
@@ -943,7 +951,7 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 4: BASELINE & SLA
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildBaselineSLATab()
+        internal static TabItem BuildBaselineSLATab()
         {
             var tab = MakeTab("BASELINE & SLA");
             var content = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };
@@ -992,7 +1000,7 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 5: EXPORT & INTEGRATION
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildExportIntegrationTab()
+        internal static TabItem BuildExportIntegrationTab()
         {
             var tab = MakeTab("EXPORT & INTEGRATION");
             var content = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };

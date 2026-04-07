@@ -464,6 +464,8 @@ namespace StingTools.UI
             public string Discipline { get; set; }
             public string Revision { get; set; }
             public int ElementCount { get; set; }
+            public string Location  { get; set; }
+            public string RaisedBy  { get; set; }
             /// <summary>Display string: shows first assignee + N more if multi-assigned.</summary>
             public string AssigneeDisplay => AssigneeList.Count <= 1 ? (Assignee ?? "") :
                 $"{AssigneeList[0]} +{AssigneeList.Count - 1}";
@@ -1012,6 +1014,18 @@ namespace StingTools.UI
                 $"Discipline container completion\nRequired for COBie export\nand platform deliverables",
                 "CombineParameters"));
             stack.Children.Add(kpiGrid);
+
+            // Phase 91 H3: Forecast KPI card
+            try
+            {
+                string forecastDate = Core.ComplianceTrendTracker.ForecastCompletionDate(StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document, _data.RAGGreenThreshold);
+                var forecastGrid = new UniformGrid { Columns = 1, Margin = new Thickness(0, 0, 0, 8) };
+                forecastGrid.Children.Add(MakeKPICard("FORECAST", forecastDate,
+                    Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+                    $"Projected date to reach {_data.RAGGreenThreshold:F0}% compliance (linear regression on workflow history)"));
+                stack.Children.Add(forecastGrid);
+            }
+            catch { /* forecast non-critical */ }
 
             // RAG compliance bar
             stack.Children.Add(MakeRAGBar("Tag Compliance", _data.TagPct));
@@ -2380,6 +2394,27 @@ namespace StingTools.UI
                 root.Children.Add(regCard);
             }
 
+            // ── INLINE 6-TAB WARNINGS PANEL (Phase 91) ──────────────────
+            var state = new WarningsDashboardDialog.WarningsPanelState();
+            var innerTabs = new TabControl { Background = Br(CPageBg), BorderThickness = new Thickness(0), Margin = new Thickness(0, 8, 0, 0) };
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildOverviewTab());
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildBrowseSelectTab());
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildAutoFixTab());
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildSelectInspectTab());
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildBaselineSLATab());
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildExportIntegrationTab());
+            root.Children.Add(MakeSectionHeader("WARNINGS MANAGEMENT PANEL"));
+            root.Children.Add(innerTabs);
+
+            // Run button + status bar at bottom
+            var runRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+            var runBtn = MakeActionButton("Run Selected", "RunWarningsAction", Br(CAccent), "Execute the highlighted action from the inner panel tabs");
+            runRow.Children.Add(runBtn);
+            var innerStatus = new TextBlock { FontSize = 10, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            state.StatusText = innerStatus;
+            runRow.Children.Add(innerStatus);
+            root.Children.Add(runRow);
+
             return sv;
         }
 
@@ -2574,44 +2609,57 @@ namespace StingTools.UI
                             cur.Total + 1);
                     }
                 }
+                // Build discipline lookup from TeamMembers
+                var memberDiscLookup = _data.TeamMembers
+                    .Where(m => !string.IsNullOrEmpty(m.Name))
+                    .ToDictionary(m => m.Name, m => m.Discipline ?? "", StringComparer.OrdinalIgnoreCase);
+
                 // Header row
                 var hdrRow = new Grid { Margin = new Thickness(0, 0, 0, 4) };
-                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
                 hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
                 hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 AddCellToGrid(hdrRow, "Assignee", 0, 0, true);
-                AddCellToGrid(hdrRow, "Open", 0, 1, true);
-                AddCellToGrid(hdrRow, "Crit", 0, 2, true);
-                AddCellToGrid(hdrRow, "Overdue", 0, 3, true);
-                AddCellToGrid(hdrRow, "Load", 0, 4, true);
+                AddCellToGrid(hdrRow, "Disc", 0, 1, true);
+                AddCellToGrid(hdrRow, "Open", 0, 2, true);
+                AddCellToGrid(hdrRow, "Crit", 0, 3, true);
+                AddCellToGrid(hdrRow, "Overdue", 0, 4, true);
+                AddCellToGrid(hdrRow, "Load", 0, 5, true);
                 assignStack.Children.Add(hdrRow);
 
                 int maxLoad = assigneeLoad.Values.Max(v => v.Open);
                 foreach (var kv in assigneeLoad.OrderByDescending(x => x.Value.Open).Take(15))
                 {
                     var aRow = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
                     aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
                     aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    string memberDisc = memberDiscLookup.TryGetValue(kv.Key, out string md) ? md : "";
                     AddCellToGrid(aRow, kv.Key, 0, 0, false, null, null);
-                    AddCellToGrid(aRow, kv.Value.Open.ToString(), 0, 1, false, FontWeights.Bold,
+                    AddCellToGrid(aRow, memberDisc, 0, 1, false, null, Br(Color.FromRgb(0x55, 0x55, 0x55)));
+                    AddCellToGrid(aRow, kv.Value.Open.ToString(), 0, 2, false, FontWeights.Bold,
                         kv.Value.Open > 5 ? Br(CRed) : kv.Value.Open > 0 ? Br(CAmber) : Br(CGreen));
-                    AddCellToGrid(aRow, kv.Value.Critical.ToString(), 0, 2, false, null,
+                    AddCellToGrid(aRow, kv.Value.Critical.ToString(), 0, 3, false, null,
                         kv.Value.Critical > 0 ? Br(CRed) : null);
-                    AddCellToGrid(aRow, kv.Value.Overdue.ToString(), 0, 3, false, null,
+                    AddCellToGrid(aRow, kv.Value.Overdue.ToString(), 0, 4, false, null,
                         kv.Value.Overdue > 0 ? Br(CRed) : null);
-                    // Mini bar
+                    // Mini bar — color: CRed for overdue/critical, CAmber for 1-3 open or high, CGreen for 0
+                    var barClr = kv.Value.Overdue > 0 || kv.Value.Critical > 0 ? CRed
+                        : kv.Value.Open is >= 1 and <= 3 ? CAmber
+                        : kv.Value.Open == 0 ? CGreen : CAccent;
                     var barBg = new Border { Background = Br(Color.FromRgb(0xE0, 0xE0, 0xE0)), Height = 10, CornerRadius = new CornerRadius(3), Margin = new Thickness(4, 3, 0, 0) };
-                    var barFill = new Border { Background = kv.Value.Overdue > 0 ? Br(CRed) : kv.Value.Critical > 0 ? Br(CAmber) : Br(CAccent),
+                    var barFill = new Border { Background = Br(barClr),
                         Height = 10, CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left, Width = 0 };
                     barBg.Child = barFill;
                     int oCount = kv.Value.Open; int mxL = Math.Max(1, maxLoad);
                     barBg.Loaded += (s, e) => { barFill.Width = barBg.ActualWidth * oCount / mxL; };
-                    Grid.SetColumn(barBg, 4);
+                    Grid.SetColumn(barBg, 5);
                     aRow.Children.Add(barBg);
                     aRow.ToolTip = $"{kv.Key}: {kv.Value.Total} total, {kv.Value.Open} open, {kv.Value.Critical} critical, {kv.Value.Overdue} overdue";
                     assignStack.Children.Add(aRow);
@@ -2706,6 +2754,7 @@ namespace StingTools.UI
                 dg.Columns.Add(new DataGridTextColumn { Header = "Priority", Binding = new Binding("Priority"), Width = 65 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new Binding("Status"), Width = 60 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Assignee(s)", Binding = new Binding("AssigneeDisplay"), Width = 110 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Location", Binding = new Binding("Location"), Width = 90 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Disc", Binding = new Binding("Discipline"), Width = 40 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Elems", Binding = new Binding("ElementCount"), Width = 45 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Created", Binding = new Binding("Created"), Width = 75 });
@@ -4798,11 +4847,26 @@ namespace StingTools.UI
                     sp.Children.Add(notifyScroll);
                     // ── Location attachment ──
                     var locRow = MakeCtxRow("Location:");
-                    var locBox = new System.Windows.Controls.TextBox { Width = 220, FontSize = 10, IsReadOnly = true, Background = System.Windows.Media.Brushes.WhiteSmoke, ToolTip = "Coordinates captured from active Revit view" };
+                    var locBox = new System.Windows.Controls.TextBox { Width = 220, FontSize = 10, Background = System.Windows.Media.Brushes.WhiteSmoke, ToolTip = "Auto-populated from selected element tokens; type to override" };
+                    locBox.Loaded += (s, e) =>
+                    {
+                        try
+                        {
+                            var selDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                            var selIds = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Selection?.GetElementIds();
+                            if (selDoc != null && selIds != null && selIds.Count > 0)
+                            {
+                                string autoLoc = AutoPopulateIssueLocation(selDoc, selIds);
+                                if (!string.IsNullOrEmpty(autoLoc)) locBox.Text = autoLoc;
+                            }
+                        }
+                        catch { }
+                    };
                     var locBtn = new Button { Content = "📍 Capture from View", Height = 24, Padding = new Thickness(6, 0, 6, 0), FontSize = 10, Cursor = Cursors.Hand, Margin = new Thickness(4, 0, 0, 0) };
                     locBtn.Click += (s, e) => { DispatchAction("AttachIssueLocation"); locBox.Text = "(Location captured)"; };
                     locRow.Children.Add(locBox); locRow.Children.Add(locBtn);
                     sp.Children.Add(locRow);
+                    sp.Children.Add(new TextBlock { Text = "Location auto-populated from selected elements. Edit as needed.", FontSize = 9, Foreground = Br(Color.FromRgb(0x88, 0x88, 0x88)), Margin = new Thickness(0, 0, 0, 3) });
                     // ── Snapshot ──
                     var snapRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
                     var snapStatus = new TextBlock { Text = "No snapshot", FontSize = 10, Foreground = Br(Color.FromRgb(0x90, 0xA4, 0xAE)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
@@ -5970,6 +6034,49 @@ namespace StingTools.UI
                 _data.DeliverablesOverdue > 0 ? Br(CRed) : Br(CGreen),
                 _data.DeliverablesOverdue > 0 ? $"{_data.DeliverablesOverdue} deliverables past due date — immediate action required" : "No overdue deliverables"));
             root.Children.Add(kpiGrid);
+
+            // ── Phase 91 H5: DATA DROP MILESTONES from project_bep.json ─────
+            try
+            {
+                var doc91 = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc91 != null)
+                {
+                    string bepPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc91, "project_bep.json");
+                    if (System.IO.File.Exists(bepPath))
+                    {
+                        root.Children.Add(MakeSectionHeader("DATA DROP MILESTONES"));
+                        var bepObj = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(bepPath));
+                        var ddPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+                        foreach (string ddCode in new[] { "DD1", "DD2", "DD3", "DD4" })
+                        {
+                            var ddNode = bepObj["data_drops"]?[ddCode] ?? bepObj[ddCode];
+                            if (ddNode == null) continue;
+                            string ddDate = ddNode["date"]?.ToString() ?? ddNode["target_date"]?.ToString() ?? "";
+                            string ddStatus = (ddNode["status"]?.ToString() ?? "PENDING").ToUpperInvariant();
+                            bool isOverdue = false;
+                            int daysRem = 0;
+                            if (DateTime.TryParse(ddDate, out DateTime ddDt))
+                            {
+                                daysRem = (int)(ddDt - DateTime.Now).TotalDays;
+                                isOverdue = daysRem < 0 && ddStatus != "COMPLETE";
+                            }
+                            Color dotClr = ddStatus == "COMPLETE" ? CGreen : isOverdue ? CRed : daysRem < 14 ? CAmber : Color.FromRgb(0x15, 0x65, 0xC0);
+                            var ddCard = new Border { Background = Br(CCardBg), BorderBrush = Br(dotClr), BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(5), Margin = new Thickness(0, 0, 8, 6), Padding = new Thickness(10, 7, 10, 7) };
+                            var ddSt = new StackPanel { Orientation = Orientation.Horizontal };
+                            ddSt.Children.Add(new Ellipse { Width = 10, Height = 10, Fill = Br(dotClr), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center });
+                            ddSt.Children.Add(new TextBlock { Text = $"{ddCode}  ", FontWeight = FontWeights.Bold, FontSize = 12 });
+                            ddSt.Children.Add(new TextBlock { Text = ddDate.Length > 10 ? ddDate.Substring(0, 10) : ddDate, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+                            ddSt.Children.Add(new TextBlock { Text = ddStatus, FontSize = 10, Foreground = Br(dotClr), VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold });
+                            if (!string.IsNullOrEmpty(ddDate))
+                                ddSt.Children.Add(new TextBlock { Text = isOverdue ? $"  ⚠ {-daysRem}d overdue" : $"  ({daysRem}d)", FontSize = 9, Foreground = Br(isOverdue ? CRed : Color.FromRgb(0x75, 0x75, 0x75)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
+                            ddCard.Child = ddSt;
+                            ddPanel.Children.Add(ddCard);
+                        }
+                        root.Children.Add(ddPanel);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DD milestones: {ex.Message}"); }
 
             // ── ISO 19650 DATA DROP PROGRESS ───────────────────────────
             root.Children.Add(MakeSectionHeader("ISO 19650 DATA DROP PROGRESS"));
@@ -7296,8 +7403,60 @@ namespace StingTools.UI
             var attMtgTypeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
             attMtgTypeRow.Children.Add(new TextBlock { Text = "Meeting Type:", Width = 110, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
             var attTypeCb = new System.Windows.Controls.ComboBox { Width = 200, Height = 28, FontSize = 11 };
-            foreach (var t in new[] { "BIM Coordination", "Design Review", "Site Progress", "Client", "Clash Detection", "Stage Gate", "Data Drop Review", "Handover", "Programme Review" }) attTypeCb.Items.Add(t);
-            attTypeCb.SelectedIndex = 0;
+            // Phase 91: Full AEC/FM grouped meeting type list
+            void AddMtgSep(string label) => attTypeCb.Items.Add(new ComboBoxItem { Content = $"── {label} ──", IsEnabled = false, FontStyle = FontStyles.Italic, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)) });
+            void AddMtgItem(string code, string label, bool isDefault = false) {
+                var ci = new ComboBoxItem { Content = label, Tag = code };
+                attTypeCb.Items.Add(ci);
+                if (isDefault) attTypeCb.SelectedItem = ci;
+            }
+            AddMtgSep("Pre-Construction");
+            AddMtgItem("BRIEF", "BRIEF / Client Briefing");
+            AddMtgItem("FES", "FES / Feasibility Study Review");
+            AddMtgItem("RIBA_A", "RIBA Stage 0/A — Strategic Definition");
+            AddMtgItem("RIBA_1", "RIBA Stage 1 — Preparation & Briefing");
+            AddMtgItem("RIBA_2", "RIBA Stage 2 — Concept Design");
+            AddMtgItem("RIBA_3", "RIBA Stage 3 — Spatial Coordination");
+            AddMtgItem("RIBA_4", "RIBA Stage 4 — Technical Design");
+            AddMtgItem("PLAN_APP", "PLAN_APP / Planning Application Review");
+            AddMtgSep("Design & Coordination");
+            AddMtgItem("BIM_COORD", "BIM_COORD / BIM Coordination", isDefault: true);
+            AddMtgItem("DESIGN_REV", "DESIGN_REV / Design Review");
+            AddMtgItem("CLASH_DET", "CLASH_DET / Clash Detection");
+            AddMtgItem("DATA_DROP", "DATA_DROP / Data Drop Review (DD1–DD4)");
+            AddMtgItem("STAGE_GATE", "STAGE_GATE / Stage Gate / RIBA Gateway");
+            AddMtgItem("TECH_DES", "TECH_DES / Technical Design Workshop");
+            AddMtgItem("SPEC_REV", "SPEC_REV / Specification Review");
+            AddMtgItem("VALUE_ENG", "VALUE_ENG / Value Engineering");
+            AddMtgSep("Procurement & Commercial");
+            AddMtgItem("TENDER", "TENDER / Tender Review");
+            AddMtgItem("CONTRACT", "CONTRACT / Contract Award");
+            AddMtgItem("COMMERCIAL", "COMMERCIAL / Commercial / Cost Review");
+            AddMtgItem("RISK", "RISK / Risk Register Review");
+            AddMtgItem("PROGRAMME", "PROGRAMME / Programme / Schedule Review");
+            AddMtgSep("Construction");
+            AddMtgItem("SITE_PROG", "SITE_PROG / Site Progress");
+            AddMtgItem("SITE_VISIT", "SITE_VISIT / Site Inspection / Walk");
+            AddMtgItem("SUBCON", "SUBCON / Sub-Contractor Coordination");
+            AddMtgItem("SAFETY", "SAFETY / Health & Safety Review");
+            AddMtgItem("QA_QC", "QA_QC / QA / QC Inspection");
+            AddMtgItem("RFI_REV", "RFI_REV / RFI / NCR Review");
+            AddMtgItem("CHANGE", "CHANGE / Change Management");
+            AddMtgSep("Handover & FM");
+            AddMtgItem("HANDOVER", "HANDOVER / Handover Review");
+            AddMtgItem("COMMISSIONING", "COMMISSIONING / Commissioning");
+            AddMtgItem("SNAGGING", "SNAGGING / Snagging / Defects Review");
+            AddMtgItem("COBIE_REV", "COBIE_REV / COBie / FM Data Review");
+            AddMtgItem("FM_OPS", "FM_OPS / FM Operations Briefing");
+            AddMtgItem("ASSET_MGMT", "ASSET_MGMT / Asset Management Review");
+            AddMtgItem("PPM", "PPM / Planned Preventive Maintenance Review");
+            AddMtgSep("General");
+            AddMtgItem("CLIENT", "CLIENT / Client / Stakeholder Meeting");
+            AddMtgItem("MGMT", "MGMT / Project Management");
+            AddMtgItem("INTERNAL", "INTERNAL / Internal Team");
+            AddMtgItem("LESSONS", "LESSONS / Lessons Learned");
+            AddMtgItem("ADHOC", "ADHOC / Ad-hoc / Other");
+            if (attTypeCb.SelectedItem == null && attTypeCb.Items.Count > 1) attTypeCb.SelectedIndex = 1;
             attMtgTypeRow.Children.Add(attTypeCb);
             attPanel.Children.Add(attMtgTypeRow);
 
@@ -8044,7 +8203,51 @@ namespace StingTools.UI
         {
             Dispatcher.Invoke(() =>
             {
-                _statusBar.Text = $"Action: {action}";
+                try
+                {
+                    var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                    switch (action)
+                    {
+                        case "SaveProjectMembers":
+                        {
+                            if (doc != null)
+                            {
+                                string path = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "team_members.json");
+                                var arr = Newtonsoft.Json.Linq.JArray.FromObject(_data.TeamMembers);
+                                System.IO.File.WriteAllText(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                                ShowStatus($"Saved {_data.TeamMembers.Count} team members.");
+                            }
+                            else ShowStatus("No active document — cannot save team members.");
+                            break;
+                        }
+                        case "AddTeamMember":
+                        {
+                            _data.TeamMembers.Add(new TeamMemberRow { Active = true, Name = "New Member", Role = "Team" });
+                            if (_tabCache.ContainsKey(TabProjectMembers)) _tabCache.Remove(TabProjectMembers);
+                            NavigateTo(TabProjectMembers);
+                            ShowStatus("New team member added.");
+                            break;
+                        }
+                        case "RemoveMember":
+                        case "RemoveTeamMember":
+                        {
+                            string memberName = StingCommandHandler.GetExtraParam("MemberName");
+                            if (!string.IsNullOrEmpty(memberName))
+                            {
+                                int removed = _data.TeamMembers.RemoveAll(m => m.Name == memberName);
+                                if (_tabCache.ContainsKey(TabProjectMembers)) _tabCache.Remove(TabProjectMembers);
+                                NavigateTo(TabProjectMembers);
+                                ShowStatus(removed > 0 ? $"Removed member: {memberName}" : $"Member not found: {memberName}");
+                            }
+                            else ShowStatus("No MemberName param set.");
+                            break;
+                        }
+                        default:
+                            ShowStatus($"Action: {action}");
+                            break;
+                    }
+                }
+                catch (Exception ex) { ShowStatus($"Error: {ex.Message}"); }
             });
         }
 
@@ -8056,6 +8259,47 @@ namespace StingTools.UI
             timer.Tick += (s, e) => { _statusBar.Text = "Ready"; timer.Stop(); };
             timer.Start();
         }
+
+        /// <summary>Phase 91: Auto-populate issue location from element tokens and room membership.</summary>
+        internal static string AutoPopulateIssueLocation(Autodesk.Revit.DB.Document doc, IEnumerable<Autodesk.Revit.DB.ElementId> elementIds)
+        {
+            if (doc == null) return "";
+            foreach (var id in elementIds ?? Enumerable.Empty<Autodesk.Revit.DB.ElementId>())
+            {
+                var el = doc.GetElement(id);
+                if (el == null) continue;
+                string lvl  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LVL)  ?? "";
+                string zone = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.ZONE) ?? "";
+                string loc  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LOC)  ?? "";
+                if (string.IsNullOrEmpty(lvl) || lvl == "XX")
+                    lvl = Core.ParameterHelpers.GetLevelCode(doc, el) ?? "";
+                string room = "";
+                try
+                {
+                    if (el is Autodesk.Revit.DB.FamilyInstance fi)
+                    {
+                        Autodesk.Revit.DB.Phase phase = null;
+                        try { phase = doc.GetElement(el.CreatedPhaseId) as Autodesk.Revit.DB.Phase; } catch { }
+                        var r = phase != null ? fi.get_Room(phase) : fi.Room;
+                        if (r != null) room = r.Name;
+                    }
+                }
+                catch { }
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(lvl)  && lvl  != "XX") parts.Add(lvl);
+                if (!string.IsNullOrEmpty(zone) && zone != "XX" && zone != "ZZ") parts.Add(zone);
+                if (!string.IsNullOrEmpty(loc)  && loc  != "XX") parts.Add(loc);
+                if (!string.IsNullOrEmpty(room)) parts.Add(room);
+                string result = string.Join(" / ", parts);
+                if (!string.IsNullOrEmpty(result)) return result;
+            }
+            return "";
+        }
+
+        /// <summary>Returns the names of all loaded team members for external use (e.g., IssueTrackerDashboard).</summary>
+        public List<string> GetTeamMemberNames()
+            => _data?.TeamMembers?.Select(m => m.Name).Where(n => !string.IsNullOrEmpty(n)).ToList()
+               ?? new List<string>();
 
         /// <summary>Phase 77 Item 11C: Refresh nav panel badge counts from live data.</summary>
         public void RefreshBadges()

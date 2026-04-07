@@ -4382,15 +4382,44 @@ namespace StingTools.BIMManager
             if (!string.IsNullOrEmpty(wizResult.DueDate))
                 issue["date_due"] = wizResult.DueDate;
 
-            // Set location from wizard if provided
+            // Set location from wizard if provided, fallback to ExtraParam Location
             if (!string.IsNullOrEmpty(wizResult.Location))
                 issue["location"] = wizResult.Location;
+            else
+            {
+                string epLoc = UI.StingCommandHandler.GetExtraParam("Location");
+                if (!string.IsNullOrEmpty(epLoc)) issue["location"] = epLoc;
+            }
+            // Set raised_by from ExtraParam or current user
+            issue["raised_by"] = UI.StingCommandHandler.GetExtraParam("RaisedBy") ?? Environment.UserName;
 
             // GAP-007 fix: Link issue to current project revision
             try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Issue revision lookup failed: {ex.Message}"); }
 
             issues.Add(issue);
             BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+
+            // Phase 91 H1: Cross-link issue to last open/draft revision
+            try
+            {
+                string revisionsPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "revisions.json");
+                if (File.Exists(revisionsPath))
+                {
+                    var revArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(revisionsPath));
+                    var lastOpenRev = revArr.LastOrDefault(r =>
+                        (r["status"]?.ToString() ?? "OPEN").ToUpperInvariant() is "OPEN" or "DRAFT");
+                    if (lastOpenRev != null)
+                    {
+                        var linkedIssues = lastOpenRev["linked_issues"] as Newtonsoft.Json.Linq.JArray ?? new Newtonsoft.Json.Linq.JArray();
+                        linkedIssues.Add(nextId);
+                        lastOpenRev["linked_issues"] = linkedIssues;
+                        issue["linked_revision"] = lastOpenRev["id"]?.ToString() ?? "";
+                        BIMManagerEngine.SaveJsonFile(revisionsPath, revArr);
+                        BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Issue-revision cross-link: {ex.Message}"); }
 
             // NTF-01: Send notification to assigned party on issue creation
             try
@@ -5592,6 +5621,34 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // Phase 91 H7: Compliance and warning gate validation
+            try
+            {
+                bool gateIssue = false;
+                var sb91 = new StringBuilder();
+                var comp91 = ComplianceScan.Scan(doc);
+                if (comp91 != null && comp91.CompliancePercent < 50)
+                {
+                    sb91.AppendLine($"• Tag compliance is {comp91.CompliancePercent:F0}% (below 50% minimum for transmittal).");
+                    gateIssue = true;
+                }
+                var (wGate, wReason) = WarningsEngine.CheckWarningGate(doc, 0, 20);
+                if (!wGate)
+                {
+                    sb91.AppendLine($"• Warning gate failed: {wReason}");
+                    gateIssue = true;
+                }
+                if (gateIssue)
+                {
+                    var gateDlg91 = new TaskDialog("STING Transmittal — Gate Check");
+                    gateDlg91.MainInstruction = "Pre-Transmittal Gate Check Failed";
+                    gateDlg91.MainContent = sb91.ToString().Trim() + "\n\nContinue with transmittal anyway?";
+                    gateDlg91.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    if (gateDlg91.Show() == TaskDialogResult.No) return Result.Cancelled;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Transmittal gate check: {ex.Message}"); }
+
             // GAP-015: CDE status pre-flight check before transmittal
             string cdeStatus = ParameterHelpers.GetString(doc.ProjectInformation, "ASS_CDE_STATUS_TXT");
             if (string.IsNullOrEmpty(cdeStatus) || cdeStatus == "WIP")
@@ -5632,6 +5689,29 @@ namespace StingTools.BIMManager
 
             var transmittal = BIMManagerEngine.CreateTransmittal(
                 doc, "", "", suitability, "Model drop per MIDP schedule", outgoingIds);
+
+            // Phase 91 H1: Cross-link open issues to this transmittal
+            try
+            {
+                string issPathTx = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                if (File.Exists(issPathTx))
+                {
+                    var issArrTx = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issPathTx));
+                    var txLinkedIssues = new Newtonsoft.Json.Linq.JArray();
+                    string txId = transmittal["transmittal_id"]?.ToString() ?? "";
+                    foreach (var iss in issArrTx)
+                    {
+                        if ((iss["status"]?.ToString() ?? "OPEN").ToUpperInvariant() == "OPEN")
+                        {
+                            txLinkedIssues.Add(iss["issue_id"]?.ToString() ?? iss["id"]?.ToString() ?? "");
+                            iss["linked_transmittal"] = txId;
+                        }
+                    }
+                    transmittal["linked_issues"] = txLinkedIssues;
+                    BIMManagerEngine.SaveJsonFile(issPathTx, issArrTx);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Transmittal-issue cross-link: {ex.Message}"); }
 
             string txPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
             var transmittals = BIMManagerEngine.LoadJsonArray(txPath);

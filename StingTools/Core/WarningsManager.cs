@@ -3303,6 +3303,17 @@ namespace StingTools.Core
         }
     }
 
+    /// <summary>Phase 91: Stub — deliverable readiness assessment command.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class DeliverableReadinessCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
+        {
+            TaskDialog.Show("STING — Deliverable Readiness", "Use the BIM Coordination Center > Deliverables tab for full readiness assessment.");
+            return Result.Succeeded;
+        }
+    }
+
     /// <summary>Phase 47: Open unified BIM Coordination Center with all dashboards merged.</summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3827,9 +3838,9 @@ namespace StingTools.Core
                             issuesTotal2 = arr.Count;
                             foreach (var item in arr)
                             {
-                                string st = item.Value<string>("status") ?? "";
+                                string st = (item["status"]?.ToString() ?? "OPEN").ToUpperInvariant();
                                 bool overdue = false;
-                                string created = item.Value<string>("created_date") ?? "";
+                                string created = item["date_raised"]?.ToString() ?? item["created"]?.ToString() ?? item.Value<string>("created_date") ?? "";
                                 string daysOpen = "";
                                 if (DateTime.TryParse(created, out DateTime cDate))
                                 {
@@ -3861,20 +3872,24 @@ namespace StingTools.Core
 
                                 issueRows.Add(new UI.BIMCoordinationCenter.IssueRow
                                 {
-                                    Id = item.Value<string>("id") ?? "",
+                                    Id = item["issue_id"]?.ToString() ?? item["id"]?.ToString() ?? $"ISS-{issueRows.Count+1:D3}",
                                     Title = item.Value<string>("title") ?? "",
-                                    Type = item.Value<string>("type") ?? "",
-                                    Priority = item.Value<string>("priority") ?? "",
-                                    Status = st,
+                                    Type = item["type"]?.ToString() ?? item["category"]?.ToString() ?? "RFI",
+                                    Priority = (item["priority"]?.ToString() ?? "MEDIUM").ToUpperInvariant(),
+                                    Status = (item["status"]?.ToString() ?? "OPEN").ToUpperInvariant(),
                                     Assignee = singleAssignee,
                                     AssigneeList = assigneeList,
-                                    Assignees = string.Join(", ", assigneeList),
+                                    Assignees = item["assignees"]?.ToString() ?? string.Join(", ", assigneeList),
                                     Discipline = item.Value<string>("discipline") ?? "",
                                     Revision = item.Value<string>("revision") ?? "",
                                     ElementCount = elemCount,
-                                    Created = created.Length > 10 ? created.Substring(0, 10) : created,
+                                    Created = (item["date_raised"]?.ToString() ?? item["created"]?.ToString() ?? created).Length > 10
+                                        ? (item["date_raised"]?.ToString() ?? item["created"]?.ToString() ?? created).Substring(0, 10)
+                                        : (item["date_raised"]?.ToString() ?? item["created"]?.ToString() ?? created),
                                     IsOverdue = overdue,
-                                    DaysOpen = daysOpen
+                                    DaysOpen = daysOpen,
+                                    Location = item["location"]?.ToString() ?? item["room"]?.ToString() ?? item["level"]?.ToString() ?? "",
+                                    RaisedBy = item["raised_by"]?.ToString() ?? ""
                                 });
                             }
                         }
@@ -3993,6 +4008,28 @@ namespace StingTools.Core
                     HealthChecks = healthChecks,
                     Recommendations = recommendations
                 };
+
+                // Phase 91: Populate Warnings rows for BCC inline panel
+                try
+                {
+                    foreach (var cw in warningReport.Warnings.Take(500))
+                    {
+                        var row = new UI.BIMCoordinationCenter.WarningRow
+                        {
+                            Id = cw.Source?.GetFailureDefinitionId().Guid.ToString() ?? System.Guid.NewGuid().ToString(),
+                            Description = cw.Description ?? "",
+                            Category = cw.Category.ToString(),
+                            Severity = cw.Severity.ToString(),
+                            ElementCount = cw.FailingElements?.Count ?? 0,
+                            AutoFixable = cw.CanAutoFix,
+                            FixStrategy = cw.FixStrategy ?? ""
+                        };
+                        if (cw.FailingElements != null)
+                            row.ElementIds = cw.FailingElements.Select(id => id.Value).ToList();
+                        coordData.Warnings.Add(row);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: warnings rows: {ex.Message}"); }
 
                 // Phase 49: Generate smart suggestions based on model state analysis
                 coordData.SmartSuggestions = WarningsEngine.GenerateSmartSuggestions(coordData, warningReport);
@@ -4127,6 +4164,18 @@ namespace StingTools.Core
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildCoordData: permissions restore failed: {ex.Message}"); }
+
+                // Phase 91 H4: Auto-initialize CDE folder structure on first BCC open
+                try
+                {
+                    string wipFolder = Path.Combine(ProjectFolderEngine.GetRootPath(doc), "01_WIP");
+                    if (!Directory.Exists(wipFolder))
+                    {
+                        int created = ProjectFolderEngine.CreateFolderStructure(doc);
+                        StingLog.Info($"Phase 91 H4: CDE folder structure auto-initialized ({created} folders)");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"CDE folder auto-init: {ex.Message}"); }
 
                 StingLog.Info($"BIMCoordCenter built: health={healthScore}, warnings={warningReport.Total}, compliance={tagPct:F1}%");
                 return coordData;

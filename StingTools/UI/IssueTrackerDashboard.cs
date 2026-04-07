@@ -60,15 +60,15 @@ namespace StingTools.UI
             "LV — Low Voltage", "G — General", "Z — Multi-discipline"
         };
 
-        private static readonly string[] Assignees =
-        {
-            "Self", "BIM Coordinator", "Design Lead", "Project Manager",
-            "Contractor", "Specialist", "Unassigned"
-        };
-
         // ── Public Entry Point ──────────────────────────────────────────
-        public static IssueTrackerDashboardResult Show()
+        public static IssueTrackerDashboardResult Show(List<string> memberNames = null)
         {
+            var resolvedAssignees = (memberNames != null && memberNames.Count > 0)
+                ? memberNames
+                : new List<string> { "Self", "BIM Coordinator", "Design Lead", "Project Manager",
+                                      "Architect", "Structural Engineer", "MEP Engineer",
+                                      "Mechanical Engineer", "Electrical Engineer", "Contractor",
+                                      "Site Manager", "Facilities Manager", "Unassigned" };
             var result = new IssueTrackerDashboardResult();
 
             var win = new Window
@@ -149,8 +149,8 @@ namespace StingTools.UI
                 BorderBrush = BorderBrush
             };
 
-            tabs.Items.Add(BuildRaiseIssueTab(result, win));
-            tabs.Items.Add(BuildManageIssuesTab(result, win));
+            tabs.Items.Add(BuildRaiseIssueTab(result, win, resolvedAssignees));
+            tabs.Items.Add(BuildManageIssuesTab(result, win, resolvedAssignees));
             tabs.Items.Add(BuildBcfIntegrationTab(result, win));
             tabs.Items.Add(BuildReportsSlaTab(result, win));
 
@@ -165,7 +165,7 @@ namespace StingTools.UI
         // ================================================================
         //  TAB 1 — RAISE ISSUE
         // ================================================================
-        private static TabItem BuildRaiseIssueTab(IssueTrackerDashboardResult result, Window win)
+        private static TabItem BuildRaiseIssueTab(IssueTrackerDashboardResult result, Window win, List<string> assignees = null)
         {
             var tab = new TabItem
             {
@@ -303,9 +303,14 @@ namespace StingTools.UI
                 Padding = new Thickness(8, 6, 8, 6),
                 FontSize = 12
             };
-            foreach (var a in Assignees) cmbAssign.Items.Add(a);
+            var effectiveAssignees = assignees ?? new List<string> { "Self", "BIM Coordinator", "Design Lead", "Project Manager",
+                                      "Architect", "Structural Engineer", "MEP Engineer",
+                                      "Mechanical Engineer", "Electrical Engineer", "Contractor",
+                                      "Site Manager", "Facilities Manager", "Unassigned" };
+            foreach (var a in effectiveAssignees) cmbAssign.Items.Add(a);
             cmbAssign.Items.Add("── Custom ──");
-            cmbAssign.SelectedIndex = 6; // Unassigned
+            int unassignedIdx = effectiveAssignees.IndexOf("Unassigned");
+            cmbAssign.SelectedIndex = unassignedIdx >= 0 ? unassignedIdx : effectiveAssignees.Count - 1;
             stack.Children.Add(cmbAssign);
 
             var hintText = new TextBlock
@@ -432,55 +437,177 @@ namespace StingTools.UI
         // ================================================================
         //  TAB 2 — MANAGE ISSUES
         // ================================================================
-        private static TabItem BuildManageIssuesTab(IssueTrackerDashboardResult result, Window win)
+        // ── IssueRow for live DataGrid ──────────────────────────────────
+        private class IssueRowVm
         {
-            var tab = new TabItem
+            public string Id { get; set; }
+            public string Title { get; set; }
+            public string Type { get; set; }
+            public string Priority { get; set; }
+            public string Status { get; set; }
+            public string Assignee { get; set; }
+            public string Location { get; set; }
+            public string Disc { get; set; }
+            public int Elems { get; set; }
+            public string Created { get; set; }
+            public string Age { get; set; }
+            public bool IsOverdue { get; set; }
+            public bool IsCritical { get; set; }
+            public bool IsClosed { get; set; }
+        }
+
+        private static TabItem BuildManageIssuesTab(IssueTrackerDashboardResult result, Window win, List<string> assignees = null)
+        {
+            var tab = new TabItem { Header = MakeTabHeader("MANAGE ISSUES"), Padding = new Thickness(0) };
+            var root = new DockPanel { LastChildFill = true };
+
+            // ── Action toolbar ───────────────────────────────────────────
+            var toolbar = new WrapPanel { Margin = new Thickness(12, 10, 12, 4) };
+            var toolActions = new (string Label, string Op, SolidColorBrush Clr)[]
             {
-                Header = MakeTabHeader("MANAGE ISSUES"),
-                Padding = new Thickness(0)
+                ("Update Status",    "UpdateIssue",            AccentBrush),
+                ("Reassign",         "AssignIssues",           HeaderBrush),
+                ("Select Elements",  "SelectIssueElements",    HeaderBrush),
+                ("BCF Export",       "BCFExport",              HeaderBrush),
+                ("Close Issue",      "CloseIssue",             LowBrush),
+                ("Escalate",         "EscalateOverdueActions", CriticalBrush),
+                ("Export Excel",     "IssueExport",            HeaderBrush),
+            };
+            foreach (var (lbl, op, clr) in toolActions)
+            {
+                var btn = MakeButton(lbl, double.NaN);
+                btn.Background = clr; btn.Foreground = FgLightBrush; btn.Margin = new Thickness(0, 0, 6, 4);
+                btn.BorderThickness = new Thickness(0);
+                string capturedOp = op;
+                btn.Click += (s, e) => { result.Confirmed = true; result.Operation = capturedOp; win.DialogResult = true; };
+                toolbar.Children.Add(btn);
+            }
+            DockPanel.SetDock(toolbar, Dock.Top);
+            root.Children.Add(toolbar);
+
+            // ── Filter bar ──────────────────────────────────────────────
+            var filterRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 0, 12, 6) };
+            var cmbFilter = new ComboBox { Width = 130, Height = 26, FontSize = 11, Margin = new Thickness(0, 0, 8, 0) };
+            foreach (var f in new[] { "All", "Open", "Closed", "Critical", "Overdue" }) cmbFilter.Items.Add(f);
+            cmbFilter.SelectedIndex = 0;
+            var txtSearch = new TextBox { Width = 180, Height = 26, FontSize = 11, Padding = new Thickness(4, 2, 4, 2), ToolTip = "Search title, assignee, ID..." };
+            filterRow.Children.Add(new TextBlock { Text = "Filter:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0), FontSize = 11 });
+            filterRow.Children.Add(cmbFilter);
+            filterRow.Children.Add(txtSearch);
+            DockPanel.SetDock(filterRow, Dock.Top);
+            root.Children.Add(filterRow);
+
+            // ── DataGrid ────────────────────────────────────────────────
+            var dg = new DataGrid
+            {
+                IsReadOnly = true,
+                AutoGenerateColumns = false,
+                SelectionMode = DataGridSelectionMode.Single,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                FontSize = 11,
+                RowHeight = 24,
+                Margin = new Thickness(12, 0, 12, 10),
+                CanUserSortColumns = true
+            };
+            dg.Columns.Add(new DataGridTextColumn { Header = "ID",       Binding = new System.Windows.Data.Binding("Id"),       Width = 80 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Title",    Binding = new System.Windows.Data.Binding("Title"),    Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Type",     Binding = new System.Windows.Data.Binding("Type"),     Width = 55 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Priority", Binding = new System.Windows.Data.Binding("Priority"), Width = 65 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Status",   Binding = new System.Windows.Data.Binding("Status"),   Width = 65 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Assignee", Binding = new System.Windows.Data.Binding("Assignee"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Location", Binding = new System.Windows.Data.Binding("Location"), Width = 80 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Disc",     Binding = new System.Windows.Data.Binding("Disc"),     Width = 40 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Elems",    Binding = new System.Windows.Data.Binding("Elems"),    Width = 45 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Created",  Binding = new System.Windows.Data.Binding("Created"),  Width = 80 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Age",      Binding = new System.Windows.Data.Binding("Age"),      Width = 50 });
+            root.Children.Add(dg);
+
+            // ── Load data from LastIssuesPath ────────────────────────────
+            var allRows = new List<IssueRowVm>();
+            try
+            {
+                string issPath = StingCommandHandler.GetExtraParam("LastIssuesPath") ?? "";
+                if (!string.IsNullOrEmpty(issPath) && System.IO.File.Exists(issPath))
+                {
+                    var arr = Newtonsoft.Json.Linq.JArray.Parse(System.IO.File.ReadAllText(issPath));
+                    int idx = 0;
+                    foreach (var item in arr)
+                    {
+                        string status = (item["status"]?.ToString() ?? "OPEN").ToUpperInvariant();
+                        string priority = (item["priority"]?.ToString() ?? "MEDIUM").ToUpperInvariant();
+                        string created = item["date_raised"]?.ToString() ?? item["created"]?.ToString() ?? item["created_date"]?.ToString() ?? "";
+                        bool overdue = false; string age = "";
+                        if (DateTime.TryParse(created, out DateTime cDt))
+                        {
+                            int d = (int)(DateTime.Now - cDt).TotalDays;
+                            age = d < 1 ? "<1d" : d < 7 ? $"{d}d" : d < 30 ? $"{d/7}w" : $"{d/30}mo";
+                            double slaH = priority == "CRITICAL" ? 4 : priority == "HIGH" ? 24 : priority == "MEDIUM" ? 168 : 336;
+                            if (status == "OPEN" && (DateTime.Now - cDt).TotalHours > slaH) overdue = true;
+                        }
+                        int elemCount = 0;
+                        var ea = item["element_ids"] as Newtonsoft.Json.Linq.JArray;
+                        if (ea != null) elemCount = ea.Count;
+                        allRows.Add(new IssueRowVm
+                        {
+                            Id = item["issue_id"]?.ToString() ?? item["id"]?.ToString() ?? $"ISS-{++idx:D3}",
+                            Title = item["title"]?.ToString() ?? "",
+                            Type = item["type"]?.ToString() ?? item["category"]?.ToString() ?? "RFI",
+                            Priority = priority, Status = status,
+                            Assignee = item["assignee"]?.ToString() ?? item["assigned_to"]?.ToString() ?? "Unassigned",
+                            Location = item["location"]?.ToString() ?? "",
+                            Disc = item["discipline"]?.ToString() ?? "",
+                            Elems = elemCount,
+                            Created = created.Length > 10 ? created.Substring(0, 10) : created,
+                            Age = age, IsOverdue = overdue,
+                            IsCritical = priority == "CRITICAL",
+                            IsClosed = status == "CLOSED"
+                        });
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ITD ManageIssues load: {ex.Message}"); }
+
+            // Row styles
+            dg.LoadingRow += (s, e) =>
+            {
+                if (e.Row.Item is IssueRowVm row)
+                {
+                    if (row.IsOverdue)
+                    {
+                        e.Row.Background = FZ(Color.FromRgb(0xFF, 0xEB, 0xEE));
+                        e.Row.Foreground = CriticalBrush;
+                    }
+                    else if (row.IsCritical) { e.Row.FontWeight = FontWeights.Bold; }
+                    else if (row.IsClosed) { e.Row.Foreground = FZ(Color.FromRgb(0xAA, 0xAA, 0xAA)); }
+                    else { e.Row.Background = Brushes.White; e.Row.Foreground = FgDarkBrush; }
+                }
             };
 
-            var scroll = new ScrollViewer
+            // Apply filter
+            void ApplyFilter(string filter, string search)
             {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Padding = new Thickness(16, 12, 16, 12)
-            };
-            var stack = new StackPanel();
+                var filtered = allRows.AsEnumerable();
+                if (filter == "Open")     filtered = filtered.Where(r => r.Status == "OPEN");
+                else if (filter == "Closed")   filtered = filtered.Where(r => r.Status == "CLOSED");
+                else if (filter == "Critical") filtered = filtered.Where(r => r.IsCritical);
+                else if (filter == "Overdue")  filtered = filtered.Where(r => r.IsOverdue);
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    string q = search.ToLowerInvariant();
+                    filtered = filtered.Where(r =>
+                        (r.Title?.ToLowerInvariant().Contains(q) ?? false) ||
+                        (r.Id?.ToLowerInvariant().Contains(q) ?? false) ||
+                        (r.Assignee?.ToLowerInvariant().Contains(q) ?? false));
+                }
+                dg.ItemsSource = filtered.ToList();
+            }
 
-            stack.Children.Add(MakeSectionHeader("Issue Management"));
+            cmbFilter.SelectionChanged += (s, e) => ApplyFilter(cmbFilter.SelectedItem?.ToString() ?? "All", txtSearch.Text);
+            txtSearch.TextChanged += (s, e) => ApplyFilter(cmbFilter.SelectedItem?.ToString() ?? "All", txtSearch.Text);
+            ApplyFilter("All", "");
 
-            stack.Children.Add(MakeOperationCard(
-                "Issue Dashboard", "IssueDashboard",
-                "View all open, closed, and overdue issues with SLA status and priority breakdown.",
-                HeaderBrush, result, win));
-
-            stack.Children.Add(MakeOperationCard(
-                "Update Issue", "UpdateIssue",
-                "Update the status, priority, or assignment of an existing issue.",
-                AccentBrush, result, win));
-
-            stack.Children.Add(MakeOperationCard(
-                "Select Issue Elements", "SelectIssueElements",
-                "Select all Revit elements linked to a specific issue for review.",
-                HeaderBrush, result, win));
-
-            stack.Children.Add(MakeOperationCard(
-                "Batch Issue Update", "IssueBatchUpdate",
-                "Bulk status change across multiple issues — close, escalate, or reassign.",
-                AccentBrush, result, win));
-
-            stack.Children.Add(MakeOperationCard(
-                "Assign Issues", "AssignIssues",
-                "Reassign issues to team members based on discipline or workload.",
-                HeaderBrush, result, win));
-
-            stack.Children.Add(MakeOperationCard(
-                "Escalate Overdue", "EscalateOverdueActions",
-                "Auto-escalate overdue actions to higher priority and create NCR issues.",
-                CriticalBrush, result, win));
-
-            scroll.Content = stack;
-            tab.Content = scroll;
+            tab.Content = root;
             return tab;
         }
 
