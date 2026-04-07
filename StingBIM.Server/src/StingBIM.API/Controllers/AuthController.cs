@@ -233,7 +233,8 @@ public class AuthController : ControllerBase
 
     private string GenerateJwt(Core.Entities.AppUser user)
     {
-        var jwtKey = _config["Jwt:Key"] ?? "StingBIM-Dev-Secret-Key-Min32Chars!!";
+        var jwtKey = _config["Jwt:Key"]
+            ?? throw new InvalidOperationException("Jwt:Key is not configured. This should have been caught at startup.");
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var creds = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 

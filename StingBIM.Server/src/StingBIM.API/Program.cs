@@ -24,7 +24,19 @@ builder.Services.AddDbContext<StingBimDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 // ── Authentication ──
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "StingBIM-Dev-Secret-Key-Min32Chars!!";
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrEmpty(jwtKey))
+{
+    if (builder.Environment.IsDevelopment())
+        jwtKey = "StingBIM-Dev-Secret-Key-Min32Chars!!";
+    else
+        throw new InvalidOperationException(
+            "FATAL: Jwt:Key is not configured. Set the 'Jwt__Key' environment variable or configure 'Jwt:Key' in appsettings.Production.json. " +
+            "The key must be at least 32 characters for HMAC-SHA256.");
+}
+if (jwtKey.Length < 32)
+    throw new InvalidOperationException($"Jwt:Key must be at least 32 characters (got {jwtKey.Length}).");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {

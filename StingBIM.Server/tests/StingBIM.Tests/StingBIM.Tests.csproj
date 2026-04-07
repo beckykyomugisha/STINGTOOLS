@@ -23,7 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\StingBIM.API\StingBIM.API.csproj" />
     <ProjectReference Include="..\..\src\StingBIM.Core\StingBIM.Core.csproj" />
+    <ProjectReference Include="..\..\src\StingBIM.Infrastructure\StingBIM.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\StingBIM.Shared\StingBIM.Shared.csproj" />
   </ItemGroup>
 

@@ -2689,25 +2689,47 @@ namespace StingTools.UI
                         RunCommand<Core.BIMCoordinationCenterCommand>(app); break;
 
                     // ── Meetings / Actions ──
-                    case "BulkCloseActions": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "BulkCloseActions":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ShowOpenActions(dmDoc); }
+                        break;
+                    }
                     case "EscalateActions":
                     case "EscalateOverdueActions": RunCommand<Core.BIMCoordinationCenterCommand>(app); break;
-                    case "ExportMeetingMinutes": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "ExportMeetingsPDF": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "ExportMinutesWord": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "ExportMinutesPDF": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportMeetingMinutes":
+                    case "ExportMinutes":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ExportMeetingMinutes(dmDoc); }
+                        break;
+                    }
+                    case "ExportMeetingsPDF":
+                    case "ExportMinutesWord":
+                    case "ExportMinutesPDF":
+                    {
+                        // PDF/Word export uses the same text export with format note
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ExportMeetingMinutes(dmDoc); }
+                        break;
+                    }
                     case "ComplianceGateTransmittal": RunCommand<Docs.TransmittalCommand>(app); break;
-                    case "ScheduleMeetingFollowUp": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ScheduleMeetingFollowUp":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.CreateMeeting(dmDoc); }
+                        break;
+                    }
 
                     // ── Deliverables ──
-                    case "BulkDeliverableStatus": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "ExportDeliverablesRegister": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "BulkDeliverableStatus": RunCommand<Core.DeliverableMatrixCommand>(app); break;
+                    case "ExportDeliverablesRegister": RunCommand<Core.DeliverableMatrixCommand>(app); break;
 
                     // ── Platform ──
-                    case "FMHandover": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "StageGate": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "FMHandover": RunCommand<Docs.HandoverManualCommand>(app); break;
+                    case "StageGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
                     case "SheetRegister": RunCommand<Docs.SheetIndexCommand>(app); break;
-                    case "ViewPlatformLogs": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ViewPlatformLogs": RunCommand<BIMManager.ExportCoordLogCommand>(app); break; // Coord log is the platform activity log
 
                     // ── QR Codes ──
                     case "GenerateQRCode": RunCommand<Tags.QRCodeCommand>(app); break;
@@ -2715,21 +2737,31 @@ namespace StingTools.UI
                     case "PrintQRTags": RunCommand<Tags.QRCodeCommand>(app); break;
 
                     // ── 4D/5D ──
-                    case "ExportMilestones": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "ExportCashFlow": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "SaveWorkingCalendar": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportMilestones": RunCommand<BIMManager.MilestoneRegisterCommand>(app); break;
+                    case "ExportCashFlow": RunCommand<BIMManager.CashFlow5DCommand>(app); break;
+                    case "SaveWorkingCalendar": RunCommand<BIMManager.WorkingCalendarCommand>(app); break;
 
                     // ── Model Health ──
                     case "FixContainers": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
 
                     // ── Meetings ──
-                    case "NewMeeting": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "NewMeeting":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.CreateMeeting(dmDoc); }
+                        break;
+                    }
 
                     // ── Issues ──
                     case "AssignIssues":          RunCommand<BIMManager.RaiseIssueCommand>(app); break;
                     case "CreateIssuesFromWarnings": RunCommand<BIMManager.RaiseIssueCommand>(app); break;
                     case "ExportIssues":          ExportIssuesXlsx(app); break;
-                    case "AddActionItem":         RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "AddActionItem":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.AddActionItem(dmDoc); }
+                        break;
+                    }
                     case "AttachIssueLocation":   AttachIssueLocationFromView(app); break;
                     case "CaptureIssueSnapshot":  CaptureViewSnapshot(app); break;
                     case "LinkIssueElements":     RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
@@ -2745,20 +2777,40 @@ namespace StingTools.UI
                         break;
                     }
                     // ── Meetings extra ──
-                    case "AutoAgenda":            RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "AutoAgenda":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.GenerateAutoAgenda(dmDoc); }
+                        break;
+                    }
                     case "ApprovalWorkflow":      RunCommand<BIMManager.DocumentRegisterCommand>(app); break;
-                    case "LogMinutes":            RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "MeetingHistory":        RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "OpenActions":           RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "LogMinutes":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.LogMeetingMinutes(dmDoc); }
+                        break;
+                    }
+                    case "MeetingHistory":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ShowMeetingHistory(dmDoc); }
+                        break;
+                    }
+                    case "OpenActions":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ShowOpenActions(dmDoc); }
+                        break;
+                    }
                     case "SendReminder":          ShowInfo(app, "Send Reminder", "Reminder functionality requires CDE/email integration. Configure in Settings > Notifications."); break;
                     case "ImportTeamCSV":         ImportTeamFromCsv(app); break;
-                    case "ExportMinutes":         RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    // ExportMinutes already handled above with ExportMeetingMinutes
                     case "RevisionExportXlsx":    RunCommand<BIMManager.RevisionExportCommand>(app); break;
                     // SaveProjectMembers and EscalateActions are already wired above
 
                     // ── StingBIM platform ──
                     case "StingBIMCopyLink":       StingBIMCopyLink(app); break;
-                    case "StingBIMEmail":          RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "StingBIMEmail":          ShowInfo(app, "Email Report", "Email report generation requires SMTP configuration.\nConfigure in Settings > Notifications or use 'Copy Link' to share manually."); break;
                     case "StingBIMTeams":          StingBIMGenerateTeamsMessage(app); break;
                     case "StingBIMWhatsApp":       StingBIMGenerateWhatsApp(app); break;
                     case "StingBIMQR":             RunCommand<Tags.QRCodeCommand>(app); break;
@@ -2768,7 +2820,12 @@ namespace StingTools.UI
                                                    TaskDialog.Show("StingBIM", "Disconnected from StingBIM server."); break;
                     case "StingBIMSyncNow":        BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app); break;
                     case "SendMeetingInvites":     TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
-                    case "ExportMeetingAnalytics": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportMeetingAnalytics":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ShowMeetingHistory(dmDoc); }
+                        break;
+                    }
                     case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect StingBIM or configure email in Settings > Notifications."); break;
 
                     // ── Unmapped command tag ──
