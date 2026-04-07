@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using StingBIM.Core.Entities;
+using StingBIM.Core.Interfaces;
 using StingBIM.Infrastructure.Data;
 
 namespace StingBIM.Infrastructure.Services;
@@ -126,10 +128,13 @@ public class SlaEscalationJob
 
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+        var notifications = scope.ServiceProvider.GetService<INotificationService>();
+        var push = scope.ServiceProvider.GetService<IPushNotificationService>();
 
         var now = DateTime.UtcNow;
 
         var overdueIssues = await db.Issues
+            .Include(i => i.Project)
             .Where(i => i.DueDate != null
                 && i.DueDate < now
                 && i.Status != "CLOSED"
@@ -157,6 +162,41 @@ public class SlaEscalationJob
                 _logger.LogInformation(
                     "Issue {Code} escalated {From} -> {To} (due {DueDate:u})",
                     issue.IssueCode, previousPriority, issue.Priority, issue.DueDate);
+
+                // Send SLA breach notification to tenant
+                var tenantId = issue.Project?.TenantId ?? Guid.Empty;
+                if (tenantId != Guid.Empty && notifications != null)
+                {
+                    _ = notifications.NotifyAsync(tenantId, "sla_breach",
+                        $"SLA Breach: {issue.IssueCode} escalated to {issue.Priority}",
+                        $"{issue.Title} — was {previousPriority}, overdue since {issue.DueDate:u}",
+                        new { issue.Id, issue.IssueCode, previousPriority, issue.Priority, issue.ProjectId },
+                        ct);
+                }
+
+                // Push to assignee if set
+                if (!string.IsNullOrEmpty(issue.Assignee) && push != null && tenantId != Guid.Empty)
+                {
+                    var assignee = await db.Users.FirstOrDefaultAsync(
+                        u => u.DisplayName == issue.Assignee && u.TenantId == tenantId, ct);
+                    if (assignee != null)
+                    {
+                        _ = push.SendToUserAsync(assignee.Id, new PushPayload
+                        {
+                            Title = $"SLA Breach: {issue.IssueCode}",
+                            Body = $"Escalated {previousPriority} → {issue.Priority}. {issue.Title}",
+                            Channel = "sla_breach",
+                            Data = new Dictionary<string, string>
+                            {
+                                ["type"] = "sla_escalation",
+                                ["issueId"] = issue.Id.ToString(),
+                                ["issueCode"] = issue.IssueCode,
+                                ["priority"] = issue.Priority,
+                                ["projectId"] = issue.ProjectId.ToString()
+                            }
+                        }, ct);
+                    }
+                }
             }
         }
 

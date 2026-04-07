@@ -231,6 +231,60 @@ public class AuthController : ControllerBase
         });
     }
 
+    // ── Forgot Password (request reset) ──────────────────────────────────────
+
+    [EnableRateLimiting("auth")]
+    [HttpPost("forgot-password")]
+    public async Task<ActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
+    {
+        // Always return success to prevent email enumeration
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
+        if (user == null)
+            return Ok(new { message = "If that email exists, a reset link has been sent." });
+
+        // Generate a time-limited reset token (stored as refresh token with short expiry)
+        var resetToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        user.RefreshToken = $"RESET:{resetToken}";
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddHours(1);
+        await _db.SaveChangesAsync();
+
+        // Send reset email
+        var emailService = HttpContext.RequestServices.GetService<StingBIM.Core.Interfaces.IEmailService>();
+        if (emailService != null)
+        {
+            await emailService.SendAsync(user.Email, "StingBIM Password Reset",
+                $"Use this token to reset your password (expires in 1 hour):\n\n{resetToken}\n\n" +
+                $"POST /api/auth/reset-password with {{ \"token\": \"{resetToken}\", \"newPassword\": \"...\" }}");
+        }
+
+        return Ok(new { message = "If that email exists, a reset link has been sent." });
+    }
+
+    // ── Reset Password (confirm reset) ────────────────────────────────────────
+
+    [EnableRateLimiting("auth")]
+    [HttpPost("reset-password")]
+    public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
+    {
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u => u.RefreshToken == $"RESET:{req.Token}"
+                && u.RefreshTokenExpiresAt > DateTime.UtcNow
+                && u.IsActive);
+
+        if (user == null)
+            return BadRequest(new { message = "Invalid or expired reset token" });
+
+        if (req.NewPassword.Length < 8)
+            return BadRequest(new { message = "Password must be at least 8 characters" });
+
+        user.PasswordHash = HashPassword(req.NewPassword);
+        user.RefreshToken = null;
+        user.RefreshTokenExpiresAt = null;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = "Password has been reset. Please log in." });
+    }
+
     private string GenerateJwt(Core.Entities.AppUser user)
     {
         var jwtKey = _config["Jwt:Key"] ?? "StingBIM-Dev-Secret-Key-Min32Chars!!";

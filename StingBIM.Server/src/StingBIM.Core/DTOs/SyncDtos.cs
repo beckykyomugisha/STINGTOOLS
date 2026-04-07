@@ -114,3 +114,14 @@ public record ChangePasswordRequest
     public string CurrentPassword { get; init; } = "";
     public string NewPassword     { get; init; } = "";
 }
+
+public record ForgotPasswordRequest
+{
+    public string Email { get; init; } = "";
+}
+
+public record ResetPasswordRequest
+{
+    public string Token       { get; init; } = "";
+    public string NewPassword { get; init; } = "";
+}

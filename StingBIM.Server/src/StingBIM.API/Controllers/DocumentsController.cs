@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -35,7 +36,16 @@ public class DocumentsController : ControllerBase
         ["WIP"] = "S0", ["SHARED"] = "S3", ["PUBLISHED"] = "S4", ["ARCHIVE"] = "S7"
     };
 
-    public DocumentsController(StingBimDbContext db) => _db = db;
+    private readonly IConfiguration _config;
+
+    // Max file size: 100 MB
+    private const long MaxFileSize = 100 * 1024 * 1024;
+
+    public DocumentsController(StingBimDbContext db, IConfiguration config)
+    {
+        _db = db;
+        _config = config;
+    }
 
     [HttpGet]
     public async Task<ActionResult> GetDocuments(Guid projectId,
@@ -81,6 +91,105 @@ public class DocumentsController : ControllerBase
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetDocuments), new { projectId }, doc);
+    }
+
+    /// <summary>
+    /// Upload a file and create a document record in one step.
+    /// Stores files under {StoragePath}/{tenantSlug}/{projectCode}/.
+    /// </summary>
+    [HttpPost("upload")]
+    [RequestSizeLimit(MaxFileSize)]
+    public async Task<ActionResult> UploadDocument(Guid projectId,
+        IFormFile file,
+        [FromForm] string? documentType,
+        [FromForm] string? discipline,
+        [FromForm] string? revision)
+    {
+        var tenantId = GetTenantId();
+        var project = await _db.Projects
+            .Include(p => p.Tenant)
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound("Project not found");
+
+        if (file.Length == 0) return BadRequest("File is empty");
+        if (file.Length > MaxFileSize) return BadRequest($"File exceeds {MaxFileSize / (1024 * 1024)} MB limit");
+
+        // Build storage path: {root}/{tenant_slug}/{project_code}/{filename}
+        var storageRoot = _config["Storage:Path"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+        var tenantSlug = project.Tenant?.Slug ?? tenantId.ToString();
+        var folder = Path.Combine(storageRoot, tenantSlug, project.Code);
+        Directory.CreateDirectory(folder);
+
+        // Deduplicate filename if it already exists
+        var fileName = file.FileName;
+        var filePath = Path.Combine(folder, fileName);
+        if (System.IO.File.Exists(filePath))
+        {
+            var name = Path.GetFileNameWithoutExtension(fileName);
+            var ext = Path.GetExtension(fileName);
+            fileName = $"{name}_{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
+            filePath = Path.Combine(folder, fileName);
+        }
+
+        // Write file and compute SHA-256 hash
+        string contentHash;
+        await using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+        await using (var hashStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+        {
+            var hash = await SHA256.HashDataAsync(hashStream);
+            contentHash = Convert.ToHexString(hash).ToLowerInvariant();
+        }
+
+        var doc = new DocumentRecord
+        {
+            ProjectId = projectId,
+            FileName = fileName,
+            FilePath = filePath,
+            DocumentType = documentType ?? "",
+            CdeStatus = "WIP",
+            SuitabilityCode = "S0",
+            Discipline = discipline,
+            Revision = revision,
+            FileSizeBytes = file.Length,
+            ContentHash = contentHash,
+            UploadedBy = User.FindFirst("display_name")?.Value ?? "Unknown",
+            StatusHistoryJson = JsonConvert.SerializeObject(new[]
+            {
+                new { timestamp = DateTime.UtcNow, oldState = "", newState = "WIP", suitability = "S0",
+                    user = User.FindFirst("display_name")?.Value ?? "Unknown" }
+            })
+        };
+
+        _db.Documents.Add(doc);
+        await _db.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetDocuments), new { projectId }, new
+        {
+            doc.Id, doc.FileName, doc.FilePath, doc.DocumentType,
+            doc.CdeStatus, doc.SuitabilityCode, doc.Discipline, doc.Revision,
+            doc.FileSizeBytes, doc.ContentHash, doc.UploadedBy, doc.UploadedAt
+        });
+    }
+
+    /// <summary>
+    /// Download a document file by ID.
+    /// </summary>
+    [HttpGet("{docId}/download")]
+    public async Task<ActionResult> DownloadDocument(Guid projectId, Guid docId)
+    {
+        var tenantId = GetTenantId();
+        var doc = await _db.Documents
+            .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
+        if (doc == null) return NotFound();
+
+        if (string.IsNullOrEmpty(doc.FilePath) || !System.IO.File.Exists(doc.FilePath))
+            return NotFound("File not found on disk");
+
+        var stream = new FileStream(doc.FilePath, FileMode.Open, FileAccess.Read);
+        return File(stream, "application/octet-stream", doc.FileName);
     }
 
     /// <summary>

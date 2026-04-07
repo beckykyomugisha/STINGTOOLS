@@ -22,6 +22,8 @@ public class StingBimDbContext : DbContext
     public DbSet<Transmittal> Transmittals => Set<Transmittal>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
+    public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
+    public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
 
     // StingMIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
@@ -75,6 +77,15 @@ public class StingBimDbContext : DbContext
             e.HasIndex(i => new { i.ProjectId, i.IssueCode }).IsUnique();
             e.HasIndex(i => new { i.ProjectId, i.Status });
             e.HasIndex(i => i.DueDate).HasFilter("\"Status\" NOT IN ('CLOSED','RESOLVED')");
+        });
+
+        // ── IssueAttachment ──
+        modelBuilder.Entity<IssueAttachment>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasIndex(a => new { a.IssueId, a.DocumentId }).IsUnique();
+            e.HasOne(a => a.Issue).WithMany(i => i.Attachments).HasForeignKey(a => a.IssueId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.Document).WithMany().HasForeignKey(a => a.DocumentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── DocumentRecord ──
@@ -154,6 +165,18 @@ public class StingBimDbContext : DbContext
             e.HasIndex(m => new { m.ProjectId, m.UserId }).IsUnique();
             e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── DevicePushToken ──
+        modelBuilder.Entity<DevicePushToken>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.HasIndex(d => new { d.UserId, d.Token }).IsUnique();
+            e.HasIndex(d => d.TenantId);
+            e.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(d => d.Tenant).WithMany().HasForeignKey(d => d.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(d => d.Token).HasMaxLength(512);
+            e.Property(d => d.DeviceName).HasMaxLength(200);
         });
 
         // ── StingMIM Entities ──

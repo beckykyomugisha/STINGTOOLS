@@ -25,4 +25,5 @@ public class BimIssue
 
     // Navigation
     public Project? Project { get; set; }
+    public List<IssueAttachment> Attachments { get; set; } = new();
 }

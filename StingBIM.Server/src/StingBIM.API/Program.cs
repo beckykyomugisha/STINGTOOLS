@@ -62,7 +62,14 @@ if (!string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
 else
     builder.Services.AddSingleton<StingBIM.Core.Interfaces.IEmailService, StingBIM.Infrastructure.Services.NullEmailService>();
 
-// ── Notifications ──
+// ── Push Notifications ──
+builder.Services.AddHttpClient("FCM");
+if (!string.IsNullOrEmpty(builder.Configuration["Firebase:ProjectId"]))
+    builder.Services.AddSingleton<StingBIM.Core.Interfaces.IPushNotificationService, StingBIM.Infrastructure.Services.FirebasePushService>();
+else
+    builder.Services.AddSingleton<StingBIM.Core.Interfaces.IPushNotificationService, StingBIM.Infrastructure.Services.NullPushNotificationService>();
+
+// ── Notifications (SignalR + Push) ──
 builder.Services.AddSingleton<StingBIM.Core.Interfaces.INotificationService, StingBIM.Infrastructure.Services.NotificationService>();
 
 builder.Services.AddSignalR();

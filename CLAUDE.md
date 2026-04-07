@@ -2217,12 +2217,13 @@ StingBIM.Server/
 └── src/
     ├── StingBIM.API/                     # ASP.NET Core Web API
     │   ├── Controllers/
-    │   │   ├── AuthController.cs         # Login + license activation
-    │   │   ├── ProjectsController.cs     # CRUD + dashboard
+    │   │   ├── AuthController.cs         # Login, register, refresh, change/forgot/reset password, /me, license
+    │   │   ├── ProjectsController.cs     # CRUD + PUT settings + dashboard
     │   │   ├── TagSyncController.cs      # Bulk tag sync from plugin
     │   │   ├── ComplianceController.cs   # Snapshot push/pull + trend
-    │   │   ├── IssuesController.cs       # CRUD + SLA tracking
-    │   │   ├── DocumentsController.cs    # CDE state machine
+    │   │   ├── IssuesController.cs       # CRUD + SLA tracking + attachments (upload/list/delete/link)
+    │   │   ├── DocumentsController.cs    # CDE state machine + file upload/download
+    │   │   ├── NotificationsController.cs # Push token subscribe/list/delete + test push
     │   │   ├── WorkflowsController.cs    # Run logging + trend
     │   │   ├── MeetingsController.cs     # Agenda + action items
     │   │   ├── SeqSyncController.cs      # Max-per-key merge
@@ -2249,13 +2250,24 @@ StingBIM.Server/
     │   │   ├── Transmittal.cs            # Document transmittal
     │   │   ├── WorkflowRun.cs            # Workflow execution record
     │   │   ├── LicenseKey.cs             # License with tier + seats
-    │   │   └── AuditLog.cs               # Write operation audit trail
+    │   │   ├── AuditLog.cs               # Write operation audit trail
+    │   │   ├── DevicePushToken.cs        # FCM/APNs device token for push notifications
+    │   │   └── IssueAttachment.cs        # Join entity linking BimIssue to DocumentRecord
     │   ├── DTOs/SyncDtos.cs              # Sync request/response models
-    │   └── Interfaces/IRepository.cs
+    │   └── Interfaces/
+    │       ├── IRepository.cs
+    │       └── IPushNotificationService.cs  # Push notification abstraction (FCM/APNs/Web)
     │
     ├── StingBIM.Infrastructure/          # EF Core + SignalR
-    │   ├── Data/StingBimDbContext.cs      # 15 DbSets, indexes, relationships
-    │   ├── Services/TenantContext.cs
+    │   ├── Data/StingBimDbContext.cs      # 20 DbSets, indexes, relationships
+    │   ├── Data/Migrations/
+    │   │   ├── 20250407000000_InitialCreate.cs      # Hand-written initial migration (all tables)
+    │   │   └── StingBimDbContextModelSnapshot.cs    # EF Core model snapshot
+    │   ├── Services/
+    │   │   ├── TenantContext.cs
+    │   │   ├── NotificationService.cs    # SignalR + push notification dispatch
+    │   │   ├── FirebasePushService.cs    # FCM HTTP v1 push implementation
+    │   │   └── BackgroundJobs.cs         # Hangfire: compliance, SLA escalation, cleanup
     │   └── SignalR/
     │       └── ComplianceHub.cs          # ComplianceHub + TagSyncHub
     │
@@ -2279,21 +2291,23 @@ StingBIM.Server/
 
 | Area | Endpoint | Methods |
 |---|---|---|
-| Auth | `/api/auth/login`, `/api/auth/license/activate` | POST |
-| Projects | `/api/projects` | GET, POST |
+| Auth | `/api/auth/login`, `/register`, `/refresh`, `/change-password`, `/forgot-password`, `/reset-password`, `/me`, `/license/activate` | POST, GET |
+| Projects | `/api/projects`, `/api/projects/{id}` | GET, POST, PUT |
 | Dashboard | `/api/projects/{id}/dashboard` | GET |
 | Tag Sync | `/api/tagsync/sync`, `/elements/{id}`, `/compliance/{id}` | POST, GET |
 | Compliance | `/api/projects/{id}/compliance` | POST, GET (latest/history/trend) |
 | Issues | `/api/projects/{id}/issues` | GET, POST, PUT + SLA report |
-| Documents | `/api/projects/{id}/documents` | GET, POST + CDE transition |
+| Issue Attachments | `/api/projects/{pid}/issues/{iid}/attachments` | POST upload, GET list, DELETE, POST link |
+| Documents | `/api/projects/{id}/documents` | GET, POST upload + CDE transition + download |
 | Workflows | `/api/projects/{id}/workflows` | POST run, GET history/trend |
 | Meetings | `/api/projects/{id}/meetings` | GET, POST + actions + open |
 | SEQ Sync | `/api/projects/{id}/seq` | POST sync, GET counters |
 | Transmittals | `/api/projects/{id}/transmittals` | GET, POST, PUT send |
 | Warnings | `/api/projects/{id}/warnings` | POST report/baseline, GET trend |
+| Notifications | `/api/notifications/subscribe`, `/tokens`, `/test` | POST, GET, DELETE |
 | MIM | `/api/projects/{id}/mim/assets`, `/maintenance`, `/dashboard` | GET, POST, bulk |
 | Admin | `/api/admin/org`, `/users`, `/audit`, `/licenses` | GET, POST, PUT |
-| SignalR | `/hubs/compliance`, `/hubs/tagsync` | WebSocket |
+| SignalR | `/hubs/compliance`, `/hubs/tagsync`, `/hubs/notifications` | WebSocket |
 | Health | `/health` | GET |
 
 ### Pricing Tiers
@@ -3174,3 +3188,14 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 - **Revision Cloud Audit**: RevisionCloudAuditCommand — per-revision/per-sheet cloud breakdown. BCC revision tab now shows live cloud counts instead of static placeholder.
 - **DocumentSaved Auto-Sync**: StingToolsApp hooks DocumentSaved event, runs lightweight ComplianceScan, queues data for SyncScheduler (non-blocking).
 - **CLAUDE.md**: Fixed file counts (193 files), UI directory (40 C# files), BCC tabs (13).
+
+#### Completed (Phase 83 — Push Notifications, Issue Attachments, Auth & Migration)
+
+- **Push notifications (FCM/APNs)**: `IPushNotificationService` interface with `FirebasePushService` (FCM HTTP v1 API with JWT auth, exponential retry) + `NullPushNotificationService` fallback. `DevicePushToken` entity with `PushPlatform` enum (FCM=0, APNs=1, Web=2). Push dispatched fire-and-forget alongside SignalR on: new issue creation, issue assignment, SLA breaches.
+- **NotificationsController**: `POST /api/notifications/subscribe` (register/update device token), `GET /api/notifications/tokens` (list user tokens), `DELETE /api/notifications/tokens/{id}` (remove token), `POST /api/notifications/test` (send test push). Tenant-isolated, JWT-authenticated.
+- **Issue attachments**: `IssueAttachment` join entity (BimIssue ↔ DocumentRecord) with unique index on (IssueId, DocumentId). 4 endpoints on IssuesController: upload file (creates DocumentRecord + link, SHA-256 hash, 50MB limit, stored in `issues/{issueCode}/` subfolder), list attachments, delete attachment link, link existing DocumentRecord. Duplicate prevention via unique constraint + explicit check.
+- **Auth enhancements**: `POST /register` (self-service tenant creation with BCrypt), `POST /change-password`, `POST /forgot-password` (token generation), `POST /reset-password` (token validation), `GET /me` (current user profile). DTOs: `RegisterRequest`, `ChangePasswordRequest`, `ForgotPasswordRequest`, `ResetPasswordRequest`.
+- **Document upload**: `POST /api/projects/{id}/documents/upload` with `IFormFile`, tenant/project path isolation (`{StoragePath}/{tenantSlug}/{projectCode}/`), SHA-256 content hashing, timestamp-suffix dedup, 100MB limit. `GET /download/{docId}` with `PhysicalFileResult`. CDE state transitions with ISO 19650 suitability codes.
+- **Project settings**: `PUT /api/projects/{id}` for project name/code/description/settings updates.
+- **SLA escalation push**: `SlaEscalationJob` (Hangfire, 15-min interval) queries overdue issues per SLA thresholds (CRITICAL=4h, HIGH=24h, MEDIUM=168h, LOW=336h), sends push to assignee + project admins.
+- **Hand-written EF Core migration**: `20250407000000_InitialCreate.cs` (822 lines) + `StingBimDbContextModelSnapshot.cs` (1454 lines) covering all 20 entities including DevicePushToken and IssueAttachment with indexes, foreign keys, and filtered indexes.
