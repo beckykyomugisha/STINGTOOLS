@@ -1547,9 +1547,10 @@ namespace StingTools.BIMManager
 
         // ── StingBIM Server Sync ──────────────────────────────────────────────
         /// <summary>
-        /// Push all tagged elements in the document to the connected StingBIM server.
+        /// Push tagged elements, compliance snapshot, warning summary, and SEQ counters
+        /// to the connected StingBIM server via a single FullSync call (plugin v2.2+).
+        /// Auto-creates the project on the server if not yet linked.
         /// Called when the "Sync Now" button is pressed on the StingBIM platform panel.
-        /// Requires prior authentication via StingBIMConnectCommand.
         /// </summary>
         internal static void SyncToStingBIMServer(UIApplication app)
         {
@@ -1563,43 +1564,56 @@ namespace StingTools.BIMManager
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) { TaskDialog.Show("StingBIM", "No document open."); return; }
 
-            // Collect all elements that have a Tag1 parameter
+            // ── Collect tagged elements ──────────────────────────────────────
             var elements = new List<TagElementPayload>();
-            using var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-            foreach (Element el in collector)
+            var seqCounters = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            using (var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
-                string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
-                if (string.IsNullOrEmpty(tag1)) continue;
-
-                string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
-                string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
-                string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
-                string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
-                string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
-                string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
-                string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
-                string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
-                string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
-                string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
-                string rev   = ParameterHelpers.GetString(el, "ASS_REV")    ?? "";
-                string cat   = ParameterHelpers.GetCategoryName(el);
-                string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
-
-                bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
-                bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
-
-                elements.Add(new TagElementPayload
+                foreach (Element el in collector)
                 {
-                    RevitElementId  = el.Id.Value,
-                    UniqueId        = el.UniqueId,
-                    Disc            = disc, Loc = loc, Zone = zone, Lvl = lvl,
-                    Sys = sys, Func = func, Prod = prod, Seq = seq,
-                    Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
-                    CategoryName    = cat, FamilyName = fam,
-                    Status          = string.IsNullOrEmpty(status) ? null : status,
-                    Rev             = string.IsNullOrEmpty(rev) ? null : rev,
-                    IsComplete      = isComplete, IsFullyResolved = isFullyResolved
-                });
+                    string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
+                    string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
+                    string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
+                    string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
+                    string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
+                    string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
+                    string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
+                    string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
+                    string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
+                    string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
+                    string rev   = ParameterHelpers.GetString(el, "ASS_REV") ?? "";
+                    string cat   = ParameterHelpers.GetCategoryName(el);
+                    string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
+
+                    bool isComplete      = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
+                    bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
+
+                    elements.Add(new TagElementPayload
+                    {
+                        RevitElementId  = el.Id.Value,
+                        UniqueId        = el.UniqueId,
+                        Disc = disc, Loc = loc, Zone = zone, Lvl = lvl,
+                        Sys = sys, Func = func, Prod = prod, Seq = seq,
+                        Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
+                        CategoryName    = cat, FamilyName = fam,
+                        Status          = string.IsNullOrEmpty(status) ? null : status,
+                        Rev             = string.IsNullOrEmpty(rev) ? null : rev,
+                        IsComplete      = isComplete, IsFullyResolved = isFullyResolved
+                    });
+
+                    // Build SEQ counter max-map from ASS_SEQ values
+                    if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq)
+                        && int.TryParse(seq.TrimStart('0').PadLeft(1, '0'), out int seqNum) && seqNum > 0)
+                    {
+                        string counterKey = $"{disc}_{sys}_{prod}";
+                        if (!seqCounters.TryGetValue(counterKey, out int existing) || seqNum > existing)
+                            seqCounters[counterKey] = seqNum;
+                    }
+                }
             }
 
             if (elements.Count == 0)
@@ -1608,26 +1622,92 @@ namespace StingTools.BIMManager
                 return;
             }
 
-            // Load project ID from connection config
+            // ── Gather compliance snapshot ───────────────────────────────────
+            SyncCompliancePayload? compliancePayload = null;
+            try
+            {
+                var compliance = Core.ComplianceScan.Scan(doc);
+                if (compliance != null)
+                {
+                    var byDisc = new Dictionary<string, int>();
+                    foreach (var kv in compliance.ByDisc)
+                        byDisc[kv.Key] = kv.Value.Tagged;
+
+                    compliancePayload = new SyncCompliancePayload
+                    {
+                        TotalElements    = compliance.TotalElements,
+                        TaggedComplete   = compliance.TaggedComplete,
+                        TaggedIncomplete = compliance.TaggedIncomplete,
+                        Untagged         = compliance.Untagged,
+                        FullyResolved    = compliance.FullyResolved,
+                        StaleCount       = compliance.StaleCount,
+                        PlaceholderCount = compliance.PlaceholderCount,
+                        TagPercent       = compliance.CompliancePercent,
+                        StrictPercent    = compliance.StrictPercent,
+                        ContainerPercent = compliance.ContainerCompletePct,
+                        RagStatus        = compliance.RAGStatus,
+                        ByDiscipline     = byDisc,
+                        EmptyTokenCounts = new Dictionary<string, int>(compliance.EmptyTokenCounts)
+                    };
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"StingBIM: Compliance scan failed (non-fatal): {ex.Message}"); }
+
+            // ── Gather warning summary ───────────────────────────────────────
+            SyncWarningPayload? warningPayload = null;
+            try
+            {
+                var wr = Core.WarningsEngine.ScanWarnings(doc);
+                if (wr != null && wr.Total > 0)
+                {
+                    wr.BySeverity.TryGetValue(Core.WarningSeverity.Critical, out int wcrit);
+                    wr.BySeverity.TryGetValue(Core.WarningSeverity.High,     out int whigh);
+                    warningPayload = new SyncWarningPayload
+                    {
+                        Total       = wr.Total,
+                        Critical    = wcrit,
+                        High        = whigh,
+                        AutoFixable = wr.AutoFixable,
+                        HealthScore = Core.WarningsEngine.CalculateWarningHealthScore(wr)
+                    };
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"StingBIM: Warning scan failed (non-fatal): {ex.Message}"); }
+
+            // ── Resolve project (auto-create if not linked) ──────────────────
             string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
             string cfgPath = Path.Combine(bimDir, "stingbim_connection.json");
             Guid projectId = LoadStingBIMProjectId(cfgPath);
 
-            if (projectId == Guid.Empty)
-            {
-                TaskDialog.Show("StingBIM", "No StingBIM project linked.\n\nIn the StingBIM connection settings, select or create a project on the server first.");
-                return;
-            }
+            string projectName = doc.ProjectInformation?.Name ?? doc.Title ?? "Unnamed Project";
+            string projectCode = string.Concat(
+                projectName.Split(Path.GetInvalidFileNameChars())
+                           .SelectMany(s => s.Split(' '))
+                           .Where(s => s.Length > 0)
+                           .Select(s => s[0])).ToUpper();
+            if (string.IsNullOrEmpty(projectCode)) projectCode = "PRJ";
 
-            string revitVer = app.Application.VersionNumber;
+            string revitVer  = app.Application.VersionNumber;
             string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
 
-            // Blocking async call — safe in ExternalEvent context
-            SyncResult result;
+            // ── Build full sync payload and send ─────────────────────────────
+            var payload = new FullSyncPayload
+            {
+                ProjectId     = projectId,
+                ProjectName   = projectName,
+                ProjectCode   = projectCode,
+                RevitVersion  = revitVer,
+                PluginVersion = pluginVer,
+                Elements      = elements,
+                Compliance    = compliancePayload,
+                Warnings      = warningPayload,
+                SeqCounters   = seqCounters
+            };
+
+            FullSyncResult result;
             try
             {
-                result = client.SyncElementsAsync(projectId, revitVer, pluginVer, elements)
-                               .GetAwaiter().GetResult();
+                result = client.FullSyncAsync(payload).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -1641,29 +1721,41 @@ namespace StingTools.BIMManager
                 return;
             }
 
-            // Update sync timestamp
+            // ── Persist project ID if auto-created ───────────────────────────
+            if (result.ProjectCreated || (projectId == Guid.Empty && result.ProjectId != Guid.Empty))
+            {
+                try
+                {
+                    client.SaveConnectionSettings(cfgPath, client.ConnectedUser, result.ProjectId);
+                    StingLog.Info($"StingBIM: Project auto-created on server: {result.ProjectId}");
+                }
+                catch { /* non-fatal */ }
+            }
+
+            // ── Update local sync metadata ───────────────────────────────────
             try
             {
-                var cfg = File.Exists(cfgPath)
-                    ? JObject.Parse(File.ReadAllText(cfgPath))
-                    : new JObject();
-                cfg["lastSyncAt"] = DateTime.UtcNow.ToString("o");
+                var cfg = File.Exists(cfgPath) ? JObject.Parse(File.ReadAllText(cfgPath)) : new JObject();
+                cfg["lastSyncAt"]       = DateTime.UtcNow.ToString("o");
                 cfg["lastSyncElements"] = result.Received;
-                cfg["lastCompliancePct"] = result.CompliancePercent;
-                cfg["lastRagStatus"] = result.RagStatus;
+                cfg["lastCompliancePct"]= result.CompliancePercent;
+                cfg["lastRagStatus"]    = result.RagStatus;
+                cfg["seqCountersSaved"] = result.SeqCountersSaved;
                 File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
             }
             catch { /* non-fatal */ }
 
             string ragEmoji = result.RagStatus == "GREEN" ? "🟢" : result.RagStatus == "AMBER" ? "🟡" : "🔴";
+            string projectNote = result.ProjectCreated ? $"\n⚡ New project created on server: {projectName}" : "";
             TaskDialog.Show("StingBIM Sync — Complete",
-                $"✅ Sync to StingBIM server complete!\n\n" +
-                $"Elements sent:    {result.Received:N0}\n" +
-                $"New records:      {result.Created:N0}\n" +
-                $"Updated records:  {result.Updated:N0}\n\n" +
-                $"{ragEmoji} Project compliance: {result.CompliancePercent:F1}% ({result.RagStatus})\n\n" +
+                $"✅ Full sync to StingBIM server complete!{projectNote}\n\n" +
+                $"Elements synced:   {result.Received:N0}\n" +
+                $"New records:       {result.Created:N0}\n" +
+                $"Updated records:   {result.Updated:N0}\n" +
+                $"SEQ counters:      {result.SeqCountersSaved:N0} saved\n\n" +
+                $"{ragEmoji} Compliance: {result.CompliancePercent:F1}% ({result.RagStatus})\n\n" +
                 $"Server: {client.ServerUrl}\n" +
-                $"User: {client.ConnectedUser}");
+                $"User:   {client.ConnectedUser}");
         }
 
         private static Guid LoadStingBIMProjectId(string cfgPath)

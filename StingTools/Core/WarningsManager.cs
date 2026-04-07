@@ -4258,6 +4258,16 @@ namespace StingTools.Core
                     }
                 }
 
+                // StingBIM platform actions — route directly to StingCommandHandler.
+                // DispatchCoordAction's dictionary does not contain StingBIM* entries,
+                // and the StingCommandHandler.Execute() switch is unreachable from
+                // the BCCActionEventHandler dispatch chain.
+                if (action.StartsWith("StingBIM", StringComparison.Ordinal))
+                {
+                    UI.StingCommandHandler.RouteStingBIMAction(action, app);
+                    return;
+                }
+
                 // Dispatch through command resolution
                 DispatchCoordAction(action, null);
             }

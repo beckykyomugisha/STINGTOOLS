@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using StingBIM.Core;
+using StingBIM.Core.DTOs;
 using StingBIM.Core.Entities;
 using StingBIM.Infrastructure.Data;
 
@@ -41,8 +43,14 @@ public class ProjectsController : ControllerBase
         if (tenant == null) return NotFound("Tenant not found");
 
         var projectCount = await _db.Projects.CountAsync(p => p.TenantId == tenantId);
-        if (projectCount >= tenant.MaxProjects)
-            return BadRequest($"Project limit ({tenant.MaxProjects}) reached for {tenant.Tier} tier");
+        int tierLimit = TierLimits.MaxProjects(tenant.Tier);
+        if (!TierLimits.BelowLimit(projectCount, tierLimit, tenant.MaxProjects))
+            return BadRequest(new
+            {
+                message = $"Project limit ({TierLimits.LimitLabel(tierLimit, tenant.MaxProjects)}) reached for {tenant.Tier} tier. Upgrade to Professional or higher for unlimited projects.",
+                currentCount = projectCount,
+                tier = tenant.Tier.ToString()
+            });
 
         var project = new Project
         {
@@ -56,6 +64,62 @@ public class ProjectsController : ControllerBase
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetProjects), new { id = project.Id }, project);
+    }
+
+    [HttpPut("{id}/settings")]
+    public async Task<ActionResult> UpdateSettings(Guid id, [FromBody] ProjectSettingsRequest req)
+    {
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+        if (project == null) return NotFound();
+
+        if (req.Name        != null) project.Name        = req.Name;
+        if (req.Description != null) project.Description = req.Description;
+        if (req.Phase       != null) project.Phase       = req.Phase;
+        if (req.ConfigJson  != null) project.ConfigJson  = req.ConfigJson;
+        if (req.RagGreenThreshold.HasValue || req.RagAmberThreshold.HasValue)
+        {
+            // Store in ConfigJson as JSON overrides
+            var dict = new Dictionary<string, object>();
+            if (req.RagGreenThreshold.HasValue) dict["ragGreenThreshold"] = req.RagGreenThreshold.Value;
+            if (req.RagAmberThreshold.HasValue) dict["ragAmberThreshold"] = req.RagAmberThreshold.Value;
+            if (req.TagSeparator      != null)  dict["tagSeparator"]      = req.TagSeparator;
+            project.ConfigJson = System.Text.Json.JsonSerializer.Serialize(dict);
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(new { project.Id, project.Name, project.Phase, project.ConfigJson });
+    }
+
+    [HttpGet("{id}/stats")]
+    public async Task<ActionResult> GetStats(Guid id)
+    {
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+        if (project == null) return NotFound();
+
+        var elementCount   = await _db.TaggedElements.CountAsync(e => e.ProjectId == id);
+        var issueCount     = await _db.Issues.CountAsync(i => i.ProjectId == id && i.Status != "CLOSED");
+        var overdueIssues  = await _db.Issues.CountAsync(i => i.ProjectId == id && i.Status != "CLOSED"
+                                  && i.DueDate.HasValue && i.DueDate < DateTime.UtcNow);
+        var meetingCount   = await _db.Meetings.CountAsync(m => m.ProjectId == id);
+        var openActions    = await _db.MeetingActionItems
+                                  .CountAsync(a => a.Meeting!.ProjectId == id && a.Status != "COMPLETE");
+        var memberCount    = await _db.ProjectMembers.CountAsync(m => m.ProjectId == id && m.IsActive);
+        var docCount       = await _db.Documents.CountAsync(d => d.ProjectId == id);
+        var lastSnapshot   = await _db.ComplianceSnapshots
+                                  .Where(s => s.ProjectId == id)
+                                  .OrderByDescending(s => s.CapturedAt)
+                                  .FirstOrDefaultAsync();
+
+        return Ok(new
+        {
+            project.Id, project.Name, project.Code, project.Phase, project.Status,
+            project.CompliancePercent, project.RagStatus, project.LastSyncAt,
+            elementCount, issueCount, overdueIssues, meetingCount, openActions, memberCount, docCount,
+            lastSnapshot = lastSnapshot?.CapturedAt,
+            lastCompliancePct = lastSnapshot?.TagPercent
+        });
     }
 
     [HttpGet("{id}/dashboard")]

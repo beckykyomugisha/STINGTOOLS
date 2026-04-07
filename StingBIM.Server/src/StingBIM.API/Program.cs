@@ -8,6 +8,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.RateLimiting;
 using Serilog;
+using Hangfire;
+using StingBIM.API.Services;
+using StingBIM.API.BackgroundJobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -104,6 +107,27 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+// ── Email Service ──
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+
+// ── Background Jobs (Hangfire) ──
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseInMemoryStorage());
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = 2;
+    options.Queues = new[] { "critical", "default", "background" };
+});
+
+// ── Background job classes (for DI injection into jobs) ──
+builder.Services.AddScoped<ComplianceSnapshotJob>();
+builder.Services.AddScoped<SlaViolationJob>();
+builder.Services.AddScoped<WarningEscalationJob>();
+builder.Services.AddScoped<WeeklyDigestJob>();
+
 // ── CORS for web dashboard ──
 builder.Services.AddCors(options =>
 {
@@ -137,11 +161,39 @@ app.MapControllers();
 app.MapHub<ComplianceHub>("/hubs/compliance");
 app.MapHub<TagSyncHub>("/hubs/tagsync");
 
+// ── Hangfire dashboard (dev only) ──
+if (app.Environment.IsDevelopment())
+    app.UseHangfireDashboard("/hangfire");
+
+// ── Schedule recurring background jobs ──
+using (var scope = app.Services.CreateScope())
+{
+    var mgr = scope.ServiceProvider.GetService<IRecurringJobManager>();
+    if (mgr != null)
+    {
+        // Compliance snapshots every 6 hours
+        mgr.AddOrUpdate<ComplianceSnapshotJob>("compliance-snapshot",
+            job => job.ExecuteAsync(), "0 */6 * * *");
+
+        // SLA violation checks every hour
+        mgr.AddOrUpdate<SlaViolationJob>("sla-violations",
+            job => job.ExecuteAsync(), Cron.Hourly());
+
+        // Warning escalation every 2 hours
+        mgr.AddOrUpdate<WarningEscalationJob>("warning-escalation",
+            job => job.ExecuteAsync(), "0 */2 * * *");
+
+        // Weekly digest every Monday 08:00 UTC
+        mgr.AddOrUpdate<WeeklyDigestJob>("weekly-digest",
+            job => job.ExecuteAsync(), "0 8 * * MON");
+    }
+}
+
 // ── Auto-migrate and seed in development ──
 if (app.Environment.IsDevelopment())
 {
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+    using var devScope = app.Services.CreateScope();
+    var db = devScope.ServiceProvider.GetRequiredService<StingBimDbContext>();
     db.Database.EnsureCreated();
     await StingBIM.API.SeedData.SeedAsync(db);
 }

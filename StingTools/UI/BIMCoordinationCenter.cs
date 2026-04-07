@@ -75,7 +75,7 @@ namespace StingTools.UI
         private const string TabCoordLog       = "COORD LOG";
 
         // ── Data ──
-        private CoordData _data;
+        internal CoordData _data;
         private readonly ContentControl _contentArea;
         private readonly TextBlock _statusBar;
         private readonly StackPanel _navPanel;
@@ -3128,14 +3128,34 @@ namespace StingTools.UI
 
                 detailStack.Children.Add(new TextBlock { Text = "SERVER CONNECTION", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4) });
 
+                // Pre-load saved connection settings so the fields are populated on open
+                string _savedUrl = BIMManager.StingBIMServerClient.Instance.ServerUrl;
+                string _savedEmail = "";
+                if (!sbConnected && !string.IsNullOrEmpty(_data.FilePath))
+                {
+                    try
+                    {
+                        string _cfgDir = System.IO.Path.Combine(
+                            System.IO.Path.GetDirectoryName(_data.FilePath) ?? "",
+                            "STING_BIM_MANAGER");
+                        string _cfgPath = System.IO.Path.Combine(_cfgDir, "stingbim_connection.json");
+                        var (_url, _email, _pid) = BIMManager.StingBIMServerClient.LoadConnectionSettings(_cfgPath);
+                        if (!string.IsNullOrEmpty(_url))   _savedUrl   = _url;
+                        if (!string.IsNullOrEmpty(_email)) _savedEmail = _email;
+                    }
+                    catch { /* ignore — config file optional */ }
+                }
+                else if (sbConnected)
+                {
+                    _savedEmail = BIMManager.StingBIMServerClient.Instance.ConnectedUser;
+                }
+
                 var sbUrlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
                 sbUrlRow.Children.Add(new TextBlock { Text = "Server URL:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
                 var sbUrlBox = new System.Windows.Controls.TextBox
                 {
                     Width = 270, FontSize = 11, Margin = new Thickness(4, 0, 0, 0),
-                    Text = BIMManager.StingBIMServerClient.Instance.IsConnected
-                        ? BIMManager.StingBIMServerClient.Instance.ServerUrl
-                        : "https://stingbim-api.onrender.com",
+                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "https://stingbim-api.onrender.com",
                     ToolTip = "StingBIM API server URL (your Render.com deployment)"
                 };
                 sbUrlRow.Children.Add(sbUrlBox);
@@ -3143,7 +3163,7 @@ namespace StingTools.UI
 
                 var sbEmailRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
                 sbEmailRow.Children.Add(new TextBlock { Text = "Email:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
-                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), ToolTip = "Your StingBIM account email" };
+                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), Text = _savedEmail, ToolTip = "Your StingBIM account email" };
                 sbEmailRow.Children.Add(sbEmailBox);
                 detailStack.Children.Add(sbEmailRow);
 
@@ -3162,8 +3182,19 @@ namespace StingTools.UI
                     StingCommandHandler.SetExtraParam("StingBIMEmail", sbEmailBox.Text.Trim());
                     StingCommandHandler.SetExtraParam("StingBIMPassword", sbPassBox.Password);
                     DispatchAction("StingBIMConnect");
+                    // Refresh the panel after connect completes (Revit external event is async)
+                    var refreshTimer = new System.Windows.Threading.DispatcherTimer
+                        { Interval = TimeSpan.FromSeconds(2) };
+                    refreshTimer.Tick += (ts, te) => { refreshTimer.Stop(); ShowPlatformDetail("StingBIM"); };
+                    refreshTimer.Start();
                 };
-                sbDiscoBtn.Click += (s, e) => DispatchAction("StingBIMDisconnect");
+                sbDiscoBtn.Click += (s, e) =>
+                {
+                    DispatchAction("StingBIMDisconnect");
+                    // Disconnect is synchronous — refresh immediately on next idle cycle
+                    Dispatcher.BeginInvoke(new Action(() => ShowPlatformDetail("StingBIM")),
+                        System.Windows.Threading.DispatcherPriority.Background);
+                };
                 sbConnBtnRow.Children.Add(sbConnBtn); sbConnBtnRow.Children.Add(sbDiscoBtn);
                 detailStack.Children.Add(sbConnBtnRow);
 

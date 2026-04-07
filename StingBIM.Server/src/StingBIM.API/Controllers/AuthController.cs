@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using StingBIM.API.Services;
 using Microsoft.IdentityModel.Tokens;
+using StingBIM.Core;
 using StingBIM.Core.DTOs;
 using StingBIM.Core.Entities;
 using StingBIM.Infrastructure.Data;
@@ -99,16 +101,17 @@ public class AuthController : ControllerBase
         if (req.Password.Length < 8)
             return BadRequest(new { message = "Password must be at least 8 characters" });
 
-        // Create tenant
+        // Create tenant — Starter trial: limits derived from TierLimits (MaxUsers/MaxProjects = 0 = use tier defaults)
         var tenant = new Tenant
         {
-            Name          = req.OrganisationName,
-            Slug          = req.TenantSlug.ToLowerInvariant().Trim(),
-            ContactEmail  = req.Email,
-            Tier          = LicenseTier.Starter,
-            MaxUsers      = 5,
-            MaxProjects   = 1,
-            MimEnabled    = false,
+            Name           = req.OrganisationName,
+            Slug           = req.TenantSlug.ToLowerInvariant().Trim(),
+            ContactEmail   = req.Email,
+            Tier           = LicenseTier.Starter,
+            MaxUsers       = 0,   // 0 = use TierLimits.MaxUsers(Starter) = 20
+            MaxProjects    = 0,   // 0 = use TierLimits.MaxProjects(Starter) = 10
+            StorageLimitBytes = 0, // 0 = use TierLimits.StorageLimitBytes(Starter) = 2 GB
+            MimEnabled     = false,
             TrialExpiresAt = DateTime.UtcNow.AddDays(30)
         };
         _db.Tenants.Add(tenant);
@@ -131,7 +134,7 @@ public class AuthController : ControllerBase
             TenantId       = tenant.Id,
             Key            = $"STING-TRIAL-{Guid.NewGuid():N}".ToUpper()[..28],
             Tier           = LicenseTier.Starter,
-            MaxActivations = 3,
+            MaxActivations = TierLimits.MaxActivations(LicenseTier.Starter),  // 5
             MimEnabled     = false,
             ExpiresAt      = DateTime.UtcNow.AddDays(30)
         };
@@ -177,6 +180,57 @@ public class AuthController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Ok(new { message = "Password changed. Please log in again." });
+    }
+
+    // ── Forgot Password ────────────────────────────────────────────────────────────
+    [EnableRateLimiting("auth")]
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req,
+        [FromServices] IEmailService emailService,
+        [FromServices] IConfiguration config)
+    {
+        // Always return 200 — never reveal whether email exists (security)
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
+        if (user != null)
+        {
+            // Generate 6-digit numeric token (user-friendly)
+            string token = new Random().Next(100000, 999999).ToString();
+            user.PasswordResetToken = BCrypt.Net.BCrypt.HashPassword(token, workFactor: 6);
+            user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddHours(1);
+            await _db.SaveChangesAsync();
+
+            string serverUrl = config["App:ServerUrl"] ?? "https://stingbim-api.onrender.com";
+            await emailService.SendPasswordResetAsync(user.Email, user.DisplayName, token, serverUrl);
+        }
+        return Ok(new { message = "If that email address exists, a reset code has been sent." });
+    }
+
+    // ── Reset Password ─────────────────────────────────────────────────────────────
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
+        if (user == null || string.IsNullOrEmpty(user.PasswordResetToken)
+            || user.PasswordResetTokenExpiresAt < DateTime.UtcNow)
+            return BadRequest(new { message = "Invalid or expired reset code." });
+
+        if (!BCrypt.Net.BCrypt.Verify(req.Token, user.PasswordResetToken))
+            return BadRequest(new { message = "Invalid or expired reset code." });
+
+        if (req.NewPassword.Length < 8)
+            return BadRequest(new { message = "Password must be at least 8 characters." });
+
+        user.PasswordHash              = HashPassword(req.NewPassword);
+        user.PasswordResetToken        = null;
+        user.PasswordResetTokenExpiresAt = null;
+        // Invalidate all sessions
+        user.RefreshToken              = null;
+        user.RefreshTokenExpiresAt     = null;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = "Password reset successfully. Please log in again." });
     }
 
     // ── Me (current user info) ─────────────────────────────────────────────────
