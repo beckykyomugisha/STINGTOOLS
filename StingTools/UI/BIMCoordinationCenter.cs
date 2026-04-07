@@ -4713,7 +4713,7 @@ namespace StingTools.UI
                     sp.Children.Add(new TextBlock { Text = "Raise New Issue", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
                     var typeRow = MakeCtxRow("Issue Type:");
                     var typeCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    foreach (var t in new[] { "NCR", "RFI", "CLASH", "DATA", "COMPLIANCE", "DESIGN", "COORDINATION", "SAFETY", "STRUCTURAL", "MEP", "FIRE", "ACCESSIBILITY", "ENVIRONMENTAL", "PROGRAMME", "COST", "HANDOVER", "BIM", "CLIENT", "AUTHORITY", "SITE" }) typeCb.Items.Add(t);
+                    foreach (var it in IsoIssueTypes) typeCb.Items.Add(new ComboBoxItem { Content = $"{it.Code} — {it.Label}", Tag = it.Code, ToolTip = it.Description });
                     typeCb.SelectedIndex = 0;
                     typeRow.Children.Add(typeCb);
                     sp.Children.Add(typeRow);
@@ -4770,7 +4770,7 @@ namespace StingTools.UI
                     sp.Children.Add(elemRow);
                     var raiseBtn = MakeCtxActionButton("Raise Issue", Br(CRed));
                     raiseBtn.Click += (s, e) => {
-                        StingCommandHandler.SetExtraParam("IssueType", typeCb.SelectedItem?.ToString() ?? "NCR");
+                        StingCommandHandler.SetExtraParam("IssueType", (typeCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "NCR");
                         StingCommandHandler.SetExtraParam("IssuePriority", priCb.SelectedItem?.ToString() ?? "HIGH");
                         StingCommandHandler.SetExtraParam("IssueTitle", titleBox.Text);
                         StingCommandHandler.SetExtraParam("Assignees", string.Join(",", assignChecks2.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
@@ -4857,7 +4857,7 @@ namespace StingTools.UI
                     sp.Children.Add(sevRow);
                     var typeRow = MakeCtxRow("Issue Type:");
                     var typeCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    foreach (var t in new[] { "NCR", "RFI", "CLASH", "DATA", "COMPLIANCE", "DESIGN", "COORDINATION", "SAFETY", "STRUCTURAL", "MEP", "FIRE", "ACCESSIBILITY", "ENVIRONMENTAL", "PROGRAMME", "COST", "HANDOVER", "BIM", "CLIENT", "AUTHORITY", "SITE" }) typeCb.Items.Add(t);
+                    foreach (var it in IsoIssueTypes) typeCb.Items.Add(new ComboBoxItem { Content = $"{it.Code} — {it.Label}", Tag = it.Code, ToolTip = it.Description });
                     typeCb.SelectedIndex = 0;
                     typeRow.Children.Add(typeCb);
                     sp.Children.Add(typeRow);
