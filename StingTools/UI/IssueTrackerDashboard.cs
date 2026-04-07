@@ -48,13 +48,10 @@ namespace StingTools.UI
         private static readonly SolidColorBrush SubtleBgBrush  = FZ(Color.FromRgb(0xF0, 0xF0, 0xF0));
         private static readonly SolidColorBrush HoverBrush     = FZ(Color.FromRgb(0xE3, 0xF2, 0xFD));
 
-        // ── Issue Types ─────────────────────────────────────────────────
-        private static readonly string[] IssueTypes =
-        {
-            "RFI", "RFA", "TQ", "CLASH", "DESIGN", "SI", "NCR", "SNAGGING",
-            "CHANGE", "VO", "AI", "CVI", "EWN", "CE", "PMI", "RISK",
-            "SITE", "ACTION", "COMMENT"
-        };
+        // Phase 78 Section 2.3: Issue types now sourced from BIMCoordinationCenter.IsoIssueTypes
+        // Kept as property for backward compatibility with any remaining direct IssueTypes[] references.
+        private static IEnumerable<string> IssueTypes =>
+            BIMCoordinationCenter.IsoIssueTypes.Select(t => t.Code);
 
         private static readonly string[] Disciplines =
         {
@@ -192,8 +189,14 @@ namespace StingTools.UI
                 Padding = new Thickness(8, 6, 8, 6),
                 FontSize = 12
             };
-            foreach (var t in IssueTypes)
-                cmbType.Items.Add(t);
+            // Phase 78 Section 2.3: Populate from IsoIssueTypes with label + tooltip
+            foreach (var it in BIMCoordinationCenter.IsoIssueTypes)
+                cmbType.Items.Add(new ComboBoxItem
+                {
+                    Content = $"{it.Code} — {it.Label}",
+                    Tag = it.Code,
+                    ToolTip = it.Description
+                });
             cmbType.SelectedIndex = 0;
             stack.Children.Add(cmbType);
 

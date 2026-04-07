@@ -2565,4 +2565,23 @@ namespace StingTools.BIMManager
 
     #endregion
 
+    // ── Phase 78 Section 6.2: Stub commands ─────────────────────────────────
+
+    /// <summary>Configure 5D cost rate file path. STUB — full implementation pending.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ConfigureCostFileCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            // STUB — full implementation pending
+            UI.BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Configure Cost File",
+                "5D Cost Rate File: cost_rates_5d.csv (default location: model folder)\n" +
+                "To customise, place a cost_rates_5d.csv file in the same folder as the Revit model.\n" +
+                "Column format: Category, Unit, UnitRate, Labour, Material, Plant\n" +
+                "\nFull file browser configuration — coming in next phase.");
+            return Result.Succeeded;
+        }
+    }
+
 }
