@@ -33,6 +33,24 @@ public class ProjectsController : ControllerBase
         return Ok(projects);
     }
 
+    [HttpGet("{id}")]
+    public async Task<ActionResult> GetProject(Guid id)
+    {
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+        if (project == null) return NotFound();
+
+        return Ok(new
+        {
+            project.Id, project.Name, project.Code, project.Description, project.Phase,
+            project.Status, project.TagSeparator, project.SeqNumPad,
+            project.TagPrefix, project.TagSuffix, project.ConfigJson,
+            project.CompliancePercent, project.ContainerCompliancePercent,
+            project.RagStatus, project.TotalElements, project.TaggedElements,
+            project.WarningCount, project.LastSyncAt, project.CreatedAt
+        });
+    }
+
     [HttpPost]
     public async Task<ActionResult> CreateProject([FromBody] CreateProjectRequest req)
     {
@@ -55,7 +73,31 @@ public class ProjectsController : ControllerBase
         _db.Projects.Add(project);
         await _db.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetProjects), new { id = project.Id }, project);
+        return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
+    }
+
+    /// <summary>
+    /// Update project settings — name, phase, tag format, config JSON.
+    /// </summary>
+    [HttpPut("{id}")]
+    public async Task<ActionResult> UpdateProject(Guid id, [FromBody] UpdateProjectRequest req)
+    {
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+        if (project == null) return NotFound();
+
+        if (req.Name != null) project.Name = req.Name;
+        if (req.Description != null) project.Description = req.Description;
+        if (req.Phase != null) project.Phase = req.Phase;
+        if (req.Status.HasValue) project.Status = req.Status.Value;
+        if (req.TagSeparator != null) project.TagSeparator = req.TagSeparator;
+        if (req.SeqNumPad.HasValue) project.SeqNumPad = req.SeqNumPad.Value;
+        if (req.TagPrefix != null) project.TagPrefix = req.TagPrefix;
+        if (req.TagSuffix != null) project.TagSuffix = req.TagSuffix;
+        if (req.ConfigJson != null) project.ConfigJson = req.ConfigJson;
+
+        await _db.SaveChangesAsync();
+        return Ok(project);
     }
 
     [HttpGet("{id}/dashboard")]
@@ -90,3 +132,7 @@ public class ProjectsController : ControllerBase
 }
 
 public record CreateProjectRequest(string Name, string Code, string? Description, string? Phase);
+public record UpdateProjectRequest(
+    string? Name, string? Description, string? Phase, ProjectStatus? Status,
+    string? TagSeparator, int? SeqNumPad, string? TagPrefix, string? TagSuffix,
+    string? ConfigJson);

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using StingBIM.Core.Interfaces;
 using StingBIM.Infrastructure.SignalR;
+using StingBIM.Core.Entities;
 
 namespace StingBIM.Infrastructure.Services;
 
@@ -15,16 +16,18 @@ public class NotificationService : INotificationService
 {
     private readonly IHubContext<NotificationHub> _hub;
     private readonly ILogger<NotificationService> _logger;
+    private readonly IPushNotificationService? _pushService;
 
     /// <summary>
     /// In-memory push token store: userId -> set of push tokens (device tokens, etc.)
     /// </summary>
     private static readonly ConcurrentDictionary<Guid, ConcurrentBag<string>> PushTokens = new();
 
-    public NotificationService(IHubContext<NotificationHub> hub, ILogger<NotificationService> logger)
+    public NotificationService(IHubContext<NotificationHub> hub, ILogger<NotificationService> logger, IPushNotificationService? pushService = null)
     {
         _hub = hub;
         _logger = logger;
+        _pushService = pushService;
     }
 
     /// <summary>
@@ -46,6 +49,23 @@ public class NotificationService : INotificationService
 
         await _hub.Clients.Group($"tenant_{tenantId}")
             .SendAsync("Notification", payload, ct);
+
+        // Also dispatch push notification to all tenant devices
+        if (_pushService != null)
+        {
+            _ = _pushService.SendToTenantAsync(tenantId, new PushPayload
+            {
+                Title = title,
+                Body = message,
+                Channel = channel,
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "tenant_notification",
+                    ["channel"] = channel,
+                    ["tenantId"] = tenantId.ToString()
+                }
+            }, ct);
+        }
     }
 
     /// <summary>
@@ -66,6 +86,21 @@ public class NotificationService : INotificationService
 
         await _hub.Clients.Group($"user_{userId}")
             .SendAsync("UserNotification", payload, ct);
+
+        // Also dispatch push notification to user devices
+        if (_pushService != null)
+        {
+            _ = _pushService.SendToUserAsync(userId, new PushPayload
+            {
+                Title = title,
+                Body = message,
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "user_notification",
+                    ["userId"] = userId.ToString()
+                }
+            }, ct);
+        }
     }
 
     /// <summary>

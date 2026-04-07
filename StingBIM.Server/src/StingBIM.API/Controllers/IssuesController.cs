@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,12 +13,27 @@ namespace StingBIM.API.Controllers;
 public class IssuesController : ControllerBase
 {
     private readonly StingBimDbContext _db;
+    private readonly StingBIM.Core.Interfaces.INotificationService _notifications;
+    private readonly StingBIM.Core.Interfaces.IPushNotificationService _push;
+    private readonly IConfiguration _config;
+
     private static readonly Dictionary<string, int> SLAHours = new()
     {
         ["CRITICAL"] = 4, ["HIGH"] = 24, ["MEDIUM"] = 168, ["LOW"] = 336
     };
 
-    public IssuesController(StingBimDbContext db) => _db = db;
+    private const long MaxAttachmentSize = 50 * 1024 * 1024; // 50 MB
+
+    public IssuesController(StingBimDbContext db,
+        StingBIM.Core.Interfaces.INotificationService notifications,
+        StingBIM.Core.Interfaces.IPushNotificationService push,
+        IConfiguration config)
+    {
+        _db = db;
+        _notifications = notifications;
+        _push = push;
+        _config = config;
+    }
 
     [HttpGet]
     public async Task<ActionResult> GetIssues(Guid projectId,
@@ -84,6 +100,36 @@ public class IssuesController : ControllerBase
         _db.Issues.Add(issue);
         await _db.SaveChangesAsync();
 
+        // Push notification for new issue
+        _ = _notifications.NotifyAsync(tenantId, "issues",
+            $"New {issue.Type}: {issue.IssueCode}",
+            issue.Title,
+            new { issue.Id, issue.IssueCode, issue.Type, issue.Priority, projectId });
+
+        // If assigned, send targeted push to assignee
+        if (!string.IsNullOrEmpty(issue.Assignee))
+        {
+            var assignee = await _db.Users.FirstOrDefaultAsync(u =>
+                u.DisplayName == issue.Assignee && u.TenantId == tenantId);
+            if (assignee != null)
+            {
+                _ = _push.SendToUserAsync(assignee.Id, new StingBIM.Core.Entities.PushPayload
+                {
+                    Title = $"Assigned: {issue.IssueCode} [{issue.Priority}]",
+                    Body = issue.Title,
+                    Channel = "issues",
+                    Data = new Dictionary<string, string>
+                    {
+                        ["type"] = "issue_assigned",
+                        ["issueId"] = issue.Id.ToString(),
+                        ["issueCode"] = issue.IssueCode,
+                        ["priority"] = issue.Priority,
+                        ["projectId"] = projectId.ToString()
+                    }
+                });
+            }
+        }
+
         return CreatedAtAction(nameof(GetIssues), new { projectId }, issue);
     }
 
@@ -107,6 +153,157 @@ public class IssuesController : ControllerBase
 
         await _db.SaveChangesAsync();
         return Ok(issue);
+    }
+
+    // ── Issue Attachments ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Upload a file attachment to an issue.
+    /// </summary>
+    [HttpPost("{issueId}/attachments")]
+    [RequestSizeLimit(MaxAttachmentSize)]
+    public async Task<ActionResult> UploadAttachment(Guid projectId, Guid issueId, IFormFile file)
+    {
+        var tenantId = GetTenantId();
+        var issue = await _db.Issues
+            .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
+        if (issue == null) return NotFound("Issue not found");
+
+        if (file.Length == 0) return BadRequest("File is empty");
+        if (file.Length > MaxAttachmentSize) return BadRequest($"File exceeds {MaxAttachmentSize / (1024 * 1024)} MB limit");
+
+        var project = await _db.Projects.Include(p => p.Tenant).FirstOrDefaultAsync(p => p.Id == projectId);
+        if (project == null) return NotFound("Project not found");
+
+        // Store in {root}/{tenant}/{project}/issues/{issueCode}/
+        var storageRoot = _config["Storage:Path"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+        var tenantSlug = project.Tenant?.Slug ?? tenantId.ToString();
+        var folder = Path.Combine(storageRoot, tenantSlug, project.Code, "issues", issue.IssueCode);
+        Directory.CreateDirectory(folder);
+
+        var fileName = file.FileName;
+        var filePath = Path.Combine(folder, fileName);
+        if (System.IO.File.Exists(filePath))
+        {
+            var name = Path.GetFileNameWithoutExtension(fileName);
+            var ext = Path.GetExtension(fileName);
+            fileName = $"{name}_{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
+            filePath = Path.Combine(folder, fileName);
+        }
+
+        string contentHash;
+        await using (var stream = new FileStream(filePath, FileMode.Create))
+            await file.CopyToAsync(stream);
+        await using (var hashStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+        {
+            var hash = await SHA256.HashDataAsync(hashStream);
+            contentHash = Convert.ToHexString(hash).ToLowerInvariant();
+        }
+
+        // Create a DocumentRecord for the file
+        var doc = new DocumentRecord
+        {
+            ProjectId = projectId,
+            FileName = fileName,
+            FilePath = filePath,
+            DocumentType = "ATTACHMENT",
+            CdeStatus = "WIP",
+            SuitabilityCode = "S0",
+            Discipline = issue.Discipline,
+            FileSizeBytes = file.Length,
+            ContentHash = contentHash,
+            UploadedBy = User.FindFirst("display_name")?.Value ?? "Unknown"
+        };
+        _db.Documents.Add(doc);
+
+        // Link to issue
+        var attachment = new IssueAttachment
+        {
+            IssueId = issueId,
+            DocumentId = doc.Id,
+            AttachedBy = User.FindFirst("display_name")?.Value ?? "Unknown"
+        };
+        _db.IssueAttachments.Add(attachment);
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            attachment.Id, attachment.IssueId, attachment.DocumentId,
+            doc.FileName, doc.FileSizeBytes, doc.ContentHash, attachment.AttachedAt
+        });
+    }
+
+    /// <summary>
+    /// List attachments for an issue.
+    /// </summary>
+    [HttpGet("{issueId}/attachments")]
+    public async Task<ActionResult> GetAttachments(Guid projectId, Guid issueId)
+    {
+        var tenantId = GetTenantId();
+        var issue = await _db.Issues
+            .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
+        if (issue == null) return NotFound();
+
+        var attachments = await _db.IssueAttachments
+            .Where(a => a.IssueId == issueId)
+            .Include(a => a.Document)
+            .Select(a => new
+            {
+                a.Id, a.IssueId, a.DocumentId, a.AttachedAt, a.AttachedBy,
+                a.Document!.FileName, a.Document.FileSizeBytes, a.Document.ContentHash
+            })
+            .ToListAsync();
+
+        return Ok(attachments);
+    }
+
+    /// <summary>
+    /// Remove an attachment from an issue.
+    /// </summary>
+    [HttpDelete("{issueId}/attachments/{attachmentId}")]
+    public async Task<ActionResult> RemoveAttachment(Guid projectId, Guid issueId, Guid attachmentId)
+    {
+        var tenantId = GetTenantId();
+        var attachment = await _db.IssueAttachments
+            .Include(a => a.Issue)
+            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.IssueId == issueId
+                && a.Issue!.ProjectId == projectId && a.Issue.Project!.TenantId == tenantId);
+        if (attachment == null) return NotFound();
+
+        _db.IssueAttachments.Remove(attachment);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Link an existing document to an issue.
+    /// </summary>
+    [HttpPost("{issueId}/attachments/link")]
+    public async Task<ActionResult> LinkDocument(Guid projectId, Guid issueId, [FromBody] LinkAttachmentRequest req)
+    {
+        var tenantId = GetTenantId();
+        var issue = await _db.Issues
+            .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
+        if (issue == null) return NotFound("Issue not found");
+
+        var doc = await _db.Documents
+            .FirstOrDefaultAsync(d => d.Id == req.DocumentId && d.ProjectId == projectId);
+        if (doc == null) return NotFound("Document not found");
+
+        // Check not already linked
+        if (await _db.IssueAttachments.AnyAsync(a => a.IssueId == issueId && a.DocumentId == req.DocumentId))
+            return Conflict("Document already attached to this issue");
+
+        var attachment = new IssueAttachment
+        {
+            IssueId = issueId,
+            DocumentId = req.DocumentId,
+            AttachedBy = User.FindFirst("display_name")?.Value ?? "Unknown"
+        };
+        _db.IssueAttachments.Add(attachment);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { attachment.Id, attachment.IssueId, attachment.DocumentId, attachment.AttachedAt });
     }
 
     [HttpGet("sla")]
@@ -144,3 +341,4 @@ public class IssuesController : ControllerBase
 
 public record CreateIssueRequest(string Type, string Title, string? Description, string? Priority, string? Assignee, string? Discipline, string? LinkedElementIds);
 public record UpdateIssueRequest(string? Status, string? Priority, string? Assignee, string? Description);
+public record LinkAttachmentRequest(Guid DocumentId);
