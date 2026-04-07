@@ -3737,7 +3737,7 @@ namespace StingTools.Core
                                 else if (ownerView is View v)
                                 {
                                     // Find sheet hosting this view
-                                    var titleParam = v.get_Parameter(BuiltInParameter.VIEW_SHEET_REFERENCING_SHEET);
+                                    var titleParam = v.get_Parameter(BuiltInParameter.SHEET_NUMBER);
                                     if (titleParam != null)
                                     {
                                         string sheetNum = titleParam.AsString();
