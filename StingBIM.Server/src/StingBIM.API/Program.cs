@@ -169,14 +169,23 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = Dat
 app.MapControllers();
 app.MapHub<ComplianceHub>("/hubs/compliance");
 app.MapHub<TagSyncHub>("/hubs/tagsync");
+app.MapHub<NotificationHub>("/hubs/notifications");
 
-// ── Auto-migrate and seed in development ──
-if (app.Environment.IsDevelopment())
+// ── Database migration + seed ──
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
-    db.Database.EnsureCreated();
-    await StingBIM.API.SeedData.SeedAsync(db);
+    if (app.Environment.IsDevelopment())
+    {
+        // In development, auto-migrate (apply pending migrations or create DB)
+        db.Database.Migrate();
+        await StingBIM.API.SeedData.SeedAsync(db);
+    }
+    else
+    {
+        // In production, only apply pending migrations — no seed data
+        db.Database.Migrate();
+    }
 }
 
 // ── Recurring background jobs ──
