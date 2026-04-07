@@ -4605,7 +4605,8 @@ namespace StingTools.UI
                     sp.Children.Add(new TextBlock { Text = "Raise New Issue", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
                     var typeRow = MakeCtxRow("Issue Type:");
                     var typeCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    foreach (var t in new[] { "NCR", "RFI", "CLASH", "DATA", "COMPLIANCE", "DESIGN", "COORDINATION", "SAFETY", "STRUCTURAL", "MEP", "FIRE", "ACCESSIBILITY", "ENVIRONMENTAL", "PROGRAMME", "COST", "HANDOVER", "BIM", "CLIENT", "AUTHORITY", "SITE" }) typeCb.Items.Add(t);
+                    foreach (var kvp in BIMManager.BIMManagerEngine.IssueTypes)
+                        typeCb.Items.Add($"{kvp.Key} — {kvp.Value}");
                     typeCb.SelectedIndex = 0;
                     typeRow.Children.Add(typeCb);
                     sp.Children.Add(typeRow);
@@ -4629,7 +4630,7 @@ namespace StingTools.UI
                     var assignList2 = new WrapPanel();
                     var assignees2 = _data.TeamMembers.Count > 0
                         ? _data.TeamMembers.Select(m => m.Name).ToList()
-                        : new List<string> { "BIM Manager", "Lead Architect", "MEP Engineer", "Structural Engineer", "Contractor" };
+                        : GetISOStandardMembers();
                     var assignChecks2 = new List<CheckBox>();
                     foreach (var name in assignees2)
                     {
@@ -4639,6 +4640,22 @@ namespace StingTools.UI
                     }
                     assignScroll2.Content = assignList2;
                     sp.Children.Add(assignScroll2);
+                    // ── Notify Recipients (CC) ──
+                    sp.Children.Add(new TextBlock { Text = "Notify Recipients (CC):", FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 2) });
+                    var notifyScroll = new ScrollViewer { MaxHeight = 100, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 0, 0, 6) };
+                    var notifyList = new WrapPanel();
+                    var notifyNames = _data.TeamMembers.Count > 0
+                        ? _data.TeamMembers.Select(m => m.Name).ToList()
+                        : GetISOStandardMembers();
+                    var notifyChecks = new List<CheckBox>();
+                    foreach (var name in notifyNames)
+                    {
+                        var cb = new CheckBox { Content = name, FontSize = 10, Margin = new Thickness(0, 0, 10, 3) };
+                        notifyChecks.Add(cb);
+                        notifyList.Children.Add(cb);
+                    }
+                    notifyScroll.Content = notifyList;
+                    sp.Children.Add(notifyScroll);
                     // ── Location attachment ──
                     var locRow = MakeCtxRow("Location:");
                     var locBox = new System.Windows.Controls.TextBox { Width = 220, FontSize = 10, IsReadOnly = true, Background = System.Windows.Media.Brushes.WhiteSmoke, ToolTip = "Coordinates captured from active Revit view" };
@@ -4662,10 +4679,13 @@ namespace StingTools.UI
                     sp.Children.Add(elemRow);
                     var raiseBtn = MakeCtxActionButton("Raise Issue", Br(CRed));
                     raiseBtn.Click += (s, e) => {
-                        StingCommandHandler.SetExtraParam("IssueType", typeCb.SelectedItem?.ToString() ?? "NCR");
+                        var selType = typeCb.SelectedItem?.ToString() ?? "NCR";
+                        var typeCode = selType.Contains(" — ") ? selType.Substring(0, selType.IndexOf(" — ")) : selType;
+                        StingCommandHandler.SetExtraParam("IssueType", typeCode);
                         StingCommandHandler.SetExtraParam("IssuePriority", priCb.SelectedItem?.ToString() ?? "HIGH");
                         StingCommandHandler.SetExtraParam("IssueTitle", titleBox.Text);
                         StingCommandHandler.SetExtraParam("Assignees", string.Join(",", assignChecks2.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
+                        StingCommandHandler.SetExtraParam("NotifyRecipients", string.Join(",", notifyChecks.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
                         DispatchAction("RaiseIssue");
                     };
                     sp.Children.Add(raiseBtn);
@@ -4749,12 +4769,18 @@ namespace StingTools.UI
                     sp.Children.Add(sevRow);
                     var typeRow = MakeCtxRow("Issue Type:");
                     var typeCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    foreach (var t in new[] { "NCR", "RFI", "CLASH", "DATA", "COMPLIANCE", "DESIGN", "COORDINATION", "SAFETY", "STRUCTURAL", "MEP", "FIRE", "ACCESSIBILITY", "ENVIRONMENTAL", "PROGRAMME", "COST", "HANDOVER", "BIM", "CLIENT", "AUTHORITY", "SITE" }) typeCb.Items.Add(t);
+                    foreach (var kvp in BIMManager.BIMManagerEngine.IssueTypes)
+                        typeCb.Items.Add($"{kvp.Key} — {kvp.Value}");
                     typeCb.SelectedIndex = 0;
                     typeRow.Children.Add(typeCb);
                     sp.Children.Add(typeRow);
                     var createBtn = MakeCtxActionButton("Create Issues", Br(Color.FromRgb(0xE6, 0x5C, 0x00)));
-                    createBtn.Click += (s, e) => DispatchAction("CreateIssuesFromWarnings");
+                    createBtn.Click += (s, e) => {
+                        var selType = typeCb.SelectedItem?.ToString() ?? "NCR";
+                        var typeCode = selType.Contains(" — ") ? selType.Substring(0, selType.IndexOf(" — ")) : selType;
+                        StingCommandHandler.SetExtraParam("IssueType", typeCode);
+                        DispatchAction("CreateIssuesFromWarnings");
+                    };
                     sp.Children.Add(createBtn);
                     panel.Child = sp;
                     return panel;
@@ -4770,7 +4796,7 @@ namespace StingTools.UI
                     var assignList = new StackPanel();
                     var isoRoles = _data.TeamMembers.Count > 0
                         ? _data.TeamMembers.Select(m => m.Name).ToList()
-                        : new List<string> { "BIM Manager", "Project Manager", "Lead Architect", "MEP Engineer", "Structural Engineer", "Contractor", "Client Representative", "QA/QC Manager", "Clerk of Works", "Facilities Manager" };
+                        : GetISOStandardMembers();
                     var assignChecks = new List<CheckBox>();
                     foreach (var name in isoRoles)
                     {
@@ -4813,6 +4839,21 @@ namespace StingTools.UI
                     return panel;
                 }
             }
+        }
+
+        private static List<string> GetISOStandardMembers()
+        {
+            return new List<string>
+            {
+                "Client / Appointing Party", "Project Manager", "BIM Manager",
+                "Contract Administrator", "Quantity Surveyor", "Architect",
+                "Structural Engineer", "MEP Engineer", "Mechanical Engineer",
+                "Electrical Engineer", "Public Health Engineer", "Fire Engineer",
+                "Civil Engineer", "Interior Designer", "Landscape Architect",
+                "Main Contractor", "Specialist Subcontractor", "Clerk of Works",
+                "Facilities Manager", "Operations Manager", "BIM Coordinator",
+                "BIM Technician", "General"
+            };
         }
 
         private static StackPanel MakeCtxRow(string label)
@@ -5963,7 +6004,7 @@ namespace StingTools.UI
             var toWrap = new WrapPanel { Margin = new Thickness(4) };
             var txRecipients = _data.TeamMembers.Count > 0
                 ? _data.TeamMembers.Select(m => $"{m.Name} ({m.Role})").ToList()
-                : new List<string> { "Client Representative", "Project Manager", "BIM Manager", "Lead Architect", "MEP Engineer", "Structural Engineer", "QA/QC Manager", "Contractor", "Facilities Manager", "Contract Administrator" };
+                : GetISOStandardMembers();
             var toChecks = new List<CheckBox>();
             foreach (var nm in txRecipients)
             {
