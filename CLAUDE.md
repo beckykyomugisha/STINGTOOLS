@@ -3162,3 +3162,15 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 - Item 11C: RefreshBadges() method for live badge updates
 - Item 11D: Coord Log tab filter bar with text search, category filter, Export Log button (already present from Phase 76)
 - Item 11E: Overview tab Quick Actions toolbar with 5 action buttons
+
+#### Completed (Phase 82 — Server Gaps, Plugin Enhancements, Infrastructure)
+
+- **Email Service**: IEmailService interface + SmtpEmailService (MailKit) + NullEmailService fallback. Invite emails wired in ProjectMembersController.
+- **Refresh Token Flow**: SyncClient.cs EnsureAuthenticatedAsync now calls /api/auth/refresh — plugin reconnects after 8h token expiry.
+- **Hangfire Background Jobs**: 3 recurring jobs — ComplianceCheckJob (hourly), SlaEscalationJob (15min), StaleWarningCleanupJob (daily). HangfireAuthorizationFilter for dashboard.
+- **Global Search**: SearchController — cross-project search across tags, issues, documents, meetings with tenant isolation.
+- **Notification Service**: INotificationService + SignalR NotificationHub at /hubs/notifications for real-time alerts.
+- **EF Core Migrations**: Replaced EnsureCreated() with Database.Migrate() for production-safe schema management. Added EF Core Design package.
+- **Revision Cloud Audit**: RevisionCloudAuditCommand — per-revision/per-sheet cloud breakdown. BCC revision tab now shows live cloud counts instead of static placeholder.
+- **DocumentSaved Auto-Sync**: StingToolsApp hooks DocumentSaved event, runs lightweight ComplianceScan, queues data for SyncScheduler (non-blocking).
+- **CLAUDE.md**: Fixed file counts (193 files), UI directory (40 C# files), BCC tabs (13).
