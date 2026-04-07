@@ -12,9 +12,12 @@ public class Tenant
     public LicenseTier Tier { get; set; } = LicenseTier.Starter;
     public bool MimEnabled { get; set; } // StingMIM add-on
     public MimTier MimTier { get; set; } = MimTier.None;
-    public int MaxUsers { get; set; } = 5;
-    public int MaxProjects { get; set; } = 1;
-    public long StorageLimitBytes { get; set; } = 500 * 1024 * 1024; // 500 MB
+    /// <summary>Admin override: 0 or less = use TierLimits.MaxUsers(Tier).</summary>
+    public int MaxUsers { get; set; } = 0;
+    /// <summary>Admin override: 0 or less = use TierLimits.MaxProjects(Tier).</summary>
+    public int MaxProjects { get; set; } = 0;
+    /// <summary>Admin override: 0 or less = use TierLimits.StorageLimitBytes(Tier).</summary>
+    public long StorageLimitBytes { get; set; } = 0;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? TrialExpiresAt { get; set; }
     public bool IsActive { get; set; } = true;

@@ -75,7 +75,7 @@ namespace StingTools.UI
         private const string TabCoordLog       = "COORD LOG";
 
         // ── Data ──
-        private CoordData _data;
+        internal CoordData _data;
         private readonly ContentControl _contentArea;
         private readonly TextBlock _statusBar;
         private readonly StackPanel _navPanel;
@@ -121,6 +121,18 @@ namespace StingTools.UI
         // Phase 77 Item 7: Model Health action panel area
         private ContentControl _modelHealthActionArea;
 
+        // Phase 78 Section 1.1: Additional inline panel ContentControl fields
+        private ContentControl _meetingDetailArea;       // Meetings tab inline detail
+        private ContentControl _meetingMinutesArea;      // Minutes editor area
+        private ContentControl _meetingActionsArea;      // Action items area
+        private ContentControl _deliverableDetailArea;   // Deliverables detail
+        private ContentControl _qaDetailArea;            // QA detail panels
+        private ContentControl _overviewDetailArea;      // Overview drill-down
+        private ContentControl _warningsDetailArea;      // Warnings full inline panel
+        private ContentControl _coordLogDetailArea;      // Coord log filter + detail
+        private ContentControl _permissionsDetailArea;   // Permissions inline
+        private ContentControl _stingBIMDetailArea;      // StingBIM hub detail
+
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
         internal static Action<string> ActionDispatcher { get; set; }
 
@@ -130,6 +142,104 @@ namespace StingTools.UI
             Dispatcher.BeginInvoke(new Action(() => { Activate(); Focus(); }),
                 System.Windows.Threading.DispatcherPriority.Background);
         }
+
+        // Phase 78 Section 2.1: Canonical ISO 19650-aligned issue type registry
+        // Single source of truth — all dropdowns, brushes, and wizards derive from this.
+        internal static readonly (string Code, string Label, string Description, Color Colour)[] IsoIssueTypes =
+        {
+            // Information Management (ISO 19650 Part 1 & 2)
+            ("NCR",          "Non-Conformance Report",           "Element/data does not meet EIR or BEP requirements",          Color.FromRgb(0xC6,0x28,0x28)),
+            ("RFI",          "Request for Information",          "Clarification required from appointing party or designer",     Color.FromRgb(0x15,0x65,0xC0)),
+            ("RFA",          "Request for Approval",             "Formal approval request for design or information model",      Color.FromRgb(0x1A,0x23,0x7E)),
+            ("TQ",           "Technical Query",                  "Technical question requiring formal documented response",       Color.FromRgb(0x00,0x69,0x7C)),
+            ("SI",           "Site Instruction",                 "Instruction issued to contractor on site",                     Color.FromRgb(0xE8,0x91,0x2D)),
+            ("EWN",          "Early Warning Notice",             "Risk or issue likely to affect time, cost or quality",         Color.FromRgb(0xF5,0x7F,0x17)),
+            ("CE",           "Compensation Event",               "Change event with cost or programme implications",             Color.FromRgb(0x6A,0x1B,0x9A)),
+            ("VO",           "Variation Order",                  "Formal instruction to vary contract works",                    Color.FromRgb(0x6A,0x1B,0x9A)),
+            ("AI",           "Architect's Instruction",          "Formal instruction from lead designer/architect",              Color.FromRgb(0x00,0x60,0x64)),
+            ("PMI",          "Project Manager's Instruction",    "Instruction issued by project manager",                        Color.FromRgb(0x2E,0x7D,0x32)),
+            ("CVI",          "Confirmation of Verbal Instruction","Written record of previously verbal instruction",             Color.FromRgb(0x37,0x47,0x4F)),
+            // Coordination & Clash
+            ("CLASH",        "Clash / Interference",             "Hard or soft clash between discipline models",                 Color.FromRgb(0xC6,0x28,0x28)),
+            ("COORDINATION", "Coordination Issue",               "Cross-discipline coordination gap or conflict",                Color.FromRgb(0x15,0x65,0xC0)),
+            ("DESIGN",       "Design Issue",                     "Design intent unclear, incomplete, or conflicting",            Color.FromRgb(0x1A,0x23,0x7E)),
+            ("SPATIAL",      "Spatial / Clearance",              "Insufficient clearance, access, or maintenance space",         Color.FromRgb(0x00,0x69,0x7C)),
+            // Data & Compliance
+            ("DATA",         "Data Integrity Issue",             "Missing, incorrect, or inconsistent parameter data",           Color.FromRgb(0xE8,0x91,0x2D)),
+            ("COMPLIANCE",   "Compliance Issue",                 "Non-compliance with ISO 19650, EIR, or BEP requirements",      Color.FromRgb(0xC6,0x28,0x28)),
+            ("NAMING",       "Naming Convention Issue",          "Document or element naming does not follow convention",        Color.FromRgb(0xF5,0x7F,0x17)),
+            ("LOD",          "Level of Detail Issue",            "LOD/LOI not achieved for current RIBA stage",                  Color.FromRgb(0x6A,0x1B,0x9A)),
+            // Construction / Site
+            ("SNAGGING",     "Snagging / Defect",                "Construction defect requiring rectification",                  Color.FromRgb(0xC6,0x28,0x28)),
+            ("SITE",         "Site Observation",                 "General site observation or non-critical note",                Color.FromRgb(0x45,0x50,0x6E)),
+            ("SAFETY",       "Health & Safety",                  "H&S risk, near-miss, or CDM-notifiable issue",                 Color.FromRgb(0xC6,0x28,0x28)),
+            ("ENVIRONMENTAL","Environmental",                    "Environmental impact, sustainability, or ecology issue",        Color.FromRgb(0x2E,0x7D,0x32)),
+            ("ACCESSIBILITY","Accessibility / DDA",              "Access, inclusion, or Building Regulations Part M issue",      Color.FromRgb(0x00,0x69,0x7C)),
+            // Structural / MEP
+            ("STRUCTURAL",   "Structural Issue",                 "Structural integrity, loading, or connection concern",         Color.FromRgb(0x37,0x47,0x4F)),
+            ("MEP",          "MEP Coordination",                 "Mechanical, electrical, or plumbing routing conflict",         Color.FromRgb(0x15,0x65,0xC0)),
+            ("FIRE",         "Fire Strategy",                    "Passive/active fire protection, compartmentation concern",      Color.FromRgb(0xC6,0x28,0x28)),
+            // Programme & Cost
+            ("PROGRAMME",    "Programme / Schedule",             "Activity delay, float erosion, or milestone at risk",          Color.FromRgb(0xF5,0x7F,0x17)),
+            ("COST",         "Cost / Commercial",                "Budget overrun, cost query, or BOQ discrepancy",               Color.FromRgb(0x6A,0x1B,0x9A)),
+            ("RISK",         "Risk Register Item",               "Project risk requiring monitoring or mitigation",               Color.FromRgb(0xE8,0x91,0x2D)),
+            // Handover / FM
+            ("HANDOVER",     "Handover Issue",                   "FM handover, O&M, or COBie data completeness issue",           Color.FromRgb(0x00,0x60,0x64)),
+            ("BIM",          "BIM Process Issue",                "BIM workflow, platform, or model management issue",            Color.FromRgb(0x1A,0x23,0x7E)),
+            // Admin
+            ("CLIENT",       "Client Comment",                   "Comment or query raised by the appointing party",              Color.FromRgb(0x45,0x50,0x6E)),
+            ("AUTHORITY",    "Authority / Planning",             "Regulatory, planning, or building control query",              Color.FromRgb(0x37,0x47,0x4F)),
+            ("CHANGE",       "Change Request",                   "Requested change to scope, design, or specification",          Color.FromRgb(0x6A,0x1B,0x9A)),
+            ("ACTION",       "Action Item",                      "Meeting action requiring follow-up (not a formal issue)",      Color.FromRgb(0x45,0x50,0x6E)),
+            ("COMMENT",      "General Comment",                  "Informal observation or comment (no formal response required)",Color.FromRgb(0x78,0x90,0x9C)),
+        };
+
+        // Phase 78 Section 3.1: Default ISO 19650 team roles for issue assignment grid
+        private static readonly (string Role, string Group)[] DefaultIssueAssignees =
+        {
+            // Delivery Team — Lead
+            ("BIM Manager",               "Lead"),
+            ("Information Manager",       "Lead"),
+            ("Lead Designer / Architect", "Lead"),
+            ("Project Manager",           "Lead"),
+            ("Design Manager",            "Lead"),
+            // Architecture & Interior
+            ("Architect",                 "Architecture"),
+            ("Interior Designer",         "Architecture"),
+            ("Landscape Architect",       "Architecture"),
+            // Structure
+            ("Structural Engineer",       "Structure"),
+            ("Geotechnical Engineer",     "Structure"),
+            // MEP
+            ("MEP Engineer",              "MEP"),
+            ("Mechanical Engineer",       "MEP"),
+            ("Electrical Engineer",       "MEP"),
+            ("Plumbing Engineer",         "MEP"),
+            ("Fire Protection Engineer",  "MEP"),
+            ("Acoustic Engineer",         "MEP"),
+            // Specialist
+            ("Façade Engineer",           "Specialist"),
+            ("Vertical Transport",        "Specialist"),
+            ("Sustainability Consultant", "Specialist"),
+            ("BREEAM Assessor",           "Specialist"),
+            ("Security Consultant",       "Specialist"),
+            // Contractor
+            ("Main Contractor",           "Contractor"),
+            ("Site Manager",              "Contractor"),
+            ("Sub-Contractor",            "Contractor"),
+            ("MEP Contractor",            "Contractor"),
+            ("Steel Fabricator",          "Contractor"),
+            // QA / Compliance
+            ("QA/QC Manager",             "Compliance"),
+            ("CDM Coordinator",           "Compliance"),
+            ("Health & Safety",           "Compliance"),
+            ("Building Control Officer",  "Compliance"),
+            // Client / FM
+            ("Client / Employer",         "Client"),
+            ("Facilities Manager",        "Client"),
+            ("Asset Manager",             "Client"),
+            ("Planning Officer",          "Client"),
+        };
 
         // BCC-HIGH-01: Cache built tab content — avoids rebuilding full visual tree on every NavigateTo
         private readonly Dictionary<string, UIElement> _tabCache = new Dictionary<string, UIElement>();
@@ -602,7 +712,7 @@ namespace StingTools.UI
 
             // Phase 76: Register singleton instance
             CurrentInstance = this;
-            Closed += (s, e) => { CurrentInstance = null; };
+            Closed += OnClosed;
         }
 
         private string BuildStatusText()
@@ -1474,7 +1584,7 @@ namespace StingTools.UI
                 }
                 var detailsMi = new MenuItem { Header = "Show Details" };
                 string detailText = $"{check}: {score}/{max}\n{detail}";
-                detailsMi.Click += (s, e) => { System.Windows.MessageBox.Show(detailText, check); };
+                detailsMi.Click += (s, e) => { ShowInlineStatus(_modelHealthActionArea, check, detailText); };
                 checkCm.Items.Add(detailsMi);
                 checkCard.ContextMenu = checkCm;
 
@@ -3130,14 +3240,34 @@ namespace StingTools.UI
 
                 detailStack.Children.Add(new TextBlock { Text = "SERVER CONNECTION", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4) });
 
+                // Pre-load saved connection settings so the fields are populated on open
+                string _savedUrl = BIMManager.StingBIMServerClient.Instance.ServerUrl;
+                string _savedEmail = "";
+                if (!sbConnected && !string.IsNullOrEmpty(_data.FilePath))
+                {
+                    try
+                    {
+                        string _cfgDir = System.IO.Path.Combine(
+                            System.IO.Path.GetDirectoryName(_data.FilePath) ?? "",
+                            "STING_BIM_MANAGER");
+                        string _cfgPath = System.IO.Path.Combine(_cfgDir, "stingbim_connection.json");
+                        var (_url, _email, _pid) = BIMManager.StingBIMServerClient.LoadConnectionSettings(_cfgPath);
+                        if (!string.IsNullOrEmpty(_url))   _savedUrl   = _url;
+                        if (!string.IsNullOrEmpty(_email)) _savedEmail = _email;
+                    }
+                    catch { /* ignore — config file optional */ }
+                }
+                else if (sbConnected)
+                {
+                    _savedEmail = BIMManager.StingBIMServerClient.Instance.ConnectedUser;
+                }
+
                 var sbUrlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
                 sbUrlRow.Children.Add(new TextBlock { Text = "Server URL:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
                 var sbUrlBox = new System.Windows.Controls.TextBox
                 {
                     Width = 270, FontSize = 11, Margin = new Thickness(4, 0, 0, 0),
-                    Text = BIMManager.StingBIMServerClient.Instance.IsConnected
-                        ? BIMManager.StingBIMServerClient.Instance.ServerUrl
-                        : "https://stingbim-api.onrender.com",
+                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "https://stingbim-api.onrender.com",
                     ToolTip = "StingBIM API server URL (your Render.com deployment)"
                 };
                 sbUrlRow.Children.Add(sbUrlBox);
@@ -3145,7 +3275,7 @@ namespace StingTools.UI
 
                 var sbEmailRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
                 sbEmailRow.Children.Add(new TextBlock { Text = "Email:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
-                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), ToolTip = "Your StingBIM account email" };
+                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), Text = _savedEmail, ToolTip = "Your StingBIM account email" };
                 sbEmailRow.Children.Add(sbEmailBox);
                 detailStack.Children.Add(sbEmailRow);
 
@@ -3164,8 +3294,19 @@ namespace StingTools.UI
                     StingCommandHandler.SetExtraParam("StingBIMEmail", sbEmailBox.Text.Trim());
                     StingCommandHandler.SetExtraParam("StingBIMPassword", sbPassBox.Password);
                     DispatchAction("StingBIMConnect");
+                    // Refresh the panel after connect completes (Revit external event is async)
+                    var refreshTimer = new System.Windows.Threading.DispatcherTimer
+                        { Interval = TimeSpan.FromSeconds(2) };
+                    refreshTimer.Tick += (ts, te) => { refreshTimer.Stop(); ShowPlatformDetail("StingBIM"); };
+                    refreshTimer.Start();
                 };
-                sbDiscoBtn.Click += (s, e) => DispatchAction("StingBIMDisconnect");
+                sbDiscoBtn.Click += (s, e) =>
+                {
+                    DispatchAction("StingBIMDisconnect");
+                    // Disconnect is synchronous — refresh immediately on next idle cycle
+                    Dispatcher.BeginInvoke(new Action(() => ShowPlatformDetail("StingBIM")),
+                        System.Windows.Threading.DispatcherPriority.Background);
+                };
                 sbConnBtnRow.Children.Add(sbConnBtn); sbConnBtnRow.Children.Add(sbDiscoBtn);
                 detailStack.Children.Add(sbConnBtnRow);
 
@@ -4605,8 +4746,7 @@ namespace StingTools.UI
                     sp.Children.Add(new TextBlock { Text = "Raise New Issue", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
                     var typeRow = MakeCtxRow("Issue Type:");
                     var typeCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    foreach (var kvp in BIMManager.BIMManagerEngine.IssueTypes)
-                        typeCb.Items.Add($"{kvp.Key} — {kvp.Value}");
+                    foreach (var it in IsoIssueTypes) typeCb.Items.Add(new ComboBoxItem { Content = $"{it.Code} — {it.Label}", Tag = it.Code, ToolTip = it.Description });
                     typeCb.SelectedIndex = 0;
                     typeRow.Children.Add(typeCb);
                     sp.Children.Add(typeRow);
@@ -4679,9 +4819,7 @@ namespace StingTools.UI
                     sp.Children.Add(elemRow);
                     var raiseBtn = MakeCtxActionButton("Raise Issue", Br(CRed));
                     raiseBtn.Click += (s, e) => {
-                        var selType = typeCb.SelectedItem?.ToString() ?? "NCR";
-                        var typeCode = selType.Contains(" — ") ? selType.Substring(0, selType.IndexOf(" — ")) : selType;
-                        StingCommandHandler.SetExtraParam("IssueType", typeCode);
+                        StingCommandHandler.SetExtraParam("IssueType", (typeCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "NCR");
                         StingCommandHandler.SetExtraParam("IssuePriority", priCb.SelectedItem?.ToString() ?? "HIGH");
                         StingCommandHandler.SetExtraParam("IssueTitle", titleBox.Text);
                         StingCommandHandler.SetExtraParam("Assignees", string.Join(",", assignChecks2.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
@@ -4769,8 +4907,7 @@ namespace StingTools.UI
                     sp.Children.Add(sevRow);
                     var typeRow = MakeCtxRow("Issue Type:");
                     var typeCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    foreach (var kvp in BIMManager.BIMManagerEngine.IssueTypes)
-                        typeCb.Items.Add($"{kvp.Key} — {kvp.Value}");
+                    foreach (var it in IsoIssueTypes) typeCb.Items.Add(new ComboBoxItem { Content = $"{it.Code} — {it.Label}", Tag = it.Code, ToolTip = it.Description });
                     typeCb.SelectedIndex = 0;
                     typeRow.Children.Add(typeCb);
                     sp.Children.Add(typeRow);
@@ -5327,14 +5464,16 @@ namespace StingTools.UI
         //  HELPER METHODS — Cards, KPIs, RAG bars, buttons, etc.
         // ════════════════════════════════════════════════════════════════
 
+        // Phase 78 Section 5.1: Added onClickDetail Action — fires inline drill-down instead of (or alongside) dispatch.
         private Border MakeKPICard(string label, string value, SolidColorBrush valueBrush,
-            string tooltip = null, string clickAction = null)
+            string tooltip = null, string clickAction = null, Action onClickDetail = null)
         {
+            bool isClickable = !string.IsNullOrEmpty(clickAction) || onClickDetail != null;
             var card = new Border
             {
                 Background = Br(CCardBg), BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6), Padding = new Thickness(16, 12, 16, 12),
-                Margin = new Thickness(4), Cursor = clickAction != null ? Cursors.Hand : Cursors.Arrow
+                Margin = new Thickness(4), Cursor = isClickable ? Cursors.Hand : Cursors.Arrow
             };
             var cardStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
             cardStack.Children.Add(new TextBlock
@@ -5361,14 +5500,15 @@ namespace StingTools.UI
                 };
             }
 
-            // Phase 48: Double-click to drill down
-            if (!string.IsNullOrEmpty(clickAction))
+            if (isClickable)
             {
                 card.MouseLeftButtonDown += (s, e) =>
                 {
-                    if (e.ClickCount == 2) { DispatchAction(clickAction); }
+                    if (onClickDetail != null)
+                        onClickDetail.Invoke();
+                    else if (!string.IsNullOrEmpty(clickAction) && e.ClickCount == 2)
+                        DispatchAction(clickAction);
                 };
-                // Hover effect
                 card.MouseEnter += (s, e) => { card.BorderBrush = Br(CAccent); card.BorderThickness = new Thickness(2); };
                 card.MouseLeave += (s, e) => { card.BorderBrush = Br(CBorder); card.BorderThickness = new Thickness(1); };
             }
@@ -5499,18 +5639,198 @@ namespace StingTools.UI
             return rag == "GREEN" ? Br(CGreen) : rag == "AMBER" ? Br(CAmber) : Br(CRed);
         }
 
-        /// <summary>Phase 77 Item 9: Color brush for each issue type.</summary>
-        private static SolidColorBrush GetIssueTypeBrush(string type) => type switch
+        // Phase 78 Section 2.2: Derives brush from IsoIssueTypes — single source of truth.
+        private static SolidColorBrush GetIssueTypeBrush(string type)
         {
-            "NCR" or "COMPLIANCE" => Br(CRed),
-            "RFI" or "SITE" => Br(Color.FromRgb(0xE6, 0x5C, 0x00)),
-            "CLASH" => Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
-            "DATA" or "PROGRAMME" or "COST" => Br(CAmber),
-            "DESIGN" or "MEP" or "STRUCTURAL" => Br(CHeaderBg),
-            "COORDINATION" or "BIM" or "HANDOVER" => Br(Color.FromRgb(0x1A, 0x23, 0x7E)),
-            "SAFETY" or "FIRE" => Br(Color.FromRgb(0xB7, 0x1C, 0x1C)),
-            _ => Br(Color.FromRgb(0x45, 0x50, 0x6E))
-        };
+            var match = IsoIssueTypes.FirstOrDefault(t =>
+                t.Code.Equals(type, StringComparison.OrdinalIgnoreCase));
+            return match.Code != null ? Br(match.Colour) : Br(Color.FromRgb(0x78, 0x90, 0x9C));
+        }
+
+        // Phase 78 Section 10.3: Null-safe panel content setter with dispatcher
+        private void SetPanelContent(ContentControl area, UIElement content)
+        {
+            if (area == null) return;
+            Dispatcher.BeginInvoke(new Action(() => area.Content = content),
+                System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        // Phase 78 Section 1.2: Show inline status message in a ContentControl area
+        private void ShowInlineStatus(ContentControl area, string title, string message,
+            bool isError = false)
+        {
+            if (area == null) return;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var color = isError ? CRed : CGreen;
+                var panel = new Border
+                {
+                    Background = Br(isError ? Color.FromRgb(0xFF, 0xEB, 0xEE) : Color.FromRgb(0xE8, 0xF5, 0xE9)),
+                    BorderBrush = Br(color), BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 8, 12, 8),
+                    Margin = new Thickness(0, 6, 0, 6)
+                };
+                var sp = new StackPanel();
+                sp.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.Bold,
+                    FontSize = 12, Foreground = Br(color), Margin = new Thickness(0, 0, 0, 4) });
+                sp.Children.Add(new TextBlock { Text = message, FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = Br(Color.FromRgb(0x33, 0x33, 0x33)) });
+                var dismissBtn = new Button { Content = "✕ Dismiss", Height = 24,
+                    Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 8, 0, 0),
+                    Background = Br(color), Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                    HorizontalAlignment = HorizontalAlignment.Left };
+                dismissBtn.Click += (s, e) => { area.Content = null; };
+                sp.Children.Add(dismissBtn);
+                panel.Child = sp;
+                area.Content = panel;
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        // Phase 78 Section 1.3: Push 4D/5D command result text to the inline _4dPanelArea
+        internal void Show4DInlineResult(string action, string content)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_4dPanelArea == null) return;
+                var sp = new StackPanel { Margin = new Thickness(8) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = action.Replace("4D", "").Replace("5D", "").Trim(),
+                    FontWeight = FontWeights.Bold, FontSize = 13, Foreground = Br(CHeaderBg),
+                    Margin = new Thickness(0, 0, 0, 6)
+                });
+                foreach (var line in content.Split('\n'))
+                    sp.Children.Add(new TextBlock { Text = line, FontSize = 11,
+                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 1) });
+                var closeBtn = new Button { Content = "Close Panel", Height = 26,
+                    Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 10, 0, 0),
+                    Background = Br(CHeaderBg), Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                    HorizontalAlignment = HorizontalAlignment.Left };
+                closeBtn.Click += (s, e) => _4dPanelArea.Content = null;
+                sp.Children.Add(closeBtn);
+                _4dPanelArea.Content = new Border
+                {
+                    Background = Br(Color.FromRgb(0xF4, 0xF5, 0xF7)),
+                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4), Child = sp
+                };
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        // Phase 78 Section 10.6: Proper resource cleanup on window close
+        private void OnClosed(object sender, EventArgs e)
+        {
+            ActionDispatcher = null;
+            CurrentInstance = null;
+            _tabCache.Clear();
+            StingLog.Info("BIMCoordinationCenter closed and resources released.");
+        }
+
+        // Phase 78 Section 3.1: Scrollable, searchable assignee checkbox grid
+        // Used in RaiseIssue, AssignIssues, UpdateIssue context panels and StingBIM Sharing tab.
+        private UIElement BuildAssigneeCheckboxGrid(out Func<List<string>> getSelected)
+        {
+            var outer = new StackPanel();
+            outer.Children.Add(new TextBlock
+            {
+                Text = "Assign To (select all that apply):",
+                FontWeight = FontWeights.SemiBold, FontSize = 11,
+                Margin = new Thickness(0, 0, 0, 4)
+            });
+
+            var searchBox = new TextBox
+            {
+                Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 0, 6),
+                BorderBrush = Br(CBorder), Padding = new Thickness(4, 2, 4, 2)
+            };
+            outer.Children.Add(searchBox);
+
+            var scroll = new ScrollViewer
+            {
+                MaxHeight = 220, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            var listPanel = new WrapPanel { Orientation = Orientation.Horizontal };
+
+            // Use team registry if available, else fall back to built-in defaults
+            var registry = _data?.TeamMembers?.Count > 0
+                ? _data.TeamMembers.Select(m => (m.Name, m.Role ?? "Team")).ToList()
+                : DefaultIssueAssignees.Select(d => (d.Role, d.Group)).ToList();
+
+            var checkBoxes = new List<(CheckBox cb, string name, string group)>();
+            var grouped = registry.GroupBy(r => r.Item2).OrderBy(g => g.Key);
+
+            foreach (var grp in grouped)
+            {
+                listPanel.Children.Add(new Border
+                {
+                    Width = 460,
+                    Child = new TextBlock
+                    {
+                        Text = grp.Key.ToUpperInvariant(),
+                        FontWeight = FontWeights.Bold, FontSize = 9,
+                        Foreground = Br(CAccent),
+                        Margin = new Thickness(2, 6, 2, 2)
+                    },
+                    Background = Brushes.Transparent
+                });
+
+                foreach (var member in grp)
+                {
+                    var cb = new CheckBox
+                    {
+                        Content = member.Item1,
+                        FontSize = 11,
+                        Margin = new Thickness(2, 2, 10, 2),
+                        MinWidth = 140
+                    };
+                    checkBoxes.Add((cb, member.Item1, grp.Key));
+                    listPanel.Children.Add(cb);
+                }
+            }
+
+            scroll.Content = listPanel;
+            outer.Children.Add(scroll);
+
+            var selRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            var selAllBtn = new Button
+            {
+                Content = "Select All", Height = 22, Padding = new Thickness(8, 0, 8, 0),
+                FontSize = 10, Background = Br(CHeaderBg), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 4, 0)
+            };
+            var clearBtn = new Button
+            {
+                Content = "Clear", Height = 22, Padding = new Thickness(8, 0, 8, 0),
+                FontSize = 10, Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            selAllBtn.Click += (s, ev) => checkBoxes.ForEach(x => x.cb.IsChecked = true);
+            clearBtn.Click  += (s, ev) => checkBoxes.ForEach(x => x.cb.IsChecked = false);
+            selRow.Children.Add(selAllBtn);
+            selRow.Children.Add(clearBtn);
+            outer.Children.Add(selRow);
+
+            // Live search filter
+            searchBox.TextChanged += (s, ev) =>
+            {
+                string q = searchBox.Text.ToLower();
+                foreach (var (cb, name, grp2) in checkBoxes)
+                    cb.Visibility = string.IsNullOrEmpty(q) || name.ToLower().Contains(q)
+                        ? Visibility.Visible : Visibility.Collapsed;
+            };
+
+            getSelected = () => checkBoxes
+                .Where(x => x.cb.IsChecked == true)
+                .Select(x => x.name)
+                .ToList();
+            return outer;
+        }
 
         // ── Phase 77: Excel-grade DataGrid helper ──────────────────────
         private static DataGrid MakeExcelDataGrid(int height = 160)
