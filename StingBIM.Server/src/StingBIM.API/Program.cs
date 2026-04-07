@@ -62,7 +62,27 @@ if (!string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
 else
     builder.Services.AddSingleton<StingBIM.Core.Interfaces.IEmailService, StingBIM.Infrastructure.Services.NullEmailService>();
 
+// ── Notifications ──
+builder.Services.AddSingleton<StingBIM.Core.Interfaces.INotificationService, StingBIM.Infrastructure.Services.NotificationService>();
+
 builder.Services.AddSignalR();
+
+// ── Hangfire background jobs ──
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(o => o.UseNpgsqlConnection(
+        builder.Configuration.GetConnectionString("Default"))));
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = 2;
+    options.Queues = new[] { "default", "compliance", "notifications" };
+});
+builder.Services.AddScoped<StingBIM.Infrastructure.Services.ComplianceCheckJob>();
+builder.Services.AddScoped<StingBIM.Infrastructure.Services.SlaEscalationJob>();
+builder.Services.AddScoped<StingBIM.Infrastructure.Services.StaleWarningCleanupJob>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -138,6 +158,11 @@ app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // Must run AFTER auth so JWT claims are available
 app.UseAuthorization();
 
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new StingBIM.Infrastructure.Services.HangfireAuthorizationFilter() }
+});
+
 // ── Health check ──
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow, version = "1.0.0" }));
 
@@ -153,5 +178,16 @@ if (app.Environment.IsDevelopment())
     db.Database.EnsureCreated();
     await StingBIM.API.SeedData.SeedAsync(db);
 }
+
+// ── Recurring background jobs ──
+RecurringJob.AddOrUpdate<StingBIM.Infrastructure.Services.ComplianceCheckJob>(
+    "compliance-snapshot", j => j.ExecuteAsync(CancellationToken.None),
+    Cron.Hourly, new RecurringJobOptions { QueueName = "compliance" });
+RecurringJob.AddOrUpdate<StingBIM.Infrastructure.Services.SlaEscalationJob>(
+    "sla-escalation", j => j.ExecuteAsync(CancellationToken.None),
+    "*/15 * * * *", new RecurringJobOptions { QueueName = "default" });
+RecurringJob.AddOrUpdate<StingBIM.Infrastructure.Services.StaleWarningCleanupJob>(
+    "stale-warning-cleanup", j => j.ExecuteAsync(CancellationToken.None),
+    Cron.Daily, new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
