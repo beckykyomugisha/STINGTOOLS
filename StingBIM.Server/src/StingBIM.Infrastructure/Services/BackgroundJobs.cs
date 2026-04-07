@@ -1,3 +1,4 @@
+using Hangfire;
 using Hangfire.Dashboard;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
