@@ -1,7 +1,7 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
 using StingBIM.Core.Entities;
 using StingBIM.Infrastructure.Data;
 
@@ -56,6 +56,20 @@ public class MeetingsController : ControllerBase
         };
 
         _db.Meetings.Add(meeting);
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "meeting_created",
+            EntityType = "Meeting",
+            EntityId = meeting.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { meeting.Title, meeting.MeetingType, meeting.ScheduledAt }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetMeetings), new { projectId }, meeting);
     }
@@ -69,6 +83,20 @@ public class MeetingsController : ControllerBase
         if (meeting == null) return NotFound();
 
         meeting.Minutes = req.Minutes;
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "meeting_minutes_logged",
+            EntityType = "Meeting",
+            EntityId = meetingId.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { meeting.Title, minutesLength = req.Minutes?.Length ?? 0 }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return Ok(meeting);
     }
@@ -90,6 +118,20 @@ public class MeetingsController : ControllerBase
         };
 
         _db.MeetingActionItems.Add(item);
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "action_item_created",
+            EntityType = "MeetingActionItem",
+            EntityId = item.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { item.Description, item.Assignee, item.DueDate, meetingId }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return Ok(item);
     }
@@ -101,9 +143,28 @@ public class MeetingsController : ControllerBase
             .FirstOrDefaultAsync(a => a.Id == actionId && a.MeetingId == meetingId);
         if (action == null) return NotFound();
 
+        var oldStatus = action.Status;
         if (req.Status != null) action.Status = req.Status;
         if (req.Assignee != null) action.Assignee = req.Assignee;
         if (req.LinkedIssueId != null) action.LinkedIssueId = req.LinkedIssueId;
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = GetTenantId(),
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "action_item_updated",
+            EntityType = "MeetingActionItem",
+            EntityId = actionId.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new
+            {
+                statusChange = req.Status != null ? $"{oldStatus}→{req.Status}" : null,
+                assignee = req.Assignee,
+                linkedIssueId = req.LinkedIssueId
+            }),
+            Timestamp = DateTime.UtcNow
+        });
 
         await _db.SaveChangesAsync();
         return Ok(action);

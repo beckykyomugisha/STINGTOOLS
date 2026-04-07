@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using StingBIM.Core.Entities;
 using StingBIM.Infrastructure.Data;
 using StingBIM.MIM.Entities;
 
@@ -75,6 +77,20 @@ public class MimController : ControllerBase
         };
 
         _db.Assets.Add(asset);
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = GetTenantId(),
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "asset_created",
+            EntityType = "Asset",
+            EntityId = asset.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { asset.AssetTag, asset.AssetName, asset.Discipline }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetAssets), new { projectId }, asset);
     }
@@ -103,6 +119,18 @@ public class MimController : ControllerBase
             });
             created++;
         }
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = GetTenantId(),
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "assets_bulk_created",
+            EntityType = "Asset",
+            DetailsJson = JsonSerializer.Serialize(new { created, skipped = assets.Count - created, totalReceived = assets.Count }),
+            Timestamp = DateTime.UtcNow
+        });
 
         await _db.SaveChangesAsync();
         return Ok(new { created, skipped = assets.Count - created });
@@ -170,6 +198,20 @@ public class MimController : ControllerBase
         };
 
         _db.MaintenanceTasks.Add(task);
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = GetTenantId(),
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "maintenance_task_created",
+            EntityType = "MaintenanceTask",
+            EntityId = task.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { task.Description, task.Priority, req.AssetId, task.FrequencyDays }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return Ok(task);
     }

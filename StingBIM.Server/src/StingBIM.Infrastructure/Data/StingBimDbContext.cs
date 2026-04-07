@@ -45,6 +45,7 @@ public class StingBimDbContext : DbContext
         {
             e.HasKey(u => u.Id);
             e.HasIndex(u => u.Email).IsUnique();
+            e.HasIndex(u => u.TenantId); // Hot query path: list users by tenant
             e.HasOne(u => u.Tenant).WithMany(t => t.Users).HasForeignKey(u => u.TenantId);
         });
 
@@ -83,6 +84,7 @@ public class StingBimDbContext : DbContext
             e.HasKey(d => d.Id);
             e.HasOne(d => d.Project).WithMany(p => p.Documents).HasForeignKey(d => d.ProjectId);
             e.HasIndex(d => new { d.ProjectId, d.CdeStatus });
+            e.HasIndex(d => new { d.ProjectId, d.Discipline }); // Filter by discipline
         });
 
         // ── LicenseKey ──
@@ -98,6 +100,7 @@ public class StingBimDbContext : DbContext
         {
             e.HasKey(w => w.Id);
             e.HasOne(w => w.Project).WithMany(p => p.WorkflowRuns).HasForeignKey(w => w.ProjectId);
+            e.HasIndex(w => new { w.ProjectId, w.StartedAt }); // Workflow history/trend queries
         });
 
         // ── ComplianceSnapshot ──
@@ -129,6 +132,7 @@ public class StingBimDbContext : DbContext
         {
             e.HasKey(a => a.Id);
             e.HasOne(a => a.Meeting).WithMany(m => m.ActionItems).HasForeignKey(a => a.MeetingId);
+            e.HasIndex(a => a.Status); // Filter open/overdue actions
         });
 
         // ── Transmittal ──

@@ -53,17 +53,18 @@ public class IssuesController : ControllerBase
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
 
-        // Auto-generate issue code
-        var lastIssue = await _db.Issues
+        // Auto-generate collision-safe issue code — scan max numeric suffix
+        var existingCodes = await _db.Issues
             .Where(i => i.ProjectId == projectId && i.Type == req.Type)
-            .OrderByDescending(i => i.IssueCode)
-            .FirstOrDefaultAsync();
+            .Select(i => i.IssueCode)
+            .ToListAsync();
 
         int nextNum = 1;
-        if (lastIssue != null)
+        foreach (var code in existingCodes)
         {
-            var parts = lastIssue.IssueCode.Split('-');
-            if (parts.Length == 2 && int.TryParse(parts[1], out int n)) nextNum = n + 1;
+            var parts = code.Split('-');
+            if (parts.Length == 2 && int.TryParse(parts[1], out int n) && n >= nextNum)
+                nextNum = n + 1;
         }
 
         var issue = new BimIssue
@@ -82,6 +83,21 @@ public class IssuesController : ControllerBase
         };
 
         _db.Issues.Add(issue);
+
+        // Audit trail for issue creation — ISO 19650 compliance
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "issue_created",
+            EntityType = "BimIssue",
+            EntityId = issue.Id.ToString(),
+            DetailsJson = System.Text.Json.JsonSerializer.Serialize(new { issue.IssueCode, issue.Type, issue.Title, issue.Priority, issue.Assignee }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetIssues), new { projectId }, issue);
@@ -95,6 +111,9 @@ public class IssuesController : ControllerBase
             .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
         if (issue == null) return NotFound();
 
+        var oldStatus = issue.Status;
+        var oldPriority = issue.Priority;
+
         if (req.Status != null)
         {
             issue.Status = req.Status;
@@ -104,6 +123,26 @@ public class IssuesController : ControllerBase
         if (req.Priority != null) issue.Priority = req.Priority;
         if (req.Assignee != null) issue.Assignee = req.Assignee;
         if (req.Description != null) issue.Description = req.Description;
+
+        // Audit trail for issue update
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "issue_updated",
+            EntityType = "BimIssue",
+            EntityId = issueId.ToString(),
+            DetailsJson = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                issue.IssueCode,
+                statusChange = req.Status != null ? $"{oldStatus}→{req.Status}" : null,
+                priorityChange = req.Priority != null ? $"{oldPriority}→{req.Priority}" : null,
+                assignee = req.Assignee
+            }),
+            Timestamp = DateTime.UtcNow
+        });
 
         await _db.SaveChangesAsync();
         return Ok(issue);

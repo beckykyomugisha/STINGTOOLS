@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using StingBIM.Core.Entities;
 using StingBIM.Infrastructure.Data;
 
 namespace StingBIM.API.Controllers;
@@ -29,6 +31,20 @@ public class WarningsController : ControllerBase
 
         // Update project cached warning count
         project.WarningCount = req.TotalWarnings;
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "warning_report_pushed",
+            EntityType = "Project",
+            EntityId = projectId.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { req.TotalWarnings, req.HealthScore }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new
@@ -63,6 +79,20 @@ public class WarningsController : ControllerBase
         };
 
         _db.ComplianceSnapshots.Add(snapshot);
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "warning_baseline_saved",
+            EntityType = "ComplianceSnapshot",
+            EntityId = snapshot.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { req.WarningCount, req.HealthScore, req.TotalElements, req.CompliancePercent }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { id = snapshot.Id, capturedAt = snapshot.CapturedAt });

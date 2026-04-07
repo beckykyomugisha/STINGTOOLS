@@ -63,6 +63,24 @@ public class TagSyncController : ControllerBase
             }
         }
 
+        // Audit trail for tag sync operation
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = project.Id,
+            UserId = userId,
+            Action = "tag_sync",
+            EntityType = "TaggedElement",
+            DetailsJson = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                elementsReceived = request.Elements.Count,
+                created, updated,
+                userName = request.UserName
+            }),
+            Timestamp = DateTime.UtcNow
+        });
+
         // Update project compliance metrics
         await _db.SaveChangesAsync();
         var metrics = await ComputeComplianceAsync(project.Id);

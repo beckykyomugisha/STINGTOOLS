@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -81,6 +82,20 @@ public class ProjectMembersController : ControllerBase
             existing.Iso19650Role = req.Iso19650Role ?? "M";
             existing.JoinedAt     = DateTime.UtcNow;
             existing.InvitedBy    = GetCurrentUserName();
+
+            var userId1 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid1) ? uid1 : (Guid?)null;
+            _db.AuditLogs.Add(new AuditLog
+            {
+                TenantId = tenantId,
+                ProjectId = projectId,
+                UserId = userId1,
+                Action = "project_member_reactivated",
+                EntityType = "ProjectMember",
+                EntityId = existing.Id.ToString(),
+                DetailsJson = JsonSerializer.Serialize(new { req.UserId, existing.ProjectRole, existing.Iso19650Role }),
+                Timestamp = DateTime.UtcNow
+            });
+
             await _db.SaveChangesAsync();
             return Ok(new { message = "Membership re-activated", memberId = existing.Id });
         }
@@ -94,6 +109,20 @@ public class ProjectMembersController : ControllerBase
             InvitedBy    = GetCurrentUserName()
         };
         _db.ProjectMembers.Add(member);
+
+        var userId2 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid2) ? uid2 : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId2,
+            Action = "project_member_added",
+            EntityType = "ProjectMember",
+            EntityId = member.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { req.UserId, member.ProjectRole, member.Iso19650Role, user.DisplayName }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetMembers), new { projectId },
@@ -133,6 +162,20 @@ public class ProjectMembersController : ControllerBase
                 IsActive      = false  // awaiting first login / password set
             };
             _db.Users.Add(user);
+
+            var userId5 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid5) ? uid5 : (Guid?)null;
+            _db.AuditLogs.Add(new AuditLog
+            {
+                TenantId = tenantId,
+                ProjectId = projectId,
+                UserId = userId5,
+                Action = "user_invited",
+                EntityType = "AppUser",
+                EntityId = user.Id.ToString(),
+                DetailsJson = JsonSerializer.Serialize(new { user.Email, user.DisplayName, req.ProjectRole, req.Iso19650Role }),
+                Timestamp = DateTime.UtcNow
+            });
+
             await _db.SaveChangesAsync();
 
             // Send invite email with password-reset link
@@ -161,6 +204,19 @@ public class ProjectMembersController : ControllerBase
                 InvitedBy    = GetCurrentUserName()
             });
         }
+
+        var userId6 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid6) ? uid6 : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId6,
+            Action = "project_member_invited",
+            EntityType = "ProjectMember",
+            DetailsJson = JsonSerializer.Serialize(new { req.Email, req.ProjectRole, req.Iso19650Role, UserId = user.Id }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new
@@ -185,6 +241,20 @@ public class ProjectMembersController : ControllerBase
 
         if (req.ProjectRole  != null) member.ProjectRole  = req.ProjectRole;
         if (req.Iso19650Role != null) member.Iso19650Role = req.Iso19650Role;
+
+        var userId3 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid3) ? uid3 : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = GetTenantId(),
+            ProjectId = projectId,
+            UserId = userId3,
+            Action = "project_member_updated",
+            EntityType = "ProjectMember",
+            EntityId = memberId.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { member.ProjectRole, member.Iso19650Role }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { member.Id, member.ProjectRole, member.Iso19650Role });
@@ -202,6 +272,20 @@ public class ProjectMembersController : ControllerBase
         if (member == null) return NotFound();
 
         member.IsActive = false;
+
+        var userId4 = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid4) ? uid4 : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = GetTenantId(),
+            ProjectId = projectId,
+            UserId = userId4,
+            Action = "project_member_removed",
+            EntityType = "ProjectMember",
+            EntityId = memberId.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { member.UserId }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return NoContent();
     }

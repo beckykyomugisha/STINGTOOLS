@@ -79,6 +79,21 @@ public class DocumentsController : ControllerBase
         };
 
         _db.Documents.Add(doc);
+
+        // Audit trail for document creation
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "document_created",
+            EntityType = "DocumentRecord",
+            EntityId = doc.Id.ToString(),
+            DetailsJson = JsonConvert.SerializeObject(new { doc.FileName, doc.DocumentType, doc.Discipline }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetDocuments), new { projectId }, doc);
     }
@@ -117,6 +132,26 @@ public class DocumentsController : ControllerBase
             user = User.FindFirst("display_name")?.Value ?? "Unknown"
         });
         doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
+
+        // Write formal AuditLog entry for ISO 19650 compliance traceability
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "cde_transition",
+            EntityType = "DocumentRecord",
+            EntityId = docId.ToString(),
+            DetailsJson = JsonConvert.SerializeObject(new
+            {
+                oldState, newState = req.NewState,
+                suitability = doc.SuitabilityCode,
+                revision = doc.Revision,
+                fileName = doc.FileName
+            }),
+            Timestamp = DateTime.UtcNow
+        });
 
         await _db.SaveChangesAsync();
         return Ok(doc);

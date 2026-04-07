@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +54,20 @@ public class ProjectsController : ControllerBase
             Phase = req.Phase ?? "Design"
         };
         _db.Projects.Add(project);
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = project.Id,
+            UserId = userId,
+            Action = "project_created",
+            EntityType = "Project",
+            EntityId = project.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { project.Name, project.Code, project.Phase }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetProjects), new { id = project.Id }, project);
