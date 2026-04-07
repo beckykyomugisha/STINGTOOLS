@@ -3668,14 +3668,42 @@ namespace StingTools.Core
 
                 // Load revision data
                 int revisionCount = 0, revisionClouds = 0;
+                int cloudsUnresolved = 0;
+                int revisionsThisWeek = 0;
+                var cloudsBySheetDict = new Dictionary<string, int>();
+                var cloudsByDisciplineDict = new Dictionary<string, int>();
                 try
                 {
                     var revisions = new FilteredElementCollector(doc).OfClass(typeof(Revision)).ToElements();
                     revisionCount = revisions.Count;
+
+                    // Count revisions created this week
+                    var weekAgo = DateTime.Now.AddDays(-7);
+                    foreach (var rev in revisions.Cast<Revision>())
+                    {
+                        try
+                        {
+                            string dateStr = rev.RevisionDate;
+                            if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out DateTime revDate))
+                            {
+                                if (revDate >= weekAgo) revisionsThisWeek++;
+                            }
+                        }
+                        catch { /* date parse failure is non-critical */ }
+                    }
+
                     // Pre-collect all revision clouds once and group by revision ID
                     var allClouds = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
                         .WhereElementIsNotElementType().ToElements();
                     var cloudsByRevId = new Dictionary<ElementId, int>();
+
+                    // Build set of issued revision IDs for unresolved count
+                    var issuedRevIds = new HashSet<ElementId>();
+                    foreach (var rev in revisions.Cast<Revision>())
+                    {
+                        if (!rev.Issued) issuedRevIds.Add(rev.Id);
+                    }
+
                     foreach (var c in allClouds)
                     {
                         var revId = c.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId();
@@ -3683,8 +3711,79 @@ namespace StingTools.Core
                         {
                             cloudsByRevId.TryGetValue(revId, out int cnt);
                             cloudsByRevId[revId] = cnt + 1;
+
+                            // Count clouds on non-issued (draft) revisions as unresolved
+                            if (issuedRevIds.Contains(revId))
+                                cloudsUnresolved++;
                         }
+                        else
+                        {
+                            // Cloud with no valid revision is unresolved
+                            cloudsUnresolved++;
+                        }
+
+                        // Clouds by sheet
+                        try
+                        {
+                            var ownerViewId = c.OwnerViewId;
+                            if (ownerViewId != null && ownerViewId != ElementId.InvalidElementId)
+                            {
+                                var ownerView = doc.GetElement(ownerViewId);
+                                string sheetKey = null;
+                                if (ownerView is ViewSheet vs)
+                                {
+                                    sheetKey = $"{vs.SheetNumber} - {vs.Name}";
+                                }
+                                else if (ownerView is View v)
+                                {
+                                    // Find sheet hosting this view
+                                    var titleParam = v.get_Parameter(BuiltInParameter.VIEW_SHEET_REFERENCING_SHEET);
+                                    if (titleParam != null)
+                                    {
+                                        string sheetNum = titleParam.AsString();
+                                        if (!string.IsNullOrEmpty(sheetNum))
+                                            sheetKey = sheetNum;
+                                    }
+                                }
+                                if (!string.IsNullOrEmpty(sheetKey))
+                                {
+                                    cloudsBySheetDict.TryGetValue(sheetKey, out int sCnt);
+                                    cloudsBySheetDict[sheetKey] = sCnt + 1;
+                                }
+                            }
+                        }
+                        catch (Exception shEx) { StingLog.Warn($"Cloud sheet lookup: {shEx.Message}"); }
+
+                        // Clouds by discipline (derive from revision description or cloud's view discipline)
+                        try
+                        {
+                            string disc = "General";
+                            var ownerView2 = c.OwnerViewId != null && c.OwnerViewId != ElementId.InvalidElementId
+                                ? doc.GetElement(c.OwnerViewId) as View : null;
+                            if (ownerView2 != null)
+                            {
+                                var viewDisc = ownerView2.get_Parameter(BuiltInParameter.VIEW_DISCIPLINE);
+                                if (viewDisc != null)
+                                {
+                                    int discVal = viewDisc.AsInteger();
+                                    disc = discVal switch
+                                    {
+                                        1 => "Architectural",
+                                        2 => "Structural",
+                                        4 => "Mechanical",
+                                        16 => "Electrical",
+                                        32 => "Plumbing",
+                                        4095 => "Coordination",
+                                        _ => "General"
+                                    };
+                                }
+                            }
+                            cloudsByDisciplineDict.TryGetValue(disc, out int dCnt);
+                            cloudsByDisciplineDict[disc] = dCnt + 1;
+                        }
+                        catch (Exception dEx) { StingLog.Warn($"Cloud discipline lookup: {dEx.Message}"); }
                     }
+
                     foreach (var rev in revisions.Cast<Revision>())
                     {
                         cloudsByRevId.TryGetValue(rev.Id, out int clouds);
@@ -3879,6 +3978,10 @@ namespace StingTools.Core
                     Issues = issueRows,
                     RevisionCount = revisionCount,
                     RevisionClouds = revisionClouds,
+                    CloudsUnresolved = cloudsUnresolved,
+                    RevisionsThisWeek = revisionsThisWeek,
+                    CloudsBySheet = cloudsBySheetDict,
+                    CloudsByDiscipline = cloudsByDisciplineDict,
                     Revisions = revisionRows,
                     LastSyncTime = lastSyncTime,
                     SyncChanges = syncChanges,

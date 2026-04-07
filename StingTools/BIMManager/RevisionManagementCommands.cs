@@ -2297,4 +2297,172 @@ namespace StingTools.BIMManager
             }
         }
     }
+
+    /// <summary>
+    /// Audit all revision clouds in the model: totals, per-revision breakdown,
+    /// unassigned clouds, and clouds-by-sheet summary.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionCloudAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
+
+                // Collect all revision clouds
+                var allClouds = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_RevisionClouds)
+                    .WhereElementIsNotElementType()
+                    .ToElements();
+
+                if (allClouds.Count == 0)
+                {
+                    TaskDialog.Show("STING Revision Cloud Audit", "No revision clouds found in the model.");
+                    return Result.Succeeded;
+                }
+
+                // Collect all revisions for lookup
+                var revisions = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .ToDictionary(r => r.Id, r => r);
+
+                // Group clouds by revision
+                var cloudsByRevision = new Dictionary<ElementId, List<Element>>();
+                var unassignedClouds = new List<Element>();
+
+                foreach (var cloud in allClouds)
+                {
+                    var revParam = cloud.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION);
+                    var revId = revParam?.AsElementId();
+
+                    if (revId == null || revId == ElementId.InvalidElementId || !revisions.ContainsKey(revId))
+                    {
+                        unassignedClouds.Add(cloud);
+                    }
+                    else
+                    {
+                        if (!cloudsByRevision.TryGetValue(revId, out var list))
+                        {
+                            list = new List<Element>();
+                            cloudsByRevision[revId] = list;
+                        }
+                        list.Add(cloud);
+                    }
+                }
+
+                // Group clouds by sheet (via OwnerViewId → ViewSheet)
+                var cloudsBySheet = new Dictionary<string, int>();
+                int cloudsNotOnSheet = 0;
+
+                foreach (var cloud in allClouds)
+                {
+                    try
+                    {
+                        var ownerViewId = cloud.OwnerViewId;
+                        if (ownerViewId == null || ownerViewId == ElementId.InvalidElementId)
+                        {
+                            cloudsNotOnSheet++;
+                            continue;
+                        }
+
+                        var ownerView = doc.GetElement(ownerViewId) as View;
+                        if (ownerView == null)
+                        {
+                            cloudsNotOnSheet++;
+                            continue;
+                        }
+
+                        // Check if the view is placed on a sheet
+                        string sheetKey = null;
+                        if (ownerView is ViewSheet sheet)
+                        {
+                            sheetKey = $"{sheet.SheetNumber} - {sheet.Name}";
+                        }
+                        else
+                        {
+                            // Find the sheet that hosts this view
+                            var viewSheet = new FilteredElementCollector(doc)
+                                .OfClass(typeof(ViewSheet))
+                                .Cast<ViewSheet>()
+                                .FirstOrDefault(s =>
+                                {
+                                    try
+                                    {
+                                        return s.GetAllPlacedViews().Contains(ownerViewId);
+                                    }
+                                    catch { return false; }
+                                });
+                            if (viewSheet != null)
+                                sheetKey = $"{viewSheet.SheetNumber} - {viewSheet.Name}";
+                        }
+
+                        if (sheetKey != null)
+                        {
+                            cloudsBySheet.TryGetValue(sheetKey, out int cnt);
+                            cloudsBySheet[sheetKey] = cnt + 1;
+                        }
+                        else
+                        {
+                            cloudsNotOnSheet++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        cloudsNotOnSheet++;
+                        StingLog.Warn($"RevisionCloudAudit sheet lookup: {ex.Message}");
+                    }
+                }
+
+                // Build report
+                var sb = new StringBuilder();
+                sb.AppendLine($"Total Revision Clouds: {allClouds.Count}");
+                sb.AppendLine($"Unassigned (no revision): {unassignedClouds.Count}");
+                sb.AppendLine($"Not on any sheet: {cloudsNotOnSheet}");
+                sb.AppendLine();
+
+                // Per-revision breakdown
+                sb.AppendLine("── Clouds per Revision ──");
+                var sortedRevisions = revisions.Values
+                    .OrderBy(r => r.SequenceNumber)
+                    .ToList();
+
+                foreach (var rev in sortedRevisions)
+                {
+                    int count = cloudsByRevision.TryGetValue(rev.Id, out var cList) ? cList.Count : 0;
+                    string revNum = "";
+                    try { revNum = rev.RevisionNumber; } catch { revNum = "—"; }
+                    string status = rev.Issued ? "Issued" : "Draft";
+                    sb.AppendLine($"  [{revNum}] {rev.Description ?? "(no description)"}: {count} clouds ({status})");
+                }
+                sb.AppendLine();
+
+                // Clouds by sheet (top 15)
+                if (cloudsBySheet.Count > 0)
+                {
+                    sb.AppendLine("── Clouds by Sheet (top 15) ──");
+                    foreach (var kv in cloudsBySheet.OrderByDescending(x => x.Value).Take(15))
+                    {
+                        sb.AppendLine($"  {kv.Key}: {kv.Value}");
+                    }
+                }
+
+                TaskDialog.Show("STING Revision Cloud Audit", sb.ToString());
+                StingLog.Info($"RevisionCloudAudit: {allClouds.Count} total, {unassignedClouds.Count} unassigned, " +
+                    $"{cloudsByRevision.Count} revisions with clouds, {cloudsBySheet.Count} sheets with clouds");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionCloudAuditCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
 }

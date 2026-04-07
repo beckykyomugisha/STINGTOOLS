@@ -2730,7 +2730,9 @@ namespace StingTools.UI
                 "Revisions created in the last 7 days"));
             kpiRow.Children.Add(MakeKPICard("UNRESOLVED", _data.CloudsUnresolved.ToString(),
                 _data.CloudsUnresolved > 0 ? Br(CRed) : Br(CGreen),
-                "Revision clouds not yet addressed\nRequire action before next data drop"));
+                $"Revision clouds not yet addressed: {_data.CloudsUnresolved}\n" +
+                $"Total clouds: {totalClouds} across {_data.CloudsBySheet.Count} sheets\n" +
+                $"Require action before next data drop"));
             kpiRow.Children.Add(MakeKPICard("ISSUED", issued.ToString(), Br(CGreen),
                 "Revisions formally issued to sheets"));
             stack.Children.Add(kpiRow);
