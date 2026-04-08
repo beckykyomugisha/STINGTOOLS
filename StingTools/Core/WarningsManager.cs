@@ -3371,6 +3371,8 @@ namespace StingTools.Core
                 // Wire ActionDispatcher so BCC button clicks go through ExternalEvent
                 UI.BIMCoordinationCenter.ActionDispatcher = action =>
                 {
+                    if (action.StartsWith("CreateRevision"))
+                        BIMManager.CoordinationCenterCommands.BccPendingAction = action;
                     _bccHandler.Post(action);
                     _bccEvent.Raise();
                 };
