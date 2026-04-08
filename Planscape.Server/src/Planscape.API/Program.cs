@@ -1,6 +1,6 @@
-using StingBIM.Infrastructure.Data;
-using StingBIM.Infrastructure.SignalR;
-using StingBIM.API.Middleware;
+using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
+using Planscape.API.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -17,14 +17,14 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.File("logs/stingbim-.log", rollingInterval: RollingInterval.Day));
+    .WriteTo.File("logs/planscape-.log", rollingInterval: RollingInterval.Day));
 
 // ── Database ──
-builder.Services.AddDbContext<StingBimDbContext>(options =>
+builder.Services.AddDbContext<PlanscapeDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 // ── Authentication ──
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "StingBIM-Dev-Secret-Key-Min32Chars!!";
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "Planscape-Dev-Secret-Key-Min32Chars!!";
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -34,8 +34,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "StingBIM",
-            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "StingBIM.Client",
+            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Planscape",
+            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "Planscape.Client",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
         // SignalR JWT support — read token from query string for WebSocket
@@ -54,23 +54,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // ── Services ──
-builder.Services.AddScoped<StingBIM.Core.Interfaces.ITenantContext, StingBIM.Infrastructure.Services.TenantContext>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
 
 // ── Email ──
 if (!string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
-    builder.Services.AddSingleton<StingBIM.Core.Interfaces.IEmailService, StingBIM.Infrastructure.Services.SmtpEmailService>();
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.SmtpEmailService>();
 else
-    builder.Services.AddSingleton<StingBIM.Core.Interfaces.IEmailService, StingBIM.Infrastructure.Services.NullEmailService>();
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.NullEmailService>();
 
 // ── Push Notifications ──
 builder.Services.AddHttpClient("FCM");
 if (!string.IsNullOrEmpty(builder.Configuration["Firebase:ProjectId"]))
-    builder.Services.AddSingleton<StingBIM.Core.Interfaces.IPushNotificationService, StingBIM.Infrastructure.Services.FirebasePushService>();
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IPushNotificationService, Planscape.Infrastructure.Services.FirebasePushService>();
 else
-    builder.Services.AddSingleton<StingBIM.Core.Interfaces.IPushNotificationService, StingBIM.Infrastructure.Services.NullPushNotificationService>();
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IPushNotificationService, Planscape.Infrastructure.Services.NullPushNotificationService>();
 
 // ── Notifications (SignalR + Push) ──
-builder.Services.AddSingleton<StingBIM.Core.Interfaces.INotificationService, StingBIM.Infrastructure.Services.NotificationService>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.INotificationService, Planscape.Infrastructure.Services.NotificationService>();
 
 builder.Services.AddSignalR();
 
@@ -86,15 +86,15 @@ builder.Services.AddHangfireServer(options =>
     options.WorkerCount = 2;
     options.Queues = new[] { "default", "compliance", "notifications" };
 });
-builder.Services.AddScoped<StingBIM.Infrastructure.Services.ComplianceCheckJob>();
-builder.Services.AddScoped<StingBIM.Infrastructure.Services.SlaEscalationJob>();
-builder.Services.AddScoped<StingBIM.Infrastructure.Services.StaleWarningCleanupJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ComplianceCheckJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaEscalationJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.StaleWarningCleanupJob>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "StingBIM API", Version = "v1" });
+    c.SwaggerDoc("v1", new() { Title = "Planscape API", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new()
     {
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
@@ -167,7 +167,7 @@ app.UseAuthorization();
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
-    Authorization = new[] { new StingBIM.Infrastructure.Services.HangfireAuthorizationFilter() }
+    Authorization = new[] { new Planscape.Infrastructure.Services.HangfireAuthorizationFilter() }
 });
 
 // ── Health check ──
@@ -181,12 +181,12 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 // ── Database migration + seed ──
 {
     using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+    var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
     if (app.Environment.IsDevelopment())
     {
         // In development, auto-migrate (apply pending migrations or create DB)
         db.Database.Migrate();
-        await StingBIM.API.SeedData.SeedAsync(db);
+        await Planscape.API.SeedData.SeedAsync(db);
     }
     else
     {
@@ -196,13 +196,13 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 }
 
 // ── Recurring background jobs ──
-RecurringJob.AddOrUpdate<StingBIM.Infrastructure.Services.ComplianceCheckJob>(
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ComplianceCheckJob>(
     "compliance-snapshot", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Hourly, new RecurringJobOptions { QueueName = "compliance" });
-RecurringJob.AddOrUpdate<StingBIM.Infrastructure.Services.SlaEscalationJob>(
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaEscalationJob>(
     "sla-escalation", j => j.ExecuteAsync(CancellationToken.None),
     "*/15 * * * *", new RecurringJobOptions { QueueName = "default" });
-RecurringJob.AddOrUpdate<StingBIM.Infrastructure.Services.StaleWarningCleanupJob>(
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJob>(
     "stale-warning-cleanup", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Daily, new RecurringJobOptions { QueueName = "default" });
 

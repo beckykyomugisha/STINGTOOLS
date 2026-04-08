@@ -2,13 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core;
-using StingBIM.Core.DTOs;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
-using StingBIM.Infrastructure.SignalR;
+using Planscape.Core;
+using Planscape.Core.DTOs;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// Tag synchronization endpoint — receives tagged element data from the Revit plugin
@@ -19,11 +19,11 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class TagSyncController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
     private readonly IHubContext<TagSyncHub> _tagHub;
     private readonly IHubContext<ComplianceHub> _complianceHub;
 
-    public TagSyncController(StingBimDbContext db, IHubContext<TagSyncHub> tagHub, IHubContext<ComplianceHub> complianceHub)
+    public TagSyncController(PlanscapeDbContext db, IHubContext<TagSyncHub> tagHub, IHubContext<ComplianceHub> complianceHub)
     {
         _db = db;
         _tagHub = tagHub;

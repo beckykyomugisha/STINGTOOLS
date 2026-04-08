@@ -1,4 +1,4 @@
-namespace StingBIM.Core.Entities;
+namespace Planscape.Core.Entities;
 
 /// <summary>
 /// Links a BimIssue to a DocumentRecord (file attachment).

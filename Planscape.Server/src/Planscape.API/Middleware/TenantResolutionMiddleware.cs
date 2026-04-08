@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Infrastructure.Data;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Middleware;
+namespace Planscape.API.Middleware;
 
 /// <summary>
 /// Resolves the current tenant from the JWT token's tenant_id claim,
-/// the X-Tenant-Id header, or the subdomain ({slug}.stingbim.io).
+/// the X-Tenant-Id header, or the subdomain ({slug}.planscape.io).
 /// </summary>
 public class TenantResolutionMiddleware
 {
@@ -13,7 +13,7 @@ public class TenantResolutionMiddleware
 
     public TenantResolutionMiddleware(RequestDelegate next) => _next = next;
 
-    public async Task InvokeAsync(HttpContext context, StingBimDbContext db)
+    public async Task InvokeAsync(HttpContext context, PlanscapeDbContext db)
     {
         // Skip for non-authenticated endpoints
         if (context.Request.Path.StartsWithSegments("/api/auth"))
@@ -39,7 +39,7 @@ public class TenantResolutionMiddleware
         {
             var host = context.Request.Host.Host;
             var parts = host.Split('.');
-            if (parts.Length >= 3 && parts[1] == "stingbim")
+            if (parts.Length >= 3 && parts[1] == "planscape")
             {
                 var slug = parts[0];
                 var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Slug == slug && t.IsActive);

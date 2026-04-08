@@ -3,14 +3,14 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using StingBIM.Infrastructure.Data;
+using Planscape.Infrastructure.Data;
 
 #nullable disable
 
-namespace StingBIM.Infrastructure.Data.Migrations
+namespace Planscape.Infrastructure.Data.Migrations
 {
-    [DbContext(typeof(StingBimDbContext))]
-    partial class StingBimDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(PlanscapeDbContext))]
+    partial class PlanscapeDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
@@ -20,7 +20,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63)
                 .UseIdentityByDefaultColumns();
 
-            modelBuilder.Entity("StingBIM.Core.Entities.AuditLog", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.AuditLog", b =>
             {
                 b.Property<long>("Id")
                     .ValueGeneratedOnAdd()
@@ -66,7 +66,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("AuditLogs");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.AppUser", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.AppUser", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -119,7 +119,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("Users");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.BimIssue", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.BimIssue", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -192,7 +192,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("Issues");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.ComplianceSnapshot", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.ComplianceSnapshot", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -264,7 +264,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("ComplianceSnapshots");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.DevicePushToken", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.DevicePushToken", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -304,7 +304,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("DevicePushTokens");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.IssueAttachment", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.IssueAttachment", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -333,7 +333,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("IssueAttachments");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.DocumentRecord", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.DocumentRecord", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -391,7 +391,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("Documents");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.LicenseKey", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.LicenseKey", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -444,7 +444,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("LicenseKeys");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.Meeting", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.Meeting", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -488,7 +488,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("Meetings");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.MeetingActionItem", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.MeetingActionItem", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -524,7 +524,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("MeetingActionItems");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.Project", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.Project", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -600,7 +600,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("Projects");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.ProjectMember", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.ProjectMember", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -637,7 +637,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("ProjectMembers");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.SeqCounter", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.SeqCounter", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -668,7 +668,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("SeqCounters");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.TaggedElement", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.TaggedElement", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -807,7 +807,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("TaggedElements");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.Tenant", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.Tenant", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -868,7 +868,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("Tenants");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.Transmittal", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.Transmittal", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -913,7 +913,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("Transmittals");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.WorkflowRun", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.WorkflowRun", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -961,7 +961,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("WorkflowRuns");
             });
 
-            modelBuilder.Entity("StingBIM.MIM.Entities.Asset", b =>
+            modelBuilder.Entity("Planscape.MIM.Entities.Asset", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -1137,7 +1137,7 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.ToTable("Assets");
             });
 
-            modelBuilder.Entity("StingBIM.MIM.Entities.MaintenanceTask", b =>
+            modelBuilder.Entity("Planscape.MIM.Entities.MaintenanceTask", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -1216,9 +1216,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
 
             // ── Relationships ──
 
-            modelBuilder.Entity("StingBIM.Core.Entities.AppUser", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.AppUser", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Tenant", "Tenant")
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
                     .WithMany("Users")
                     .HasForeignKey("TenantId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1227,9 +1227,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Tenant");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.BimIssue", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.BimIssue", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Project", "Project")
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
                     .WithMany("Issues")
                     .HasForeignKey("ProjectId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1238,9 +1238,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Project");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.ComplianceSnapshot", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.ComplianceSnapshot", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Project", "Project")
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
                     .WithMany()
                     .HasForeignKey("ProjectId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1249,15 +1249,15 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Project");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.DevicePushToken", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.DevicePushToken", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Tenant", "Tenant")
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
                     .WithMany()
                     .HasForeignKey("TenantId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
-                b.HasOne("StingBIM.Core.Entities.AppUser", "User")
+                b.HasOne("Planscape.Core.Entities.AppUser", "User")
                     .WithMany()
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1268,15 +1268,15 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("User");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.IssueAttachment", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.IssueAttachment", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.DocumentRecord", "Document")
+                b.HasOne("Planscape.Core.Entities.DocumentRecord", "Document")
                     .WithMany()
                     .HasForeignKey("DocumentId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
-                b.HasOne("StingBIM.Core.Entities.BimIssue", "Issue")
+                b.HasOne("Planscape.Core.Entities.BimIssue", "Issue")
                     .WithMany("Attachments")
                     .HasForeignKey("IssueId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1287,9 +1287,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Issue");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.DocumentRecord", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.DocumentRecord", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Project", "Project")
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
                     .WithMany("Documents")
                     .HasForeignKey("ProjectId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1298,9 +1298,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Project");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.LicenseKey", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.LicenseKey", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Tenant", "Tenant")
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
                     .WithMany("LicenseKeys")
                     .HasForeignKey("TenantId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1309,9 +1309,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Tenant");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.Meeting", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.Meeting", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Project", "Project")
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
                     .WithMany()
                     .HasForeignKey("ProjectId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1320,9 +1320,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Project");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.MeetingActionItem", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.MeetingActionItem", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Meeting", "Meeting")
+                b.HasOne("Planscape.Core.Entities.Meeting", "Meeting")
                     .WithMany("ActionItems")
                     .HasForeignKey("MeetingId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1331,9 +1331,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Meeting");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.Project", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.Project", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Tenant", "Tenant")
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
                     .WithMany("Projects")
                     .HasForeignKey("TenantId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1342,15 +1342,15 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Tenant");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.ProjectMember", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.ProjectMember", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Project", "Project")
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
                     .WithMany()
                     .HasForeignKey("ProjectId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
-                b.HasOne("StingBIM.Core.Entities.AppUser", "User")
+                b.HasOne("Planscape.Core.Entities.AppUser", "User")
                     .WithMany()
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1361,9 +1361,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("User");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.SeqCounter", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.SeqCounter", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Project", "Project")
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
                     .WithMany()
                     .HasForeignKey("ProjectId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1372,9 +1372,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Project");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.TaggedElement", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.TaggedElement", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Project", "Project")
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
                     .WithMany("Elements")
                     .HasForeignKey("ProjectId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1383,9 +1383,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Project");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.Transmittal", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.Transmittal", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Project", "Project")
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
                     .WithMany()
                     .HasForeignKey("ProjectId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1394,9 +1394,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Project");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.WorkflowRun", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.WorkflowRun", b =>
             {
-                b.HasOne("StingBIM.Core.Entities.Project", "Project")
+                b.HasOne("Planscape.Core.Entities.Project", "Project")
                     .WithMany("WorkflowRuns")
                     .HasForeignKey("ProjectId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1405,9 +1405,9 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("Project");
             });
 
-            modelBuilder.Entity("StingBIM.MIM.Entities.MaintenanceTask", b =>
+            modelBuilder.Entity("Planscape.MIM.Entities.MaintenanceTask", b =>
             {
-                b.HasOne("StingBIM.MIM.Entities.Asset", "Asset")
+                b.HasOne("Planscape.MIM.Entities.Asset", "Asset")
                     .WithMany("MaintenanceTasks")
                     .HasForeignKey("AssetId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -1418,17 +1418,17 @@ namespace StingBIM.Infrastructure.Data.Migrations
 
             // ── Collection navigations ──
 
-            modelBuilder.Entity("StingBIM.Core.Entities.BimIssue", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.BimIssue", b =>
             {
                 b.Navigation("Attachments");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.Meeting", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.Meeting", b =>
             {
                 b.Navigation("ActionItems");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.Project", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.Project", b =>
             {
                 b.Navigation("Documents");
                 b.Navigation("Elements");
@@ -1436,14 +1436,14 @@ namespace StingBIM.Infrastructure.Data.Migrations
                 b.Navigation("WorkflowRuns");
             });
 
-            modelBuilder.Entity("StingBIM.Core.Entities.Tenant", b =>
+            modelBuilder.Entity("Planscape.Core.Entities.Tenant", b =>
             {
                 b.Navigation("LicenseKeys");
                 b.Navigation("Projects");
                 b.Navigation("Users");
             });
 
-            modelBuilder.Entity("StingBIM.MIM.Entities.Asset", b =>
+            modelBuilder.Entity("Planscape.MIM.Entities.Asset", b =>
             {
                 b.Navigation("MaintenanceTasks");
             });

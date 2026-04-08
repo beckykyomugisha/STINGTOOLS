@@ -1,4 +1,4 @@
-namespace StingBIM.Core.Entities;
+namespace Planscape.Core.Entities;
 
 /// <summary>
 /// Per-project team membership.

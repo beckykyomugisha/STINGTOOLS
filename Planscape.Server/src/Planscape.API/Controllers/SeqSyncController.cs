@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// SEQ counter synchronization — ensures unique sequence numbers across multiple Revit instances.
@@ -15,9 +15,9 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class SeqSyncController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
-    public SeqSyncController(StingBimDbContext db) => _db = db;
+    public SeqSyncController(PlanscapeDbContext db) => _db = db;
 
     /// <summary>
     /// Push SEQ counters from plugin — server keeps max per key.

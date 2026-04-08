@@ -3,9 +3,9 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>StingBIM.Core</RootNamespace>
+    <RootNamespace>Planscape.Core</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\StingBIM.Shared\StingBIM.Shared.csproj" />
+    <ProjectReference Include="..\Planscape.Shared\Planscape.Shared.csproj" />
   </ItemGroup>
 </Project>

@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Infrastructure.Data;
-using StingBIM.Core.Entities;
+using Planscape.Infrastructure.Data;
+using Planscape.Core.Entities;
 
-namespace StingBIM.API.BackgroundJobs;
+namespace Planscape.API.BackgroundJobs;
 
 /// <summary>
 /// Automation gap fix: Runs every 2 hours.
@@ -12,10 +12,10 @@ namespace StingBIM.API.BackgroundJobs;
 /// </summary>
 public class WarningEscalationJob
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
     private readonly ILogger<WarningEscalationJob> _log;
 
-    public WarningEscalationJob(StingBimDbContext db, ILogger<WarningEscalationJob> log)
+    public WarningEscalationJob(PlanscapeDbContext db, ILogger<WarningEscalationJob> log)
     {
         _db = db; _log = log;
     }

@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using StingBIM.Core.Entities;
-using StingBIM.Core.Interfaces;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.Infrastructure.Services;
+namespace Planscape.Infrastructure.Services;
 
 /// <summary>
 /// Hangfire dashboard authorization filter.
@@ -53,7 +53,7 @@ public class ComplianceCheckJob
         _logger.LogInformation("ComplianceCheckJob started");
 
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
 
         var projects = await db.Projects
             .Where(p => p.Status == Core.Entities.ProjectStatus.Active)
@@ -127,7 +127,7 @@ public class SlaEscalationJob
         _logger.LogInformation("SlaEscalationJob started");
 
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
         var notifications = scope.ServiceProvider.GetService<INotificationService>();
         var push = scope.ServiceProvider.GetService<IPushNotificationService>();
 
@@ -229,7 +229,7 @@ public class StaleWarningCleanupJob
         _logger.LogInformation("StaleWarningCleanupJob started");
 
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
 
         var cutoff = DateTime.UtcNow.AddDays(-RetentionDays);
 

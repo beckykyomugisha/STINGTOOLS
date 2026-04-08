@@ -1,4 +1,4 @@
-namespace StingBIM.Core.Entities;
+namespace Planscape.Core.Entities;
 
 /// <summary>
 /// License key for Revit plugin activation. Validated on plugin startup.

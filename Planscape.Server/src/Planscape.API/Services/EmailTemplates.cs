@@ -1,6 +1,6 @@
-namespace StingBIM.API.Services;
+namespace Planscape.API.Services;
 
-/// <summary>HTML email templates for all StingBIM system emails.</summary>
+/// <summary>HTML email templates for all Planscape system emails.</summary>
 internal static class EmailTemplates
 {
     private const string Brand = "#1A237E";
@@ -10,19 +10,19 @@ internal static class EmailTemplates
 <body style='font-family:Segoe UI,Arial,sans-serif;background:#F4F5F7;margin:0;padding:20px'>
 <div style='max-width:600px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;border:1px solid #E0E0E8'>
 <div style='background:{Brand};color:white;padding:20px 24px'>
-  <h1 style='margin:0;font-size:18px'>🏗 StingBIM</h1>
+  <h1 style='margin:0;font-size:18px'>🏗 Planscape</h1>
   <p style='margin:4px 0 0;font-size:13px;opacity:.8'>{title}</p>
 </div>
 <div style='padding:24px'>{content}</div>
 <div style='background:#F4F5F7;padding:12px 24px;font-size:11px;color:#888;text-align:center'>
-  StingBIM · ISO 19650 BIM Coordination Platform · This email was sent automatically.
+  Planscape · ISO 19650 BIM Coordination Platform · This email was sent automatically.
 </div>
 </div></body></html>";
 
     public static string Invite(string name, string org, string tempPw, string serverUrl) => Wrap(
         "You've been invited",
         $@"<p>Hi <strong>{name}</strong>,</p>
-<p>You've been invited to join <strong>{org}</strong> on StingBIM — your team's ISO 19650 BIM coordination platform.</p>
+<p>You've been invited to join <strong>{org}</strong> on Planscape — your team's ISO 19650 BIM coordination platform.</p>
 <table style='border-collapse:collapse;width:100%;margin:16px 0'>
 <tr><td style='padding:8px;background:#F8F8FC;border:1px solid #E0E0E8;font-weight:600'>Login URL</td>
     <td style='padding:8px;border:1px solid #E0E0E8'><a href='{serverUrl}'>{serverUrl}</a></td></tr>
@@ -30,12 +30,12 @@ internal static class EmailTemplates
     <td style='padding:8px;border:1px solid #E0E0E8;font-family:monospace;font-size:16px'>{tempPw}</td></tr>
 </table>
 <p>Please change your password after your first login.</p>
-<a href='{serverUrl}' style='display:inline-block;background:{Brand};color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600'>Open StingBIM →</a>");
+<a href='{serverUrl}' style='display:inline-block;background:{Brand};color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600'>Open Planscape →</a>");
 
     public static string PasswordReset(string name, string token, string serverUrl) => Wrap(
         "Password Reset Request",
         $@"<p>Hi <strong>{name}</strong>,</p>
-<p>We received a request to reset your StingBIM password. Use the token below (valid for 1 hour):</p>
+<p>We received a request to reset your Planscape password. Use the token below (valid for 1 hour):</p>
 <div style='background:#F0F4FF;border:1px solid #C5CEFF;border-radius:6px;padding:16px;text-align:center;margin:16px 0'>
   <span style='font-family:monospace;font-size:22px;font-weight:700;letter-spacing:2px;color:{Brand}'>{token}</span>
 </div>

@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using StingBIM.API.Services;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.API.Services;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.BackgroundJobs;
+namespace Planscape.API.BackgroundJobs;
 
 /// <summary>
 /// Runs every Monday at 08:00 UTC. Sends a compliance digest email to all
@@ -11,11 +11,11 @@ namespace StingBIM.API.BackgroundJobs;
 /// </summary>
 public class WeeklyDigestJob
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
     private readonly IEmailService _email;
     private readonly ILogger<WeeklyDigestJob> _log;
 
-    public WeeklyDigestJob(StingBimDbContext db, IEmailService email, ILogger<WeeklyDigestJob> log)
+    public WeeklyDigestJob(PlanscapeDbContext db, IEmailService email, ILogger<WeeklyDigestJob> log)
     {
         _db = db; _email = email; _log = log;
     }

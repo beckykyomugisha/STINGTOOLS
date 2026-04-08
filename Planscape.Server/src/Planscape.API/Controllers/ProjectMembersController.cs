@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core;
-using StingBIM.Core.Entities;
-using StingBIM.Core.Interfaces;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core;
+using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// Per-project team membership management.
@@ -18,10 +18,10 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class ProjectMembersController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
     private readonly IEmailService _emailService;
 
-    public ProjectMembersController(StingBimDbContext db, IEmailService emailService)
+    public ProjectMembersController(PlanscapeDbContext db, IEmailService emailService)
     {
         _db = db;
         _emailService = emailService;

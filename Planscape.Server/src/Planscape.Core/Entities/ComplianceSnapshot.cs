@@ -1,4 +1,4 @@
-namespace StingBIM.Core.Entities;
+namespace Planscape.Core.Entities;
 
 /// <summary>
 /// Point-in-time compliance snapshot for trend tracking and RIBA stage gate audits.

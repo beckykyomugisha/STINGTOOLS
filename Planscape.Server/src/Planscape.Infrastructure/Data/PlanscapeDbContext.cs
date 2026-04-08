@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core.Entities;
+using Planscape.Core.Entities;
 
-namespace StingBIM.Infrastructure.Data;
+namespace Planscape.Infrastructure.Data;
 
-public class StingBimDbContext : DbContext
+public class PlanscapeDbContext : DbContext
 {
-    public StingBimDbContext(DbContextOptions<StingBimDbContext> options) : base(options) { }
+    public PlanscapeDbContext(DbContextOptions<PlanscapeDbContext> options) : base(options) { }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<AppUser> Users => Set<AppUser>();

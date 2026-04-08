@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// Compliance snapshot management — stores and retrieves compliance history for trend analysis.
@@ -14,9 +14,9 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class ComplianceController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
-    public ComplianceController(StingBimDbContext db) => _db = db;
+    public ComplianceController(PlanscapeDbContext db) => _db = db;
 
     /// <summary>
     /// Push a compliance snapshot from the Revit plugin.

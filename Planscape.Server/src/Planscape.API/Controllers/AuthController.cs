@@ -1,27 +1,27 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using StingBIM.API.Services;
+using Planscape.API.Services;
 using Microsoft.IdentityModel.Tokens;
-using StingBIM.Core;
-using StingBIM.Core.DTOs;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core;
+using Planscape.Core.DTOs;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
     private readonly IConfiguration _config;
 
-    public AuthController(StingBimDbContext db, IConfiguration config)
+    public AuthController(PlanscapeDbContext db, IConfiguration config)
     {
         _db = db;
         _config = config;
@@ -200,7 +200,7 @@ public class AuthController : ControllerBase
             user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddHours(1);
             await _db.SaveChangesAsync();
 
-            string serverUrl = config["App:ServerUrl"] ?? "https://stingbim-api.onrender.com";
+            string serverUrl = config["App:ServerUrl"] ?? "https://planscape-api.onrender.com";
             await emailService.SendPasswordResetAsync(user.Email, user.DisplayName, token, serverUrl);
         }
         return Ok(new { message = "If that email address exists, a reset code has been sent." });
@@ -280,7 +280,7 @@ public class AuthController : ControllerBase
             Valid = true,
             Tier = key.Tier.ToString(),
             MimEnabled = key.MimEnabled,
-            ServerUrl = $"https://{key.Tenant?.Slug}.stingbim.io",
+            ServerUrl = $"https://{key.Tenant?.Slug}.planscape.io",
             ExpiresAt = key.ExpiresAt
         });
     }
@@ -303,10 +303,10 @@ public class AuthController : ControllerBase
         await _db.SaveChangesAsync();
 
         // Send reset email
-        var emailService = HttpContext.RequestServices.GetService<StingBIM.Core.Interfaces.IEmailService>();
+        var emailService = HttpContext.RequestServices.GetService<Planscape.Core.Interfaces.IEmailService>();
         if (emailService != null)
         {
-            await emailService.SendAsync(user.Email, "StingBIM Password Reset",
+            await emailService.SendAsync(user.Email, "Planscape Password Reset",
                 $"Use this token to reset your password (expires in 1 hour):\n\n{resetToken}\n\n" +
                 $"POST /api/auth/reset-password with {{ \"token\": \"{resetToken}\", \"newPassword\": \"...\" }}");
         }
@@ -341,7 +341,7 @@ public class AuthController : ControllerBase
 
     private string GenerateJwt(Core.Entities.AppUser user)
     {
-        var jwtKey = _config["Jwt:Key"] ?? "StingBIM-Dev-Secret-Key-Min32Chars!!";
+        var jwtKey = _config["Jwt:Key"] ?? "Planscape-Dev-Secret-Key-Min32Chars!!";
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var creds = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
@@ -357,8 +357,8 @@ public class AuthController : ControllerBase
         };
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"] ?? "StingBIM",
-            audience: _config["Jwt:Audience"] ?? "StingBIM.Client",
+            issuer: _config["Jwt:Issuer"] ?? "Planscape",
+            audience: _config["Jwt:Audience"] ?? "Planscape.Client",
             claims: claims,
             expires: DateTime.UtcNow.AddHours(8),
             signingCredentials: creds);

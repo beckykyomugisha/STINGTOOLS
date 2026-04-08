@@ -1,4 +1,4 @@
-namespace StingBIM.Core.Entities;
+namespace Planscape.Core.Entities;
 
 /// <summary>
 /// ISO 19650 document record with CDE lifecycle state management.

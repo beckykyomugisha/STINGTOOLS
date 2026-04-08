@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Infrastructure.Data;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// Cross-entity search across tagged elements, issues, documents, and meetings.
@@ -14,8 +14,8 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class SearchController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
-    public SearchController(StingBimDbContext db) => _db = db;
+    private readonly PlanscapeDbContext _db;
+    public SearchController(PlanscapeDbContext db) => _db = db;
 
     /// <summary>
     /// Global search: GET /api/search?q=...&amp;type=all|elements|issues|documents&amp;projectId=...

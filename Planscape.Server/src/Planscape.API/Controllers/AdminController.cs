@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// Organization and user administration — org management, user CRUD, audit log.
@@ -16,9 +16,9 @@ namespace StingBIM.API.Controllers;
 [Authorize(Roles = "Admin,Owner")]
 public class AdminController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
-    public AdminController(StingBimDbContext db) => _db = db;
+    public AdminController(PlanscapeDbContext db) => _db = db;
 
     // ── Organization Management ──
 

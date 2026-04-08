@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// ISO 19650 CDE document management with validated state transitions.
@@ -16,7 +16,7 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class DocumentsController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
     // ISO 19650-2 CDE state machine — valid one-way transitions
     private static readonly Dictionary<string, string[]> ValidTransitions = new()
@@ -41,7 +41,7 @@ public class DocumentsController : ControllerBase
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
 
-    public DocumentsController(StingBimDbContext db, IConfiguration config)
+    public DocumentsController(PlanscapeDbContext db, IConfiguration config)
     {
         _db = db;
         _config = config;

@@ -1,4 +1,4 @@
-namespace StingBIM.Core.Entities;
+namespace Planscape.Core.Entities;
 
 /// <summary>
 /// Multi-tenant organization. Each tenant has isolated data and its own license tier.
@@ -7,7 +7,7 @@ public class Tenant
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
-    public string Slug { get; set; } = ""; // subdomain: {slug}.stingbim.io
+    public string Slug { get; set; } = ""; // subdomain: {slug}.planscape.io
     public string ContactEmail { get; set; } = "";
     public LicenseTier Tier { get; set; } = LicenseTier.Starter;
     public bool MimEnabled { get; set; } // StingMIM add-on

@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API;
+namespace Planscape.API;
 
 /// <summary>
 /// Seeds the development database with a demo tenant, admin user, and sample project.
@@ -10,14 +10,14 @@ namespace StingBIM.API;
 /// </summary>
 public static class SeedData
 {
-    public static async Task SeedAsync(StingBimDbContext db)
+    public static async Task SeedAsync(PlanscapeDbContext db)
     {
         if (await db.Tenants.AnyAsync()) return; // Already seeded
 
         // ── Demo Tenant ──
         var tenant = new Tenant
         {
-            Name = "StingBIM Demo",
+            Name = "Planscape Demo",
             Slug = "demo",
             Tier = LicenseTier.Premium,
             MaxUsers = 50,
@@ -30,7 +30,7 @@ public static class SeedData
         var admin = new AppUser
         {
             TenantId = tenant.Id,
-            Email = "admin@stingbim.demo",
+            Email = "admin@planscape.demo",
             DisplayName = "BIM Coordinator",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123", workFactor: 12),
             Role = UserRole.Admin,

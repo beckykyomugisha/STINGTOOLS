@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable enable
 
-namespace StingBIM.Infrastructure.Data.Migrations;
+namespace Planscape.Infrastructure.Data.Migrations;
 
 /// <inheritdoc />
 public partial class InitialCreate : Migration

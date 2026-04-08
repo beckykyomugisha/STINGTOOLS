@@ -1,4 +1,4 @@
-namespace StingBIM.MIM.Entities;
+namespace Planscape.MIM.Entities;
 
 /// <summary>
 /// StingMIM Asset — a managed BIM asset with lifecycle, maintenance, and FM data.
@@ -8,7 +8,7 @@ public class Asset
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ProjectId { get; set; }
-    public Guid? TaggedElementId { get; set; } // Link to StingBIM tagged element
+    public Guid? TaggedElementId { get; set; } // Link to Planscape tagged element
     public string AssetTag { get; set; } = ""; // ISO 19650 tag (same as TAG1)
     public string AssetName { get; set; } = "";
     public string? Manufacturer { get; set; }

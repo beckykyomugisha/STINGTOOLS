@@ -1,9 +1,9 @@
 using System.Net.Http.Headers;
 using System.Text;
 using Newtonsoft.Json;
-using StingBIM.Shared.Models;
+using Planscape.Shared.Models;
 
-namespace StingBIM.PluginSync;
+namespace Planscape.PluginSync;
 
 /// <summary>
 /// HTTP + SignalR client for plugin-to-server communication.

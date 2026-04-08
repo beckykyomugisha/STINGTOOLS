@@ -3,7 +3,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>StingBIM.API</RootNamespace>
+    <RootNamespace>Planscape.API</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
@@ -21,9 +21,9 @@
     <PackageReference Include="Hangfire.InMemory" Version="0.10.2" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\StingBIM.Core\StingBIM.Core.csproj" />
-    <ProjectReference Include="..\StingBIM.Infrastructure\StingBIM.Infrastructure.csproj" />
-    <ProjectReference Include="..\StingBIM.MIM\StingBIM.MIM.csproj" />
-    <ProjectReference Include="..\StingBIM.Shared\StingBIM.Shared.csproj" />
+    <ProjectReference Include="..\Planscape.Core\Planscape.Core.csproj" />
+    <ProjectReference Include="..\Planscape.Infrastructure\Planscape.Infrastructure.csproj" />
+    <ProjectReference Include="..\Planscape.MIM\Planscape.MIM.csproj" />
+    <ProjectReference Include="..\Planscape.Shared\Planscape.Shared.csproj" />
   </ItemGroup>
 </Project>

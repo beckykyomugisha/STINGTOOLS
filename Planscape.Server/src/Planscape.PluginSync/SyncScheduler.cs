@@ -1,6 +1,6 @@
-using StingBIM.Shared.Models;
+using Planscape.Shared.Models;
 
-namespace StingBIM.PluginSync;
+namespace Planscape.PluginSync;
 
 /// <summary>
 /// Background sync scheduler for the Revit plugin.

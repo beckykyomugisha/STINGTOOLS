@@ -23,8 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\StingBIM.Core\StingBIM.Core.csproj" />
-    <ProjectReference Include="..\..\src\StingBIM.Shared\StingBIM.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Planscape.Core\Planscape.Core.csproj" />
+    <ProjectReference Include="..\..\src\Planscape.Shared\Planscape.Shared.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
-namespace StingBIM.Infrastructure.SignalR;
+namespace Planscape.Infrastructure.SignalR;
 
 /// <summary>
 /// Real-time compliance dashboard updates.

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 
-namespace StingBIM.API.Services;
+namespace Planscape.API.Services;
 
 /// <summary>
 /// SMTP email service. Configure via appsettings:
@@ -34,8 +34,8 @@ public class SmtpEmailService : IEmailService
             int port = int.TryParse(_config["Email:SmtpPort"], out int p) ? p : 587;
             string user = _config["Email:SmtpUser"] ?? "";
             string pass = _config["Email:SmtpPass"] ?? "";
-            string from = _config["Email:FromAddress"] ?? "noreply@stingbim.io";
-            string fromName = _config["Email:FromName"] ?? "StingBIM";
+            string from = _config["Email:FromAddress"] ?? "noreply@planscape.io";
+            string fromName = _config["Email:FromName"] ?? "Planscape";
 
             using var client = new SmtpClient(host, port)
             {
@@ -62,14 +62,14 @@ public class SmtpEmailService : IEmailService
 
     public async Task SendInviteAsync(string to, string displayName, string organisationName, string tempPassword, string serverUrl)
     {
-        string subject = $"You've been invited to {organisationName} on StingBIM";
+        string subject = $"You've been invited to {organisationName} on Planscape";
         string body = EmailTemplates.Invite(displayName, organisationName, tempPassword, serverUrl);
         await SendAsync(to, subject, body);
     }
 
     public async Task SendPasswordResetAsync(string to, string displayName, string resetToken, string serverUrl)
     {
-        string subject = "Reset your StingBIM password";
+        string subject = "Reset your Planscape password";
         string body = EmailTemplates.PasswordReset(displayName, resetToken, serverUrl);
         await SendAsync(to, subject, body);
     }

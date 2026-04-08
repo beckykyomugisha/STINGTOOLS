@@ -1,4 +1,4 @@
-namespace StingBIM.Core.DTOs;
+namespace Planscape.Core.DTOs;
 
 /// <summary>
 /// Payload sent by the Revit plugin to sync tagged elements to the server.

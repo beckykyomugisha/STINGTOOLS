@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Infrastructure.Data;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// Warning report management — stores and queries model warning baselines and trends.
@@ -13,9 +13,9 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class WarningsController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
-    public WarningsController(StingBimDbContext db) => _db = db;
+    public WarningsController(PlanscapeDbContext db) => _db = db;
 
     /// <summary>
     /// Push a warning report/baseline from the Revit plugin.

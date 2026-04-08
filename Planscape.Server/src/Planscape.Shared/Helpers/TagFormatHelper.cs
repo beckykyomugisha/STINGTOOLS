@@ -1,4 +1,4 @@
-namespace StingBIM.Shared.Helpers;
+namespace Planscape.Shared.Helpers;
 
 /// <summary>
 /// Shared tag format utilities used by both plugin and server.

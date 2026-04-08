@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Infrastructure.Data;
-using StingBIM.MIM.Entities;
+using Planscape.Infrastructure.Data;
+using Planscape.MIM.Entities;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// StingMIM — Model Information Management: asset lifecycle, maintenance scheduling.
@@ -15,9 +15,9 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class MimController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
-    public MimController(StingBimDbContext db) => _db = db;
+    public MimController(PlanscapeDbContext db) => _db = db;
 
     // ── Assets ──
 

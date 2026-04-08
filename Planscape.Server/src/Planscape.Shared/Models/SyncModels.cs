@@ -1,4 +1,4 @@
-namespace StingBIM.Shared.Models;
+namespace Planscape.Shared.Models;
 
 /// <summary>
 /// Lightweight sync payload for plugin→server communication.

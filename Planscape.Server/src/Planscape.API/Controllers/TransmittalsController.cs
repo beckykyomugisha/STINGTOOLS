@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// ISO 19650 document transmittal management.
@@ -14,9 +14,9 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class TransmittalsController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
-    public TransmittalsController(StingBimDbContext db) => _db = db;
+    public TransmittalsController(PlanscapeDbContext db) => _db = db;
 
     [HttpGet]
     public async Task<ActionResult> GetTransmittals(Guid projectId,

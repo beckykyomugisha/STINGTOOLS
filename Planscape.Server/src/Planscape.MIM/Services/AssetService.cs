@@ -1,4 +1,4 @@
-namespace StingBIM.MIM.Services;
+namespace Planscape.MIM.Services;
 
 /// <summary>
 /// StingMIM Asset management service — bridges tagged BIM elements to FM asset records.

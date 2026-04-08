@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
-using StingBIM.Core.Interfaces;
-using StingBIM.Infrastructure.SignalR;
-using StingBIM.Core.Entities;
+using Planscape.Core.Interfaces;
+using Planscape.Infrastructure.SignalR;
+using Planscape.Core.Entities;
 
-namespace StingBIM.Infrastructure.Services;
+namespace Planscape.Infrastructure.Services;
 
 /// <summary>
 /// Notification service that pushes real-time alerts via SignalR.

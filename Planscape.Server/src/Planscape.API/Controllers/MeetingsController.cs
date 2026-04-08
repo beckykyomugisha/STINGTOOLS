@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// BIM coordination meeting management with agenda, minutes, and action items.
@@ -15,9 +15,9 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class MeetingsController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
-    public MeetingsController(StingBimDbContext db) => _db = db;
+    public MeetingsController(PlanscapeDbContext db) => _db = db;
 
     [HttpGet]
     public async Task<ActionResult> GetMeetings(Guid projectId)

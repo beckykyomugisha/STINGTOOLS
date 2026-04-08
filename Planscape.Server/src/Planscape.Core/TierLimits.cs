@@ -1,9 +1,9 @@
-using StingBIM.Core.Entities;
+using Planscape.Core.Entities;
 
-namespace StingBIM.Core;
+namespace Planscape.Core;
 
 /// <summary>
-/// Defines per-tier resource limits for StingBIM tenants.
+/// Defines per-tier resource limits for Planscape tenants.
 /// -1 means unlimited. All Professional tiers and above get unlimited projects.
 ///
 /// The Tenant.MaxUsers and Tenant.MaxProjects fields act as admin overrides —

@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using StingBIM.API.Services;
-using StingBIM.Infrastructure.Data;
+using Planscape.API.Services;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.BackgroundJobs;
+namespace Planscape.API.BackgroundJobs;
 
 /// <summary>
 /// Runs every hour. Finds issues that have breached their SLA deadline and:
@@ -11,12 +11,12 @@ namespace StingBIM.API.BackgroundJobs;
 /// </summary>
 public class SlaViolationJob
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
     private readonly IEmailService _email;
     private readonly ILogger<SlaViolationJob> _log;
     private readonly IConfiguration _config;
 
-    public SlaViolationJob(StingBimDbContext db, IEmailService email,
+    public SlaViolationJob(PlanscapeDbContext db, IEmailService email,
         ILogger<SlaViolationJob> log, IConfiguration config)
     {
         _db = db; _email = email; _log = log; _config = config;
@@ -24,7 +24,7 @@ public class SlaViolationJob
 
     public async Task ExecuteAsync()
     {
-        string serverUrl = _config["App:ServerUrl"] ?? "https://stingbim-api.onrender.com";
+        string serverUrl = _config["App:ServerUrl"] ?? "https://planscape-api.onrender.com";
         var now = DateTime.UtcNow;
 
         var overdueIssues = await _db.Issues

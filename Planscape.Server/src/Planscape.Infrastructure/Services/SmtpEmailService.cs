@@ -3,9 +3,9 @@ using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MimeKit;
-using StingBIM.Core.Interfaces;
+using Planscape.Core.Interfaces;
 
-namespace StingBIM.Infrastructure.Services;
+namespace Planscape.Infrastructure.Services;
 
 /// <summary>
 /// MailKit-based SMTP email service for sending invite, password-reset, and notification emails.
@@ -20,8 +20,8 @@ public class SmtpEmailService : IEmailService
     private int    Port        => int.TryParse(_config["Email:Port"], out var p) ? p : 587;
     private string Username    => _config["Email:Username"] ?? "";
     private string Password    => _config["Email:Password"] ?? "";
-    private string FromAddress => _config["Email:FromAddress"] ?? "noreply@stingbim.com";
-    private string FromName    => _config["Email:FromName"] ?? "StingBIM";
+    private string FromAddress => _config["Email:FromAddress"] ?? "noreply@planscape.com";
+    private string FromName    => _config["Email:FromName"] ?? "Planscape";
     private bool   UseSsl      => bool.TryParse(_config["Email:UseSsl"], out var v) && v;
 
     public SmtpEmailService(IConfiguration config, ILogger<SmtpEmailService> logger)
@@ -34,9 +34,9 @@ public class SmtpEmailService : IEmailService
         string toEmail, string displayName, string inviterName,
         string projectName, string serverUrl, CancellationToken ct = default)
     {
-        var subject = $"You've been invited to {projectName} on StingBIM";
+        var subject = $"You've been invited to {projectName} on Planscape";
         var html = WrapInLayout($@"
-            <h2>Welcome to StingBIM</h2>
+            <h2>Welcome to Planscape</h2>
             <p>Hi {Escape(displayName)},</p>
             <p><strong>{Escape(inviterName)}</strong> has invited you to collaborate on
                <strong>{Escape(projectName)}</strong>.</p>
@@ -58,10 +58,10 @@ public class SmtpEmailService : IEmailService
     public async Task SendPasswordResetEmailAsync(
         string toEmail, string resetToken, string serverUrl, CancellationToken ct = default)
     {
-        var subject = "StingBIM — Password Reset";
+        var subject = "Planscape — Password Reset";
         var html = WrapInLayout($@"
             <h2>Password Reset</h2>
-            <p>A password reset was requested for your StingBIM account.</p>
+            <p>A password reset was requested for your Planscape account.</p>
             <p style=""text-align:center; margin:32px 0;"">
               <a href=""{Escape(serverUrl)}/reset-password?token={Uri.EscapeDataString(resetToken)}&amp;email={Uri.EscapeDataString(toEmail)}""
                  style=""background:#0066cc; color:#ffffff; padding:12px 32px;
@@ -128,7 +128,7 @@ public class SmtpEmailService : IEmailService
         <!-- Header -->
         <tr>
           <td style=""background:#0066cc; padding:24px 32px;"">
-            <span style=""color:#ffffff; font-size:22px; font-weight:700; letter-spacing:0.5px;"">StingBIM</span>
+            <span style=""color:#ffffff; font-size:22px; font-weight:700; letter-spacing:0.5px;"">Planscape</span>
           </td>
         </tr>
         <!-- Body -->
@@ -140,7 +140,7 @@ public class SmtpEmailService : IEmailService
         <!-- Footer -->
         <tr>
           <td style=""padding:16px 32px; background:#f9fafb; border-top:1px solid #e5e7eb; font-size:12px; color:#9ca3af;"">
-            &copy; {DateTime.UtcNow.Year} StingBIM &mdash; ISO 19650 compliant BIM collaboration
+            &copy; {DateTime.UtcNow.Year} Planscape &mdash; ISO 19650 compliant BIM collaboration
           </td>
         </tr>
       </table>

@@ -1,4 +1,4 @@
-namespace StingBIM.Core.Interfaces;
+namespace Planscape.Core.Interfaces;
 
 public interface IRepository<T> where T : class
 {

@@ -1,7 +1,7 @@
-using StingBIM.Core.Entities;
+using Planscape.Core.Entities;
 using Xunit;
 
-namespace StingBIM.Tests;
+namespace Planscape.Tests;
 
 /// <summary>
 /// Tests for entity model defaults and business rules that don't require a database.

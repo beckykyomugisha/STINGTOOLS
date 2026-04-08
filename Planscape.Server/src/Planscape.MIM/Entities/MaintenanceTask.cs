@@ -1,4 +1,4 @@
-namespace StingBIM.MIM.Entities;
+namespace Planscape.MIM.Entities;
 
 /// <summary>
 /// StingMIM Maintenance Task — PPM/reactive maintenance scheduling per BS 8210 / SFG20.

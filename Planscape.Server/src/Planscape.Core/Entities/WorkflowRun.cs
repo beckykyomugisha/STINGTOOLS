@@ -1,4 +1,4 @@
-namespace StingBIM.Core.Entities;
+namespace Planscape.Core.Entities;
 
 /// <summary>
 /// Record of a workflow preset execution (DailyQA, MorningHealthCheck, etc.).

@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.BackgroundJobs;
+namespace Planscape.API.BackgroundJobs;
 
 /// <summary>
 /// Runs every 6 hours. For each project that had a sync in the last 6 hours,
@@ -10,10 +10,10 @@ namespace StingBIM.API.BackgroundJobs;
 /// </summary>
 public class ComplianceSnapshotJob
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
     private readonly ILogger<ComplianceSnapshotJob> _log;
 
-    public ComplianceSnapshotJob(StingBimDbContext db, ILogger<ComplianceSnapshotJob> logger)
+    public ComplianceSnapshotJob(PlanscapeDbContext db, ILogger<ComplianceSnapshotJob> logger)
     {
         _db = db;
         _log = logger;

@@ -1,21 +1,21 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core;
-using StingBIM.Core.DTOs;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core;
+using Planscape.Core.DTOs;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
 public class ProjectsController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
-    public ProjectsController(StingBimDbContext db) => _db = db;
+    public ProjectsController(PlanscapeDbContext db) => _db = db;
 
     [HttpGet]
     public async Task<ActionResult> GetProjects()

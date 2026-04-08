@@ -1,7 +1,7 @@
-using StingBIM.Shared.Helpers;
+using Planscape.Shared.Helpers;
 using Xunit;
 
-namespace StingBIM.Tests;
+namespace Planscape.Tests;
 
 /// <summary>
 /// Tests for compliance calculation logic that mirrors the server-side computation.

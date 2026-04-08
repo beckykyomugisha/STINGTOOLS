@@ -1,4 +1,4 @@
-namespace StingBIM.Core.Entities;
+namespace Planscape.Core.Entities;
 
 /// <summary>
 /// ISO 19650 BIM issue / RFI / NCR tracked across project lifecycle.

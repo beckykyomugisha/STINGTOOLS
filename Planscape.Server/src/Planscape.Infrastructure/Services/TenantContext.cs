@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Http;
-using StingBIM.Core.Entities;
-using StingBIM.Core.Interfaces;
+using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 
-namespace StingBIM.Infrastructure.Services;
+namespace Planscape.Infrastructure.Services;
 
 /// <summary>
 /// Scoped service providing current tenant info resolved from the HTTP request.

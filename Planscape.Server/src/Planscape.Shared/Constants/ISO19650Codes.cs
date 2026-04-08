@@ -1,4 +1,4 @@
-namespace StingBIM.Shared.Constants;
+namespace Planscape.Shared.Constants;
 
 /// <summary>
 /// ISO 19650 code lists — shared between plugin and server for consistent validation.

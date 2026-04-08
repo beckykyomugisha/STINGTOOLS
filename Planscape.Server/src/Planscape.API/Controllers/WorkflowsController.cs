@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 /// <summary>
 /// Workflow execution history — receives run records from the Revit plugin for tracking and trend analysis.
@@ -14,9 +14,9 @@ namespace StingBIM.API.Controllers;
 [Authorize]
 public class WorkflowsController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
-    public WorkflowsController(StingBimDbContext db) => _db = db;
+    public WorkflowsController(PlanscapeDbContext db) => _db = db;
 
     /// <summary>
     /// Log a workflow execution from the Revit plugin.

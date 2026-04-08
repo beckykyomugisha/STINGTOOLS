@@ -2,19 +2,19 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core.Entities;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 [ApiController]
 [Route("api/projects/{projectId}/[controller]")]
 [Authorize]
 public class IssuesController : ControllerBase
 {
-    private readonly StingBimDbContext _db;
-    private readonly StingBIM.Core.Interfaces.INotificationService _notifications;
-    private readonly StingBIM.Core.Interfaces.IPushNotificationService _push;
+    private readonly PlanscapeDbContext _db;
+    private readonly Planscape.Core.Interfaces.INotificationService _notifications;
+    private readonly Planscape.Core.Interfaces.IPushNotificationService _push;
     private readonly IConfiguration _config;
 
     private static readonly Dictionary<string, int> SLAHours = new()
@@ -24,9 +24,9 @@ public class IssuesController : ControllerBase
 
     private const long MaxAttachmentSize = 50 * 1024 * 1024; // 50 MB
 
-    public IssuesController(StingBimDbContext db,
-        StingBIM.Core.Interfaces.INotificationService notifications,
-        StingBIM.Core.Interfaces.IPushNotificationService push,
+    public IssuesController(PlanscapeDbContext db,
+        Planscape.Core.Interfaces.INotificationService notifications,
+        Planscape.Core.Interfaces.IPushNotificationService push,
         IConfiguration config)
     {
         _db = db;
@@ -113,7 +113,7 @@ public class IssuesController : ControllerBase
                 u.DisplayName == issue.Assignee && u.TenantId == tenantId);
             if (assignee != null)
             {
-                _ = _push.SendToUserAsync(assignee.Id, new StingBIM.Core.Entities.PushPayload
+                _ = _push.SendToUserAsync(assignee.Id, new Planscape.Core.Entities.PushPayload
                 {
                     Title = $"Assigned: {issue.IssueCode} [{issue.Priority}]",
                     Body = issue.Title,

@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
-using StingBIM.Shared.Models;
+using Planscape.Shared.Models;
 
-namespace StingBIM.PluginSync;
+namespace Planscape.PluginSync;
 
 /// <summary>
 /// File-backed queue for offline operation. Stores sync payloads when server is unreachable.

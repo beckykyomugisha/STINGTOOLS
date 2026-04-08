@@ -1,11 +1,11 @@
 -- ============================================================================
--- StingBIM Server — Initial PostgreSQL Schema
+-- Planscape Server — Initial PostgreSQL Schema
 -- Version: 001
 -- Generated: 2026-04-06
 -- Compatible: PostgreSQL 15+
 --
--- Apply with: psql -h HOST -U stingbim -d stingbim -f 001_initial_schema.sql
--- Or via Docker: docker exec -i stingbim-postgres psql -U stingbim -d stingbim < 001_initial_schema.sql
+-- Apply with: psql -h HOST -U planscape -d planscape -f 001_initial_schema.sql
+-- Or via Docker: docker exec -i planscape-postgres psql -U planscape -d planscape < 001_initial_schema.sql
 -- ============================================================================
 
 BEGIN;

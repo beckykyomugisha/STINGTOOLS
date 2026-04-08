@@ -1,14 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using StingBIM.Core.Entities;
-using StingBIM.Core.Interfaces;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
+using Planscape.Infrastructure.Data;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
-namespace StingBIM.Infrastructure.Services;
+namespace Planscape.Infrastructure.Services;
 
 /// <summary>
 /// Push notification service that dispatches to FCM HTTP v1 API.
@@ -39,7 +39,7 @@ public class FirebasePushService : IPushNotificationService
     public async Task SendToUserAsync(Guid userId, PushPayload payload, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
 
         var tokens = await db.Set<DevicePushToken>()
             .Where(t => t.UserId == userId)
@@ -70,7 +70,7 @@ public class FirebasePushService : IPushNotificationService
     public async Task SendToTenantAsync(Guid tenantId, PushPayload payload, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
 
         var tokens = await db.Set<DevicePushToken>()
             .Where(t => t.TenantId == tenantId)
@@ -96,7 +96,7 @@ public class FirebasePushService : IPushNotificationService
     public async Task RegisterTokenAsync(Guid userId, Guid tenantId, string token, string platform, string? deviceName, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
 
         var existing = await db.Set<DevicePushToken>()
             .FirstOrDefaultAsync(t => t.UserId == userId && t.Token == token, ct);
@@ -129,7 +129,7 @@ public class FirebasePushService : IPushNotificationService
     public async Task UnregisterTokenAsync(Guid userId, string token, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
 
         var existing = await db.Set<DevicePushToken>()
             .FirstOrDefaultAsync(t => t.UserId == userId && t.Token == token, ct);
@@ -174,7 +174,7 @@ public class FirebasePushService : IPushNotificationService
                         priority = "high",
                         notification = new
                         {
-                            channel_id = payload.Channel ?? "stingbim_default"
+                            channel_id = payload.Channel ?? "planscape_default"
                         }
                     },
                     apns = new
@@ -234,7 +234,7 @@ public class FirebasePushService : IPushNotificationService
         }
     }
 
-    private static async Task RemoveInvalidTokensAsync(StingBimDbContext db, List<string> tokens, CancellationToken ct)
+    private static async Task RemoveInvalidTokensAsync(PlanscapeDbContext db, List<string> tokens, CancellationToken ct)
     {
         var toRemove = await db.Set<DevicePushToken>()
             .Where(t => tokens.Contains(t.Token))

@@ -3,21 +3,21 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StingBIM.API", "src\StingBIM.API\StingBIM.API.csproj", "{A1B2C3D4-0001-0001-0001-000000000001}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Planscape.API", "src\Planscape.API\Planscape.API.csproj", "{A1B2C3D4-0001-0001-0001-000000000001}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StingBIM.Core", "src\StingBIM.Core\StingBIM.Core.csproj", "{A1B2C3D4-0001-0001-0001-000000000002}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Planscape.Core", "src\Planscape.Core\Planscape.Core.csproj", "{A1B2C3D4-0001-0001-0001-000000000002}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StingBIM.Infrastructure", "src\StingBIM.Infrastructure\StingBIM.Infrastructure.csproj", "{A1B2C3D4-0001-0001-0001-000000000003}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Planscape.Infrastructure", "src\Planscape.Infrastructure\Planscape.Infrastructure.csproj", "{A1B2C3D4-0001-0001-0001-000000000003}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StingBIM.MIM", "src\StingBIM.MIM\StingBIM.MIM.csproj", "{A1B2C3D4-0001-0001-0001-000000000004}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Planscape.MIM", "src\Planscape.MIM\Planscape.MIM.csproj", "{A1B2C3D4-0001-0001-0001-000000000004}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StingBIM.Shared", "src\StingBIM.Shared\StingBIM.Shared.csproj", "{A1B2C3D4-0001-0001-0001-000000000005}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Planscape.Shared", "src\Planscape.Shared\Planscape.Shared.csproj", "{A1B2C3D4-0001-0001-0001-000000000005}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StingBIM.PluginSync", "src\StingBIM.PluginSync\StingBIM.PluginSync.csproj", "{A1B2C3D4-0001-0001-0001-000000000006}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Planscape.PluginSync", "src\Planscape.PluginSync\Planscape.PluginSync.csproj", "{A1B2C3D4-0001-0001-0001-000000000006}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StingBIM.Tests", "tests\StingBIM.Tests\StingBIM.Tests.csproj", "{B8E603BD-49A9-4DD2-A6DE-B94177FCCCF4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Planscape.Tests", "tests\Planscape.Tests\Planscape.Tests.csproj", "{B8E603BD-49A9-4DD2-A6DE-B94177FCCCF4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject

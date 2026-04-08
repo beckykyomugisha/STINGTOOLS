@@ -1,4 +1,4 @@
-namespace StingBIM.API.Services;
+namespace Planscape.API.Services;
 
 public interface IEmailService
 {

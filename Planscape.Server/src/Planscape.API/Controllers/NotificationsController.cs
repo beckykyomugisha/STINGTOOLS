@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StingBIM.Core.Entities;
-using StingBIM.Core.Interfaces;
-using StingBIM.Infrastructure.Data;
+using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
+using Planscape.Infrastructure.Data;
 
-namespace StingBIM.API.Controllers;
+namespace Planscape.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -13,9 +13,9 @@ namespace StingBIM.API.Controllers;
 public class NotificationsController : ControllerBase
 {
     private readonly IPushNotificationService _pushService;
-    private readonly StingBimDbContext _db;
+    private readonly PlanscapeDbContext _db;
 
-    public NotificationsController(IPushNotificationService pushService, StingBimDbContext db)
+    public NotificationsController(IPushNotificationService pushService, PlanscapeDbContext db)
     {
         _pushService = pushService;
         _db = db;
@@ -92,7 +92,7 @@ public class NotificationsController : ControllerBase
 
         await _pushService.SendToUserAsync(userId, new PushPayload
         {
-            Title = "StingBIM Test",
+            Title = "Planscape Test",
             Body = "Push notifications are working!",
             Channel = "test",
             Data = new Dictionary<string, string> { ["type"] = "test" }
