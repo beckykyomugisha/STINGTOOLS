@@ -1278,7 +1278,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 - **Target framework**: `net8.0-windows` (Revit 2025+), `LangVersion=latest`
 - **WPF**: Enabled (`UseWPF=true` in csproj) for dockable panel UI and `System.Windows.Media.Imaging`
 - **Output**: Library (DLL), `AppendTargetFrameworkToOutputPath=false`, `CopyLocalLockFileAssemblies=true`
-- **Assembly**: v1.0.0.0, GUID `A1B2C3D4-5678-9ABC-DEF0-123456789ABC`, Vendor: StingBIM
+- **Assembly**: v1.0.0.0, GUID `A1B2C3D4-5678-9ABC-DEF0-123456789ABC`, Vendor: Planscape
 - **Data files**: CSV/JSON/TXT files in `StingTools/Data/` copied to output `data/` directory at build time
 
 ---
