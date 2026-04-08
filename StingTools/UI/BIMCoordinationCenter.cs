@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1894,12 +1894,13 @@ namespace StingTools.UI
 
         private UIElement BuildWarningsTab()
         {
-            var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-            var root = new StackPanel { Margin = new Thickness(16) };
-            sv.Content = root;
+            var state = new WarningsDashboardDialog.WarningsPanelState();
 
-            // ── KPI CARDS (6 columns) ─────────────────────────────────────
-            var kpiGrid = new UniformGrid { Columns = 6, Margin = new Thickness(0, 0, 0, 12) };
+            // ── Root DockPanel ────────────────────────────────────────────
+            var dock = new DockPanel { LastChildFill = true, Margin = new Thickness(12, 10, 12, 10) };
+
+            // ── KPI STRIP (top, 8 cards) ──────────────────────────────────
+            var kpiGrid = new UniformGrid { Columns = 8, Margin = new Thickness(0, 0, 0, 8) };
             kpiGrid.Children.Add(MakeKPICard("TOTAL", _data.WarningTotal.ToString(),
                 _data.WarningTotal > 20 ? Br(CRed) : _data.WarningTotal > 5 ? Br(CAmber) : Br(CGreen),
                 $"Total Revit warnings in model\nBaseline trend: {_data.WarningTrend}", "WarningsDashboard"));
@@ -1909,515 +1910,62 @@ namespace StingTools.UI
             kpiGrid.Children.Add(MakeKPICard("HIGH", _data.WarningHigh.ToString(),
                 _data.WarningHigh > 0 ? Br(CAmber) : Br(CGreen),
                 "High-severity warnings affect deliverable quality\nSLA: resolve within 24 hours"));
-            kpiGrid.Children.Add(MakeKPICard("AUTO-FIXABLE", _data.WarningAutoFixable.ToString(), Br(CGreen),
+            kpiGrid.Children.Add(MakeKPICard("MEDIUM", (_data.WarningTotal - _data.WarningCritical - _data.WarningHigh).ToString(),
+                Br(CAmber), "Medium-severity warnings — resolve within 1 week"));
+            kpiGrid.Children.Add(MakeKPICard("AUTO-FIX", _data.WarningAutoFixable.ToString(), Br(CGreen),
                 $"One-click auto-fix available\n{_data.WarningManualReview} require manual review", "AutoFixWarnings"));
             kpiGrid.Children.Add(MakeKPICard("HEALTH", $"{_data.WarningHealthScore}/100",
                 _data.WarningHealthScore >= 80 ? Br(CGreen) : _data.WarningHealthScore >= 50 ? Br(CAmber) : Br(CRed),
                 "Weighted: Critical=-20, High=-5, Medium=-2, Low=-1 per warning from base 100"));
-            kpiGrid.Children.Add(MakeKPICard("SLA VIOLATIONS", _data.WarningSLAViolations.ToString(),
+            kpiGrid.Children.Add(MakeKPICard("SLA BREACH", _data.WarningSLAViolations.ToString(),
                 _data.WarningSLAViolations > 0 ? Br(CRed) : Br(CGreen),
-                $"Warnings exceeding SLA threshold\nCritical=4h, High=24h, Medium=1wk, Low=2wk\nAvg critical age: {_data.WarningAvgCriticalAgeHours:F1}h"));
-            root.Children.Add(kpiGrid);
+                $"Warnings exceeding SLA threshold\nCritical=4h, High=24h\nAvg critical age: {_data.WarningAvgCriticalAgeHours:F1}h"));
+            kpiGrid.Children.Add(MakeKPICard("GATE", _data.WarningGatePass ? "PASS" : "FAIL",
+                _data.WarningGatePass ? Br(CGreen) : Br(CRed),
+                _data.WarningGatePass ? "Warning gate: PASS — deliverable OK" : $"Warning gate: FAIL — {_data.WarningGateReason}"));
+            DockPanel.SetDock(kpiGrid, Dock.Top);
+            dock.Children.Add(kpiGrid);
 
-            // ── WARNING GATE STATUS ───────────────────────────────────────
-            var gateCard = MakeCard();
-            var gateRow = new StackPanel { Orientation = Orientation.Horizontal };
-            var gateDot = new Ellipse { Width = 14, Height = 14, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
-                Fill = _data.WarningGatePass ? Br(CGreen) : Br(CRed) };
-            gateRow.Children.Add(gateDot);
-            gateRow.Children.Add(new TextBlock { Text = _data.WarningGatePass ? "WARNING GATE: PASS" : "WARNING GATE: FAIL",
-                FontWeight = FontWeights.Bold, FontSize = 14, VerticalAlignment = VerticalAlignment.Center,
-                Foreground = _data.WarningGatePass ? Br(CGreen) : Br(CRed) });
-            if (!string.IsNullOrEmpty(_data.WarningGateReason))
-                gateRow.Children.Add(new TextBlock { Text = $"  —  {_data.WarningGateReason}", FontSize = 12,
-                    VerticalAlignment = VerticalAlignment.Center, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)) });
-            gateCard.Child = gateRow;
-            root.Children.Add(gateCard);
-
-            // ── ACTION BUTTONS (3-column grid) ───────────────────────────
-            var actGrid = new Grid { Margin = new Thickness(0, 0, 0, 14) };
-            actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            actGrid.RowDefinitions.Add(new RowDefinition());
-            actGrid.RowDefinitions.Add(new RowDefinition());
-            actGrid.RowDefinitions.Add(new RowDefinition());
-            var actBtns = new (string Label, string Tag, Color Clr, string Tip, int Row, int Col)[]
+            // ── BOTTOM ACTION BAR ─────────────────────────────────────────
+            var actionBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+            DockPanel.SetDock(actionBar, Dock.Bottom);
+            var runBtn = new Button
             {
-                ("Auto-Fix All", "AutoFixWarnings", CGreen, "Run all 16 auto-fix strategies in batch with dry-run preview", 0, 0),
-                ("Export Excel", "ExportWarnings", CHeaderBg, "Export all warnings with severity, root-cause, elements and SLA data to Excel for Power BI", 0, 1),
-                ("Save Baseline", "SaveBaseline", CAccent, "Snapshot current warning count as baseline for trend tracking", 0, 2),
-                ("Select Elements", "SelectWarningElements", Color.FromRgb(0x6A, 0x1B, 0x9A), "Pick warning type → select affected elements in model view", 1, 0),
-                ("Suppress Selected", "SuppressWarnings", Color.FromRgb(0x45, 0x50, 0x6E), "Add patterns to suppression list (persisted, time-limited, auditable)", 1, 1),
-                ("Create Issues", "CreateIssuesFromWarnings", CRed, "Auto-create NCR/SI issues from critical/high warnings with element linking", 1, 2),
-                ("Compliance Check", "WarningsCompliance", CHeaderBg, "ISO 19650 / CIBSE / BS 7671 compliance report mapping warnings to standards", 2, 0),
-                ("Root Cause Analysis", "WarningRootCause", Color.FromRgb(0x00, 0x69, 0x7C), "Weighted root-cause graph with impact scoring and multi-warning element detection", 2, 1),
-                ("Warning Prediction", "WarningPrediction", Color.FromRgb(0x45, 0x50, 0x6E), "7-day trend prediction using linear regression on historical warning counts", 2, 2),
+                Content = "▶  Run Selected Action", Padding = new Thickness(14, 5, 14, 5),
+                Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                FontWeight = FontWeights.SemiBold, FontSize = 12, Cursor = System.Windows.Input.Cursors.Hand,
+                Margin = new Thickness(0, 0, 10, 0), ToolTip = "Execute the highlighted operation from the panel below"
             };
-            foreach (var (label, tag, clr, tip, row, col) in actBtns)
+            var statusBar = new TextBlock { FontSize = 11, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), VerticalAlignment = VerticalAlignment.Center };
+            state.StatusText = statusBar;
+            runBtn.Click += (s, e) =>
             {
-                var btn = MakeActionButton(label, tag, Br(clr), tip);
-                Grid.SetRow(btn, row); Grid.SetColumn(btn, col);
-                actGrid.Children.Add(btn);
-            }
-            root.Children.Add(actGrid);
-
-            // ── DELIVERABLE IMPACT ANALYSIS ──────────────────────────────
-            if (_data.WarningImpactCOBie > 0 || _data.WarningImpactIFC > 0 || _data.WarningImpactHandover > 0 ||
-                _data.WarningImpactSchedules > 0 || _data.WarningImpactClash > 0)
-            {
-                root.Children.Add(MakeSectionHeader("DELIVERABLE IMPACT ANALYSIS"));
-                var impactCard = MakeCard();
-                var impactStack = new StackPanel();
-                if (!string.IsNullOrEmpty(_data.WarningHighestImpactArea))
+                string op = state.SelectedOperation ?? WarningsDashboardDialog.GetSelectedOperation();
+                if (string.IsNullOrEmpty(op))
                 {
-                    impactStack.Children.Add(new TextBlock
-                    {
-                        Text = $"Highest Impact: {_data.WarningHighestImpactArea}",
-                        FontWeight = FontWeights.Bold, FontSize = 13, Foreground = Br(CRed), Margin = new Thickness(0, 0, 0, 8)
-                    });
+                    statusBar.Text = "Select an operation from a tab below first.";
+                    statusBar.Foreground = Br(CRed);
                 }
-                var impacts = new (string Name, int Count, Color Clr)[]
-                {
-                    ("COBie Export", _data.WarningImpactCOBie, Color.FromRgb(0x15, 0x65, 0xC0)),
-                    ("IFC Export", _data.WarningImpactIFC, Color.FromRgb(0x00, 0x69, 0x7C)),
-                    ("FM Handover", _data.WarningImpactHandover, CRed),
-                    ("Schedules", _data.WarningImpactSchedules, CAmber),
-                    ("Clash Detection", _data.WarningImpactClash, Color.FromRgb(0x6A, 0x1B, 0x9A)),
-                };
-                int maxImpact = impacts.Max(i => i.Count);
-                foreach (var (name, count, clr) in impacts)
-                {
-                    if (count <= 0) continue;
-                    var impRow = new Grid { Margin = new Thickness(0, 3, 0, 3), Height = 24 };
-                    impRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-                    impRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                    impRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    impRow.Children.Add(new TextBlock { Text = name, FontSize = 11, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
-                    var cntTb = new TextBlock { Text = $"{count}", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(clr), VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 1); impRow.Children.Add(cntTb);
-                    double barPct = maxImpact > 0 ? count * 100.0 / maxImpact : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 10, CornerRadius = new CornerRadius(5), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(clr), Height = 10, CornerRadius = new CornerRadius(5), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); impRow.Children.Add(barGrid);
-                    impactStack.Children.Add(impRow);
-                }
-                impactCard.Child = impactStack;
-                root.Children.Add(impactCard);
-            }
-
-            // ── ROOT CAUSE GROUPS ────────────────────────────────────────
-            if (_data.WarningRootCauseGroups.Count > 0)
-            {
-                root.Children.Add(MakeSectionHeader("ROOT CAUSE ANALYSIS (by impact)"));
-                var rcCard = MakeCard();
-                var rcStack = new StackPanel();
-                int maxRcCount = _data.WarningRootCauseGroups.Max(g => g.Count);
-                foreach (var (desc, cat, sev, count, canAutoFix, fix) in _data.WarningRootCauseGroups.OrderByDescending(g => g.Count).Take(15))
-                {
-                    var rcRow = new Grid { Margin = new Thickness(0, 3, 0, 3) };
-                    rcRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    rcRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
-                    rcRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
-                    rcRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-
-                    var sevColor = sev == WarningSeverity.Critical ? CRed : sev == WarningSeverity.High ? CAmber :
-                        sev == WarningSeverity.Medium ? Color.FromRgb(0xF5, 0xC5, 0x42) : Color.FromRgb(0x90, 0xA4, 0xAE);
-
-                    // Description with severity dot and auto-fix badge
-                    var descPanel = new StackPanel { Orientation = Orientation.Horizontal };
-                    descPanel.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = Br(sevColor), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center });
-                    var descTb = new TextBlock { Text = desc, FontSize = 10.5, TextTrimming = TextTrimming.CharacterEllipsis,
-                        VerticalAlignment = VerticalAlignment.Center, ToolTip = desc };
-                    descPanel.Children.Add(descTb);
-                    if (canAutoFix)
-                    {
-                        descPanel.Children.Add(new Border
-                        {
-                            Background = Br(Color.FromRgb(0xE8, 0xF5, 0xE9)), CornerRadius = new CornerRadius(3),
-                            Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(4, 1, 4, 1),
-                            Child = new TextBlock { Text = "AUTO-FIX", FontSize = 8, FontWeight = FontWeights.Bold, Foreground = Br(CGreen) }
-                        });
-                    }
-                    rcRow.Children.Add(descPanel);
-
-                    var catTb = new TextBlock { Text = cat.ToString(), FontSize = 10, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(catTb, 1); rcRow.Children.Add(catTb);
-
-                    var cntTb = new TextBlock { Text = $"×{count}", FontWeight = FontWeights.Bold, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 2); rcRow.Children.Add(cntTb);
-
-                    // Mini bar for relative count
-                    double rcPct = maxRcCount > 0 ? count * 100.0 / maxRcCount : 0;
-                    var rcBar = new Border { Background = Br(sevColor), Height = 6, CornerRadius = new CornerRadius(3),
-                        HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 };
-                    var rcBarBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 6, CornerRadius = new CornerRadius(3), VerticalAlignment = VerticalAlignment.Center };
-                    var rcBarGrid = new Grid(); rcBarGrid.Children.Add(rcBarBg); rcBarGrid.Children.Add(rcBar);
-                    rcBarBg.Loaded += (s, e) => { rcBar.Width = Math.Max(4, rcBarBg.ActualWidth * rcPct / 100.0); };
-                    Grid.SetColumn(rcBarGrid, 3); rcRow.Children.Add(rcBarGrid);
-
-                    // Interactive: double-click to select, right-click for context menu
-                    rcRow.Cursor = Cursors.Hand;
-                    rcRow.ToolTip = $"Category: {cat}\nSeverity: {sev}\nCount: {count}\nFix strategy: {(string.IsNullOrEmpty(fix) ? "Manual review" : fix)}\nDouble-click to select affected elements";
-                    rcRow.MouseLeftButtonDown += (s, e) =>
-                    {
-                        if (e.ClickCount == 2) { DispatchAction($"SelectWarning_{cat}|{desc}"); }
-                    };
-                    var rcCtx = new ContextMenu();
-                    var rcZoom = new MenuItem { Header = "Zoom to 3D Section Box" };
-                    rcZoom.Click += (s2, e2) => { DispatchAction($"ZoomToWarning_{cat}|{desc}"); };
-                    var rcSelect = new MenuItem { Header = "Select Elements in Model" };
-                    rcSelect.Click += (s2, e2) => { DispatchAction($"SelectWarning_{cat}|{desc}"); };
-                    rcCtx.Items.Add(rcZoom); rcCtx.Items.Add(rcSelect);
-                    rcRow.ContextMenu = rcCtx;
-
-                    rcStack.Children.Add(rcRow);
-                }
-                rcCard.Child = rcStack;
-                root.Children.Add(rcCard);
-            }
-
-            // ── WARNING TREE (Category > Description) ────────────────────
-            root.Children.Add(MakeSectionHeader("WARNING TREE (double-click to select / zoom)"));
-            var tree = new TreeView
-            {
-                BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
-                MaxHeight = 280, Margin = new Thickness(0, 0, 0, 12),
-                Background = Br(CCardBg)
+                else { DispatchAction(op); }
             };
-            var catGroups = _data.WarningByCategory.OrderByDescending(x => x.Value);
-            foreach (var catKv in catGroups)
-            {
-                var catColor = catKv.Key == WarningCategory.Structural || catKv.Key == WarningCategory.Spatial ? CRed :
-                    catKv.Key == WarningCategory.MEP ? CAmber :
-                    catKv.Key == WarningCategory.Acoustic ? Color.FromRgb(0x6A, 0x1B, 0x9A) :
-                    catKv.Key == WarningCategory.Sustainability ? CGreen :
-                    catKv.Key == WarningCategory.Coordination ? Color.FromRgb(0x00, 0x69, 0x7C) :
-                    Color.FromRgb(0x37, 0x47, 0x4F);
-                var catNode = new TreeViewItem
-                {
-                    Header = new StackPanel { Orientation = Orientation.Horizontal, Children =
-                    {
-                        new Ellipse { Width = 10, Height = 10, Fill = Br(catColor), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center },
-                        new TextBlock { Text = $"{catKv.Key} ({catKv.Value})", FontWeight = FontWeights.Bold, FontSize = 12 }
-                    }},
-                    IsExpanded = catKv.Key == WarningCategory.Spatial || catKv.Key == WarningCategory.MEP || catKv.Key == WarningCategory.Structural
-                };
-                if (_data.WarningTopByCategory.TryGetValue(catKv.Key, out var topDescs))
-                {
-                    foreach (var (desc, count) in topDescs)
-                    {
-                        var descNode = new TreeViewItem
-                        {
-                            Header = new TextBlock { Text = $"({count}) {desc}", FontSize = 11, TextWrapping = TextWrapping.Wrap, MaxWidth = 600 },
-                            Tag = $"SelectWarning_{catKv.Key}|{desc}", Cursor = Cursors.Hand,
-                            ToolTip = "Double-click to zoom to 3D section box\nRight-click for more options"
-                        };
-                        descNode.MouseDoubleClick += (s, e) =>
-                        {
-                            if (descNode.Tag is string tag) { DispatchAction("ZoomToWarning_" + tag.Substring("SelectWarning_".Length)); }
-                            e.Handled = true;
-                        };
-                        var ctx = new ContextMenu();
-                        var zoomItem = new MenuItem { Header = "Zoom to 3D Section Box" };
-                        zoomItem.Click += (s2, e2) => { if (descNode.Tag is string t) { DispatchAction("ZoomToWarning_" + t.Substring("SelectWarning_".Length)); } };
-                        var selectItem = new MenuItem { Header = "Select Elements in Model" };
-                        selectItem.Click += (s2, e2) => { if (descNode.Tag is string t) { DispatchAction(t); } };
-                        ctx.Items.Add(zoomItem); ctx.Items.Add(selectItem);
-                        descNode.ContextMenu = ctx;
-                        catNode.Items.Add(descNode);
-                    }
-                    int remainder = catKv.Value - topDescs.Sum(t => t.Count);
-                    if (remainder > 0)
-                        catNode.Items.Add(new TreeViewItem { Header = new TextBlock { Text = $"...and {remainder} more", FontSize = 10, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontStyle = FontStyles.Italic } });
-                }
-                tree.Items.Add(catNode);
-            }
-            root.Children.Add(tree);
+            actionBar.Children.Add(runBtn);
+            actionBar.Children.Add(statusBar);
+            dock.Children.Add(actionBar);
 
-            // ── TWO-COLUMN LAYOUT: By Category + By Severity ─────────────
-            var twoCol = new Grid { Margin = new Thickness(0, 0, 0, 12) };
-            twoCol.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            twoCol.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) }); // spacer
-            twoCol.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            // ── 6-TAB WARNINGS MANAGEMENT PANEL ──────────────────────────
+            var innerTabs = new TabControl { Background = Br(CPageBg), BorderThickness = new Thickness(0) };
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildOverviewTab(state));
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildBrowseSelectTab(state));
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildAutoFixTab(state));
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildSelectInspectTab(state));
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildBaselineSLATab(state));
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildExportIntegrationTab(state));
+            dock.Children.Add(innerTabs);   // LastChildFill — takes remaining space
 
-            // LEFT: By Category with responsive bars
-            if (_data.WarningByCategory.Count > 0)
-            {
-                var catPanel = new StackPanel();
-                catPanel.Children.Add(MakeSectionHeader("BY CATEGORY"));
-                var catCard = MakeCard();
-                var catStack = new StackPanel();
-                int maxCatCount = _data.WarningByCategory.Values.Max();
-                foreach (var kv in _data.WarningByCategory.OrderByDescending(x => x.Value))
-                {
-                    var row = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 22 };
-                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
-                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    row.Children.Add(new TextBlock { Text = kv.Key.ToString(), FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
-                    var countTb = new TextBlock { Text = kv.Value.ToString(), FontWeight = FontWeights.Bold, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(countTb, 1); row.Children.Add(countTb);
-                    double barPct = maxCatCount > 0 ? kv.Value * 100.0 / maxCatCount : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 8, CornerRadius = new CornerRadius(4), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(CAccent), Height = 8, CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); row.Children.Add(barGrid);
-                    catStack.Children.Add(row);
-                }
-                catCard.Child = catStack;
-                catPanel.Children.Add(catCard);
-                twoCol.Children.Add(catPanel);
-            }
-
-            // RIGHT: By Severity with priority ranking (Ideate-style 4-tier)
-            if (_data.WarningBySeverity.Count > 0)
-            {
-                var sevPanel = new StackPanel();
-                sevPanel.Children.Add(MakeSectionHeader("BY SEVERITY (Priority Rank)"));
-                var sevCard = MakeCard();
-                var sevStack = new StackPanel();
-                int maxSevCount = _data.WarningBySeverity.Values.Max();
-                int rank = 1;
-                foreach (WarningSeverity sev in new[] { WarningSeverity.Critical, WarningSeverity.High, WarningSeverity.Medium, WarningSeverity.Low, WarningSeverity.Info })
-                {
-                    if (!_data.WarningBySeverity.TryGetValue(sev, out int cnt) || cnt <= 0) continue;
-                    var sevColor = sev == WarningSeverity.Critical ? CRed : sev == WarningSeverity.High ? CAmber :
-                        sev == WarningSeverity.Medium ? Color.FromRgb(0xF5, 0xC5, 0x42) : Color.FromRgb(0x90, 0xA4, 0xAE);
-                    var slaText = sev == WarningSeverity.Critical ? "SLA: 4h" : sev == WarningSeverity.High ? "SLA: 24h" :
-                        sev == WarningSeverity.Medium ? "SLA: 1wk" : sev == WarningSeverity.Low ? "SLA: 2wk" : "";
-
-                    var sevRow = new Grid { Margin = new Thickness(0, 3, 0, 3), Height = 26 };
-                    sevRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) });
-                    sevRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-                    sevRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-                    sevRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    sevRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
-
-                    // Rank badge
-                    var rankBorder = new Border { Background = Br(sevColor), CornerRadius = new CornerRadius(3), Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center,
-                        Child = new TextBlock { Text = $"P{rank}", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
-                    sevRow.Children.Add(rankBorder);
-
-                    var sevLabel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                    sevLabel.Children.Add(new Ellipse { Width = 10, Height = 10, Fill = Br(sevColor), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center });
-                    sevLabel.Children.Add(new TextBlock { Text = sev.ToString(), FontSize = 11, FontWeight = FontWeights.SemiBold });
-                    Grid.SetColumn(sevLabel, 1); sevRow.Children.Add(sevLabel);
-
-                    var cntTb = new TextBlock { Text = cnt.ToString(), FontWeight = FontWeights.Bold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 2); sevRow.Children.Add(cntTb);
-
-                    double barPct = maxSevCount > 0 ? cnt * 100.0 / maxSevCount : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 10, CornerRadius = new CornerRadius(5), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(sevColor), Height = 10, CornerRadius = new CornerRadius(5), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 3); sevRow.Children.Add(barGrid);
-
-                    var slaTb = new TextBlock { Text = slaText, FontSize = 9, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(slaTb, 4); sevRow.Children.Add(slaTb);
-
-                    sevStack.Children.Add(sevRow);
-                    rank++;
-                }
-                sevCard.Child = sevStack;
-                sevPanel.Children.Add(sevCard);
-                Grid.SetColumn(sevPanel, 2);
-                twoCol.Children.Add(sevPanel);
-            }
-            root.Children.Add(twoCol);
-
-            // ── TWO-COLUMN LAYOUT: By Level + By Workset ─────────────────
-            var twoCol2 = new Grid { Margin = new Thickness(0, 0, 0, 12) };
-            twoCol2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            twoCol2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
-            twoCol2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            // LEFT: By Level (top 10) with bars
-            if (_data.WarningByLevel.Count > 0)
-            {
-                var lvlPanel = new StackPanel();
-                lvlPanel.Children.Add(MakeSectionHeader("BY LEVEL (top 10)"));
-                var lvlCard = MakeCard();
-                var lvlStack = new StackPanel();
-                int maxLvl = _data.WarningByLevel.Values.Max();
-                foreach (var kv in _data.WarningByLevel.OrderByDescending(x => x.Value).Take(10))
-                {
-                    var lvlRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 20 };
-                    lvlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
-                    lvlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-                    lvlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    lvlRow.Children.Add(new TextBlock { Text = kv.Key, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-                    var cntTb = new TextBlock { Text = kv.Value.ToString(), FontWeight = FontWeights.Bold, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 1); lvlRow.Children.Add(cntTb);
-                    double barPct = maxLvl > 0 ? kv.Value * 100.0 / maxLvl : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 7, CornerRadius = new CornerRadius(3), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(CAccent), Height = 7, CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.8 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); lvlRow.Children.Add(barGrid);
-                    lvlStack.Children.Add(lvlRow);
-                }
-                lvlCard.Child = lvlStack;
-                lvlPanel.Children.Add(lvlCard);
-                twoCol2.Children.Add(lvlPanel);
-            }
-
-            // RIGHT: By Workset
-            if (_data.WarningByWorkset.Count > 0)
-            {
-                var wsPanel = new StackPanel();
-                wsPanel.Children.Add(MakeSectionHeader("BY WORKSET"));
-                var wsCard = MakeCard();
-                var wsStack = new StackPanel();
-                int maxWs = _data.WarningByWorkset.Values.Max();
-                foreach (var kv in _data.WarningByWorkset.OrderByDescending(x => x.Value).Take(10))
-                {
-                    var wsRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 20 };
-                    wsRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
-                    wsRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-                    wsRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    wsRow.Children.Add(new TextBlock { Text = kv.Key, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-                    var cntTb = new TextBlock { Text = kv.Value.ToString(), FontWeight = FontWeights.Bold, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 1); wsRow.Children.Add(cntTb);
-                    double barPct = maxWs > 0 ? kv.Value * 100.0 / maxWs : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 7, CornerRadius = new CornerRadius(3), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(Color.FromRgb(0x00, 0x69, 0x7C)), Height = 7, CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.8 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); wsRow.Children.Add(barGrid);
-                    wsStack.Children.Add(wsRow);
-                }
-                wsCard.Child = wsStack;
-                wsPanel.Children.Add(wsCard);
-                Grid.SetColumn(wsPanel, 2);
-                twoCol2.Children.Add(wsPanel);
-            }
-            root.Children.Add(twoCol2);
-
-            // ── HOTSPOT ELEMENTS ─────────────────────────────────────────
-            if (_data.WarningHotspots.Count > 0)
-            {
-                root.Children.Add(MakeSectionHeader("HOTSPOT ELEMENTS (most warnings)"));
-                var hotCard = MakeCard();
-                var hotStack = new StackPanel();
-                int maxHot = _data.WarningHotspots.Take(10).Max(h => h.Count);
-                foreach (var (name, count) in _data.WarningHotspots.Take(10))
-                {
-                    var hotRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 22, Cursor = Cursors.Hand };
-                    hotRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    hotRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
-                    hotRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-                    hotRow.Children.Add(new TextBlock { Text = name, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-                    var cntTb = new TextBlock { Text = $"{count} warn", FontWeight = FontWeights.Bold, FontSize = 10.5, Foreground = Br(CRed), VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 1); hotRow.Children.Add(cntTb);
-                    double barPct = maxHot > 0 ? count * 100.0 / maxHot : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 7, CornerRadius = new CornerRadius(3), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(CRed), Height = 7, CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.75 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); hotRow.Children.Add(barGrid);
-                    hotRow.ToolTip = $"Element: {name}\nWarnings: {count}\nDouble-click to zoom to 3D section box";
-                    hotRow.MouseLeftButtonDown += (s, e) =>
-                    {
-                        if (e.ClickCount == 2) { DispatchAction($"ZoomToWarning_{name}"); }
-                    };
-                    var hotCtx = new ContextMenu();
-                    var hotZoom = new MenuItem { Header = "Zoom to 3D Section Box" };
-                    hotZoom.Click += (s2, e2) => { DispatchAction($"ZoomToWarning_{name}"); };
-                    var hotSelect = new MenuItem { Header = "Select Element" };
-                    hotSelect.Click += (s2, e2) => { DispatchAction($"ZoomToElement_{name}"); };
-                    hotCtx.Items.Add(hotZoom); hotCtx.Items.Add(hotSelect);
-                    hotRow.ContextMenu = hotCtx;
-                    hotStack.Children.Add(hotRow);
-                }
-                hotCard.Child = hotStack;
-                root.Children.Add(hotCard);
-            }
-
-            // ── BY DISCIPLINE with double-click selection ─────────────────
-            if (_data.WarningByDiscipline.Count > 0)
-            {
-                root.Children.Add(MakeSectionHeader("BY DISCIPLINE"));
-                var discCard = MakeCard();
-                var discStack = new StackPanel();
-                int maxDisc = _data.WarningByDiscipline.Values.Max();
-                foreach (var kv in _data.WarningByDiscipline.OrderByDescending(x => x.Value))
-                {
-                    var dRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 22, Cursor = Cursors.Hand };
-                    dRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                    dRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                    dRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    dRow.Children.Add(new TextBlock { Text = kv.Key, FontWeight = FontWeights.Bold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
-                    var cntTb = new TextBlock { Text = kv.Value.ToString(), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 1); dRow.Children.Add(cntTb);
-                    double barPct = maxDisc > 0 ? kv.Value * 100.0 / maxDisc : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 8, CornerRadius = new CornerRadius(4), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(CAccent), Height = 8, CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); dRow.Children.Add(barGrid);
-                    dRow.ToolTip = $"Discipline: {kv.Key} — {kv.Value} warnings\nDouble-click to select all elements of this discipline";
-                    dRow.MouseLeftButtonDown += (s, e) =>
-                    {
-                        if (e.ClickCount == 2) { DispatchAction($"SelectByDisc_{kv.Key}"); }
-                    };
-                    discStack.Children.Add(dRow);
-                }
-                discCard.Child = discStack;
-                root.Children.Add(discCard);
-            }
-
-            // ── REGRESSION ANALYSIS ──────────────────────────────────────
-            if (_data.WarningAdded > 0 || _data.WarningRemoved > 0)
-            {
-                root.Children.Add(MakeSectionHeader("REGRESSION ANALYSIS (vs baseline)"));
-                var regCard = MakeCard();
-                var regStack = new StackPanel();
-                var addRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                addRow.Children.Add(new TextBlock { Text = "▲ ", Foreground = Br(CRed), FontWeight = FontWeights.Bold, FontSize = 13 });
-                addRow.Children.Add(new TextBlock { Text = $"New since baseline:  +{_data.WarningAdded}", FontSize = 12, Foreground = _data.WarningAdded > 0 ? Br(CRed) : Br(CGreen) });
-                regStack.Children.Add(addRow);
-                var remRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                remRow.Children.Add(new TextBlock { Text = "▼ ", Foreground = Br(CGreen), FontWeight = FontWeights.Bold, FontSize = 13 });
-                remRow.Children.Add(new TextBlock { Text = $"Resolved since baseline:  -{_data.WarningRemoved}", FontSize = 12, Foreground = Br(CGreen) });
-                regStack.Children.Add(remRow);
-                int netChange = _data.WarningAdded - _data.WarningRemoved;
-                var netRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
-                netRow.Children.Add(new TextBlock { Text = netChange >= 0 ? "Net: +" : "Net: ", FontWeight = FontWeights.Bold, FontSize = 12 });
-                netRow.Children.Add(new TextBlock { Text = $"{netChange}", FontWeight = FontWeights.Bold, FontSize = 12, Foreground = netChange > 0 ? Br(CRed) : netChange < 0 ? Br(CGreen) : Br(Color.FromRgb(0x75, 0x75, 0x75)) });
-                regStack.Children.Add(netRow);
-                regCard.Child = regStack;
-                root.Children.Add(regCard);
-            }
-
-            // ── INLINE 6-TAB WARNINGS PANEL (Phase 91) ──────────────────
-            var state = new WarningsDashboardDialog.WarningsPanelState();
-            var innerTabs = new TabControl { Background = Br(CPageBg), BorderThickness = new Thickness(0), Margin = new Thickness(0, 8, 0, 0) };
-            innerTabs.Items.Add(WarningsDashboardDialog.BuildOverviewTab());
-            innerTabs.Items.Add(WarningsDashboardDialog.BuildBrowseSelectTab());
-            innerTabs.Items.Add(WarningsDashboardDialog.BuildAutoFixTab());
-            innerTabs.Items.Add(WarningsDashboardDialog.BuildSelectInspectTab());
-            innerTabs.Items.Add(WarningsDashboardDialog.BuildBaselineSLATab());
-            innerTabs.Items.Add(WarningsDashboardDialog.BuildExportIntegrationTab());
-            root.Children.Add(MakeSectionHeader("WARNINGS MANAGEMENT PANEL"));
-            root.Children.Add(innerTabs);
-
-            // Run button + status bar at bottom
-            var runRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-            var runBtn = MakeActionButton("Run Selected", "RunWarningsAction", Br(CAccent), "Execute the highlighted action from the inner panel tabs");
-            runRow.Children.Add(runBtn);
-            var innerStatus = new TextBlock { FontSize = 10, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-            state.StatusText = innerStatus;
-            runRow.Children.Add(innerStatus);
-            root.Children.Add(runRow);
-
-            return sv;
+            return dock;
         }
 
+        // PLACEHOLDER for deleted old content — kept to allow compile:
         // ════════════════════════════════════════════════════════════════
         //  ISSUES TAB
         // ════════════════════════════════════════════════════════════════
@@ -6657,8 +6205,31 @@ namespace StingTools.UI
             var memberDg = MakeExcelDataGrid(180);
             memberDg.Columns.Add(new DataGridTextColumn { Header = "Name",         Binding = new System.Windows.Data.Binding("Name"),         Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
             memberDg.Columns.Add(new DataGridTextColumn { Header = "Company",      Binding = new System.Windows.Data.Binding("Company"),      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            memberDg.Columns.Add(new DataGridTextColumn { Header = "Role",         Binding = new System.Windows.Data.Binding("Role"),         Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            memberDg.Columns.Add(new DataGridTextColumn { Header = "Discipline",   Binding = new System.Windows.Data.Binding("Discipline"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            var isoRoles = new List<string>
+            {
+                "Client / Employer", "Appointing Party Representative", "Project Manager", "BIM Manager",
+                "BIM Coordinator", "BIM Technician", "Information Manager", "CDE Administrator",
+                "Delivery Team Leader", "Task Team Leader", "Author", "Checker / Approver",
+                "Architect (Lead Designer)", "Structural Engineer", "Building Services / MEP Engineer",
+                "Civil Engineer", "Landscape Architect", "Interior Designer", "Façade Engineer",
+                "Acoustic Engineer", "Traffic Engineer", "Fire Engineer", "Lighting Designer",
+                "Cost Manager / QS", "Project Programmer", "Health & Safety Manager", "Planning Consultant",
+                "Principal Contractor", "Construction Manager", "Site Manager", "Subcontractor Manager",
+                "Commissioning Manager", "FM Manager", "Asset Manager", "Data Drop Manager",
+                "Document Controller", "Other"
+            };
+            var isoDisciplines = new List<string>
+            {
+                "A – Architecture", "B – Building Services / MEP", "C – Civil Engineering",
+                "D – Drainage", "E – Electrical", "F – Fire Protection", "G – General / Multi-Discipline",
+                "H – HVAC", "I – Interior Design", "J – Landscape", "K – Structural",
+                "L – Lighting", "M – Mechanical", "N – Noise / Acoustics", "O – Other",
+                "P – Plumbing", "Q – Quantity Surveying", "R – Renovation / Refurbishment",
+                "S – Structural Engineering", "T – Transport / Traffic", "U – Urban Planning",
+                "V – Ventilation", "W – Wet Services", "X – External Works", "Z – General Coordination"
+            };
+            memberDg.Columns.Add(new DataGridComboBoxColumn { Header = "Role",       ItemsSource = isoRoles,       SelectedItemBinding = new System.Windows.Data.Binding("Role"),       Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            memberDg.Columns.Add(new DataGridComboBoxColumn { Header = "Discipline",  ItemsSource = isoDisciplines, SelectedItemBinding = new System.Windows.Data.Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             memberDg.Columns.Add(new DataGridTextColumn { Header = "Email",        Binding = new System.Windows.Data.Binding("Email"),        Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
             memberDg.Columns.Add(new DataGridTextColumn { Header = "Phone",        Binding = new System.Windows.Data.Binding("Phone"),        Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             memberDg.Columns.Add(new DataGridTextColumn { Header = "CDE Username", Binding = new System.Windows.Data.Binding("CDEUsername"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
@@ -7325,7 +6896,26 @@ namespace StingTools.UI
 
             var mtgDg = MakeExcelDataGrid(200);
             mtgDg.IsReadOnly = false;
-            var mtgTypes = new List<string> { "BIM Coordination", "Design Review", "Site Progress", "Technical", "Client", "Clash Detection", "Stage Gate", "Data Drop Review", "Handover", "RIBA Stage Review", "Programme Review", "Risk Review" };
+            var mtgTypes = new List<string>
+            {
+                // Pre-Construction
+                "Pre-Construction Meeting", "Project Kick-Off", "Client Briefing", "Feasibility Review", "Planning Pre-Application",
+                // Design & Coordination
+                "BIM Coordination", "Design Review", "Technical Design Meeting", "Clash Detection Review", "Stage Gate Review",
+                "RIBA Stage Review", "Design Team Meeting", "Multi-Discipline Coordination",
+                // Procurement & Commercial
+                "Tender Review Meeting", "Contractor Briefing", "Procurement Strategy Meeting", "Risk Review",
+                "Value Engineering Workshop", "Programme Review",
+                // Construction
+                "Site Progress Meeting", "Construction Phase Meeting", "Subcontractor Coordination",
+                "Inspection and Test Meeting", "Health & Safety Review", "Quality Review",
+                // Handover & FM
+                "Data Drop Review", "Handover Meeting", "COBie Review", "FM Commissioning Meeting",
+                "Client Handover Meeting", "Post-Occupancy Evaluation",
+                // General
+                "Client Meeting", "Stakeholder Engagement", "Project Board Meeting", "Change Control Meeting",
+                "Lessons Learned", "Weekly Team Meeting", "Issue Resolution Meeting", "Workshop", "Other"
+            };
             var mtgStatuses = new List<string> { "PLANNED", "IN PROGRESS", "COMPLETED", "CANCELLED" };
             mtgDg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("MeetingId"), Width = 70, IsReadOnly = true });
             mtgDg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Title"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
