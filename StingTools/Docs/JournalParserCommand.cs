@@ -318,9 +318,9 @@ namespace StingTools.Docs
             report.StingAddins = report.AddinsLoaded
                 .Where(a => a.Name.IndexOf("STING", StringComparison.OrdinalIgnoreCase) >= 0
                     || a.ClassName?.IndexOf("StingTools", StringComparison.OrdinalIgnoreCase) >= 0
-                    || a.ClassName?.IndexOf("StingBIM", StringComparison.OrdinalIgnoreCase) >= 0
+                    || a.ClassName?.IndexOf("Planscape", StringComparison.OrdinalIgnoreCase) >= 0
                     || a.AssemblyPath?.IndexOf("StingTools", StringComparison.OrdinalIgnoreCase) >= 0
-                    || a.AssemblyPath?.IndexOf("StingBIM", StringComparison.OrdinalIgnoreCase) >= 0)
+                    || a.AssemblyPath?.IndexOf("Planscape", StringComparison.OrdinalIgnoreCase) >= 0)
                 .ToList();
 
             report.StingCommands = report.CommandsExecuted
