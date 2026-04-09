@@ -12,7 +12,8 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Creates and loads STING tag families (.rfa) for all 124 taggable categories.
+    /// Creates and loads STING tag families (.rfa) for all 136 taggable categories
+    /// (121 standard + 8 tie-in point + 3 discipline sheet + 4 structural variant).
     /// Each tag family is created from the appropriate Revit .rft annotation template
     /// and configured with STING shared parameters (ASS_TAG_1_TXT, etc.).
     ///
@@ -190,6 +191,9 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_StructConnectionWelds, "Generic Tag.rft" },
             { BuiltInCategory.OST_Wire, "Electrical Equipment Tag.rft" },
 
+            // ── Sheets (base category for all discipline sheet tags) ─────────
+            { BuiltInCategory.OST_Sheets, "Generic Tag.rft" },
+
         };
 
         /// <summary>
@@ -336,6 +340,9 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_StructConnectionWelds, "Weld" },
             { BuiltInCategory.OST_Wire, "Wire" },
 
+            // Sheets (base category)
+            { BuiltInCategory.OST_Sheets, "Sheets" },
+
         };
 
         /// <summary>
@@ -352,10 +359,42 @@ namespace StingTools.Tags
             (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Cable Tray"),
             (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Fire Protection"),
             (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Gas"),
+            // Pipe system-specific tie-in variants (from MEP CSV #49, #50)
+            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Fire Protection Pipe)", "Tie-In FP Pipe"),
+            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Gas Pipe)",             "Tie-In Gas Pipe"),
         };
 
-        /// <summary>Total tag family count including both standard categories and tie-in points.</summary>
-        public static int TotalFamilyCount => CategoryTemplateMap.Count + TieInPointFamilies.Length;
+        /// <summary>
+        /// Discipline-specific sheet tag families.
+        /// Sheets (OST_Sheets) is already in CategoryTemplateMap for the base "Sheet Document Tag".
+        /// These create ADDITIONAL sheet tag families per discipline (ARCH, MEP, STR).
+        /// </summary>
+        public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] DisciplineSheetFamilies =
+        {
+            (BuiltInCategory.OST_Sheets, "Generic Tag.rft", "Sheets — Architectural discipline",        "Architectural Sheet"),
+            (BuiltInCategory.OST_Sheets, "Generic Tag.rft", "Sheets — MEP disciplines (M/E/P/FP/LV)",  "MEP Sheet"),
+            (BuiltInCategory.OST_Sheets, "Generic Tag.rft", "Sheets — Structural discipline",           "Structural Sheet"),
+        };
+
+        /// <summary>
+        /// Structural discipline variant tag families.
+        /// These are ADDITIONAL tag families for categories already covered in the base map,
+        /// but with structural-specific naming/configuration (from STR CSV).
+        /// </summary>
+        public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] StructuralVariantFamilies =
+        {
+            (BuiltInCategory.OST_Floors,            "Generic Tag.rft",           "Floors (Structural)",                  "Structural Slab"),
+            (BuiltInCategory.OST_Walls,             "Generic Tag.rft",           "Walls (Structural/Load-bearing)",      "Structural Wall"),
+            (BuiltInCategory.OST_StructuralFraming, "Structural Framing Tag.rft","Structural Framing (Bracing)",         "Brace Truss"),
+            (BuiltInCategory.OST_Columns,           "Generic Tag.rft",           "Columns (Architectural)",              "Architectural Column"),
+        };
+
+        /// <summary>Total tag family count including standard categories + all variant arrays.</summary>
+        public static int TotalFamilyCount =>
+            CategoryTemplateMap.Count +
+            TieInPointFamilies.Length +
+            DisciplineSheetFamilies.Length +
+            StructuralVariantFamilies.Length;
 
         /// <summary>Generate tie-in family name from suffix.</summary>
         public static string GetTieInFamilyName(string suffix) => $"{FamilyPrefix} - {suffix} Tag";
@@ -672,11 +711,11 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  Create Tag Families — create all 132 tag families from templates
+    //  Create Tag Families — create all 136 tag families from templates
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Creates STING tag families (.rfa) for all 132 taggable categories (126 standard + 6 tie-in point).
+    /// Creates STING tag families (.rfa) for all 136 taggable categories (121 base + 8 tie-in point + 3 discipline sheet + 4 structural variant).
     /// Each family is created from the appropriate Revit annotation template,
     /// configured with STING shared parameters, saved, and loaded into the project.
     ///
@@ -770,6 +809,20 @@ namespace StingTools.Tags
             foreach (var tiein in TagFamilyConfig.TieInPointFamilies)
             {
                 string famName = TagFamilyConfig.GetTieInFamilyName(tiein.suffix);
+                if (loadedFamilies.Contains(famName))
+                    alreadyLoaded++;
+            }
+            // Also count discipline sheet families
+            foreach (var ds in TagFamilyConfig.DisciplineSheetFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(ds.suffix);
+                if (loadedFamilies.Contains(famName))
+                    alreadyLoaded++;
+            }
+            // Also count structural variant families
+            foreach (var sv in TagFamilyConfig.StructuralVariantFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(sv.suffix);
                 if (loadedFamilies.Contains(famName))
                     alreadyLoaded++;
             }
@@ -1074,6 +1127,268 @@ namespace StingTools.Tags
                     failures.Add($"{tiein.display}: {ex.Message}");
                     report.AppendLine($"  [FAIL] {tiein.display} — {ex.Message}");
                     StingLog.Error($"Tie-in tag family creation failed for {tiein.display}", ex);
+                }
+            }
+
+            // ── Step 5c: Create discipline sheet tag families ──
+            report.AppendLine();
+            report.AppendLine("── Discipline Sheet Families ──");
+            foreach (var ds in TagFamilyConfig.DisciplineSheetFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(ds.suffix);
+                string fileName = TagFamilyConfig.GetTieInFamilyFileName(ds.suffix);
+
+                if (loadedFamilies.Contains(famName))
+                {
+                    report.AppendLine($"  [SKIP] {ds.display} — already loaded");
+                    continue;
+                }
+
+                // Check for existing .rfa on disk
+                string existingRfa = Path.Combine(outputDir, fileName);
+                if (File.Exists(existingRfa))
+                {
+                    try
+                    {
+                        using (Transaction t = new Transaction(doc, "STING Load Sheet Tag"))
+                        {
+                            t.Start();
+                            doc.LoadFamily(existingRfa);
+                            t.Commit();
+                        }
+                        loaded++;
+                        report.AppendLine($"  [LOAD] {ds.display} — loaded from existing .rfa");
+                        continue;
+                    }
+                    catch (Exception ex)
+                    {
+                        report.AppendLine($"  [FAIL] {ds.display} — load failed: {ex.Message}");
+                    }
+                }
+
+                // Find template and create family
+                string tpl = null;
+                foreach (string dir in new[] { templateDir })
+                {
+                    string specific = Path.Combine(dir, ds.template);
+                    if (File.Exists(specific)) { tpl = specific; break; }
+                    string metric = Path.Combine(dir, "Metric " + ds.template);
+                    if (File.Exists(metric)) { tpl = metric; break; }
+                }
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    string generic = Path.Combine(templateDir, "Generic Tag.rft");
+                    if (File.Exists(generic)) tpl = generic;
+                    else
+                    {
+                        string metricGeneric = Path.Combine(templateDir, "Metric Generic Tag.rft");
+                        if (File.Exists(metricGeneric)) tpl = metricGeneric;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    templateMissing++;
+                    report.AppendLine($"  [MISS] {ds.display} — no template found");
+                    continue;
+                }
+
+                try
+                {
+                    Document famDoc = app.NewFamilyDocument(tpl);
+                    if (famDoc == null)
+                    {
+                        failed++;
+                        report.AppendLine($"  [FAIL] {ds.display} — NewFamilyDocument returned null");
+                        continue;
+                    }
+
+                    int paramCount = 0;
+                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
+                    {
+                        t.Start();
+                        app.SharedParametersFilename = sharedParamFile;
+                        var defFile = app.OpenSharedParameterFile();
+                        if (defFile != null)
+                        {
+                            foreach (string pName in TagFamilyConfig.TagParams
+                                .Concat(TagFamilyConfig.VisibilityParams)
+                                .Append("ASS_DESCRIPTION_TXT"))
+                            {
+                                foreach (DefinitionGroup grp in defFile.Groups)
+                                {
+                                    var def = grp.Definitions.get_Item(pName);
+                                    if (def != null)
+                                    {
+                                        try
+                                        {
+                                            famDoc.FamilyManager.AddParameter(
+                                                def as ExternalDefinition,
+                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
+                                                false);
+                                            paramCount++;
+                                        }
+                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        t.Commit();
+                    }
+
+                    string savePath = Path.Combine(outputDir, fileName);
+                    var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                    famDoc.SaveAs(savePath, saveOpts);
+                    famDoc.Close(false);
+                    created++;
+
+                    using (Transaction t = new Transaction(doc, "STING Load Sheet Tag"))
+                    {
+                        t.Start();
+                        doc.LoadFamily(savePath);
+                        t.Commit();
+                    }
+                    loaded++;
+                    report.AppendLine($"  [OK]   {ds.display} — created and loaded ({paramCount} params)");
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    failures.Add($"{ds.display}: {ex.Message}");
+                    report.AppendLine($"  [FAIL] {ds.display} — {ex.Message}");
+                    StingLog.Error($"Sheet tag family creation failed for {ds.display}", ex);
+                }
+            }
+
+            // ── Step 5d: Create structural variant tag families ──
+            report.AppendLine();
+            report.AppendLine("── Structural Variant Families ──");
+            foreach (var sv in TagFamilyConfig.StructuralVariantFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(sv.suffix);
+                string fileName = TagFamilyConfig.GetTieInFamilyFileName(sv.suffix);
+
+                if (loadedFamilies.Contains(famName))
+                {
+                    report.AppendLine($"  [SKIP] {sv.display} — already loaded");
+                    continue;
+                }
+
+                // Check for existing .rfa on disk
+                string existingRfa = Path.Combine(outputDir, fileName);
+                if (File.Exists(existingRfa))
+                {
+                    try
+                    {
+                        using (Transaction t = new Transaction(doc, "STING Load Struct Variant Tag"))
+                        {
+                            t.Start();
+                            doc.LoadFamily(existingRfa);
+                            t.Commit();
+                        }
+                        loaded++;
+                        report.AppendLine($"  [LOAD] {sv.display} — loaded from existing .rfa");
+                        continue;
+                    }
+                    catch (Exception ex)
+                    {
+                        report.AppendLine($"  [FAIL] {sv.display} — load failed: {ex.Message}");
+                    }
+                }
+
+                // Find template and create family
+                string tpl = null;
+                foreach (string dir in new[] { templateDir })
+                {
+                    string specific = Path.Combine(dir, sv.template);
+                    if (File.Exists(specific)) { tpl = specific; break; }
+                    string metric = Path.Combine(dir, "Metric " + sv.template);
+                    if (File.Exists(metric)) { tpl = metric; break; }
+                }
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    string generic = Path.Combine(templateDir, "Generic Tag.rft");
+                    if (File.Exists(generic)) tpl = generic;
+                    else
+                    {
+                        string metricGeneric = Path.Combine(templateDir, "Metric Generic Tag.rft");
+                        if (File.Exists(metricGeneric)) tpl = metricGeneric;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    templateMissing++;
+                    report.AppendLine($"  [MISS] {sv.display} — no template found");
+                    continue;
+                }
+
+                try
+                {
+                    Document famDoc = app.NewFamilyDocument(tpl);
+                    if (famDoc == null)
+                    {
+                        failed++;
+                        report.AppendLine($"  [FAIL] {sv.display} — NewFamilyDocument returned null");
+                        continue;
+                    }
+
+                    int paramCount = 0;
+                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
+                    {
+                        t.Start();
+                        app.SharedParametersFilename = sharedParamFile;
+                        var defFile = app.OpenSharedParameterFile();
+                        if (defFile != null)
+                        {
+                            foreach (string pName in TagFamilyConfig.TagParams
+                                .Concat(TagFamilyConfig.VisibilityParams)
+                                .Append("ASS_DESCRIPTION_TXT"))
+                            {
+                                foreach (DefinitionGroup grp in defFile.Groups)
+                                {
+                                    var def = grp.Definitions.get_Item(pName);
+                                    if (def != null)
+                                    {
+                                        try
+                                        {
+                                            famDoc.FamilyManager.AddParameter(
+                                                def as ExternalDefinition,
+                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
+                                                false);
+                                            paramCount++;
+                                        }
+                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        t.Commit();
+                    }
+
+                    string savePath = Path.Combine(outputDir, fileName);
+                    var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                    famDoc.SaveAs(savePath, saveOpts);
+                    famDoc.Close(false);
+                    created++;
+
+                    using (Transaction t = new Transaction(doc, "STING Load Struct Variant Tag"))
+                    {
+                        t.Start();
+                        doc.LoadFamily(savePath);
+                        t.Commit();
+                    }
+                    loaded++;
+                    report.AppendLine($"  [OK]   {sv.display} — created and loaded ({paramCount} params)");
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    failures.Add($"{sv.display}: {ex.Message}");
+                    report.AppendLine($"  [FAIL] {sv.display} — {ex.Message}");
+                    StingLog.Error($"Structural variant tag family creation failed for {sv.display}", ex);
                 }
             }
 
