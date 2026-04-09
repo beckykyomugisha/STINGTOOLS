@@ -1623,7 +1623,7 @@ namespace StingTools.BIMManager
             }
 
             // ── Gather compliance snapshot ───────────────────────────────────
-            SyncCompliancePayload? compliancePayload = null;
+            SyncCompliancePayload compliancePayload = null;
             try
             {
                 var compliance = Core.ComplianceScan.Scan(doc);
@@ -1654,7 +1654,7 @@ namespace StingTools.BIMManager
             catch (Exception ex) { StingLog.Warn($"StingBIM: Compliance scan failed (non-fatal): {ex.Message}"); }
 
             // ── Gather warning summary ───────────────────────────────────────
-            SyncWarningPayload? warningPayload = null;
+            SyncWarningPayload warningPayload = null;
             try
             {
                 var wr = Core.WarningsEngine.ScanWarnings(doc);
@@ -1764,7 +1764,7 @@ namespace StingTools.BIMManager
             {
                 if (!File.Exists(cfgPath)) return Guid.Empty;
                 var json = JObject.Parse(File.ReadAllText(cfgPath));
-                string? id = json["projectId"]?.Value<string>();
+                string id = json["projectId"]?.Value<string>();
                 return Guid.TryParse(id, out var g) ? g : Guid.Empty;
             }
             catch { return Guid.Empty; }
