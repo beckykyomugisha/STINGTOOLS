@@ -711,11 +711,11 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  Create Tag Families — create all 132 tag families from templates
+    //  Create Tag Families — create all 136 tag families from templates
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Creates STING tag families (.rfa) for all 132 taggable categories (126 standard + 6 tie-in point).
+    /// Creates STING tag families (.rfa) for all 136 taggable categories (121 base + 8 tie-in point + 3 discipline sheet + 4 structural variant).
     /// Each family is created from the appropriate Revit annotation template,
     /// configured with STING shared parameters, saved, and loaded into the project.
     ///
