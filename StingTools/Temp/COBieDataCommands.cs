@@ -809,6 +809,207 @@ namespace StingTools.Temp
     }
 
     /// <summary>
+    /// COBie Zone Type Audit — cross-references COBIE_ZONE_TYPES.csv
+    /// against the project's Revit zones and rooms to identify missing
+    /// zone coverage per BS 9999, CIBSE, BS 7671, BS 5266 requirements.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class COBieZoneTypeAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.Doc == null)
+            {
+                TaskDialog.Show("COBie Zone Type Audit", "No active document.");
+                return Result.Failed;
+            }
+            var doc = ctx.Doc;
+
+            // Load reference data
+            var zoneTypes = COBieDataHelper.LoadZoneTypes();
+            if (zoneTypes.Count == 0)
+            {
+                TaskDialog.Show("COBie Zone Type Audit",
+                    "Could not load COBIE_ZONE_TYPES.csv. Check data files.");
+                return Result.Failed;
+            }
+
+            // Collect Revit zones
+            var revitZones = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Zones)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            // Collect Revit rooms for spatial coverage analysis
+            var revitRooms = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            // Build sets of detected zone categories from model data
+            var detectedCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Check zone names/types for category matches
+            foreach (var zone in revitZones)
+            {
+                string name = zone.Name ?? "";
+                string dept = ParameterHelpers.GetString(zone, "Department");
+                string combined = (name + " " + dept).ToLowerInvariant();
+
+                if (combined.Contains("fire") || combined.Contains("compartment") ||
+                    combined.Contains("escape") || combined.Contains("smoke"))
+                    detectedCategories.Add("Fire Safety");
+                if (combined.Contains("hvac") || combined.Contains("heating") ||
+                    combined.Contains("cooling") || combined.Contains("vav") ||
+                    combined.Contains("underfloor"))
+                    detectedCategories.Add("Environmental");
+                if (combined.Contains("light"))
+                    detectedCategories.Add("Lighting");
+                if (combined.Contains("security") || combined.Contains("access") ||
+                    combined.Contains("intruder"))
+                    detectedCategories.Add("Security");
+                if (combined.Contains("acoustic") || combined.Contains("noise"))
+                    detectedCategories.Add("Acoustic");
+                if (combined.Contains("clean") || combined.Contains("tenant") ||
+                    combined.Contains("fm") || combined.Contains("occupan"))
+                    detectedCategories.Add("Management");
+                if (combined.Contains("electr") || combined.Contains("distribut"))
+                    detectedCategories.Add("Electrical");
+                if (combined.Contains("ventilat") || combined.Contains("extract") ||
+                    combined.Contains("fresh air"))
+                    detectedCategories.Add("Ventilation");
+                if (combined.Contains("water") || combined.Contains("plumb") ||
+                    combined.Contains("legionella"))
+                    detectedCategories.Add("Plumbing");
+            }
+
+            // Also check rooms for department-based zone inference
+            foreach (var room in revitRooms)
+            {
+                string dept = ParameterHelpers.GetString(room, "Department");
+                string zoneParam = ParameterHelpers.GetString(room, ParamRegistry.ZONE);
+                string combined = (dept + " " + zoneParam).ToLowerInvariant();
+
+                if (combined.Contains("fire")) detectedCategories.Add("Fire Safety");
+                if (combined.Contains("hvac") || combined.Contains("mech"))
+                    detectedCategories.Add("Environmental");
+                if (combined.Contains("light")) detectedCategories.Add("Lighting");
+                if (combined.Contains("secur")) detectedCategories.Add("Security");
+            }
+
+            // Check each COBie zone type for coverage
+            var byCategory = zoneTypes.GroupBy(z => z.Category)
+                .OrderBy(g => g.Key).ToList();
+
+            int categoriesCovered = byCategory.Count(g =>
+                detectedCategories.Contains(g.Key));
+            int categoriesTotal = byCategory.Count;
+            double coveragePct = categoriesTotal > 0
+                ? (double)categoriesCovered / categoriesTotal * 100.0 : 0;
+
+            // Build result panel
+            var panel = StingResultPanel.Create("COBie Zone Type Audit");
+
+            panel.AddSection("Model Summary");
+            panel.Metric("Revit Zones", revitZones.Count.ToString());
+            panel.Metric("Revit Rooms", revitRooms.Count.ToString());
+            panel.Metric("COBie Zone Types (Reference)", zoneTypes.Count.ToString());
+            panel.Separator();
+
+            panel.AddSection("Zone Category Coverage");
+            panel.RAGBar("Category Coverage", coveragePct);
+            panel.Metric("Categories Detected",
+                $"{categoriesCovered} of {categoriesTotal}");
+
+            // Coverage table
+            var headers = new[] { "Category", "Zone Types", "Detected", "Status" };
+            var rows = byCategory.Select(g =>
+            {
+                bool detected = detectedCategories.Contains(g.Key);
+                return new[]
+                {
+                    g.Key,
+                    g.Count().ToString(),
+                    detected ? "Yes" : "No",
+                    detected ? "COVERED" : "MISSING"
+                };
+            }).ToList();
+            panel.Table(headers, rows);
+
+            // Missing zone categories with required standards
+            var missingCategories = byCategory
+                .Where(g => !detectedCategories.Contains(g.Key))
+                .ToList();
+
+            if (missingCategories.Count > 0)
+            {
+                panel.AddSection("Missing Zone Categories — Required Actions");
+                foreach (var grp in missingCategories)
+                {
+                    var first = grp.First();
+                    panel.MetricWarn(grp.Key,
+                        $"{grp.Count()} zone type(s) — Ref: {first.RegulatoryDriver}");
+                }
+                panel.Info("Create Revit Zones for missing categories " +
+                    "to achieve full COBie V2.4 zone coverage.");
+            }
+
+            // Property completeness analysis per detected zone category
+            if (categoriesCovered > 0)
+            {
+                panel.AddSection("Zone Property Requirements");
+                var propHeaders = new[] { "Zone Type", "Code", "Required Properties" };
+                var propRows = zoneTypes
+                    .Where(z => detectedCategories.Contains(z.Category))
+                    .Select(z => new[]
+                    {
+                        z.ZoneTypeName,
+                        z.ZoneTypeCode,
+                        z.Properties.Replace(";", ", ")
+                    }).ToList();
+                if (propRows.Count > 0)
+                    panel.Table(propHeaders, propRows);
+            }
+
+            // Export action
+            string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
+            panel.Action("Export Zone Audit CSV", "Export zone coverage analysis to CSV", () =>
+            {
+                try
+                {
+                    string csvPath = Path.Combine(exportDir,
+                        $"COBie_ZoneType_Audit_{DateTime.Now:yyyyMMdd_HHmm}.csv");
+                    var sb = new StringBuilder();
+                    sb.AppendLine("ZoneTypeCode,ZoneTypeName,Category,RegulatoryDriver,Status,Properties,ClassificationCode");
+                    foreach (var z in zoneTypes)
+                    {
+                        string status = detectedCategories.Contains(z.Category)
+                            ? "COVERED" : "MISSING";
+                        sb.AppendLine($"\"{z.ZoneTypeCode}\",\"{z.ZoneTypeName}\"," +
+                            $"\"{z.Category}\",\"{z.RegulatoryDriver}\"," +
+                            $"\"{status}\",\"{z.Properties}\",\"{z.ClassificationCode}\"");
+                    }
+                    File.WriteAllText(csvPath, sb.ToString());
+                    BIMManagerEngine.AutoRegisterExport(doc, csvPath,
+                        "COBie Audit", "COBie Zone Type Coverage Audit Report");
+                    TaskDialog.Show("Export Complete", $"Saved to:\n{csvPath}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("COBie ZoneType audit export failed", ex);
+                    TaskDialog.Show("Export Error", ex.Message);
+                }
+            });
+
+            panel.Show();
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
     /// Browse COBie System Map — building systems with Uniclass/CIBSE codes and STING mapping.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]

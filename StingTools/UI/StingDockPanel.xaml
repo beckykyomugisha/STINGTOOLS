@@ -1397,6 +1397,7 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Systems" Tag="COBieSystemMap" Click="Cmd_Click" ToolTip="Building system map — Uniclass/CIBSE codes with STING token mapping"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Doc Types" Tag="COBieDocTypes" Click="Cmd_Click" ToolTip="O&amp;M document types — regulatory refs, retention periods, naming conventions"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="Doc Type Audit" Tag="COBieDocTypeAudit" Click="Cmd_Click" ToolTip="Audit project against 28 COBie document types — find missing mandatory O&amp;M documents"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Zone Type Audit" Tag="COBieZoneTypeAudit" Click="Cmd_Click" ToolTip="Audit project zones against 16 COBie zone types — find missing fire, HVAC, lighting, security zones"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Summary" Tag="COBieDataSummary" Click="Cmd_Click" ToolTip="Overview of all COBie reference data loaded"/>
                             </WrapPanel>
                         </Border>

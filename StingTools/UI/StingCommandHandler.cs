@@ -2053,6 +2053,7 @@ namespace StingTools.UI
                     case "COBieAutoMatch": RunCommand<Temp.COBieAutoMatchCommand>(app); break;
                     case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
                     case "COBieDocTypeAudit": RunCommand<Temp.COBieDocumentTypeAuditCommand>(app); break;
+                    case "COBieZoneTypeAudit": RunCommand<Temp.COBieZoneTypeAuditCommand>(app); break;
 
                     // ── MEP Schedules (MEPScheduleCommands.cs, StingTools.Temp) ──
                     case "PanelSchedule": RunCommand<Temp.PanelScheduleCommand>(app); break;
