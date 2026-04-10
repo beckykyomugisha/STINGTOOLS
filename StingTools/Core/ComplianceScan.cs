@@ -813,6 +813,55 @@ namespace StingTools.Core
             return new List<TrendEntry>();
         }
 
+        /// <summary>
+        /// Projects when compliance will reach the given threshold based on trend data.
+        /// Returns a date string or descriptive message.
+        /// </summary>
+        public static string ForecastCompletionDate(Document doc, double threshold)
+        {
+            try
+            {
+                if (doc == null) return "N/A";
+                string projectPath = doc.PathName;
+                if (string.IsNullOrEmpty(projectPath)) return "N/A";
+                string trendPath = Path.ChangeExtension(projectPath, null) + ".sting_compliance_trend.json";
+                if (!File.Exists(trendPath)) return "Insufficient data";
+
+                var entries = LoadEntries(trendPath);
+                if (entries.Count < 2) return "Insufficient data";
+
+                // Get most recent entry
+                var latest = entries[entries.Count - 1];
+                if (latest.CompliancePct >= threshold) return "Already met";
+
+                // Calculate average daily improvement over last 7 entries
+                int lookback = Math.Min(7, entries.Count);
+                var recent = entries.Skip(entries.Count - lookback).ToList();
+                if (recent.Count < 2) return "Insufficient data";
+
+                double firstPct = recent[0].CompliancePct;
+                double lastPct = recent[recent.Count - 1].CompliancePct;
+                double daySpan = 0;
+                if (DateTime.TryParse(recent[0].Date, out DateTime d0) &&
+                    DateTime.TryParse(recent[recent.Count - 1].Date, out DateTime d1))
+                {
+                    daySpan = (d1 - d0).TotalDays;
+                }
+                if (daySpan < 0.5) return "Insufficient data";
+
+                double dailyRate = (lastPct - firstPct) / daySpan;
+                if (dailyRate <= 0) return "Declining — no forecast";
+
+                double remaining = threshold - lastPct;
+                double daysToTarget = remaining / dailyRate;
+                if (daysToTarget > 365) return "> 1 year";
+
+                DateTime forecast = DateTime.Today.AddDays(daysToTarget);
+                return forecast.ToString("yyyy-MM-dd");
+            }
+            catch (Exception ex) { StingLog.Warn($"ForecastCompletionDate: {ex.Message}"); return "N/A"; }
+        }
+
         /// <summary>Daily compliance snapshot entry.</summary>
         public class TrendEntry
         {
