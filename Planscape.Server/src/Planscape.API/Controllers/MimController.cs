@@ -7,7 +7,7 @@ using Planscape.MIM.Entities;
 namespace Planscape.API.Controllers;
 
 /// <summary>
-/// StingMIM — Model Information Management: asset lifecycle, maintenance scheduling.
+/// Planscape MIM — Model Information Management: asset lifecycle, maintenance scheduling.
 /// Only available when tenant has MIM addon enabled.
 /// </summary>
 [ApiController]
@@ -26,7 +26,7 @@ public class MimController : ControllerBase
         [FromQuery] string? discipline = null, [FromQuery] string? status = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 100)
     {
-        if (!await IsMimEnabledAsync()) return Forbid("StingMIM addon not enabled for this organization");
+        if (!await IsMimEnabledAsync()) return Forbid("Planscape MIM addon not enabled for this organization");
 
         if (!await VerifyProjectAccessAsync(projectId)) return NotFound("Project not found");
 
@@ -46,7 +46,7 @@ public class MimController : ControllerBase
     [HttpPost("assets")]
     public async Task<ActionResult> CreateAsset(Guid projectId, [FromBody] CreateAssetRequest req)
     {
-        if (!await IsMimEnabledAsync()) return Forbid("StingMIM addon not enabled");
+        if (!await IsMimEnabledAsync()) return Forbid("Planscape MIM addon not enabled");
 
         var asset = new Asset
         {
@@ -82,7 +82,7 @@ public class MimController : ControllerBase
     [HttpPost("assets/bulk")]
     public async Task<ActionResult> BulkCreateAssets(Guid projectId, [FromBody] List<CreateAssetRequest> assets)
     {
-        if (!await IsMimEnabledAsync()) return Forbid("StingMIM addon not enabled");
+        if (!await IsMimEnabledAsync()) return Forbid("Planscape MIM addon not enabled");
         if (assets.Count > 10000) return BadRequest("Maximum 10,000 assets per bulk operation");
 
         int created = 0;
@@ -111,7 +111,7 @@ public class MimController : ControllerBase
     [HttpGet("assets/{assetId}")]
     public async Task<ActionResult> GetAsset(Guid projectId, Guid assetId)
     {
-        if (!await IsMimEnabledAsync()) return Forbid("StingMIM addon not enabled");
+        if (!await IsMimEnabledAsync()) return Forbid("Planscape MIM addon not enabled");
 
         var asset = await _db.Assets
             .Include(a => a.MaintenanceTasks)
@@ -126,7 +126,7 @@ public class MimController : ControllerBase
     public async Task<ActionResult> GetMaintenanceTasks(Guid projectId,
         [FromQuery] string? status = null, [FromQuery] bool? overdue = null)
     {
-        if (!await IsMimEnabledAsync()) return Forbid("StingMIM addon not enabled");
+        if (!await IsMimEnabledAsync()) return Forbid("Planscape MIM addon not enabled");
 
         var query = _db.MaintenanceTasks
             .Where(m => m.Asset!.ProjectId == projectId);
@@ -151,7 +151,7 @@ public class MimController : ControllerBase
     [HttpPost("maintenance")]
     public async Task<ActionResult> CreateMaintenanceTask(Guid projectId, [FromBody] CreateMaintenanceRequest req)
     {
-        if (!await IsMimEnabledAsync()) return Forbid("StingMIM addon not enabled");
+        if (!await IsMimEnabledAsync()) return Forbid("Planscape MIM addon not enabled");
 
         var asset = await _db.Assets.FirstOrDefaultAsync(a => a.Id == req.AssetId && a.ProjectId == projectId);
         if (asset == null) return NotFound("Asset not found");
@@ -179,7 +179,7 @@ public class MimController : ControllerBase
     [HttpGet("dashboard")]
     public async Task<ActionResult> GetMimDashboard(Guid projectId)
     {
-        if (!await IsMimEnabledAsync()) return Forbid("StingMIM addon not enabled");
+        if (!await IsMimEnabledAsync()) return Forbid("Planscape MIM addon not enabled");
 
         var assets = await _db.Assets.Where(a => a.ProjectId == projectId).ToListAsync();
         var tasks = await _db.MaintenanceTasks

@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Planscape.Core;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
@@ -123,193 +122,40 @@ public class TagSyncController : ControllerBase
     }
 
     /// <summary>
-    /// Full sync endpoint (plugin v2.2+): elements + compliance snapshot + warning summary
-    /// + SEQ counters in a single atomic request.
-    /// If ProjectId == Guid.Empty the project is auto-created from ProjectName/ProjectCode.
+    /// Search tagged elements by text query across all tag fields.
     /// </summary>
-    [HttpPost("fullsync")]
-    public async Task<ActionResult<FullSyncResponse>> FullSync([FromBody] FullSyncRequest request)
+    [HttpGet("elements/search")]
+    public async Task<ActionResult> SearchElements([FromQuery] Guid projectId, [FromQuery] string q)
     {
+        if (string.IsNullOrWhiteSpace(q))
+            return BadRequest("Query parameter 'q' is required");
+
         var tenantId = GetTenantId();
+        var query = q.ToLower();
 
-        // ── Resolve or auto-create project ──────────────────────────────────
-        Project? project = null;
-        bool projectCreated = false;
+        var elements = await _db.TaggedElements
+            .Where(e => e.ProjectId == projectId && e.Project!.TenantId == tenantId)
+            .Where(e =>
+                (e.Tag1 != null && e.Tag1.ToLower().Contains(query)) ||
+                (e.Tag7 != null && e.Tag7.ToLower().Contains(query)) ||
+                (e.UniqueId != null && e.UniqueId.ToLower().Contains(query)) ||
+                (e.CategoryName != null && e.CategoryName.ToLower().Contains(query)) ||
+                (e.FamilyName != null && e.FamilyName.ToLower().Contains(query)) ||
+                (e.Disc != null && e.Disc.ToLower().Contains(query)) ||
+                (e.Loc != null && e.Loc.ToLower().Contains(query)) ||
+                (e.Zone != null && e.Zone.ToLower().Contains(query)) ||
+                (e.Lvl != null && e.Lvl.ToLower().Contains(query)) ||
+                (e.Sys != null && e.Sys.ToLower().Contains(query)) ||
+                (e.Func != null && e.Func.ToLower().Contains(query)) ||
+                (e.Prod != null && e.Prod.ToLower().Contains(query)) ||
+                (e.Seq != null && e.Seq.ToLower().Contains(query)) ||
+                (e.Status != null && e.Status.ToLower().Contains(query)) ||
+                (e.Rev != null && e.Rev.ToLower().Contains(query)))
+            .OrderBy(e => e.Tag1)
+            .Take(50)
+            .ToListAsync();
 
-        if (request.ProjectId != Guid.Empty)
-        {
-            project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.TenantId == tenantId);
-            if (project == null) return NotFound(new { message = $"Project {request.ProjectId} not found" });
-        }
-        else if (!string.IsNullOrWhiteSpace(request.ProjectName))
-        {
-            // Find by name first (case-insensitive)
-            project = await _db.Projects.FirstOrDefaultAsync(
-                p => p.TenantId == tenantId && p.Name.ToLower() == request.ProjectName.ToLower());
-
-            if (project == null)
-            {
-                // Auto-create — verify tier allows it
-                var tenant = await _db.Tenants.FindAsync(tenantId);
-                if (tenant != null)
-                {
-                    int pCount = await _db.Projects.CountAsync(p => p.TenantId == tenantId);
-                    int pLimit = TierLimits.MaxProjects(tenant.Tier);
-                    if (!TierLimits.BelowLimit(pCount, pLimit, tenant.MaxProjects))
-                        return BadRequest(new { message = $"Project limit reached ({TierLimits.LimitLabel(pLimit, tenant.MaxProjects)}). Upgrade for unlimited projects." });
-                }
-
-                // Ensure unique code
-                string code = string.IsNullOrWhiteSpace(request.ProjectCode)
-                    ? request.ProjectName.Replace(" ", "").ToUpper()[..Math.Min(8, request.ProjectName.Length)]
-                    : request.ProjectCode.ToUpper();
-                if (await _db.Projects.AnyAsync(p => p.TenantId == tenantId && p.Code == code))
-                    code = code + "_" + DateTime.UtcNow.ToString("MMdd");
-
-                project = new Project
-                {
-                    TenantId    = tenantId,
-                    Name        = request.ProjectName,
-                    Code        = code,
-                    Description = $"Auto-created by StingTools plugin sync ({request.UserName})",
-                    Phase       = "Design"
-                };
-                _db.Projects.Add(project);
-                await _db.SaveChangesAsync();
-                projectCreated = true;
-            }
-        }
-        else
-        {
-            return BadRequest(new { message = "Provide ProjectId or ProjectName" });
-        }
-
-        // ── Sync elements (same logic as /sync) ─────────────────────────────
-        int created = 0, updated = 0;
-        if (request.Elements.Count > 0)
-        {
-            var incomingIds = request.Elements.Select(e => e.RevitElementId).ToHashSet();
-            var existingElements = await _db.TaggedElements
-                .Where(e => e.ProjectId == project.Id && incomingIds.Contains(e.RevitElementId))
-                .ToDictionaryAsync(e => e.RevitElementId);
-
-            foreach (var dto in request.Elements)
-            {
-                if (existingElements.TryGetValue(dto.RevitElementId, out var existing))
-                {
-                    MapDtoToEntity(dto, existing, request.UserName);
-                    updated++;
-                }
-                else
-                {
-                    var entity = new TaggedElement { ProjectId = project.Id };
-                    MapDtoToEntity(dto, entity, request.UserName);
-                    _db.TaggedElements.Add(entity);
-                    created++;
-                }
-            }
-            await _db.SaveChangesAsync();
-        }
-
-        // ── Save compliance snapshot (if provided) ───────────────────────────
-        if (request.Compliance != null)
-        {
-            var snap = new ComplianceSnapshot
-            {
-                ProjectId           = project.Id,
-                CapturedAt          = DateTime.UtcNow,
-                CapturedBy          = request.UserName,
-                TotalElements       = request.Compliance.TotalElements,
-                TaggedComplete      = request.Compliance.TaggedComplete,
-                TaggedIncomplete    = request.Compliance.TaggedIncomplete,
-                Untagged            = request.Compliance.Untagged,
-                FullyResolved       = request.Compliance.FullyResolved,
-                StaleCount          = request.Compliance.StaleCount,
-                PlaceholderCount    = request.Compliance.PlaceholderCount,
-                TagPercent          = request.Compliance.TagPercent,
-                StrictPercent       = request.Compliance.StrictPercent,
-                ContainerPercent    = request.Compliance.ContainerPercent,
-                RagStatus           = request.Compliance.RagStatus,
-                WarningCount        = request.Warnings?.Total ?? 0,
-                WarningHealthScore  = request.Warnings?.HealthScore ?? 0,
-                ByDisciplineJson    = System.Text.Json.JsonSerializer.Serialize(request.Compliance.ByDiscipline),
-                EmptyTokenCountsJson= System.Text.Json.JsonSerializer.Serialize(request.Compliance.EmptyTokenCounts)
-            };
-            _db.ComplianceSnapshots.Add(snap);
-        }
-
-        // ── Save SEQ counters (max-per-key merge) ────────────────────────────
-        int seqSaved = 0;
-        if (request.SeqCounters.Count > 0)
-        {
-            var keys = request.SeqCounters.Keys.ToList();
-            var existing = await _db.SeqCounters
-                .Where(s => s.ProjectId == project.Id && keys.Contains(s.CounterKey))
-                .ToDictionaryAsync(s => s.CounterKey);
-
-            foreach (var (key, incomingVal) in request.SeqCounters)
-            {
-                if (existing.TryGetValue(key, out var counter))
-                {
-                    if (incomingVal > counter.CurrentValue)
-                    {
-                        counter.CurrentValue = incomingVal;
-                        counter.UpdatedBy = request.UserName;
-                        counter.UpdatedAt = DateTime.UtcNow;
-                        seqSaved++;
-                    }
-                }
-                else
-                {
-                    _db.SeqCounters.Add(new SeqCounter
-                    {
-                        ProjectId    = project.Id,
-                        CounterKey   = key,
-                        CurrentValue = incomingVal,
-                        UpdatedBy    = request.UserName,
-                        UpdatedAt    = DateTime.UtcNow
-                    });
-                    seqSaved++;
-                }
-            }
-        }
-
-        // ── Update project live metrics ──────────────────────────────────────
-        var metrics = request.Compliance != null
-            ? new ComplianceSummaryDto
-              {
-                  TotalElements     = request.Compliance.TotalElements,
-                  Tagged            = request.Compliance.TaggedComplete,
-                  CompliancePercent = request.Compliance.TagPercent,
-                  RagStatus         = request.Compliance.RagStatus
-              }
-            : await ComputeComplianceAsync(project.Id);
-
-        project.TotalElements    = metrics.TotalElements;
-        project.TaggedElements   = metrics.Tagged;
-        project.CompliancePercent= metrics.CompliancePercent;
-        project.RagStatus        = metrics.RagStatus;
-        project.LastSyncAt       = DateTime.UtcNow;
-
-        await _db.SaveChangesAsync();
-
-        // ── Broadcast via SignalR ────────────────────────────────────────────
-        await _tagHub.Clients.Group(project.Id.ToString())
-            .SendAsync("TagsUpdated", new { created, updated, total = request.Elements.Count });
-        await _complianceHub.Clients.Group(project.Id.ToString())
-            .SendAsync("ComplianceUpdated", metrics);
-
-        return Ok(new FullSyncResponse
-        {
-            ProjectId         = project.Id,
-            ProjectCreated    = projectCreated,
-            Received          = request.Elements.Count,
-            Created           = created,
-            Updated           = updated,
-            SeqCountersSaved  = seqSaved,
-            CompliancePercent = metrics.CompliancePercent,
-            RagStatus         = metrics.RagStatus
-        });
+        return Ok(elements);
     }
 
     private async Task<ComplianceSummaryDto> ComputeComplianceAsync(Guid projectId)

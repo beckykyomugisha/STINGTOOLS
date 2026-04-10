@@ -1,7 +1,7 @@
 namespace Planscape.MIM.Entities;
 
 /// <summary>
-/// StingMIM Maintenance Task — PPM/reactive maintenance scheduling per BS 8210 / SFG20.
+/// Planscape MIM Maintenance Task — PPM/reactive maintenance scheduling per BS 8210 / SFG20.
 /// </summary>
 public class MaintenanceTask
 {

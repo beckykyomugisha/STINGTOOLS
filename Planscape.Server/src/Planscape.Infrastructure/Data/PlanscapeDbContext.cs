@@ -25,7 +25,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
 
-    // StingMIM entities (loaded when MIM is enabled)
+    // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
     public DbSet<MIM.Entities.MaintenanceTask> MaintenanceTasks => Set<MIM.Entities.MaintenanceTask>();
 
@@ -94,6 +94,10 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(d => d.Id);
             e.HasOne(d => d.Project).WithMany(p => p.Documents).HasForeignKey(d => d.ProjectId);
             e.HasIndex(d => new { d.ProjectId, d.CdeStatus });
+            e.HasIndex(d => new { d.ProjectId, d.Discipline });
+            e.HasIndex(d => new { d.ProjectId, d.UploadedAt });
+            e.Property(d => d.Description).HasMaxLength(1000);
+            e.Property(d => d.Originator).HasMaxLength(50);
         });
 
         // ── LicenseKey ──
@@ -179,7 +183,7 @@ public class PlanscapeDbContext : DbContext
             e.Property(d => d.DeviceName).HasMaxLength(200);
         });
 
-        // ── StingMIM Entities ──
+        // ── Planscape MIM Entities ──
         modelBuilder.Entity<MIM.Entities.Asset>(e =>
         {
             e.HasKey(a => a.Id);

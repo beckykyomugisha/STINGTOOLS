@@ -138,7 +138,9 @@ namespace StingTools.Core
                 // ME-HIGH-01: Clear per-document workset ID cache to prevent stale workset IDs
                 // from the closed document being applied to subsequently opened documents.
                 Model.ModelWorksetAssigner.ClearCache();
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches");
+                // TAG-SORT-LEVEL-01: Clear cached level elevations to prevent stale data
+                Tags.BatchTagCommand.ClearLevelElevationCache();
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, and level caches");
             }
             catch (Exception ex)
             {

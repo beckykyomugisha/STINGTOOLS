@@ -7,7 +7,7 @@ public class LicenseKey
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid TenantId { get; set; }
-    public string Key { get; set; } = ""; // STING-XXXX-XXXX-XXXX-XXXX
+    public string Key { get; set; } = ""; // PLANSCAPE-XXXX-XXXX-XXXX-XXXX
     public LicenseTier Tier { get; set; }
     public bool MimEnabled { get; set; }
     public bool IsActive { get; set; } = true;

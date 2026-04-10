@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Planscape.Core;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
 
@@ -69,14 +68,8 @@ public class AdminController : ControllerBase
         if (tenant == null) return NotFound("Tenant not found");
 
         var userCount = await _db.Users.CountAsync(u => u.TenantId == tenantId && u.IsActive);
-        int tierLimit = TierLimits.MaxUsers(tenant.Tier);
-        if (!TierLimits.BelowLimit(userCount, tierLimit, tenant.MaxUsers))
-            return BadRequest(new
-            {
-                message = $"User limit ({TierLimits.LimitLabel(tierLimit, tenant.MaxUsers)}) reached for {tenant.Tier} tier. Upgrade to Enterprise for unlimited users.",
-                currentCount = userCount,
-                tier = tenant.Tier.ToString()
-            });
+        if (userCount >= tenant.MaxUsers)
+            return BadRequest($"User limit ({tenant.MaxUsers}) reached for {tenant.Tier} tier");
 
         if (await _db.Users.AnyAsync(u => u.Email == req.Email))
             return Conflict($"Email {req.Email} already exists");

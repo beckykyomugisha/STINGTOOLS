@@ -285,6 +285,13 @@ namespace StingTools.Tags
         // where one thread sees new docKey but old elevations (or vice versa).
         private static (string docKey, Dictionary<ElementId, double> elevations) _levelElevationCache;
 
+        /// <summary>TAG-SORT-LEVEL-01: Clear cached level elevations on document close to prevent
+        /// stale elevation data from a closed document being used for the next opened document.</summary>
+        internal static void ClearLevelElevationCache()
+        {
+            _levelElevationCache = default;
+        }
+
         internal static List<Element> SmartSortElements(Document doc, List<Element> elements)
         {
             // Build level elevation lookup (cached per document)

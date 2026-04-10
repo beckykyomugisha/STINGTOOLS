@@ -2679,6 +2679,98 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
             return created;
         }
+        // ── TAG-STALE-WARN-01: Auto-raise issues from stale elements ──────
+
+        /// <summary>
+        /// Checks for stale elements and auto-creates a HIGH-priority SI issue
+        /// when stale count exceeds zero. Deduplicates against existing open issues.
+        /// </summary>
+        internal static int AutoRaiseStaleIssues(Document doc)
+        {
+            if (doc == null) return 0;
+            int created = 0;
+            try
+            {
+                var cached = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc);
+                if (cached == null || cached.StaleCount <= 0) return 0;
+
+                string bimDir = BIMManager.GapFixEngine.GetBimDir(doc);
+                if (string.IsNullOrEmpty(bimDir)) return 0;
+                string issuesPath = System.IO.Path.Combine(bimDir, "issues.json");
+
+                Newtonsoft.Json.Linq.JArray arr;
+                if (File.Exists(issuesPath))
+                {
+                    string raw = File.ReadAllText(issuesPath);
+                    arr = string.IsNullOrWhiteSpace(raw)
+                        ? new Newtonsoft.Json.Linq.JArray()
+                        : Newtonsoft.Json.Linq.JArray.Parse(raw);
+                }
+                else
+                {
+                    arr = new Newtonsoft.Json.Linq.JArray();
+                }
+
+                // Deduplicate: skip if any OPEN issue already covers stale elements
+                foreach (var item in arr)
+                {
+                    string status = item["status"]?.ToString() ?? "";
+                    string title = item["title"]?.ToString() ?? "";
+                    if (status == "OPEN" && title.Contains("stale", StringComparison.OrdinalIgnoreCase))
+                        return 0;
+                }
+
+                // Find next ID
+                int maxNum = 0;
+                foreach (var item in arr)
+                {
+                    string id = item["id"]?.ToString() ?? "";
+                    int dashIdx = id.LastIndexOf('-');
+                    if (dashIdx >= 0 && int.TryParse(id.Substring(dashIdx + 1), out int num))
+                        maxNum = Math.Max(maxNum, num);
+                }
+                string nextId = $"SI-{(maxNum + 1).ToString("D4")}";
+
+                string rev = "";
+                try { rev = ParameterHelpers.PhaseAutoDetect.DetectProjectRevision(doc); }
+                catch (Exception ex) { StingLog.Warn($"AutoRaiseStaleIssues rev detect: {ex.Message}"); }
+
+                var issue = new Newtonsoft.Json.Linq.JObject
+                {
+                    ["id"] = nextId,
+                    ["type"] = "SI",
+                    ["title"] = $"{cached.StaleCount} stale elements require re-tagging",
+                    ["description"] = $"Model contains {cached.StaleCount} elements whose tags are stale (geometry/level/spatial data changed since last tag). Run Retag Stale to resolve.",
+                    ["priority"] = "HIGH",
+                    ["status"] = "OPEN",
+                    ["discipline"] = "",
+                    ["revision"] = rev,
+                    ["element_ids"] = "",
+                    ["created_by"] = Environment.UserName,
+                    ["created_date"] = DateTime.UtcNow.ToString("o"),
+                    ["modified_by"] = Environment.UserName,
+                    ["modified_date"] = DateTime.UtcNow.ToString("o"),
+                    ["auto_created"] = true,
+                    ["source"] = "TAG-STALE-WARN-01"
+                };
+                arr.Add(issue);
+                created = 1;
+
+                // Atomic write
+                if (!Directory.Exists(bimDir))
+                    Directory.CreateDirectory(bimDir);
+                string tmpPath = issuesPath + ".tmp";
+                File.WriteAllText(tmpPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                if (File.Exists(issuesPath))
+                    File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
+                else
+                    File.Move(tmpPath, issuesPath);
+
+                StingLog.Info($"AutoRaiseStaleIssues: created {nextId} for {cached.StaleCount} stale elements");
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoRaiseStaleIssues: {ex.Message}"); }
+            return created;
+        }
     } // end WarningsEngineExt
 
     // ══════════════════════════════════════════════════════════════════
@@ -3303,17 +3395,6 @@ namespace StingTools.Core
         }
     }
 
-    /// <summary>Phase 91: Stub — deliverable readiness assessment command.</summary>
-    [Transaction(TransactionMode.ReadOnly)]
-    public class DeliverableReadinessCommand : IExternalCommand
-    {
-        public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
-        {
-            TaskDialog.Show("STING — Deliverable Readiness", "Use the BIM Coordination Center > Deliverables tab for full readiness assessment.");
-            return Result.Succeeded;
-        }
-    }
-
     /// <summary>Phase 47: Open unified BIM Coordination Center with all dashboards merged.</summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3371,8 +3452,6 @@ namespace StingTools.Core
                 // Wire ActionDispatcher so BCC button clicks go through ExternalEvent
                 UI.BIMCoordinationCenter.ActionDispatcher = action =>
                 {
-                    if (action.StartsWith("CreateRevision"))
-                        BIMManager.CoordinationCenterCommands.BccPendingAction = action;
                     _bccHandler.Post(action);
                     _bccEvent.Raise();
                 };
@@ -3750,7 +3829,7 @@ namespace StingTools.Core
                                 else if (ownerView is View v)
                                 {
                                     // Find sheet hosting this view
-                                    var titleParam = v.get_Parameter(BuiltInParameter.SHEET_NUMBER);
+                                    var titleParam = v.get_Parameter(BuiltInParameter.VIEW_SHEET_REFERENCING_SHEET);
                                     if (titleParam != null)
                                     {
                                         string sheetNum = titleParam.AsString();
@@ -3840,9 +3919,9 @@ namespace StingTools.Core
                             issuesTotal2 = arr.Count;
                             foreach (var item in arr)
                             {
-                                string st = (item["status"]?.ToString() ?? "OPEN").ToUpperInvariant();
+                                string st = item.Value<string>("status") ?? "";
                                 bool overdue = false;
-                                string created = item["date_raised"]?.ToString() ?? item["created"]?.ToString() ?? item.Value<string>("created_date") ?? "";
+                                string created = item.Value<string>("created_date") ?? "";
                                 string daysOpen = "";
                                 if (DateTime.TryParse(created, out DateTime cDate))
                                 {
@@ -3874,24 +3953,20 @@ namespace StingTools.Core
 
                                 issueRows.Add(new UI.BIMCoordinationCenter.IssueRow
                                 {
-                                    Id = item["issue_id"]?.ToString() ?? item["id"]?.ToString() ?? $"ISS-{issueRows.Count+1:D3}",
+                                    Id = item.Value<string>("id") ?? "",
                                     Title = item.Value<string>("title") ?? "",
-                                    Type = item["type"]?.ToString() ?? item["category"]?.ToString() ?? "RFI",
-                                    Priority = (item["priority"]?.ToString() ?? "MEDIUM").ToUpperInvariant(),
-                                    Status = (item["status"]?.ToString() ?? "OPEN").ToUpperInvariant(),
+                                    Type = item.Value<string>("type") ?? "",
+                                    Priority = item.Value<string>("priority") ?? "",
+                                    Status = st,
                                     Assignee = singleAssignee,
                                     AssigneeList = assigneeList,
-                                    Assignees = item["assignees"]?.ToString() ?? string.Join(", ", assigneeList),
+                                    Assignees = string.Join(", ", assigneeList),
                                     Discipline = item.Value<string>("discipline") ?? "",
                                     Revision = item.Value<string>("revision") ?? "",
                                     ElementCount = elemCount,
-                                    Created = (item["date_raised"]?.ToString() ?? item["created"]?.ToString() ?? created).Length > 10
-                                        ? (item["date_raised"]?.ToString() ?? item["created"]?.ToString() ?? created).Substring(0, 10)
-                                        : (item["date_raised"]?.ToString() ?? item["created"]?.ToString() ?? created),
+                                    Created = created.Length > 10 ? created.Substring(0, 10) : created,
                                     IsOverdue = overdue,
-                                    DaysOpen = daysOpen,
-                                    Location = item["location"]?.ToString() ?? item["room"]?.ToString() ?? item["level"]?.ToString() ?? "",
-                                    RaisedBy = item["raised_by"]?.ToString() ?? ""
+                                    DaysOpen = daysOpen
                                 });
                             }
                         }
@@ -4010,28 +4085,6 @@ namespace StingTools.Core
                     HealthChecks = healthChecks,
                     Recommendations = recommendations
                 };
-
-                // Phase 91: Populate Warnings rows for BCC inline panel
-                try
-                {
-                    foreach (var cw in warningReport.Warnings.Take(500))
-                    {
-                        var row = new UI.BIMCoordinationCenter.WarningRow
-                        {
-                            Id = cw.Source?.GetFailureDefinitionId().Guid.ToString() ?? System.Guid.NewGuid().ToString(),
-                            Description = cw.Description ?? "",
-                            Category = cw.Category.ToString(),
-                            Severity = cw.Severity.ToString(),
-                            ElementCount = cw.FailingElements?.Count ?? 0,
-                            AutoFixable = cw.CanAutoFix,
-                            FixStrategy = cw.FixStrategy ?? ""
-                        };
-                        if (cw.FailingElements != null)
-                            row.ElementIds = cw.FailingElements.Select(id => id.Value).ToList();
-                        coordData.Warnings.Add(row);
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"BuildCoordData: warnings rows: {ex.Message}"); }
 
                 // Phase 49: Generate smart suggestions based on model state analysis
                 coordData.SmartSuggestions = WarningsEngine.GenerateSmartSuggestions(coordData, warningReport);
@@ -4166,18 +4219,6 @@ namespace StingTools.Core
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildCoordData: permissions restore failed: {ex.Message}"); }
-
-                // Phase 91 H4: Auto-initialize CDE folder structure on first BCC open
-                try
-                {
-                    string wipFolder = Path.Combine(ProjectFolderEngine.GetRootPath(doc), "01_WIP");
-                    if (!Directory.Exists(wipFolder))
-                    {
-                        int created = ProjectFolderEngine.CreateFolderStructure(doc);
-                        StingLog.Info($"Phase 91 H4: CDE folder structure auto-initialized ({created} folders)");
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"CDE folder auto-init: {ex.Message}"); }
 
                 StingLog.Info($"BIMCoordCenter built: health={healthScore}, warnings={warningReport.Total}, compliance={tagPct:F1}%");
                 return coordData;
@@ -4410,16 +4451,6 @@ namespace StingTools.Core
                         }
                         return;
                     }
-                }
-
-                // StingBIM platform actions — route directly to StingCommandHandler.
-                // DispatchCoordAction's dictionary does not contain StingBIM* entries,
-                // and the StingCommandHandler.Execute() switch is unreachable from
-                // the BCCActionEventHandler dispatch chain.
-                if (action.StartsWith("StingBIM", StringComparison.Ordinal))
-                {
-                    UI.StingCommandHandler.RouteStingBIMAction(action, app);
-                    return;
                 }
 
                 // Dispatch through command resolution
@@ -4976,9 +5007,15 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"SelectWarningElements: {ex.Message}"); }
         }
 
-        // Phase 78 Section 9.4: Moved to static readonly — was being rebuilt on every call.
-        private static readonly Dictionary<string, string> _actionToCommandTag =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        /// <summary>
+        /// Dispatches a BIM Coordination Center action tag to the matching IExternalCommand.
+        /// Maps action tags from dialog buttons to command classes and executes them directly
+        /// (we are already on the Revit API thread inside StingCommandHandler.Execute).
+        /// </summary>
+        private static void DispatchCoordAction(string action, ExternalCommandData commandData)
+        {
+            // Map action tags to command tags used by StingCommandHandler / WorkflowEngine
+            var actionToCommandTag = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 // Overview quick actions
                 { "RunDailyQA", "DailyQA" },
@@ -5117,15 +5154,6 @@ namespace StingTools.Core
                 { "ExportReport", "ExportModelHealth" },
                 { "DiscComplianceReport", "DiscComplianceReport" },
             };
-
-        /// <summary>
-        /// Dispatches a BIM Coordination Center action tag to the matching IExternalCommand.
-        /// Maps action tags from dialog buttons to command classes and executes them directly
-        /// (we are already on the Revit API thread inside StingCommandHandler.Execute).
-        /// </summary>
-        private static void DispatchCoordAction(string action, ExternalCommandData commandData)
-        {
-            var actionToCommandTag = _actionToCommandTag;
 
             // Handle RepeatLastWorkflow by resolving the last workflow name
             if (string.Equals(action, "RepeatLastWorkflow", StringComparison.OrdinalIgnoreCase))

@@ -18,12 +18,6 @@ public class AppUser
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiresAt { get; set; }
 
-    public string? PasswordResetToken { get; set; }
-    public DateTime? PasswordResetTokenExpiresAt { get; set; }
-    public string? PushToken { get; set; }        // FCM (Android) or APNs (iOS)
-    public string? PushPlatform { get; set; }     // "android" | "ios" | "web"
-    public DateTime? PushTokenUpdatedAt { get; set; }
-
     // Navigation
     public Tenant? Tenant { get; set; }
 }

@@ -645,7 +645,7 @@ public partial class InitialCreate : Migration
             table: "DevicePushTokens",
             column: "TenantId");
 
-        // ── Assets (StingMIM) ────────────────────────────────────────────────
+        // ── Assets (Planscape MIM) ────────────────────────────────────────────────
         migrationBuilder.CreateTable(
             name: "Assets",
             columns: table => new
@@ -713,7 +713,7 @@ public partial class InitialCreate : Migration
             columns: new[] { "ProjectId", "AssetTag" },
             unique: true);
 
-        // ── MaintenanceTasks (StingMIM) ──────────────────────────────────────
+        // ── MaintenanceTasks (Planscape MIM) ──────────────────────────────────────
         migrationBuilder.CreateTable(
             name: "MaintenanceTasks",
             columns: table => new

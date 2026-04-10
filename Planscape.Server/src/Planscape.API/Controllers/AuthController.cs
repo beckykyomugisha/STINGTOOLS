@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Planscape.API.Services;
 using Microsoft.IdentityModel.Tokens;
-using Planscape.Core;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
@@ -16,6 +14,9 @@ namespace Planscape.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+/// <summary>
+/// Authentication — login, registration, password management, and licence activation.
+/// </summary>
 public class AuthController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -29,8 +30,13 @@ public class AuthController : ControllerBase
 
     // ── Login ──────────────────────────────────────────────────────────────────
 
+    /// <summary>Authenticate with email and password to obtain a JWT.</summary>
+    /// <response code="200">JWT access token, refresh token, and user info.</response>
+    /// <response code="401">Invalid email or password.</response>
     [EnableRateLimiting("auth")]
     [HttpPost("login")]
+    [ProducesResponseType(typeof(AuthLoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<AuthLoginResponse>> Login([FromBody] AuthLoginRequest req)
     {
         var user = await _db.Users
@@ -61,7 +67,12 @@ public class AuthController : ControllerBase
 
     // ── Refresh Token ──────────────────────────────────────────────────────────
 
+    /// <summary>Exchange a refresh token for a new access token.</summary>
+    /// <response code="200">New JWT access token and refresh token.</response>
+    /// <response code="401">Invalid or expired refresh token.</response>
     [HttpPost("refresh")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult> RefreshToken([FromBody] RefreshTokenRequest req)
     {
         var user = await _db.Users
@@ -87,8 +98,15 @@ public class AuthController : ControllerBase
 
     // ── Self-Registration (first-time tenant setup only) ───────────────────────
 
+    /// <summary>Register a new tenant organisation and owner account (30-day Starter trial).</summary>
+    /// <response code="201">Account created with access token and trial licence key.</response>
+    /// <response code="400">Password too short.</response>
+    /// <response code="409">Organisation slug or email already taken.</response>
     [EnableRateLimiting("auth")]
     [HttpPost("register")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Register([FromBody] RegisterRequest req)
     {
         // Only allow registration if the tenant slug is not yet taken
@@ -101,17 +119,16 @@ public class AuthController : ControllerBase
         if (req.Password.Length < 8)
             return BadRequest(new { message = "Password must be at least 8 characters" });
 
-        // Create tenant — Starter trial: limits derived from TierLimits (MaxUsers/MaxProjects = 0 = use tier defaults)
+        // Create tenant
         var tenant = new Tenant
         {
-            Name           = req.OrganisationName,
-            Slug           = req.TenantSlug.ToLowerInvariant().Trim(),
-            ContactEmail   = req.Email,
-            Tier           = LicenseTier.Starter,
-            MaxUsers       = 0,   // 0 = use TierLimits.MaxUsers(Starter) = 20
-            MaxProjects    = 0,   // 0 = use TierLimits.MaxProjects(Starter) = 10
-            StorageLimitBytes = 0, // 0 = use TierLimits.StorageLimitBytes(Starter) = 2 GB
-            MimEnabled     = false,
+            Name          = req.OrganisationName,
+            Slug          = req.TenantSlug.ToLowerInvariant().Trim(),
+            ContactEmail  = req.Email,
+            Tier          = LicenseTier.Starter,
+            MaxUsers      = 5,
+            MaxProjects   = 1,
+            MimEnabled    = false,
             TrialExpiresAt = DateTime.UtcNow.AddDays(30)
         };
         _db.Tenants.Add(tenant);
@@ -132,9 +149,9 @@ public class AuthController : ControllerBase
         var licenseKey = new LicenseKey
         {
             TenantId       = tenant.Id,
-            Key            = $"STING-TRIAL-{Guid.NewGuid():N}".ToUpper()[..28],
+            Key            = $"PLANSCAPE-TRIAL-{Guid.NewGuid():N}".ToUpper()[..32],
             Tier           = LicenseTier.Starter,
-            MaxActivations = TierLimits.MaxActivations(LicenseTier.Starter),  // 5
+            MaxActivations = 3,
             MimEnabled     = false,
             ExpiresAt      = DateTime.UtcNow.AddDays(30)
         };
@@ -158,8 +175,15 @@ public class AuthController : ControllerBase
 
     // ── Change Password (authenticated) ───────────────────────────────────────
 
+    /// <summary>Change the current user's password (requires authentication).</summary>
+    /// <response code="200">Password changed — all refresh tokens invalidated.</response>
+    /// <response code="400">New password too short.</response>
+    /// <response code="401">Current password is incorrect.</response>
     [HttpPost("change-password")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
     {
         var userId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
@@ -182,61 +206,15 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Password changed. Please log in again." });
     }
 
-    // ── Forgot Password ────────────────────────────────────────────────────────────
-    [EnableRateLimiting("auth")]
-    [HttpPost("forgot-password")]
-    [AllowAnonymous]
-    public async Task<ActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req,
-        [FromServices] IEmailService emailService,
-        [FromServices] IConfiguration config)
-    {
-        // Always return 200 — never reveal whether email exists (security)
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
-        if (user != null)
-        {
-            // Generate 6-digit numeric token (user-friendly)
-            string token = new Random().Next(100000, 999999).ToString();
-            user.PasswordResetToken = BCrypt.Net.BCrypt.HashPassword(token, workFactor: 6);
-            user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddHours(1);
-            await _db.SaveChangesAsync();
-
-            string serverUrl = config["App:ServerUrl"] ?? "https://planscape-api.onrender.com";
-            await emailService.SendPasswordResetAsync(user.Email, user.DisplayName, token, serverUrl);
-        }
-        return Ok(new { message = "If that email address exists, a reset code has been sent." });
-    }
-
-    // ── Reset Password ─────────────────────────────────────────────────────────────
-    [HttpPost("reset-password")]
-    [AllowAnonymous]
-    public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
-    {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
-        if (user == null || string.IsNullOrEmpty(user.PasswordResetToken)
-            || user.PasswordResetTokenExpiresAt < DateTime.UtcNow)
-            return BadRequest(new { message = "Invalid or expired reset code." });
-
-        if (!BCrypt.Net.BCrypt.Verify(req.Token, user.PasswordResetToken))
-            return BadRequest(new { message = "Invalid or expired reset code." });
-
-        if (req.NewPassword.Length < 8)
-            return BadRequest(new { message = "Password must be at least 8 characters." });
-
-        user.PasswordHash              = HashPassword(req.NewPassword);
-        user.PasswordResetToken        = null;
-        user.PasswordResetTokenExpiresAt = null;
-        // Invalidate all sessions
-        user.RefreshToken              = null;
-        user.RefreshTokenExpiresAt     = null;
-        await _db.SaveChangesAsync();
-
-        return Ok(new { message = "Password reset successfully. Please log in again." });
-    }
-
     // ── Me (current user info) ─────────────────────────────────────────────────
 
+    /// <summary>Return the authenticated user's profile and tenant info.</summary>
+    /// <response code="200">User profile object.</response>
+    /// <response code="404">User not found (token valid but account deleted).</response>
     [HttpGet("me")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Me()
     {
         var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : Guid.Empty;
@@ -254,7 +232,10 @@ public class AuthController : ControllerBase
 
     // ── Licence activation ─────────────────────────────────────────────────────
 
+    /// <summary>Activate a licence key to unlock a tier (Professional / Premium / Enterprise).</summary>
+    /// <response code="200">Activation result with tier, MIM flag, and server URL.</response>
     [HttpPost("license/activate")]
+    [ProducesResponseType(typeof(LicenseActivationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<LicenseActivationResponse>> ActivateLicense([FromBody] LicenseActivationRequest req)
     {
         var key = await _db.LicenseKeys
@@ -287,8 +268,11 @@ public class AuthController : ControllerBase
 
     // ── Forgot Password (request reset) ──────────────────────────────────────
 
+    /// <summary>Request a password-reset token (sent via email). Always returns 200 to prevent email enumeration.</summary>
+    /// <response code="200">Reset link sent (if email exists).</response>
     [EnableRateLimiting("auth")]
     [HttpPost("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
     {
         // Always return success to prevent email enumeration
@@ -316,8 +300,13 @@ public class AuthController : ControllerBase
 
     // ── Reset Password (confirm reset) ────────────────────────────────────────
 
+    /// <summary>Reset password using a token from the forgot-password email.</summary>
+    /// <response code="200">Password reset — user can log in with new password.</response>
+    /// <response code="400">Invalid/expired token or password too short.</response>
     [EnableRateLimiting("auth")]
     [HttpPost("reset-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
     {
         var user = await _db.Users

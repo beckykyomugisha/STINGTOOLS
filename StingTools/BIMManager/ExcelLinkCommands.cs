@@ -656,8 +656,8 @@ namespace StingTools.BIMManager
             if (elementIdCol == null || elementIdCol == 0)
                 throw new InvalidOperationException("ElementId column not found in header row.");
 
-            // EL-CRIT-01: Guard against oversized Excel files causing memory exhaustion
-            const int MaxImportRows = 10000;
+            // BIM-EXCEL-STREAM-01: Raised cap from 10K to 500K since batched processing handles memory
+            const int MaxImportRows = 500000;
             int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
             int dataRows = lastRow - 1;
             if (dataRows > MaxImportRows)
@@ -683,6 +683,275 @@ namespace StingTools.BIMManager
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// BIM-EXCEL-STREAM-01: Streaming Excel import that reads and processes rows in batches
+        /// of TagConfig.ExcelImportBatchSize. Avoids loading all rows into a single dictionary.
+        /// Returns total row count and yields batches via callback for per-batch processing.
+        /// </summary>
+        internal static StreamingImportResult StreamingImport(
+            string path, Document doc, bool forceInvalid,
+            UI.StingProgressDialog progress = null)
+        {
+            var result = new StreamingImportResult();
+
+            using var wb = new XLWorkbook(path);
+            var ws = wb.Worksheet("STING Data");
+            if (ws == null)
+            {
+                ws = wb.Worksheets.FirstOrDefault(w => !w.Name.StartsWith("_"));
+                if (ws == null)
+                    throw new InvalidOperationException("No data worksheets found in the Excel file.");
+            }
+
+            // LOGIC-06: Case-insensitive header mapping
+            var headerMap = new Dictionary<int, string>();
+            int lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0;
+            for (int c = 1; c <= lastCol; c++)
+            {
+                string header = ws.Cell(1, c).GetString()?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(header))
+                    headerMap[c] = header.ToUpperInvariant();
+            }
+
+            int? elementIdCol = headerMap.FirstOrDefault(kv =>
+                string.Equals(kv.Value, "ELEMENTID", StringComparison.OrdinalIgnoreCase)).Key;
+            if (elementIdCol == null || elementIdCol == 0)
+                throw new InvalidOperationException("ElementId column not found in header row.");
+
+            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+            int totalDataRows = lastRow - 1;
+            result.TotalRowsInFile = totalDataRows;
+
+            int batchSize = TagConfig.ExcelImportBatchSize;
+            var currentBatch = new Dictionary<long, Dictionary<string, string>>();
+            int batchNum = 0;
+            int rowsProcessed = 0;
+
+            // Token params for tag rebuild detection
+            var tokenParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD
+            };
+
+            // Pre-load pipeline resources once (not per batch)
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
+
+            for (int r = 2; r <= lastRow; r++)
+            {
+                string idStr = ws.Cell(r, elementIdCol.Value).GetString().Trim();
+                if (string.IsNullOrEmpty(idStr)) continue;
+                if (!long.TryParse(idStr, out long elementId)) continue;
+
+                var rowData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kvp in headerMap)
+                {
+                    rowData[kvp.Value] = ws.Cell(r, kvp.Key).GetString();
+                }
+                currentBatch[elementId] = rowData;
+                rowsProcessed++;
+
+                // Process batch when full or at end of file
+                if (currentBatch.Count >= batchSize || r == lastRow)
+                {
+                    batchNum++;
+                    if (progress != null)
+                    {
+                        progress.Update(rowsProcessed, totalDataRows,
+                            $"Batch {batchNum}: processing {currentBatch.Count} rows...");
+                        if (progress.IsCancelled)
+                        {
+                            result.WasCancelled = true;
+                            break;
+                        }
+                    }
+
+                    // Compute + apply this batch
+                    ProcessImportBatch(doc, currentBatch, tokenParams, formulas, gridLines,
+                        forceInvalid, result);
+
+                    currentBatch = new Dictionary<long, Dictionary<string, string>>();
+                }
+            }
+
+            result.BatchCount = batchNum;
+            return result;
+        }
+
+        /// <summary>Process a single batch of Excel rows: compute changes, apply, rebuild tags.</summary>
+        private static void ProcessImportBatch(
+            Document doc,
+            Dictionary<long, Dictionary<string, string>> batchData,
+            HashSet<string> tokenParams,
+            List<Temp.FormulaEngine.FormulaDefinition> formulas,
+            List<Element> gridLines,
+            bool forceInvalid,
+            StreamingImportResult result)
+        {
+            var changes = ComputeChanges(doc, batchData);
+            var actualChanges = changes.Where(c => c.Status == ChangeStatus.Changed).ToList();
+            result.AllChanges.AddRange(changes);
+
+            if (actualChanges.Count == 0) return;
+
+            // Validate
+            var warnings = ValidateChanges(changes);
+            result.AllValidationWarnings.AddRange(warnings);
+
+            // Apply parameter changes in a transaction
+            using (var trans = new Transaction(doc, "STING Excel Import — Batch"))
+            {
+                trans.Start();
+                try
+                {
+                    var (applied, skipped, failed) = ApplyChanges(doc, changes, trans, forceInvalid);
+                    result.Applied += applied;
+                    result.Skipped += skipped;
+                    result.Failed += failed;
+                    trans.Commit();
+                }
+                catch (Exception ex)
+                {
+                    if (trans.HasStarted()) trans.RollBack();
+                    StingLog.Error($"Excel streaming import batch failed", ex);
+                    return;
+                }
+            }
+
+            // Rebuild tags for token-changed elements
+            var affectedIds = changes
+                .Where(c => c.Status == ChangeStatus.Applied && tokenParams.Contains(c.ParamName))
+                .Select(c => new ElementId(c.ElementId))
+                .Distinct()
+                .ToList();
+
+            if (affectedIds.Count > 0)
+            {
+                using (var rebuildTrans = new Transaction(doc, "STING Excel Import — Tag Rebuild"))
+                {
+                    rebuildTrans.Start();
+                    try
+                    {
+                        var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                        string cachedRev = PhaseAutoDetect.DetectProjectRevision(doc);
+
+                        foreach (var eid in affectedIds)
+                        {
+                            Element el = doc.GetElement(eid);
+                            if (el == null) continue;
+                            try
+                            {
+                                string catName = ParameterHelpers.GetCategoryName(el);
+
+                                // Audit trail
+                                try
+                                {
+                                    string prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                    if (!string.IsNullOrEmpty(prevTag))
+                                    {
+                                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
+                                        ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
+                                            DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                                    }
+                                }
+                                catch (Exception atEx) { StingLog.Warn($"Excel streaming audit trail for {el.Id}: {atEx.Message}"); }
+
+                                try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
+                                catch (Exception tiEx) { StingLog.Warn($"Excel streaming TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
+
+                                try
+                                {
+                                    var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                                    if (popCtx != null && popCtx.IsValid())
+                                        TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: false);
+                                }
+                                catch (Exception paEx) { StingLog.Warn($"Excel streaming PopulateAll for {el.Id}: {paEx.Message}"); }
+
+                                try { NativeParamMapper.MapAll(doc, el); }
+                                catch (Exception nmEx) { StingLog.Warn($"Excel streaming NativeMapper for {el.Id}: {nmEx.Message}"); }
+
+                                // Formula evaluation
+                                if (formulas != null && formulas.Count > 0)
+                                {
+                                    try
+                                    {
+                                        foreach (var formula in formulas)
+                                        {
+                                            Parameter fp = el.LookupParameter(formula.ParameterName);
+                                            if (fp == null || fp.IsReadOnly) continue;
+                                            var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                            if (fCtx == null) continue;
+                                            if (formula.DataType == "TEXT")
+                                            {
+                                                string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                                if (fResult != null && fp.StorageType == StorageType.String)
+                                                    fp.Set(fResult);
+                                            }
+                                            else
+                                            {
+                                                double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                                if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                                    Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                            }
+                                        }
+                                    }
+                                    catch (Exception fEx) { StingLog.Warn($"Excel streaming formula eval for {el.Id}: {fEx.Message}"); }
+                                }
+
+                                TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                                    skipComplete: false, tagIndex, TagCollisionMode.Overwrite, null,
+                                    cachedRev: cachedRev);
+                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
+                                TagConfig.WriteTag7All(doc, el, catName, tokenVals);
+
+                                if (gridLines != null && gridLines.Count > 0)
+                                {
+                                    try
+                                    {
+                                        string gridRef = SpatialAutoDetect.GetGridRef(el, gridLines);
+                                        if (!string.IsNullOrEmpty(gridRef))
+                                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                                    }
+                                    catch (Exception grEx) { StingLog.Warn($"Excel streaming GridRef for {el.Id}: {grEx.Message}"); }
+                                }
+
+                                result.Rebuilt++;
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"Excel streaming tag rebuild failed for {eid}: {ex.Message}");
+                            }
+                        }
+                        rebuildTrans.Commit();
+
+                        try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                        catch (Exception ssEx) { StingLog.Warn($"Excel streaming SaveSeqSidecar: {ssEx.Message}"); }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (rebuildTrans.HasStarted()) rebuildTrans.RollBack();
+                        StingLog.Error("Excel streaming tag rebuild transaction failed", ex);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Result aggregator for streaming Excel import.</summary>
+        internal class StreamingImportResult
+        {
+            public int TotalRowsInFile { get; set; }
+            public int BatchCount { get; set; }
+            public int Applied { get; set; }
+            public int Skipped { get; set; }
+            public int Failed { get; set; }
+            public int Rebuilt { get; set; }
+            public bool WasCancelled { get; set; }
+            public List<ChangeRecord> AllChanges { get; } = new List<ChangeRecord>();
+            public List<ValidationWarning> AllValidationWarnings { get; } = new List<ValidationWarning>();
         }
 
         /// <summary>
@@ -1224,6 +1493,73 @@ namespace StingTools.BIMManager
                     return Result.Succeeded;
                 }
 
+                // BIM-EXCEL-STREAM-01: For large files, offer streaming import (batch processing)
+                const int StreamingThreshold = 10000;
+                if (excelData.Count > StreamingThreshold)
+                {
+                    var largeDlg = new TaskDialog("STING Excel Import — Large File")
+                    {
+                        MainInstruction = $"Large File Detected ({excelData.Count:N0} rows)",
+                        MainContent = "This file contains more than 10,000 rows.\n\n" +
+                                      "Streaming import processes data in batches with progress\n" +
+                                      "tracking, cancellation support, and partial commit on failure.\n\n" +
+                                      "Detailed preview loads all changes into a grid for review\n" +
+                                      "but may be slower for very large files.",
+                        CommonButtons = TaskDialogCommonButtons.Cancel,
+                    };
+                    largeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Streaming import (recommended)", "Batch processing with progress bar");
+                    largeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Detailed preview", "View all changes in a grid before applying");
+                    var largeResult = largeDlg.Show();
+
+                    if (largeResult == TaskDialogResult.Cancel)
+                        return Result.Cancelled;
+
+                    if (largeResult == TaskDialogResult.CommandLink1)
+                    {
+                        // BIM-EXCEL-STREAM-01: Streaming import path — batched processing
+                        var progress = UI.StingProgressDialog.Show("STING Excel Streaming Import", excelData.Count);
+                        StreamingImportResult streamResult;
+                        try
+                        {
+                            streamResult = ExcelLinkEngine.StreamingImport(filePath, doc, false, progress);
+                        }
+                        finally
+                        {
+                            progress.Close();
+                        }
+
+                        StingAutoTagger.InvalidateContext();
+                        ComplianceScan.InvalidateCache();
+                        TagConfig.CheckComplianceGate(doc, "ExcelImport");
+
+                        string sUserName = "";
+                        try { sUserName = doc.Application.Username ?? ""; }
+                        catch (Exception ex) { StingLog.Warn($"Username lookup failed: {ex.Message}"); }
+                        if (streamResult.AllChanges.Count > 0)
+                            ExcelLinkEngine.WriteChangeLog(filePath, streamResult.AllChanges, sUserName);
+
+                        string cancelNote = streamResult.WasCancelled
+                            ? "\n\n⚠ Import was cancelled — partial results applied." : "";
+                        StingLog.Info($"ExcelLink Streaming Import: batches={streamResult.BatchCount}, " +
+                            $"applied={streamResult.Applied}, skipped={streamResult.Skipped}, " +
+                            $"failed={streamResult.Failed}, rebuilt={streamResult.Rebuilt}");
+                        TaskDialog.Show("STING Excel Import",
+                            $"Streaming Import Complete\n\n" +
+                            $"Total rows: {streamResult.TotalRowsInFile:N0}\n" +
+                            $"Batches processed: {streamResult.BatchCount}\n" +
+                            $"Parameters updated: {streamResult.Applied}\n" +
+                            $"Tags rebuilt: {streamResult.Rebuilt}\n" +
+                            $"Skipped: {streamResult.Skipped}\n" +
+                            $"Failures: {streamResult.Failed}" +
+                            cancelNote +
+                            "\n\nA change log CSV has been saved alongside the import file.");
+                        return Result.Succeeded;
+                    }
+                    // else: fall through to existing detailed preview path
+                }
+
                 // ── Compute changes ──
                 var changes = ExcelLinkEngine.ComputeChanges(doc, excelData);
                 var actualChanges = changes.Where(c => c.Status == ExcelLinkEngine.ChangeStatus.Changed).ToList();
@@ -1622,6 +1958,75 @@ namespace StingTools.BIMManager
                 {
                     TaskDialog.Show("STING Excel Round-Trip", "No data rows found in the file.");
                     return Result.Succeeded;
+                }
+
+                // BIM-EXCEL-STREAM-01: For large round-trip files, offer streaming import
+                const int StreamingThreshold = 10000;
+                if (excelData.Count > StreamingThreshold)
+                {
+                    var largeDlg = new TaskDialog("STING Excel Round-Trip — Large File")
+                    {
+                        MainInstruction = $"Large File Detected ({excelData.Count:N0} rows)",
+                        MainContent = "This round-trip file contains more than 10,000 rows.\n\n" +
+                                      "Streaming import processes data in batches with progress\n" +
+                                      "tracking, cancellation support, and partial commit on failure.\n\n" +
+                                      "Detailed preview loads all changes for review\n" +
+                                      "but may be slower for very large files.",
+                        CommonButtons = TaskDialogCommonButtons.Cancel,
+                    };
+                    largeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Streaming import (recommended)", "Batch processing with progress bar");
+                    largeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Detailed preview", "View all changes before applying");
+                    var largeResult = largeDlg.Show();
+
+                    if (largeResult == TaskDialogResult.Cancel)
+                        return Result.Cancelled;
+
+                    if (largeResult == TaskDialogResult.CommandLink1)
+                    {
+                        // BIM-EXCEL-STREAM-01: Streaming round-trip path
+                        var progress = UI.StingProgressDialog.Show(
+                            "STING Excel Round-Trip Streaming Import", excelData.Count);
+                        StreamingImportResult streamResult;
+                        try
+                        {
+                            streamResult = ExcelLinkEngine.StreamingImport(
+                                outputPath, doc, false, progress);
+                        }
+                        finally
+                        {
+                            progress.Close();
+                        }
+
+                        StingAutoTagger.InvalidateContext();
+                        ComplianceScan.InvalidateCache();
+                        TagConfig.CheckComplianceGate(doc, "ExcelRoundTrip");
+
+                        string sUserName = "";
+                        try { sUserName = doc.Application.Username ?? ""; }
+                        catch (Exception ex) { StingLog.Warn($"Username lookup failed: {ex.Message}"); }
+                        if (streamResult.AllChanges.Count > 0)
+                            ExcelLinkEngine.WriteChangeLog(outputPath, streamResult.AllChanges, sUserName);
+
+                        string cancelNote = streamResult.WasCancelled
+                            ? "\n\n⚠ Import was cancelled — partial results applied." : "";
+                        StingLog.Info($"ExcelLink RoundTrip Streaming: batches={streamResult.BatchCount}, " +
+                            $"applied={streamResult.Applied}, skipped={streamResult.Skipped}, " +
+                            $"failed={streamResult.Failed}, rebuilt={streamResult.Rebuilt}");
+                        TaskDialog.Show("STING Excel Round-Trip",
+                            $"Streaming Round-Trip Complete\n\n" +
+                            $"Total rows: {streamResult.TotalRowsInFile:N0}\n" +
+                            $"Batches processed: {streamResult.BatchCount}\n" +
+                            $"Parameters updated: {streamResult.Applied}\n" +
+                            $"Tags rebuilt: {streamResult.Rebuilt}\n" +
+                            $"Skipped: {streamResult.Skipped}\n" +
+                            $"Failures: {streamResult.Failed}" +
+                            cancelNote +
+                            "\n\nA change log CSV has been saved alongside the export file.");
+                        return Result.Succeeded;
+                    }
+                    // else: fall through to existing detailed preview path
                 }
 
                 var changes = ExcelLinkEngine.ComputeChanges(doc, excelData);

@@ -42,7 +42,7 @@ public static class SeedData
         var license = new LicenseKey
         {
             TenantId = tenant.Id,
-            Key = "STING-DEMO-2026-PREMIUM",
+            Key = "PLANSCAPE-DEMO-2026-PREMIUM",
             Tier = LicenseTier.Premium,
             MaxActivations = 10,
             MimEnabled = true,

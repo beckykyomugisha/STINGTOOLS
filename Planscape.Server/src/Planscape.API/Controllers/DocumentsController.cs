@@ -75,10 +75,12 @@ public class DocumentsController : ControllerBase
         {
             ProjectId = projectId,
             FileName = req.FileName,
+            Description = req.Description,
             DocumentType = req.DocumentType ?? "",
             CdeStatus = "WIP",
             SuitabilityCode = "S0",
             Discipline = req.Discipline,
+            Originator = req.Originator,
             Revision = req.Revision,
             UploadedBy = User.FindFirst("display_name")?.Value ?? "Unknown",
             StatusHistoryJson = JsonConvert.SerializeObject(new[]
@@ -103,7 +105,9 @@ public class DocumentsController : ControllerBase
         IFormFile file,
         [FromForm] string? documentType,
         [FromForm] string? discipline,
-        [FromForm] string? revision)
+        [FromForm] string? revision,
+        [FromForm] string? description,
+        [FromForm] string? originator)
     {
         var tenantId = GetTenantId();
         var project = await _db.Projects
@@ -148,10 +152,12 @@ public class DocumentsController : ControllerBase
             ProjectId = projectId,
             FileName = fileName,
             FilePath = filePath,
+            Description = description,
             DocumentType = documentType ?? "",
             CdeStatus = "WIP",
             SuitabilityCode = "S0",
             Discipline = discipline,
+            Originator = originator,
             Revision = revision,
             FileSizeBytes = file.Length,
             ContentHash = contentHash,
@@ -214,6 +220,7 @@ public class DocumentsController : ControllerBase
         doc.CdeStatus = req.NewState;
         doc.SuitabilityCode = req.SuitabilityCode ?? DefaultSuitability.GetValueOrDefault(req.NewState, doc.SuitabilityCode);
         if (req.Revision != null) doc.Revision = req.Revision;
+        doc.UpdatedAt = DateTime.UtcNow;
 
         // Append to status history
         var history = !string.IsNullOrEmpty(doc.StatusHistoryJson)
@@ -222,6 +229,44 @@ public class DocumentsController : ControllerBase
         history.Add(new
         {
             timestamp = DateTime.UtcNow, oldState, newState = req.NewState,
+            suitability = doc.SuitabilityCode,
+            user = User.FindFirst("display_name")?.Value ?? "Unknown"
+        });
+        doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
+
+        await _db.SaveChangesAsync();
+        return Ok(doc);
+    }
+
+    /// <summary>
+    /// CDE state transition via POST (mobile-compatible endpoint).
+    /// Accepts { "newStatus": "SHARED" } body format.
+    /// </summary>
+    [HttpPost("{docId}/transition")]
+    public async Task<ActionResult> TransitionStateMobile(Guid projectId, Guid docId, [FromBody] MobileTransitionRequest req)
+    {
+        var tenantId = GetTenantId();
+        var doc = await _db.Documents
+            .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
+        if (doc == null) return NotFound();
+
+        if (!ValidTransitions.TryGetValue(doc.CdeStatus, out var validTargets))
+            return BadRequest($"Unknown current state: {doc.CdeStatus}");
+
+        if (!validTargets.Contains(req.NewStatus))
+            return BadRequest($"Invalid CDE transition: {doc.CdeStatus} → {req.NewStatus}. Valid: {string.Join(", ", validTargets)}");
+
+        var oldState = doc.CdeStatus;
+        doc.CdeStatus = req.NewStatus;
+        doc.SuitabilityCode = DefaultSuitability.GetValueOrDefault(req.NewStatus, doc.SuitabilityCode);
+        doc.UpdatedAt = DateTime.UtcNow;
+
+        var history = !string.IsNullOrEmpty(doc.StatusHistoryJson)
+            ? JsonConvert.DeserializeObject<List<object>>(doc.StatusHistoryJson) ?? new()
+            : new List<object>();
+        history.Add(new
+        {
+            timestamp = DateTime.UtcNow, oldState, newState = req.NewStatus,
             suitability = doc.SuitabilityCode,
             user = User.FindFirst("display_name")?.Value ?? "Unknown"
         });
@@ -250,5 +295,6 @@ public class DocumentsController : ControllerBase
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 }
 
-public record CreateDocumentRequest(string FileName, string? DocumentType, string? Discipline, string? Revision);
+public record CreateDocumentRequest(string FileName, string? DocumentType, string? Discipline, string? Revision, string? Description = null, string? Originator = null);
 public record CdeTransitionRequest(string NewState, string? SuitabilityCode, string? Revision);
+public record MobileTransitionRequest(string NewStatus);

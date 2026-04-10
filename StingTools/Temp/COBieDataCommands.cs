@@ -6,7 +6,10 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
+using StingTools.BIMManager;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Temp
 {
@@ -806,6 +809,207 @@ namespace StingTools.Temp
     }
 
     /// <summary>
+    /// COBie Zone Type Audit — cross-references COBIE_ZONE_TYPES.csv
+    /// against the project's Revit zones and rooms to identify missing
+    /// zone coverage per BS 9999, CIBSE, BS 7671, BS 5266 requirements.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class COBieZoneTypeAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.Doc == null)
+            {
+                TaskDialog.Show("COBie Zone Type Audit", "No active document.");
+                return Result.Failed;
+            }
+            var doc = ctx.Doc;
+
+            // Load reference data
+            var zoneTypes = COBieDataHelper.LoadZoneTypes();
+            if (zoneTypes.Count == 0)
+            {
+                TaskDialog.Show("COBie Zone Type Audit",
+                    "Could not load COBIE_ZONE_TYPES.csv. Check data files.");
+                return Result.Failed;
+            }
+
+            // Collect Revit zones
+            var revitZones = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Zones)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            // Collect Revit rooms for spatial coverage analysis
+            var revitRooms = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            // Build sets of detected zone categories from model data
+            var detectedCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Check zone names/types for category matches
+            foreach (var zone in revitZones)
+            {
+                string name = zone.Name ?? "";
+                string dept = ParameterHelpers.GetString(zone, "Department");
+                string combined = (name + " " + dept).ToLowerInvariant();
+
+                if (combined.Contains("fire") || combined.Contains("compartment") ||
+                    combined.Contains("escape") || combined.Contains("smoke"))
+                    detectedCategories.Add("Fire Safety");
+                if (combined.Contains("hvac") || combined.Contains("heating") ||
+                    combined.Contains("cooling") || combined.Contains("vav") ||
+                    combined.Contains("underfloor"))
+                    detectedCategories.Add("Environmental");
+                if (combined.Contains("light"))
+                    detectedCategories.Add("Lighting");
+                if (combined.Contains("security") || combined.Contains("access") ||
+                    combined.Contains("intruder"))
+                    detectedCategories.Add("Security");
+                if (combined.Contains("acoustic") || combined.Contains("noise"))
+                    detectedCategories.Add("Acoustic");
+                if (combined.Contains("clean") || combined.Contains("tenant") ||
+                    combined.Contains("fm") || combined.Contains("occupan"))
+                    detectedCategories.Add("Management");
+                if (combined.Contains("electr") || combined.Contains("distribut"))
+                    detectedCategories.Add("Electrical");
+                if (combined.Contains("ventilat") || combined.Contains("extract") ||
+                    combined.Contains("fresh air"))
+                    detectedCategories.Add("Ventilation");
+                if (combined.Contains("water") || combined.Contains("plumb") ||
+                    combined.Contains("legionella"))
+                    detectedCategories.Add("Plumbing");
+            }
+
+            // Also check rooms for department-based zone inference
+            foreach (var room in revitRooms)
+            {
+                string dept = ParameterHelpers.GetString(room, "Department");
+                string zoneParam = ParameterHelpers.GetString(room, ParamRegistry.ZONE);
+                string combined = (dept + " " + zoneParam).ToLowerInvariant();
+
+                if (combined.Contains("fire")) detectedCategories.Add("Fire Safety");
+                if (combined.Contains("hvac") || combined.Contains("mech"))
+                    detectedCategories.Add("Environmental");
+                if (combined.Contains("light")) detectedCategories.Add("Lighting");
+                if (combined.Contains("secur")) detectedCategories.Add("Security");
+            }
+
+            // Check each COBie zone type for coverage
+            var byCategory = zoneTypes.GroupBy(z => z.Category)
+                .OrderBy(g => g.Key).ToList();
+
+            int categoriesCovered = byCategory.Count(g =>
+                detectedCategories.Contains(g.Key));
+            int categoriesTotal = byCategory.Count;
+            double coveragePct = categoriesTotal > 0
+                ? (double)categoriesCovered / categoriesTotal * 100.0 : 0;
+
+            // Build result panel
+            var panel = StingResultPanel.Create("COBie Zone Type Audit");
+
+            panel.AddSection("Model Summary");
+            panel.Metric("Revit Zones", revitZones.Count.ToString());
+            panel.Metric("Revit Rooms", revitRooms.Count.ToString());
+            panel.Metric("COBie Zone Types (Reference)", zoneTypes.Count.ToString());
+            panel.Separator();
+
+            panel.AddSection("Zone Category Coverage");
+            panel.RAGBar("Category Coverage", coveragePct);
+            panel.Metric("Categories Detected",
+                $"{categoriesCovered} of {categoriesTotal}");
+
+            // Coverage table
+            var headers = new[] { "Category", "Zone Types", "Detected", "Status" };
+            var rows = byCategory.Select(g =>
+            {
+                bool detected = detectedCategories.Contains(g.Key);
+                return new[]
+                {
+                    g.Key,
+                    g.Count().ToString(),
+                    detected ? "Yes" : "No",
+                    detected ? "COVERED" : "MISSING"
+                };
+            }).ToList();
+            panel.Table(headers, rows);
+
+            // Missing zone categories with required standards
+            var missingCategories = byCategory
+                .Where(g => !detectedCategories.Contains(g.Key))
+                .ToList();
+
+            if (missingCategories.Count > 0)
+            {
+                panel.AddSection("Missing Zone Categories — Required Actions");
+                foreach (var grp in missingCategories)
+                {
+                    var first = grp.First();
+                    panel.MetricWarn(grp.Key,
+                        $"{grp.Count()} zone type(s) — Ref: {first.RegulatoryDriver}");
+                }
+                panel.Info("Create Revit Zones for missing categories " +
+                    "to achieve full COBie V2.4 zone coverage.");
+            }
+
+            // Property completeness analysis per detected zone category
+            if (categoriesCovered > 0)
+            {
+                panel.AddSection("Zone Property Requirements");
+                var propHeaders = new[] { "Zone Type", "Code", "Required Properties" };
+                var propRows = zoneTypes
+                    .Where(z => detectedCategories.Contains(z.Category))
+                    .Select(z => new[]
+                    {
+                        z.ZoneTypeName,
+                        z.ZoneTypeCode,
+                        z.Properties.Replace(";", ", ")
+                    }).ToList();
+                if (propRows.Count > 0)
+                    panel.Table(propHeaders, propRows);
+            }
+
+            // Export action
+            string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
+            panel.Action("Export Zone Audit CSV", "Export zone coverage analysis to CSV", () =>
+            {
+                try
+                {
+                    string csvPath = Path.Combine(exportDir,
+                        $"COBie_ZoneType_Audit_{DateTime.Now:yyyyMMdd_HHmm}.csv");
+                    var sb = new StringBuilder();
+                    sb.AppendLine("ZoneTypeCode,ZoneTypeName,Category,RegulatoryDriver,Status,Properties,ClassificationCode");
+                    foreach (var z in zoneTypes)
+                    {
+                        string status = detectedCategories.Contains(z.Category)
+                            ? "COVERED" : "MISSING";
+                        sb.AppendLine($"\"{z.ZoneTypeCode}\",\"{z.ZoneTypeName}\"," +
+                            $"\"{z.Category}\",\"{z.RegulatoryDriver}\"," +
+                            $"\"{status}\",\"{z.Properties}\",\"{z.ClassificationCode}\"");
+                    }
+                    File.WriteAllText(csvPath, sb.ToString());
+                    BIMManagerEngine.AutoRegisterExport(doc, csvPath,
+                        "COBie Audit", "COBie Zone Type Coverage Audit Report");
+                    TaskDialog.Show("Export Complete", $"Saved to:\n{csvPath}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("COBie ZoneType audit export failed", ex);
+                    TaskDialog.Show("Export Error", ex.Message);
+                }
+            });
+
+            panel.Show();
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
     /// Browse COBie System Map — building systems with Uniclass/CIBSE codes and STING mapping.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
@@ -1012,6 +1216,183 @@ namespace StingTools.Temp
                     return Result.Succeeded;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// COBie Document Type Audit — cross-references COBIE_DOCUMENT_TYPES.csv
+    /// against the project's document_register.json to identify missing
+    /// mandatory O&amp;M documents per ISO 19650 / CDM 2015 requirements.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class COBieDocumentTypeAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx?.Doc == null)
+            {
+                TaskDialog.Show("COBie Document Type Audit", "No active document.");
+                return Result.Failed;
+            }
+            var doc = ctx.Doc;
+
+            // Load reference data
+            var docTypes = COBieDataHelper.LoadDocumentTypes();
+            if (docTypes.Count == 0)
+            {
+                TaskDialog.Show("COBie Document Type Audit",
+                    "Could not load COBIE_DOCUMENT_TYPES.csv. Check data files.");
+                return Result.Failed;
+            }
+
+            // Load project document register
+            string regPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json");
+            var register = BIMManagerEngine.LoadJsonArray(regPath);
+
+            // Build a set of registered document type codes for fast lookup
+            var registeredTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in register)
+            {
+                string docType = entry["document_type"]?.ToString() ?? "";
+                if (!string.IsNullOrWhiteSpace(docType))
+                    registeredTypes.Add(docType.Trim());
+                // Also check file_name for document type code pattern (e.g., "O&M-001" in filename)
+                string fileName = entry["file_name"]?.ToString() ?? "";
+                foreach (var dt in docTypes)
+                {
+                    if (fileName.IndexOf(dt.DocTypeCode, StringComparison.OrdinalIgnoreCase) >= 0)
+                        registeredTypes.Add(dt.DocTypeCode);
+                }
+            }
+
+            // Classify each document type
+            var mandatory = docTypes.Where(d =>
+                d.Mandatory.Equals("Yes", StringComparison.OrdinalIgnoreCase)).ToList();
+            var conditional = docTypes.Where(d =>
+                d.Mandatory.Equals("Conditional", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            int mandatoryPresent = mandatory.Count(d => registeredTypes.Contains(d.DocTypeCode));
+            int mandatoryMissing = mandatory.Count - mandatoryPresent;
+            int conditionalPresent = conditional.Count(d => registeredTypes.Contains(d.DocTypeCode));
+
+            double mandatoryPct = mandatory.Count > 0
+                ? (double)mandatoryPresent / mandatory.Count * 100.0 : 100.0;
+
+            // Build result panel
+            var panel = StingResultPanel.Create("COBie Document Type Audit");
+
+            // Summary section
+            panel.AddSection("Summary");
+            panel.Metric("Total Document Types (ISO 19650)", docTypes.Count.ToString());
+            panel.Metric("Mandatory Types", mandatory.Count.ToString());
+            panel.Metric("Conditional Types", conditional.Count.ToString());
+            panel.Metric("Documents Registered", register.Count.ToString());
+            panel.Separator();
+
+            // Mandatory compliance
+            panel.AddSection("Mandatory Document Compliance");
+            panel.RAGBar("Mandatory Coverage", mandatoryPct);
+            if (mandatoryPct >= 90)
+                panel.MetricHighlight("Status", $"{mandatoryPresent}/{mandatory.Count} mandatory documents present");
+            else if (mandatoryPct >= 50)
+                panel.MetricWarn("Status", $"{mandatoryMissing} mandatory documents MISSING");
+            else
+                panel.MetricError("Status", $"{mandatoryMissing} mandatory documents MISSING — action required");
+
+            // Missing mandatory documents table
+            var missingMandatory = mandatory
+                .Where(d => !registeredTypes.Contains(d.DocTypeCode))
+                .ToList();
+
+            if (missingMandatory.Count > 0)
+            {
+                panel.AddSection("Missing Mandatory Documents");
+                var headers = new[] { "Code", "Document Name", "Category", "Regulation" };
+                var rows = missingMandatory.Select(d => new[]
+                {
+                    d.DocTypeCode,
+                    d.DocTypeName,
+                    d.Category,
+                    string.IsNullOrEmpty(d.RegulatoryRef) ? "—" : d.RegulatoryRef
+                }).ToList();
+                panel.Table(headers, rows);
+            }
+
+            // Present documents table
+            var presentDocs = docTypes
+                .Where(d => registeredTypes.Contains(d.DocTypeCode))
+                .ToList();
+
+            if (presentDocs.Count > 0)
+            {
+                panel.AddSection("Registered Documents");
+                var headers2 = new[] { "Code", "Document Name", "Mandatory", "Category" };
+                var rows2 = presentDocs.Select(d => new[]
+                {
+                    d.DocTypeCode,
+                    d.DocTypeName,
+                    d.Mandatory,
+                    d.Category
+                }).ToList();
+                panel.Table(headers2, rows2);
+            }
+
+            // Conditional documents status
+            if (conditional.Count > 0)
+            {
+                panel.AddSection("Conditional Documents");
+                panel.Metric("Present", conditionalPresent.ToString());
+                panel.Metric("Not registered", (conditional.Count - conditionalPresent).ToString());
+                panel.Info("Conditional documents are required based on project scope " +
+                    "(e.g., F-Gas for refrigerant systems, BREEAM for certified projects).");
+            }
+
+            // By category breakdown
+            panel.AddSection("Coverage by Category");
+            var categories = docTypes.GroupBy(d => d.Category).OrderBy(g => g.Key);
+            var catHeaders = new[] { "Category", "Total", "Present", "Missing" };
+            var catRows = categories.Select(g =>
+            {
+                int total = g.Count();
+                int present = g.Count(d => registeredTypes.Contains(d.DocTypeCode));
+                return new[] { g.Key, total.ToString(), present.ToString(), (total - present).ToString() };
+            }).ToList();
+            panel.Table(catHeaders, catRows);
+
+            // Export action
+            string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
+            panel.Action("Export Gap Report CSV", "Export missing document list to CSV", () =>
+            {
+                try
+                {
+                    string csvPath = Path.Combine(exportDir,
+                        $"COBie_DocType_Audit_{DateTime.Now:yyyyMMdd_HHmm}.csv");
+                    var sb = new StringBuilder();
+                    sb.AppendLine("DocTypeCode,DocTypeName,Category,Mandatory,Status,RegulatoryRef,RetentionPeriod,Format,NamingConvention");
+                    foreach (var dt in docTypes)
+                    {
+                        string status = registeredTypes.Contains(dt.DocTypeCode) ? "PRESENT" : "MISSING";
+                        sb.AppendLine($"\"{dt.DocTypeCode}\",\"{dt.DocTypeName}\",\"{dt.Category}\"," +
+                            $"\"{dt.Mandatory}\",\"{status}\",\"{dt.RegulatoryRef}\"," +
+                            $"\"{dt.RetentionPeriod}\",\"{dt.Format}\",\"{dt.NamingConvention}\"");
+                    }
+                    File.WriteAllText(csvPath, sb.ToString());
+                    BIMManagerEngine.AutoRegisterExport(doc, csvPath,
+                        "COBie Audit", "COBie Document Type Gap Analysis Report");
+                    TaskDialog.Show("Export Complete", $"Saved to:\n{csvPath}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("COBie DocType audit export failed", ex);
+                    TaskDialog.Show("Export Error", ex.Message);
+                }
+            });
+
+            panel.Show();
+            return Result.Succeeded;
         }
     }
 

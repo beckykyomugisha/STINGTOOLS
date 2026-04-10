@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Planscape.Core;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -120,12 +119,8 @@ public class ProjectMembersController : ControllerBase
             // User doesn't exist in this org — create a pending account
             var tenant = await _db.Tenants.FindAsync(tenantId);
             var userCount = await _db.Users.CountAsync(u => u.TenantId == tenantId && u.IsActive);
-            if (tenant != null)
-            {
-                int uLimit = TierLimits.MaxUsers(tenant.Tier);
-                if (!TierLimits.BelowLimit(userCount, uLimit, tenant.MaxUsers))
-                    return BadRequest(new { message = $"User limit ({TierLimits.LimitLabel(uLimit, tenant.MaxUsers)}) reached. Upgrade to Enterprise for unlimited members." });
-            }
+            if (tenant != null && userCount >= tenant.MaxUsers)
+                return BadRequest($"User limit ({tenant.MaxUsers}) reached. Upgrade your plan to add more users.");
 
             user = new AppUser
             {

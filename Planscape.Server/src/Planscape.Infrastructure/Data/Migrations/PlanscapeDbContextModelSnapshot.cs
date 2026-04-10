@@ -346,6 +346,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<string>("ContentHash")
                     .HasColumnType("text");
 
+                b.Property<string>("Description")
+                    .HasMaxLength(1000)
+                    .HasColumnType("character varying(1000)");
+
                 b.Property<string>("Discipline")
                     .HasColumnType("text");
 
@@ -363,6 +367,10 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<long>("FileSizeBytes")
                     .HasColumnType("bigint");
 
+                b.Property<string>("Originator")
+                    .HasMaxLength(50)
+                    .HasColumnType("character varying(50)");
+
                 b.Property<Guid>("ProjectId")
                     .HasColumnType("uuid");
 
@@ -376,17 +384,23 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsRequired()
                     .HasColumnType("text");
 
-                b.Property<string>("UploadedAt")
-                    .IsRequired()
-                    .HasColumnType("text");
+                b.Property<DateTime>("UploadedAt")
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<string>("UploadedBy")
                     .IsRequired()
                     .HasColumnType("text");
 
+                b.Property<DateTime?>("UpdatedAt")
+                    .HasColumnType("timestamp with time zone");
+
                 b.HasKey("Id");
 
                 b.HasIndex("ProjectId", "CdeStatus");
+
+                b.HasIndex("ProjectId", "Discipline");
+
+                b.HasIndex("ProjectId", "UploadedAt");
 
                 b.ToTable("Documents");
             });

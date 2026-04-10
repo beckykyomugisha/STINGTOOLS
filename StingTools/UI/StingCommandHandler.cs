@@ -730,7 +730,6 @@ namespace StingTools.UI
                     case "MaterialSchedules": RunCommand<Temp.CreateMaterialSchedulesCommand>(app); break;
                     case "AutoPopulate": RunCommand<Temp.AutoPopulateCommand>(app); break;
                     case "FormulaEvaluator": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
-                    case "EvaluateFormulas": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
                     case "ExportCSV": RunCommand<Temp.ExportCSVCommand>(app); break;
 
                     // ── Corporate Schedules ──
@@ -747,6 +746,7 @@ namespace StingTools.UI
                     case "ScheduleStats": RunCommand<Temp.ScheduleStatsCommand>(app); break;
                     case "ScheduleDelete": RunCommand<Temp.ScheduleDeleteCommand>(app); break;
                     case "ScheduleReport": RunCommand<Temp.ScheduleReportCommand>(app); break;
+                    case "ScheduleFieldRemapAudit": RunCommand<Temp.ScheduleFieldRemapAuditCommand>(app); break;
 
                     // ── Templates / Views ──
                     case "CreateFilters": RunCommand<Temp.CreateFiltersCommand>(app); break;
@@ -931,7 +931,7 @@ namespace StingTools.UI
                     case "CondApply":
                     case "ParamLookupDialog":
                         OpenParameterLookupDialog(app); break;
-                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://planscape.com"); break;
+                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://stingbim.com"); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
@@ -1344,7 +1344,6 @@ namespace StingTools.UI
                     case "IssueRevisionLink": RunCommand<BIMManager.IssueRevisionLinkCommand>(app); break;
                     case "AutoMeetingMinutes": RunCommand<BIMManager.AutoMeetingMinutesCommand>(app); break;
                     case "TagRevisionDiff": RunCommand<BIMManager.TagRevisionDiffCommand>(app); break;
-                    case "WeeklyCoordinatorReport": RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
                     case "AutoScheduleMeetings": RunCommand<BIMManager.AutoScheduleMeetingsCommand>(app); break;
                     case "WeeklyReport": RunCommand<BIMManager.WeeklyCoordinatorReportCommand>(app); break;
                     case "COBieHandoverExport": RunCommand<Docs.COBieHandoverExportCommand>(app); break;
@@ -1399,13 +1398,9 @@ namespace StingTools.UI
                     case "WarningsBaseline": RunCommand<Core.WarningsBaselineCommand>(app); break;
                     case "WarningsSelect":
                     case "WarningsSelectElements": RunCommand<Core.WarningsSelectElementsCommand>(app); break;
-                    case "ZoomToWarnings": RunCommand<Core.WarningsSelectElementsCommand>(app); break;
                     case "WarningsSuppress": RunCommand<Core.WarningsSuppressCommand>(app); break;
                     case "WarningsCompliance": RunCommand<Core.WarningsComplianceCommand>(app); break;
                     case "WarningsMonitor": RunCommand<Core.WarningsMonitorCommand>(app); break;
-                    case "WarningsExportExcel":   RunCommand<Core.WarningsExportCommand>(app); break;
-                    case "WarningsExportBCF":     RunCommand<Core.WarningsExportCommand>(app); break;
-                    case "SetWarningBaseline":    RunCommand<Core.WarningsBaselineCommand>(app); break;
 
                     // Phase 69: Acoustic & Sustainability
                     case "AcousticAnalysis":
@@ -1874,6 +1869,7 @@ namespace StingTools.UI
                     }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
+                    case "BCFSync": RunCommand<BIMManager.BCFSyncCommand>(app); break;
                     case "PlatformSync":
                         // Route to StingBIM server sync if connected; otherwise local delta sync
                         if (BIMManager.StingBIMServerClient.Instance.IsConnected)
@@ -2056,6 +2052,8 @@ namespace StingTools.UI
                     case "COBieZoneTypes": RunCommand<Temp.COBieZoneTypesCommand>(app); break;
                     case "COBieAutoMatch": RunCommand<Temp.COBieAutoMatchCommand>(app); break;
                     case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
+                    case "COBieDocTypeAudit": RunCommand<Temp.COBieDocumentTypeAuditCommand>(app); break;
+                    case "COBieZoneTypeAudit": RunCommand<Temp.COBieZoneTypeAuditCommand>(app); break;
 
                     // ── MEP Schedules (MEPScheduleCommands.cs, StingTools.Temp) ──
                     case "PanelSchedule": RunCommand<Temp.PanelScheduleCommand>(app); break;
@@ -2430,30 +2428,7 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                var memberNames = new List<string>();
-                                var itdDoc = app.ActiveUIDocument?.Document;
-                                if (itdDoc != null)
-                                {
-                                    string issPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(itdDoc, "issues.json");
-                                    SetExtraParam("LastIssuesPath", issPath);
-                                    string membersPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(itdDoc, "team_members.json");
-                                    if (System.IO.File.Exists(membersPath))
-                                    {
-                                        try
-                                        {
-                                            var membersArr = Newtonsoft.Json.Linq.JArray.Parse(System.IO.File.ReadAllText(membersPath));
-                                            foreach (var m in membersArr)
-                                            {
-                                                string name = m["name"]?.ToString() ?? m["Name"]?.ToString() ?? "";
-                                                if (!string.IsNullOrEmpty(name)) memberNames.Add(name);
-                                            }
-                                        }
-                                        catch (Exception ex) { StingLog.Warn("Load team_members: " + ex.Message); }
-                                    }
-                                    if (memberNames.Count == 0 && UI.BIMCoordinationCenter.CurrentInstance != null)
-                                        memberNames = UI.BIMCoordinationCenter.CurrentInstance.GetTeamMemberNames();
-                                }
-                                var dlgResult = UI.IssueTrackerDashboard.Show(memberNames.Count > 0 ? memberNames : null);
+                                var dlgResult = UI.IssueTrackerDashboard.Show();
                                 if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
                                     break;
                                 SetCommand(dlgResult.Operation);
@@ -2769,10 +2744,6 @@ namespace StingTools.UI
                     case "ExportMilestones": RunCommand<BIMManager.MilestoneRegisterCommand>(app); break;
                     case "ExportCashFlow": RunCommand<BIMManager.CashFlow5DCommand>(app); break;
                     case "SaveWorkingCalendar": RunCommand<BIMManager.WorkingCalendarCommand>(app); break;
-                    case "ExportTimeline4DPNG":     ExportTimeline4DPng(app); break;
-
-                    // ── Reports ──
-                    case "ExportReport":            RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
 
                     // ── Model Health ──
                     case "FixContainers": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
@@ -2849,30 +2820,11 @@ namespace StingTools.UI
                     case "StingBIMTeams":          StingBIMGenerateTeamsMessage(app); break;
                     case "StingBIMWhatsApp":       StingBIMGenerateWhatsApp(app); break;
                     case "StingBIMQR":             RunCommand<Tags.QRCodeCommand>(app); break;
-                    case "StingBIMQRCode":         RunCommand<Tags.QRCodeCommand>(app); break;   // Phase 78 alias
                     case "StingBIMHTML":           StingBIMExportHtml(app); break;
-                    case "StingBIMHTMLDashboard":  StingBIMExportHtml(app); break;              // Phase 78 alias
                     case "StingBIMConnect":        RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
                     case "StingBIMDisconnect":     BIMManager.StingBIMServerClient.Instance.Disconnect();
                                                    TaskDialog.Show("StingBIM", "Disconnected from StingBIM server."); break;
                     case "StingBIMSyncNow":        BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app); break;
-                    // Phase 78 Section 6.1: Additional StingBIM action tags
-                    case "StingBIMAddMember":      RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
-                    case "StingBIMRemoveMember":   RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
-                    case "StingBIMExportTeam":     RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "StingBIMShareReport":    RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
-                    case "StingBIMLinkProject":    RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
-                    case "StingBIMUnlinkProject":  BIMManager.StingBIMServerClient.Instance.Disconnect(); break;
-                    case "StingBIMTestConnection": RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
-                    case "StingBIMClearCredentials": BIMManager.StingBIMServerClient.Instance.Disconnect(); break;
-                    case "StingBIMExportConfig":   RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "StingBIMOpenBrowser":    BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app); break;
-                    // Phase 78 Section 6.1: TeamReport
-                    case "TeamReport":             RunCommand<BIMManager.ExportPermissionMatrixCommand>(app); break;
-                    // Phase 78 Section 6.1: MeetingTemplates
-                    case "MeetingTemplates":       RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    // Phase 78 Section 6.1: ConfigureCostFile
-                    case "ConfigureCostFile":      RunCommand<BIMManager.ConfigureCostFileCommand>(app); break;
                     case "SendMeetingInvites":     TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
                     case "ExportMeetingAnalytics":
                     {
@@ -2885,21 +2837,6 @@ namespace StingTools.UI
                     // ── Unmapped command tag ──
                     default:
                         // ── Dynamic-prefix routing ──
-                        if (tag.StartsWith("SelectElement_"))
-                        {
-                            string rawId = tag.Substring(14);
-                            if (long.TryParse(rawId, out long eid))
-                            {
-                                var uidoc = app.ActiveUIDocument;
-                                if (uidoc != null)
-                                {
-                                    var elemId = new ElementId(eid);
-                                    uidoc.Selection.SetElementIds(new List<ElementId> { elemId });
-                                    uidoc.ShowElements(elemId);
-                                }
-                            }
-                            break;
-                        }
                         if (tag.StartsWith("ZoomToIssue_"))       { ZoomToIssueElement(app, tag.Substring(12));    break; }
                         if (tag.StartsWith("ZoomToRevision_"))    { ZoomToRevisionView(app, tag.Substring(15));    break; }
                         if (tag.StartsWith("ZoomToWarning_"))     { ZoomToWarningElements(app, tag.Substring(13)); break; }
@@ -7485,16 +7422,6 @@ namespace StingTools.UI
             SetExtraParam("IssueSnapshot", "captured");
         }
 
-        private static void ExportTimeline4DPng(UIApplication app)
-        {
-            // Push result to BCC inline panel; file export via SchedulingCostDashboard
-            BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Export Timeline PNG",
-                "Timeline image export: open the 4D Timeline view, then use\n" +
-                "File → Export → Image to save as PNG.\n\n" +
-                "Automated PNG render will be available in a future phase.");
-            StingLog.Info("ExportTimeline4DPNG dispatched");
-        }
-
         private static void ImportTeamFromCsv(UIApplication app)
         {
             TaskDialog.Show("STING — Import Team", "To import team members from CSV:\n1. Prepare CSV with columns: Name, Company, Role, Discipline, Email, Phone\n2. Save to _bim_manager/team.csv\n3. Re-open BCC to reload data.");
@@ -7505,50 +7432,14 @@ namespace StingTools.UI
             TaskDialog.Show($"STING — {title}", msg);
         }
 
-        /// <summary>
-        /// Routes StingBIM platform actions. Called directly from WarningsManager.ProcessAction
-        /// so that BCC dispatch chain reaches these handlers (the main Execute() switch is
-        /// unreachable from the BCCActionEventHandler path).
-        /// </summary>
-        internal static void RouteStingBIMAction(string action, UIApplication app)
-        {
-            switch (action)
-            {
-                case "StingBIMCopyLink":   StingBIMCopyLink(app); break;
-                case "StingBIMEmail":      RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                case "StingBIMTeams":      StingBIMGenerateTeamsMessage(app); break;
-                case "StingBIMWhatsApp":   StingBIMGenerateWhatsApp(app); break;
-                case "StingBIMQR":         RunCommand<Tags.QRCodeCommand>(app); break;
-                case "StingBIMHTML":       StingBIMExportHtml(app); break;
-                case "StingBIMConnect":    RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
-                case "StingBIMDisconnect":
-                    BIMManager.StingBIMServerClient.Instance.Disconnect();
-                    TaskDialog.Show("StingBIM", "Disconnected from StingBIM server.");
-                    break;
-                case "StingBIMSyncNow":    BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app); break;
-                default:
-                    StingLog.Warn($"StingBIM action not handled: {action}");
-                    break;
-            }
-        }
-
         private static void StingBIMCopyLink(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
-            // Export the dashboard first so we have a real file path to share
-            string htmlPath = StingBIMGetOrExportHtmlPath(app);
-            if (htmlPath != null)
-            {
-                System.Windows.Clipboard.SetText(htmlPath);
-                TaskDialog.Show("STING — StingBIM", $"Dashboard file path copied to clipboard:\n{htmlPath}\n\nShare this file with your team.");
-            }
-            else
-            {
-                string projectName = doc?.Title ?? "BIMProject";
-                string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
-                System.Windows.Clipboard.SetText($"StingBIM Dashboard — {projectName} — {timestamp}");
-                TaskDialog.Show("STING — StingBIM", "Dashboard link copied.\nExport an HTML dashboard first (Export HTML Dashboard button) to get a shareable file path.");
-            }
+            string projectName = doc?.Title ?? "BIMProject";
+            string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
+            string link = $"stingbim://dashboard/{projectName}/{timestamp}";
+            System.Windows.Clipboard.SetText(link);
+            TaskDialog.Show("STING — StingBIM", $"Dashboard link copied to clipboard:\n{link}\n\nShare this link with your team or embed it in a QR code.");
         }
 
         private static void StingBIMGenerateTeamsMessage(UIApplication app)
@@ -7573,144 +7464,32 @@ namespace StingTools.UI
             TaskDialog.Show("STING — WhatsApp", "WhatsApp message copied to clipboard.\nPaste into WhatsApp chat.");
         }
 
-        /// <summary>Returns the last-exported dashboard HTML path if it exists, or null.</summary>
-        private static string StingBIMGetOrExportHtmlPath(UIApplication app)
-        {
-            var doc = app.ActiveUIDocument?.Document;
-            if (doc == null) return null;
-            string docDir = string.IsNullOrEmpty(doc.PathName)
-                ? System.IO.Path.GetTempPath()
-                : (System.IO.Path.GetDirectoryName(doc.PathName) ?? System.IO.Path.GetTempPath());
-            string outputDir = System.IO.Path.Combine(docDir, "_bim_manager");
-            string htmlPath = System.IO.Path.Combine(outputDir, $"StingBIM_Dashboard_{DateTime.Now:yyyyMMdd}.html");
-            return System.IO.File.Exists(htmlPath) ? htmlPath : null;
-        }
-
         private static void StingBIMExportHtml(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) return;
-
-            // Resolve output directory — fall back to temp if document is unsaved
-            string docDir = string.IsNullOrEmpty(doc.PathName)
-                ? System.IO.Path.GetTempPath()
-                : (System.IO.Path.GetDirectoryName(doc.PathName) ?? System.IO.Path.GetTempPath());
-            string outputDir = System.IO.Path.Combine(docDir, "_bim_manager");
+            string outputDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(doc.PathName) ?? System.IO.Path.GetTempPath(), "_bim_manager");
             System.IO.Directory.CreateDirectory(outputDir);
             string htmlPath = System.IO.Path.Combine(outputDir, $"StingBIM_Dashboard_{DateTime.Now:yyyyMMdd}.html");
-
-            // Pull live data from the open BCC instance (may be null if BCC not open)
-            var bcc = BIMCoordinationCenter.CurrentInstance;
-            var d   = bcc?._data;
-
-            string warnings     = d != null ? d.WarningTotal.ToString()              : "—";
-            string issues       = d != null ? d.IssuesOpen.ToString()                : "—";
-            string meetings     = d != null ? d.Meetings.Count.ToString()            : "—";
-            string deliverables = d != null ? d.Deliverables.Count.ToString()        : "—";
-            string tagPct       = d != null ? $"{d.TagPct:F0}%"                      : "—";
-            string rag          = d != null ? d.RAGStatus                            : "—";
-            string healthScore  = d != null ? d.ModelHealthScore.ToString()          : "—";
-            string openActions  = d != null ? d.ActionItems.Count(a => a.Status != "Closed").ToString() : "—";
-            string overdueItems = d != null ? d.IssuesOverdue.ToString()             : "—";
-            string ragColor     = rag == "GREEN" ? "#2E7D32" : rag == "AMBER" ? "#F57F17" : "#C62828";
-
-            // Build discipline compliance rows
-            var discRows = new StringBuilder();
-            if (d?.ByDisc != null)
-            {
-                foreach (var kv in d.ByDisc.OrderBy(x => x.Key))
-                {
-                    double pct = kv.Value.CompliancePct;
-                    string rowRag = pct >= d.RAGGreenThreshold ? "🟢" : pct >= d.RAGAmberThreshold ? "🟡" : "🔴";
-                    discRows.Append($"<tr><td>{System.Net.WebUtility.HtmlEncode(kv.Key)}</td>" +
-                                    $"<td>{kv.Value.Tagged}/{kv.Value.Total}</td>" +
-                                    $"<td>{pct:F0}%</td><td>{rowRag}</td></tr>");
-                }
-            }
-
-            string html = $@"<!DOCTYPE html>
-<html lang='en'>
-<head>
-<meta charset='utf-8'>
-<meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>StingBIM — {System.Net.WebUtility.HtmlEncode(doc.Title)}</title>
-<style>
-*{{box-sizing:border-box}}
-body{{font-family:Segoe UI,Arial,sans-serif;background:#F4F5F7;margin:0;padding:0}}
-header{{background:#1A237E;color:white;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}}
-header h1{{margin:0;font-size:20px}}
-header small{{font-size:11px;opacity:.75}}
-main{{padding:20px}}
-.kpi-row{{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}}
-.kpi{{background:#1A237E;color:white;padding:14px 20px;border-radius:8px;min-width:110px;text-align:center}}
-.kpi-val{{font-size:26px;font-weight:700;line-height:1.1}}
-.kpi-lbl{{font-size:10px;opacity:.8;text-transform:uppercase;letter-spacing:.5px}}
-.kpi.amber{{background:#F57F17}}.kpi.green{{background:#2E7D32}}.kpi.red{{background:#C62828}}
-.card{{background:white;border-radius:8px;padding:16px;margin:0 0 14px;border:1px solid #E0E0E8}}
-.card h3{{margin:0 0 10px;font-size:14px;color:#1A237E;border-bottom:1px solid #E8E8F0;padding-bottom:6px}}
-table{{width:100%;border-collapse:collapse;font-size:12px}}
-th{{background:#F0F0F8;padding:6px 8px;text-align:left;font-weight:600}}
-td{{padding:5px 8px;border-bottom:1px solid #F0F0F0}}
-.rag-pill{{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:white;background:{ragColor}}}
-.footer{{font-size:10px;color:#999;text-align:center;padding:16px 0}}
-</style>
-</head>
-<body>
-<header>
-  <div>
-    <h1>🏗 StingBIM — {System.Net.WebUtility.HtmlEncode(doc.Title)}</h1>
-    <small>Generated: {DateTime.Now:dd MMM yyyy HH:mm} &nbsp;|&nbsp; ISO 19650 Coordination Dashboard</small>
-  </div>
-  <div style='text-align:right'>
-    <span class='rag-pill'>{rag}</span>
-    <div style='font-size:11px;margin-top:4px;opacity:.85'>Tag compliance: {tagPct}</div>
-  </div>
-</header>
-<main>
-<div class='kpi-row'>
-  <div class='kpi'><div class='kpi-val'>{warnings}</div><div class='kpi-lbl'>Warnings</div></div>
-  <div class='kpi {(d?.IssuesCritical > 0 ? "red" : "")}'><div class='kpi-val'>{issues}</div><div class='kpi-lbl'>Open Issues</div></div>
-  <div class='kpi'><div class='kpi-val'>{meetings}</div><div class='kpi-lbl'>Meetings</div></div>
-  <div class='kpi'><div class='kpi-val'>{deliverables}</div><div class='kpi-lbl'>Deliverables</div></div>
-  <div class='kpi {(d?.ModelHealthScore >= 80 ? "green" : d?.ModelHealthScore >= 50 ? "amber" : "red")}'><div class='kpi-val'>{healthScore}</div><div class='kpi-lbl'>Health Score</div></div>
-  <div class='kpi {(d != null && d.ActionItems.Any(a => a.IsOverdue) ? "amber" : "")}'><div class='kpi-val'>{openActions}</div><div class='kpi-lbl'>Open Actions</div></div>
-  <div class='kpi {(d?.IssuesOverdue > 0 ? "red" : "")}'><div class='kpi-val'>{overdueItems}</div><div class='kpi-lbl'>Overdue Issues</div></div>
+            string html = $@"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>StingBIM — {doc.Title}</title>
+<style>body{{font-family:Segoe UI,sans-serif;background:#F4F5F7;margin:0;padding:20px}}
+h1{{color:#1A237E;background:#1A237E;color:white;padding:16px 24px;margin:-20px -20px 20px}}
+.card{{background:white;border-radius:8px;padding:16px;margin:12px 0;border:1px solid #E0E0E8}}
+.kpi{{display:inline-block;background:#1A237E;color:white;padding:12px 20px;border-radius:8px;margin:4px;min-width:100px;text-align:center}}
+.kpi-val{{font-size:24px;font-weight:bold}}.kpi-lbl{{font-size:11px;opacity:.8}}
+</style></head><body>
+<h1>🏗 StingBIM — {System.Net.WebUtility.HtmlEncode(doc.Title)}</h1>
+<p>Generated: {DateTime.Now:dd MMM yyyy HH:mm} | Project: {System.Net.WebUtility.HtmlEncode(doc.Title)}</p>
+<div class='card'><h3>Project Overview</h3>
+<div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>WARNINGS</div></div>
+<div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>ISSUES</div></div>
+<div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>MEETINGS</div></div>
+<div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>DELIVERABLES</div></div>
 </div>
-
-{(discRows.Length > 0 ? $@"<div class='card'>
-<h3>Compliance by Discipline</h3>
-<table><thead><tr><th>Discipline</th><th>Tagged / Total</th><th>%</th><th>RAG</th></tr></thead>
-<tbody>{discRows}</tbody></table></div>" : "")}
-
-{(d?.Issues?.Count > 0 ? $@"<div class='card'>
-<h3>Open Issues ({d.IssuesOpen})</h3>
-<table><thead><tr><th>ID</th><th>Title</th><th>Priority</th><th>Assignee</th><th>Days Open</th><th>Status</th></tr></thead>
-<tbody>{string.Join("", d.Issues.Where(i => i.Status != "Closed").Take(20).Select(i =>
-    $"<tr><td>{System.Net.WebUtility.HtmlEncode(i.Id)}</td>" +
-    $"<td>{System.Net.WebUtility.HtmlEncode(i.Title)}</td>" +
-    $"<td>{System.Net.WebUtility.HtmlEncode(i.Priority)}</td>" +
-    $"<td>{System.Net.WebUtility.HtmlEncode(i.Assignee ?? "")}</td>" +
-    $"<td>{System.Net.WebUtility.HtmlEncode(i.DaysOpen ?? "")}</td>" +
-    $"<td>{System.Net.WebUtility.HtmlEncode(i.Status)}</td></tr>"))}</tbody></table></div>" : "")}
-
-{(d?.Meetings?.Count > 0 ? $@"<div class='card'>
-<h3>Meetings ({d.Meetings.Count})</h3>
-<table><thead><tr><th>Date</th><th>Title</th><th>Type</th><th>Status</th><th>Attendees</th></tr></thead>
-<tbody>{string.Join("", d.Meetings.Take(10).Select(m =>
-    $"<tr><td>{System.Net.WebUtility.HtmlEncode(m.Date)}</td>" +
-    $"<td>{System.Net.WebUtility.HtmlEncode(m.Title)}</td>" +
-    $"<td>{System.Net.WebUtility.HtmlEncode(m.Type)}</td>" +
-    $"<td>{System.Net.WebUtility.HtmlEncode(m.Status)}</td>" +
-    $"<td>{m.Attendees}</td></tr>"))}</tbody></table></div>" : "")}
-
-<div class='card'><h3>About This Dashboard</h3>
-<p style='font-size:12px;margin:0'>This snapshot was exported from <strong>STING Tools for Autodesk Revit</strong> — StingBIM platform.<br>
-It is a self-contained HTML file. No login required. Share freely with your team.<br>
+<div class='card'><h3>Instructions</h3><p>This HTML dashboard was generated by StingBIM (STING Tools for Revit).<br>
+Share this file with your team. No login required — it is a self-contained snapshot.<br>
 For live data, open BCC in Revit and re-export.</p></div>
-</main>
-<div class='footer'>STING Tools · StingBIM · {DateTime.Now:yyyy} · ISO 19650 Compliant</div>
 </body></html>";
-
             System.IO.File.WriteAllText(htmlPath, html);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = htmlPath, UseShellExecute = true });
             TaskDialog.Show("STING — StingBIM", $"HTML dashboard exported and opened:\n{htmlPath}\n\nShare this file with anyone — no login required.");

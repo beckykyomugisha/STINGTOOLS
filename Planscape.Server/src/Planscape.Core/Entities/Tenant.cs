@@ -10,14 +10,11 @@ public class Tenant
     public string Slug { get; set; } = ""; // subdomain: {slug}.planscape.io
     public string ContactEmail { get; set; } = "";
     public LicenseTier Tier { get; set; } = LicenseTier.Starter;
-    public bool MimEnabled { get; set; } // StingMIM add-on
+    public bool MimEnabled { get; set; } // Planscape MIM add-on
     public MimTier MimTier { get; set; } = MimTier.None;
-    /// <summary>Admin override: 0 or less = use TierLimits.MaxUsers(Tier).</summary>
-    public int MaxUsers { get; set; } = 0;
-    /// <summary>Admin override: 0 or less = use TierLimits.MaxProjects(Tier).</summary>
-    public int MaxProjects { get; set; } = 0;
-    /// <summary>Admin override: 0 or less = use TierLimits.StorageLimitBytes(Tier).</summary>
-    public long StorageLimitBytes { get; set; } = 0;
+    public int MaxUsers { get; set; } = 5;
+    public int MaxProjects { get; set; } = 1;
+    public long StorageLimitBytes { get; set; } = 500 * 1024 * 1024; // 500 MB
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? TrialExpiresAt { get; set; }
     public bool IsActive { get; set; } = true;

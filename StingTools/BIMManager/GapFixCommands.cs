@@ -96,6 +96,76 @@ namespace StingTools.BIMManager
             return null;
         }
 
+        /// <summary>BIM-CDE-APPROVAL-01: Check for ANY pending approvals that block
+        /// SHARED→PUBLISHED transitions per ISO 19650-2 §5.6.</summary>
+        internal static (int Count, string Details) HasPendingApprovals(Document doc)
+        {
+            string approvalsPath = Path.Combine(GetBimDir(doc), "approvals.json");
+            var approvals = LoadJsonArray(approvalsPath);
+            var pending = approvals.OfType<JObject>()
+                .Where(a => (a["status"]?.ToString() ?? "").Equals("PENDING", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (pending.Count == 0) return (0, null);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"ISO 19650-2 §5.6 APPROVAL GATE — {pending.Count} pending approval(s):\n");
+            foreach (var p in pending.Take(20))
+            {
+                string docId = p["document_id"]?.ToString() ?? "?";
+                string approver = p["approver"]?.ToString() ?? "Unknown";
+                string requested = p["requested"]?.ToString() ?? "";
+                sb.AppendLine($"  • [{docId}] awaiting {approver} (requested {requested})");
+            }
+            if (pending.Count > 20) sb.AppendLine($"  ... and {pending.Count - 20} more");
+            sb.AppendLine("\nAll approvals must be resolved before SHARED → PUBLISHED transition.");
+            return (pending.Count, sb.ToString());
+        }
+
+        /// <summary>BIM-CDE-APPROVAL-01: Approve or reject a specific pending approval.</summary>
+        internal static bool ResolveApproval(Document doc, string documentId, string approver, bool approve)
+        {
+            string approvalsPath = Path.Combine(GetBimDir(doc), "approvals.json");
+            var approvals = LoadJsonArray(approvalsPath);
+            var match = approvals.OfType<JObject>().FirstOrDefault(a =>
+                (a["document_id"]?.ToString() ?? "").Equals(documentId, StringComparison.OrdinalIgnoreCase)
+                && (a["approver"]?.ToString() ?? "").Equals(approver, StringComparison.OrdinalIgnoreCase)
+                && (a["status"]?.ToString() ?? "").Equals("PENDING", StringComparison.OrdinalIgnoreCase));
+            if (match == null) return false;
+            match["status"] = approve ? "APPROVED" : "REJECTED";
+            match["resolved"] = DateTime.UtcNow.ToString("o");
+            match["resolved_by"] = Environment.UserName;
+            SaveJson(approvalsPath, approvals);
+            StingLog.Info($"CDE approval {(approve ? "APPROVED" : "REJECTED")}: doc={documentId}, approver={approver}");
+            return true;
+        }
+
+        /// <summary>BIM-CDE-APPROVAL-01: Log a PUBLISH_BLOCKED event to the workflow JSONL log.</summary>
+        internal static void LogPublishBlocked(Document doc, int pendingCount)
+        {
+            try
+            {
+                string dir = null;
+                if (doc != null && !string.IsNullOrEmpty(doc.PathName))
+                    dir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir))
+                    dir = StingToolsApp.DataPath ?? Path.GetTempPath();
+                string path = Path.Combine(dir, "STING_WORKFLOW_LOG.jsonl");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                var record = new JObject
+                {
+                    ["timestamp"] = DateTime.UtcNow.ToString("o"),
+                    ["action"] = "PUBLISH_BLOCKED",
+                    ["reason"] = "pending_approvals",
+                    ["pending_count"] = pendingCount,
+                    ["user"] = Environment.UserName,
+                    ["model"] = doc?.Title ?? ""
+                };
+                File.AppendAllText(path, record.ToString(Formatting.None) + Environment.NewLine);
+            }
+            catch (Exception ex) { StingLog.Warn($"LogPublishBlocked: {ex.Message}"); }
+        }
+
         // ═══════════════════════════════════════════════════════════════════
         //  CRIT-02: Cross-System Entity Linking
         // ═══════════════════════════════════════════════════════════════════
@@ -158,6 +228,134 @@ namespace StingTools.BIMManager
             }
             sb.AppendLine($"\nTotal links: {links.Count}");
             return sb.ToString();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  CRIT-02b: Cross-System Link Rebuild (BIM-CROSS-LINK-01)
+        // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>BIM-CROSS-LINK-01: Scan issues.json and transmittals.json to derive
+        /// cross-system links and persist to cross_system_links.json.
+        /// Returns (linkCount, summary) tuple.</summary>
+        internal static (int LinkCount, string Summary) RebuildCrossSystemLinks(Document doc)
+        {
+            string bimDir = GetBimDir(doc);
+            string issuesPath = Path.Combine(bimDir, "issues.json");
+            string txPath = Path.Combine(bimDir, "transmittals.json");
+            string outputPath = Path.Combine(bimDir, "cross_system_links.json");
+
+            var issues = LoadJsonArray(issuesPath);
+            var transmittals = LoadJsonArray(txPath);
+            var links = new JArray();
+            var dedup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void AddLink(string srcType, string srcId, string tgtType, string tgtId, string reason)
+            {
+                if (string.IsNullOrEmpty(srcId) || string.IsNullOrEmpty(tgtId)) return;
+                string fwd = $"{srcType}:{srcId}→{tgtType}:{tgtId}";
+                string rev = $"{tgtType}:{tgtId}→{srcType}:{srcId}";
+                if (dedup.Contains(fwd)) return;
+                dedup.Add(fwd);
+                dedup.Add(rev);
+                links.Add(new JObject
+                {
+                    ["source_type"] = srcType,
+                    ["source_id"] = srcId,
+                    ["target_type"] = tgtType,
+                    ["target_id"] = tgtId,
+                    ["link_date"] = DateTime.UtcNow.ToString("o"),
+                    ["reason"] = reason
+                });
+            }
+
+            // 1. Issue → Transmittal (from linked_transmittals array)
+            foreach (var iss in issues.OfType<JObject>())
+            {
+                string issueId = iss["issue_id"]?.ToString() ?? "";
+                if (string.IsNullOrEmpty(issueId)) continue;
+
+                var linkedTx = iss["linked_transmittals"] as JArray;
+                if (linkedTx != null)
+                {
+                    foreach (var txToken in linkedTx)
+                    {
+                        string txId = txToken.ToString();
+                        if (!string.IsNullOrEmpty(txId))
+                            AddLink("ISSUE", issueId, "TRANSMITTAL", txId, "issue_linked_transmittal");
+                    }
+                }
+
+                // 2. Issue → Revision (from revision / resolved_in_revision)
+                string rev = iss["revision"]?.ToString();
+                if (!string.IsNullOrEmpty(rev) && rev != "P01" && rev.Length <= 20)
+                    AddLink("ISSUE", issueId, "REVISION", rev, "issue_raised_in_revision");
+
+                string resolvedRev = iss["resolved_in_revision"]?.ToString();
+                if (!string.IsNullOrEmpty(resolvedRev))
+                    AddLink("ISSUE", issueId, "REVISION", resolvedRev, "issue_resolved_in_revision");
+            }
+
+            // 3. Transmittal → Document (from document_ids array)
+            foreach (var tx in transmittals.OfType<JObject>())
+            {
+                string txId = tx["transmittal_id"]?.ToString() ?? "";
+                if (string.IsNullOrEmpty(txId)) continue;
+
+                var docIds = tx["document_ids"] as JArray;
+                if (docIds != null)
+                {
+                    foreach (var docToken in docIds)
+                    {
+                        string docId = docToken.ToString();
+                        if (!string.IsNullOrEmpty(docId))
+                            AddLink("TRANSMITTAL", txId, "DOCUMENT", docId, "transmittal_contains_document");
+                    }
+                }
+            }
+
+            // 4. Also propagate entity_links.json entries (manual links)
+            string entityLinksPath = Path.Combine(bimDir, "entity_links.json");
+            var entityLinks = LoadJsonArray(entityLinksPath);
+            foreach (var el in entityLinks.OfType<JObject>())
+            {
+                AddLink(
+                    el["source_type"]?.ToString() ?? "",
+                    el["source_id"]?.ToString() ?? "",
+                    el["target_type"]?.ToString() ?? "",
+                    el["target_id"]?.ToString() ?? "",
+                    "entity_link_manual");
+            }
+
+            // Persist
+            SaveJson(outputPath, links);
+            StingLog.Info($"Cross-system links rebuilt: {links.Count} links from {issues.Count} issues, {transmittals.Count} transmittals");
+
+            // Build summary
+            var sb = new StringBuilder();
+            sb.AppendLine("CROSS-SYSTEM LINK REBUILD — ISO 19650 Entity Graph\n");
+
+            var byType = links.OfType<JObject>()
+                .GroupBy(l => $"{l["source_type"]}→{l["target_type"]}")
+                .OrderByDescending(g => g.Count());
+            foreach (var g in byType)
+                sb.AppendLine($"  {g.Key}: {g.Count()} links");
+
+            sb.AppendLine($"\nTotal links: {links.Count}");
+            sb.AppendLine($"Sources: {issues.Count} issues, {transmittals.Count} transmittals, {entityLinks.Count} entity links");
+
+            // Graph view (top 50 by source)
+            var bySource = links.OfType<JObject>()
+                .GroupBy(l => $"{l["source_type"]}/{l["source_id"]}")
+                .OrderByDescending(g => g.Count())
+                .Take(50);
+            if (bySource.Any())
+            {
+                sb.AppendLine("\nDEPENDENCY GRAPH (top 50 nodes):\n");
+                foreach (var kvp in bySource)
+                    sb.AppendLine($"  {kvp.Key} → {string.Join(", ", kvp.Select(l => $"{l["target_type"]}/{l["target_id"]}"))}");
+            }
+
+            return (links.Count, sb.ToString());
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -310,48 +508,331 @@ namespace StingTools.BIMManager
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        //  CRIT-05: 4D Schedule Handover Integration
+        //  CRIT-05: 4D Schedule Handover Integration (BIM-4D-HANDOVER-01)
         // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>DD milestone definitions: name, compliance threshold, RIBA phase, required COBie sheets, trade order ceiling.</summary>
+        internal static readonly (string Name, double Threshold, string Phase, string[] CobieSheets, int TradeOrderCeiling)[] DDMilestones =
+        {
+            ("DD1 - Brief",     30.0, "Concept Design",      new[] { "Facility", "Floor", "Space" }, 320),
+            ("DD2 - Concept",   60.0, "Developed Design",    new[] { "Facility", "Floor", "Space", "Zone", "Type" }, 500),
+            ("DD3 - Technical", 85.0, "Technical Design",    new[] { "Facility", "Floor", "Space", "Zone", "Type", "Component", "System" }, 850),
+            ("DD4 - Handover",  95.0, "Construction",        new[] { "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Job", "Spare", "Resource", "Document" }, 980)
+        };
 
         internal static string Link4DToHandover(Document doc)
         {
             var sb = new StringBuilder();
             sb.AppendLine("4D SCHEDULE → HANDOVER INTEGRATION\n");
 
-            // Map construction phases to data drops
-            var milestones = new[]
-            {
-                ("DD1 - Brief", 30.0, "Concept Design", new[] { "Facility", "Floor", "Space" }),
-                ("DD2 - Concept", 60.0, "Developed Design", new[] { "Facility", "Floor", "Space", "Zone", "Type" }),
-                ("DD3 - Technical", 85.0, "Technical Design", new[] { "Facility", "Floor", "Space", "Zone", "Type", "Component", "System" }),
-                ("DD4 - Handover", 95.0, "Construction", new[] { "Facility", "Floor", "Space", "Zone", "Type", "Component", "System", "Job", "Spare", "Resource", "Document" })
-            };
-
             var scan = ComplianceScan.Scan(doc);
             double currentCompliance = scan?.CompliancePercent ?? 0;
 
-            foreach (var (name, threshold, phase, cobieSheets) in milestones)
+            // ── 1. Load 4D schedule if available ──
+            string schedulePath = BIMManagerEngine.GetBIMManagerFilePath(doc, "schedule_4d.json");
+            JObject schedule = null;
+            JArray tasks = null;
+            if (File.Exists(schedulePath))
             {
-                bool passes = currentCompliance >= threshold;
-                sb.AppendLine($"  {name} — Threshold: {threshold}% — Current: {currentCompliance:F1}% — {(passes ? "PASS ✓" : "FAIL ✗")}");
-                sb.AppendLine($"    Phase: {phase}");
-                sb.AppendLine($"    Required COBie sheets: {string.Join(", ", cobieSheets)}");
+                try
+                {
+                    schedule = JObject.Parse(File.ReadAllText(schedulePath));
+                    tasks = schedule["tasks"] as JArray;
+                }
+                catch (Exception ex) { StingLog.Warn($"Link4DToHandover: failed to load schedule: {ex.Message}"); }
+            }
+
+            bool hasSchedule = tasks != null && tasks.Count > 0;
+            sb.AppendLine(hasSchedule
+                ? $"4D Schedule loaded: {tasks.Count} tasks"
+                : "No 4D schedule found — using compliance-only assessment\n");
+
+            // ── 2. Get deliverable matrix ──
+            var deliverables = DeliverableTracker.GetDeliverableMatrix(doc);
+
+            // ── 3. Map schedule tasks to DD milestones by trade order ──
+            var milestoneTasks = new Dictionary<string, List<JObject>>();
+            var milestoneProgress = new Dictionary<string, (int Total, int Complete, double AvgPct, DateTime? EarliestStart, DateTime? LatestFinish)>();
+
+            foreach (var dd in DDMilestones)
+            {
+                milestoneTasks[dd.Name] = new List<JObject>();
+                milestoneProgress[dd.Name] = (0, 0, 0, null, null);
+            }
+
+            if (hasSchedule)
+            {
+                foreach (var t in tasks)
+                {
+                    string category = t["category"]?.ToString() ?? "";
+                    int taskOrder = 999;
+                    if (Scheduling4DEngine.TradeSequence.TryGetValue(category, out var seq))
+                        taskOrder = seq.order;
+
+                    // Assign task to the highest DD milestone whose trade ceiling >= task order
+                    string assignedDD = null;
+                    foreach (var dd in DDMilestones)
+                    {
+                        if (taskOrder <= dd.TradeOrderCeiling)
+                        {
+                            assignedDD = dd.Name;
+                            break;
+                        }
+                    }
+                    if (assignedDD == null) assignedDD = "DD4 - Handover"; // default: last milestone
+
+                    milestoneTasks[assignedDD].Add((JObject)t);
+                }
+
+                // Calculate progress per milestone
+                foreach (var dd in DDMilestones)
+                {
+                    var ddTasks = milestoneTasks[dd.Name];
+                    if (ddTasks.Count == 0) continue;
+
+                    int complete = 0;
+                    double totalPct = 0;
+                    DateTime? earliest = null, latest = null;
+
+                    foreach (var t in ddTasks)
+                    {
+                        double pct = t["percent_complete"]?.Value<double>() ?? 0;
+                        totalPct += pct;
+                        if (pct >= 100) complete++;
+
+                        if (DateTime.TryParse(t["start"]?.ToString(), out var start))
+                            if (earliest == null || start < earliest) earliest = start;
+                        if (DateTime.TryParse(t["finish"]?.ToString(), out var finish))
+                            if (latest == null || finish > latest) latest = finish;
+                    }
+
+                    milestoneProgress[dd.Name] = (ddTasks.Count, complete, totalPct / ddTasks.Count, earliest, latest);
+                }
+            }
+
+            // ── 4. Build milestone status report ──
+            sb.AppendLine("═══ DD MILESTONE STATUS ═══\n");
+
+            var linkData = new JArray();
+
+            foreach (var dd in DDMilestones)
+            {
+                bool compliancePasses = currentCompliance >= dd.Threshold;
+                var prog = milestoneProgress[dd.Name];
+                bool schedulePasses = !hasSchedule || (prog.Total == 0 || prog.AvgPct >= 90);
+                bool overallPasses = compliancePasses && schedulePasses;
+
+                string status = overallPasses ? "ACHIEVED" : compliancePasses ? "COMPLIANCE MET — SCHEDULE PENDING" : "NOT MET";
+
+                sb.AppendLine($"  {dd.Name} — {status}");
+                sb.AppendLine($"    Compliance: {currentCompliance:F1}% / {dd.Threshold}% {(compliancePasses ? "✓" : "✗")}");
+                sb.AppendLine($"    Phase: {dd.Phase}");
+                sb.AppendLine($"    Required COBie sheets: {string.Join(", ", dd.CobieSheets)}");
+
+                if (hasSchedule && prog.Total > 0)
+                {
+                    sb.AppendLine($"    Schedule tasks: {prog.Total} ({prog.Complete} complete, avg {prog.AvgPct:F0}%)");
+                    if (prog.EarliestStart.HasValue)
+                        sb.AppendLine($"    Date range: {prog.EarliestStart:yyyy-MM-dd} → {prog.LatestFinish:yyyy-MM-dd}");
+                }
+
+                // Deliverables for this milestone
+                var ddDeliverables = deliverables.Where(d => dd.Name.Contains(d.Milestone)).ToList();
+                if (ddDeliverables.Count > 0)
+                {
+                    int delivComplete = ddDeliverables.Count(d => d.Status == "Complete");
+                    sb.AppendLine($"    Deliverables: {delivComplete}/{ddDeliverables.Count} complete");
+                    foreach (var d in ddDeliverables.Where(x => x.Status != "Complete"))
+                        sb.AppendLine($"      ▸ {d.Name} — {d.Status} ({d.CompletionPct:F0}%)");
+                }
+                sb.AppendLine();
+
+                // Build JSON link record
+                var linkEntry = new JObject
+                {
+                    ["milestone"] = dd.Name,
+                    ["threshold_pct"] = dd.Threshold,
+                    ["phase"] = dd.Phase,
+                    ["compliance_pct"] = Math.Round(currentCompliance, 1),
+                    ["compliance_met"] = compliancePasses,
+                    ["cobie_sheets"] = new JArray(dd.CobieSheets),
+                    ["status"] = status,
+                    ["assessed_date"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                };
+
+                if (hasSchedule && prog.Total > 0)
+                {
+                    linkEntry["schedule_tasks"] = prog.Total;
+                    linkEntry["schedule_complete"] = prog.Complete;
+                    linkEntry["schedule_avg_pct"] = Math.Round(prog.AvgPct, 1);
+                    if (prog.EarliestStart.HasValue) linkEntry["earliest_start"] = prog.EarliestStart.Value.ToString("yyyy-MM-dd");
+                    if (prog.LatestFinish.HasValue) linkEntry["latest_finish"] = prog.LatestFinish.Value.ToString("yyyy-MM-dd");
+                }
+
+                if (ddDeliverables.Count > 0)
+                {
+                    var delivArr = new JArray();
+                    foreach (var d in ddDeliverables)
+                        delivArr.Add(new JObject { ["name"] = d.Name, ["status"] = d.Status ?? "NotStarted", ["completion_pct"] = d.CompletionPct, ["command"] = d.CommandTag });
+                    linkEntry["deliverables"] = delivArr;
+                }
+
+                linkData.Add(linkEntry);
+            }
+
+            // ── 5. Detect approaching milestones with unready deliverables ──
+            var approachingGaps = new List<(string Milestone, string Deliverable, string CommandTag)>();
+            foreach (var dd in DDMilestones)
+            {
+                // Milestone is "approaching" if compliance is within 10% of threshold but not yet met,
+                // or if schedule tasks for this milestone are >80% complete
+                bool approaching = (currentCompliance >= dd.Threshold - 10 && currentCompliance < dd.Threshold);
+                if (!approaching && hasSchedule)
+                {
+                    var prog = milestoneProgress[dd.Name];
+                    approaching = prog.Total > 0 && prog.AvgPct >= 80 && prog.AvgPct < 100;
+                }
+                if (!approaching) continue;
+
+                var ddDeliverables = deliverables.Where(d => dd.Name.Contains(d.Milestone) && d.Status != "Complete").ToList();
+                foreach (var d in ddDeliverables)
+                    approachingGaps.Add((dd.Name, d.Name, d.CommandTag));
+            }
+
+            if (approachingGaps.Count > 0)
+            {
+                sb.AppendLine("═══ APPROACHING MILESTONES — ACTION REQUIRED ═══\n");
+                foreach (var (ms, deliv, cmd) in approachingGaps)
+                    sb.AppendLine($"  ⚠ {ms}: '{deliv}' not complete — run command: {cmd}");
                 sb.AppendLine();
             }
 
-            // Export CSV
+            // ── 6. Persist linked milestone data as JSON sidecar ──
+            var sidecar = new JObject
+            {
+                ["version"] = 1,
+                ["generated"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                ["project"] = doc.Title ?? "Untitled",
+                ["current_compliance_pct"] = Math.Round(currentCompliance, 1),
+                ["has_4d_schedule"] = hasSchedule,
+                ["milestones"] = linkData
+            };
+            if (approachingGaps.Count > 0)
+            {
+                var gapArr = new JArray();
+                foreach (var (ms, deliv, cmd) in approachingGaps)
+                    gapArr.Add(new JObject { ["milestone"] = ms, ["deliverable"] = deliv, ["command"] = cmd });
+                sidecar["approaching_gaps"] = gapArr;
+            }
+
+            string sidecarPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "4d_handover_links.json");
+            BIMManagerEngine.SaveJsonFile(sidecarPath, sidecar);
+            sb.AppendLine($"Sidecar saved: {sidecarPath}");
+
+            // ── 7. Export CSV ──
             string outDir = OutputLocationHelper.GetOutputDirectory(doc);
             string csvPath = Path.Combine(outDir, $"4D_Handover_Integration_{DateTime.Now:yyyyMMdd}.csv");
-            var rows = new List<string> { "Milestone,Threshold%,CurrentCompliance%,Status,Phase,COBieSheets" };
-            foreach (var (name, threshold, phase, cobieSheets) in milestones)
+            var csvRows = new List<string> { "Milestone,Threshold%,CurrentCompliance%,Status,Phase,ScheduleTasks,ScheduleComplete,ScheduleAvg%,EarliestStart,LatestFinish,COBieSheets" };
+            foreach (var dd in DDMilestones)
             {
-                bool passes = currentCompliance >= threshold;
-                rows.Add($"\"{name}\",{threshold},{currentCompliance:F1},{(passes ? "PASS" : "FAIL")},\"{phase}\",\"{string.Join("; ", cobieSheets)}\"");
+                var prog = milestoneProgress[dd.Name];
+                bool compliancePasses = currentCompliance >= dd.Threshold;
+                bool schedulePasses = !hasSchedule || (prog.Total == 0 || prog.AvgPct >= 90);
+                string status = (compliancePasses && schedulePasses) ? "ACHIEVED" : compliancePasses ? "COMPLIANCE_MET" : "NOT_MET";
+
+                csvRows.Add($"\"{dd.Name}\",{dd.Threshold},{currentCompliance:F1},{status},\"{dd.Phase}\"," +
+                    $"{prog.Total},{prog.Complete},{prog.AvgPct:F1}," +
+                    $"\"{prog.EarliestStart?.ToString("yyyy-MM-dd") ?? ""}\",\"{prog.LatestFinish?.ToString("yyyy-MM-dd") ?? ""}\"," +
+                    $"\"{string.Join("; ", dd.CobieSheets)}\"");
             }
-            File.WriteAllLines(csvPath, rows);
-            sb.AppendLine($"Exported to: {csvPath}");
+            File.WriteAllLines(csvPath, csvRows);
+            sb.AppendLine($"CSV exported: {csvPath}");
 
             return sb.ToString();
+        }
+
+        /// <summary>BIM-4D-HANDOVER-01: Auto-create issues for approaching DD milestones with unready deliverables.</summary>
+        internal static int AutoRaiseHandoverGapIssues(Document doc)
+        {
+            string sidecarPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "4d_handover_links.json");
+            if (!File.Exists(sidecarPath)) return 0;
+
+            JObject sidecar;
+            try { sidecar = JObject.Parse(File.ReadAllText(sidecarPath)); }
+            catch (Exception ex) { StingLog.Warn($"AutoRaiseHandoverGapIssues: {ex.Message}"); return 0; }
+
+            var gaps = sidecar["approaching_gaps"] as JArray;
+            if (gaps == null || gaps.Count == 0) return 0;
+
+            string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+            JArray issues;
+            try { issues = File.Exists(issuesPath) ? JArray.Parse(File.ReadAllText(issuesPath)) : new JArray(); }
+            catch (Exception ex) { StingLog.Warn($"AutoRaiseHandoverGapIssues: {ex.Message}"); issues = new JArray(); }
+
+            // Dedup: skip if open issue already exists for this deliverable
+            var existingTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var iss in issues)
+            {
+                string status = iss["status"]?.ToString() ?? "";
+                if (status.Equals("CLOSED", StringComparison.OrdinalIgnoreCase)) continue;
+                existingTitles.Add(iss["title"]?.ToString() ?? "");
+            }
+
+            int created = 0;
+            foreach (var gap in gaps)
+            {
+                string milestone = gap["milestone"]?.ToString() ?? "";
+                string deliverable = gap["deliverable"]?.ToString() ?? "";
+                string title = $"Handover Gap: {deliverable} required for {milestone}";
+
+                if (existingTitles.Contains(title)) continue;
+
+                // Find next ID
+                int maxId = 0;
+                foreach (var iss in issues)
+                {
+                    string idStr = iss["id"]?.ToString() ?? "";
+                    int dashIdx = idStr.LastIndexOf('-');
+                    if (dashIdx >= 0 && int.TryParse(idStr.Substring(dashIdx + 1), out int num) && num > maxId)
+                        maxId = num;
+                }
+
+                string revision = "";
+                try { revision = Core.ParameterHelpers.PhaseAutoDetect.DetectProjectRevision(doc); }
+                catch (Exception ex) { StingLog.Warn($"AutoRaiseHandoverGapIssues revision: {ex.Message}"); }
+
+                var issue = new JObject
+                {
+                    ["id"] = $"SI-{(maxId + 1).ToString().PadLeft(4, '0')}",
+                    ["title"] = title,
+                    ["description"] = $"ISO 19650 data drop '{milestone}' is approaching but deliverable '{deliverable}' is not yet complete. " +
+                                     $"Run command '{gap["command"]}' to generate this deliverable.",
+                    ["type"] = "SI",
+                    ["priority"] = "HIGH",
+                    ["status"] = "OPEN",
+                    ["discipline"] = "BIM",
+                    ["revision"] = revision,
+                    ["created_date"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    ["created_by"] = Environment.UserName,
+                    ["auto_created"] = true,
+                    ["source"] = "4D_HANDOVER_GAP",
+                    ["milestone"] = milestone,
+                    ["deliverable"] = deliverable,
+                    ["command_tag"] = gap["command"]?.ToString() ?? ""
+                };
+
+                issues.Add(issue);
+                existingTitles.Add(title);
+                created++;
+            }
+
+            if (created > 0)
+            {
+                BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+                StingLog.Info($"AutoRaiseHandoverGapIssues: created {created} issues for approaching DD milestones");
+            }
+
+            return created;
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -919,7 +1400,7 @@ namespace StingTools.BIMManager
 
     #region ── CRITICAL Gap Commands ──
 
-    /// <summary>CRIT-01: CDE approval workflow integration.</summary>
+    /// <summary>CRIT-01: CDE approval workflow integration with approve/reject actions.</summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class CDEApprovalWorkflowCommand : IExternalCommand
@@ -936,21 +1417,69 @@ namespace StingTools.BIMManager
                 .Where(a => (a["status"]?.ToString() ?? "").Equals("PENDING", StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
+            if (pending.Count == 0)
+            {
+                TaskDialog.Show("STING CDE Approval", "No pending approvals. All documents are cleared for CDE transition.");
+                return Result.Succeeded;
+            }
+
+            // Show pending approvals with approve/reject options
             var sb = new StringBuilder();
             sb.AppendLine("CDE APPROVAL WORKFLOW STATUS\n");
             sb.AppendLine($"Total approvals: {approvals.Count}");
-            sb.AppendLine($"Pending: {pending.Count}");
+            sb.AppendLine($"Pending: {pending.Count}\n");
 
-            foreach (var p in pending.Take(20))
-                sb.AppendLine($"  [{p["document_id"]}] → {p["approver"]} ({p["requested"]})");
+            for (int i = 0; i < Math.Min(pending.Count, 20); i++)
+            {
+                var p = pending[i];
+                sb.AppendLine($"  {i + 1}. [{p["document_id"]}] → {p["approver"]} (requested {p["requested"]})");
+            }
+            if (pending.Count > 20) sb.AppendLine($"  ... and {pending.Count - 20} more");
 
-            sb.AppendLine("\nNote: All pending approvals must be resolved before SHARED→PUBLISHED transition.");
-            TaskDialog.Show("STING CDE Approval", sb.ToString());
+            var dlg = new TaskDialog("STING CDE Approval Workflow");
+            dlg.MainInstruction = $"{pending.Count} pending approval(s) — ISO 19650-2 §5.6";
+            dlg.MainContent = sb.ToString();
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Approve All Pending",
+                $"Approve all {pending.Count} pending approval(s) as {Environment.UserName}");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Reject All Pending",
+                $"Reject all {pending.Count} pending approval(s) as {Environment.UserName}");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Approve First Pending Only",
+                $"Approve [{pending[0]["document_id"]}] for {pending[0]["approver"]}");
+            dlg.CommonButtons = TaskDialogCommonButtons.Close;
+
+            var result = dlg.Show();
+            int resolved = 0;
+            string currentUser = Environment.UserName;
+
+            if (result == TaskDialogResult.CommandLink1)
+            {
+                foreach (var p in pending)
+                    if (GapFixEngine.ResolveApproval(ctx.Doc, p["document_id"]?.ToString(), p["approver"]?.ToString(), true))
+                        resolved++;
+                TaskDialog.Show("STING CDE Approval", $"Approved {resolved} of {pending.Count} pending approvals.");
+            }
+            else if (result == TaskDialogResult.CommandLink2)
+            {
+                foreach (var p in pending)
+                    if (GapFixEngine.ResolveApproval(ctx.Doc, p["document_id"]?.ToString(), p["approver"]?.ToString(), false))
+                        resolved++;
+                TaskDialog.Show("STING CDE Approval", $"Rejected {resolved} of {pending.Count} pending approvals.");
+            }
+            else if (result == TaskDialogResult.CommandLink3)
+            {
+                var first = pending[0];
+                if (GapFixEngine.ResolveApproval(ctx.Doc, first["document_id"]?.ToString(), first["approver"]?.ToString(), true))
+                    TaskDialog.Show("STING CDE Approval", $"Approved [{first["document_id"]}] for {first["approver"]}.");
+                else
+                    TaskDialog.Show("STING CDE Approval", "Failed to resolve approval — record may have changed.");
+            }
+
             return Result.Succeeded;
         }
     }
 
-    /// <summary>CRIT-02: Cross-system entity linking.</summary>
+    /// <summary>CRIT-02: Cross-system entity linking — rebuilds and displays ISO 19650
+    /// issue↔revision↔transmittal↔document dependency graph.</summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class CrossSystemLinkCommand : IExternalCommand
@@ -959,7 +1488,20 @@ namespace StingTools.BIMManager
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-            TaskDialog.Show("STING Cross-Link", GapFixEngine.BuildDependencyGraph(ctx.Doc));
+
+            var (count, summary) = GapFixEngine.RebuildCrossSystemLinks(ctx.Doc);
+            if (count == 0)
+            {
+                TaskDialog.Show("STING Cross-System Links",
+                    "No cross-system links found.\n\nLinks are derived from:\n" +
+                    "  • issues.json → linked_transmittals, revision fields\n" +
+                    "  • transmittals.json → document_ids\n" +
+                    "  • entity_links.json → manual links\n\n" +
+                    "Create issues or transmittals to build the entity graph.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog.Show("STING Cross-System Links", summary);
             return Result.Succeeded;
         }
     }
@@ -1007,7 +1549,7 @@ namespace StingTools.BIMManager
         }
     }
 
-    /// <summary>CRIT-05: 4D schedule handover integration.</summary>
+    /// <summary>CRIT-05: 4D schedule handover integration with auto-issue creation.</summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class Schedule4DHandoverCommand : IExternalCommand
@@ -1016,7 +1558,14 @@ namespace StingTools.BIMManager
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-            TaskDialog.Show("STING 4D Handover", GapFixEngine.Link4DToHandover(ctx.Doc));
+
+            string report = GapFixEngine.Link4DToHandover(ctx.Doc);
+            TaskDialog.Show("STING 4D Handover", report);
+
+            int issuesCreated = GapFixEngine.AutoRaiseHandoverGapIssues(ctx.Doc);
+            if (issuesCreated > 0)
+                TaskDialog.Show("STING 4D Handover", $"{issuesCreated} handover gap issue(s) auto-created for approaching milestones with incomplete deliverables.");
+
             return Result.Succeeded;
         }
     }
@@ -1101,4 +1650,85 @@ namespace StingTools.BIMManager
     }
 
     #endregion
+
+    // ══════════════════════════════════════════════════════════════════
+    //  BIM-SIDECAR-VER-01: Sidecar Versioning Utility
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Utility for versioned, atomic sidecar JSON file operations.
+    /// Wraps data in a versioned envelope and uses temp-file + File.Replace for crash safety.
+    /// </summary>
+    internal static class SidecarVersioning
+    {
+        /// <summary>
+        /// Write data to a sidecar JSON file with version envelope and atomic write.
+        /// Produces: {"schema_version":"X.Y","timestamp":"...","data":{...}}
+        /// </summary>
+        internal static void WriteSidecar(string path, object data, string schemaVersion)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                string dir = System.IO.Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+                    System.IO.Directory.CreateDirectory(dir);
+
+                var envelope = new Newtonsoft.Json.Linq.JObject
+                {
+                    ["schema_version"] = schemaVersion,
+                    ["timestamp"] = DateTime.UtcNow.ToString("o"),
+                    ["data"] = Newtonsoft.Json.Linq.JToken.FromObject(data)
+                };
+
+                string json = envelope.ToString(Newtonsoft.Json.Formatting.Indented);
+                string tmpPath = path + ".tmp";
+                System.IO.File.WriteAllText(tmpPath, json);
+
+                if (System.IO.File.Exists(path))
+                    System.IO.File.Replace(tmpPath, path, path + ".bak");
+                else
+                    System.IO.File.Move(tmpPath, path, true);
+
+                Core.StingLog.Info($"SidecarVersioning: wrote v{schemaVersion} to {System.IO.Path.GetFileName(path)}");
+            }
+            catch (Exception ex) { Core.StingLog.Warn($"SidecarVersioning.WriteSidecar: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Read versioned sidecar data. Returns (data, actualVersion).
+        /// If file has no version envelope (legacy format), returns the raw content as data with version "0.0".
+        /// </summary>
+        internal static (T data, string version) ReadSidecar<T>(string path, string expectedVersion) where T : class
+        {
+            if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+                return (null, null);
+            try
+            {
+                string json = System.IO.File.ReadAllText(path);
+                if (string.IsNullOrWhiteSpace(json)) return (null, null);
+
+                var token = Newtonsoft.Json.Linq.JToken.Parse(json);
+
+                // Check for versioned envelope
+                if (token is Newtonsoft.Json.Linq.JObject obj && obj["schema_version"] != null && obj["data"] != null)
+                {
+                    string actualVersion = obj["schema_version"]?.ToString() ?? "0.0";
+                    var data = obj["data"].ToObject<T>();
+                    if (actualVersion != expectedVersion)
+                        Core.StingLog.Info($"SidecarVersioning: {System.IO.Path.GetFileName(path)} version {actualVersion} (expected {expectedVersion}) — migration may apply");
+                    return (data, actualVersion);
+                }
+
+                // Legacy format: no envelope — deserialize raw content
+                var legacyData = Newtonsoft.Json.JsonConvert.DeserializeObject<T>(json);
+                return (legacyData, "0.0");
+            }
+            catch (Exception ex)
+            {
+                Core.StingLog.Warn($"SidecarVersioning.ReadSidecar: {ex.Message}");
+                return (null, null);
+            }
+        }
+    }
 }

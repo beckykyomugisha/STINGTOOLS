@@ -774,9 +774,7 @@ namespace StingTools.Core
                 if (entries.Count > MaxDays)
                     entries = entries.OrderByDescending(e => e.Date).Take(MaxDays).ToList();
 
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(entries,
-                    Newtonsoft.Json.Formatting.Indented);
-                System.IO.File.WriteAllText(path, json);
+                BIMManager.SidecarVersioning.WriteSidecar(path, entries, "1.0");
             }
             catch (Exception ex) { StingLog.Warn($"ComplianceTrendTracker: {ex.Message}"); }
         }
@@ -804,48 +802,12 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"Compliance trend calc: {ex.Message}"); return ("unknown", 0); }
         }
 
-        /// <summary>Phase 91 H3: Forecast date when compliance will reach targetPct using linear regression on trend data.</summary>
-        public static string ForecastCompletionDate(Document doc, double targetPct = 80.0)
-        {
-            if (doc == null || string.IsNullOrEmpty(doc.PathName)) return "N/A";
-            try
-            {
-                string path = System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
-                var entries = LoadEntries(path);
-                if (entries.Count < 3) return "Insufficient data";
-                var sorted = entries.OrderBy(e => e.Date).ToList();
-                double current = sorted.Last().CompliancePct;
-                if (current >= targetPct) return "Already achieved";
-                // Linear regression: x=day index, y=compliance
-                int n = sorted.Count;
-                double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-                for (int i = 0; i < n; i++)
-                {
-                    sumX += i; sumY += sorted[i].CompliancePct;
-                    sumXY += i * sorted[i].CompliancePct; sumX2 += i * i;
-                }
-                double denom = n * sumX2 - sumX * sumX;
-                if (Math.Abs(denom) < 0.0001) return "Stable — no trend";
-                double slope = (n * sumXY - sumX * sumY) / denom;
-                if (slope <= 0) return "Declining — target unreachable";
-                double intercept = (sumY - slope * sumX) / n;
-                double daysNeeded = (targetPct - intercept) / slope - (n - 1);
-                if (daysNeeded <= 0) return "Imminent";
-                return System.DateTime.Now.AddDays(daysNeeded).ToString("yyyy-MM-dd");
-            }
-            catch (Exception ex) { StingLog.Warn($"ForecastCompletionDate: {ex.Message}"); return "N/A"; }
-        }
-
         private static List<TrendEntry> LoadEntries(string path)
         {
             try
             {
-                if (System.IO.File.Exists(path))
-                {
-                    string json = System.IO.File.ReadAllText(path);
-                    return Newtonsoft.Json.JsonConvert.DeserializeObject<List<TrendEntry>>(json)
-                        ?? new List<TrendEntry>();
-                }
+                var (data, _) = BIMManager.SidecarVersioning.ReadSidecar<List<TrendEntry>>(path, "1.0");
+                if (data != null) return data;
             }
             catch (Exception ex) { StingLog.Warn($"LoadTrendEntries: {ex.Message}"); }
             return new List<TrendEntry>();

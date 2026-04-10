@@ -697,6 +697,249 @@ namespace StingTools.BIMManager
             return delta;
         }
 
+        // ── BCF Bidirectional Sync ──
+        // BIM-BCF-SYNC-01: Merges STING issues.json ↔ .bcfzip using bcf_guid as the
+        // join key.  New STING issues are exported as new BCF topics; new BCF topics
+        // are imported as new STING issues; issues that exist on both sides are
+        // merged (most-recent-writer wins per field).
+
+        internal static string RunBidirectionalBcfSync(Document doc, string bcfPath)
+        {
+            if (doc == null || string.IsNullOrEmpty(bcfPath))
+                return "No document or BCF path.";
+
+            // ── 1. Load STING issues ──
+            string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+            var stingIssues = BIMManagerEngine.LoadJsonArray(issuesPath);
+            var stingByGuid = new Dictionary<string, JToken>();
+            foreach (var si in stingIssues)
+            {
+                string g = si["bcf_guid"]?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(g) && !stingByGuid.ContainsKey(g))
+                    stingByGuid[g] = si;
+            }
+
+            // ── 2. Extract BCF archive ──
+            string extractDir = Path.Combine(Path.GetTempPath(), $"STING_BCF_SYNC_{Guid.NewGuid():N}");
+            var bcfTopics = new Dictionary<string, (XDocument markup, string dir)>();
+            try
+            {
+                ZipFile.ExtractToDirectory(bcfPath, extractDir);
+                foreach (string topicDir in Directory.GetDirectories(extractDir))
+                {
+                    string mp = Path.Combine(topicDir, "markup.bcf");
+                    if (!File.Exists(mp)) continue;
+                    try
+                    {
+                        var md = XDocument.Load(mp);
+                        string guid = md.Root?.Element("Topic")?.Attribute("Guid")?.Value ?? "";
+                        if (!string.IsNullOrEmpty(guid))
+                            bcfTopics[guid] = (md, topicDir);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BCF sync: skip topic {Path.GetFileName(topicDir)}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex)
+            {
+                try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); } catch { }
+                return $"Failed to extract BCF: {ex.Message}";
+            }
+
+            int importedNew = 0, updatedSting = 0, exportedNew = 0, updatedBcf = 0;
+
+            // ── 3. Import / merge BCF → STING ──
+            foreach (var kvp in bcfTopics)
+            {
+                string guid = kvp.Key;
+                var markup = kvp.Value.markup;
+                var topic = markup.Root?.Element("Topic");
+                if (topic == null) continue;
+
+                if (stingByGuid.TryGetValue(guid, out JToken existing))
+                {
+                    // Merge: BCF wins for fields it carries, STING keeps its extras
+                    string bcfStatus = topic.Attribute("TopicStatus")?.Value ?? "";
+                    string bcfTitle  = topic.Element("Title")?.Value ?? "";
+                    string bcfAssign = topic.Element("AssignedTo")?.Value ?? "";
+                    string bcfDesc   = topic.Element("Description")?.Value ?? "";
+
+                    DateTime bcfMod = DateTime.MinValue;
+                    DateTime.TryParse(topic.Element("ModifiedDate")?.Value, out bcfMod);
+                    DateTime stingMod = DateTime.MinValue;
+                    DateTime.TryParse(existing["date_raised"]?.ToString(), out stingMod);
+
+                    // Most-recent-writer wins — only overwrite if BCF is newer
+                    if (bcfMod > stingMod)
+                    {
+                        if (!string.IsNullOrEmpty(bcfTitle))
+                            existing["title"] = bcfTitle;
+                        if (!string.IsNullOrEmpty(bcfDesc))
+                            existing["description"] = bcfDesc;
+                        if (!string.IsNullOrEmpty(bcfAssign))
+                            existing["assigned_to"] = bcfAssign;
+                        if (bcfStatus == "Resolved" || bcfStatus == "Closed")
+                            existing["status"] = "CLOSED";
+
+                        // Merge any new BCF comments not already in STING
+                        MergeBcfComments(markup, existing);
+                        updatedSting++;
+                    }
+                }
+                else
+                {
+                    // New BCF topic → import into STING
+                    string nextId = BIMManagerEngine.GetNextIssueId(stingIssues, "BCF");
+                    var newIssue = ParseBcfTopicToIssue(markup, nextId, doc);
+                    if (newIssue != null)
+                    {
+                        stingIssues.Add(newIssue);
+                        stingByGuid[guid] = newIssue;
+                        importedNew++;
+                    }
+                }
+            }
+
+            // ── 4. Export new STING issues → BCF ──
+            foreach (var si in stingIssues)
+            {
+                string existingGuid = si["bcf_guid"]?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(existingGuid) && bcfTopics.ContainsKey(existingGuid))
+                {
+                    // Already in BCF — check if STING is newer and update BCF markup
+                    DateTime stingMod = DateTime.MinValue;
+                    DateTime.TryParse(si["date_raised"]?.ToString(), out stingMod);
+                    var (markup, tDir) = bcfTopics[existingGuid];
+                    DateTime bcfMod = DateTime.MinValue;
+                    DateTime.TryParse(markup.Root?.Element("Topic")?.Element("ModifiedDate")?.Value, out bcfMod);
+
+                    if (stingMod > bcfMod)
+                    {
+                        // Overwrite the markup with STING data
+                        var updated = CreateBcfMarkup(si, existingGuid);
+                        updated.Save(Path.Combine(tDir, "markup.bcf"));
+                        updatedBcf++;
+                    }
+                    continue;
+                }
+
+                // New STING issue with no BCF GUID — create a topic
+                string newGuid = Guid.NewGuid().ToString();
+                string topicDir = Path.Combine(extractDir, newGuid);
+                Directory.CreateDirectory(topicDir);
+
+                var newMarkup = CreateBcfMarkup(si, newGuid);
+                newMarkup.Save(Path.Combine(topicDir, "markup.bcf"));
+
+                var vp = CreateBcfViewpoint(Guid.NewGuid().ToString());
+                vp.Save(Path.Combine(topicDir, "viewpoint.bcfv"));
+                File.WriteAllBytes(Path.Combine(topicDir, "snapshot.png"), CreatePlaceholderPng());
+
+                // Record the GUID back in STING so next sync recognises it
+                si["bcf_guid"] = newGuid;
+                exportedNew++;
+            }
+
+            // ── 5. Write updated BCF zip ──
+            try
+            {
+                // Ensure bcf.version exists at root
+                string versionPath = Path.Combine(extractDir, "bcf.version");
+                if (!File.Exists(versionPath))
+                    CreateBcfVersion().Save(versionPath);
+
+                string projectPath = Path.Combine(extractDir, "project.bcfp");
+                if (!File.Exists(projectPath))
+                    CreateBcfProject(doc).Save(projectPath);
+
+                // Replace original BCF file
+                string backupPath = bcfPath + ".bak";
+                if (File.Exists(bcfPath))
+                {
+                    if (File.Exists(backupPath)) File.Delete(backupPath);
+                    File.Move(bcfPath, backupPath);
+                }
+                ZipFile.CreateFromDirectory(extractDir, bcfPath);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BCF sync: failed to write updated .bcfzip", ex);
+            }
+
+            // ── 6. Save updated STING issues ──
+            BIMManagerEngine.SaveJsonFile(issuesPath, stingIssues);
+
+            // ── 7. Save sync sidecar ──
+            string sidecarPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "bcf_sync.json");
+            var sidecar = new JObject
+            {
+                ["schema_version"] = 1,
+                ["last_sync_utc"] = DateTime.UtcNow.ToString("o"),
+                ["bcf_file"] = Path.GetFileName(bcfPath),
+                ["user"] = Environment.UserName,
+                ["imported_new"] = importedNew,
+                ["updated_sting"] = updatedSting,
+                ["exported_new"] = exportedNew,
+                ["updated_bcf"] = updatedBcf,
+                ["total_sting_issues"] = stingIssues.Count,
+                ["total_bcf_topics"] = bcfTopics.Count + exportedNew
+            };
+            BIMManagerEngine.SaveJsonFile(sidecarPath, sidecar);
+
+            // ── Cleanup ──
+            try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); }
+            catch (Exception cleanEx) { StingLog.Warn($"BCF sync cleanup: {cleanEx.Message}"); }
+
+            StingLog.Info($"BCF sync complete: +{importedNew} imported, ↑{updatedSting} updated(STING), +{exportedNew} exported, ↑{updatedBcf} updated(BCF)");
+
+            var sb = new StringBuilder();
+            sb.AppendLine("BCF Bidirectional Sync Complete");
+            sb.AppendLine("────────────────────────────────");
+            sb.AppendLine($"BCF file:        {Path.GetFileName(bcfPath)}");
+            sb.AppendLine($"New → STING:     {importedNew} issue(s) imported from BCF");
+            sb.AppendLine($"Updated STING:   {updatedSting} existing issue(s) refreshed from BCF");
+            sb.AppendLine($"New → BCF:       {exportedNew} issue(s) exported to BCF");
+            sb.AppendLine($"Updated BCF:     {updatedBcf} existing topic(s) refreshed from STING");
+            sb.AppendLine($"Total STING:     {stingIssues.Count} issues");
+            sb.AppendLine($"Total BCF:       {bcfTopics.Count + exportedNew} topics");
+            return sb.ToString();
+        }
+
+        /// <summary>Merge BCF comments into a STING issue, skipping duplicates by text+author match.</summary>
+        private static void MergeBcfComments(XDocument markup, JToken stingIssue)
+        {
+            var bcfComments = markup.Root?.Elements("Comment");
+            if (bcfComments == null) return;
+
+            var existingComments = stingIssue["comments"] as JArray ?? new JArray();
+            var existingSet = new HashSet<string>();
+            foreach (var ec in existingComments)
+                existingSet.Add($"{ec["author"]}|{ec["text"]}");
+
+            foreach (var c in bcfComments)
+            {
+                string text = c.Element("Comment")?.Value ?? "";
+                string author = c.Element("Author")?.Value ?? "";
+                if (string.IsNullOrEmpty(text)) continue;
+
+                string key = $"{author}|{text}";
+                if (existingSet.Contains(key)) continue;
+
+                string date = c.Element("Date")?.Value ?? "";
+                if (DateTime.TryParse(date, out DateTime dt))
+                    date = dt.ToString("yyyy-MM-dd HH:mm");
+
+                existingComments.Add(new JObject
+                {
+                    ["text"] = text,
+                    ["author"] = author,
+                    ["date"] = date
+                });
+                existingSet.Add(key);
+            }
+
+            stingIssue["comments"] = existingComments;
+        }
+
         // ── Create snapshot.png placeholder (1x1 white PNG) ──
         internal static byte[] CreatePlaceholderPng()
         {
@@ -1403,6 +1646,87 @@ namespace StingTools.BIMManager
     #endregion
 
     // ═══════════════════════════════════════════════════════════════
+    //  4b. BCFSyncCommand — Bidirectional BCF 2.1 sync
+    // ═══════════════════════════════════════════════════════════════
+
+    #region ── BCF Sync ──
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BCFSyncCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = ctx.Doc;
+
+                // Scan BIM manager directory for .bcfzip files
+                string bimDir = BIMManagerEngine.GetBIMManagerFilePath(doc, "");
+                var bcfFiles = new List<string>();
+                if (Directory.Exists(bimDir))
+                {
+                    bcfFiles.AddRange(Directory.GetFiles(bimDir, "*.bcfzip"));
+                    bcfFiles.AddRange(Directory.GetFiles(bimDir, "*.bcf"));
+                }
+
+                // Also check project directory
+                string docDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                if (!string.IsNullOrEmpty(docDir) && Directory.Exists(docDir))
+                {
+                    foreach (var f in Directory.GetFiles(docDir, "*.bcfzip"))
+                        if (!bcfFiles.Contains(f)) bcfFiles.Add(f);
+                    foreach (var f in Directory.GetFiles(docDir, "*.bcf"))
+                        if (!bcfFiles.Contains(f)) bcfFiles.Add(f);
+                }
+
+                if (bcfFiles.Count == 0)
+                {
+                    TaskDialog.Show("STING BCF Sync",
+                        "No .bcfzip files found in BIM Manager or project directory.\n\n" +
+                        "Place a .bcfzip file in the project folder or STING_BIM_MANAGER directory and try again.");
+                    return Result.Succeeded;
+                }
+
+                // Let user pick which BCF file to sync with
+                string selectedBcf;
+                if (bcfFiles.Count == 1)
+                {
+                    selectedBcf = bcfFiles[0];
+                }
+                else
+                {
+                    var displayNames = bcfFiles.Select(f => Path.GetFileName(f)).ToList();
+                    string picked = UI.StingListPicker.Show("Select BCF File for Sync",
+                        "Choose a .bcfzip file to synchronise with STING issues:",
+                        displayNames);
+                    if (string.IsNullOrEmpty(picked)) return Result.Cancelled;
+                    int idx = displayNames.IndexOf(picked);
+                    selectedBcf = idx >= 0 ? bcfFiles[idx] : bcfFiles[0];
+                }
+
+                // Run bidirectional sync
+                string report = PlatformLinkEngine.RunBidirectionalBcfSync(doc, selectedBcf);
+
+                TaskDialog.Show("STING BCF Sync", report);
+                StingLog.Info("BCF bidirectional sync completed.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BCF sync failed", ex);
+                TaskDialog.Show("STING Error", $"BCF sync failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
+
+    #endregion
+
+    // ═══════════════════════════════════════════════════════════════
     //  5. PlatformSyncCommand — Sync status with external platforms
     // ═══════════════════════════════════════════════════════════════
 
@@ -1547,10 +1871,9 @@ namespace StingTools.BIMManager
 
         // ── StingBIM Server Sync ──────────────────────────────────────────────
         /// <summary>
-        /// Push tagged elements, compliance snapshot, warning summary, and SEQ counters
-        /// to the connected StingBIM server via a single FullSync call (plugin v2.2+).
-        /// Auto-creates the project on the server if not yet linked.
+        /// Push all tagged elements in the document to the connected StingBIM server.
         /// Called when the "Sync Now" button is pressed on the StingBIM platform panel.
+        /// Requires prior authentication via StingBIMConnectCommand.
         /// </summary>
         internal static void SyncToStingBIMServer(UIApplication app)
         {
@@ -1564,56 +1887,43 @@ namespace StingTools.BIMManager
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) { TaskDialog.Show("StingBIM", "No document open."); return; }
 
-            // ── Collect tagged elements ──────────────────────────────────────
+            // Collect all elements that have a Tag1 parameter
             var elements = new List<TagElementPayload>();
-            var seqCounters = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-            using (var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            using var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            foreach (Element el in collector)
             {
-                foreach (Element el in collector)
+                string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
+                if (string.IsNullOrEmpty(tag1)) continue;
+
+                string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
+                string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
+                string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
+                string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
+                string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
+                string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
+                string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
+                string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
+                string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
+                string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
+                string rev   = ParameterHelpers.GetString(el, "ASS_REV")    ?? "";
+                string cat   = ParameterHelpers.GetCategoryName(el);
+                string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
+
+                bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
+                bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
+
+                elements.Add(new TagElementPayload
                 {
-                    string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
-                    if (string.IsNullOrEmpty(tag1)) continue;
-
-                    string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
-                    string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
-                    string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
-                    string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
-                    string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
-                    string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
-                    string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
-                    string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
-                    string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
-                    string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
-                    string rev   = ParameterHelpers.GetString(el, "ASS_REV") ?? "";
-                    string cat   = ParameterHelpers.GetCategoryName(el);
-                    string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
-
-                    bool isComplete      = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
-                    bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
-
-                    elements.Add(new TagElementPayload
-                    {
-                        RevitElementId  = el.Id.Value,
-                        UniqueId        = el.UniqueId,
-                        Disc = disc, Loc = loc, Zone = zone, Lvl = lvl,
-                        Sys = sys, Func = func, Prod = prod, Seq = seq,
-                        Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
-                        CategoryName    = cat, FamilyName = fam,
-                        Status          = string.IsNullOrEmpty(status) ? null : status,
-                        Rev             = string.IsNullOrEmpty(rev) ? null : rev,
-                        IsComplete      = isComplete, IsFullyResolved = isFullyResolved
-                    });
-
-                    // Build SEQ counter max-map from ASS_SEQ values
-                    if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq)
-                        && int.TryParse(seq.TrimStart('0').PadLeft(1, '0'), out int seqNum) && seqNum > 0)
-                    {
-                        string counterKey = $"{disc}_{sys}_{prod}";
-                        if (!seqCounters.TryGetValue(counterKey, out int existing) || seqNum > existing)
-                            seqCounters[counterKey] = seqNum;
-                    }
-                }
+                    RevitElementId  = el.Id.Value,
+                    UniqueId        = el.UniqueId,
+                    Disc            = disc, Loc = loc, Zone = zone, Lvl = lvl,
+                    Sys = sys, Func = func, Prod = prod, Seq = seq,
+                    Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
+                    CategoryName    = cat, FamilyName = fam,
+                    Status          = string.IsNullOrEmpty(status) ? null : status,
+                    Rev             = string.IsNullOrEmpty(rev) ? null : rev,
+                    IsComplete      = isComplete, IsFullyResolved = isFullyResolved
+                });
             }
 
             if (elements.Count == 0)
@@ -1622,92 +1932,26 @@ namespace StingTools.BIMManager
                 return;
             }
 
-            // ── Gather compliance snapshot ───────────────────────────────────
-            SyncCompliancePayload? compliancePayload = null;
-            try
-            {
-                var compliance = Core.ComplianceScan.Scan(doc);
-                if (compliance != null)
-                {
-                    var byDisc = new Dictionary<string, int>();
-                    foreach (var kv in compliance.ByDisc)
-                        byDisc[kv.Key] = kv.Value.Tagged;
-
-                    compliancePayload = new SyncCompliancePayload
-                    {
-                        TotalElements    = compliance.TotalElements,
-                        TaggedComplete   = compliance.TaggedComplete,
-                        TaggedIncomplete = compliance.TaggedIncomplete,
-                        Untagged         = compliance.Untagged,
-                        FullyResolved    = compliance.FullyResolved,
-                        StaleCount       = compliance.StaleCount,
-                        PlaceholderCount = compliance.PlaceholderCount,
-                        TagPercent       = compliance.CompliancePercent,
-                        StrictPercent    = compliance.StrictPercent,
-                        ContainerPercent = compliance.ContainerCompletePct,
-                        RagStatus        = compliance.RAGStatus,
-                        ByDiscipline     = byDisc,
-                        EmptyTokenCounts = new Dictionary<string, int>(compliance.EmptyTokenCounts)
-                    };
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"StingBIM: Compliance scan failed (non-fatal): {ex.Message}"); }
-
-            // ── Gather warning summary ───────────────────────────────────────
-            SyncWarningPayload? warningPayload = null;
-            try
-            {
-                var wr = Core.WarningsEngine.ScanWarnings(doc);
-                if (wr != null && wr.Total > 0)
-                {
-                    wr.BySeverity.TryGetValue(Core.WarningSeverity.Critical, out int wcrit);
-                    wr.BySeverity.TryGetValue(Core.WarningSeverity.High,     out int whigh);
-                    warningPayload = new SyncWarningPayload
-                    {
-                        Total       = wr.Total,
-                        Critical    = wcrit,
-                        High        = whigh,
-                        AutoFixable = wr.AutoFixable,
-                        HealthScore = Core.WarningsEngine.CalculateWarningHealthScore(wr)
-                    };
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"StingBIM: Warning scan failed (non-fatal): {ex.Message}"); }
-
-            // ── Resolve project (auto-create if not linked) ──────────────────
+            // Load project ID from connection config
             string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
             string cfgPath = Path.Combine(bimDir, "stingbim_connection.json");
             Guid projectId = LoadStingBIMProjectId(cfgPath);
 
-            string projectName = doc.ProjectInformation?.Name ?? doc.Title ?? "Unnamed Project";
-            string projectCode = string.Concat(
-                projectName.Split(Path.GetInvalidFileNameChars())
-                           .SelectMany(s => s.Split(' '))
-                           .Where(s => s.Length > 0)
-                           .Select(s => s[0])).ToUpper();
-            if (string.IsNullOrEmpty(projectCode)) projectCode = "PRJ";
+            if (projectId == Guid.Empty)
+            {
+                TaskDialog.Show("StingBIM", "No StingBIM project linked.\n\nIn the StingBIM connection settings, select or create a project on the server first.");
+                return;
+            }
 
-            string revitVer  = app.Application.VersionNumber;
+            string revitVer = app.Application.VersionNumber;
             string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
 
-            // ── Build full sync payload and send ─────────────────────────────
-            var payload = new FullSyncPayload
-            {
-                ProjectId     = projectId,
-                ProjectName   = projectName,
-                ProjectCode   = projectCode,
-                RevitVersion  = revitVer,
-                PluginVersion = pluginVer,
-                Elements      = elements,
-                Compliance    = compliancePayload,
-                Warnings      = warningPayload,
-                SeqCounters   = seqCounters
-            };
-
-            FullSyncResult result;
+            // Blocking async call — safe in ExternalEvent context
+            SyncResult result;
             try
             {
-                result = client.FullSyncAsync(payload).GetAwaiter().GetResult();
+                result = client.SyncElementsAsync(projectId, revitVer, pluginVer, elements)
+                               .GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -1721,41 +1965,29 @@ namespace StingTools.BIMManager
                 return;
             }
 
-            // ── Persist project ID if auto-created ───────────────────────────
-            if (result.ProjectCreated || (projectId == Guid.Empty && result.ProjectId != Guid.Empty))
-            {
-                try
-                {
-                    client.SaveConnectionSettings(cfgPath, client.ConnectedUser, result.ProjectId);
-                    StingLog.Info($"StingBIM: Project auto-created on server: {result.ProjectId}");
-                }
-                catch { /* non-fatal */ }
-            }
-
-            // ── Update local sync metadata ───────────────────────────────────
+            // Update sync timestamp
             try
             {
-                var cfg = File.Exists(cfgPath) ? JObject.Parse(File.ReadAllText(cfgPath)) : new JObject();
-                cfg["lastSyncAt"]       = DateTime.UtcNow.ToString("o");
+                var cfg = File.Exists(cfgPath)
+                    ? JObject.Parse(File.ReadAllText(cfgPath))
+                    : new JObject();
+                cfg["lastSyncAt"] = DateTime.UtcNow.ToString("o");
                 cfg["lastSyncElements"] = result.Received;
-                cfg["lastCompliancePct"]= result.CompliancePercent;
-                cfg["lastRagStatus"]    = result.RagStatus;
-                cfg["seqCountersSaved"] = result.SeqCountersSaved;
+                cfg["lastCompliancePct"] = result.CompliancePercent;
+                cfg["lastRagStatus"] = result.RagStatus;
                 File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
             }
             catch { /* non-fatal */ }
 
             string ragEmoji = result.RagStatus == "GREEN" ? "🟢" : result.RagStatus == "AMBER" ? "🟡" : "🔴";
-            string projectNote = result.ProjectCreated ? $"\n⚡ New project created on server: {projectName}" : "";
             TaskDialog.Show("StingBIM Sync — Complete",
-                $"✅ Full sync to StingBIM server complete!{projectNote}\n\n" +
-                $"Elements synced:   {result.Received:N0}\n" +
-                $"New records:       {result.Created:N0}\n" +
-                $"Updated records:   {result.Updated:N0}\n" +
-                $"SEQ counters:      {result.SeqCountersSaved:N0} saved\n\n" +
-                $"{ragEmoji} Compliance: {result.CompliancePercent:F1}% ({result.RagStatus})\n\n" +
+                $"✅ Sync to StingBIM server complete!\n\n" +
+                $"Elements sent:    {result.Received:N0}\n" +
+                $"New records:      {result.Created:N0}\n" +
+                $"Updated records:  {result.Updated:N0}\n\n" +
+                $"{ragEmoji} Project compliance: {result.CompliancePercent:F1}% ({result.RagStatus})\n\n" +
                 $"Server: {client.ServerUrl}\n" +
-                $"User:   {client.ConnectedUser}");
+                $"User: {client.ConnectedUser}");
         }
 
         private static Guid LoadStingBIMProjectId(string cfgPath)
