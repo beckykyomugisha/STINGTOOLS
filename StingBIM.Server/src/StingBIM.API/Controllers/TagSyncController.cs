@@ -121,6 +121,43 @@ public class TagSyncController : ControllerBase
         return Ok(new { elements, total, page, pageSize });
     }
 
+    /// <summary>
+    /// Search tagged elements by text query across all tag fields.
+    /// </summary>
+    [HttpGet("elements/search")]
+    public async Task<ActionResult> SearchElements([FromQuery] Guid projectId, [FromQuery] string q)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            return BadRequest("Query parameter 'q' is required");
+
+        var tenantId = GetTenantId();
+        var query = q.ToLower();
+
+        var elements = await _db.TaggedElements
+            .Where(e => e.ProjectId == projectId && e.Project!.TenantId == tenantId)
+            .Where(e =>
+                (e.Tag1 != null && e.Tag1.ToLower().Contains(query)) ||
+                (e.Tag7 != null && e.Tag7.ToLower().Contains(query)) ||
+                (e.UniqueId != null && e.UniqueId.ToLower().Contains(query)) ||
+                (e.CategoryName != null && e.CategoryName.ToLower().Contains(query)) ||
+                (e.FamilyName != null && e.FamilyName.ToLower().Contains(query)) ||
+                (e.Disc != null && e.Disc.ToLower().Contains(query)) ||
+                (e.Loc != null && e.Loc.ToLower().Contains(query)) ||
+                (e.Zone != null && e.Zone.ToLower().Contains(query)) ||
+                (e.Lvl != null && e.Lvl.ToLower().Contains(query)) ||
+                (e.Sys != null && e.Sys.ToLower().Contains(query)) ||
+                (e.Func != null && e.Func.ToLower().Contains(query)) ||
+                (e.Prod != null && e.Prod.ToLower().Contains(query)) ||
+                (e.Seq != null && e.Seq.ToLower().Contains(query)) ||
+                (e.Status != null && e.Status.ToLower().Contains(query)) ||
+                (e.Rev != null && e.Rev.ToLower().Contains(query)))
+            .OrderBy(e => e.Tag1)
+            .Take(50)
+            .ToListAsync();
+
+        return Ok(elements);
+    }
+
     private async Task<ComplianceSummaryDto> ComputeComplianceAsync(Guid projectId)
     {
         // Server-side aggregation — no .ToListAsync() to avoid loading all elements

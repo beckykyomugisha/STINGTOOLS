@@ -65,6 +65,22 @@ public class ComplianceController : ControllerBase
     }
 
     /// <summary>
+    /// Get the latest compliance snapshot (bare route for mobile compatibility).
+    /// </summary>
+    [HttpGet]
+    public async Task<ActionResult> GetCompliance(Guid projectId)
+    {
+        var tenantId = GetTenantId();
+        var snapshot = await _db.ComplianceSnapshots
+            .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId)
+            .OrderByDescending(s => s.CapturedAt)
+            .FirstOrDefaultAsync();
+
+        if (snapshot == null) return NotFound("No compliance data yet");
+        return Ok(snapshot);
+    }
+
+    /// <summary>
     /// Get the latest compliance snapshot.
     /// </summary>
     [HttpGet("latest")]

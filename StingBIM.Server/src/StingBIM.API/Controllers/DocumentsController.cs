@@ -231,6 +231,43 @@ public class DocumentsController : ControllerBase
         return Ok(doc);
     }
 
+    /// <summary>
+    /// CDE state transition via POST (mobile-compatible endpoint).
+    /// Accepts { "newStatus": "SHARED" } body format.
+    /// </summary>
+    [HttpPost("{docId}/transition")]
+    public async Task<ActionResult> TransitionStateMobile(Guid projectId, Guid docId, [FromBody] MobileTransitionRequest req)
+    {
+        var tenantId = GetTenantId();
+        var doc = await _db.Documents
+            .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
+        if (doc == null) return NotFound();
+
+        if (!ValidTransitions.TryGetValue(doc.CdeStatus, out var validTargets))
+            return BadRequest($"Unknown current state: {doc.CdeStatus}");
+
+        if (!validTargets.Contains(req.NewStatus))
+            return BadRequest($"Invalid CDE transition: {doc.CdeStatus} → {req.NewStatus}. Valid: {string.Join(", ", validTargets)}");
+
+        var oldState = doc.CdeStatus;
+        doc.CdeStatus = req.NewStatus;
+        doc.SuitabilityCode = DefaultSuitability.GetValueOrDefault(req.NewStatus, doc.SuitabilityCode);
+
+        var history = !string.IsNullOrEmpty(doc.StatusHistoryJson)
+            ? JsonConvert.DeserializeObject<List<object>>(doc.StatusHistoryJson) ?? new()
+            : new List<object>();
+        history.Add(new
+        {
+            timestamp = DateTime.UtcNow, oldState, newState = req.NewStatus,
+            suitability = doc.SuitabilityCode,
+            user = User.FindFirst("display_name")?.Value ?? "Unknown"
+        });
+        doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
+
+        await _db.SaveChangesAsync();
+        return Ok(doc);
+    }
+
     [HttpGet("{docId}/history")]
     public async Task<ActionResult> GetHistory(Guid projectId, Guid docId)
     {
@@ -252,3 +289,4 @@ public class DocumentsController : ControllerBase
 
 public record CreateDocumentRequest(string FileName, string? DocumentType, string? Discipline, string? Revision);
 public record CdeTransitionRequest(string NewState, string? SuitabilityCode, string? Revision);
+public record MobileTransitionRequest(string NewStatus);
