@@ -1,7 +1,7 @@
 namespace Planscape.MIM.Entities;
 
 /// <summary>
-/// StingMIM Asset — a managed BIM asset with lifecycle, maintenance, and FM data.
+/// Planscape MIM Asset — a managed BIM asset with lifecycle, maintenance, and FM data.
 /// Extends tagged elements with CAFM-ready fields for digital twin and O&M handover.
 /// </summary>
 public class Asset
@@ -24,7 +24,7 @@ public class Asset
     public string? CobieType { get; set; }
     public string? CobieSpace { get; set; }
 
-    // STING tag tokens (mirrored from tagged element)
+    // Planscape tag tokens (mirrored from tagged element)
     public string Discipline { get; set; } = "";
     public string SystemCode { get; set; } = "";
     public string FunctionCode { get; set; } = "";

@@ -9,13 +9,19 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+/// <summary>
+/// BIM project management — CRUD, settings, and dashboard.
+/// </summary>
 public class ProjectsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
 
     public ProjectsController(PlanscapeDbContext db) => _db = db;
 
+    /// <summary>List all active projects for the current tenant.</summary>
+    /// <response code="200">Array of project summaries ordered by last sync date.</response>
     [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> GetProjects()
     {
         var tenantId = GetTenantId();
@@ -33,7 +39,12 @@ public class ProjectsController : ControllerBase
         return Ok(projects);
     }
 
+    /// <summary>Get a single project by ID (includes full settings).</summary>
+    /// <response code="200">Project detail object.</response>
+    /// <response code="404">Project not found or does not belong to tenant.</response>
     [HttpGet("{id}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetProject(Guid id)
     {
         var tenantId = GetTenantId();
@@ -51,7 +62,14 @@ public class ProjectsController : ControllerBase
         });
     }
 
+    /// <summary>Create a new BIM project (subject to tenant project limit).</summary>
+    /// <response code="201">Project created.</response>
+    /// <response code="400">Tenant project limit reached.</response>
+    /// <response code="404">Tenant not found.</response>
     [HttpPost]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> CreateProject([FromBody] CreateProjectRequest req)
     {
         var tenantId = GetTenantId();
@@ -76,10 +94,12 @@ public class ProjectsController : ControllerBase
         return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
     }
 
-    /// <summary>
-    /// Update project settings — name, phase, tag format, config JSON.
-    /// </summary>
+    /// <summary>Update project settings — name, phase, tag format, config JSON.</summary>
+    /// <response code="200">Updated project object.</response>
+    /// <response code="404">Project not found or does not belong to tenant.</response>
     [HttpPut("{id}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> UpdateProject(Guid id, [FromBody] UpdateProjectRequest req)
     {
         var tenantId = GetTenantId();
@@ -100,7 +120,12 @@ public class ProjectsController : ControllerBase
         return Ok(project);
     }
 
+    /// <summary>Get the project dashboard — compliance, issues, documents, and recent workflows.</summary>
+    /// <response code="200">Dashboard data object.</response>
+    /// <response code="404">Project not found or does not belong to tenant.</response>
     [HttpGet("{id}/dashboard")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> GetDashboard(Guid id)
     {
         var tenantId = GetTenantId();

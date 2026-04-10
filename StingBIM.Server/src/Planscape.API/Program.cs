@@ -94,13 +94,27 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "Planscape API", Version = "v1" });
+    c.SwaggerDoc("v1", new()
+    {
+        Title = "Planscape API",
+        Version = "v1",
+        Description = "ISO 19650-compliant BIM coordination platform — tag sync, compliance, CDE, issues, documents, meetings, workflows, and asset lifecycle management.",
+        Contact = new() { Name = "Planscape", Email = "support@planscape.io" }
+    });
     c.AddSecurityDefinition("Bearer", new()
     {
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
         Scheme = "bearer",
-        BearerFormat = "JWT"
+        BearerFormat = "JWT",
+        Description = "Paste a JWT obtained from POST /api/auth/login"
     });
+    c.OperationFilter<Planscape.API.Swagger.SecurityRequirementFilter>();
+
+    // Include XML documentation comments
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+        c.IncludeXmlComments(xmlPath);
 });
 
 // ── Rate Limiting ──

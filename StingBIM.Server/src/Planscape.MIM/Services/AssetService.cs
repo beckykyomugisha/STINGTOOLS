@@ -1,7 +1,7 @@
 namespace Planscape.MIM.Services;
 
 /// <summary>
-/// StingMIM Asset management service — bridges tagged BIM elements to FM asset records.
+/// Planscape MIM Asset management service — bridges tagged BIM elements to FM asset records.
 /// </summary>
 public class AssetService
 {
@@ -49,7 +49,7 @@ public class AssetService
         return new Dictionary<string, string>
         {
             ["Name"] = asset.AssetTag,
-            ["CreatedBy"] = "StingMIM",
+            ["CreatedBy"] = "Planscape",
             ["CreatedOn"] = asset.CreatedAt.ToString("yyyy-MM-dd"),
             ["TypeName"] = asset.CobieType ?? "",
             ["Space"] = asset.CobieSpace ?? asset.Room ?? "",

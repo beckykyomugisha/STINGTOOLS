@@ -25,7 +25,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
 
-    // StingMIM entities (loaded when MIM is enabled)
+    // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
     public DbSet<MIM.Entities.MaintenanceTask> MaintenanceTasks => Set<MIM.Entities.MaintenanceTask>();
 
@@ -183,7 +183,7 @@ public class PlanscapeDbContext : DbContext
             e.Property(d => d.DeviceName).HasMaxLength(200);
         });
 
-        // ── StingMIM Entities ──
+        // ── Planscape MIM Entities ──
         modelBuilder.Entity<MIM.Entities.Asset>(e =>
         {
             e.HasKey(a => a.Id);

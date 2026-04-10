@@ -10,7 +10,7 @@ public class Tenant
     public string Slug { get; set; } = ""; // subdomain: {slug}.planscape.io
     public string ContactEmail { get; set; } = "";
     public LicenseTier Tier { get; set; } = LicenseTier.Starter;
-    public bool MimEnabled { get; set; } // StingMIM add-on
+    public bool MimEnabled { get; set; } // Planscape MIM add-on
     public MimTier MimTier { get; set; } = MimTier.None;
     public int MaxUsers { get; set; } = 5;
     public int MaxProjects { get; set; } = 1;

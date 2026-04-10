@@ -8,7 +8,7 @@ namespace Planscape.API.Controllers;
 
 /// <summary>
 /// SEQ counter synchronization — ensures unique sequence numbers across multiple Revit instances.
-/// Uses max-per-key merge strategy matching the plugin's .sting_seq.json sidecar pattern.
+/// Uses max-per-key merge strategy matching the plugin's .planscape_seq.json sidecar pattern.
 /// </summary>
 [ApiController]
 [Route("api/projects/{projectId}/seq")]
