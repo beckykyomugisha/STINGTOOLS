@@ -24,6 +24,8 @@ public class PlanscapeDbContext : DbContext
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
+    public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
 
     // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
@@ -98,6 +100,15 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(d => new { d.ProjectId, d.UploadedAt });
             e.Property(d => d.Description).HasMaxLength(1000);
             e.Property(d => d.Originator).HasMaxLength(50);
+        });
+
+        // ── DocumentApproval ──
+        modelBuilder.Entity<DocumentApproval>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasOne(a => a.Document).WithMany().HasForeignKey(a => a.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.Project).WithMany().HasForeignKey(a => a.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(a => new { a.DocumentId, a.Transition, a.Status });
         });
 
         // ── LicenseKey ──
@@ -181,6 +192,21 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(d => d.Tenant).WithMany().HasForeignKey(d => d.TenantId).OnDelete(DeleteBehavior.Cascade);
             e.Property(d => d.Token).HasMaxLength(512);
             e.Property(d => d.DeviceName).HasMaxLength(200);
+        });
+
+        // ── PlatformConnection ──
+        modelBuilder.Entity<PlatformConnection>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.HasIndex(c => new { c.TenantId, c.ProjectId, c.Platform }).IsUnique();
+            e.HasIndex(c => c.TenantId);
+            e.HasOne(c => c.Tenant).WithMany().HasForeignKey(c => c.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.Project).WithMany().HasForeignKey(c => c.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(c => c.Name).HasMaxLength(200);
+            e.Property(c => c.ExternalProjectId).HasMaxLength(500);
+            e.Property(c => c.AccessToken).HasMaxLength(4000);
+            e.Property(c => c.RefreshToken).HasMaxLength(4000);
+            e.Property(c => c.WebhookSecret).HasMaxLength(500);
         });
 
         // ── Planscape MIM Entities ──

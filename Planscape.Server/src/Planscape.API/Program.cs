@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Serilog;
 using Hangfire;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +57,13 @@ builder.Services.AddAuthorization();
 // ── Services ──
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
 
+// ── Platform Connectors ──
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.ProcoreConnector>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AconexConnector>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.TrimbleConnector>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnectorFactory, Planscape.Infrastructure.Services.PlatformConnectorFactory>();
+
 // ── Email ──
 if (!string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.SmtpEmailService>();
@@ -72,7 +80,20 @@ else
 // ── Notifications (SignalR + Push) ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.INotificationService, Planscape.Infrastructure.Services.NotificationService>();
 
-builder.Services.AddSignalR();
+// ── Redis ──
+var redisConn = builder.Configuration["Redis:Connection"] ?? "localhost:6379";
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConn;
+    options.InstanceName = "Planscape:";
+});
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(redisConn));
+
+builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>
+{
+    options.Configuration.ChannelPrefix = RedisChannel.Literal("Planscape");
+});
 
 // ── Hangfire background jobs ──
 builder.Services.AddHangfire(config => config
@@ -84,11 +105,12 @@ builder.Services.AddHangfire(config => config
 builder.Services.AddHangfireServer(options =>
 {
     options.WorkerCount = 2;
-    options.Queues = new[] { "default", "compliance", "notifications" };
+    options.Queues = new[] { "default", "compliance", "notifications", "platform-sync" };
 });
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ComplianceCheckJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaEscalationJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.StaleWarningCleanupJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -219,5 +241,8 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.SlaEscalationJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJob>(
     "stale-warning-cleanup", j => j.ExecuteAsync(CancellationToken.None),
     Cron.Daily, new RecurringJobOptions { QueueName = "default" });
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
+    "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
+    "*/30 * * * *", new RecurringJobOptions { QueueName = "platform-sync" });
 
 await app.RunAsync();
