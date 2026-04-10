@@ -2,7 +2,7 @@
 // ModelEngine.cs — MODEL Auto-Modeling Engine for STING Tools
 // Orchestrates element creation: walls, floors, roofs, ceilings, columns,
 // beams, doors, windows, rooms, MEP fixtures, and batch operations.
-// Combines best patterns from EaseBit, eTLipse/ARQER, and StingBIM.AI.Creation.
+// Combines best patterns from EaseBit, eTLipse/ARQER, and Planscape.AI.Creation.
 //
 // Architecture:
 //   ModelEngine (orchestrator)
@@ -450,7 +450,7 @@ namespace StingTools.Model
     /// Combines patterns from:
     ///   - EaseBit (wall creation from parallel lines, auto-type detection)
     ///   - eTLipse/ARQER (DWG → walls → rooms → floors → doors → windows pipeline)
-    ///   - StingBIM.AI.Creation (orchestrator pipeline, family resolver, error explainer)
+    ///   - Planscape.AI.Creation (orchestrator pipeline, family resolver, error explainer)
     ///   - Revit API best practices (NewFamilyInstances2, TransactionGroup, IFailuresPreprocessor)
     ///
     /// Usage:

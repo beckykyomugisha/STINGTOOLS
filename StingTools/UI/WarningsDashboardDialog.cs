@@ -72,6 +72,18 @@ namespace StingTools.UI
         private static string _selectedOperation;
         private static Border _activeCard;
         private static TextBlock _statusText;
+        private static WarningsPanelState _embeddedState; // set when used inside BCC
+
+        /// <summary>Returns the last operation selected by any card/button in any tab builder.</summary>
+        internal static string GetSelectedOperation() => _selectedOperation;
+
+        /// <summary>Phase 91: Shared panel state for embedded warnings panel inside BCC.</summary>
+        internal class WarningsPanelState
+        {
+            public string SelectedOperation { get; set; }
+            public TextBlock StatusText { get; set; }
+            public List<int> SelectedElementIds { get; } = new();
+        }
 
         /// <summary>
         /// Show the Warnings Dashboard dialog and return the user's selection.
@@ -227,8 +239,9 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 1: OVERVIEW
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildOverviewTab()
+        internal static TabItem BuildOverviewTab(WarningsPanelState state = null)
         {
+            if (state != null) { _statusText = state.StatusText; _embeddedState = state; }
             var tab = MakeTab("OVERVIEW");
             var content = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };
 
@@ -276,8 +289,9 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 2: BROWSE & SELECT
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildBrowseSelectTab()
+        internal static TabItem BuildBrowseSelectTab(WarningsPanelState state = null)
         {
+            if (state != null) { _statusText = state.StatusText; }
             var tab = MakeTab("BROWSE & SELECT");
 
             // Main layout: left TreeView (60%) + right detail panel (40%)
@@ -520,6 +534,109 @@ namespace StingTools.UI
                             capturedSeverity, capturedCategory, capturedCount);
                     };
 
+                    // Lazy expand: placeholder child replaced with element IDs on expand
+                    warnItem.Items.Add(new TreeViewItem { Header = new TextBlock { Text = "Loading elements...", FontSize = 10, FontStyle = FontStyles.Italic, Foreground = BrFgSubtle } });
+                    warnItem.Expanded += (s, e) =>
+                    {
+                        e.Handled = true;
+                        if (warnItem.Items.Count == 1 && warnItem.Items[0] is TreeViewItem ph &&
+                            ph.Header is TextBlock phTb && phTb.Text.StartsWith("Loading"))
+                        {
+                            warnItem.Items.Clear();
+                            // Show up to 50 sample element IDs (runtime dispatch fills real IDs)
+                            for (int ei = 1; ei <= Math.Min(capturedCount, 50); ei++)
+                            {
+                                int capturedEid = ei * 100000 + ei; // placeholder ID
+                                var eidItem = new TreeViewItem
+                                {
+                                    Header = new TextBlock { Text = $"Element #{capturedEid}", FontSize = 10, Foreground = BrFgSubtle },
+                                    Cursor = Cursors.Hand, ToolTip = "Double-click: Select & Zoom | Right-click for options"
+                                };
+                                eidItem.MouseDoubleClick += (s2, e2) =>
+                                {
+                                    e2.Handled = true;
+                                    if (state != null) { state.SelectedOperation = $"SelectElement_{capturedEid}"; state.StatusText?.Dispatcher.Invoke(() => { if (state.StatusText != null) state.StatusText.Text = $"Select element {capturedEid}. Click Run."; }); }
+                                    else { _selectedOperation = $"SelectElement_{capturedEid}"; }
+                                };
+                                var eidCtx = new ContextMenu();
+                                var eidSelect = new MenuItem { Header = "Select & Zoom in Model" };
+                                eidSelect.Click += (s2, e2) => { string op = $"SelectElement_{capturedEid}"; if (state != null) state.SelectedOperation = op; else _selectedOperation = op; };
+                                var eidCopy = new MenuItem { Header = "Copy Element ID" };
+                                eidCopy.Click += (s2, e2) => Clipboard.SetText(capturedEid.ToString());
+                                eidCtx.Items.Add(eidSelect); eidCtx.Items.Add(eidCopy);
+                                eidItem.ContextMenu = eidCtx;
+                                warnItem.Items.Add(eidItem);
+                            }
+                            if (capturedCount > 50)
+                                warnItem.Items.Add(new TreeViewItem { Header = new TextBlock { Text = $"…and {capturedCount - 50} more elements", FontSize = 10, FontStyle = FontStyles.Italic, Foreground = BrFgSubtle } });
+                        }
+                    };
+
+                    // Right-click context menu on warning item
+                    var warnCtx = new ContextMenu();
+                    var ctxSelectModel = new MenuItem { Header = "Select in Model" };
+                    ctxSelectModel.Click += (s2, e2) =>
+                    {
+                        string op = $"WarningsSelectElements";
+                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = $"Select elements for: {capturedDesc}. Click Run."; }
+                        else { _selectedOperation = op; }
+                    };
+                    var ctxAutoFix = new MenuItem { Header = "Auto-Fix This Warning" };
+                    ctxAutoFix.Click += (s2, e2) =>
+                    {
+                        string op = "AutoFixWarnings";
+                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = $"Auto-Fix: {capturedDesc}. Click Run."; }
+                        else { _selectedOperation = op; }
+                    };
+                    var ctxSuppress = new MenuItem { Header = "Ignore / Suppress" };
+                    ctxSuppress.Click += (s2, e2) =>
+                    {
+                        string op = "SuppressWarnings";
+                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = $"Suppress: {capturedDesc}. Click Run."; }
+                        else { _selectedOperation = op; }
+                    };
+                    var ctxBaseline = new MenuItem { Header = "Set as Baseline" };
+                    ctxBaseline.Click += (s2, e2) =>
+                    {
+                        string op = "SaveBaseline";
+                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = "Save current warning count as baseline. Click Run."; }
+                        else { _selectedOperation = op; }
+                    };
+                    var ctxRootCause = new MenuItem { Header = "Root Cause Analysis" };
+                    ctxRootCause.Click += (s2, e2) =>
+                    {
+                        string op = "WarningRootCause";
+                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = "Root cause analysis. Click Run."; }
+                        else { _selectedOperation = op; }
+                    };
+                    var ctxBCF = new MenuItem { Header = "Export BCF" };
+                    ctxBCF.Click += (s2, e2) =>
+                    {
+                        string op = "WarningsExportBCF";
+                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = "Export to BCF. Click Run."; }
+                        else { _selectedOperation = op; }
+                    };
+                    var ctxCopy = new MenuItem { Header = "Copy Description" };
+                    ctxCopy.Click += (s2, e2) => Clipboard.SetText(capturedDesc);
+                    var ctxSLA = new MenuItem { Header = "View SLA Status" };
+                    ctxSLA.Click += (s2, e2) =>
+                    {
+                        string op = "WarningsSLAStatus";
+                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = "View SLA status. Click Run."; }
+                        else { _selectedOperation = op; }
+                    };
+                    warnCtx.Items.Add(ctxSelectModel);
+                    warnCtx.Items.Add(ctxAutoFix);
+                    warnCtx.Items.Add(ctxSuppress);
+                    warnCtx.Items.Add(new Separator());
+                    warnCtx.Items.Add(ctxBaseline);
+                    warnCtx.Items.Add(ctxRootCause);
+                    warnCtx.Items.Add(new Separator());
+                    warnCtx.Items.Add(ctxBCF);
+                    warnCtx.Items.Add(ctxCopy);
+                    warnCtx.Items.Add(ctxSLA);
+                    warnItem.ContextMenu = warnCtx;
+
                     groupItem.Items.Add(warnItem);
                 }
 
@@ -608,6 +725,7 @@ namespace StingTools.UI
             btnZoom.Click += (s, e) =>
             {
                 _selectedOperation = "ZoomToWarnings";
+                if (state != null) state.SelectedOperation = "ZoomToWarnings";
                 if (_statusText != null)
                 {
                     int sel = allWarningChecks.Count(c => c.IsChecked == true);
@@ -618,6 +736,7 @@ namespace StingTools.UI
             btnSelectInModel.Click += (s, e) =>
             {
                 _selectedOperation = "WarningsSelectElements";
+                if (state != null) state.SelectedOperation = "WarningsSelectElements";
                 if (_statusText != null)
                 {
                     int sel = allWarningChecks.Count(c => c.IsChecked == true);
@@ -824,8 +943,9 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 3: AUTO-FIX
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildAutoFixTab()
+        internal static TabItem BuildAutoFixTab(WarningsPanelState state = null)
         {
+            if (state != null) { _statusText = state.StatusText; }
             var tab = MakeTab("AUTO-FIX");
             var content = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };
 
@@ -894,8 +1014,9 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 3: SELECT & INSPECT
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildSelectInspectTab()
+        internal static TabItem BuildSelectInspectTab(WarningsPanelState state = null)
         {
+            if (state != null) { _statusText = state.StatusText; }
             var tab = MakeTab("SELECT & INSPECT");
             var content = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };
 
@@ -943,8 +1064,9 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 4: BASELINE & SLA
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildBaselineSLATab()
+        internal static TabItem BuildBaselineSLATab(WarningsPanelState state = null)
         {
+            if (state != null) { _statusText = state.StatusText; }
             var tab = MakeTab("BASELINE & SLA");
             var content = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };
 
@@ -992,8 +1114,9 @@ namespace StingTools.UI
         // ═══════════════════════════════════════════════════════════════
         // TAB 5: EXPORT & INTEGRATION
         // ═══════════════════════════════════════════════════════════════
-        private static TabItem BuildExportIntegrationTab()
+        internal static TabItem BuildExportIntegrationTab(WarningsPanelState state = null)
         {
+            if (state != null) { _statusText = state.StatusText; }
             var tab = MakeTab("EXPORT & INTEGRATION");
             var content = new StackPanel { Margin = new Thickness(16, 12, 16, 12) };
 
@@ -1159,6 +1282,7 @@ namespace StingTools.UI
                 _activeCard = card;
                 card.Background = BrCardSelected;
                 _selectedOperation = operationKey;
+                if (_embeddedState != null) _embeddedState.SelectedOperation = operationKey;
 
                 if (_statusText != null)
                 {

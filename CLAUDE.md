@@ -1274,7 +1274,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 - **Target framework**: `net8.0-windows` (Revit 2025+), `LangVersion=latest`
 - **WPF**: Enabled (`UseWPF=true` in csproj) for dockable panel UI and `System.Windows.Media.Imaging`
 - **Output**: Library (DLL), `AppendTargetFrameworkToOutputPath=false`, `CopyLocalLockFileAssemblies=true`
-- **Assembly**: v1.0.0.0, GUID `A1B2C3D4-5678-9ABC-DEF0-123456789ABC`, Vendor: StingBIM
+- **Assembly**: v1.0.0.0, GUID `A1B2C3D4-5678-9ABC-DEF0-123456789ABC`, Vendor: Planscape
 - **Data files**: CSV/JSON/TXT files in `StingTools/Data/` copied to output `data/` directory at build time
 
 ---
@@ -2188,11 +2188,13 @@ Critical review of the tagging workflow identified the following logic, automati
 
 ---
 
-## StingBIM Server
+## Planscape Server
 
 ### Overview
 
-**StingBIM Server** is a cloud backend that transforms the single-machine Revit plugin into a multi-user, multi-tenant SaaS platform. Located in `StingBIM.Server/`.
+**Planscape Server** is a cloud backend that transforms the single-machine Revit plugin into a multi-user, multi-tenant SaaS platform. Located in `Planscape.Server/`.
+
+> **Gap Analysis**: See `Planscape.Server/docs/PLANSCAPE_GAPS.md` (655 lines) for comprehensive gap analysis covering mobile collaboration, server API, plugin sync integration, on-site readiness assessment, and prioritised implementation roadmap with cost estimates.
 
 ### Technology Stack
 
@@ -2200,91 +2202,108 @@ Critical review of the tagging workflow identified the following logic, automati
 |---|---|
 | API | ASP.NET Core 8.0 (net8.0) |
 | Database | PostgreSQL 16 + EF Core 8 |
-| Cache | Redis 7 |
-| Real-time | SignalR |
-| Auth | JWT + Refresh tokens |
+| Cache | Redis 7 (caching + SignalR backplane) |
+| Real-time | SignalR (ComplianceHub, TagSyncHub, NotificationHub) |
+| Auth | JWT + Refresh tokens (BCrypt password hashing) |
 | File Storage | MinIO (S3-compatible) |
+| Email | MailKit SMTP (IEmailService) |
+| Push | Firebase Cloud Messaging (FCM HTTP v1) |
+| Background | Hangfire (4 recurring jobs) |
 | Container | Docker Compose |
 
 ### Project Structure
 
 ```
-StingBIM.Server/
-├── StingBIM.sln                          # Solution file
+Planscape.Server/
+├── Planscape.sln                         # Solution file
+├── docs/
+│   └── PLANSCAPE_GAPS.md                 # Gap analysis: mobile, server, integration, readiness
 ├── docker/
 │   ├── docker-compose.yml                # API + Postgres + Redis
 │   └── Dockerfile                        # Multi-stage API build
 └── src/
-    ├── StingBIM.API/                     # ASP.NET Core Web API
+    ├── Planscape.API/                    # ASP.NET Core Web API (17 controllers)
     │   ├── Controllers/
     │   │   ├── AuthController.cs         # Login, register, refresh, change/forgot/reset password, /me, license
     │   │   ├── ProjectsController.cs     # CRUD + PUT settings + dashboard
-    │   │   ├── TagSyncController.cs      # Bulk tag sync from plugin
+    │   │   ├── ProjectMembersController.cs # Invite/remove/list team members with ISO 19650 roles
+    │   │   ├── TagSyncController.cs      # Bulk tag sync from plugin (batch upsert, Redis caching)
     │   │   ├── ComplianceController.cs   # Snapshot push/pull + trend
     │   │   ├── IssuesController.cs       # CRUD + SLA tracking + attachments (upload/list/delete/link)
-    │   │   ├── DocumentsController.cs    # CDE state machine + file upload/download
+    │   │   ├── DocumentsController.cs    # CDE state machine + file upload/download + approval gates
     │   │   ├── NotificationsController.cs # Push token subscribe/list/delete + test push
     │   │   ├── WorkflowsController.cs    # Run logging + trend
     │   │   ├── MeetingsController.cs     # Agenda + action items
     │   │   ├── SeqSyncController.cs      # Max-per-key merge
     │   │   ├── TransmittalsController.cs # ISO 19650 transmittals
     │   │   ├── WarningsController.cs     # Warning reports + baseline
+    │   │   ├── SearchController.cs       # Cross-project global search (tags, issues, docs, meetings)
+    │   │   ├── PlatformController.cs     # BIM platform integrations (ACC, Procore, Aconex, Trimble)
     │   │   ├── AdminController.cs        # Org + user + audit management
-    │   │   └── MimController.cs          # StingMIM asset lifecycle
+    │   │   └── MimController.cs          # Planscape MIM asset lifecycle
     │   ├── Middleware/
-    │   │   └── TenantResolutionMiddleware.cs
+    │   │   └── TenantResolutionMiddleware.cs  # Multi-tenant resolution with Redis-backed caching
     │   ├── SeedData.cs                   # Demo tenant + project + issues
-    │   └── Program.cs                    # DI, middleware, SignalR hubs
+    │   └── Program.cs                    # DI, middleware, SignalR hubs, Hangfire
     │
-    ├── StingBIM.Core/                    # Domain entities + DTOs
+    ├── Planscape.Core/                   # Domain entities + DTOs (18 entities)
     │   ├── Entities/
     │   │   ├── Tenant.cs                 # Multi-tenant org
-    │   │   ├── AppUser.cs                # JWT user with ISO 19650 role
+    │   │   ├── AppUser.cs                # JWT user with ISO 19650 role (UserRole enum)
     │   │   ├── Project.cs                # BIM project container
+    │   │   ├── ProjectMember.cs          # User↔Project join with role
     │   │   ├── TaggedElement.cs          # 8-segment tag data
-    │   │   ├── BimIssue.cs               # RFI/NCR/SI issue
-    │   │   ├── DocumentRecord.cs         # CDE document with state
+    │   │   ├── BimIssue.cs               # RFI/NCR/SI issue with SLA tracking
+    │   │   ├── IssueAttachment.cs        # Join entity linking BimIssue to DocumentRecord
+    │   │   ├── DocumentRecord.cs         # CDE document with state (CDEState enum)
+    │   │   ├── DocumentApproval.cs       # ISO 19650-2 §5.6 approval workflow
+    │   │   ├── PlatformConnection.cs     # External BIM platform connection config
     │   │   ├── ComplianceSnapshot.cs     # Point-in-time compliance
     │   │   ├── SeqCounter.cs             # Sequence number counter
     │   │   ├── Meeting.cs                # Meeting + action items
     │   │   ├── Transmittal.cs            # Document transmittal
     │   │   ├── WorkflowRun.cs            # Workflow execution record
-    │   │   ├── LicenseKey.cs             # License with tier + seats
+    │   │   ├── LicenseKey.cs             # License with tier + seats (LicenseTier enum)
     │   │   ├── AuditLog.cs               # Write operation audit trail
-    │   │   ├── DevicePushToken.cs        # FCM/APNs device token for push notifications
-    │   │   └── IssueAttachment.cs        # Join entity linking BimIssue to DocumentRecord
+    │   │   └── DevicePushToken.cs        # FCM/APNs device token (PushPlatform enum)
     │   ├── DTOs/SyncDtos.cs              # Sync request/response models
     │   └── Interfaces/
     │       ├── IRepository.cs
+    │       ├── IEmailService.cs          # Email abstraction (SMTP/null fallback)
+    │       ├── INotificationService.cs   # SignalR notification dispatch
+    │       ├── IPlatformConnector.cs     # BIM platform integration (4 async methods)
     │       └── IPushNotificationService.cs  # Push notification abstraction (FCM/APNs/Web)
     │
-    ├── StingBIM.Infrastructure/          # EF Core + SignalR
-    │   ├── Data/StingBimDbContext.cs      # 20 DbSets, indexes, relationships
+    ├── Planscape.Infrastructure/         # EF Core + SignalR + Services
+    │   ├── Data/PlanscapeDbContext.cs     # 21 DbSets, indexes, relationships
     │   ├── Data/Migrations/
     │   │   ├── 20250407000000_InitialCreate.cs      # Hand-written initial migration (all tables)
-    │   │   └── StingBimDbContextModelSnapshot.cs    # EF Core model snapshot
+    │   │   └── PlanscapeDbContextModelSnapshot.cs   # EF Core model snapshot
     │   ├── Services/
-    │   │   ├── TenantContext.cs
-    │   │   ├── NotificationService.cs    # SignalR + push notification dispatch
-    │   │   ├── FirebasePushService.cs    # FCM HTTP v1 push implementation
-    │   │   └── BackgroundJobs.cs         # Hangfire: compliance, SLA escalation, cleanup
+    │   │   ├── TenantContext.cs           # ITenantContext with Redis-backed caching
+    │   │   ├── NotificationService.cs     # SignalR + push notification dispatch
+    │   │   ├── FirebasePushService.cs     # FCM HTTP v1 push (JWT auth, exponential retry)
+    │   │   ├── SmtpEmailService.cs        # MailKit SMTP + NullEmailService fallback
+    │   │   ├── PlatformConnectors.cs      # IPlatformConnector implementations (ACC, Procore, etc.)
+    │   │   └── BackgroundJobs.cs          # Hangfire: compliance, SLA escalation, cleanup, platform sync
     │   └── SignalR/
-    │       └── ComplianceHub.cs          # ComplianceHub + TagSyncHub
+    │       ├── ComplianceHub.cs           # Real-time compliance updates
+    │       └── NotificationHub.cs         # Real-time notification delivery
     │
-    ├── StingBIM.MIM/                     # Model Information Management
+    ├── Planscape.MIM/                    # Model Information Management
     │   ├── Entities/Asset.cs             # 40+ field asset entity
     │   ├── Entities/MaintenanceTask.cs   # PPM scheduling per BS 8210
     │   └── Services/AssetService.cs
     │
-    ├── StingBIM.Shared/                  # Cross-cutting (plugin + server)
+    ├── Planscape.Shared/                 # Cross-cutting (plugin + server)
     │   ├── Constants/ISO19650Codes.cs    # DISC/SYS/FUNC/PROD/LOC/ZONE codes
     │   ├── Models/SyncModels.cs          # PluginSyncPayload DTOs
     │   └── Helpers/TagFormatHelper.cs    # Tag validation/parsing
     │
-    └── StingBIM.PluginSync/             # Plugin-side sync client
-        ├── SyncClient.cs                # HTTP + JWT auth client
-        ├── OfflineQueue.cs              # File-backed offline queue
-        └── SyncScheduler.cs            # 5-min periodic sync
+    └── Planscape.PluginSync/            # Plugin-side sync client (UNUSED — see Integration note)
+        ├── SyncClient.cs                # HTTP + JWT auth client (dead code)
+        ├── OfflineQueue.cs              # File-backed offline queue (dead code)
+        └── SyncScheduler.cs             # 5-min periodic sync (dead code)
 ```
 
 ### API Endpoints Summary
@@ -2293,6 +2312,7 @@ StingBIM.Server/
 |---|---|---|
 | Auth | `/api/auth/login`, `/register`, `/refresh`, `/change-password`, `/forgot-password`, `/reset-password`, `/me`, `/license/activate` | POST, GET |
 | Projects | `/api/projects`, `/api/projects/{id}` | GET, POST, PUT |
+| Project Members | `/api/projects/{id}/members` | GET, POST invite, DELETE remove |
 | Dashboard | `/api/projects/{id}/dashboard` | GET |
 | Tag Sync | `/api/tagsync/sync`, `/elements/{id}`, `/compliance/{id}` | POST, GET |
 | Compliance | `/api/projects/{id}/compliance` | POST, GET (latest/history/trend) |
@@ -2305,6 +2325,8 @@ StingBIM.Server/
 | Transmittals | `/api/projects/{id}/transmittals` | GET, POST, PUT send |
 | Warnings | `/api/projects/{id}/warnings` | POST report/baseline, GET trend |
 | Notifications | `/api/notifications/subscribe`, `/tokens`, `/test` | POST, GET, DELETE |
+| Search | `/api/search?q=` | GET (cross-project: tags, issues, docs, meetings) |
+| Platform | `/api/projects/{id}/platform` | GET connections, POST connect/sync |
 | MIM | `/api/projects/{id}/mim/assets`, `/maintenance`, `/dashboard` | GET, POST, bulk |
 | Admin | `/api/admin/org`, `/users`, `/audit`, `/licenses` | GET, POST, PUT |
 | SignalR | `/hubs/compliance`, `/hubs/tagsync`, `/hubs/notifications` | WebSocket |
@@ -2318,16 +2340,108 @@ StingBIM.Server/
 | Professional | 1-5 | $15/user/mo | 5, cloud sync |
 | Premium | 6-100 | $25/user/mo | Unlimited |
 | Enterprise | 100+ | Custom | SSO, on-prem |
-| StingMIM | Add-on | $10-17/user/mo | FM, digital twin |
+| Planscape MIM | Add-on | $10-17/user/mo | FM, digital twin |
+
+### Plugin ↔ Server Sync Architecture
+
+> **CRITICAL NOTE**: Two parallel sync systems exist. Only one is actually used.
+
+| System | Location | Status | Mechanism |
+|---|---|---|---|
+| `Planscape.PluginSync` | `Planscape.Server/src/Planscape.PluginSync/` | **DEAD CODE** — never referenced by StingTools | Automatic 5-min scheduler, file-backed offline queue |
+| `StingBIMServerClient` | `StingTools/BIMManager/PlatformLinkCommands.cs` | **ACTUALLY USED** | Manual on-demand sync via BIM Coordination Center buttons |
+
+The `StingBIMServerClient` (2,222 lines in `PlatformLinkCommands.cs`) provides:
+- JWT login/token refresh via `/api/auth/login` and `/api/auth/refresh`
+- Tag sync via `/api/tagsync/sync` (bulk POST)
+- Compliance push via `/api/projects/{id}/compliance` (POST snapshot)
+- Issue sync via `/api/projects/{id}/issues` (GET/POST)
+- Document register via `/api/projects/{id}/documents` (GET/POST)
+- SEQ counter sync via `/api/projects/{id}/seq` (POST max-per-key merge)
+
+Missing from `StingBIMServerClient`: warnings sync, workflow run sync, meeting sync, transmittal sync, MIM asset sync, platform connections. See `PLANSCAPE_GAPS.md` INT-01 through INT-10 for details.
+
+## Planscape Mobile App
+
+### Overview
+
+**Planscape Mobile** is a React Native / Expo cross-platform mobile app for on-site BIM coordination, issue management, and document access. Located in `Planscape/`.
+
+### Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React Native + Expo SDK 52 |
+| Router | expo-router v4 (file-based routing) |
+| Language | TypeScript |
+| Camera | expo-camera (QR/barcode scanning) |
+| Storage | @react-native-async-storage (offline queue) |
+| HTTP | Fetch API via `src/api/client.ts` |
+
+### Mobile App Structure
+
+```
+Planscape/
+├── app.json                              # Expo config
+├── package.json                          # Dependencies
+├── tsconfig.json                         # TypeScript config
+├── app/
+│   ├── _layout.tsx                       # Root layout with tab navigation
+│   ├── login.tsx                         # Auth screen
+│   └── (tabs)/
+│       ├── _layout.tsx                   # Tab bar layout (5 tabs)
+│       ├── index.tsx                     # Dashboard tab
+│       ├── issues.tsx                    # Issues tab (list + create)
+│       ├── documents.tsx                 # Documents tab (list + CDE status)
+│       ├── scanner.tsx                   # QR/barcode scanner (828 lines)
+│       └── settings.tsx                  # Settings tab
+└── src/
+    ├── api/
+    │   ├── client.ts                     # HTTP client with JWT auth (97 lines)
+    │   └── endpoints.ts                  # API endpoint constants (100 lines)
+    ├── components/                       # Reusable UI components
+    ├── hooks/                            # Custom React hooks
+    ├── types/                            # TypeScript type definitions
+    └── utils/
+        └── offlineQueue.ts              # AsyncStorage-backed offline queue (124 lines)
+```
+
+### Mobile Offline Queue
+
+The mobile app supports 3 offline action types via `src/utils/offlineQueue.ts`:
+- `CREATE_ISSUE` — Create new RFI/NCR/SI with photos
+- `UPDATE_ISSUE` — Update existing issue status/priority
+- `TRANSITION_CDE` — Change document CDE state
+
+Queue is persisted to `AsyncStorage` and flushed when connectivity is restored.
+
+### Mobile Gap Summary
+
+The mobile app is at **prototype/demo stage** — NOT production-ready for on-site use. Key gaps documented in `PLANSCAPE_GAPS.md`:
+- No photo attachment support (MOB-01)
+- No GPS/location capture (MOB-02)
+- No offline-first data caching (MOB-03)
+- No push notification integration (MOB-04)
+- No document viewer/markup (MOB-06)
+- No compliance dashboard (MOB-09)
+- No meeting/transmittal screens (MOB-10, MOB-11)
+
+Estimated effort to reach on-site production readiness: **12-16 weeks, £33K-£39K** (see `PLANSCAPE_GAPS.md` sections 5-6 for detailed breakdown).
 
 ### Running Locally
 
 ```bash
-cd StingBIM.Server/docker
+# Server
+cd Planscape.Server/docker
 docker compose up -d
 # API: http://localhost:5000
 # Swagger: http://localhost:5000/swagger
-# Demo login: admin@stingbim.demo / admin123
+# Demo login: admin@planscape.demo / admin123
+
+# Mobile (requires Node.js + Expo CLI)
+cd Planscape
+npm install
+npx expo start
 ```
 
 #### Completed (Phase 46 — Intelligent Warnings Manager, Auto-Tagger Bulk Fix, Token Writer Enhancement)
@@ -2453,7 +2567,7 @@ docker compose up -d
 528. **COBieHandoverExportCommand dispatched** — Missing dispatch entry wired in `StingCommandHandler.cs`.
 529. **4 new workflow presets** — `ModelAuditDeep` (8 steps: warnings→templates→data pipeline→schedules→schema→tags→sheets→compliance), `MEPCoordination` (6 steps: clashes→system push→retag→validate→warnings→compliance), `CDE_Submission` (8 steps: retag→resolve→validate→sheet naming→doc naming→register→sheet register→transmittal), `DesignReviewPrep` (5 steps: auto-assign templates→warnings fix→sheet naming→compliance scores→completeness).
 530. **12 new workflow command resolutions** — `ScheduleAudit`, `SchemaValidate`, `SheetComplianceCheck`, `SheetNamingCheck`, `TemplateAudit`, `TemplateComplianceScore`, `ClashDetection`, `BatchSystemPush`, `ExportSheetRegister`, `COBieHandoverExport`, `GenerateBEP`, `WarningsMonitor` added to `WorkflowEngine.ResolveCommand()`.
-531. **Branch consolidation** — Merged `claude/fix-ui-enhance-workflows-t7m5b` (StingBIM Server + 25 gap fixes) and `claude/structural-modeling-automation-sPf3f` (5 commits: advanced structural, plastering, coverings, design intelligence, architectural creation) into `claude/review-merge-conflicts-aaVRG`. All merge conflicts resolved cleanly.
+531. **Branch consolidation** — Merged `claude/fix-ui-enhance-workflows-t7m5b` (Planscape Server + 25 gap fixes) and `claude/structural-modeling-automation-sPf3f` (5 commits: advanced structural, plastering, coverings, design intelligence, architectural creation) into `claude/review-merge-conflicts-aaVRG`. All merge conflicts resolved cleanly.
 
 #### Completed (Phase 56 — Second-Pass Deep Review: Warnings Intelligence, Model Validation, Morning Briefing & Compliance Trends)
 
@@ -3198,4 +3312,4 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 - **Document upload**: `POST /api/projects/{id}/documents/upload` with `IFormFile`, tenant/project path isolation (`{StoragePath}/{tenantSlug}/{projectCode}/`), SHA-256 content hashing, timestamp-suffix dedup, 100MB limit. `GET /download/{docId}` with `PhysicalFileResult`. CDE state transitions with ISO 19650 suitability codes.
 - **Project settings**: `PUT /api/projects/{id}` for project name/code/description/settings updates.
 - **SLA escalation push**: `SlaEscalationJob` (Hangfire, 15-min interval) queries overdue issues per SLA thresholds (CRITICAL=4h, HIGH=24h, MEDIUM=168h, LOW=336h), sends push to assignee + project admins.
-- **Hand-written EF Core migration**: `20250407000000_InitialCreate.cs` (822 lines) + `StingBimDbContextModelSnapshot.cs` (1454 lines) covering all 20 entities including DevicePushToken and IssueAttachment with indexes, foreign keys, and filtered indexes.
+- **Hand-written EF Core migration**: `20250407000000_InitialCreate.cs` (822 lines) + `PlanscapeDbContextModelSnapshot.cs` (1454 lines) covering all 20 entities including DevicePushToken and IssueAttachment with indexes, foreign keys, and filtered indexes.

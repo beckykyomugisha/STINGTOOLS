@@ -760,7 +760,8 @@ namespace StingTools.BIMManager
                     batchNum++;
                     if (progress != null)
                     {
-                        progress.Increment($"Batch {batchNum}: processing {currentBatch.Count} rows...");
+                        progress.Increment(
+                            $"Batch {batchNum}: processing {currentBatch.Count} rows...");
                         if (progress.IsCancelled)
                         {
                             result.WasCancelled = true;

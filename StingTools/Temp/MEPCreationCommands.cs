@@ -1,5 +1,5 @@
 // ===================================================================================
-// MEP Creation Commands — Adapted from StingBIM.AI.Creation.MEP
+// MEP Creation Commands — Adapted from Planscape.AI.Creation.MEP
 // Programmatic MEP element creation: HVAC, Electrical, Plumbing, Fire Protection,
 // Conduit, Cable Tray, Data/IT, Security, Gas, Solar PV, EV Charging.
 // Covers remaining ME gaps + MEP-specific creation intelligence.

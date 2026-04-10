@@ -27,7 +27,7 @@ namespace StingTools.Docs
     //    4. Asset Health Report — 0-100 health scoring (5 dimensions)
     //    5. Space Handover Report — room-by-room asset inventory with density
     //
-    //  Enhanced from StingBIM.AI repos: FacilityManagement (predictive analytics,
+    //  Enhanced from Planscape.AI repos: FacilityManagement (predictive analytics,
     //  equipment health scoring), Maintenance (ASTM E2018, work orders, failure
     //  modes), TenantManagement (space management, BOMA 2017).
     //
@@ -859,7 +859,7 @@ namespace StingTools.Docs
 
     /// <summary>
     /// Export Asset Health &amp; Condition Report.
-    /// Inspired by StingBIM.AI.FacilityManagement predictive analytics.
+    /// Inspired by Planscape.AI.FacilityManagement predictive analytics.
     /// Scores each tagged asset on a 0-100 health scale based on tag completeness,
     /// maintenance type assignment, manufacturer data completeness, and ISO 19650
     /// compliance. Exports CSV with health scores, risk levels, and recommendations.
@@ -1035,7 +1035,7 @@ namespace StingTools.Docs
 
     /// <summary>
     /// Export Space Handover Report.
-    /// Inspired by StingBIM.AI.TenantManagement space management.
+    /// Inspired by Planscape.AI.TenantManagement space management.
     /// Lists all rooms/spaces with their tagged asset counts, discipline breakdown,
     /// area, department, and asset density — useful for FM space planning and
     /// tenant handover documentation.

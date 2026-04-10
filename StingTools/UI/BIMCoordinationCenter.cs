@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -75,7 +75,7 @@ namespace StingTools.UI
         private const string TabCoordLog       = "COORD LOG";
 
         // ── Data ──
-        private CoordData _data;
+        internal CoordData _data;
         private readonly ContentControl _contentArea;
         private readonly TextBlock _statusBar;
         private readonly StackPanel _navPanel;
@@ -121,6 +121,20 @@ namespace StingTools.UI
         // Phase 77 Item 7: Model Health action panel area
         private ContentControl _modelHealthActionArea;
 
+        // Phase 78 Section 1.1: Additional inline panel ContentControl fields (reserved for future tab detail areas)
+#pragma warning disable CS0169 // Field is not used yet — reserved for future inline detail panels
+        private ContentControl _meetingDetailArea;       // Meetings tab inline detail
+        private ContentControl _meetingMinutesArea;      // Minutes editor area
+        private ContentControl _meetingActionsArea;      // Action items area
+        private ContentControl _deliverableDetailArea;   // Deliverables detail
+        private ContentControl _qaDetailArea;            // QA detail panels
+        private ContentControl _overviewDetailArea;      // Overview drill-down
+        private ContentControl _warningsDetailArea;      // Warnings full inline panel
+        private ContentControl _coordLogDetailArea;      // Coord log filter + detail
+        private ContentControl _permissionsDetailArea;   // Permissions inline
+        private ContentControl _stingBIMDetailArea;      // StingBIM hub detail
+#pragma warning restore CS0169
+
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
         internal static Action<string> ActionDispatcher { get; set; }
 
@@ -130,6 +144,104 @@ namespace StingTools.UI
             Dispatcher.BeginInvoke(new Action(() => { Activate(); Focus(); }),
                 System.Windows.Threading.DispatcherPriority.Background);
         }
+
+        // Phase 78 Section 2.1: Canonical ISO 19650-aligned issue type registry
+        // Single source of truth — all dropdowns, brushes, and wizards derive from this.
+        internal static readonly (string Code, string Label, string Description, Color Colour)[] IsoIssueTypes =
+        {
+            // Information Management (ISO 19650 Part 1 & 2)
+            ("NCR",          "Non-Conformance Report",           "Element/data does not meet EIR or BEP requirements",          Color.FromRgb(0xC6,0x28,0x28)),
+            ("RFI",          "Request for Information",          "Clarification required from appointing party or designer",     Color.FromRgb(0x15,0x65,0xC0)),
+            ("RFA",          "Request for Approval",             "Formal approval request for design or information model",      Color.FromRgb(0x1A,0x23,0x7E)),
+            ("TQ",           "Technical Query",                  "Technical question requiring formal documented response",       Color.FromRgb(0x00,0x69,0x7C)),
+            ("SI",           "Site Instruction",                 "Instruction issued to contractor on site",                     Color.FromRgb(0xE8,0x91,0x2D)),
+            ("EWN",          "Early Warning Notice",             "Risk or issue likely to affect time, cost or quality",         Color.FromRgb(0xF5,0x7F,0x17)),
+            ("CE",           "Compensation Event",               "Change event with cost or programme implications",             Color.FromRgb(0x6A,0x1B,0x9A)),
+            ("VO",           "Variation Order",                  "Formal instruction to vary contract works",                    Color.FromRgb(0x6A,0x1B,0x9A)),
+            ("AI",           "Architect's Instruction",          "Formal instruction from lead designer/architect",              Color.FromRgb(0x00,0x60,0x64)),
+            ("PMI",          "Project Manager's Instruction",    "Instruction issued by project manager",                        Color.FromRgb(0x2E,0x7D,0x32)),
+            ("CVI",          "Confirmation of Verbal Instruction","Written record of previously verbal instruction",             Color.FromRgb(0x37,0x47,0x4F)),
+            // Coordination & Clash
+            ("CLASH",        "Clash / Interference",             "Hard or soft clash between discipline models",                 Color.FromRgb(0xC6,0x28,0x28)),
+            ("COORDINATION", "Coordination Issue",               "Cross-discipline coordination gap or conflict",                Color.FromRgb(0x15,0x65,0xC0)),
+            ("DESIGN",       "Design Issue",                     "Design intent unclear, incomplete, or conflicting",            Color.FromRgb(0x1A,0x23,0x7E)),
+            ("SPATIAL",      "Spatial / Clearance",              "Insufficient clearance, access, or maintenance space",         Color.FromRgb(0x00,0x69,0x7C)),
+            // Data & Compliance
+            ("DATA",         "Data Integrity Issue",             "Missing, incorrect, or inconsistent parameter data",           Color.FromRgb(0xE8,0x91,0x2D)),
+            ("COMPLIANCE",   "Compliance Issue",                 "Non-compliance with ISO 19650, EIR, or BEP requirements",      Color.FromRgb(0xC6,0x28,0x28)),
+            ("NAMING",       "Naming Convention Issue",          "Document or element naming does not follow convention",        Color.FromRgb(0xF5,0x7F,0x17)),
+            ("LOD",          "Level of Detail Issue",            "LOD/LOI not achieved for current RIBA stage",                  Color.FromRgb(0x6A,0x1B,0x9A)),
+            // Construction / Site
+            ("SNAGGING",     "Snagging / Defect",                "Construction defect requiring rectification",                  Color.FromRgb(0xC6,0x28,0x28)),
+            ("SITE",         "Site Observation",                 "General site observation or non-critical note",                Color.FromRgb(0x45,0x50,0x6E)),
+            ("SAFETY",       "Health & Safety",                  "H&S risk, near-miss, or CDM-notifiable issue",                 Color.FromRgb(0xC6,0x28,0x28)),
+            ("ENVIRONMENTAL","Environmental",                    "Environmental impact, sustainability, or ecology issue",        Color.FromRgb(0x2E,0x7D,0x32)),
+            ("ACCESSIBILITY","Accessibility / DDA",              "Access, inclusion, or Building Regulations Part M issue",      Color.FromRgb(0x00,0x69,0x7C)),
+            // Structural / MEP
+            ("STRUCTURAL",   "Structural Issue",                 "Structural integrity, loading, or connection concern",         Color.FromRgb(0x37,0x47,0x4F)),
+            ("MEP",          "MEP Coordination",                 "Mechanical, electrical, or plumbing routing conflict",         Color.FromRgb(0x15,0x65,0xC0)),
+            ("FIRE",         "Fire Strategy",                    "Passive/active fire protection, compartmentation concern",      Color.FromRgb(0xC6,0x28,0x28)),
+            // Programme & Cost
+            ("PROGRAMME",    "Programme / Schedule",             "Activity delay, float erosion, or milestone at risk",          Color.FromRgb(0xF5,0x7F,0x17)),
+            ("COST",         "Cost / Commercial",                "Budget overrun, cost query, or BOQ discrepancy",               Color.FromRgb(0x6A,0x1B,0x9A)),
+            ("RISK",         "Risk Register Item",               "Project risk requiring monitoring or mitigation",               Color.FromRgb(0xE8,0x91,0x2D)),
+            // Handover / FM
+            ("HANDOVER",     "Handover Issue",                   "FM handover, O&M, or COBie data completeness issue",           Color.FromRgb(0x00,0x60,0x64)),
+            ("BIM",          "BIM Process Issue",                "BIM workflow, platform, or model management issue",            Color.FromRgb(0x1A,0x23,0x7E)),
+            // Admin
+            ("CLIENT",       "Client Comment",                   "Comment or query raised by the appointing party",              Color.FromRgb(0x45,0x50,0x6E)),
+            ("AUTHORITY",    "Authority / Planning",             "Regulatory, planning, or building control query",              Color.FromRgb(0x37,0x47,0x4F)),
+            ("CHANGE",       "Change Request",                   "Requested change to scope, design, or specification",          Color.FromRgb(0x6A,0x1B,0x9A)),
+            ("ACTION",       "Action Item",                      "Meeting action requiring follow-up (not a formal issue)",      Color.FromRgb(0x45,0x50,0x6E)),
+            ("COMMENT",      "General Comment",                  "Informal observation or comment (no formal response required)",Color.FromRgb(0x78,0x90,0x9C)),
+        };
+
+        // Phase 78 Section 3.1: Default ISO 19650 team roles for issue assignment grid
+        private static readonly (string Role, string Group)[] DefaultIssueAssignees =
+        {
+            // Delivery Team — Lead
+            ("BIM Manager",               "Lead"),
+            ("Information Manager",       "Lead"),
+            ("Lead Designer / Architect", "Lead"),
+            ("Project Manager",           "Lead"),
+            ("Design Manager",            "Lead"),
+            // Architecture & Interior
+            ("Architect",                 "Architecture"),
+            ("Interior Designer",         "Architecture"),
+            ("Landscape Architect",       "Architecture"),
+            // Structure
+            ("Structural Engineer",       "Structure"),
+            ("Geotechnical Engineer",     "Structure"),
+            // MEP
+            ("MEP Engineer",              "MEP"),
+            ("Mechanical Engineer",       "MEP"),
+            ("Electrical Engineer",       "MEP"),
+            ("Plumbing Engineer",         "MEP"),
+            ("Fire Protection Engineer",  "MEP"),
+            ("Acoustic Engineer",         "MEP"),
+            // Specialist
+            ("Façade Engineer",           "Specialist"),
+            ("Vertical Transport",        "Specialist"),
+            ("Sustainability Consultant", "Specialist"),
+            ("BREEAM Assessor",           "Specialist"),
+            ("Security Consultant",       "Specialist"),
+            // Contractor
+            ("Main Contractor",           "Contractor"),
+            ("Site Manager",              "Contractor"),
+            ("Sub-Contractor",            "Contractor"),
+            ("MEP Contractor",            "Contractor"),
+            ("Steel Fabricator",          "Contractor"),
+            // QA / Compliance
+            ("QA/QC Manager",             "Compliance"),
+            ("CDM Coordinator",           "Compliance"),
+            ("Health & Safety",           "Compliance"),
+            ("Building Control Officer",  "Compliance"),
+            // Client / FM
+            ("Client / Employer",         "Client"),
+            ("Facilities Manager",        "Client"),
+            ("Asset Manager",             "Client"),
+            ("Planning Officer",          "Client"),
+        };
 
         // BCC-HIGH-01: Cache built tab content — avoids rebuilding full visual tree on every NavigateTo
         private readonly Dictionary<string, UIElement> _tabCache = new Dictionary<string, UIElement>();
@@ -354,6 +466,8 @@ namespace StingTools.UI
             public string Discipline { get; set; }
             public string Revision { get; set; }
             public int ElementCount { get; set; }
+            public string Location  { get; set; }
+            public string RaisedBy  { get; set; }
             /// <summary>Display string: shows first assignee + N more if multi-assigned.</summary>
             public string AssigneeDisplay => AssigneeList.Count <= 1 ? (Assignee ?? "") :
                 $"{AssigneeList[0]} +{AssigneeList.Count - 1}";
@@ -364,10 +478,14 @@ namespace StingTools.UI
         {
             public string Id { get; set; }
             public string Name { get; set; }
-            public string Number { get; set; }   // Phase 76: revision sequence code e.g. P01
+            public string Number { get; set; }       // ISO revision code e.g. P01, C02, A
+            public string IsoCode { get; set; }      // Full ISO code with series label e.g. "P01 — Preliminary"
+            public string Series { get; set; }       // Preliminary / Construction / As-Built
             public string Date { get; set; }
             public string Description { get; set; }
-            public string Author { get; set; }   // Phase 76: author name
+            public string Author { get; set; }
+            public string Discipline { get; set; }   // Originating discipline: A / S / M / E / P / FP / LV / G / ALL
+            public string Sheets { get; set; }       // Comma-separated sheet numbers
             public int Clouds { get; set; }
             public string Status { get; set; }
         }
@@ -377,11 +495,12 @@ namespace StingTools.UI
         {
             public string Code { get; set; }           // ISO 19650 file code
             public string Name { get; set; }
-            public string Type { get; set; }            // Model/Drawing/Schedule/Report/Data
-            public string DataDrop { get; set; }        // DD1/DD2/DD3/DD4
-            public string Status { get; set; }          // Pending/In Progress/Submitted/Approved/Rejected
-            public string Suitability { get; set; }     // S0-S7
-            public string CDE { get; set; }             // WIP/SHARED/PUBLISHED/ARCHIVE
+            public string Discipline { get; set; }     // ISO discipline code: A/S/M/E/P/FP/LV/G/C/L/ALL
+            public string Type { get; set; }           // Model/Drawing/Schedule/Report/Data
+            public string DataDrop { get; set; }       // DD1/DD2/DD3/DD4
+            public string Status { get; set; }         // Pending/In Progress/Submitted/Approved/Rejected
+            public string Suitability { get; set; }    // S0-S7
+            public string CDE { get; set; }            // WIP/SHARED/PUBLISHED/ARCHIVE
             public string Owner { get; set; }
             public string DueDate { get; set; }
             public bool IsOverdue { get; set; }
@@ -602,7 +721,7 @@ namespace StingTools.UI
 
             // Phase 76: Register singleton instance
             CurrentInstance = this;
-            Closed += (s, e) => { CurrentInstance = null; };
+            Closed += OnClosed;
         }
 
         private string BuildStatusText()
@@ -902,6 +1021,18 @@ namespace StingTools.UI
                 $"Discipline container completion\nRequired for COBie export\nand platform deliverables",
                 "CombineParameters"));
             stack.Children.Add(kpiGrid);
+
+            // Phase 91 H3: Forecast KPI card
+            try
+            {
+                string forecastDate = Core.ComplianceTrendTracker.ForecastCompletionDate(StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document, _data.RAGGreenThreshold);
+                var forecastGrid = new UniformGrid { Columns = 1, Margin = new Thickness(0, 0, 0, 8) };
+                forecastGrid.Children.Add(MakeKPICard("FORECAST", forecastDate,
+                    Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+                    $"Projected date to reach {_data.RAGGreenThreshold:F0}% compliance (linear regression on workflow history)"));
+                stack.Children.Add(forecastGrid);
+            }
+            catch { /* forecast non-critical */ }
 
             // RAG compliance bar
             stack.Children.Add(MakeRAGBar("Tag Compliance", _data.TagPct));
@@ -1474,7 +1605,7 @@ namespace StingTools.UI
                 }
                 var detailsMi = new MenuItem { Header = "Show Details" };
                 string detailText = $"{check}: {score}/{max}\n{detail}";
-                detailsMi.Click += (s, e) => { System.Windows.MessageBox.Show(detailText, check); };
+                detailsMi.Click += (s, e) => { ShowInlineStatus(_modelHealthActionArea, check, detailText); };
                 checkCm.Items.Add(detailsMi);
                 checkCard.ContextMenu = checkCm;
 
@@ -1770,12 +1901,13 @@ namespace StingTools.UI
 
         private UIElement BuildWarningsTab()
         {
-            var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-            var root = new StackPanel { Margin = new Thickness(16) };
-            sv.Content = root;
+            var state = new WarningsDashboardDialog.WarningsPanelState();
 
-            // ── KPI CARDS (6 columns) ─────────────────────────────────────
-            var kpiGrid = new UniformGrid { Columns = 6, Margin = new Thickness(0, 0, 0, 12) };
+            // ── Root DockPanel ────────────────────────────────────────────
+            var dock = new DockPanel { LastChildFill = true, Margin = new Thickness(12, 10, 12, 10) };
+
+            // ── KPI STRIP (top, 8 cards) ──────────────────────────────────
+            var kpiGrid = new UniformGrid { Columns = 8, Margin = new Thickness(0, 0, 0, 8) };
             kpiGrid.Children.Add(MakeKPICard("TOTAL", _data.WarningTotal.ToString(),
                 _data.WarningTotal > 20 ? Br(CRed) : _data.WarningTotal > 5 ? Br(CAmber) : Br(CGreen),
                 $"Total Revit warnings in model\nBaseline trend: {_data.WarningTrend}", "WarningsDashboard"));
@@ -1785,494 +1917,62 @@ namespace StingTools.UI
             kpiGrid.Children.Add(MakeKPICard("HIGH", _data.WarningHigh.ToString(),
                 _data.WarningHigh > 0 ? Br(CAmber) : Br(CGreen),
                 "High-severity warnings affect deliverable quality\nSLA: resolve within 24 hours"));
-            kpiGrid.Children.Add(MakeKPICard("AUTO-FIXABLE", _data.WarningAutoFixable.ToString(), Br(CGreen),
+            kpiGrid.Children.Add(MakeKPICard("MEDIUM", (_data.WarningTotal - _data.WarningCritical - _data.WarningHigh).ToString(),
+                Br(CAmber), "Medium-severity warnings — resolve within 1 week"));
+            kpiGrid.Children.Add(MakeKPICard("AUTO-FIX", _data.WarningAutoFixable.ToString(), Br(CGreen),
                 $"One-click auto-fix available\n{_data.WarningManualReview} require manual review", "AutoFixWarnings"));
             kpiGrid.Children.Add(MakeKPICard("HEALTH", $"{_data.WarningHealthScore}/100",
                 _data.WarningHealthScore >= 80 ? Br(CGreen) : _data.WarningHealthScore >= 50 ? Br(CAmber) : Br(CRed),
                 "Weighted: Critical=-20, High=-5, Medium=-2, Low=-1 per warning from base 100"));
-            kpiGrid.Children.Add(MakeKPICard("SLA VIOLATIONS", _data.WarningSLAViolations.ToString(),
+            kpiGrid.Children.Add(MakeKPICard("SLA BREACH", _data.WarningSLAViolations.ToString(),
                 _data.WarningSLAViolations > 0 ? Br(CRed) : Br(CGreen),
-                $"Warnings exceeding SLA threshold\nCritical=4h, High=24h, Medium=1wk, Low=2wk\nAvg critical age: {_data.WarningAvgCriticalAgeHours:F1}h"));
-            root.Children.Add(kpiGrid);
+                $"Warnings exceeding SLA threshold\nCritical=4h, High=24h\nAvg critical age: {_data.WarningAvgCriticalAgeHours:F1}h"));
+            kpiGrid.Children.Add(MakeKPICard("GATE", _data.WarningGatePass ? "PASS" : "FAIL",
+                _data.WarningGatePass ? Br(CGreen) : Br(CRed),
+                _data.WarningGatePass ? "Warning gate: PASS — deliverable OK" : $"Warning gate: FAIL — {_data.WarningGateReason}"));
+            DockPanel.SetDock(kpiGrid, Dock.Top);
+            dock.Children.Add(kpiGrid);
 
-            // ── WARNING GATE STATUS ───────────────────────────────────────
-            var gateCard = MakeCard();
-            var gateRow = new StackPanel { Orientation = Orientation.Horizontal };
-            var gateDot = new Ellipse { Width = 14, Height = 14, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
-                Fill = _data.WarningGatePass ? Br(CGreen) : Br(CRed) };
-            gateRow.Children.Add(gateDot);
-            gateRow.Children.Add(new TextBlock { Text = _data.WarningGatePass ? "WARNING GATE: PASS" : "WARNING GATE: FAIL",
-                FontWeight = FontWeights.Bold, FontSize = 14, VerticalAlignment = VerticalAlignment.Center,
-                Foreground = _data.WarningGatePass ? Br(CGreen) : Br(CRed) });
-            if (!string.IsNullOrEmpty(_data.WarningGateReason))
-                gateRow.Children.Add(new TextBlock { Text = $"  —  {_data.WarningGateReason}", FontSize = 12,
-                    VerticalAlignment = VerticalAlignment.Center, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)) });
-            gateCard.Child = gateRow;
-            root.Children.Add(gateCard);
-
-            // ── ACTION BUTTONS (3-column grid) ───────────────────────────
-            var actGrid = new Grid { Margin = new Thickness(0, 0, 0, 14) };
-            actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            actGrid.RowDefinitions.Add(new RowDefinition());
-            actGrid.RowDefinitions.Add(new RowDefinition());
-            actGrid.RowDefinitions.Add(new RowDefinition());
-            var actBtns = new (string Label, string Tag, Color Clr, string Tip, int Row, int Col)[]
+            // ── BOTTOM ACTION BAR ─────────────────────────────────────────
+            var actionBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+            DockPanel.SetDock(actionBar, Dock.Bottom);
+            var runBtn = new Button
             {
-                ("Auto-Fix All", "AutoFixWarnings", CGreen, "Run all 16 auto-fix strategies in batch with dry-run preview", 0, 0),
-                ("Export Excel", "ExportWarnings", CHeaderBg, "Export all warnings with severity, root-cause, elements and SLA data to Excel for Power BI", 0, 1),
-                ("Save Baseline", "SaveBaseline", CAccent, "Snapshot current warning count as baseline for trend tracking", 0, 2),
-                ("Select Elements", "SelectWarningElements", Color.FromRgb(0x6A, 0x1B, 0x9A), "Pick warning type → select affected elements in model view", 1, 0),
-                ("Suppress Selected", "SuppressWarnings", Color.FromRgb(0x45, 0x50, 0x6E), "Add patterns to suppression list (persisted, time-limited, auditable)", 1, 1),
-                ("Create Issues", "CreateIssuesFromWarnings", CRed, "Auto-create NCR/SI issues from critical/high warnings with element linking", 1, 2),
-                ("Compliance Check", "WarningsCompliance", CHeaderBg, "ISO 19650 / CIBSE / BS 7671 compliance report mapping warnings to standards", 2, 0),
-                ("Root Cause Analysis", "WarningRootCause", Color.FromRgb(0x00, 0x69, 0x7C), "Weighted root-cause graph with impact scoring and multi-warning element detection", 2, 1),
-                ("Warning Prediction", "WarningPrediction", Color.FromRgb(0x45, 0x50, 0x6E), "7-day trend prediction using linear regression on historical warning counts", 2, 2),
+                Content = "▶  Run Selected Action", Padding = new Thickness(14, 5, 14, 5),
+                Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                FontWeight = FontWeights.SemiBold, FontSize = 12, Cursor = System.Windows.Input.Cursors.Hand,
+                Margin = new Thickness(0, 0, 10, 0), ToolTip = "Execute the highlighted operation from the panel below"
             };
-            foreach (var (label, tag, clr, tip, row, col) in actBtns)
+            var statusBar = new TextBlock { FontSize = 11, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), VerticalAlignment = VerticalAlignment.Center };
+            state.StatusText = statusBar;
+            runBtn.Click += (s, e) =>
             {
-                var btn = MakeActionButton(label, tag, Br(clr), tip);
-                Grid.SetRow(btn, row); Grid.SetColumn(btn, col);
-                actGrid.Children.Add(btn);
-            }
-            root.Children.Add(actGrid);
-
-            // ── DELIVERABLE IMPACT ANALYSIS ──────────────────────────────
-            if (_data.WarningImpactCOBie > 0 || _data.WarningImpactIFC > 0 || _data.WarningImpactHandover > 0 ||
-                _data.WarningImpactSchedules > 0 || _data.WarningImpactClash > 0)
-            {
-                root.Children.Add(MakeSectionHeader("DELIVERABLE IMPACT ANALYSIS"));
-                var impactCard = MakeCard();
-                var impactStack = new StackPanel();
-                if (!string.IsNullOrEmpty(_data.WarningHighestImpactArea))
+                string op = state.SelectedOperation ?? WarningsDashboardDialog.GetSelectedOperation();
+                if (string.IsNullOrEmpty(op))
                 {
-                    impactStack.Children.Add(new TextBlock
-                    {
-                        Text = $"Highest Impact: {_data.WarningHighestImpactArea}",
-                        FontWeight = FontWeights.Bold, FontSize = 13, Foreground = Br(CRed), Margin = new Thickness(0, 0, 0, 8)
-                    });
+                    statusBar.Text = "Select an operation from a tab below first.";
+                    statusBar.Foreground = Br(CRed);
                 }
-                var impacts = new (string Name, int Count, Color Clr)[]
-                {
-                    ("COBie Export", _data.WarningImpactCOBie, Color.FromRgb(0x15, 0x65, 0xC0)),
-                    ("IFC Export", _data.WarningImpactIFC, Color.FromRgb(0x00, 0x69, 0x7C)),
-                    ("FM Handover", _data.WarningImpactHandover, CRed),
-                    ("Schedules", _data.WarningImpactSchedules, CAmber),
-                    ("Clash Detection", _data.WarningImpactClash, Color.FromRgb(0x6A, 0x1B, 0x9A)),
-                };
-                int maxImpact = impacts.Max(i => i.Count);
-                foreach (var (name, count, clr) in impacts)
-                {
-                    if (count <= 0) continue;
-                    var impRow = new Grid { Margin = new Thickness(0, 3, 0, 3), Height = 24 };
-                    impRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-                    impRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                    impRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    impRow.Children.Add(new TextBlock { Text = name, FontSize = 11, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
-                    var cntTb = new TextBlock { Text = $"{count}", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(clr), VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 1); impRow.Children.Add(cntTb);
-                    double barPct = maxImpact > 0 ? count * 100.0 / maxImpact : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 10, CornerRadius = new CornerRadius(5), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(clr), Height = 10, CornerRadius = new CornerRadius(5), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); impRow.Children.Add(barGrid);
-                    impactStack.Children.Add(impRow);
-                }
-                impactCard.Child = impactStack;
-                root.Children.Add(impactCard);
-            }
-
-            // ── ROOT CAUSE GROUPS ────────────────────────────────────────
-            if (_data.WarningRootCauseGroups.Count > 0)
-            {
-                root.Children.Add(MakeSectionHeader("ROOT CAUSE ANALYSIS (by impact)"));
-                var rcCard = MakeCard();
-                var rcStack = new StackPanel();
-                int maxRcCount = _data.WarningRootCauseGroups.Max(g => g.Count);
-                foreach (var (desc, cat, sev, count, canAutoFix, fix) in _data.WarningRootCauseGroups.OrderByDescending(g => g.Count).Take(15))
-                {
-                    var rcRow = new Grid { Margin = new Thickness(0, 3, 0, 3) };
-                    rcRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    rcRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
-                    rcRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
-                    rcRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-
-                    var sevColor = sev == WarningSeverity.Critical ? CRed : sev == WarningSeverity.High ? CAmber :
-                        sev == WarningSeverity.Medium ? Color.FromRgb(0xF5, 0xC5, 0x42) : Color.FromRgb(0x90, 0xA4, 0xAE);
-
-                    // Description with severity dot and auto-fix badge
-                    var descPanel = new StackPanel { Orientation = Orientation.Horizontal };
-                    descPanel.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = Br(sevColor), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center });
-                    var descTb = new TextBlock { Text = desc, FontSize = 10.5, TextTrimming = TextTrimming.CharacterEllipsis,
-                        VerticalAlignment = VerticalAlignment.Center, ToolTip = desc };
-                    descPanel.Children.Add(descTb);
-                    if (canAutoFix)
-                    {
-                        descPanel.Children.Add(new Border
-                        {
-                            Background = Br(Color.FromRgb(0xE8, 0xF5, 0xE9)), CornerRadius = new CornerRadius(3),
-                            Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(4, 1, 4, 1),
-                            Child = new TextBlock { Text = "AUTO-FIX", FontSize = 8, FontWeight = FontWeights.Bold, Foreground = Br(CGreen) }
-                        });
-                    }
-                    rcRow.Children.Add(descPanel);
-
-                    var catTb = new TextBlock { Text = cat.ToString(), FontSize = 10, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(catTb, 1); rcRow.Children.Add(catTb);
-
-                    var cntTb = new TextBlock { Text = $"×{count}", FontWeight = FontWeights.Bold, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 2); rcRow.Children.Add(cntTb);
-
-                    // Mini bar for relative count
-                    double rcPct = maxRcCount > 0 ? count * 100.0 / maxRcCount : 0;
-                    var rcBar = new Border { Background = Br(sevColor), Height = 6, CornerRadius = new CornerRadius(3),
-                        HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 };
-                    var rcBarBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 6, CornerRadius = new CornerRadius(3), VerticalAlignment = VerticalAlignment.Center };
-                    var rcBarGrid = new Grid(); rcBarGrid.Children.Add(rcBarBg); rcBarGrid.Children.Add(rcBar);
-                    rcBarBg.Loaded += (s, e) => { rcBar.Width = Math.Max(4, rcBarBg.ActualWidth * rcPct / 100.0); };
-                    Grid.SetColumn(rcBarGrid, 3); rcRow.Children.Add(rcBarGrid);
-
-                    // Interactive: double-click to select, right-click for context menu
-                    rcRow.Cursor = Cursors.Hand;
-                    rcRow.ToolTip = $"Category: {cat}\nSeverity: {sev}\nCount: {count}\nFix strategy: {(string.IsNullOrEmpty(fix) ? "Manual review" : fix)}\nDouble-click to select affected elements";
-                    rcRow.MouseLeftButtonDown += (s, e) =>
-                    {
-                        if (e.ClickCount == 2) { DispatchAction($"SelectWarning_{cat}|{desc}"); }
-                    };
-                    var rcCtx = new ContextMenu();
-                    var rcZoom = new MenuItem { Header = "Zoom to 3D Section Box" };
-                    rcZoom.Click += (s2, e2) => { DispatchAction($"ZoomToWarning_{cat}|{desc}"); };
-                    var rcSelect = new MenuItem { Header = "Select Elements in Model" };
-                    rcSelect.Click += (s2, e2) => { DispatchAction($"SelectWarning_{cat}|{desc}"); };
-                    rcCtx.Items.Add(rcZoom); rcCtx.Items.Add(rcSelect);
-                    rcRow.ContextMenu = rcCtx;
-
-                    rcStack.Children.Add(rcRow);
-                }
-                rcCard.Child = rcStack;
-                root.Children.Add(rcCard);
-            }
-
-            // ── WARNING TREE (Category > Description) ────────────────────
-            root.Children.Add(MakeSectionHeader("WARNING TREE (double-click to select / zoom)"));
-            var tree = new TreeView
-            {
-                BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
-                MaxHeight = 280, Margin = new Thickness(0, 0, 0, 12),
-                Background = Br(CCardBg)
+                else { DispatchAction(op); }
             };
-            var catGroups = _data.WarningByCategory.OrderByDescending(x => x.Value);
-            foreach (var catKv in catGroups)
-            {
-                var catColor = catKv.Key == WarningCategory.Structural || catKv.Key == WarningCategory.Spatial ? CRed :
-                    catKv.Key == WarningCategory.MEP ? CAmber :
-                    catKv.Key == WarningCategory.Acoustic ? Color.FromRgb(0x6A, 0x1B, 0x9A) :
-                    catKv.Key == WarningCategory.Sustainability ? CGreen :
-                    catKv.Key == WarningCategory.Coordination ? Color.FromRgb(0x00, 0x69, 0x7C) :
-                    Color.FromRgb(0x37, 0x47, 0x4F);
-                var catNode = new TreeViewItem
-                {
-                    Header = new StackPanel { Orientation = Orientation.Horizontal, Children =
-                    {
-                        new Ellipse { Width = 10, Height = 10, Fill = Br(catColor), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center },
-                        new TextBlock { Text = $"{catKv.Key} ({catKv.Value})", FontWeight = FontWeights.Bold, FontSize = 12 }
-                    }},
-                    IsExpanded = catKv.Key == WarningCategory.Spatial || catKv.Key == WarningCategory.MEP || catKv.Key == WarningCategory.Structural
-                };
-                if (_data.WarningTopByCategory.TryGetValue(catKv.Key, out var topDescs))
-                {
-                    foreach (var (desc, count) in topDescs)
-                    {
-                        var descNode = new TreeViewItem
-                        {
-                            Header = new TextBlock { Text = $"({count}) {desc}", FontSize = 11, TextWrapping = TextWrapping.Wrap, MaxWidth = 600 },
-                            Tag = $"SelectWarning_{catKv.Key}|{desc}", Cursor = Cursors.Hand,
-                            ToolTip = "Double-click to zoom to 3D section box\nRight-click for more options"
-                        };
-                        descNode.MouseDoubleClick += (s, e) =>
-                        {
-                            if (descNode.Tag is string tag) { DispatchAction("ZoomToWarning_" + tag.Substring("SelectWarning_".Length)); }
-                            e.Handled = true;
-                        };
-                        var ctx = new ContextMenu();
-                        var zoomItem = new MenuItem { Header = "Zoom to 3D Section Box" };
-                        zoomItem.Click += (s2, e2) => { if (descNode.Tag is string t) { DispatchAction("ZoomToWarning_" + t.Substring("SelectWarning_".Length)); } };
-                        var selectItem = new MenuItem { Header = "Select Elements in Model" };
-                        selectItem.Click += (s2, e2) => { if (descNode.Tag is string t) { DispatchAction(t); } };
-                        ctx.Items.Add(zoomItem); ctx.Items.Add(selectItem);
-                        descNode.ContextMenu = ctx;
-                        catNode.Items.Add(descNode);
-                    }
-                    int remainder = catKv.Value - topDescs.Sum(t => t.Count);
-                    if (remainder > 0)
-                        catNode.Items.Add(new TreeViewItem { Header = new TextBlock { Text = $"...and {remainder} more", FontSize = 10, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontStyle = FontStyles.Italic } });
-                }
-                tree.Items.Add(catNode);
-            }
-            root.Children.Add(tree);
+            actionBar.Children.Add(runBtn);
+            actionBar.Children.Add(statusBar);
+            dock.Children.Add(actionBar);
 
-            // ── TWO-COLUMN LAYOUT: By Category + By Severity ─────────────
-            var twoCol = new Grid { Margin = new Thickness(0, 0, 0, 12) };
-            twoCol.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            twoCol.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) }); // spacer
-            twoCol.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            // ── 6-TAB WARNINGS MANAGEMENT PANEL ──────────────────────────
+            var innerTabs = new TabControl { Background = Br(CPageBg), BorderThickness = new Thickness(0) };
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildOverviewTab(state));
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildBrowseSelectTab(state));
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildAutoFixTab(state));
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildSelectInspectTab(state));
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildBaselineSLATab(state));
+            innerTabs.Items.Add(WarningsDashboardDialog.BuildExportIntegrationTab(state));
+            dock.Children.Add(innerTabs);   // LastChildFill — takes remaining space
 
-            // LEFT: By Category with responsive bars
-            if (_data.WarningByCategory.Count > 0)
-            {
-                var catPanel = new StackPanel();
-                catPanel.Children.Add(MakeSectionHeader("BY CATEGORY"));
-                var catCard = MakeCard();
-                var catStack = new StackPanel();
-                int maxCatCount = _data.WarningByCategory.Values.Max();
-                foreach (var kv in _data.WarningByCategory.OrderByDescending(x => x.Value))
-                {
-                    var row = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 22 };
-                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
-                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    row.Children.Add(new TextBlock { Text = kv.Key.ToString(), FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
-                    var countTb = new TextBlock { Text = kv.Value.ToString(), FontWeight = FontWeights.Bold, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(countTb, 1); row.Children.Add(countTb);
-                    double barPct = maxCatCount > 0 ? kv.Value * 100.0 / maxCatCount : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 8, CornerRadius = new CornerRadius(4), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(CAccent), Height = 8, CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); row.Children.Add(barGrid);
-                    catStack.Children.Add(row);
-                }
-                catCard.Child = catStack;
-                catPanel.Children.Add(catCard);
-                twoCol.Children.Add(catPanel);
-            }
-
-            // RIGHT: By Severity with priority ranking (Ideate-style 4-tier)
-            if (_data.WarningBySeverity.Count > 0)
-            {
-                var sevPanel = new StackPanel();
-                sevPanel.Children.Add(MakeSectionHeader("BY SEVERITY (Priority Rank)"));
-                var sevCard = MakeCard();
-                var sevStack = new StackPanel();
-                int maxSevCount = _data.WarningBySeverity.Values.Max();
-                int rank = 1;
-                foreach (WarningSeverity sev in new[] { WarningSeverity.Critical, WarningSeverity.High, WarningSeverity.Medium, WarningSeverity.Low, WarningSeverity.Info })
-                {
-                    if (!_data.WarningBySeverity.TryGetValue(sev, out int cnt) || cnt <= 0) continue;
-                    var sevColor = sev == WarningSeverity.Critical ? CRed : sev == WarningSeverity.High ? CAmber :
-                        sev == WarningSeverity.Medium ? Color.FromRgb(0xF5, 0xC5, 0x42) : Color.FromRgb(0x90, 0xA4, 0xAE);
-                    var slaText = sev == WarningSeverity.Critical ? "SLA: 4h" : sev == WarningSeverity.High ? "SLA: 24h" :
-                        sev == WarningSeverity.Medium ? "SLA: 1wk" : sev == WarningSeverity.Low ? "SLA: 2wk" : "";
-
-                    var sevRow = new Grid { Margin = new Thickness(0, 3, 0, 3), Height = 26 };
-                    sevRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) });
-                    sevRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-                    sevRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-                    sevRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    sevRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
-
-                    // Rank badge
-                    var rankBorder = new Border { Background = Br(sevColor), CornerRadius = new CornerRadius(3), Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center,
-                        Child = new TextBlock { Text = $"P{rank}", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
-                    sevRow.Children.Add(rankBorder);
-
-                    var sevLabel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                    sevLabel.Children.Add(new Ellipse { Width = 10, Height = 10, Fill = Br(sevColor), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center });
-                    sevLabel.Children.Add(new TextBlock { Text = sev.ToString(), FontSize = 11, FontWeight = FontWeights.SemiBold });
-                    Grid.SetColumn(sevLabel, 1); sevRow.Children.Add(sevLabel);
-
-                    var cntTb = new TextBlock { Text = cnt.ToString(), FontWeight = FontWeights.Bold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 2); sevRow.Children.Add(cntTb);
-
-                    double barPct = maxSevCount > 0 ? cnt * 100.0 / maxSevCount : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 10, CornerRadius = new CornerRadius(5), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(sevColor), Height = 10, CornerRadius = new CornerRadius(5), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 3); sevRow.Children.Add(barGrid);
-
-                    var slaTb = new TextBlock { Text = slaText, FontSize = 9, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(slaTb, 4); sevRow.Children.Add(slaTb);
-
-                    sevStack.Children.Add(sevRow);
-                    rank++;
-                }
-                sevCard.Child = sevStack;
-                sevPanel.Children.Add(sevCard);
-                Grid.SetColumn(sevPanel, 2);
-                twoCol.Children.Add(sevPanel);
-            }
-            root.Children.Add(twoCol);
-
-            // ── TWO-COLUMN LAYOUT: By Level + By Workset ─────────────────
-            var twoCol2 = new Grid { Margin = new Thickness(0, 0, 0, 12) };
-            twoCol2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            twoCol2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
-            twoCol2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            // LEFT: By Level (top 10) with bars
-            if (_data.WarningByLevel.Count > 0)
-            {
-                var lvlPanel = new StackPanel();
-                lvlPanel.Children.Add(MakeSectionHeader("BY LEVEL (top 10)"));
-                var lvlCard = MakeCard();
-                var lvlStack = new StackPanel();
-                int maxLvl = _data.WarningByLevel.Values.Max();
-                foreach (var kv in _data.WarningByLevel.OrderByDescending(x => x.Value).Take(10))
-                {
-                    var lvlRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 20 };
-                    lvlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
-                    lvlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-                    lvlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    lvlRow.Children.Add(new TextBlock { Text = kv.Key, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-                    var cntTb = new TextBlock { Text = kv.Value.ToString(), FontWeight = FontWeights.Bold, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 1); lvlRow.Children.Add(cntTb);
-                    double barPct = maxLvl > 0 ? kv.Value * 100.0 / maxLvl : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 7, CornerRadius = new CornerRadius(3), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(CAccent), Height = 7, CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.8 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); lvlRow.Children.Add(barGrid);
-                    lvlStack.Children.Add(lvlRow);
-                }
-                lvlCard.Child = lvlStack;
-                lvlPanel.Children.Add(lvlCard);
-                twoCol2.Children.Add(lvlPanel);
-            }
-
-            // RIGHT: By Workset
-            if (_data.WarningByWorkset.Count > 0)
-            {
-                var wsPanel = new StackPanel();
-                wsPanel.Children.Add(MakeSectionHeader("BY WORKSET"));
-                var wsCard = MakeCard();
-                var wsStack = new StackPanel();
-                int maxWs = _data.WarningByWorkset.Values.Max();
-                foreach (var kv in _data.WarningByWorkset.OrderByDescending(x => x.Value).Take(10))
-                {
-                    var wsRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 20 };
-                    wsRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
-                    wsRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-                    wsRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    wsRow.Children.Add(new TextBlock { Text = kv.Key, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-                    var cntTb = new TextBlock { Text = kv.Value.ToString(), FontWeight = FontWeights.Bold, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 1); wsRow.Children.Add(cntTb);
-                    double barPct = maxWs > 0 ? kv.Value * 100.0 / maxWs : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 7, CornerRadius = new CornerRadius(3), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(Color.FromRgb(0x00, 0x69, 0x7C)), Height = 7, CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.8 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); wsRow.Children.Add(barGrid);
-                    wsStack.Children.Add(wsRow);
-                }
-                wsCard.Child = wsStack;
-                wsPanel.Children.Add(wsCard);
-                Grid.SetColumn(wsPanel, 2);
-                twoCol2.Children.Add(wsPanel);
-            }
-            root.Children.Add(twoCol2);
-
-            // ── HOTSPOT ELEMENTS ─────────────────────────────────────────
-            if (_data.WarningHotspots.Count > 0)
-            {
-                root.Children.Add(MakeSectionHeader("HOTSPOT ELEMENTS (most warnings)"));
-                var hotCard = MakeCard();
-                var hotStack = new StackPanel();
-                int maxHot = _data.WarningHotspots.Take(10).Max(h => h.Count);
-                foreach (var (name, count) in _data.WarningHotspots.Take(10))
-                {
-                    var hotRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 22, Cursor = Cursors.Hand };
-                    hotRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    hotRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
-                    hotRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-                    hotRow.Children.Add(new TextBlock { Text = name, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-                    var cntTb = new TextBlock { Text = $"{count} warn", FontWeight = FontWeights.Bold, FontSize = 10.5, Foreground = Br(CRed), VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 1); hotRow.Children.Add(cntTb);
-                    double barPct = maxHot > 0 ? count * 100.0 / maxHot : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 7, CornerRadius = new CornerRadius(3), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(CRed), Height = 7, CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.75 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); hotRow.Children.Add(barGrid);
-                    hotRow.ToolTip = $"Element: {name}\nWarnings: {count}\nDouble-click to zoom to 3D section box";
-                    hotRow.MouseLeftButtonDown += (s, e) =>
-                    {
-                        if (e.ClickCount == 2) { DispatchAction($"ZoomToWarning_{name}"); }
-                    };
-                    var hotCtx = new ContextMenu();
-                    var hotZoom = new MenuItem { Header = "Zoom to 3D Section Box" };
-                    hotZoom.Click += (s2, e2) => { DispatchAction($"ZoomToWarning_{name}"); };
-                    var hotSelect = new MenuItem { Header = "Select Element" };
-                    hotSelect.Click += (s2, e2) => { DispatchAction($"ZoomToElement_{name}"); };
-                    hotCtx.Items.Add(hotZoom); hotCtx.Items.Add(hotSelect);
-                    hotRow.ContextMenu = hotCtx;
-                    hotStack.Children.Add(hotRow);
-                }
-                hotCard.Child = hotStack;
-                root.Children.Add(hotCard);
-            }
-
-            // ── BY DISCIPLINE with double-click selection ─────────────────
-            if (_data.WarningByDiscipline.Count > 0)
-            {
-                root.Children.Add(MakeSectionHeader("BY DISCIPLINE"));
-                var discCard = MakeCard();
-                var discStack = new StackPanel();
-                int maxDisc = _data.WarningByDiscipline.Values.Max();
-                foreach (var kv in _data.WarningByDiscipline.OrderByDescending(x => x.Value))
-                {
-                    var dRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 22, Cursor = Cursors.Hand };
-                    dRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                    dRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                    dRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    dRow.Children.Add(new TextBlock { Text = kv.Key, FontWeight = FontWeights.Bold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
-                    var cntTb = new TextBlock { Text = kv.Value.ToString(), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(cntTb, 1); dRow.Children.Add(cntTb);
-                    double barPct = maxDisc > 0 ? kv.Value * 100.0 / maxDisc : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 8, CornerRadius = new CornerRadius(4), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(CAccent), Height = 8, CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
-                    var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
-                    Grid.SetColumn(barGrid, 2); dRow.Children.Add(barGrid);
-                    dRow.ToolTip = $"Discipline: {kv.Key} — {kv.Value} warnings\nDouble-click to select all elements of this discipline";
-                    dRow.MouseLeftButtonDown += (s, e) =>
-                    {
-                        if (e.ClickCount == 2) { DispatchAction($"SelectByDisc_{kv.Key}"); }
-                    };
-                    discStack.Children.Add(dRow);
-                }
-                discCard.Child = discStack;
-                root.Children.Add(discCard);
-            }
-
-            // ── REGRESSION ANALYSIS ──────────────────────────────────────
-            if (_data.WarningAdded > 0 || _data.WarningRemoved > 0)
-            {
-                root.Children.Add(MakeSectionHeader("REGRESSION ANALYSIS (vs baseline)"));
-                var regCard = MakeCard();
-                var regStack = new StackPanel();
-                var addRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                addRow.Children.Add(new TextBlock { Text = "▲ ", Foreground = Br(CRed), FontWeight = FontWeights.Bold, FontSize = 13 });
-                addRow.Children.Add(new TextBlock { Text = $"New since baseline:  +{_data.WarningAdded}", FontSize = 12, Foreground = _data.WarningAdded > 0 ? Br(CRed) : Br(CGreen) });
-                regStack.Children.Add(addRow);
-                var remRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                remRow.Children.Add(new TextBlock { Text = "▼ ", Foreground = Br(CGreen), FontWeight = FontWeights.Bold, FontSize = 13 });
-                remRow.Children.Add(new TextBlock { Text = $"Resolved since baseline:  -{_data.WarningRemoved}", FontSize = 12, Foreground = Br(CGreen) });
-                regStack.Children.Add(remRow);
-                int netChange = _data.WarningAdded - _data.WarningRemoved;
-                var netRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
-                netRow.Children.Add(new TextBlock { Text = netChange >= 0 ? "Net: +" : "Net: ", FontWeight = FontWeights.Bold, FontSize = 12 });
-                netRow.Children.Add(new TextBlock { Text = $"{netChange}", FontWeight = FontWeights.Bold, FontSize = 12, Foreground = netChange > 0 ? Br(CRed) : netChange < 0 ? Br(CGreen) : Br(Color.FromRgb(0x75, 0x75, 0x75)) });
-                regStack.Children.Add(netRow);
-                regCard.Child = regStack;
-                root.Children.Add(regCard);
-            }
-
-            return sv;
+            return dock;
         }
 
+        // PLACEHOLDER for deleted old content — kept to allow compile:
         // ════════════════════════════════════════════════════════════════
         //  ISSUES TAB
         // ════════════════════════════════════════════════════════════════
@@ -2464,44 +2164,57 @@ namespace StingTools.UI
                             cur.Total + 1);
                     }
                 }
+                // Build discipline lookup from TeamMembers
+                var memberDiscLookup = _data.TeamMembers
+                    .Where(m => !string.IsNullOrEmpty(m.Name))
+                    .ToDictionary(m => m.Name, m => m.Discipline ?? "", StringComparer.OrdinalIgnoreCase);
+
                 // Header row
                 var hdrRow = new Grid { Margin = new Thickness(0, 0, 0, 4) };
-                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+                hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
                 hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
                 hdrRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 AddCellToGrid(hdrRow, "Assignee", 0, 0, true);
-                AddCellToGrid(hdrRow, "Open", 0, 1, true);
-                AddCellToGrid(hdrRow, "Crit", 0, 2, true);
-                AddCellToGrid(hdrRow, "Overdue", 0, 3, true);
-                AddCellToGrid(hdrRow, "Load", 0, 4, true);
+                AddCellToGrid(hdrRow, "Disc", 0, 1, true);
+                AddCellToGrid(hdrRow, "Open", 0, 2, true);
+                AddCellToGrid(hdrRow, "Crit", 0, 3, true);
+                AddCellToGrid(hdrRow, "Overdue", 0, 4, true);
+                AddCellToGrid(hdrRow, "Load", 0, 5, true);
                 assignStack.Children.Add(hdrRow);
 
                 int maxLoad = assigneeLoad.Values.Max(v => v.Open);
                 foreach (var kv in assigneeLoad.OrderByDescending(x => x.Value.Open).Take(15))
                 {
                     var aRow = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+                    aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
                     aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
                     aRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    string memberDisc = memberDiscLookup.TryGetValue(kv.Key, out string md) ? md : "";
                     AddCellToGrid(aRow, kv.Key, 0, 0, false, null, null);
-                    AddCellToGrid(aRow, kv.Value.Open.ToString(), 0, 1, false, FontWeights.Bold,
+                    AddCellToGrid(aRow, memberDisc, 0, 1, false, null, Br(Color.FromRgb(0x55, 0x55, 0x55)));
+                    AddCellToGrid(aRow, kv.Value.Open.ToString(), 0, 2, false, FontWeights.Bold,
                         kv.Value.Open > 5 ? Br(CRed) : kv.Value.Open > 0 ? Br(CAmber) : Br(CGreen));
-                    AddCellToGrid(aRow, kv.Value.Critical.ToString(), 0, 2, false, null,
+                    AddCellToGrid(aRow, kv.Value.Critical.ToString(), 0, 3, false, null,
                         kv.Value.Critical > 0 ? Br(CRed) : null);
-                    AddCellToGrid(aRow, kv.Value.Overdue.ToString(), 0, 3, false, null,
+                    AddCellToGrid(aRow, kv.Value.Overdue.ToString(), 0, 4, false, null,
                         kv.Value.Overdue > 0 ? Br(CRed) : null);
-                    // Mini bar
+                    // Mini bar — color: CRed for overdue/critical, CAmber for 1-3 open or high, CGreen for 0
+                    var barClr = kv.Value.Overdue > 0 || kv.Value.Critical > 0 ? CRed
+                        : kv.Value.Open is >= 1 and <= 3 ? CAmber
+                        : kv.Value.Open == 0 ? CGreen : CAccent;
                     var barBg = new Border { Background = Br(Color.FromRgb(0xE0, 0xE0, 0xE0)), Height = 10, CornerRadius = new CornerRadius(3), Margin = new Thickness(4, 3, 0, 0) };
-                    var barFill = new Border { Background = kv.Value.Overdue > 0 ? Br(CRed) : kv.Value.Critical > 0 ? Br(CAmber) : Br(CAccent),
+                    var barFill = new Border { Background = Br(barClr),
                         Height = 10, CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left, Width = 0 };
                     barBg.Child = barFill;
                     int oCount = kv.Value.Open; int mxL = Math.Max(1, maxLoad);
                     barBg.Loaded += (s, e) => { barFill.Width = barBg.ActualWidth * oCount / mxL; };
-                    Grid.SetColumn(barBg, 4);
+                    Grid.SetColumn(barBg, 5);
                     aRow.Children.Add(barBg);
                     aRow.ToolTip = $"{kv.Key}: {kv.Value.Total} total, {kv.Value.Open} open, {kv.Value.Critical} critical, {kv.Value.Overdue} overdue";
                     assignStack.Children.Add(aRow);
@@ -2596,6 +2309,7 @@ namespace StingTools.UI
                 dg.Columns.Add(new DataGridTextColumn { Header = "Priority", Binding = new Binding("Priority"), Width = 65 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new Binding("Status"), Width = 60 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Assignee(s)", Binding = new Binding("AssigneeDisplay"), Width = 110 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Location", Binding = new Binding("Location"), Width = 90 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Disc", Binding = new Binding("Discipline"), Width = 40 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Elems", Binding = new Binding("ElementCount"), Width = 45 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Created", Binding = new Binding("Created"), Width = 75 });
@@ -2710,34 +2424,81 @@ namespace StingTools.UI
         //  REVISIONS TAB
         // ════════════════════════════════════════════════════════════════
 
+        // ── ISO 19650 revision code catalogue ─────────────────────────────
+        private static readonly (string Code, string Label, string Series, string Tooltip)[] IsoRevisionCodes =
+        {
+            ("P01","P01 — Preliminary Issue 1",       "Preliminary","First preliminary issue — brief/feasibility stage"),
+            ("P02","P02 — Preliminary Issue 2",       "Preliminary","Second preliminary stage submission"),
+            ("P03","P03 — Preliminary Issue 3",       "Preliminary","Third preliminary stage submission"),
+            ("P04","P04 — Preliminary Issue 4",       "Preliminary","Fourth preliminary stage submission"),
+            ("P05","P05 — Preliminary Issue 5",       "Preliminary","Fifth preliminary stage submission"),
+            ("P06","P06 — Preliminary Issue 6",       "Preliminary","Sixth preliminary stage submission"),
+            ("P07","P07 — Preliminary Issue 7",       "Preliminary","Seventh preliminary stage submission"),
+            ("P08","P08 — Preliminary Issue 8",       "Preliminary","Eighth preliminary stage submission"),
+            ("P09","P09 — Preliminary Issue 9",       "Preliminary","Ninth preliminary stage submission"),
+            ("P10","P10 — Preliminary Issue 10",      "Preliminary","Tenth preliminary stage submission"),
+            ("C01","C01 — Construction Issue 1",      "Construction","First construction issue — tender/build"),
+            ("C02","C02 — Construction Issue 2",      "Construction","Second construction issue"),
+            ("C03","C03 — Construction Issue 3",      "Construction","Third construction issue"),
+            ("C04","C04 — Construction Issue 4",      "Construction","Fourth construction issue"),
+            ("C05","C05 — Construction Issue 5",      "Construction","Fifth construction issue"),
+            ("C06","C06 — Construction Issue 6",      "Construction","Sixth construction issue"),
+            ("C07","C07 — Construction Issue 7",      "Construction","Seventh construction issue"),
+            ("C08","C08 — Construction Issue 8",      "Construction","Eighth construction issue"),
+            ("C09","C09 — Construction Issue 9",      "Construction","Ninth construction issue"),
+            ("C10","C10 — Construction Issue 10",     "Construction","Tenth construction issue"),
+            ("A",  "A   — As-Built Revision A",       "As-Built",   "First as-built revision — post-construction record"),
+            ("B",  "B   — As-Built Revision B",       "As-Built",   "Second as-built revision"),
+            ("C",  "C   — As-Built Revision C",       "As-Built",   "Third as-built revision"),
+            ("D",  "D   — As-Built Revision D",       "As-Built",   "Fourth as-built revision"),
+            ("E",  "E   — As-Built Revision E",       "As-Built",   "Fifth as-built revision"),
+        };
+
+        // ── ISO discipline codes for revisions / deliverables ─────────────
+        private static readonly (string Code, string Label, Color Colour)[] IsoDisciplineCodes =
+        {
+            ("ALL","All Disciplines",                  Color.FromRgb(0x45,0x50,0x6E)),
+            ("A",  "A  — Architectural",               Color.FromRgb(0x75,0x75,0x75)),
+            ("S",  "S  — Structural",                  Color.FromRgb(0xC6,0x28,0x28)),
+            ("M",  "M  — Mechanical (HVAC)",           Color.FromRgb(0x15,0x65,0xC0)),
+            ("E",  "E  — Electrical",                  Color.FromRgb(0xFF,0xA0,0x00)),
+            ("P",  "P  — Plumbing / Drainage",         Color.FromRgb(0x2E,0x7D,0x32)),
+            ("FP", "FP — Fire Protection",             Color.FromRgb(0xD3,0x2F,0x2F)),
+            ("LV", "LV — Low Voltage / BMS",           Color.FromRgb(0x6A,0x1B,0x9A)),
+            ("G",  "G  — General / Multi-discipline",  Color.FromRgb(0x00,0x69,0x7C)),
+            ("C",  "C  — Civil / Infrastructure",      Color.FromRgb(0x4E,0x34,0x2E)),
+            ("L",  "L  — Landscape",                   Color.FromRgb(0x33,0x69,0x1E)),
+            ("X",  "X  — Existing / Survey",           Color.FromRgb(0x9E,0x9E,0x9E)),
+        };
+
         private UIElement BuildRevisionsTab()
         {
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
             var stack = new StackPanel();
 
-            // ── KPI Strip ──
+            // ── KPI Strip ─────────────────────────────────────────────────
             int totalClouds = _data.Revisions.Count > 0 ? _data.Revisions.Sum(r => r.Clouds) : _data.RevisionClouds;
             var statusGroups = _data.Revisions.GroupBy(r => r.Status ?? "Unknown").ToDictionary(g => g.Key, g => g.Count());
-            int issued = statusGroups.TryGetValue("Issued", out int iv) ? iv : 0;
+            int issued       = statusGroups.TryGetValue("Issued",     out int iv) ? iv : 0;
+            int draft        = statusGroups.TryGetValue("Draft",      out int dv) ? dv : 0;
+            int superseded   = statusGroups.TryGetValue("Superseded", out int sv) ? sv : 0;
 
             var kpiRow = new UniformGrid { Columns = 5, Margin = new Thickness(0, 0, 0, 12) };
-            kpiRow.Children.Add(MakeKPICard("REVISIONS", _data.RevisionCount.ToString(), Br(CHeaderBg),
-                $"Total revisions in project\nThis week: {_data.RevisionsThisWeek}"));
-            kpiRow.Children.Add(MakeKPICard("CLOUDS", totalClouds.ToString(), Br(CAccent),
+            kpiRow.Children.Add(MakeKPICard("REVISIONS",  _data.RevisionCount.ToString(),           Br(CHeaderBg),
+                $"Total revisions in project\nDraft: {draft}  Issued: {issued}  Superseded: {superseded}"));
+            kpiRow.Children.Add(MakeKPICard("CLOUDS",     totalClouds.ToString(),                   Br(CAccent),
                 $"Total revision clouds placed\nUnresolved: {_data.CloudsUnresolved}"));
-            kpiRow.Children.Add(MakeKPICard("THIS WEEK", _data.RevisionsThisWeek.ToString(),
-                _data.RevisionsThisWeek > 0 ? Br(Color.FromRgb(0x15, 0x65, 0xC0)) : Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            kpiRow.Children.Add(MakeKPICard("THIS WEEK",  _data.RevisionsThisWeek.ToString(),
+                _data.RevisionsThisWeek > 0 ? Br(Color.FromRgb(0x15,0x65,0xC0)) : Br(Color.FromRgb(0x45,0x50,0x6E)),
                 "Revisions created in the last 7 days"));
             kpiRow.Children.Add(MakeKPICard("UNRESOLVED", _data.CloudsUnresolved.ToString(),
                 _data.CloudsUnresolved > 0 ? Br(CRed) : Br(CGreen),
-                $"Revision clouds not yet addressed: {_data.CloudsUnresolved}\n" +
-                $"Total clouds: {totalClouds} across {_data.CloudsBySheet.Count} sheets\n" +
-                $"Require action before next data drop"));
-            kpiRow.Children.Add(MakeKPICard("ISSUED", issued.ToString(), Br(CGreen),
+                $"Revision clouds not yet addressed\nTotal clouds: {totalClouds} across {_data.CloudsBySheet.Count} sheets"));
+            kpiRow.Children.Add(MakeKPICard("ISSUED",     issued.ToString(), Br(CGreen),
                 "Revisions formally issued to sheets"));
             stack.Children.Add(kpiRow);
 
-            // ── Revision Status Distribution ──
+            // ── Revision Status Distribution ───────────────────────────────
             if (statusGroups.Count > 0)
             {
                 stack.Children.Add(MakeSectionHeader("REVISION STATUS DISTRIBUTION"));
@@ -2746,21 +2507,31 @@ namespace StingTools.UI
                 int maxStatusCount = statusGroups.Values.Max();
                 foreach (var kv in statusGroups.OrderByDescending(x => x.Value))
                 {
-                    var statusRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 24 };
-                    statusRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                    var statusColor = kv.Key == "Issued" ? CGreen
+                        : kv.Key == "Draft"       ? CAmber
+                        : kv.Key == "Superseded"  ? Color.FromRgb(0x75,0x75,0x75)
+                        : CHeaderBg;
+                    var statusRow = new Grid { Margin = new Thickness(0,2,0,2), Height = 26 };
+                    statusRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
                     statusRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
                     statusRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-                    var statusColor = kv.Key == "Issued" ? CGreen : kv.Key == "Draft" ? CAmber : kv.Key == "Superseded" ? Color.FromRgb(0x75, 0x75, 0x75) : CHeaderBg;
-                    statusRow.Children.Add(new TextBlock { Text = kv.Key, FontSize = 11, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
-                    var countTb = new TextBlock { Text = kv.Value.ToString(), FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Br(statusColor), VerticalAlignment = VerticalAlignment.Center };
+                    // Coloured status chip
+                    var chip = new Border { Background = Br(statusColor), CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(6,1,6,1), VerticalAlignment = VerticalAlignment.Center,
+                        Child = new TextBlock { Text = kv.Key, FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Brushes.White } };
+                    statusRow.Children.Add(chip);
+                    var countTb = new TextBlock { Text = kv.Value.ToString(), FontSize = 12, FontWeight = FontWeights.Bold,
+                        Foreground = Br(statusColor), VerticalAlignment = VerticalAlignment.Center };
                     Grid.SetColumn(countTb, 1); statusRow.Children.Add(countTb);
 
                     double barPct = maxStatusCount > 0 ? kv.Value * 100.0 / maxStatusCount : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 10, CornerRadius = new CornerRadius(5), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(statusColor), Height = 10, CornerRadius = new CornerRadius(5), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
+                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8,0xEA,0xED)), Height = 12,
+                        CornerRadius = new CornerRadius(6), VerticalAlignment = VerticalAlignment.Center };
+                    var barFill = new Border { Background = Br(statusColor), Height = 12,
+                        CornerRadius = new CornerRadius(6), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
                     var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
-                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
+                    barBg.Loaded += (s, e) => { barFill.Width = Math.Max(6, barBg.ActualWidth * barPct / 100.0); };
                     Grid.SetColumn(barGrid, 2); statusRow.Children.Add(barGrid);
                     statusStack.Children.Add(statusRow);
                 }
@@ -2768,36 +2539,38 @@ namespace StingTools.UI
                 stack.Children.Add(statusCard);
             }
 
-            // ── Clouds by Discipline ──
+            // ── Clouds by Discipline (full ISO codes) ─────────────────────
             if (_data.CloudsByDiscipline.Count > 0)
             {
-                stack.Children.Add(MakeSectionHeader("REVISION CLOUDS BY DISCIPLINE"));
+                stack.Children.Add(MakeSectionHeader("REVISION CLOUDS BY ISO DISCIPLINE"));
                 var discCard = MakeCard();
                 var discStack = new StackPanel();
                 int maxDiscClouds = _data.CloudsByDiscipline.Values.Max();
                 foreach (var kv in _data.CloudsByDiscipline.OrderByDescending(x => x.Value))
                 {
-                    var discColor = kv.Key switch
-                    {
-                        "M" or "Mechanical" => Color.FromRgb(0x15, 0x65, 0xC0),
-                        "E" or "Electrical" => Color.FromRgb(0xFF, 0xA0, 0x00),
-                        "P" or "Plumbing" => CGreen,
-                        "A" or "Architectural" => Color.FromRgb(0x75, 0x75, 0x75),
-                        "S" or "Structural" => CRed,
-                        _ => CHeaderBg
-                    };
-                    var discRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 22 };
-                    discRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-                    discRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                    var discEntry = IsoDisciplineCodes.FirstOrDefault(d => d.Code == kv.Key
+                        || d.Label.StartsWith(kv.Key + " ") || d.Label.Contains("— " + kv.Key));
+                    Color discColor = discEntry.Code != null ? discEntry.Colour : CHeaderBg;
+                    string discLabel = discEntry.Code != null ? discEntry.Label : kv.Key;
+
+                    var discRow = new Grid { Margin = new Thickness(0,2,0,2), Height = 24 };
+                    discRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
+                    discRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
                     discRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-                    discRow.Children.Add(new TextBlock { Text = kv.Key, FontSize = 11, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
-                    var cntTb = new TextBlock { Text = $"{kv.Value} clouds", FontSize = 10, Foreground = Br(discColor), VerticalAlignment = VerticalAlignment.Center };
+                    var discBadge = new Border { Background = Br(discColor), CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(5,1,5,1), VerticalAlignment = VerticalAlignment.Center,
+                        Child = new TextBlock { Text = discLabel, FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White } };
+                    discRow.Children.Add(discBadge);
+                    var cntTb = new TextBlock { Text = $"{kv.Value} clouds", FontSize = 10, Foreground = Br(discColor),
+                        VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.Bold };
                     Grid.SetColumn(cntTb, 1); discRow.Children.Add(cntTb);
 
                     double barPct = maxDiscClouds > 0 ? kv.Value * 100.0 / maxDiscClouds : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 8, CornerRadius = new CornerRadius(4), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(discColor), Height = 8, CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
+                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8,0xEA,0xED)), Height = 10,
+                        CornerRadius = new CornerRadius(5), VerticalAlignment = VerticalAlignment.Center };
+                    var barFill = new Border { Background = Br(discColor), Height = 10,
+                        CornerRadius = new CornerRadius(5), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.85 };
                     var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
                     barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
                     Grid.SetColumn(barGrid, 2); discRow.Children.Add(barGrid);
@@ -2807,7 +2580,7 @@ namespace StingTools.UI
                 stack.Children.Add(discCard);
             }
 
-            // ── Clouds by Sheet (top 10) ──
+            // ── Clouds by Sheet (top 10) ───────────────────────────────────
             if (_data.CloudsBySheet.Count > 0)
             {
                 stack.Children.Add(MakeSectionHeader("TOP SHEETS BY REVISION CLOUDS"));
@@ -2816,18 +2589,20 @@ namespace StingTools.UI
                 int maxSheetClouds = _data.CloudsBySheet.Values.Max();
                 foreach (var kv in _data.CloudsBySheet.OrderByDescending(x => x.Value).Take(10))
                 {
-                    var sheetRow = new Grid { Margin = new Thickness(0, 2, 0, 2), Height = 22 };
+                    var sheetRow = new Grid { Margin = new Thickness(0,2,0,2), Height = 22 };
                     sheetRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     sheetRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
                     sheetRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-
-                    sheetRow.Children.Add(new TextBlock { Text = kv.Key, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-                    var cntTb = new TextBlock { Text = kv.Value.ToString(), FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Br(CAccent), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+                    sheetRow.Children.Add(new TextBlock { Text = kv.Key, FontSize = 10,
+                        VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+                    var cntTb = new TextBlock { Text = kv.Value.ToString(), FontSize = 11, FontWeight = FontWeights.Bold,
+                        Foreground = Br(CAccent), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
                     Grid.SetColumn(cntTb, 1); sheetRow.Children.Add(cntTb);
-
                     double barPct = maxSheetClouds > 0 ? kv.Value * 100.0 / maxSheetClouds : 0;
-                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)), Height = 8, CornerRadius = new CornerRadius(4), VerticalAlignment = VerticalAlignment.Center };
-                    var barFill = new Border { Background = Br(CAccent), Height = 8, CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.8 };
+                    var barBg = new Border { Background = Br(Color.FromRgb(0xE8,0xEA,0xED)), Height = 8,
+                        CornerRadius = new CornerRadius(4), VerticalAlignment = VerticalAlignment.Center };
+                    var barFill = new Border { Background = Br(CAccent), Height = 8,
+                        CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left, Opacity = 0.8 };
                     var barGrid = new Grid(); barGrid.Children.Add(barBg); barGrid.Children.Add(barFill);
                     barBg.Loaded += (s, e) => { barFill.Width = Math.Max(4, barBg.ActualWidth * barPct / 100.0); };
                     Grid.SetColumn(barGrid, 2); sheetRow.Children.Add(barGrid);
@@ -2837,73 +2612,191 @@ namespace StingTools.UI
                 stack.Children.Add(sheetCard);
             }
 
-            // ── Revision Register DataGrid ──
+            // ── Revision Register DataGrid ─────────────────────────────────
             stack.Children.Add(MakeSectionHeader("REVISION REGISTER"));
+
+            // ── Create Revision inline form ────────────────────────────────
+            var createFormBorder = new Border
+            {
+                Background = Br(Color.FromRgb(0xF1,0xF8,0xFF)),
+                BorderBrush = Br(CAccent), BorderThickness = new Thickness(1,0,1,1),
+                CornerRadius = new CornerRadius(0,0,6,6), Padding = new Thickness(12,10,12,10),
+                Margin = new Thickness(0,0,0,8)
+            };
+            var createFormHeader = new Border
+            {
+                Background = Br(CHeaderBg), CornerRadius = new CornerRadius(6,6,0,0),
+                Padding = new Thickness(12,6,12,6), Margin = new Thickness(0,0,0,0),
+                Child = new TextBlock { Text = "\u2295  CREATE NEW REVISION", FontSize = 11,
+                    FontWeight = FontWeights.Bold, Foreground = Brushes.White }
+            };
+            stack.Children.Add(createFormHeader);
+
+            var codeDropdown = new ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0), MinWidth = 280, ToolTip = "Select ISO 19650 revision code" };
+            // Group: Preliminary
+            var prelimGroup = new ComboBoxItem { Content = "\u2500\u2500 PRELIMINARY (P-series) \u2500\u2500", IsEnabled = false, FontWeight = FontWeights.Bold, Foreground = Br(Color.FromRgb(0x15,0x65,0xC0)) };
+            codeDropdown.Items.Add(prelimGroup);
+            foreach (var rc in IsoRevisionCodes.Where(r => r.Series == "Preliminary"))
+            {
+                var item = new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip };
+                codeDropdown.Items.Add(item);
+            }
+            var constGroup = new ComboBoxItem { Content = "\u2500\u2500 CONSTRUCTION (C-series) \u2500\u2500", IsEnabled = false, FontWeight = FontWeights.Bold, Foreground = Br(Color.FromRgb(0x2E,0x7D,0x32)) };
+            codeDropdown.Items.Add(constGroup);
+            foreach (var rc in IsoRevisionCodes.Where(r => r.Series == "Construction"))
+            {
+                var item = new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip };
+                codeDropdown.Items.Add(item);
+            }
+            var asbuiltGroup = new ComboBoxItem { Content = "\u2500\u2500 AS-BUILT (Letter series) \u2500\u2500", IsEnabled = false, FontWeight = FontWeights.Bold, Foreground = Br(Color.FromRgb(0x6A,0x1B,0x9A)) };
+            codeDropdown.Items.Add(asbuiltGroup);
+            foreach (var rc in IsoRevisionCodes.Where(r => r.Series == "As-Built"))
+            {
+                var item = new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip };
+                codeDropdown.Items.Add(item);
+            }
+            codeDropdown.SelectedIndex = 1; // Default: P01
+
+            var discDropdown = new ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0), MinWidth = 220, ToolTip = "ISO originating discipline" };
+            foreach (var dc in IsoDisciplineCodes)
+            {
+                var item = new ComboBoxItem { Content = dc.Label, Tag = dc.Code };
+                discDropdown.Items.Add(item);
+            }
+            discDropdown.SelectedIndex = 0;
+
+            var descBox = new TextBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0),
+                MinWidth = 220, VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "Short revision description (e.g. 'Structural coordination update')" };
+            descBox.Text = "Coordination update";
+
+            var createBtn = new Button
+            {
+                Content = "Create Revision", Height = 28, Padding = new Thickness(14,0,14,0),
+                Background = Br(CGreen), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Cursor = Cursors.Hand,
+                ToolTip = "Creates a new Revit revision with the selected ISO code and discipline"
+            };
+            createBtn.Click += (s, e) =>
+            {
+                string selCode = (codeDropdown.SelectedItem as ComboBoxItem)?.Tag as string ?? "P01";
+                string selDisc = (discDropdown.SelectedItem as ComboBoxItem)?.Tag as string ?? "ALL";
+                string selDesc = descBox.Text?.Trim();
+                if (string.IsNullOrEmpty(selDesc)) selDesc = "Revision";
+                DispatchAction($"CreateRevision|{selCode}|{selDisc}|{selDesc}");
+            };
+
+            var formRow = new WrapPanel { Margin = new Thickness(0,0,0,4) };
+            formRow.Children.Add(new TextBlock { Text = "ISO Code: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
+            formRow.Children.Add(codeDropdown);
+            formRow.Children.Add(new TextBlock { Text = "Discipline: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
+            formRow.Children.Add(discDropdown);
+            formRow.Children.Add(new TextBlock { Text = "Description: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
+            formRow.Children.Add(descBox);
+            formRow.Children.Add(createBtn);
+            createFormBorder.Child = formRow;
+            stack.Children.Add(createFormBorder);
+
+            // ── Register DataGrid ──────────────────────────────────────────
             if (_data.Revisions.Count > 0)
             {
                 var dg = new DataGrid
                 {
-                    AutoGenerateColumns = false, IsReadOnly = true, HeadersVisibility = DataGridHeadersVisibility.Column,
-                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal, CanUserSortColumns = true,
-                    SelectionMode = DataGridSelectionMode.Single, FontSize = 11,
-                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(1), RowHeaderWidth = 0,
-                    MaxHeight = 250, Margin = new Thickness(0, 0, 0, 8)
+                    AutoGenerateColumns = false, IsReadOnly = true,
+                    HeadersVisibility = DataGridHeadersVisibility.Column,
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                    CanUserSortColumns = true, SelectionMode = DataGridSelectionMode.Single,
+                    FontSize = 11, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    RowHeaderWidth = 0, MaxHeight = 280, Margin = new Thickness(0,0,0,8)
                 };
-                dg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("Id"), Width = 50 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Name", Binding = new Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Date", Binding = new Binding("Date"), Width = 85 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Description", Binding = new Binding("Description"), Width = 180 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Clouds", Binding = new Binding("Clouds"), Width = 50 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new Binding("Status"), Width = 60 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Code",        Binding = new Binding("Number"),      Width = 52 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Series",      Binding = new Binding("Series"),      Width = 90 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Disc.",       Binding = new Binding("Discipline"),  Width = 45 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Description", Binding = new Binding("Description"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Date",        Binding = new Binding("Date"),        Width = 85 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Author",      Binding = new Binding("Author"),      Width = 80 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Clouds",      Binding = new Binding("Clouds"),      Width = 52 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Status",      Binding = new Binding("Status"),      Width = 75 });
                 dg.ItemsSource = _data.Revisions;
 
-                // Row style: Issued=green tint, Superseded=grey
+                // Row styling: Issued=green tint, Draft=amber tint, Superseded=grey italic
                 var rowStyle = new Style(typeof(DataGridRow));
-                var issuedTrigger = new DataTrigger { Binding = new Binding("Status"), Value = "Issued" };
-                issuedTrigger.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Br(Color.FromRgb(0xE8, 0xF5, 0xE9))));
-                rowStyle.Triggers.Add(issuedTrigger);
-                var supersededTrigger = new DataTrigger { Binding = new Binding("Status"), Value = "Superseded" };
-                supersededTrigger.Setters.Add(new Setter(DataGridRow.ForegroundProperty, Brushes.Gray));
-                supersededTrigger.Setters.Add(new Setter(DataGridRow.FontStyleProperty, FontStyles.Italic));
-                rowStyle.Triggers.Add(supersededTrigger);
+                var issuedT = new DataTrigger { Binding = new Binding("Status"), Value = "Issued" };
+                issuedT.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Br(Color.FromRgb(0xE8,0xF5,0xE9))));
+                rowStyle.Triggers.Add(issuedT);
+                var draftT = new DataTrigger { Binding = new Binding("Status"), Value = "Draft" };
+                draftT.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Br(Color.FromRgb(0xFF,0xF8,0xE1))));
+                rowStyle.Triggers.Add(draftT);
+                var supersededT = new DataTrigger { Binding = new Binding("Status"), Value = "Superseded" };
+                supersededT.Setters.Add(new Setter(DataGridRow.ForegroundProperty, Brushes.Gray));
+                supersededT.Setters.Add(new Setter(DataGridRow.FontStyleProperty, FontStyles.Italic));
+                rowStyle.Triggers.Add(supersededT);
                 dg.RowStyle = rowStyle;
 
+                // Double-click → show inline dashboard
                 dg.MouseDoubleClick += (s, e) =>
                 {
                     if (dg.SelectedItem is RevisionRow rev)
-                    { DispatchAction($"SelectRevision_{rev.Id}"); }
+                        ShowRevisionDashboard(rev);
                 };
-                // Right-click context menu
-                var revCtx = new ContextMenu();
-                var revSelectItem = new MenuItem { Header = "Select Revision Clouds" };
-                revSelectItem.Click += (s2, e2) =>
+
+                // Selection changed → show inline dashboard automatically
+                dg.SelectionChanged += (s, e) =>
                 {
                     if (dg.SelectedItem is RevisionRow rev)
-                    { DispatchAction($"SelectRevision_{rev.Id}"); }
+                        ShowRevisionDashboard(rev);
                 };
-                var revZoomItem = new MenuItem { Header = "Zoom to Revision Clouds (3D)" };
-                revZoomItem.Click += (s2, e2) =>
-                {
-                    if (dg.SelectedItem is RevisionRow rev)
-                    { DispatchAction($"ZoomToRevision_{rev.Id}"); }
-                };
-                var revIssueItem = new MenuItem { Header = "Issue Sheets for This Revision" };
-                revIssueItem.Click += (s2, e2) =>
-                {
-                    if (dg.SelectedItem is RevisionRow)
-                    { DispatchAction("IssueSheetsForRevision"); }
-                };
-                var revExportItem = new MenuItem { Header = "Export Revision Report" };
-                revExportItem.Click += (s2, e2) =>
-                {
-                    DispatchAction("RevisionExport");
-                };
-                revCtx.Items.Add(revSelectItem);
-                revCtx.Items.Add(revZoomItem);
-                revCtx.Items.Add(new Separator());
-                revCtx.Items.Add(revIssueItem);
-                revCtx.Items.Add(revExportItem);
-                dg.ContextMenu = revCtx;
+
+                // ── Right-click context menu ───────────────────────────────
+                var ctx = new ContextMenu();
+
+                var ctxDash = new MenuItem { Header = "\U0001F4CA  View Revision Dashboard" };
+                ctxDash.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow rev) ShowRevisionDashboard(rev); };
+                ctx.Items.Add(ctxDash);
+                ctx.Items.Add(new Separator());
+
+                var ctxSelect = new MenuItem { Header = "\u2601  Select Revision Clouds" };
+                ctxSelect.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow rev) DispatchAction($"SelectRevision_{rev.Id}"); };
+                ctx.Items.Add(ctxSelect);
+
+                var ctxZoom = new MenuItem { Header = "\U0001F50D  Zoom to Revision Clouds (Active View)" };
+                ctxZoom.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow rev) DispatchAction($"ZoomToRevision_{rev.Id}"); };
+                ctx.Items.Add(ctxZoom);
+
+                var ctxZoom3d = new MenuItem { Header = "\U0001F532  Isolate Revision Clouds in 3D View" };
+                ctxZoom3d.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow rev) DispatchAction($"IsolateRevision3D_{rev.Id}"); };
+                ctx.Items.Add(ctxZoom3d);
+
+                var ctxHighlight = new MenuItem { Header = "\U0001F3A8  Highlight Revision Clouds by Discipline" };
+                ctxHighlight.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow rev) DispatchAction($"HighlightRevClouds_{rev.Id}"); };
+                ctx.Items.Add(ctxHighlight);
+
+                ctx.Items.Add(new Separator());
+
+                var ctxIssue = new MenuItem { Header = "\U0001F4CB  Issue Sheets for This Revision" };
+                ctxIssue.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow) DispatchAction("IssueSheetsForRevision"); };
+                ctx.Items.Add(ctxIssue);
+
+                var ctxSnapshot = new MenuItem { Header = "\U0001F4F8  Take Tag Snapshot for This Revision" };
+                ctxSnapshot.Click += (s2, e2) => { DispatchAction("TakeSnapshot"); };
+                ctx.Items.Add(ctxSnapshot);
+
+                var ctxCompare = new MenuItem { Header = "\u2194  Compare with Previous Revision" };
+                ctxCompare.Click += (s2, e2) => { DispatchAction("RevisionCompare"); };
+                ctx.Items.Add(ctxCompare);
+
+                ctx.Items.Add(new Separator());
+
+                var ctxSupersede = new MenuItem { Header = "\u2298  Mark as Superseded" };
+                ctxSupersede.Click += (s2, e2) => { if (dg.SelectedItem is RevisionRow rev) DispatchAction($"SupersedeRevision_{rev.Id}"); };
+                ctx.Items.Add(ctxSupersede);
+
+                var ctxExport = new MenuItem { Header = "\U0001F4E4  Export Revision Report to CSV" };
+                ctxExport.Click += (s2, e2) => { DispatchAction("RevisionExport"); };
+                ctx.Items.Add(ctxExport);
+
+                dg.ContextMenu = ctx;
                 stack.Children.Add(dg);
             }
             else
@@ -2911,63 +2804,209 @@ namespace StingTools.UI
                 var infoCard = MakeCard();
                 infoCard.Child = new TextBlock
                 {
-                    Text = "No revisions found. Click 'Create Revision' to start tracking changes.\n\n" +
-                           "Revisions track design changes per ISO 19650:\n" +
-                           "  \u2022 Automatic cloud placement on changed elements\n" +
-                           "  \u2022 Tag snapshot comparison between revisions\n" +
-                           "  \u2022 Sheet issuance with revision scheduling\n" +
-                           "  \u2022 Naming convention enforcement per BS 1192",
+                    Text = "No revisions found. Use the form above to create your first ISO 19650 revision.\n\n" +
+                           "Revisions track design changes:\n" +
+                           "  \u2022 P-series (P01\u2013P10): Preliminary design stages\n" +
+                           "  \u2022 C-series (C01\u2013C10): Construction issue stages\n" +
+                           "  \u2022 Letter series (A\u2013Z): As-built record revisions\n\n" +
+                           "Select a discipline code to tag revision clouds by originating trade.",
                     FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.Gray
                 };
                 stack.Children.Add(infoCard);
             }
 
-            // ── Actions ──
+            // ── Action Buttons ─────────────────────────────────────────────
             stack.Children.Add(new Border { Height = 12 });
-            stack.Children.Add(MakeSectionHeader("REVISION MANAGEMENT"));
-            var createWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            createWrap.Children.Add(MakeRevPanelButton("Create Revision", "CreateRevision", Br(CGreen),
-                "Create a new revision with ISO 19650 naming and compliance gate check"));
-            createWrap.Children.Add(MakeActionButton("Auto Revision Clouds", "AutoRevisionCloud", Br(CAccent),
-                "Automatically place revision clouds on elements changed since last revision"));
-            createWrap.Children.Add(MakeRevPanelButton("Bulk Revision Stamp", "BulkRevisionStamp", Br(CRed),
-                "Stamp revision information across multiple sheets in batch"));
-            createWrap.Children.Add(MakeActionButton("Auto Rev on Tag Change", "AutoRevisionOnTagChange", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
-                "Automatically create revision when tag data changes on elements"));
-            stack.Children.Add(createWrap);
-
             stack.Children.Add(MakeSectionHeader("TRACKING & COMPARISON"));
-            var trackWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            trackWrap.Children.Add(MakeActionButton("Take Snapshot", "TakeSnapshot", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+            var trackWrap = new WrapPanel { Margin = new Thickness(0,0,0,8) };
+            trackWrap.Children.Add(MakeActionButton("Take Snapshot",     "TakeSnapshot",         Br(Color.FromRgb(0x00,0x69,0x7C)),
                 "Capture current tag state as a snapshot for later comparison"));
-            trackWrap.Children.Add(MakeRevPanelButton("Compare Revisions", "RevisionCompare", Br(CHeaderBg),
+            trackWrap.Children.Add(MakeRevPanelButton("Compare Revisions", "RevisionCompare",   Br(CHeaderBg),
                 "Compare two revision snapshots: see added/changed/removed tags per element"));
-            trackWrap.Children.Add(MakeActionButton("Track Elements", "TrackElementRevisions", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+            trackWrap.Children.Add(MakeActionButton("Track Elements",    "TrackElementRevisions", Br(Color.FromRgb(0x6A,0x1B,0x9A)),
                 "Track per-element revision history across all snapshots"));
-            trackWrap.Children.Add(MakeRevPanelButton("Tag Revision Diff", "TagRevisionDiff", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            trackWrap.Children.Add(MakeRevPanelButton("Tag Revision Diff","TagRevisionDiff",    Br(Color.FromRgb(0x45,0x50,0x6E)),
                 "Token-level diff between two snapshots: which tokens changed, old vs new values"));
+            trackWrap.Children.Add(MakeActionButton("Auto Rev Clouds",   "AutoRevisionCloud",    Br(CAccent),
+                "Automatically place revision clouds on elements changed since last revision"));
             stack.Children.Add(trackWrap);
 
             stack.Children.Add(MakeSectionHeader("ISSUANCE & EXPORT"));
-            var issueWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            issueWrap.Children.Add(MakeRevPanelButton("Issue Sheets", "IssueSheetsForRevision", Br(CAmber),
+            var issueWrap = new WrapPanel { Margin = new Thickness(0,0,0,8) };
+            issueWrap.Children.Add(MakeRevPanelButton("Issue Sheets",       "IssueSheetsForRevision", Br(CAmber),
                 "Issue selected sheets for the latest revision — adds to revision schedule"));
-            issueWrap.Children.Add(MakeActionButton("Naming Enforce", "RevisionNamingEnforce", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            issueWrap.Children.Add(MakeActionButton("Naming Enforce",       "RevisionNamingEnforce",  Br(Color.FromRgb(0x45,0x50,0x6E)),
                 "Enforce ISO 19650 / BS 1192 revision naming conventions"));
-            issueWrap.Children.Add(MakeActionButton("Tag Integration", "RevisionTagIntegration", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            issueWrap.Children.Add(MakeActionButton("Tag Integration",      "RevisionTagIntegration", Br(Color.FromRgb(0x45,0x50,0x6E)),
                 "Integrate revision data with STING tags: stamp REV token on elements"));
-            issueWrap.Children.Add(MakeRevPanelButton("Revision Schedule", "RevisionSchedule", Br(Color.FromRgb(0x15, 0x65, 0xC0)),
+            issueWrap.Children.Add(MakeRevPanelButton("Revision Schedule",  "RevisionSchedule",       Br(Color.FromRgb(0x15,0x65,0xC0)),
                 "Create/view Revit revision schedule showing all revisions and sheets"));
-            issueWrap.Children.Add(MakeActionButton("Export CSV", "RevisionExport", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            issueWrap.Children.Add(MakeActionButton("Bulk Rev Stamp",       "BulkRevisionStamp",      Br(CRed),
+                "Stamp revision information across multiple sheets in batch"));
+            issueWrap.Children.Add(MakeActionButton("Export CSV",           "RevisionExport",         Br(Color.FromRgb(0x45,0x50,0x6E)),
                 "Export revision register to CSV for external tracking"));
             stack.Children.Add(issueWrap);
 
-            // ── Inline panel area (Phase 76 Item 8) ──
+            // ── Inline Revision Dashboard panel ───────────────────────────
+            stack.Children.Add(MakeSectionHeader("REVISION DASHBOARD"));
             _revPanelArea = new ContentControl { MinHeight = 300 };
+            // Show placeholder until a revision is selected
+            var placeholder = new Border
+            {
+                Background = Br(Color.FromRgb(0xF8,0xF9,0xFA)),
+                BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6), Padding = new Thickness(20),
+                Child = new TextBlock
+                {
+                    Text = "Select a revision in the register above to view its full dashboard here.\n" +
+                           "Double-click or right-click \u2192 View Revision Dashboard.",
+                    FontSize = 12, TextWrapping = TextWrapping.Wrap,
+                    Foreground = Br(Color.FromRgb(0x9E,0x9E,0x9E)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextAlignment = TextAlignment.Center
+                }
+            };
+            _revPanelArea.Content = placeholder;
             stack.Children.Add(_revPanelArea);
 
             scroll.Content = stack;
             return scroll;
+        }
+
+        /// <summary>Populate _revPanelArea with a full corporate revision dashboard for the selected revision.</summary>
+        private void ShowRevisionDashboard(RevisionRow rev)
+        {
+            var panel = new StackPanel { Margin = new Thickness(0,4,0,0) };
+
+            // ── Header banner ──────────────────────────────────────────────
+            // Determine series colour
+            Color seriesColor = (rev.Series ?? rev.Number ?? "").StartsWith("P") ? Color.FromRgb(0x15,0x65,0xC0)
+                : (rev.Series ?? rev.Number ?? "").StartsWith("C") ? Color.FromRgb(0x2E,0x7D,0x32)
+                : Color.FromRgb(0x6A,0x1B,0x9A);
+
+            var banner = new Border
+            {
+                Background = Br(CHeaderBg), CornerRadius = new CornerRadius(6,6,0,0),
+                Padding = new Thickness(16,12,16,12)
+            };
+            var bannerRow = new Grid();
+            bannerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            bannerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            bannerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // ISO code badge
+            var codeBadge = new Border
+            {
+                Background = Br(seriesColor), CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(12,4,12,4), Margin = new Thickness(0,0,16,0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = rev.Number ?? "\u2014", FontSize = 20, FontWeight = FontWeights.Bold, Foreground = Brushes.White }
+            };
+            bannerRow.Children.Add(codeBadge);
+
+            var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            titleStack.Children.Add(new TextBlock { Text = rev.Description ?? rev.Name ?? "Revision", FontSize = 14,
+                FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = $"{rev.Series ?? "Unknown"} \u00b7 {rev.Date ?? "\u2014"} \u00b7 Author: {rev.Author ?? "\u2014"} \u00b7 Discipline: {rev.Discipline ?? "ALL"}",
+                FontSize = 10, Foreground = Br(Color.FromRgb(0xB0,0xBE,0xC5))
+            });
+            Grid.SetColumn(titleStack, 1); bannerRow.Children.Add(titleStack);
+
+            // Status chip
+            Color statusClr = (rev.Status ?? "") == "Issued" ? CGreen
+                : (rev.Status ?? "") == "Draft" ? CAmber
+                : Color.FromRgb(0x75,0x75,0x75);
+            var statusBadge = new Border
+            {
+                Background = Br(statusClr), CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(10,4,10,4), VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = rev.Status ?? "\u2014", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.White }
+            };
+            Grid.SetColumn(statusBadge, 2); bannerRow.Children.Add(statusBadge);
+            banner.Child = bannerRow;
+            panel.Children.Add(banner);
+
+            // ── Stats row ─────────────────────────────────────────────────
+            var statsBorder = new Border
+            {
+                Background = Br(CCardBg), BorderBrush = Br(seriesColor),
+                BorderThickness = new Thickness(0,0,0,2), Padding = new Thickness(16,10,16,10)
+            };
+            var statsRow = new UniformGrid { Columns = 4 };
+
+            void AddStat(string label, string value, Color colour)
+            {
+                var st = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+                st.Children.Add(new TextBlock { Text = value, FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Br(colour), HorizontalAlignment = HorizontalAlignment.Center });
+                st.Children.Add(new TextBlock { Text = label,  FontSize = 9,  Foreground = Br(Color.FromRgb(0x75,0x75,0x75)), HorizontalAlignment = HorizontalAlignment.Center });
+                statsRow.Children.Add(st);
+            }
+
+            AddStat("REVISION CLOUDS",  rev.Clouds.ToString(), seriesColor);
+            AddStat("SHEETS AFFECTED",  string.IsNullOrEmpty(rev.Sheets) ? "\u2014" : rev.Sheets.Split(',').Length.ToString(), CAccent);
+            AddStat("STATUS",           rev.Status ?? "\u2014", statusClr);
+            AddStat("DISCIPLINE",       rev.Discipline ?? "ALL", Color.FromRgb(0x45,0x50,0x6E));
+            statsBorder.Child = statsRow;
+            panel.Children.Add(statsBorder);
+
+            // ── Sheets affected ───────────────────────────────────────────
+            if (!string.IsNullOrEmpty(rev.Sheets) && rev.Sheets != "\u2014")
+            {
+                var sheetsBorder = new Border
+                {
+                    Background = Br(CCardBg), BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(0,0,4,4), Padding = new Thickness(16,10,16,10)
+                };
+                var sheetsStack = new StackPanel();
+                sheetsStack.Children.Add(new TextBlock { Text = "SHEETS AFFECTED", FontSize = 10, FontWeight = FontWeights.Bold,
+                    Foreground = Br(CHeaderBg), Margin = new Thickness(0,0,0,6) });
+                var sheetWrap = new WrapPanel();
+                foreach (string sheetNo in rev.Sheets.Split(','))
+                {
+                    string sn = sheetNo.Trim();
+                    if (string.IsNullOrEmpty(sn)) continue;
+                    sheetWrap.Children.Add(new Border
+                    {
+                        Background = Br(Color.FromRgb(0xE3,0xF2,0xFD)), CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(8,3,8,3), Margin = new Thickness(0,0,6,4),
+                        Child = new TextBlock { Text = sn, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = Br(CAccent) }
+                    });
+                }
+                sheetsStack.Children.Add(sheetWrap);
+                sheetsBorder.Child = sheetsStack;
+                panel.Children.Add(sheetsBorder);
+            }
+
+            // ── Quick action buttons ───────────────────────────────────────
+            var qaBorder = new Border
+            {
+                Background = Br(Color.FromRgb(0xF8,0xF9,0xFA)), BorderBrush = Br(CBorder),
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(0,0,6,6),
+                Padding = new Thickness(12,8,12,8)
+            };
+            var qaWrap = new WrapPanel();
+            void AddQA(string label, string action, Brush bg)
+            {
+                var btn = new Button { Content = label, Height = 26, Padding = new Thickness(12,0,12,0),
+                    Background = bg, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                    FontSize = 10, Cursor = Cursors.Hand, Margin = new Thickness(0,0,6,4) };
+                btn.Click += (s, e) => DispatchAction($"{action}_{rev.Id}");
+                qaWrap.Children.Add(btn);
+            }
+            AddQA("\u2601 Select Clouds",           $"SelectRevision",    Br(CAccent));
+            AddQA("\U0001F50D Zoom to Clouds",       $"ZoomToRevision",    Br(CHeaderBg));
+            AddQA("\U0001F532 Isolate in 3D",        $"IsolateRevision3D", Br(Color.FromRgb(0x45,0x50,0x6E)));
+            AddQA("\U0001F3A8 Highlight by Disc.",   $"HighlightRevClouds",Br(Color.FromRgb(0x6A,0x1B,0x9A)));
+            AddQA("\U0001F4CB Issue Sheets",         $"SelectRevision",    Br(CAmber));
+            AddQA("\U0001F4F8 Take Snapshot",        $"SelectRevision",    Br(Color.FromRgb(0x00,0x69,0x7C)));
+            AddQA("\U0001F4E4 Export Report",        $"SelectRevision",    Br(Color.FromRgb(0x37,0x47,0x4F)));
+            qaBorder.Child = qaWrap;
+            panel.Children.Add(qaBorder);
+
+            SetPanelContent(_revPanelArea, panel);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -3130,14 +3169,34 @@ namespace StingTools.UI
 
                 detailStack.Children.Add(new TextBlock { Text = "SERVER CONNECTION", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4) });
 
+                // Pre-load saved connection settings so the fields are populated on open
+                string _savedUrl = BIMManager.StingBIMServerClient.Instance.ServerUrl;
+                string _savedEmail = "";
+                if (!sbConnected && !string.IsNullOrEmpty(_data.FilePath))
+                {
+                    try
+                    {
+                        string _cfgDir = System.IO.Path.Combine(
+                            System.IO.Path.GetDirectoryName(_data.FilePath) ?? "",
+                            "STING_BIM_MANAGER");
+                        string _cfgPath = System.IO.Path.Combine(_cfgDir, "stingbim_connection.json");
+                        var (_url, _email, _pid) = BIMManager.StingBIMServerClient.LoadConnectionSettings(_cfgPath);
+                        if (!string.IsNullOrEmpty(_url))   _savedUrl   = _url;
+                        if (!string.IsNullOrEmpty(_email)) _savedEmail = _email;
+                    }
+                    catch { /* ignore — config file optional */ }
+                }
+                else if (sbConnected)
+                {
+                    _savedEmail = BIMManager.StingBIMServerClient.Instance.ConnectedUser;
+                }
+
                 var sbUrlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
                 sbUrlRow.Children.Add(new TextBlock { Text = "Server URL:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
                 var sbUrlBox = new System.Windows.Controls.TextBox
                 {
                     Width = 270, FontSize = 11, Margin = new Thickness(4, 0, 0, 0),
-                    Text = BIMManager.StingBIMServerClient.Instance.IsConnected
-                        ? BIMManager.StingBIMServerClient.Instance.ServerUrl
-                        : "https://stingbim-api.onrender.com",
+                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "https://stingbim-api.onrender.com",
                     ToolTip = "StingBIM API server URL (your Render.com deployment)"
                 };
                 sbUrlRow.Children.Add(sbUrlBox);
@@ -3145,7 +3204,7 @@ namespace StingTools.UI
 
                 var sbEmailRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
                 sbEmailRow.Children.Add(new TextBlock { Text = "Email:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
-                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), ToolTip = "Your StingBIM account email" };
+                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), Text = _savedEmail, ToolTip = "Your StingBIM account email" };
                 sbEmailRow.Children.Add(sbEmailBox);
                 detailStack.Children.Add(sbEmailRow);
 
@@ -3164,8 +3223,19 @@ namespace StingTools.UI
                     StingCommandHandler.SetExtraParam("StingBIMEmail", sbEmailBox.Text.Trim());
                     StingCommandHandler.SetExtraParam("StingBIMPassword", sbPassBox.Password);
                     DispatchAction("StingBIMConnect");
+                    // Refresh the panel after connect completes (Revit external event is async)
+                    var refreshTimer = new System.Windows.Threading.DispatcherTimer
+                        { Interval = TimeSpan.FromSeconds(2) };
+                    refreshTimer.Tick += (ts, te) => { refreshTimer.Stop(); ShowPlatformDetail("StingBIM"); };
+                    refreshTimer.Start();
                 };
-                sbDiscoBtn.Click += (s, e) => DispatchAction("StingBIMDisconnect");
+                sbDiscoBtn.Click += (s, e) =>
+                {
+                    DispatchAction("StingBIMDisconnect");
+                    // Disconnect is synchronous — refresh immediately on next idle cycle
+                    Dispatcher.BeginInvoke(new Action(() => ShowPlatformDetail("StingBIM")),
+                        System.Windows.Threading.DispatcherPriority.Background);
+                };
                 sbConnBtnRow.Children.Add(sbConnBtn); sbConnBtnRow.Children.Add(sbDiscoBtn);
                 detailStack.Children.Add(sbConnBtnRow);
 
@@ -4605,8 +4675,7 @@ namespace StingTools.UI
                     sp.Children.Add(new TextBlock { Text = "Raise New Issue", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
                     var typeRow = MakeCtxRow("Issue Type:");
                     var typeCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    foreach (var kvp in BIMManager.BIMManagerEngine.IssueTypes)
-                        typeCb.Items.Add($"{kvp.Key} — {kvp.Value}");
+                    foreach (var it in IsoIssueTypes) typeCb.Items.Add(new ComboBoxItem { Content = $"{it.Code} — {it.Label}", Tag = it.Code, ToolTip = it.Description });
                     typeCb.SelectedIndex = 0;
                     typeRow.Children.Add(typeCb);
                     sp.Children.Add(typeRow);
@@ -4658,11 +4727,26 @@ namespace StingTools.UI
                     sp.Children.Add(notifyScroll);
                     // ── Location attachment ──
                     var locRow = MakeCtxRow("Location:");
-                    var locBox = new System.Windows.Controls.TextBox { Width = 220, FontSize = 10, IsReadOnly = true, Background = System.Windows.Media.Brushes.WhiteSmoke, ToolTip = "Coordinates captured from active Revit view" };
+                    var locBox = new System.Windows.Controls.TextBox { Width = 220, FontSize = 10, Background = System.Windows.Media.Brushes.WhiteSmoke, ToolTip = "Auto-populated from selected element tokens; type to override" };
+                    locBox.Loaded += (s, e) =>
+                    {
+                        try
+                        {
+                            var selDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                            var selIds = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Selection?.GetElementIds();
+                            if (selDoc != null && selIds != null && selIds.Count > 0)
+                            {
+                                string autoLoc = AutoPopulateIssueLocation(selDoc, selIds);
+                                if (!string.IsNullOrEmpty(autoLoc)) locBox.Text = autoLoc;
+                            }
+                        }
+                        catch { }
+                    };
                     var locBtn = new Button { Content = "📍 Capture from View", Height = 24, Padding = new Thickness(6, 0, 6, 0), FontSize = 10, Cursor = Cursors.Hand, Margin = new Thickness(4, 0, 0, 0) };
                     locBtn.Click += (s, e) => { DispatchAction("AttachIssueLocation"); locBox.Text = "(Location captured)"; };
                     locRow.Children.Add(locBox); locRow.Children.Add(locBtn);
                     sp.Children.Add(locRow);
+                    sp.Children.Add(new TextBlock { Text = "Location auto-populated from selected elements. Edit as needed.", FontSize = 9, Foreground = Br(Color.FromRgb(0x88, 0x88, 0x88)), Margin = new Thickness(0, 0, 0, 3) });
                     // ── Snapshot ──
                     var snapRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
                     var snapStatus = new TextBlock { Text = "No snapshot", FontSize = 10, Foreground = Br(Color.FromRgb(0x90, 0xA4, 0xAE)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
@@ -4679,9 +4763,7 @@ namespace StingTools.UI
                     sp.Children.Add(elemRow);
                     var raiseBtn = MakeCtxActionButton("Raise Issue", Br(CRed));
                     raiseBtn.Click += (s, e) => {
-                        var selType = typeCb.SelectedItem?.ToString() ?? "NCR";
-                        var typeCode = selType.Contains(" — ") ? selType.Substring(0, selType.IndexOf(" — ")) : selType;
-                        StingCommandHandler.SetExtraParam("IssueType", typeCode);
+                        StingCommandHandler.SetExtraParam("IssueType", (typeCb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "NCR");
                         StingCommandHandler.SetExtraParam("IssuePriority", priCb.SelectedItem?.ToString() ?? "HIGH");
                         StingCommandHandler.SetExtraParam("IssueTitle", titleBox.Text);
                         StingCommandHandler.SetExtraParam("Assignees", string.Join(",", assignChecks2.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
@@ -4769,8 +4851,7 @@ namespace StingTools.UI
                     sp.Children.Add(sevRow);
                     var typeRow = MakeCtxRow("Issue Type:");
                     var typeCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    foreach (var kvp in BIMManager.BIMManagerEngine.IssueTypes)
-                        typeCb.Items.Add($"{kvp.Key} — {kvp.Value}");
+                    foreach (var it in IsoIssueTypes) typeCb.Items.Add(new ComboBoxItem { Content = $"{it.Code} — {it.Label}", Tag = it.Code, ToolTip = it.Description });
                     typeCb.SelectedIndex = 0;
                     typeRow.Children.Add(typeCb);
                     sp.Children.Add(typeRow);
@@ -5327,14 +5408,16 @@ namespace StingTools.UI
         //  HELPER METHODS — Cards, KPIs, RAG bars, buttons, etc.
         // ════════════════════════════════════════════════════════════════
 
+        // Phase 78 Section 5.1: Added onClickDetail Action — fires inline drill-down instead of (or alongside) dispatch.
         private Border MakeKPICard(string label, string value, SolidColorBrush valueBrush,
-            string tooltip = null, string clickAction = null)
+            string tooltip = null, string clickAction = null, Action onClickDetail = null)
         {
+            bool isClickable = !string.IsNullOrEmpty(clickAction) || onClickDetail != null;
             var card = new Border
             {
                 Background = Br(CCardBg), BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6), Padding = new Thickness(16, 12, 16, 12),
-                Margin = new Thickness(4), Cursor = clickAction != null ? Cursors.Hand : Cursors.Arrow
+                Margin = new Thickness(4), Cursor = isClickable ? Cursors.Hand : Cursors.Arrow
             };
             var cardStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
             cardStack.Children.Add(new TextBlock
@@ -5361,14 +5444,15 @@ namespace StingTools.UI
                 };
             }
 
-            // Phase 48: Double-click to drill down
-            if (!string.IsNullOrEmpty(clickAction))
+            if (isClickable)
             {
                 card.MouseLeftButtonDown += (s, e) =>
                 {
-                    if (e.ClickCount == 2) { DispatchAction(clickAction); }
+                    if (onClickDetail != null)
+                        onClickDetail.Invoke();
+                    else if (!string.IsNullOrEmpty(clickAction) && e.ClickCount == 2)
+                        DispatchAction(clickAction);
                 };
-                // Hover effect
                 card.MouseEnter += (s, e) => { card.BorderBrush = Br(CAccent); card.BorderThickness = new Thickness(2); };
                 card.MouseLeave += (s, e) => { card.BorderBrush = Br(CBorder); card.BorderThickness = new Thickness(1); };
             }
@@ -5499,18 +5583,198 @@ namespace StingTools.UI
             return rag == "GREEN" ? Br(CGreen) : rag == "AMBER" ? Br(CAmber) : Br(CRed);
         }
 
-        /// <summary>Phase 77 Item 9: Color brush for each issue type.</summary>
-        private static SolidColorBrush GetIssueTypeBrush(string type) => type switch
+        // Phase 78 Section 2.2: Derives brush from IsoIssueTypes — single source of truth.
+        private static SolidColorBrush GetIssueTypeBrush(string type)
         {
-            "NCR" or "COMPLIANCE" => Br(CRed),
-            "RFI" or "SITE" => Br(Color.FromRgb(0xE6, 0x5C, 0x00)),
-            "CLASH" => Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
-            "DATA" or "PROGRAMME" or "COST" => Br(CAmber),
-            "DESIGN" or "MEP" or "STRUCTURAL" => Br(CHeaderBg),
-            "COORDINATION" or "BIM" or "HANDOVER" => Br(Color.FromRgb(0x1A, 0x23, 0x7E)),
-            "SAFETY" or "FIRE" => Br(Color.FromRgb(0xB7, 0x1C, 0x1C)),
-            _ => Br(Color.FromRgb(0x45, 0x50, 0x6E))
-        };
+            var match = IsoIssueTypes.FirstOrDefault(t =>
+                t.Code.Equals(type, StringComparison.OrdinalIgnoreCase));
+            return match.Code != null ? Br(match.Colour) : Br(Color.FromRgb(0x78, 0x90, 0x9C));
+        }
+
+        // Phase 78 Section 10.3: Null-safe panel content setter with dispatcher
+        private void SetPanelContent(ContentControl area, UIElement content)
+        {
+            if (area == null) return;
+            Dispatcher.BeginInvoke(new Action(() => area.Content = content),
+                System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        // Phase 78 Section 1.2: Show inline status message in a ContentControl area
+        private void ShowInlineStatus(ContentControl area, string title, string message,
+            bool isError = false)
+        {
+            if (area == null) return;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var color = isError ? CRed : CGreen;
+                var panel = new Border
+                {
+                    Background = Br(isError ? Color.FromRgb(0xFF, 0xEB, 0xEE) : Color.FromRgb(0xE8, 0xF5, 0xE9)),
+                    BorderBrush = Br(color), BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 8, 12, 8),
+                    Margin = new Thickness(0, 6, 0, 6)
+                };
+                var sp = new StackPanel();
+                sp.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.Bold,
+                    FontSize = 12, Foreground = Br(color), Margin = new Thickness(0, 0, 0, 4) });
+                sp.Children.Add(new TextBlock { Text = message, FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = Br(Color.FromRgb(0x33, 0x33, 0x33)) });
+                var dismissBtn = new Button { Content = "✕ Dismiss", Height = 24,
+                    Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 8, 0, 0),
+                    Background = Br(color), Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                    HorizontalAlignment = HorizontalAlignment.Left };
+                dismissBtn.Click += (s, e) => { area.Content = null; };
+                sp.Children.Add(dismissBtn);
+                panel.Child = sp;
+                area.Content = panel;
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        // Phase 78 Section 1.3: Push 4D/5D command result text to the inline _4dPanelArea
+        internal void Show4DInlineResult(string action, string content)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_4dPanelArea == null) return;
+                var sp = new StackPanel { Margin = new Thickness(8) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = action.Replace("4D", "").Replace("5D", "").Trim(),
+                    FontWeight = FontWeights.Bold, FontSize = 13, Foreground = Br(CHeaderBg),
+                    Margin = new Thickness(0, 0, 0, 6)
+                });
+                foreach (var line in content.Split('\n'))
+                    sp.Children.Add(new TextBlock { Text = line, FontSize = 11,
+                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 1) });
+                var closeBtn = new Button { Content = "Close Panel", Height = 26,
+                    Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 10, 0, 0),
+                    Background = Br(CHeaderBg), Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                    HorizontalAlignment = HorizontalAlignment.Left };
+                closeBtn.Click += (s, e) => _4dPanelArea.Content = null;
+                sp.Children.Add(closeBtn);
+                _4dPanelArea.Content = new Border
+                {
+                    Background = Br(Color.FromRgb(0xF4, 0xF5, 0xF7)),
+                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4), Child = sp
+                };
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        // Phase 78 Section 10.6: Proper resource cleanup on window close
+        private void OnClosed(object sender, EventArgs e)
+        {
+            ActionDispatcher = null;
+            CurrentInstance = null;
+            _tabCache.Clear();
+            StingLog.Info("BIMCoordinationCenter closed and resources released.");
+        }
+
+        // Phase 78 Section 3.1: Scrollable, searchable assignee checkbox grid
+        // Used in RaiseIssue, AssignIssues, UpdateIssue context panels and StingBIM Sharing tab.
+        private UIElement BuildAssigneeCheckboxGrid(out Func<List<string>> getSelected)
+        {
+            var outer = new StackPanel();
+            outer.Children.Add(new TextBlock
+            {
+                Text = "Assign To (select all that apply):",
+                FontWeight = FontWeights.SemiBold, FontSize = 11,
+                Margin = new Thickness(0, 0, 0, 4)
+            });
+
+            var searchBox = new TextBox
+            {
+                Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 0, 6),
+                BorderBrush = Br(CBorder), Padding = new Thickness(4, 2, 4, 2)
+            };
+            outer.Children.Add(searchBox);
+
+            var scroll = new ScrollViewer
+            {
+                MaxHeight = 220, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            var listPanel = new WrapPanel { Orientation = Orientation.Horizontal };
+
+            // Use team registry if available, else fall back to built-in defaults
+            var registry = _data?.TeamMembers?.Count > 0
+                ? _data.TeamMembers.Select(m => (m.Name, m.Role ?? "Team")).ToList()
+                : DefaultIssueAssignees.Select(d => (d.Role, d.Group)).ToList();
+
+            var checkBoxes = new List<(CheckBox cb, string name, string group)>();
+            var grouped = registry.GroupBy(r => r.Item2).OrderBy(g => g.Key);
+
+            foreach (var grp in grouped)
+            {
+                listPanel.Children.Add(new Border
+                {
+                    Width = 460,
+                    Child = new TextBlock
+                    {
+                        Text = grp.Key.ToUpperInvariant(),
+                        FontWeight = FontWeights.Bold, FontSize = 9,
+                        Foreground = Br(CAccent),
+                        Margin = new Thickness(2, 6, 2, 2)
+                    },
+                    Background = Brushes.Transparent
+                });
+
+                foreach (var member in grp)
+                {
+                    var cb = new CheckBox
+                    {
+                        Content = member.Item1,
+                        FontSize = 11,
+                        Margin = new Thickness(2, 2, 10, 2),
+                        MinWidth = 140
+                    };
+                    checkBoxes.Add((cb, member.Item1, grp.Key));
+                    listPanel.Children.Add(cb);
+                }
+            }
+
+            scroll.Content = listPanel;
+            outer.Children.Add(scroll);
+
+            var selRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            var selAllBtn = new Button
+            {
+                Content = "Select All", Height = 22, Padding = new Thickness(8, 0, 8, 0),
+                FontSize = 10, Background = Br(CHeaderBg), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 4, 0)
+            };
+            var clearBtn = new Button
+            {
+                Content = "Clear", Height = 22, Padding = new Thickness(8, 0, 8, 0),
+                FontSize = 10, Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            selAllBtn.Click += (s, ev) => checkBoxes.ForEach(x => x.cb.IsChecked = true);
+            clearBtn.Click  += (s, ev) => checkBoxes.ForEach(x => x.cb.IsChecked = false);
+            selRow.Children.Add(selAllBtn);
+            selRow.Children.Add(clearBtn);
+            outer.Children.Add(selRow);
+
+            // Live search filter
+            searchBox.TextChanged += (s, ev) =>
+            {
+                string q = searchBox.Text.ToLower();
+                foreach (var (cb, name, grp2) in checkBoxes)
+                    cb.Visibility = string.IsNullOrEmpty(q) || name.ToLower().Contains(q)
+                        ? Visibility.Visible : Visibility.Collapsed;
+            };
+
+            getSelected = () => checkBoxes
+                .Where(x => x.cb.IsChecked == true)
+                .Select(x => x.name)
+                .ToList();
+            return outer;
+        }
 
         // ── Phase 77: Excel-grade DataGrid helper ──────────────────────
         private static DataGrid MakeExcelDataGrid(int height = 160)
@@ -5650,6 +5914,49 @@ namespace StingTools.UI
                 _data.DeliverablesOverdue > 0 ? Br(CRed) : Br(CGreen),
                 _data.DeliverablesOverdue > 0 ? $"{_data.DeliverablesOverdue} deliverables past due date — immediate action required" : "No overdue deliverables"));
             root.Children.Add(kpiGrid);
+
+            // ── Phase 91 H5: DATA DROP MILESTONES from project_bep.json ─────
+            try
+            {
+                var doc91 = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc91 != null)
+                {
+                    string bepPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc91, "project_bep.json");
+                    if (System.IO.File.Exists(bepPath))
+                    {
+                        root.Children.Add(MakeSectionHeader("DATA DROP MILESTONES"));
+                        var bepObj = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(bepPath));
+                        var ddPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+                        foreach (string ddCode in new[] { "DD1", "DD2", "DD3", "DD4" })
+                        {
+                            var ddNode = bepObj["data_drops"]?[ddCode] ?? bepObj[ddCode];
+                            if (ddNode == null) continue;
+                            string ddDate = ddNode["date"]?.ToString() ?? ddNode["target_date"]?.ToString() ?? "";
+                            string ddStatus = (ddNode["status"]?.ToString() ?? "PENDING").ToUpperInvariant();
+                            bool isOverdue = false;
+                            int daysRem = 0;
+                            if (DateTime.TryParse(ddDate, out DateTime ddDt))
+                            {
+                                daysRem = (int)(ddDt - DateTime.Now).TotalDays;
+                                isOverdue = daysRem < 0 && ddStatus != "COMPLETE";
+                            }
+                            Color dotClr = ddStatus == "COMPLETE" ? CGreen : isOverdue ? CRed : daysRem < 14 ? CAmber : Color.FromRgb(0x15, 0x65, 0xC0);
+                            var ddCard = new Border { Background = Br(CCardBg), BorderBrush = Br(dotClr), BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(5), Margin = new Thickness(0, 0, 8, 6), Padding = new Thickness(10, 7, 10, 7) };
+                            var ddSt = new StackPanel { Orientation = Orientation.Horizontal };
+                            ddSt.Children.Add(new Ellipse { Width = 10, Height = 10, Fill = Br(dotClr), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center });
+                            ddSt.Children.Add(new TextBlock { Text = $"{ddCode}  ", FontWeight = FontWeights.Bold, FontSize = 12 });
+                            ddSt.Children.Add(new TextBlock { Text = ddDate.Length > 10 ? ddDate.Substring(0, 10) : ddDate, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+                            ddSt.Children.Add(new TextBlock { Text = ddStatus, FontSize = 10, Foreground = Br(dotClr), VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold });
+                            if (!string.IsNullOrEmpty(ddDate))
+                                ddSt.Children.Add(new TextBlock { Text = isOverdue ? $"  ⚠ {-daysRem}d overdue" : $"  ({daysRem}d)", FontSize = 9, Foreground = Br(isOverdue ? CRed : Color.FromRgb(0x75, 0x75, 0x75)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
+                            ddCard.Child = ddSt;
+                            ddPanel.Children.Add(ddCard);
+                        }
+                        root.Children.Add(ddPanel);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DD milestones: {ex.Message}"); }
 
             // ── ISO 19650 DATA DROP PROGRESS ───────────────────────────
             root.Children.Add(MakeSectionHeader("ISO 19650 DATA DROP PROGRESS"));
@@ -5829,46 +6136,69 @@ namespace StingTools.UI
 
             // ── DELIVERABLES DATA GRID ──────────────────────────────────
             root.Children.Add(MakeSectionHeader("DELIVERABLE REGISTER"));
+
+            // ── ISO Discipline legend strip ─────────────────────────────
+            var discLegendWrap = new WrapPanel { Margin = new Thickness(0,0,0,8) };
+            foreach (var dc in IsoDisciplineCodes.Where(d => d.Code != "ALL"))
+            {
+                discLegendWrap.Children.Add(new Border
+                {
+                    Background = Br(dc.Colour), CornerRadius = new CornerRadius(3),
+                    Padding = new Thickness(6,2,6,2), Margin = new Thickness(0,0,4,3),
+                    ToolTip = dc.Label,
+                    Child = new TextBlock { Text = dc.Code, FontSize = 9, FontWeight = FontWeights.Bold, Foreground = Brushes.White }
+                });
+            }
+            root.Children.Add(discLegendWrap);
+
             if (_data.Deliverables.Count > 0)
             {
                 // Filter bar
-                var filterBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
+                var filterBar = new WrapPanel { Margin = new Thickness(0,4,0,8) };
                 var filterDrop = new ComboBox { Width = 80, Height = 26, FontSize = 10, ToolTip = "Filter by data drop" };
                 filterDrop.Items.Add("All Drops");
                 foreach (string dd in ddNames) filterDrop.Items.Add(dd);
                 filterDrop.SelectedIndex = 0;
-                filterBar.Children.Add(new TextBlock { Text = "Drop: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+                filterBar.Children.Add(new TextBlock { Text = "Drop: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0) });
                 filterBar.Children.Add(filterDrop);
-                var filterStatus = new ComboBox { Width = 100, Height = 26, FontSize = 10, Margin = new Thickness(12, 0, 0, 0), ToolTip = "Filter by status" };
+                var filterStatus = new ComboBox { Width = 100, Height = 26, FontSize = 10, Margin = new Thickness(12,0,0,0), ToolTip = "Filter by status" };
                 filterStatus.Items.Add("All Status");
                 foreach (string st in new[] { "Pending", "In Progress", "Submitted", "Approved", "Rejected" }) filterStatus.Items.Add(st);
                 filterStatus.SelectedIndex = 0;
-                filterBar.Children.Add(new TextBlock { Text = "  Status: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 4, 0) });
+                filterBar.Children.Add(new TextBlock { Text = "  Status: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8,0,4,0) });
                 filterBar.Children.Add(filterStatus);
-                var filterCDE = new ComboBox { Width = 90, Height = 26, FontSize = 10, Margin = new Thickness(12, 0, 0, 0), ToolTip = "Filter by CDE state" };
+                var filterCDE = new ComboBox { Width = 90, Height = 26, FontSize = 10, Margin = new Thickness(12,0,0,0), ToolTip = "Filter by CDE state" };
                 filterCDE.Items.Add("All CDE");
                 foreach (string c in cdeStates) filterCDE.Items.Add(c);
                 filterCDE.SelectedIndex = 0;
-                filterBar.Children.Add(new TextBlock { Text = "  CDE: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 4, 0) });
+                filterBar.Children.Add(new TextBlock { Text = "  CDE: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8,0,4,0) });
                 filterBar.Children.Add(filterCDE);
+                // ── Discipline filter ──────────────────────────────────────
+                var filterDisc = new ComboBox { Width = 120, Height = 26, FontSize = 10, Margin = new Thickness(12,0,0,0), ToolTip = "Filter by ISO discipline" };
+                filterDisc.Items.Add("All Disciplines");
+                foreach (var dc in IsoDisciplineCodes.Where(d => d.Code != "ALL")) filterDisc.Items.Add(dc.Code + " \u2014 " + dc.Label.Split('\u2014').Last().Trim());
+                filterDisc.SelectedIndex = 0;
+                filterBar.Children.Add(new TextBlock { Text = "  Disc.: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8,0,4,0) });
+                filterBar.Children.Add(filterDisc);
                 root.Children.Add(filterBar);
 
                 var dg = new DataGrid
                 {
                     AutoGenerateColumns = false, IsReadOnly = true, HeadersVisibility = DataGridHeadersVisibility.Column,
                     GridLinesVisibility = DataGridGridLinesVisibility.Horizontal, CanUserSortColumns = true,
-                    SelectionMode = DataGridSelectionMode.Single, FontSize = 11, MaxHeight = 280,
+                    SelectionMode = DataGridSelectionMode.Single, FontSize = 11, MaxHeight = 300,
                     BorderBrush = Br(CBorder), BorderThickness = new Thickness(1), RowHeaderWidth = 0
                 };
-                dg.Columns.Add(new DataGridTextColumn { Header = "Code", Binding = new Binding("Code"), Width = 120 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Name", Binding = new Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Type", Binding = new Binding("Type"), Width = 60 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Drop", Binding = new Binding("DataDrop"), Width = 40 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new Binding("Status"), Width = 80 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Suit.", Binding = new Binding("Suitability"), Width = 35 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "CDE", Binding = new Binding("CDE"), Width = 60 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Owner", Binding = new Binding("Owner"), Width = 80 });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Due", Binding = new Binding("DueDate"), Width = 80 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Code",       Binding = new Binding("Code"),       Width = 120 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Name",       Binding = new Binding("Name"),       Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Disc.",      Binding = new Binding("Discipline"), Width = 45 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Type",       Binding = new Binding("Type"),       Width = 60 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Drop",       Binding = new Binding("DataDrop"),   Width = 40 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Status",     Binding = new Binding("Status"),     Width = 80 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Suit.",      Binding = new Binding("Suitability"),Width = 35 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "CDE",        Binding = new Binding("CDE"),        Width = 60 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Owner",      Binding = new Binding("Owner"),      Width = 80 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Due",        Binding = new Binding("DueDate"),    Width = 80 });
                 dg.ItemsSource = _data.Deliverables;
 
                 // Row styling: overdue = red, rejected = orange, approved = green tint
@@ -5915,19 +6245,23 @@ namespace StingTools.UI
                 // Wire filters to DataGrid
                 Action applyFilter = () =>
                 {
-                    string dropVal = filterDrop.SelectedItem as string;
+                    string dropVal   = filterDrop.SelectedItem   as string;
                     string statusVal = filterStatus.SelectedItem as string;
-                    string cdeVal = filterCDE.SelectedItem as string;
+                    string cdeVal    = filterCDE.SelectedItem    as string;
+                    string discRaw   = filterDisc.SelectedItem   as string;
+                    string discVal   = (discRaw == "All Disciplines" || discRaw == null) ? null : discRaw.Split('\u2014')[0].Trim();
                     var filtered = _data.Deliverables.Where(d =>
-                        (dropVal == "All Drops" || d.DataDrop == dropVal) &&
-                        (statusVal == "All Status" || d.Status == statusVal) &&
-                        (cdeVal == "All CDE" || d.CDE == cdeVal)
+                        (dropVal   == "All Drops"      || d.DataDrop   == dropVal) &&
+                        (statusVal == "All Status"     || d.Status     == statusVal) &&
+                        (cdeVal    == "All CDE"        || d.CDE        == cdeVal) &&
+                        (discVal   == null             || d.Discipline == discVal)
                     ).ToList();
                     dg.ItemsSource = filtered;
                 };
-                filterDrop.SelectionChanged += (s, e) => applyFilter();
+                filterDrop.SelectionChanged   += (s, e) => applyFilter();
                 filterStatus.SelectionChanged += (s, e) => applyFilter();
-                filterCDE.SelectionChanged += (s, e) => applyFilter();
+                filterCDE.SelectionChanged    += (s, e) => applyFilter();
+                filterDisc.SelectionChanged   += (s, e) => applyFilter();
 
                 root.Children.Add(dg);
             }
@@ -6230,8 +6564,31 @@ namespace StingTools.UI
             var memberDg = MakeExcelDataGrid(180);
             memberDg.Columns.Add(new DataGridTextColumn { Header = "Name",         Binding = new System.Windows.Data.Binding("Name"),         Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
             memberDg.Columns.Add(new DataGridTextColumn { Header = "Company",      Binding = new System.Windows.Data.Binding("Company"),      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            memberDg.Columns.Add(new DataGridTextColumn { Header = "Role",         Binding = new System.Windows.Data.Binding("Role"),         Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            memberDg.Columns.Add(new DataGridTextColumn { Header = "Discipline",   Binding = new System.Windows.Data.Binding("Discipline"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            var isoRoles = new List<string>
+            {
+                "Client / Employer", "Appointing Party Representative", "Project Manager", "BIM Manager",
+                "BIM Coordinator", "BIM Technician", "Information Manager", "CDE Administrator",
+                "Delivery Team Leader", "Task Team Leader", "Author", "Checker / Approver",
+                "Architect (Lead Designer)", "Structural Engineer", "Building Services / MEP Engineer",
+                "Civil Engineer", "Landscape Architect", "Interior Designer", "Façade Engineer",
+                "Acoustic Engineer", "Traffic Engineer", "Fire Engineer", "Lighting Designer",
+                "Cost Manager / QS", "Project Programmer", "Health & Safety Manager", "Planning Consultant",
+                "Principal Contractor", "Construction Manager", "Site Manager", "Subcontractor Manager",
+                "Commissioning Manager", "FM Manager", "Asset Manager", "Data Drop Manager",
+                "Document Controller", "Other"
+            };
+            var isoDisciplines = new List<string>
+            {
+                "A – Architecture", "B – Building Services / MEP", "C – Civil Engineering",
+                "D – Drainage", "E – Electrical", "F – Fire Protection", "G – General / Multi-Discipline",
+                "H – HVAC", "I – Interior Design", "J – Landscape", "K – Structural",
+                "L – Lighting", "M – Mechanical", "N – Noise / Acoustics", "O – Other",
+                "P – Plumbing", "Q – Quantity Surveying", "R – Renovation / Refurbishment",
+                "S – Structural Engineering", "T – Transport / Traffic", "U – Urban Planning",
+                "V – Ventilation", "W – Wet Services", "X – External Works", "Z – General Coordination"
+            };
+            memberDg.Columns.Add(new DataGridComboBoxColumn { Header = "Role",       ItemsSource = isoRoles,       SelectedItemBinding = new System.Windows.Data.Binding("Role"),       Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            memberDg.Columns.Add(new DataGridComboBoxColumn { Header = "Discipline",  ItemsSource = isoDisciplines, SelectedItemBinding = new System.Windows.Data.Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             memberDg.Columns.Add(new DataGridTextColumn { Header = "Email",        Binding = new System.Windows.Data.Binding("Email"),        Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
             memberDg.Columns.Add(new DataGridTextColumn { Header = "Phone",        Binding = new System.Windows.Data.Binding("Phone"),        Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             memberDg.Columns.Add(new DataGridTextColumn { Header = "CDE Username", Binding = new System.Windows.Data.Binding("CDEUsername"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
@@ -6898,7 +7255,26 @@ namespace StingTools.UI
 
             var mtgDg = MakeExcelDataGrid(200);
             mtgDg.IsReadOnly = false;
-            var mtgTypes = new List<string> { "BIM Coordination", "Design Review", "Site Progress", "Technical", "Client", "Clash Detection", "Stage Gate", "Data Drop Review", "Handover", "RIBA Stage Review", "Programme Review", "Risk Review" };
+            var mtgTypes = new List<string>
+            {
+                // Pre-Construction
+                "Pre-Construction Meeting", "Project Kick-Off", "Client Briefing", "Feasibility Review", "Planning Pre-Application",
+                // Design & Coordination
+                "BIM Coordination", "Design Review", "Technical Design Meeting", "Clash Detection Review", "Stage Gate Review",
+                "RIBA Stage Review", "Design Team Meeting", "Multi-Discipline Coordination",
+                // Procurement & Commercial
+                "Tender Review Meeting", "Contractor Briefing", "Procurement Strategy Meeting", "Risk Review",
+                "Value Engineering Workshop", "Programme Review",
+                // Construction
+                "Site Progress Meeting", "Construction Phase Meeting", "Subcontractor Coordination",
+                "Inspection and Test Meeting", "Health & Safety Review", "Quality Review",
+                // Handover & FM
+                "Data Drop Review", "Handover Meeting", "COBie Review", "FM Commissioning Meeting",
+                "Client Handover Meeting", "Post-Occupancy Evaluation",
+                // General
+                "Client Meeting", "Stakeholder Engagement", "Project Board Meeting", "Change Control Meeting",
+                "Lessons Learned", "Weekly Team Meeting", "Issue Resolution Meeting", "Workshop", "Other"
+            };
             var mtgStatuses = new List<string> { "PLANNED", "IN PROGRESS", "COMPLETED", "CANCELLED" };
             mtgDg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("MeetingId"), Width = 70, IsReadOnly = true });
             mtgDg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Title"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
@@ -6976,8 +7352,60 @@ namespace StingTools.UI
             var attMtgTypeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
             attMtgTypeRow.Children.Add(new TextBlock { Text = "Meeting Type:", Width = 110, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
             var attTypeCb = new System.Windows.Controls.ComboBox { Width = 200, Height = 28, FontSize = 11 };
-            foreach (var t in new[] { "BIM Coordination", "Design Review", "Site Progress", "Client", "Clash Detection", "Stage Gate", "Data Drop Review", "Handover", "Programme Review" }) attTypeCb.Items.Add(t);
-            attTypeCb.SelectedIndex = 0;
+            // Phase 91: Full AEC/FM grouped meeting type list
+            void AddMtgSep(string label) => attTypeCb.Items.Add(new ComboBoxItem { Content = $"── {label} ──", IsEnabled = false, FontStyle = FontStyles.Italic, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)) });
+            void AddMtgItem(string code, string label, bool isDefault = false) {
+                var ci = new ComboBoxItem { Content = label, Tag = code };
+                attTypeCb.Items.Add(ci);
+                if (isDefault) attTypeCb.SelectedItem = ci;
+            }
+            AddMtgSep("Pre-Construction");
+            AddMtgItem("BRIEF", "BRIEF / Client Briefing");
+            AddMtgItem("FES", "FES / Feasibility Study Review");
+            AddMtgItem("RIBA_A", "RIBA Stage 0/A — Strategic Definition");
+            AddMtgItem("RIBA_1", "RIBA Stage 1 — Preparation & Briefing");
+            AddMtgItem("RIBA_2", "RIBA Stage 2 — Concept Design");
+            AddMtgItem("RIBA_3", "RIBA Stage 3 — Spatial Coordination");
+            AddMtgItem("RIBA_4", "RIBA Stage 4 — Technical Design");
+            AddMtgItem("PLAN_APP", "PLAN_APP / Planning Application Review");
+            AddMtgSep("Design & Coordination");
+            AddMtgItem("BIM_COORD", "BIM_COORD / BIM Coordination", isDefault: true);
+            AddMtgItem("DESIGN_REV", "DESIGN_REV / Design Review");
+            AddMtgItem("CLASH_DET", "CLASH_DET / Clash Detection");
+            AddMtgItem("DATA_DROP", "DATA_DROP / Data Drop Review (DD1–DD4)");
+            AddMtgItem("STAGE_GATE", "STAGE_GATE / Stage Gate / RIBA Gateway");
+            AddMtgItem("TECH_DES", "TECH_DES / Technical Design Workshop");
+            AddMtgItem("SPEC_REV", "SPEC_REV / Specification Review");
+            AddMtgItem("VALUE_ENG", "VALUE_ENG / Value Engineering");
+            AddMtgSep("Procurement & Commercial");
+            AddMtgItem("TENDER", "TENDER / Tender Review");
+            AddMtgItem("CONTRACT", "CONTRACT / Contract Award");
+            AddMtgItem("COMMERCIAL", "COMMERCIAL / Commercial / Cost Review");
+            AddMtgItem("RISK", "RISK / Risk Register Review");
+            AddMtgItem("PROGRAMME", "PROGRAMME / Programme / Schedule Review");
+            AddMtgSep("Construction");
+            AddMtgItem("SITE_PROG", "SITE_PROG / Site Progress");
+            AddMtgItem("SITE_VISIT", "SITE_VISIT / Site Inspection / Walk");
+            AddMtgItem("SUBCON", "SUBCON / Sub-Contractor Coordination");
+            AddMtgItem("SAFETY", "SAFETY / Health & Safety Review");
+            AddMtgItem("QA_QC", "QA_QC / QA / QC Inspection");
+            AddMtgItem("RFI_REV", "RFI_REV / RFI / NCR Review");
+            AddMtgItem("CHANGE", "CHANGE / Change Management");
+            AddMtgSep("Handover & FM");
+            AddMtgItem("HANDOVER", "HANDOVER / Handover Review");
+            AddMtgItem("COMMISSIONING", "COMMISSIONING / Commissioning");
+            AddMtgItem("SNAGGING", "SNAGGING / Snagging / Defects Review");
+            AddMtgItem("COBIE_REV", "COBIE_REV / COBie / FM Data Review");
+            AddMtgItem("FM_OPS", "FM_OPS / FM Operations Briefing");
+            AddMtgItem("ASSET_MGMT", "ASSET_MGMT / Asset Management Review");
+            AddMtgItem("PPM", "PPM / Planned Preventive Maintenance Review");
+            AddMtgSep("General");
+            AddMtgItem("CLIENT", "CLIENT / Client / Stakeholder Meeting");
+            AddMtgItem("MGMT", "MGMT / Project Management");
+            AddMtgItem("INTERNAL", "INTERNAL / Internal Team");
+            AddMtgItem("LESSONS", "LESSONS / Lessons Learned");
+            AddMtgItem("ADHOC", "ADHOC / Ad-hoc / Other");
+            if (attTypeCb.SelectedItem == null && attTypeCb.Items.Count > 1) attTypeCb.SelectedIndex = 1;
             attMtgTypeRow.Children.Add(attTypeCb);
             attPanel.Children.Add(attMtgTypeRow);
 
@@ -7724,7 +8152,51 @@ namespace StingTools.UI
         {
             Dispatcher.Invoke(() =>
             {
-                _statusBar.Text = $"Action: {action}";
+                try
+                {
+                    var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                    switch (action)
+                    {
+                        case "SaveProjectMembers":
+                        {
+                            if (doc != null)
+                            {
+                                string path = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "team_members.json");
+                                var arr = Newtonsoft.Json.Linq.JArray.FromObject(_data.TeamMembers);
+                                System.IO.File.WriteAllText(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                                ShowStatus($"Saved {_data.TeamMembers.Count} team members.");
+                            }
+                            else ShowStatus("No active document — cannot save team members.");
+                            break;
+                        }
+                        case "AddTeamMember":
+                        {
+                            _data.TeamMembers.Add(new TeamMemberRow { Active = true, Name = "New Member", Role = "Team" });
+                            if (_tabCache.ContainsKey(TabProjectMembers)) _tabCache.Remove(TabProjectMembers);
+                            NavigateTo(TabProjectMembers);
+                            ShowStatus("New team member added.");
+                            break;
+                        }
+                        case "RemoveMember":
+                        case "RemoveTeamMember":
+                        {
+                            string memberName = StingCommandHandler.GetExtraParam("MemberName");
+                            if (!string.IsNullOrEmpty(memberName))
+                            {
+                                int removed = _data.TeamMembers.RemoveAll(m => m.Name == memberName);
+                                if (_tabCache.ContainsKey(TabProjectMembers)) _tabCache.Remove(TabProjectMembers);
+                                NavigateTo(TabProjectMembers);
+                                ShowStatus(removed > 0 ? $"Removed member: {memberName}" : $"Member not found: {memberName}");
+                            }
+                            else ShowStatus("No MemberName param set.");
+                            break;
+                        }
+                        default:
+                            ShowStatus($"Action: {action}");
+                            break;
+                    }
+                }
+                catch (Exception ex) { ShowStatus($"Error: {ex.Message}"); }
             });
         }
 
@@ -7736,6 +8208,47 @@ namespace StingTools.UI
             timer.Tick += (s, e) => { _statusBar.Text = "Ready"; timer.Stop(); };
             timer.Start();
         }
+
+        /// <summary>Phase 91: Auto-populate issue location from element tokens and room membership.</summary>
+        internal static string AutoPopulateIssueLocation(Autodesk.Revit.DB.Document doc, IEnumerable<Autodesk.Revit.DB.ElementId> elementIds)
+        {
+            if (doc == null) return "";
+            foreach (var id in elementIds ?? Enumerable.Empty<Autodesk.Revit.DB.ElementId>())
+            {
+                var el = doc.GetElement(id);
+                if (el == null) continue;
+                string lvl  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LVL)  ?? "";
+                string zone = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.ZONE) ?? "";
+                string loc  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LOC)  ?? "";
+                if (string.IsNullOrEmpty(lvl) || lvl == "XX")
+                    lvl = Core.ParameterHelpers.GetLevelCode(doc, el) ?? "";
+                string room = "";
+                try
+                {
+                    if (el is Autodesk.Revit.DB.FamilyInstance fi)
+                    {
+                        Autodesk.Revit.DB.Phase phase = null;
+                        try { phase = doc.GetElement(el.CreatedPhaseId) as Autodesk.Revit.DB.Phase; } catch { }
+                        var r = phase != null ? fi.get_Room(phase) : fi.Room;
+                        if (r != null) room = r.Name;
+                    }
+                }
+                catch { }
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(lvl)  && lvl  != "XX") parts.Add(lvl);
+                if (!string.IsNullOrEmpty(zone) && zone != "XX" && zone != "ZZ") parts.Add(zone);
+                if (!string.IsNullOrEmpty(loc)  && loc  != "XX") parts.Add(loc);
+                if (!string.IsNullOrEmpty(room)) parts.Add(room);
+                string result = string.Join(" / ", parts);
+                if (!string.IsNullOrEmpty(result)) return result;
+            }
+            return "";
+        }
+
+        /// <summary>Returns the names of all loaded team members for external use (e.g., IssueTrackerDashboard).</summary>
+        public List<string> GetTeamMemberNames()
+            => _data?.TeamMembers?.Select(m => m.Name).Where(n => !string.IsNullOrEmpty(n)).ToList()
+               ?? new List<string>();
 
         /// <summary>Phase 77 Item 11C: Refresh nav panel badge counts from live data.</summary>
         public void RefreshBadges()

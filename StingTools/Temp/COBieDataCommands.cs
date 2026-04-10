@@ -839,7 +839,7 @@ namespace StingTools.Temp
 
             // Collect Revit zones
             var revitZones = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Areas)
+                .OfCategory(BuiltInCategory.OST_MEPSpaces)
                 .WhereElementIsNotElementType()
                 .ToList();
 
@@ -976,7 +976,7 @@ namespace StingTools.Temp
 
             // Export action
             string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
-            panel.Action("Export Zone Audit CSV", "Export zone coverage analysis to CSV", (w) =>
+            panel.Action("Export Zone Audit CSV", "Export zone coverage analysis to CSV", (win) =>
             {
                 try
                 {
@@ -1364,7 +1364,7 @@ namespace StingTools.Temp
 
             // Export action
             string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
-            panel.Action("Export Gap Report CSV", "Export missing document list to CSV", (w) =>
+            panel.Action("Export Gap Report CSV", "Export missing document list to CSV", (win) =>
             {
                 try
                 {

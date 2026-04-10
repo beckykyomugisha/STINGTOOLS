@@ -544,7 +544,7 @@ namespace StingTools.Core
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    internal class WarningPredictionCommand : IExternalCommand
+    public class WarningPredictionCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {

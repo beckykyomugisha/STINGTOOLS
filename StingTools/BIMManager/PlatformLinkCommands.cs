@@ -1996,7 +1996,7 @@ namespace StingTools.BIMManager
             {
                 if (!File.Exists(cfgPath)) return Guid.Empty;
                 var json = JObject.Parse(File.ReadAllText(cfgPath));
-                string? id = json["projectId"]?.Value<string>();
+                string id = json["projectId"]?.Value<string>();
                 return Guid.TryParse(id, out var g) ? g : Guid.Empty;
             }
             catch { return Guid.Empty; }

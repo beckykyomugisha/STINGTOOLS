@@ -1976,4 +1976,11 @@ render();
     }
 
     #endregion
+
+    /// <summary>Static helpers shared across BCC commands (e.g. pending action forwarding).</summary>
+    internal static class CoordinationCenterCommands
+    {
+        /// <summary>Pending BCC action forwarded to commands that need it (e.g. CreateRevision|P01|M|desc).</summary>
+        internal static string BccPendingAction { get; set; }
+    }
 }

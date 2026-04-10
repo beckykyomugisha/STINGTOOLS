@@ -16,7 +16,7 @@ namespace StingTools.BIMManager
     // ════════════════════════════════════════════════════════════════════════════
     //  LAN Collaboration Commands
     //
-    //  Ported from StingD85/Stingtools-Original StingBIM.AI.Collaboration/LAN/
+    //  Ported from StingD85/Stingtools-Original Planscape.AI.Collaboration/LAN/
     //  Provides LAN-based worksharing collaboration with no cloud dependency:
     //    - Worksharing setup with standard worksets
     //    - Sync-to-central with conflict detection

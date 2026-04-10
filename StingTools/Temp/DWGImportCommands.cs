@@ -1,5 +1,5 @@
 // ===================================================================================
-// DWG/CAD Import Commands — Adapted from StingBIM.AI.Creation + AI.NLP
+// DWG/CAD Import Commands — Adapted from Planscape.AI.Creation + AI.NLP
 // DWG/DXF interpretation, layer mapping, geometry extraction, BIM element conversion,
 // PDF plan extraction, and intelligent document recognition for STINGTOOLS.
 // Covers gaps: DWG-01 through DWG-09 (DWG-to-BIM conversion pipeline)
@@ -668,7 +668,7 @@ namespace StingTools.Temp
 
     /// <summary>
     /// Comprehensive CAD import engine for DWG/DXF interpretation.
-    /// Adapted from StingBIM.AI.Creation.Import.CADImportEngine.
+    /// Adapted from Planscape.AI.Creation.Import.CADImportEngine.
     /// Supports layer mapping, geometry extraction, block recognition, text extraction.
     /// </summary>
     internal static class CADImportEngineStatic
@@ -1266,7 +1266,7 @@ namespace StingTools.Temp
 
     /// <summary>
     /// Generates a BIM creation plan from DWG analysis.
-    /// Adapted from StingBIM.AI.NLP.Consulting.DWGToBIMConversionEngine.
+    /// Adapted from Planscape.AI.NLP.Consulting.DWGToBIMConversionEngine.
     /// </summary>
     internal class DWGToBIMConverter
     {
