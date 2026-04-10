@@ -839,7 +839,7 @@ namespace StingTools.Temp
 
             // Collect Revit zones
             var revitZones = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Areas)
+                .OfCategory(BuiltInCategory.OST_Zones)
                 .WhereElementIsNotElementType()
                 .ToList();
 
@@ -920,7 +920,7 @@ namespace StingTools.Temp
             panel.Separator();
 
             panel.AddSection("Zone Category Coverage");
-            panel.RAGBar(coveragePct, "Category Coverage");
+            panel.RAGBar("Category Coverage", coveragePct);
             panel.Metric("Categories Detected",
                 $"{categoriesCovered} of {categoriesTotal}");
 
@@ -976,7 +976,7 @@ namespace StingTools.Temp
 
             // Export action
             string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
-            panel.Action("Export Zone Audit CSV", "Export zone coverage analysis to CSV", (w) =>
+            panel.Action("Export Zone Audit CSV", "Export zone coverage analysis to CSV", () =>
             {
                 try
                 {
@@ -1294,7 +1294,7 @@ namespace StingTools.Temp
 
             // Mandatory compliance
             panel.AddSection("Mandatory Document Compliance");
-            panel.RAGBar(mandatoryPct, "Mandatory Coverage");
+            panel.RAGBar("Mandatory Coverage", mandatoryPct);
             if (mandatoryPct >= 90)
                 panel.MetricHighlight("Status", $"{mandatoryPresent}/{mandatory.Count} mandatory documents present");
             else if (mandatoryPct >= 50)
@@ -1364,7 +1364,7 @@ namespace StingTools.Temp
 
             // Export action
             string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
-            panel.Action("Export Gap Report CSV", "Export missing document list to CSV", (w) =>
+            panel.Action("Export Gap Report CSV", "Export missing document list to CSV", () =>
             {
                 try
                 {

@@ -15,7 +15,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.planscape.app",
+      "bundleIdentifier": "com.stingbim.planscape",
       "infoPlist": {
         "NSCameraUsageDescription": "Planscape uses the camera to scan QR codes on BIM assets."
       }
@@ -25,7 +25,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1A237E"
       },
-      "package": "com.planscape.app",
+      "package": "com.stingbim.planscape",
       "permissions": ["CAMERA"]
     },
     "plugins": [

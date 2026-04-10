@@ -150,7 +150,7 @@ export default function DocumentsScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.emptyTitle}>No Projects</Text>
-        <Text style={styles.emptyText}>Create a project in the Planscape web portal.</Text>
+        <Text style={styles.emptyText}>Create a project in the StingBIM web portal.</Text>
       </View>
     );
   }

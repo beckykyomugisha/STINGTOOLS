@@ -553,36 +553,54 @@ namespace StingTools.BIMManager
                 var doc = _ctx.Doc;
                 int nextSeq = RevisionEngine.GetNextRevisionSeq(doc);
 
-                // Prompt for description
-                var td = new TaskDialog("StingTools Create Revision")
+                // Parse params forwarded from BCC inline form: "CreateRevision|P01|M|Coordination update"
+                // _pendingAction is set by CoordinationCenterCommands before invoking this command.
+                string isoCode   = $"P{nextSeq:D2}";
+                string discipline = "ALL";
+                string userDesc   = "";
+                try
                 {
-                    MainInstruction = $"Create Revision #{nextSeq}",
-                    MainContent = "Enter revision description.\n\n" +
-                        "The revision will be created with ISO 19650 naming and a tag snapshot " +
-                        "will be taken for change tracking.",
-                    CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel
-                };
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Preliminary Issue (P-series)");
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Construction Issue (C-series)");
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "As-Built Issue (Letter series)");
+                    string pending = CoordinationCenterCommands.BccPendingAction ?? "";
+                    if (pending.StartsWith("CreateRevision|"))
+                    {
+                        var parts = pending.Split('|');
+                        if (parts.Length >= 2 && !string.IsNullOrWhiteSpace(parts[1])) isoCode    = parts[1].Trim();
+                        if (parts.Length >= 3 && !string.IsNullOrWhiteSpace(parts[2])) discipline = parts[2].Trim();
+                        if (parts.Length >= 4 && !string.IsNullOrWhiteSpace(parts[3])) userDesc   = parts[3].Trim();
+                        CoordinationCenterCommands.BccPendingAction = null;
+                    }
+                }
+                catch (Exception pEx) { StingLog.Warn($"CreateRevision param parse: {pEx.Message}"); }
 
-                var result = td.Show();
-                if (result == TaskDialogResult.Cancel) return Result.Cancelled;
-
-                string prefix;
-                switch (result)
+                // If no params from BCC, fall back to TaskDialog picker
+                if (string.IsNullOrEmpty(userDesc))
                 {
-                    case TaskDialogResult.CommandLink1: prefix = $"P{nextSeq:D2}"; break;
-                    case TaskDialogResult.CommandLink2: prefix = $"C{nextSeq:D2}"; break;
-                    case TaskDialogResult.CommandLink3:
-                        prefix = nextSeq <= 26 ? ((char)('A' + nextSeq - 1)).ToString() : $"Z{nextSeq - 26}";
-                        break;
-                    default: prefix = $"P{nextSeq:D2}"; break;
+                    var td = new TaskDialog("StingTools Create Revision")
+                    {
+                        MainInstruction = $"Create Revision #{nextSeq}",
+                        MainContent = "Select the ISO 19650 revision series.\n\n" +
+                            "Tip: use the BCC Revisions tab for the full ISO code dropdown and discipline selector.",
+                        CommonButtons = TaskDialogCommonButtons.Cancel
+                    };
+                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Preliminary Issue  (P{nextSeq:D2})");
+                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"Construction Issue (C{nextSeq:D2})");
+                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, nextSeq <= 26
+                        ? $"As-Built Issue ({(char)('A' + nextSeq - 1)})"
+                        : $"As-Built Issue (Z{nextSeq - 26})");
+                    var tdResult = td.Show();
+                    if (tdResult == TaskDialogResult.Cancel) return Result.Cancelled;
+                    isoCode = tdResult == TaskDialogResult.CommandLink1 ? $"P{nextSeq:D2}"
+                            : tdResult == TaskDialogResult.CommandLink2 ? $"C{nextSeq:D2}"
+                            : nextSeq <= 26 ? ((char)('A' + nextSeq - 1)).ToString() : $"Z{nextSeq - 26}";
                 }
 
-                string description = RevisionEngine.BuildRevisionName(doc, nextSeq,
-                    result == TaskDialogResult.CommandLink1 ? "Preliminary" :
-                    result == TaskDialogResult.CommandLink2 ? "Construction" : "As-Built");
+                string prefix = isoCode;
+                string seriesName = isoCode.StartsWith("P") ? "Preliminary"
+                    : isoCode.StartsWith("C") ? "Construction" : "As-Built";
+
+                string description = string.IsNullOrEmpty(userDesc)
+                    ? RevisionEngine.BuildRevisionName(doc, nextSeq, seriesName)
+                    : $"{isoCode} \u2014 {userDesc}";
 
                 // WF-03: Pre-revision compliance gate — warn if tag compliance is below threshold
                 try

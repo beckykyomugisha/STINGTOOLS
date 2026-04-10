@@ -83,7 +83,7 @@ export default function DashboardScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.emptyText}>No projects found.</Text>
-        <Text style={styles.emptySubtext}>Create a project in the Planscape web portal to get started.</Text>
+        <Text style={styles.emptySubtext}>Create a project in the StingBIM web portal to get started.</Text>
       </View>
     );
   }

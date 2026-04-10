@@ -798,7 +798,7 @@ namespace StingTools.BIMManager
                 }
 
                 string revision = "";
-                try { revision = Core.PhaseAutoDetect.DetectProjectRevision(doc); }
+                try { revision = Core.ParameterHelpers.PhaseAutoDetect.DetectProjectRevision(doc); }
                 catch (Exception ex) { StingLog.Warn($"AutoRaiseHandoverGapIssues revision: {ex.Message}"); }
 
                 var issue = new JObject

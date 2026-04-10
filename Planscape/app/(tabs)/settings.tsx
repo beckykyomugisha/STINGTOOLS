@@ -202,7 +202,7 @@ export default function SettingsScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
-              placeholder="https://api.planscape.app"
+              placeholder="https://api.stingbim.com"
               placeholderTextColor={theme.colors.disabled}
             />
             <TouchableOpacity style={styles.smallBtn} onPress={saveUrl}>
@@ -308,7 +308,7 @@ export default function SettingsScreen() {
       {/* ── About ── */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>About</Text>
-        <InfoRow label="App" value="Planscape" />
+        <InfoRow label="App" value="Planscape by StingBIM" />
         <InfoRow label="Version" value="1.0.0" />
         <InfoRow label="Platform" value={Platform.OS} />
       </View>

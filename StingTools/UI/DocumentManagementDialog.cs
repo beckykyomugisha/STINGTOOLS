@@ -2518,13 +2518,54 @@ namespace StingTools.UI
         /// distribution group support, and follow-up from previous.</summary>
         internal static void CreateMeeting(Document doc)
         {
-            var types = new List<string>
+            // Phase 91: Full AEC/FM meeting type list (39 types)
+            var meetingTypePairs = new List<(string Code, string Label)>
             {
-                "BIM Coordination Meeting", "Design Review", "Client Review",
-                "Handover Review", "Clash Resolution", "Ad-hoc / Other"
+                ("BRIEF",        "BRIEF / Client Briefing"),
+                ("FES",          "FES / Feasibility Study Review"),
+                ("RIBA_A",       "RIBA Stage 0/A — Strategic Definition"),
+                ("RIBA_1",       "RIBA Stage 1 — Preparation & Briefing"),
+                ("RIBA_2",       "RIBA Stage 2 — Concept Design"),
+                ("RIBA_3",       "RIBA Stage 3 — Spatial Coordination"),
+                ("RIBA_4",       "RIBA Stage 4 — Technical Design"),
+                ("PLAN_APP",     "PLAN_APP / Planning Application Review"),
+                ("BIM_COORD",    "BIM_COORD / BIM Coordination"),
+                ("DESIGN_REV",   "DESIGN_REV / Design Review"),
+                ("CLASH_DET",    "CLASH_DET / Clash Detection"),
+                ("DATA_DROP",    "DATA_DROP / Data Drop Review (DD1–DD4)"),
+                ("STAGE_GATE",   "STAGE_GATE / Stage Gate / RIBA Gateway"),
+                ("TECH_DES",     "TECH_DES / Technical Design Workshop"),
+                ("SPEC_REV",     "SPEC_REV / Specification Review"),
+                ("VALUE_ENG",    "VALUE_ENG / Value Engineering"),
+                ("TENDER",       "TENDER / Tender Review"),
+                ("CONTRACT",     "CONTRACT / Contract Award"),
+                ("COMMERCIAL",   "COMMERCIAL / Commercial / Cost Review"),
+                ("RISK",         "RISK / Risk Register Review"),
+                ("PROGRAMME",    "PROGRAMME / Programme / Schedule Review"),
+                ("SITE_PROG",    "SITE_PROG / Site Progress"),
+                ("SITE_VISIT",   "SITE_VISIT / Site Inspection / Walk"),
+                ("SUBCON",       "SUBCON / Sub-Contractor Coordination"),
+                ("SAFETY",       "SAFETY / Health & Safety Review"),
+                ("QA_QC",        "QA_QC / QA / QC Inspection"),
+                ("RFI_REV",      "RFI_REV / RFI / NCR Review"),
+                ("CHANGE",       "CHANGE / Change Management"),
+                ("HANDOVER",     "HANDOVER / Handover Review"),
+                ("COMMISSIONING","COMMISSIONING / Commissioning"),
+                ("SNAGGING",     "SNAGGING / Snagging / Defects Review"),
+                ("COBIE_REV",    "COBIE_REV / COBie / FM Data Review"),
+                ("FM_OPS",       "FM_OPS / FM Operations Briefing"),
+                ("ASSET_MGMT",   "ASSET_MGMT / Asset Management Review"),
+                ("PPM",          "PPM / Planned Preventive Maintenance Review"),
+                ("CLIENT",       "CLIENT / Client / Stakeholder Meeting"),
+                ("MGMT",         "MGMT / Project Management"),
+                ("INTERNAL",     "INTERNAL / Internal Team"),
+                ("LESSONS",      "LESSONS / Lessons Learned"),
+                ("ADHOC",        "ADHOC / Ad-hoc / Other"),
             };
-            string meetingType = StingListPicker.Show("New Meeting", "Select meeting type:", types);
-            if (string.IsNullOrEmpty(meetingType)) return;
+            string selectedLabel = StingListPicker.Show("New Meeting", "Select meeting type:", meetingTypePairs.Select(p => p.Label).ToList());
+            if (string.IsNullOrEmpty(selectedLabel)) return;
+            var selectedPair = meetingTypePairs.FirstOrDefault(p => p.Label == selectedLabel);
+            string meetingType = selectedPair.Code ?? selectedLabel;
 
             // Load team registry for attendee resolution
             var teamData = ProjectTeamRegistry.Load(doc);

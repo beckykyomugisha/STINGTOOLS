@@ -760,7 +760,8 @@ namespace StingTools.BIMManager
                     batchNum++;
                     if (progress != null)
                     {
-                        progress.Increment($"Batch {batchNum}: processing {currentBatch.Count} rows...");
+                        progress.Update(rowsProcessed, totalDataRows,
+                            $"Batch {batchNum}: processing {currentBatch.Count} rows...");
                         if (progress.IsCancelled)
                         {
                             result.WasCancelled = true;
@@ -786,7 +787,7 @@ namespace StingTools.BIMManager
             Dictionary<long, Dictionary<string, string>> batchData,
             HashSet<string> tokenParams,
             List<Temp.FormulaEngine.FormulaDefinition> formulas,
-            List<Grid> gridLines,
+            List<Element> gridLines,
             bool forceInvalid,
             StreamingImportResult result)
         {
@@ -1519,7 +1520,7 @@ namespace StingTools.BIMManager
                     {
                         // BIM-EXCEL-STREAM-01: Streaming import path — batched processing
                         var progress = UI.StingProgressDialog.Show("STING Excel Streaming Import", excelData.Count);
-                        ExcelLinkEngine.StreamingImportResult streamResult;
+                        StreamingImportResult streamResult;
                         try
                         {
                             streamResult = ExcelLinkEngine.StreamingImport(filePath, doc, false, progress);
@@ -1987,7 +1988,7 @@ namespace StingTools.BIMManager
                         // BIM-EXCEL-STREAM-01: Streaming round-trip path
                         var progress = UI.StingProgressDialog.Show(
                             "STING Excel Round-Trip Streaming Import", excelData.Count);
-                        ExcelLinkEngine.StreamingImportResult streamResult;
+                        StreamingImportResult streamResult;
                         try
                         {
                             streamResult = ExcelLinkEngine.StreamingImport(
