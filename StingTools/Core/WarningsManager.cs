@@ -2732,7 +2732,7 @@ namespace StingTools.Core
                 string nextId = $"SI-{(maxNum + 1).ToString("D4")}";
 
                 string rev = "";
-                try { rev = ParameterHelpers.PhaseAutoDetect.DetectProjectRevision(doc); }
+                try { rev = PhaseAutoDetect.DetectProjectRevision(doc); }
                 catch (Exception ex) { StingLog.Warn($"AutoRaiseStaleIssues rev detect: {ex.Message}"); }
 
                 var issue = new Newtonsoft.Json.Linq.JObject

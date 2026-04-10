@@ -1700,7 +1700,7 @@ namespace StingTools.BIMManager
                 else
                 {
                     var displayNames = bcfFiles.Select(f => Path.GetFileName(f)).ToList();
-                    string picked = UI.StingListPicker.Show("Select BCF File for Sync",
+                    string picked = Select.StingListPicker.Show("Select BCF File for Sync",
                         "Choose a .bcfzip file to synchronise with STING issues:",
                         displayNames);
                     if (string.IsNullOrEmpty(picked)) return Result.Cancelled;
