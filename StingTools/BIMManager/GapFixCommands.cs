@@ -231,6 +231,134 @@ namespace StingTools.BIMManager
         }
 
         // ═══════════════════════════════════════════════════════════════════
+        //  CRIT-02b: Cross-System Link Rebuild (BIM-CROSS-LINK-01)
+        // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>BIM-CROSS-LINK-01: Scan issues.json and transmittals.json to derive
+        /// cross-system links and persist to cross_system_links.json.
+        /// Returns (linkCount, summary) tuple.</summary>
+        internal static (int LinkCount, string Summary) RebuildCrossSystemLinks(Document doc)
+        {
+            string bimDir = GetBimDir(doc);
+            string issuesPath = Path.Combine(bimDir, "issues.json");
+            string txPath = Path.Combine(bimDir, "transmittals.json");
+            string outputPath = Path.Combine(bimDir, "cross_system_links.json");
+
+            var issues = LoadJsonArray(issuesPath);
+            var transmittals = LoadJsonArray(txPath);
+            var links = new JArray();
+            var dedup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void AddLink(string srcType, string srcId, string tgtType, string tgtId, string reason)
+            {
+                if (string.IsNullOrEmpty(srcId) || string.IsNullOrEmpty(tgtId)) return;
+                string fwd = $"{srcType}:{srcId}→{tgtType}:{tgtId}";
+                string rev = $"{tgtType}:{tgtId}→{srcType}:{srcId}";
+                if (dedup.Contains(fwd)) return;
+                dedup.Add(fwd);
+                dedup.Add(rev);
+                links.Add(new JObject
+                {
+                    ["source_type"] = srcType,
+                    ["source_id"] = srcId,
+                    ["target_type"] = tgtType,
+                    ["target_id"] = tgtId,
+                    ["link_date"] = DateTime.UtcNow.ToString("o"),
+                    ["reason"] = reason
+                });
+            }
+
+            // 1. Issue → Transmittal (from linked_transmittals array)
+            foreach (var iss in issues.OfType<JObject>())
+            {
+                string issueId = iss["issue_id"]?.ToString() ?? "";
+                if (string.IsNullOrEmpty(issueId)) continue;
+
+                var linkedTx = iss["linked_transmittals"] as JArray;
+                if (linkedTx != null)
+                {
+                    foreach (var txToken in linkedTx)
+                    {
+                        string txId = txToken.ToString();
+                        if (!string.IsNullOrEmpty(txId))
+                            AddLink("ISSUE", issueId, "TRANSMITTAL", txId, "issue_linked_transmittal");
+                    }
+                }
+
+                // 2. Issue → Revision (from revision / resolved_in_revision)
+                string rev = iss["revision"]?.ToString();
+                if (!string.IsNullOrEmpty(rev) && rev != "P01" && rev.Length <= 20)
+                    AddLink("ISSUE", issueId, "REVISION", rev, "issue_raised_in_revision");
+
+                string resolvedRev = iss["resolved_in_revision"]?.ToString();
+                if (!string.IsNullOrEmpty(resolvedRev))
+                    AddLink("ISSUE", issueId, "REVISION", resolvedRev, "issue_resolved_in_revision");
+            }
+
+            // 3. Transmittal → Document (from document_ids array)
+            foreach (var tx in transmittals.OfType<JObject>())
+            {
+                string txId = tx["transmittal_id"]?.ToString() ?? "";
+                if (string.IsNullOrEmpty(txId)) continue;
+
+                var docIds = tx["document_ids"] as JArray;
+                if (docIds != null)
+                {
+                    foreach (var docToken in docIds)
+                    {
+                        string docId = docToken.ToString();
+                        if (!string.IsNullOrEmpty(docId))
+                            AddLink("TRANSMITTAL", txId, "DOCUMENT", docId, "transmittal_contains_document");
+                    }
+                }
+            }
+
+            // 4. Also propagate entity_links.json entries (manual links)
+            string entityLinksPath = Path.Combine(bimDir, "entity_links.json");
+            var entityLinks = LoadJsonArray(entityLinksPath);
+            foreach (var el in entityLinks.OfType<JObject>())
+            {
+                AddLink(
+                    el["source_type"]?.ToString() ?? "",
+                    el["source_id"]?.ToString() ?? "",
+                    el["target_type"]?.ToString() ?? "",
+                    el["target_id"]?.ToString() ?? "",
+                    "entity_link_manual");
+            }
+
+            // Persist
+            SaveJson(outputPath, links);
+            StingLog.Info($"Cross-system links rebuilt: {links.Count} links from {issues.Count} issues, {transmittals.Count} transmittals");
+
+            // Build summary
+            var sb = new StringBuilder();
+            sb.AppendLine("CROSS-SYSTEM LINK REBUILD — ISO 19650 Entity Graph\n");
+
+            var byType = links.OfType<JObject>()
+                .GroupBy(l => $"{l["source_type"]}→{l["target_type"]}")
+                .OrderByDescending(g => g.Count());
+            foreach (var g in byType)
+                sb.AppendLine($"  {g.Key}: {g.Count()} links");
+
+            sb.AppendLine($"\nTotal links: {links.Count}");
+            sb.AppendLine($"Sources: {issues.Count} issues, {transmittals.Count} transmittals, {entityLinks.Count} entity links");
+
+            // Graph view (top 50 by source)
+            var bySource = links.OfType<JObject>()
+                .GroupBy(l => $"{l["source_type"]}/{l["source_id"]}")
+                .OrderByDescending(g => g.Count())
+                .Take(50);
+            if (bySource.Any())
+            {
+                sb.AppendLine("\nDEPENDENCY GRAPH (top 50 nodes):\n");
+                foreach (var kvp in bySource)
+                    sb.AppendLine($"  {kvp.Key} → {string.Join(", ", kvp.Select(l => $"{l["target_type"]}/{l["target_id"]}"))}");
+            }
+
+            return (links.Count, sb.ToString());
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         //  CRIT-03: Coordination Center Data Refresh
         // ═══════════════════════════════════════════════════════════════════
 
@@ -1067,7 +1195,8 @@ namespace StingTools.BIMManager
         }
     }
 
-    /// <summary>CRIT-02: Cross-system entity linking.</summary>
+    /// <summary>CRIT-02: Cross-system entity linking — rebuilds and displays ISO 19650
+    /// issue↔revision↔transmittal↔document dependency graph.</summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class CrossSystemLinkCommand : IExternalCommand
@@ -1076,7 +1205,20 @@ namespace StingTools.BIMManager
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-            TaskDialog.Show("STING Cross-Link", GapFixEngine.BuildDependencyGraph(ctx.Doc));
+
+            var (count, summary) = GapFixEngine.RebuildCrossSystemLinks(ctx.Doc);
+            if (count == 0)
+            {
+                TaskDialog.Show("STING Cross-System Links",
+                    "No cross-system links found.\n\nLinks are derived from:\n" +
+                    "  • issues.json → linked_transmittals, revision fields\n" +
+                    "  • transmittals.json → document_ids\n" +
+                    "  • entity_links.json → manual links\n\n" +
+                    "Create issues or transmittals to build the entity graph.");
+                return Result.Succeeded;
+            }
+
+            TaskDialog.Show("STING Cross-System Links", summary);
             return Result.Succeeded;
         }
     }
