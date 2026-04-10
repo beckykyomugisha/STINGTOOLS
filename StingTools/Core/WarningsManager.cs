@@ -2679,6 +2679,98 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
             return created;
         }
+        // ── TAG-STALE-WARN-01: Auto-raise issues from stale elements ──────
+
+        /// <summary>
+        /// Checks for stale elements and auto-creates a HIGH-priority SI issue
+        /// when stale count exceeds zero. Deduplicates against existing open issues.
+        /// </summary>
+        internal static int AutoRaiseStaleIssues(Document doc)
+        {
+            if (doc == null) return 0;
+            int created = 0;
+            try
+            {
+                var cached = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc);
+                if (cached == null || cached.StaleCount <= 0) return 0;
+
+                string bimDir = BIMManager.GapFixEngine.GetBimDir(doc);
+                if (string.IsNullOrEmpty(bimDir)) return 0;
+                string issuesPath = System.IO.Path.Combine(bimDir, "issues.json");
+
+                Newtonsoft.Json.Linq.JArray arr;
+                if (File.Exists(issuesPath))
+                {
+                    string raw = File.ReadAllText(issuesPath);
+                    arr = string.IsNullOrWhiteSpace(raw)
+                        ? new Newtonsoft.Json.Linq.JArray()
+                        : Newtonsoft.Json.Linq.JArray.Parse(raw);
+                }
+                else
+                {
+                    arr = new Newtonsoft.Json.Linq.JArray();
+                }
+
+                // Deduplicate: skip if any OPEN issue already covers stale elements
+                foreach (var item in arr)
+                {
+                    string status = item["status"]?.ToString() ?? "";
+                    string title = item["title"]?.ToString() ?? "";
+                    if (status == "OPEN" && title.Contains("stale", StringComparison.OrdinalIgnoreCase))
+                        return 0;
+                }
+
+                // Find next ID
+                int maxNum = 0;
+                foreach (var item in arr)
+                {
+                    string id = item["id"]?.ToString() ?? "";
+                    int dashIdx = id.LastIndexOf('-');
+                    if (dashIdx >= 0 && int.TryParse(id.Substring(dashIdx + 1), out int num))
+                        maxNum = Math.Max(maxNum, num);
+                }
+                string nextId = $"SI-{(maxNum + 1).ToString("D4")}";
+
+                string rev = "";
+                try { rev = PhaseAutoDetect.DetectProjectRevision(doc); }
+                catch (Exception ex) { StingLog.Warn($"AutoRaiseStaleIssues rev detect: {ex.Message}"); }
+
+                var issue = new Newtonsoft.Json.Linq.JObject
+                {
+                    ["id"] = nextId,
+                    ["type"] = "SI",
+                    ["title"] = $"{cached.StaleCount} stale elements require re-tagging",
+                    ["description"] = $"Model contains {cached.StaleCount} elements whose tags are stale (geometry/level/spatial data changed since last tag). Run Retag Stale to resolve.",
+                    ["priority"] = "HIGH",
+                    ["status"] = "OPEN",
+                    ["discipline"] = "",
+                    ["revision"] = rev,
+                    ["element_ids"] = "",
+                    ["created_by"] = Environment.UserName,
+                    ["created_date"] = DateTime.UtcNow.ToString("o"),
+                    ["modified_by"] = Environment.UserName,
+                    ["modified_date"] = DateTime.UtcNow.ToString("o"),
+                    ["auto_created"] = true,
+                    ["source"] = "TAG-STALE-WARN-01"
+                };
+                arr.Add(issue);
+                created = 1;
+
+                // Atomic write
+                if (!Directory.Exists(bimDir))
+                    Directory.CreateDirectory(bimDir);
+                string tmpPath = issuesPath + ".tmp";
+                File.WriteAllText(tmpPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                if (File.Exists(issuesPath))
+                    File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
+                else
+                    File.Move(tmpPath, issuesPath);
+
+                StingLog.Info($"AutoRaiseStaleIssues: created {nextId} for {cached.StaleCount} stale elements");
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoRaiseStaleIssues: {ex.Message}"); }
+            return created;
+        }
     } // end WarningsEngineExt
 
     // ══════════════════════════════════════════════════════════════════

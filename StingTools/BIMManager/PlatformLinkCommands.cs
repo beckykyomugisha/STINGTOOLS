@@ -697,6 +697,249 @@ namespace StingTools.BIMManager
             return delta;
         }
 
+        // ── BCF Bidirectional Sync ──
+        // BIM-BCF-SYNC-01: Merges STING issues.json ↔ .bcfzip using bcf_guid as the
+        // join key.  New STING issues are exported as new BCF topics; new BCF topics
+        // are imported as new STING issues; issues that exist on both sides are
+        // merged (most-recent-writer wins per field).
+
+        internal static string RunBidirectionalBcfSync(Document doc, string bcfPath)
+        {
+            if (doc == null || string.IsNullOrEmpty(bcfPath))
+                return "No document or BCF path.";
+
+            // ── 1. Load STING issues ──
+            string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+            var stingIssues = BIMManagerEngine.LoadJsonArray(issuesPath);
+            var stingByGuid = new Dictionary<string, JToken>();
+            foreach (var si in stingIssues)
+            {
+                string g = si["bcf_guid"]?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(g) && !stingByGuid.ContainsKey(g))
+                    stingByGuid[g] = si;
+            }
+
+            // ── 2. Extract BCF archive ──
+            string extractDir = Path.Combine(Path.GetTempPath(), $"STING_BCF_SYNC_{Guid.NewGuid():N}");
+            var bcfTopics = new Dictionary<string, (XDocument markup, string dir)>();
+            try
+            {
+                ZipFile.ExtractToDirectory(bcfPath, extractDir);
+                foreach (string topicDir in Directory.GetDirectories(extractDir))
+                {
+                    string mp = Path.Combine(topicDir, "markup.bcf");
+                    if (!File.Exists(mp)) continue;
+                    try
+                    {
+                        var md = XDocument.Load(mp);
+                        string guid = md.Root?.Element("Topic")?.Attribute("Guid")?.Value ?? "";
+                        if (!string.IsNullOrEmpty(guid))
+                            bcfTopics[guid] = (md, topicDir);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BCF sync: skip topic {Path.GetFileName(topicDir)}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex)
+            {
+                try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); } catch { }
+                return $"Failed to extract BCF: {ex.Message}";
+            }
+
+            int importedNew = 0, updatedSting = 0, exportedNew = 0, updatedBcf = 0;
+
+            // ── 3. Import / merge BCF → STING ──
+            foreach (var kvp in bcfTopics)
+            {
+                string guid = kvp.Key;
+                var markup = kvp.Value.markup;
+                var topic = markup.Root?.Element("Topic");
+                if (topic == null) continue;
+
+                if (stingByGuid.TryGetValue(guid, out JToken existing))
+                {
+                    // Merge: BCF wins for fields it carries, STING keeps its extras
+                    string bcfStatus = topic.Attribute("TopicStatus")?.Value ?? "";
+                    string bcfTitle  = topic.Element("Title")?.Value ?? "";
+                    string bcfAssign = topic.Element("AssignedTo")?.Value ?? "";
+                    string bcfDesc   = topic.Element("Description")?.Value ?? "";
+
+                    DateTime bcfMod = DateTime.MinValue;
+                    DateTime.TryParse(topic.Element("ModifiedDate")?.Value, out bcfMod);
+                    DateTime stingMod = DateTime.MinValue;
+                    DateTime.TryParse(existing["date_raised"]?.ToString(), out stingMod);
+
+                    // Most-recent-writer wins — only overwrite if BCF is newer
+                    if (bcfMod > stingMod)
+                    {
+                        if (!string.IsNullOrEmpty(bcfTitle))
+                            existing["title"] = bcfTitle;
+                        if (!string.IsNullOrEmpty(bcfDesc))
+                            existing["description"] = bcfDesc;
+                        if (!string.IsNullOrEmpty(bcfAssign))
+                            existing["assigned_to"] = bcfAssign;
+                        if (bcfStatus == "Resolved" || bcfStatus == "Closed")
+                            existing["status"] = "CLOSED";
+
+                        // Merge any new BCF comments not already in STING
+                        MergeBcfComments(markup, existing);
+                        updatedSting++;
+                    }
+                }
+                else
+                {
+                    // New BCF topic → import into STING
+                    string nextId = BIMManagerEngine.GetNextIssueId(stingIssues, "BCF");
+                    var newIssue = ParseBcfTopicToIssue(markup, nextId, doc);
+                    if (newIssue != null)
+                    {
+                        stingIssues.Add(newIssue);
+                        stingByGuid[guid] = newIssue;
+                        importedNew++;
+                    }
+                }
+            }
+
+            // ── 4. Export new STING issues → BCF ──
+            foreach (var si in stingIssues)
+            {
+                string existingGuid = si["bcf_guid"]?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(existingGuid) && bcfTopics.ContainsKey(existingGuid))
+                {
+                    // Already in BCF — check if STING is newer and update BCF markup
+                    DateTime stingMod = DateTime.MinValue;
+                    DateTime.TryParse(si["date_raised"]?.ToString(), out stingMod);
+                    var (markup, tDir) = bcfTopics[existingGuid];
+                    DateTime bcfMod = DateTime.MinValue;
+                    DateTime.TryParse(markup.Root?.Element("Topic")?.Element("ModifiedDate")?.Value, out bcfMod);
+
+                    if (stingMod > bcfMod)
+                    {
+                        // Overwrite the markup with STING data
+                        var updated = CreateBcfMarkup(si, existingGuid);
+                        updated.Save(Path.Combine(tDir, "markup.bcf"));
+                        updatedBcf++;
+                    }
+                    continue;
+                }
+
+                // New STING issue with no BCF GUID — create a topic
+                string newGuid = Guid.NewGuid().ToString();
+                string topicDir = Path.Combine(extractDir, newGuid);
+                Directory.CreateDirectory(topicDir);
+
+                var newMarkup = CreateBcfMarkup(si, newGuid);
+                newMarkup.Save(Path.Combine(topicDir, "markup.bcf"));
+
+                var vp = CreateBcfViewpoint(Guid.NewGuid().ToString());
+                vp.Save(Path.Combine(topicDir, "viewpoint.bcfv"));
+                File.WriteAllBytes(Path.Combine(topicDir, "snapshot.png"), CreatePlaceholderPng());
+
+                // Record the GUID back in STING so next sync recognises it
+                si["bcf_guid"] = newGuid;
+                exportedNew++;
+            }
+
+            // ── 5. Write updated BCF zip ──
+            try
+            {
+                // Ensure bcf.version exists at root
+                string versionPath = Path.Combine(extractDir, "bcf.version");
+                if (!File.Exists(versionPath))
+                    CreateBcfVersion().Save(versionPath);
+
+                string projectPath = Path.Combine(extractDir, "project.bcfp");
+                if (!File.Exists(projectPath))
+                    CreateBcfProject(doc).Save(projectPath);
+
+                // Replace original BCF file
+                string backupPath = bcfPath + ".bak";
+                if (File.Exists(bcfPath))
+                {
+                    if (File.Exists(backupPath)) File.Delete(backupPath);
+                    File.Move(bcfPath, backupPath);
+                }
+                ZipFile.CreateFromDirectory(extractDir, bcfPath);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BCF sync: failed to write updated .bcfzip", ex);
+            }
+
+            // ── 6. Save updated STING issues ──
+            BIMManagerEngine.SaveJsonFile(issuesPath, stingIssues);
+
+            // ── 7. Save sync sidecar ──
+            string sidecarPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "bcf_sync.json");
+            var sidecar = new JObject
+            {
+                ["schema_version"] = 1,
+                ["last_sync_utc"] = DateTime.UtcNow.ToString("o"),
+                ["bcf_file"] = Path.GetFileName(bcfPath),
+                ["user"] = Environment.UserName,
+                ["imported_new"] = importedNew,
+                ["updated_sting"] = updatedSting,
+                ["exported_new"] = exportedNew,
+                ["updated_bcf"] = updatedBcf,
+                ["total_sting_issues"] = stingIssues.Count,
+                ["total_bcf_topics"] = bcfTopics.Count + exportedNew
+            };
+            BIMManagerEngine.SaveJsonFile(sidecarPath, sidecar);
+
+            // ── Cleanup ──
+            try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); }
+            catch (Exception cleanEx) { StingLog.Warn($"BCF sync cleanup: {cleanEx.Message}"); }
+
+            StingLog.Info($"BCF sync complete: +{importedNew} imported, ↑{updatedSting} updated(STING), +{exportedNew} exported, ↑{updatedBcf} updated(BCF)");
+
+            var sb = new StringBuilder();
+            sb.AppendLine("BCF Bidirectional Sync Complete");
+            sb.AppendLine("────────────────────────────────");
+            sb.AppendLine($"BCF file:        {Path.GetFileName(bcfPath)}");
+            sb.AppendLine($"New → STING:     {importedNew} issue(s) imported from BCF");
+            sb.AppendLine($"Updated STING:   {updatedSting} existing issue(s) refreshed from BCF");
+            sb.AppendLine($"New → BCF:       {exportedNew} issue(s) exported to BCF");
+            sb.AppendLine($"Updated BCF:     {updatedBcf} existing topic(s) refreshed from STING");
+            sb.AppendLine($"Total STING:     {stingIssues.Count} issues");
+            sb.AppendLine($"Total BCF:       {bcfTopics.Count + exportedNew} topics");
+            return sb.ToString();
+        }
+
+        /// <summary>Merge BCF comments into a STING issue, skipping duplicates by text+author match.</summary>
+        private static void MergeBcfComments(XDocument markup, JToken stingIssue)
+        {
+            var bcfComments = markup.Root?.Elements("Comment");
+            if (bcfComments == null) return;
+
+            var existingComments = stingIssue["comments"] as JArray ?? new JArray();
+            var existingSet = new HashSet<string>();
+            foreach (var ec in existingComments)
+                existingSet.Add($"{ec["author"]}|{ec["text"]}");
+
+            foreach (var c in bcfComments)
+            {
+                string text = c.Element("Comment")?.Value ?? "";
+                string author = c.Element("Author")?.Value ?? "";
+                if (string.IsNullOrEmpty(text)) continue;
+
+                string key = $"{author}|{text}";
+                if (existingSet.Contains(key)) continue;
+
+                string date = c.Element("Date")?.Value ?? "";
+                if (DateTime.TryParse(date, out DateTime dt))
+                    date = dt.ToString("yyyy-MM-dd HH:mm");
+
+                existingComments.Add(new JObject
+                {
+                    ["text"] = text,
+                    ["author"] = author,
+                    ["date"] = date
+                });
+                existingSet.Add(key);
+            }
+
+            stingIssue["comments"] = existingComments;
+        }
+
         // ── Create snapshot.png placeholder (1x1 white PNG) ──
         internal static byte[] CreatePlaceholderPng()
         {
@@ -1395,6 +1638,87 @@ namespace StingTools.BIMManager
             {
                 StingLog.Error("BCFImportCommand failed", ex);
                 TaskDialog.Show("STING Error", $"BCF import failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+    }
+
+    #endregion
+
+    // ═══════════════════════════════════════════════════════════════
+    //  4b. BCFSyncCommand — Bidirectional BCF 2.1 sync
+    // ═══════════════════════════════════════════════════════════════
+
+    #region ── BCF Sync ──
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BCFSyncCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = ctx.Doc;
+
+                // Scan BIM manager directory for .bcfzip files
+                string bimDir = BIMManagerEngine.GetBIMManagerFilePath(doc, "");
+                var bcfFiles = new List<string>();
+                if (Directory.Exists(bimDir))
+                {
+                    bcfFiles.AddRange(Directory.GetFiles(bimDir, "*.bcfzip"));
+                    bcfFiles.AddRange(Directory.GetFiles(bimDir, "*.bcf"));
+                }
+
+                // Also check project directory
+                string docDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                if (!string.IsNullOrEmpty(docDir) && Directory.Exists(docDir))
+                {
+                    foreach (var f in Directory.GetFiles(docDir, "*.bcfzip"))
+                        if (!bcfFiles.Contains(f)) bcfFiles.Add(f);
+                    foreach (var f in Directory.GetFiles(docDir, "*.bcf"))
+                        if (!bcfFiles.Contains(f)) bcfFiles.Add(f);
+                }
+
+                if (bcfFiles.Count == 0)
+                {
+                    TaskDialog.Show("STING BCF Sync",
+                        "No .bcfzip files found in BIM Manager or project directory.\n\n" +
+                        "Place a .bcfzip file in the project folder or STING_BIM_MANAGER directory and try again.");
+                    return Result.Succeeded;
+                }
+
+                // Let user pick which BCF file to sync with
+                string selectedBcf;
+                if (bcfFiles.Count == 1)
+                {
+                    selectedBcf = bcfFiles[0];
+                }
+                else
+                {
+                    var displayNames = bcfFiles.Select(f => Path.GetFileName(f)).ToList();
+                    string picked = Select.StingListPicker.Show("Select BCF File for Sync",
+                        "Choose a .bcfzip file to synchronise with STING issues:",
+                        displayNames);
+                    if (string.IsNullOrEmpty(picked)) return Result.Cancelled;
+                    int idx = displayNames.IndexOf(picked);
+                    selectedBcf = idx >= 0 ? bcfFiles[idx] : bcfFiles[0];
+                }
+
+                // Run bidirectional sync
+                string report = PlatformLinkEngine.RunBidirectionalBcfSync(doc, selectedBcf);
+
+                TaskDialog.Show("STING BCF Sync", report);
+                StingLog.Info("BCF bidirectional sync completed.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BCF sync failed", ex);
+                TaskDialog.Show("STING Error", $"BCF sync failed: {ex.Message}");
                 return Result.Failed;
             }
         }

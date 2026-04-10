@@ -978,6 +978,9 @@ namespace StingTools.Core
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
 
+        /// <summary>BIM-EXCEL-STREAM-01: Configurable batch size for streaming Excel import. Default 2000.</summary>
+        public static int ExcelImportBatchSize { get; internal set; } = 2000;
+
         /// <summary>Phase 40: Configurable cost rates CSV filename (via COST_RATES_FILE config key).
         /// Defaults to "cost_rates_5d.csv". Allows per-phase or per-region cost files.</summary>
         public static string CostRatesFileName { get; internal set; } = "cost_rates_5d.csv";
@@ -1383,7 +1386,8 @@ namespace StingTools.Core
                     "DISCIPLINE_PROFILES","FORMULA_CACHE_TTL_MINUTES","GRID_CACHE_TTL_MINUTES",
                     "SLA_THRESHOLDS","AUTO_SAVE_WARNING_BASELINE","AUTO_SAVE_BASELINE_ON_REVISION",
                     "DISCIPLINE_LEADS","WARNING_SUPPRESS_PATTERNS","AUTO_TAGGER_DISC_FILTER",
-                    "USER_ROLE","PROJECT_TYPE","LAST_WORKFLOW_NAME"
+                    "USER_ROLE","PROJECT_TYPE","LAST_WORKFLOW_NAME",
+                    "EXCEL_IMPORT_BATCH_SIZE"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
@@ -1573,6 +1577,16 @@ namespace StingTools.Core
                     else if (int.TryParse(csObj?.ToString(), out int ci)) CobieStreamBatchSize = ci;
                     if (CobieStreamBatchSize < 500) CobieStreamBatchSize = 500;
                     if (CobieStreamBatchSize > 50000) CobieStreamBatchSize = 50000;
+                }
+
+                // BIM-EXCEL-STREAM-01: Streaming Excel import batch size
+                ExcelImportBatchSize = 2000; // default
+                if (data.TryGetValue("EXCEL_IMPORT_BATCH_SIZE", out object eiObj))
+                {
+                    if (eiObj is long eil) ExcelImportBatchSize = (int)eil;
+                    else if (int.TryParse(eiObj?.ToString(), out int eii)) ExcelImportBatchSize = eii;
+                    if (ExcelImportBatchSize < 100) ExcelImportBatchSize = 100;
+                    if (ExcelImportBatchSize > 50000) ExcelImportBatchSize = 50000;
                 }
 
                 // AL-05: Compliance gate threshold
@@ -3746,10 +3760,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(sidecarDir) && !System.IO.Directory.Exists(sidecarDir))
                     System.IO.Directory.CreateDirectory(sidecarDir);
 
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(seqCounters,
-                    Newtonsoft.Json.Formatting.Indented);
-                System.IO.File.WriteAllText(sidecarPath, json);
-                StingLog.Info($"SEQ sidecar saved: {seqCounters.Count} groups to {sidecarPath}");
+                BIMManager.SidecarVersioning.WriteSidecar(sidecarPath, seqCounters, "1.0");
             }
             catch (Exception ex)
             {
@@ -3768,10 +3779,9 @@ namespace StingTools.Core
                 string sidecarPath = GetSeqSidecarPath(doc);
                 if (sidecarPath == null || !System.IO.File.Exists(sidecarPath)) return null;
 
-                string json = System.IO.File.ReadAllText(sidecarPath);
-                var loaded = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, int>>(json);
+                var (loaded, ver) = BIMManager.SidecarVersioning.ReadSidecar<Dictionary<string, int>>(sidecarPath, "1.0");
                 if (loaded != null && loaded.Count > 0)
-                    StingLog.Info($"SEQ sidecar loaded: {loaded.Count} groups from {sidecarPath}");
+                    StingLog.Info($"SEQ sidecar loaded: {loaded.Count} groups (v{ver ?? "legacy"}) from {sidecarPath}");
                 return loaded;
             }
             catch (Exception ex)

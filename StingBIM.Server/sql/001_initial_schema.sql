@@ -1,11 +1,11 @@
 -- ============================================================================
--- StingBIM Server — Initial PostgreSQL Schema
+-- Planscape Server — Initial PostgreSQL Schema
 -- Version: 001
 -- Generated: 2026-04-06
 -- Compatible: PostgreSQL 15+
 --
--- Apply with: psql -h HOST -U stingbim -d stingbim -f 001_initial_schema.sql
--- Or via Docker: docker exec -i stingbim-postgres psql -U stingbim -d stingbim < 001_initial_schema.sql
+-- Apply with: psql -h HOST -U planscape -d planscape -f 001_initial_schema.sql
+-- Or via Docker: docker exec -i planscape-postgres psql -U planscape -d planscape < 001_initial_schema.sql
 -- ============================================================================
 
 BEGIN;
@@ -129,7 +129,7 @@ CREATE TABLE tagged_elements (
     project_id        UUID        NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     revit_element_id  BIGINT      NOT NULL,
     unique_id         VARCHAR(100),
-    -- STING tag tokens
+    -- Planscape tag tokens
     disc              VARCHAR(10),
     loc               VARCHAR(20),
     zone              VARCHAR(20),
@@ -342,7 +342,7 @@ CREATE TABLE audit_logs (
 CREATE INDEX idx_audit_tenant_time  ON audit_logs (tenant_id, timestamp DESC);
 CREATE INDEX idx_audit_project_time ON audit_logs (project_id, timestamp DESC) WHERE project_id IS NOT NULL;
 
--- ── StingMIM Assets ───────────────────────────────────────────────────────────
+-- ── Planscape MIM Assets ───────────────────────────────────────────────────────────
 CREATE TABLE mim_assets (
     id                       UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
     project_id               UUID          NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -360,7 +360,7 @@ CREATE TABLE mim_assets (
     omni_class_code          VARCHAR(30),
     cobie_type               VARCHAR(100),
     cobie_space              VARCHAR(100),
-    -- STING tokens
+    -- Planscape tokens
     discipline               VARCHAR(10),
     system_code              VARCHAR(20),
     function_code            VARCHAR(20),
@@ -410,7 +410,7 @@ CREATE UNIQUE INDEX idx_assets_proj_tag ON mim_assets (project_id, asset_tag);
 CREATE INDEX idx_assets_lifecycle ON mim_assets (lifecycle_status);
 CREATE INDEX idx_assets_warranty  ON mim_assets (warranty_end) WHERE warranty_end IS NOT NULL;
 
--- ── StingMIM Maintenance Tasks ────────────────────────────────────────────────
+-- ── Planscape MIM Maintenance Tasks ────────────────────────────────────────────────
 CREATE TABLE mim_maintenance_tasks (
     id                   UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
     asset_id             UUID          NOT NULL REFERENCES mim_assets(id) ON DELETE CASCADE,

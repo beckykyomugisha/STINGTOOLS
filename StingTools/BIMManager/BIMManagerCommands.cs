@@ -5750,6 +5750,23 @@ namespace StingTools.BIMManager
                         return Result.Cancelled;
                     StingLog.Warn($"CDE compliance gate overridden for {currentCDE} → {status}");
                 }
+
+                // BIM-CDE-APPROVAL-01: ISO 19650-2 §5.6 approval gate for PUBLISHED transitions
+                if (status == "PUBLISHED")
+                {
+                    var (pendingCount, pendingDetails) = GapFixEngine.HasPendingApprovals(doc);
+                    if (pendingCount > 0)
+                    {
+                        GapFixEngine.LogPublishBlocked(doc, pendingCount);
+                        var approvalDlg = new TaskDialog("STING CDE Approval Gate");
+                        approvalDlg.MainInstruction = "ISO 19650-2 §5.6 — Publish blocked by pending approvals";
+                        approvalDlg.MainContent = pendingDetails;
+                        approvalDlg.CommonButtons = TaskDialogCommonButtons.Close;
+                        approvalDlg.FooterText = "Resolve all pending approvals via 'CDE Approval Workflow' before publishing.";
+                        approvalDlg.Show();
+                        return Result.Failed;
+                    }
+                }
             }
 
             string suitCode = status == "PUBLISHED" ? "S6" : status == "SHARED" ? "S3" : "S0";
