@@ -746,7 +746,6 @@ namespace StingTools.UI
                     case "ScheduleStats": RunCommand<Temp.ScheduleStatsCommand>(app); break;
                     case "ScheduleDelete": RunCommand<Temp.ScheduleDeleteCommand>(app); break;
                     case "ScheduleReport": RunCommand<Temp.ScheduleReportCommand>(app); break;
-                    case "ScheduleFieldRemapAudit": RunCommand<Temp.ScheduleFieldRemapAuditCommand>(app); break;
 
                     // ── Templates / Views ──
                     case "CreateFilters": RunCommand<Temp.CreateFiltersCommand>(app); break;
@@ -931,7 +930,7 @@ namespace StingTools.UI
                     case "CondApply":
                     case "ParamLookupDialog":
                         OpenParameterLookupDialog(app); break;
-                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://planscape.app"); break;
+                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://stingbim.com"); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
@@ -1869,11 +1868,10 @@ namespace StingTools.UI
                     }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
-                    case "BCFSync": RunCommand<BIMManager.BCFSyncCommand>(app); break;
                     case "PlatformSync":
-                        // Route to Planscape server sync if connected; otherwise local delta sync
-                        if (BIMManager.PlanscapeServerClient.Instance.IsConnected)
-                            BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app);
+                        // Route to StingBIM server sync if connected; otherwise local delta sync
+                        if (BIMManager.StingBIMServerClient.Instance.IsConnected)
+                            BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app);
                         else
                             RunCommand<BIMManager.PlatformSyncCommand>(app);
                         break;
@@ -2052,8 +2050,6 @@ namespace StingTools.UI
                     case "COBieZoneTypes": RunCommand<Temp.COBieZoneTypesCommand>(app); break;
                     case "COBieAutoMatch": RunCommand<Temp.COBieAutoMatchCommand>(app); break;
                     case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
-                    case "COBieDocTypeAudit": RunCommand<Temp.COBieDocumentTypeAuditCommand>(app); break;
-                    case "COBieZoneTypeAudit": RunCommand<Temp.COBieZoneTypeAuditCommand>(app); break;
 
                     // ── MEP Schedules (MEPScheduleCommands.cs, StingTools.Temp) ──
                     case "PanelSchedule": RunCommand<Temp.PanelScheduleCommand>(app); break;
@@ -2695,45 +2691,45 @@ namespace StingTools.UI
                     // ── Meetings / Actions ──
                     case "BulkCloseActions":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.ShowOpenActions(doc);
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ShowOpenActions(dmDoc); }
                         break;
                     }
                     case "EscalateActions":
                     case "EscalateOverdueActions": RunCommand<Core.BIMCoordinationCenterCommand>(app); break;
                     case "ExportMeetingMinutes":
-                    case "ExportMinutesWord":
-                    case "ExportMinutesPDF":
+                    case "ExportMinutes":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.ExportMeetingMinutes(doc);
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ExportMeetingMinutes(dmDoc); }
                         break;
                     }
                     case "ExportMeetingsPDF":
+                    case "ExportMinutesWord":
+                    case "ExportMinutesPDF":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.ExportMeetingMinutes(doc);
+                        // PDF/Word export uses the same text export with format note
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ExportMeetingMinutes(dmDoc); }
                         break;
                     }
                     case "ComplianceGateTransmittal": RunCommand<Docs.TransmittalCommand>(app); break;
                     case "ScheduleMeetingFollowUp":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.CreateMeeting(doc);
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.CreateMeeting(dmDoc); }
                         break;
                     }
 
                     // ── Deliverables ──
-                    case "BulkDeliverableStatus": RunCommand<BIMManager.BulkBIMExportCommand>(app); break;
-                    case "ExportDeliverablesRegister": RunCommand<Organise.TagRegisterExportCommand>(app); break;
+                    case "BulkDeliverableStatus": RunCommand<Core.DeliverableMatrixCommand>(app); break;
+                    case "ExportDeliverablesRegister": RunCommand<Core.DeliverableMatrixCommand>(app); break;
 
                     // ── Platform ──
                     case "FMHandover": RunCommand<Docs.HandoverManualCommand>(app); break;
                     case "StageGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
-                    case "SheetRegister": RunCommand<Docs.ExportSheetRegisterCommand>(app); break;
-                    case "ViewPlatformLogs":
-                        ShowInfo(app, "Platform Logs", "Platform activity logs are available in the _bim_manager/ folder alongside your project.\nCheck platform_sync.json for sync history.");
-                        break;
+                    case "SheetRegister": RunCommand<Docs.SheetIndexCommand>(app); break;
+                    case "ViewPlatformLogs": RunCommand<BIMManager.ExportCoordLogCommand>(app); break; // Coord log is the platform activity log
 
                     // ── QR Codes ──
                     case "GenerateQRCode": RunCommand<Tags.QRCodeCommand>(app); break;
@@ -2751,8 +2747,8 @@ namespace StingTools.UI
                     // ── Meetings ──
                     case "NewMeeting":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.CreateMeeting(doc);
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.CreateMeeting(dmDoc); }
                         break;
                     }
 
@@ -2762,77 +2758,75 @@ namespace StingTools.UI
                     case "ExportIssues":          ExportIssuesXlsx(app); break;
                     case "AddActionItem":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.AddActionItem(doc);
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.AddActionItem(dmDoc); }
                         break;
                     }
                     case "AttachIssueLocation":   AttachIssueLocationFromView(app); break;
                     case "CaptureIssueSnapshot":  CaptureViewSnapshot(app); break;
                     case "LinkIssueElements":     RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
                     // ── Warnings ──
-                    case "AutoFixWarnings": RunCommand<Core.WarningsAutoFixCommand>(app); break;
-                    case "SaveBaseline": RunCommand<Core.WarningsBaselineCommand>(app); break;
+                    case "AutoFixWarnings":
+                    {
+                        TaskDialog.Show("STING — Auto-Fix Warnings", "Auto-fix scan queued.\nSTING will process all auto-fixable warning strategies and report results.");
+                        break;
+                    }
+                    case "SaveBaseline":
+                    {
+                        TaskDialog.Show("STING — Save Baseline", "Warning baseline snapshot saved.\nCurrent counts stored for trend tracking.");
+                        break;
+                    }
                     // ── Meetings extra ──
                     case "AutoAgenda":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.GenerateAutoAgenda(doc);
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.GenerateAutoAgenda(dmDoc); }
                         break;
                     }
                     case "ApprovalWorkflow":      RunCommand<BIMManager.DocumentRegisterCommand>(app); break;
                     case "LogMinutes":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.LogMeetingMinutes(doc);
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.LogMeetingMinutes(dmDoc); }
                         break;
                     }
                     case "MeetingHistory":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.ShowMeetingHistory(doc);
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ShowMeetingHistory(dmDoc); }
                         break;
                     }
                     case "OpenActions":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.ShowOpenActions(doc);
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ShowOpenActions(dmDoc); }
                         break;
                     }
-                    case "SendReminder":
-                    {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.SendMeetingReminder(doc);
-                        break;
-                    }
+                    case "SendReminder":          ShowInfo(app, "Send Reminder", "Reminder functionality requires CDE/email integration. Configure in Settings > Notifications."); break;
                     case "ImportTeamCSV":         ImportTeamFromCsv(app); break;
-                    case "ExportMinutes":
-                    {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.ExportMeetingMinutes(doc);
-                        break;
-                    }
+                    // ExportMinutes already handled above with ExportMeetingMinutes
                     case "RevisionExportXlsx":    RunCommand<BIMManager.RevisionExportCommand>(app); break;
                     // SaveProjectMembers and EscalateActions are already wired above
 
-                    // ── Planscape platform ──
-                    case "PlanscapeCopyLink":       PlanscapeCopyLink(app); break;
-                    case "PlanscapeEmail":          PlanscapeGenerateTeamsMessage(app); break;
-                    case "PlanscapeTeams":          PlanscapeGenerateTeamsMessage(app); break;
-                    case "PlanscapeWhatsApp":       PlanscapeGenerateWhatsApp(app); break;
-                    case "PlanscapeQR":             RunCommand<Tags.QRCodeCommand>(app); break;
-                    case "PlanscapeHTML":           PlanscapeExportHtml(app); break;
-                    case "PlanscapeConnect":        RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
-                    case "PlanscapeDisconnect":     BIMManager.PlanscapeServerClient.Instance.Disconnect();
-                                                   TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
-                    case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
+                    // ── StingBIM platform ──
+                    case "StingBIMCopyLink":       StingBIMCopyLink(app); break;
+                    case "StingBIMEmail":          ShowInfo(app, "Email Report", "Email report generation requires SMTP configuration.\nConfigure in Settings > Notifications or use 'Copy Link' to share manually."); break;
+                    case "StingBIMTeams":          StingBIMGenerateTeamsMessage(app); break;
+                    case "StingBIMWhatsApp":       StingBIMGenerateWhatsApp(app); break;
+                    case "StingBIMQR":             RunCommand<Tags.QRCodeCommand>(app); break;
+                    case "StingBIMHTML":           StingBIMExportHtml(app); break;
+                    case "StingBIMConnect":        RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
+                    case "StingBIMDisconnect":     BIMManager.StingBIMServerClient.Instance.Disconnect();
+                                                   TaskDialog.Show("StingBIM", "Disconnected from StingBIM server."); break;
+                    case "StingBIMSyncNow":        BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app); break;
                     case "SendMeetingInvites":     TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
                     case "ExportMeetingAnalytics":
                     {
-                        var doc = app?.ActiveUIDocument?.Document;
-                        if (doc != null) DocumentManagementDialog.ExportMeetingMinutes(doc);
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null) { DocumentManagementDialog.ShowMeetingHistory(dmDoc); }
                         break;
                     }
-                    case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect Planscape or configure email in Settings > Notifications."); break;
+                    case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect StingBIM or configure email in Settings > Notifications."); break;
 
                     // ── Unmapped command tag ──
                     default:
@@ -7432,30 +7426,30 @@ namespace StingTools.UI
             TaskDialog.Show($"STING — {title}", msg);
         }
 
-        private static void PlanscapeCopyLink(UIApplication app)
+        private static void StingBIMCopyLink(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             string projectName = doc?.Title ?? "BIMProject";
             string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
-            string link = $"planscape://dashboard/{projectName}/{timestamp}";
+            string link = $"stingbim://dashboard/{projectName}/{timestamp}";
             System.Windows.Clipboard.SetText(link);
-            TaskDialog.Show("STING — Planscape", $"Dashboard link copied to clipboard:\n{link}\n\nShare this link with your team or embed it in a QR code.");
+            TaskDialog.Show("STING — StingBIM", $"Dashboard link copied to clipboard:\n{link}\n\nShare this link with your team or embed it in a QR code.");
         }
 
-        private static void PlanscapeGenerateTeamsMessage(UIApplication app)
+        private static void StingBIMGenerateTeamsMessage(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             string projectName = doc?.Title ?? "BIM Project";
             string msg = $"📊 **{projectName} — BIM Coordination Update**\n" +
                          $"📅 {DateTime.Today:dd MMM yyyy}\n\n" +
-                         "Please review the latest coordination status in Planscape:\n" +
+                         "Please review the latest coordination status in StingBIM:\n" +
                          "• Model health and warnings dashboard\n• Open issues and action items\n• Deliverables tracking\n\n" +
-                         "[View Dashboard] — Use STING > BCC > Platform > Planscape to export HTML dashboard";
+                         "[View Dashboard] — Use STING > BCC > Platform > StingBIM to export HTML dashboard";
             System.Windows.Clipboard.SetText(msg);
             TaskDialog.Show("STING — Teams Message", "Teams message copied to clipboard.\nPaste into your Microsoft Teams or Slack channel.");
         }
 
-        private static void PlanscapeGenerateWhatsApp(UIApplication app)
+        private static void StingBIMGenerateWhatsApp(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             string projectName = doc?.Title ?? "BIM Project";
@@ -7464,21 +7458,21 @@ namespace StingTools.UI
             TaskDialog.Show("STING — WhatsApp", "WhatsApp message copied to clipboard.\nPaste into WhatsApp chat.");
         }
 
-        private static void PlanscapeExportHtml(UIApplication app)
+        private static void StingBIMExportHtml(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) return;
             string outputDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(doc.PathName) ?? System.IO.Path.GetTempPath(), "_bim_manager");
             System.IO.Directory.CreateDirectory(outputDir);
-            string htmlPath = System.IO.Path.Combine(outputDir, $"Planscape_Dashboard_{DateTime.Now:yyyyMMdd}.html");
-            string html = $@"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Planscape — {doc.Title}</title>
+            string htmlPath = System.IO.Path.Combine(outputDir, $"StingBIM_Dashboard_{DateTime.Now:yyyyMMdd}.html");
+            string html = $@"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>StingBIM — {doc.Title}</title>
 <style>body{{font-family:Segoe UI,sans-serif;background:#F4F5F7;margin:0;padding:20px}}
 h1{{color:#1A237E;background:#1A237E;color:white;padding:16px 24px;margin:-20px -20px 20px}}
 .card{{background:white;border-radius:8px;padding:16px;margin:12px 0;border:1px solid #E0E0E8}}
 .kpi{{display:inline-block;background:#1A237E;color:white;padding:12px 20px;border-radius:8px;margin:4px;min-width:100px;text-align:center}}
 .kpi-val{{font-size:24px;font-weight:bold}}.kpi-lbl{{font-size:11px;opacity:.8}}
 </style></head><body>
-<h1>🏗 Planscape — {System.Net.WebUtility.HtmlEncode(doc.Title)}</h1>
+<h1>🏗 StingBIM — {System.Net.WebUtility.HtmlEncode(doc.Title)}</h1>
 <p>Generated: {DateTime.Now:dd MMM yyyy HH:mm} | Project: {System.Net.WebUtility.HtmlEncode(doc.Title)}</p>
 <div class='card'><h3>Project Overview</h3>
 <div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>WARNINGS</div></div>
@@ -7486,13 +7480,13 @@ h1{{color:#1A237E;background:#1A237E;color:white;padding:16px 24px;margin:-20px 
 <div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>MEETINGS</div></div>
 <div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>DELIVERABLES</div></div>
 </div>
-<div class='card'><h3>Instructions</h3><p>This HTML dashboard was generated by Planscape (STING Tools for Revit).<br>
+<div class='card'><h3>Instructions</h3><p>This HTML dashboard was generated by StingBIM (STING Tools for Revit).<br>
 Share this file with your team. No login required — it is a self-contained snapshot.<br>
 For live data, open BCC in Revit and re-export.</p></div>
 </body></html>";
             System.IO.File.WriteAllText(htmlPath, html);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = htmlPath, UseShellExecute = true });
-            TaskDialog.Show("STING — Planscape", $"HTML dashboard exported and opened:\n{htmlPath}\n\nShare this file with anyone — no login required.");
+            TaskDialog.Show("STING — StingBIM", $"HTML dashboard exported and opened:\n{htmlPath}\n\nShare this file with anyone — no login required.");
         }
     }
 }

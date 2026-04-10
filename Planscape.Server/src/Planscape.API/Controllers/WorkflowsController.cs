@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +44,20 @@ public class WorkflowsController : ControllerBase
         };
 
         _db.WorkflowRuns.Add(run);
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "workflow_run_logged",
+            EntityType = "WorkflowRun",
+            EntityId = run.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { run.PresetName, run.StepsPassed, run.StepsFailed, run.DurationMs }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { id = run.Id, executedAt = run.ExecutedAt });

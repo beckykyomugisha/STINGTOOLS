@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -42,17 +43,18 @@ public class TransmittalsController : ControllerBase
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
 
-        // Auto-generate TX code
-        var lastTx = await _db.Transmittals
+        // Auto-generate collision-safe TX code — scan max numeric suffix
+        var existingCodes = await _db.Transmittals
             .Where(t => t.ProjectId == projectId)
-            .OrderByDescending(t => t.TransmittalCode)
-            .FirstOrDefaultAsync();
+            .Select(t => t.TransmittalCode)
+            .ToListAsync();
 
         int nextNum = 1;
-        if (lastTx != null)
+        foreach (var code in existingCodes)
         {
-            var parts = lastTx.TransmittalCode.Split('-');
-            if (parts.Length == 2 && int.TryParse(parts[1], out int n)) nextNum = n + 1;
+            var parts = code.Split('-');
+            if (parts.Length == 2 && int.TryParse(parts[1], out int n) && n >= nextNum)
+                nextNum = n + 1;
         }
 
         var transmittal = new Transmittal
@@ -66,6 +68,21 @@ public class TransmittalsController : ControllerBase
         };
 
         _db.Transmittals.Add(transmittal);
+
+        // Audit trail for transmittal creation
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "transmittal_created",
+            EntityType = "Transmittal",
+            EntityId = transmittal.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { transmittal.TransmittalCode, transmittal.Recipient }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetTransmittals), new { projectId }, transmittal);
     }
@@ -80,6 +97,21 @@ public class TransmittalsController : ControllerBase
 
         tx.Status = "SENT";
         tx.SentAt = DateTime.UtcNow;
+
+        // Audit trail for transmittal sent
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "transmittal_sent",
+            EntityType = "Transmittal",
+            EntityId = txId.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { tx.TransmittalCode, tx.Recipient }),
+            Timestamp = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return Ok(tx);
     }
