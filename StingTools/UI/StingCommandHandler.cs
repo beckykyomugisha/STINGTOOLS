@@ -1868,6 +1868,7 @@ namespace StingTools.UI
                     }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
+                    case "BCFSync": RunCommand<BIMManager.BCFSyncCommand>(app); break;
                     case "PlatformSync":
                         // Route to StingBIM server sync if connected; otherwise local delta sync
                         if (BIMManager.StingBIMServerClient.Instance.IsConnected)
