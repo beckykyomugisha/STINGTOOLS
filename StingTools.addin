@@ -22,8 +22,8 @@
     <Assembly>C:\Dev\STINGTOOLS\StingTools\bin\Debug\StingTools.dll</Assembly>
     <AddInId>A1B2C3D4-5678-9ABC-DEF0-123456789ABC</AddInId>
     <FullClassName>StingTools.Core.StingToolsApp</FullClassName>
-    <VendorId>StingBIM</VendorId>
-    <VendorDescription>StingBIM - ISO 19650 BIM Automation</VendorDescription>
-    <VendorEmail>support@stingbim.com</VendorEmail>
+    <VendorId>Planscape</VendorId>
+    <VendorDescription>Planscape - ISO 19650 BIM Automation</VendorDescription>
+    <VendorEmail>support@planscape.app</VendorEmail>
   </AddIn>
 </RevitAddIns>

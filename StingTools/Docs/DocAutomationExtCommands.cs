@@ -2622,7 +2622,7 @@ namespace StingTools.Docs
     /// - System descriptions and equipment lists
     /// - Tag completeness and compliance summary
     ///
-    /// Inspired by StingBIM.AI.FacilityManagement and StingBIM.AI.Maintenance
+    /// Inspired by Planscape.AI.FacilityManagement and Planscape.AI.Maintenance
     /// from the original Stingtools-Original repository.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]

@@ -1274,7 +1274,7 @@ When adding new commands, follow the existing pattern for the directory. Use sha
 - **Target framework**: `net8.0-windows` (Revit 2025+), `LangVersion=latest`
 - **WPF**: Enabled (`UseWPF=true` in csproj) for dockable panel UI and `System.Windows.Media.Imaging`
 - **Output**: Library (DLL), `AppendTargetFrameworkToOutputPath=false`, `CopyLocalLockFileAssemblies=true`
-- **Assembly**: v1.0.0.0, GUID `A1B2C3D4-5678-9ABC-DEF0-123456789ABC`, Vendor: StingBIM
+- **Assembly**: v1.0.0.0, GUID `A1B2C3D4-5678-9ABC-DEF0-123456789ABC`, Vendor: Planscape
 - **Data files**: CSV/JSON/TXT files in `StingTools/Data/` copied to output `data/` directory at build time
 
 ---
@@ -2188,11 +2188,11 @@ Critical review of the tagging workflow identified the following logic, automati
 
 ---
 
-## StingBIM Server
+## Planscape Server
 
 ### Overview
 
-**StingBIM Server** is a cloud backend that transforms the single-machine Revit plugin into a multi-user, multi-tenant SaaS platform. Located in `StingBIM.Server/`.
+**Planscape Server** is a cloud backend that transforms the single-machine Revit plugin into a multi-user, multi-tenant SaaS platform. Located in `Planscape.Server/`.
 
 ### Technology Stack
 
@@ -2209,13 +2209,13 @@ Critical review of the tagging workflow identified the following logic, automati
 ### Project Structure
 
 ```
-StingBIM.Server/
-├── StingBIM.sln                          # Solution file
+Planscape.Server/
+├── Planscape.sln                         # Solution file
 ├── docker/
 │   ├── docker-compose.yml                # API + Postgres + Redis
 │   └── Dockerfile                        # Multi-stage API build
 └── src/
-    ├── StingBIM.API/                     # ASP.NET Core Web API
+    ├── Planscape.API/                    # ASP.NET Core Web API
     │   ├── Controllers/
     │   │   ├── AuthController.cs         # Login, register, refresh, change/forgot/reset password, /me, license
     │   │   ├── ProjectsController.cs     # CRUD + PUT settings + dashboard
@@ -2230,13 +2230,13 @@ StingBIM.Server/
     │   │   ├── TransmittalsController.cs # ISO 19650 transmittals
     │   │   ├── WarningsController.cs     # Warning reports + baseline
     │   │   ├── AdminController.cs        # Org + user + audit management
-    │   │   └── MimController.cs          # StingMIM asset lifecycle
+    │   │   └── MimController.cs          # Planscape MIM asset lifecycle
     │   ├── Middleware/
     │   │   └── TenantResolutionMiddleware.cs
     │   ├── SeedData.cs                   # Demo tenant + project + issues
     │   └── Program.cs                    # DI, middleware, SignalR hubs
     │
-    ├── StingBIM.Core/                    # Domain entities + DTOs
+    ├── Planscape.Core/                   # Domain entities + DTOs
     │   ├── Entities/
     │   │   ├── Tenant.cs                 # Multi-tenant org
     │   │   ├── AppUser.cs                # JWT user with ISO 19650 role
@@ -2258,11 +2258,11 @@ StingBIM.Server/
     │       ├── IRepository.cs
     │       └── IPushNotificationService.cs  # Push notification abstraction (FCM/APNs/Web)
     │
-    ├── StingBIM.Infrastructure/          # EF Core + SignalR
-    │   ├── Data/StingBimDbContext.cs      # 20 DbSets, indexes, relationships
+    ├── Planscape.Infrastructure/         # EF Core + SignalR
+    │   ├── Data/PlanscapeDbContext.cs     # 20 DbSets, indexes, relationships
     │   ├── Data/Migrations/
     │   │   ├── 20250407000000_InitialCreate.cs      # Hand-written initial migration (all tables)
-    │   │   └── StingBimDbContextModelSnapshot.cs    # EF Core model snapshot
+    │   │   └── PlanscapeDbContextModelSnapshot.cs   # EF Core model snapshot
     │   ├── Services/
     │   │   ├── TenantContext.cs
     │   │   ├── NotificationService.cs    # SignalR + push notification dispatch
@@ -2271,17 +2271,17 @@ StingBIM.Server/
     │   └── SignalR/
     │       └── ComplianceHub.cs          # ComplianceHub + TagSyncHub
     │
-    ├── StingBIM.MIM/                     # Model Information Management
+    ├── Planscape.MIM/                    # Model Information Management
     │   ├── Entities/Asset.cs             # 40+ field asset entity
     │   ├── Entities/MaintenanceTask.cs   # PPM scheduling per BS 8210
     │   └── Services/AssetService.cs
     │
-    ├── StingBIM.Shared/                  # Cross-cutting (plugin + server)
+    ├── Planscape.Shared/                 # Cross-cutting (plugin + server)
     │   ├── Constants/ISO19650Codes.cs    # DISC/SYS/FUNC/PROD/LOC/ZONE codes
     │   ├── Models/SyncModels.cs          # PluginSyncPayload DTOs
     │   └── Helpers/TagFormatHelper.cs    # Tag validation/parsing
     │
-    └── StingBIM.PluginSync/             # Plugin-side sync client
+    └── Planscape.PluginSync/            # Plugin-side sync client
         ├── SyncClient.cs                # HTTP + JWT auth client
         ├── OfflineQueue.cs              # File-backed offline queue
         └── SyncScheduler.cs            # 5-min periodic sync
@@ -2318,16 +2318,16 @@ StingBIM.Server/
 | Professional | 1-5 | $15/user/mo | 5, cloud sync |
 | Premium | 6-100 | $25/user/mo | Unlimited |
 | Enterprise | 100+ | Custom | SSO, on-prem |
-| StingMIM | Add-on | $10-17/user/mo | FM, digital twin |
+| Planscape MIM | Add-on | $10-17/user/mo | FM, digital twin |
 
 ### Running Locally
 
 ```bash
-cd StingBIM.Server/docker
+cd Planscape.Server/docker
 docker compose up -d
 # API: http://localhost:5000
 # Swagger: http://localhost:5000/swagger
-# Demo login: admin@stingbim.demo / admin123
+# Demo login: admin@planscape.demo / admin123
 ```
 
 #### Completed (Phase 46 — Intelligent Warnings Manager, Auto-Tagger Bulk Fix, Token Writer Enhancement)
@@ -2453,7 +2453,7 @@ docker compose up -d
 528. **COBieHandoverExportCommand dispatched** — Missing dispatch entry wired in `StingCommandHandler.cs`.
 529. **4 new workflow presets** — `ModelAuditDeep` (8 steps: warnings→templates→data pipeline→schedules→schema→tags→sheets→compliance), `MEPCoordination` (6 steps: clashes→system push→retag→validate→warnings→compliance), `CDE_Submission` (8 steps: retag→resolve→validate→sheet naming→doc naming→register→sheet register→transmittal), `DesignReviewPrep` (5 steps: auto-assign templates→warnings fix→sheet naming→compliance scores→completeness).
 530. **12 new workflow command resolutions** — `ScheduleAudit`, `SchemaValidate`, `SheetComplianceCheck`, `SheetNamingCheck`, `TemplateAudit`, `TemplateComplianceScore`, `ClashDetection`, `BatchSystemPush`, `ExportSheetRegister`, `COBieHandoverExport`, `GenerateBEP`, `WarningsMonitor` added to `WorkflowEngine.ResolveCommand()`.
-531. **Branch consolidation** — Merged `claude/fix-ui-enhance-workflows-t7m5b` (StingBIM Server + 25 gap fixes) and `claude/structural-modeling-automation-sPf3f` (5 commits: advanced structural, plastering, coverings, design intelligence, architectural creation) into `claude/review-merge-conflicts-aaVRG`. All merge conflicts resolved cleanly.
+531. **Branch consolidation** — Merged `claude/fix-ui-enhance-workflows-t7m5b` (Planscape Server + 25 gap fixes) and `claude/structural-modeling-automation-sPf3f` (5 commits: advanced structural, plastering, coverings, design intelligence, architectural creation) into `claude/review-merge-conflicts-aaVRG`. All merge conflicts resolved cleanly.
 
 #### Completed (Phase 56 — Second-Pass Deep Review: Warnings Intelligence, Model Validation, Morning Briefing & Compliance Trends)
 
@@ -3198,4 +3198,4 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 - **Document upload**: `POST /api/projects/{id}/documents/upload` with `IFormFile`, tenant/project path isolation (`{StoragePath}/{tenantSlug}/{projectCode}/`), SHA-256 content hashing, timestamp-suffix dedup, 100MB limit. `GET /download/{docId}` with `PhysicalFileResult`. CDE state transitions with ISO 19650 suitability codes.
 - **Project settings**: `PUT /api/projects/{id}` for project name/code/description/settings updates.
 - **SLA escalation push**: `SlaEscalationJob` (Hangfire, 15-min interval) queries overdue issues per SLA thresholds (CRITICAL=4h, HIGH=24h, MEDIUM=168h, LOW=336h), sends push to assignee + project admins.
-- **Hand-written EF Core migration**: `20250407000000_InitialCreate.cs` (822 lines) + `StingBimDbContextModelSnapshot.cs` (1454 lines) covering all 20 entities including DevicePushToken and IssueAttachment with indexes, foreign keys, and filtered indexes.
+- **Hand-written EF Core migration**: `20250407000000_InitialCreate.cs` (822 lines) + `PlanscapeDbContextModelSnapshot.cs` (1454 lines) covering all 20 entities including DevicePushToken and IssueAttachment with indexes, foreign keys, and filtered indexes.

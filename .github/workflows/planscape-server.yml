@@ -1,20 +1,20 @@
-name: StingBIM Server — Build, Test & Deploy
+name: Planscape Server — Build, Test & Deploy
 
 on:
   push:
     branches: [main]
     paths:
-      - 'StingBIM.Server/**'
-      - '.github/workflows/stingbim-server.yml'
+      - 'Planscape.Server/**'
+      - '.github/workflows/planscape-server.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'StingBIM.Server/**'
+      - 'Planscape.Server/**'
 
 env:
   DOTNET_VERSION: '8.0.x'
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/stingbim-api
+  IMAGE_NAME: ${{ github.repository }}/planscape-api
 
 jobs:
   # ── Build & Test ──────────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: StingBIM.Server
+        working-directory: Planscape.Server
 
     steps:
       - name: Checkout
@@ -35,13 +35,13 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore dependencies
-        run: dotnet restore StingBIM.sln
+        run: dotnet restore Planscape.sln
 
       - name: Build
-        run: dotnet build StingBIM.sln --no-restore --configuration Release
+        run: dotnet build Planscape.sln --no-restore --configuration Release
 
       - name: Run tests
-        run: dotnet test StingBIM.sln --no-build --configuration Release --verbosity normal
+        run: dotnet test Planscape.sln --no-build --configuration Release --verbosity normal
         continue-on-error: true  # No tests yet — don't fail CI
 
   # ── Docker Build & Push ───────────────────────────────────────────────────────
@@ -77,8 +77,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: StingBIM.Server
-          file: StingBIM.Server/docker/Dockerfile
+          context: Planscape.Server
+          file: Planscape.Server/docker/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -93,7 +93,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
-      url: https://stingbim-api.onrender.com
+      url: https://planscape-api.onrender.com
 
     steps:
       - name: Trigger Render.com deploy

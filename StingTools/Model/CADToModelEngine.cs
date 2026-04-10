@@ -8,7 +8,7 @@
 //
 // Patterns from: eTLipse/ARQER (DWG→walls→rooms→floors pipeline),
 //   EaseBit (parallel line → wall thickness detection),
-//   StingBIM.AI.Creation.Import.CADImportEngine (layer mapping, text extraction).
+//   Planscape.AI.Creation.Import.CADImportEngine (layer mapping, text extraction).
 // ============================================================================
 
 using System;

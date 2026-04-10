@@ -42,7 +42,7 @@ export default function LoginScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.brand}>Planscape</Text>
-          <Text style={styles.tagline}>StingBIM Field Companion</Text>
+          <Text style={styles.tagline}>Planscape Field Companion</Text>
         </View>
 
         <View style={styles.card}>
@@ -84,7 +84,7 @@ export default function LoginScreen() {
               <Text style={styles.label}>Server URL</Text>
               <TextInput
                 style={styles.input}
-                placeholder="https://api.stingbim.com"
+                placeholder="https://api.planscape.app"
                 placeholderTextColor={theme.colors.disabled}
                 autoCapitalize="none"
                 keyboardType="url"

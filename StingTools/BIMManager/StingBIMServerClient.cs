@@ -13,22 +13,22 @@ using StingTools.Core;
 namespace StingTools.BIMManager;
 
 /// <summary>
-/// Lightweight HTTP client for StingBIM Server API communication.
+/// Lightweight HTTP client for Planscape Server API communication.
 /// Handles authentication, token refresh, and tag element synchronisation.
 /// Stores credentials persistently so re-connection survives Revit restarts.
 /// </summary>
-public sealed class StingBIMServerClient : IDisposable
+public sealed class PlanscapeServerClient : IDisposable
 {
     // ── Singleton ──
-    private static StingBIMServerClient? _instance;
+    private static PlanscapeServerClient? _instance;
     private static readonly object _lock = new();
 
-    public static StingBIMServerClient Instance
+    public static PlanscapeServerClient Instance
     {
         get
         {
             if (_instance == null)
-                lock (_lock) { _instance ??= new StingBIMServerClient(); }
+                lock (_lock) { _instance ??= new PlanscapeServerClient(); }
             return _instance;
         }
     }
@@ -51,14 +51,14 @@ public sealed class StingBIMServerClient : IDisposable
     public bool   MimEnabled     { get; private set; }
     public string? LastError     { get; private set; }
 
-    private StingBIMServerClient() { }
+    private PlanscapeServerClient() { }
 
     // ────────────────────────────────────────────────────────────────────
     //  Authentication
     // ────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Authenticate with the StingBIM server using email and password.
+    /// Authenticate with the Planscape server using email and password.
     /// Stores the JWT token in memory; persists the server URL and email.
     /// </summary>
     public async Task<bool> LoginAsync(string serverUrl, string email, string password)
@@ -94,13 +94,13 @@ public sealed class StingBIMServerClient : IDisposable
                 new AuthenticationHeaderValue("Bearer", _accessToken);
 
             LastError = null;
-            StingLog.Info($"StingBIM: Authenticated as {ConnectedUser} on {_serverUrl} (tier: {TierName})");
+            StingLog.Info($"Planscape: Authenticated as {ConnectedUser} on {_serverUrl} (tier: {TierName})");
             return true;
         }
         catch (Exception ex)
         {
             LastError = ex.Message;
-            StingLog.Error("StingBIM: Login failed", ex);
+            StingLog.Error("Planscape: Login failed", ex);
             return false;
         }
     }
@@ -115,7 +115,7 @@ public sealed class StingBIMServerClient : IDisposable
         _tokenExpiry  = DateTime.MinValue;
         ConnectedUser = "";
         _http?.DefaultRequestHeaders.Authorization = null;
-        StingLog.Info("StingBIM: Disconnected.");
+        StingLog.Info("Planscape: Disconnected.");
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ public sealed class StingBIMServerClient : IDisposable
     // ────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Sync a list of tagged element DTOs to the StingBIM server.
+    /// Sync a list of tagged element DTOs to the Planscape server.
     /// Returns (created, updated, compliancePercent, ragStatus) on success.
     /// </summary>
     public async Task<SyncResult> SyncElementsAsync(
@@ -133,7 +133,7 @@ public sealed class StingBIMServerClient : IDisposable
         List<TagElementPayload> elements)
     {
         if (!IsConnected)
-            return new SyncResult { Success = false, Error = "Not connected to StingBIM server." };
+            return new SyncResult { Success = false, Error = "Not connected to Planscape server." };
 
         try
         {
@@ -173,7 +173,7 @@ public sealed class StingBIMServerClient : IDisposable
         catch (Exception ex)
         {
             LastError = ex.Message;
-            StingLog.Error("StingBIM: Sync failed", ex);
+            StingLog.Error("Planscape: Sync failed", ex);
             return new SyncResult { Success = false, Error = ex.Message };
         }
     }
@@ -229,7 +229,7 @@ public sealed class StingBIMServerClient : IDisposable
             };
             File.WriteAllText(configPath, settings.ToString(Formatting.Indented));
         }
-        catch (Exception ex) { StingLog.Warn($"StingBIM: Could not save connection settings: {ex.Message}"); }
+        catch (Exception ex) { StingLog.Warn($"Planscape: Could not save connection settings: {ex.Message}"); }
     }
 
     /// <summary>
@@ -281,7 +281,7 @@ public sealed class StingBIMServerClient : IDisposable
 
 /// <summary>
 /// Payload for a single tagged element sent to POST /api/tagsync/sync.
-/// Field names match the TagElementDto record in StingBIM.Core.
+/// Field names match the TagElementDto record in Planscape.Core.
 /// </summary>
 public sealed class TagElementPayload
 {
@@ -306,7 +306,7 @@ public sealed class TagElementPayload
 }
 
 /// <summary>
-/// Result of a StingBIM server sync operation.
+/// Result of a Planscape server sync operation.
 /// </summary>
 public sealed class SyncResult
 {

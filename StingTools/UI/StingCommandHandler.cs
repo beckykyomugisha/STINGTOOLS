@@ -931,7 +931,7 @@ namespace StingTools.UI
                     case "CondApply":
                     case "ParamLookupDialog":
                         OpenParameterLookupDialog(app); break;
-                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://stingbim.com"); break;
+                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://planscape.app"); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
@@ -1871,9 +1871,9 @@ namespace StingTools.UI
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "BCFSync": RunCommand<BIMManager.BCFSyncCommand>(app); break;
                     case "PlatformSync":
-                        // Route to StingBIM server sync if connected; otherwise local delta sync
-                        if (BIMManager.StingBIMServerClient.Instance.IsConnected)
-                            BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app);
+                        // Route to Planscape server sync if connected; otherwise local delta sync
+                        if (BIMManager.PlanscapeServerClient.Instance.IsConnected)
+                            BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app);
                         else
                             RunCommand<BIMManager.PlatformSyncCommand>(app);
                         break;
@@ -2814,17 +2814,17 @@ namespace StingTools.UI
                     case "RevisionExportXlsx":    RunCommand<BIMManager.RevisionExportCommand>(app); break;
                     // SaveProjectMembers and EscalateActions are already wired above
 
-                    // ── StingBIM platform ──
-                    case "StingBIMCopyLink":       StingBIMCopyLink(app); break;
-                    case "StingBIMEmail":          StingBIMGenerateTeamsMessage(app); break;
-                    case "StingBIMTeams":          StingBIMGenerateTeamsMessage(app); break;
-                    case "StingBIMWhatsApp":       StingBIMGenerateWhatsApp(app); break;
-                    case "StingBIMQR":             RunCommand<Tags.QRCodeCommand>(app); break;
-                    case "StingBIMHTML":           StingBIMExportHtml(app); break;
-                    case "StingBIMConnect":        RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
-                    case "StingBIMDisconnect":     BIMManager.StingBIMServerClient.Instance.Disconnect();
-                                                   TaskDialog.Show("StingBIM", "Disconnected from StingBIM server."); break;
-                    case "StingBIMSyncNow":        BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app); break;
+                    // ── Planscape platform ──
+                    case "PlanscapeCopyLink":       PlanscapeCopyLink(app); break;
+                    case "PlanscapeEmail":          PlanscapeGenerateTeamsMessage(app); break;
+                    case "PlanscapeTeams":          PlanscapeGenerateTeamsMessage(app); break;
+                    case "PlanscapeWhatsApp":       PlanscapeGenerateWhatsApp(app); break;
+                    case "PlanscapeQR":             RunCommand<Tags.QRCodeCommand>(app); break;
+                    case "PlanscapeHTML":           PlanscapeExportHtml(app); break;
+                    case "PlanscapeConnect":        RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeDisconnect":     BIMManager.PlanscapeServerClient.Instance.Disconnect();
+                                                   TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
+                    case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
                     case "SendMeetingInvites":     TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
                     case "ExportMeetingAnalytics":
                     {
@@ -2832,7 +2832,7 @@ namespace StingTools.UI
                         if (doc != null) DocumentManagementDialog.ExportMeetingMinutes(doc);
                         break;
                     }
-                    case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect StingBIM or configure email in Settings > Notifications."); break;
+                    case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect Planscape or configure email in Settings > Notifications."); break;
 
                     // ── Unmapped command tag ──
                     default:
@@ -7432,30 +7432,30 @@ namespace StingTools.UI
             TaskDialog.Show($"STING — {title}", msg);
         }
 
-        private static void StingBIMCopyLink(UIApplication app)
+        private static void PlanscapeCopyLink(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             string projectName = doc?.Title ?? "BIMProject";
             string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
-            string link = $"stingbim://dashboard/{projectName}/{timestamp}";
+            string link = $"planscape://dashboard/{projectName}/{timestamp}";
             System.Windows.Clipboard.SetText(link);
-            TaskDialog.Show("STING — StingBIM", $"Dashboard link copied to clipboard:\n{link}\n\nShare this link with your team or embed it in a QR code.");
+            TaskDialog.Show("STING — Planscape", $"Dashboard link copied to clipboard:\n{link}\n\nShare this link with your team or embed it in a QR code.");
         }
 
-        private static void StingBIMGenerateTeamsMessage(UIApplication app)
+        private static void PlanscapeGenerateTeamsMessage(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             string projectName = doc?.Title ?? "BIM Project";
             string msg = $"📊 **{projectName} — BIM Coordination Update**\n" +
                          $"📅 {DateTime.Today:dd MMM yyyy}\n\n" +
-                         "Please review the latest coordination status in StingBIM:\n" +
+                         "Please review the latest coordination status in Planscape:\n" +
                          "• Model health and warnings dashboard\n• Open issues and action items\n• Deliverables tracking\n\n" +
-                         "[View Dashboard] — Use STING > BCC > Platform > StingBIM to export HTML dashboard";
+                         "[View Dashboard] — Use STING > BCC > Platform > Planscape to export HTML dashboard";
             System.Windows.Clipboard.SetText(msg);
             TaskDialog.Show("STING — Teams Message", "Teams message copied to clipboard.\nPaste into your Microsoft Teams or Slack channel.");
         }
 
-        private static void StingBIMGenerateWhatsApp(UIApplication app)
+        private static void PlanscapeGenerateWhatsApp(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             string projectName = doc?.Title ?? "BIM Project";
@@ -7464,21 +7464,21 @@ namespace StingTools.UI
             TaskDialog.Show("STING — WhatsApp", "WhatsApp message copied to clipboard.\nPaste into WhatsApp chat.");
         }
 
-        private static void StingBIMExportHtml(UIApplication app)
+        private static void PlanscapeExportHtml(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) return;
             string outputDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(doc.PathName) ?? System.IO.Path.GetTempPath(), "_bim_manager");
             System.IO.Directory.CreateDirectory(outputDir);
-            string htmlPath = System.IO.Path.Combine(outputDir, $"StingBIM_Dashboard_{DateTime.Now:yyyyMMdd}.html");
-            string html = $@"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>StingBIM — {doc.Title}</title>
+            string htmlPath = System.IO.Path.Combine(outputDir, $"Planscape_Dashboard_{DateTime.Now:yyyyMMdd}.html");
+            string html = $@"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Planscape — {doc.Title}</title>
 <style>body{{font-family:Segoe UI,sans-serif;background:#F4F5F7;margin:0;padding:20px}}
 h1{{color:#1A237E;background:#1A237E;color:white;padding:16px 24px;margin:-20px -20px 20px}}
 .card{{background:white;border-radius:8px;padding:16px;margin:12px 0;border:1px solid #E0E0E8}}
 .kpi{{display:inline-block;background:#1A237E;color:white;padding:12px 20px;border-radius:8px;margin:4px;min-width:100px;text-align:center}}
 .kpi-val{{font-size:24px;font-weight:bold}}.kpi-lbl{{font-size:11px;opacity:.8}}
 </style></head><body>
-<h1>🏗 StingBIM — {System.Net.WebUtility.HtmlEncode(doc.Title)}</h1>
+<h1>🏗 Planscape — {System.Net.WebUtility.HtmlEncode(doc.Title)}</h1>
 <p>Generated: {DateTime.Now:dd MMM yyyy HH:mm} | Project: {System.Net.WebUtility.HtmlEncode(doc.Title)}</p>
 <div class='card'><h3>Project Overview</h3>
 <div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>WARNINGS</div></div>
@@ -7486,13 +7486,13 @@ h1{{color:#1A237E;background:#1A237E;color:white;padding:16px 24px;margin:-20px 
 <div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>MEETINGS</div></div>
 <div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>DELIVERABLES</div></div>
 </div>
-<div class='card'><h3>Instructions</h3><p>This HTML dashboard was generated by StingBIM (STING Tools for Revit).<br>
+<div class='card'><h3>Instructions</h3><p>This HTML dashboard was generated by Planscape (STING Tools for Revit).<br>
 Share this file with your team. No login required — it is a self-contained snapshot.<br>
 For live data, open BCC in Revit and re-export.</p></div>
 </body></html>";
             System.IO.File.WriteAllText(htmlPath, html);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = htmlPath, UseShellExecute = true });
-            TaskDialog.Show("STING — StingBIM", $"HTML dashboard exported and opened:\n{htmlPath}\n\nShare this file with anyone — no login required.");
+            TaskDialog.Show("STING — Planscape", $"HTML dashboard exported and opened:\n{htmlPath}\n\nShare this file with anyone — no login required.");
         }
     }
 }

@@ -1,5 +1,5 @@
 // ===================================================================================
-// Model Creation Commands — Adapted from StingBIM.AI.Design + AI.Creation
+// Model Creation Commands — Adapted from Planscape.AI.Design + AI.Creation
 // Programmatic Revit element creation: walls, floors, ceilings, roofs, doors,
 // windows, columns, beams, stairs, rooms, MEP systems.
 // Covers gaps: ME-01 through ME-09 (Model creation engine)
