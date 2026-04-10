@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Planscape",
+    "slug": "planscape",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "planscape",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1A237E"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stingbim.planscape",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Planscape uses the camera to scan QR codes on BIM assets."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1A237E"
+      },
+      "package": "com.stingbim.planscape",
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        { "cameraPermission": "Planscape uses the camera to scan QR codes on BIM assets." }
+      ],
+      [
+        "expo-notifications",
+        { "icon": "./assets/notification-icon.png", "color": "#E8912D" }
+      ]
+    ]
+  }
+}
