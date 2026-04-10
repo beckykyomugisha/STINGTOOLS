@@ -1,32 +1,494 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { theme } from '@/utils/theme';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { theme, getRAGColor, getPriorityColor } from '@/utils/theme';
+import { listProjects, getProjectDashboard } from '@/api/endpoints';
+import type { DashboardData, Project, BimIssue } from '@/types/api';
 
 export default function DashboardScreen() {
+  const router = useRouter();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = useCallback(async (projectId?: string) => {
+    try {
+      setError(null);
+      const projectList = await listProjects();
+      setProjects(projectList);
+
+      if (projectList.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      const target = projectId
+        ? projectList.find((p) => p.id === projectId) ?? projectList[0]
+        : projectList[0];
+
+      setActiveProject(target);
+      const data = await getProjectDashboard(target.id);
+      setDashboard(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load dashboard';
+      setError(msg);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  function onRefresh() {
+    setRefreshing(true);
+    loadData(activeProject?.id);
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={theme.colors.accent} />
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorIcon}>!</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => { setLoading(true); loadData(); }}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!dashboard || !activeProject) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.emptyText}>No projects found.</Text>
+        <Text style={styles.emptySubtext}>Create a project in the StingBIM web portal to get started.</Text>
+      </View>
+    );
+  }
+
+  const compliancePct = dashboard.compliance?.compliancePercent ?? 0;
+  const ragColor = getRAGColor(compliancePct);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Dashboard</Text>
-      <Text style={styles.subtitle}>KPI cards and compliance overview will appear here.</Text>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.scroll}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.accent} />}
+    >
+      {/* Project selector */}
+      {projects.length > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.projectBar}>
+          {projects.map((p) => (
+            <TouchableOpacity
+              key={p.id}
+              style={[styles.projectChip, p.id === activeProject.id && styles.projectChipActive]}
+              onPress={() => { setLoading(true); loadData(p.id); }}
+            >
+              <Text style={[styles.projectChipText, p.id === activeProject.id && styles.projectChipTextActive]}>
+                {p.code || p.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
+      {/* Project header */}
+      <View style={styles.projectHeader}>
+        <Text style={styles.projectName}>{activeProject.name}</Text>
+        <Text style={styles.projectCode}>{activeProject.code}</Text>
+      </View>
+
+      {/* Compliance gauge */}
+      <View style={styles.gaugeCard}>
+        <View style={[styles.gaugeCircle, { borderColor: ragColor }]}>
+          <Text style={[styles.gaugePct, { color: ragColor }]}>{Math.round(compliancePct)}%</Text>
+          <Text style={styles.gaugeLabel}>Compliance</Text>
+        </View>
+        {dashboard.compliance && (
+          <View style={styles.gaugeDetails}>
+            <GaugeDetail label="Tagged" value={`${dashboard.compliance.taggedElements}/${dashboard.compliance.totalElements}`} />
+            <GaugeDetail label="Stale" value={String(dashboard.compliance.staleCount)} warn={dashboard.compliance.staleCount > 0} />
+            <GaugeDetail label="Warnings" value={String(dashboard.compliance.warningCount)} warn={dashboard.compliance.warningCount > 10} />
+          </View>
+        )}
+      </View>
+
+      {/* KPI row */}
+      <View style={styles.kpiRow}>
+        <KPICard
+          title="Open Issues"
+          value={String(dashboard.openIssueCount)}
+          color={dashboard.openIssueCount > 5 ? theme.colors.danger : theme.colors.accent}
+          onPress={() => router.push('/(tabs)/issues')}
+        />
+        <KPICard
+          title="Documents"
+          value={String(dashboard.documentCount)}
+          color={theme.colors.primary}
+          onPress={() => router.push('/(tabs)/documents')}
+        />
+      </View>
+
+      {/* Discipline breakdown */}
+      {dashboard.compliance?.byDiscipline && Object.keys(dashboard.compliance.byDiscipline).length > 0 && (
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>By Discipline</Text>
+          {Object.entries(dashboard.compliance.byDiscipline).map(([disc, data]) => (
+            <View key={disc} style={styles.discRow}>
+              <Text style={styles.discCode}>{disc}</Text>
+              <View style={styles.discBarBg}>
+                <View style={[styles.discBarFill, { width: `${data.compliancePct}%`, backgroundColor: getRAGColor(data.compliancePct) }]} />
+              </View>
+              <Text style={styles.discPct}>{Math.round(data.compliancePct)}%</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Recent issues */}
+      {dashboard.recentIssues.length > 0 && (
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Issues</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/issues')}>
+              <Text style={styles.seeAll}>See all</Text>
+            </TouchableOpacity>
+          </View>
+          {dashboard.recentIssues.slice(0, 5).map((issue) => (
+            <IssueRow key={issue.id} issue={issue} />
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function KPICard({ title, value, color, onPress }: { title: string; value: string; color: string; onPress?: () => void }) {
+  return (
+    <TouchableOpacity style={styles.kpiCard} onPress={onPress} activeOpacity={0.7}>
+      <Text style={[styles.kpiValue, { color }]}>{value}</Text>
+      <Text style={styles.kpiTitle}>{title}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function GaugeDetail({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <View style={styles.gaugeDetailItem}>
+      <Text style={[styles.gaugeDetailValue, warn && { color: theme.colors.danger }]}>{value}</Text>
+      <Text style={styles.gaugeDetailLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function IssueRow({ issue }: { issue: BimIssue }) {
+  const priorityColor = getPriorityColor(issue.priority);
+  return (
+    <View style={styles.issueRow}>
+      <View style={[styles.issuePriorityDot, { backgroundColor: priorityColor }]} />
+      <View style={styles.issueContent}>
+        <Text style={styles.issueTitle} numberOfLines={1}>{issue.title}</Text>
+        <Text style={styles.issueMeta}>{issue.issueCode} · {issue.type} · {issue.status}</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  scroll: {
+    padding: theme.spacing.md,
+    paddingBottom: theme.spacing.xl,
+  },
+  center: {
     flex: 1,
     backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: theme.spacing.lg,
   },
-  title: {
-    fontSize: theme.fontSize.xxl,
+  loadingText: {
+    marginTop: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+  },
+  errorIcon: {
+    fontSize: 40,
     fontWeight: '700',
+    color: theme.colors.danger,
+    width: 64,
+    height: 64,
+    lineHeight: 64,
+    textAlign: 'center',
+    borderRadius: 32,
+    backgroundColor: '#FFEBEE',
+    marginBottom: theme.spacing.md,
+    overflow: 'hidden',
+  },
+  errorText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.danger,
+    textAlign: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  retryButton: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+  },
+  retryButtonText: {
+    color: theme.colors.surface,
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+  },
+  emptyText: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: '600',
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
   },
-  subtitle: {
+  emptySubtext: {
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
     textAlign: 'center',
+  },
+
+  // Project bar
+  projectBar: {
+    marginBottom: theme.spacing.md,
+    flexGrow: 0,
+  },
+  projectChip: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs + 2,
+    marginRight: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  projectChipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  projectChipText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  projectChipTextActive: {
+    color: theme.colors.surface,
+  },
+
+  // Project header
+  projectHeader: {
+    marginBottom: theme.spacing.md,
+  },
+  projectName: {
+    fontSize: theme.fontSize.xxl,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  projectCode: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+
+  // Compliance gauge
+  gaugeCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.lg,
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  gaugeCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  gaugePct: {
+    fontSize: theme.fontSize.hero,
+    fontWeight: '700',
+  },
+  gaugeLabel: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  gaugeDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+  },
+  gaugeDetailItem: {
+    alignItems: 'center',
+  },
+  gaugeDetailValue: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  gaugeDetailLabel: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+
+  // KPI cards
+  kpiRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  kpiCard: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  kpiValue: {
+    fontSize: theme.fontSize.xxl,
+    fontWeight: '700',
+  },
+  kpiTitle: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+
+  // Section card
+  sectionCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  seeAll: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.accent,
+    fontWeight: '600',
+  },
+
+  // Discipline breakdown
+  discRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  discCode: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+    width: 36,
+  },
+  discBarBg: {
+    flex: 1,
+    height: 8,
+    backgroundColor: theme.colors.border,
+    borderRadius: 4,
+    marginHorizontal: theme.spacing.sm,
+    overflow: 'hidden',
+  },
+  discBarFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  discPct: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    width: 36,
+    textAlign: 'right',
+  },
+
+  // Issue rows
+  issueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+  },
+  issuePriorityDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: theme.spacing.sm,
+  },
+  issueContent: {
+    flex: 1,
+  },
+  issueTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '500',
+    color: theme.colors.text,
+  },
+  issueMeta: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
   },
 });
