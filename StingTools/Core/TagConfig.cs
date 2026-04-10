@@ -3760,10 +3760,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(sidecarDir) && !System.IO.Directory.Exists(sidecarDir))
                     System.IO.Directory.CreateDirectory(sidecarDir);
 
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(seqCounters,
-                    Newtonsoft.Json.Formatting.Indented);
-                System.IO.File.WriteAllText(sidecarPath, json);
-                StingLog.Info($"SEQ sidecar saved: {seqCounters.Count} groups to {sidecarPath}");
+                BIMManager.SidecarVersioning.WriteSidecar(sidecarPath, seqCounters, "1.0");
             }
             catch (Exception ex)
             {
@@ -3782,10 +3779,9 @@ namespace StingTools.Core
                 string sidecarPath = GetSeqSidecarPath(doc);
                 if (sidecarPath == null || !System.IO.File.Exists(sidecarPath)) return null;
 
-                string json = System.IO.File.ReadAllText(sidecarPath);
-                var loaded = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, int>>(json);
+                var (loaded, ver) = BIMManager.SidecarVersioning.ReadSidecar<Dictionary<string, int>>(sidecarPath, "1.0");
                 if (loaded != null && loaded.Count > 0)
-                    StingLog.Info($"SEQ sidecar loaded: {loaded.Count} groups from {sidecarPath}");
+                    StingLog.Info($"SEQ sidecar loaded: {loaded.Count} groups (v{ver ?? "legacy"}) from {sidecarPath}");
                 return loaded;
             }
             catch (Exception ex)

@@ -774,9 +774,7 @@ namespace StingTools.Core
                 if (entries.Count > MaxDays)
                     entries = entries.OrderByDescending(e => e.Date).Take(MaxDays).ToList();
 
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(entries,
-                    Newtonsoft.Json.Formatting.Indented);
-                System.IO.File.WriteAllText(path, json);
+                BIMManager.SidecarVersioning.WriteSidecar(path, entries, "1.0");
             }
             catch (Exception ex) { StingLog.Warn($"ComplianceTrendTracker: {ex.Message}"); }
         }
@@ -808,12 +806,8 @@ namespace StingTools.Core
         {
             try
             {
-                if (System.IO.File.Exists(path))
-                {
-                    string json = System.IO.File.ReadAllText(path);
-                    return Newtonsoft.Json.JsonConvert.DeserializeObject<List<TrendEntry>>(json)
-                        ?? new List<TrendEntry>();
-                }
+                var (data, _) = BIMManager.SidecarVersioning.ReadSidecar<List<TrendEntry>>(path, "1.0");
+                if (data != null) return data;
             }
             catch (Exception ex) { StingLog.Warn($"LoadTrendEntries: {ex.Message}"); }
             return new List<TrendEntry>();

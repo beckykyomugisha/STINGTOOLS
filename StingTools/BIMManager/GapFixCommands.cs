@@ -1650,4 +1650,85 @@ namespace StingTools.BIMManager
     }
 
     #endregion
+
+    // ══════════════════════════════════════════════════════════════════
+    //  BIM-SIDECAR-VER-01: Sidecar Versioning Utility
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Utility for versioned, atomic sidecar JSON file operations.
+    /// Wraps data in a versioned envelope and uses temp-file + File.Replace for crash safety.
+    /// </summary>
+    internal static class SidecarVersioning
+    {
+        /// <summary>
+        /// Write data to a sidecar JSON file with version envelope and atomic write.
+        /// Produces: {"schema_version":"X.Y","timestamp":"...","data":{...}}
+        /// </summary>
+        internal static void WriteSidecar(string path, object data, string schemaVersion)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                string dir = System.IO.Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+                    System.IO.Directory.CreateDirectory(dir);
+
+                var envelope = new Newtonsoft.Json.Linq.JObject
+                {
+                    ["schema_version"] = schemaVersion,
+                    ["timestamp"] = DateTime.UtcNow.ToString("o"),
+                    ["data"] = Newtonsoft.Json.Linq.JToken.FromObject(data)
+                };
+
+                string json = envelope.ToString(Newtonsoft.Json.Formatting.Indented);
+                string tmpPath = path + ".tmp";
+                System.IO.File.WriteAllText(tmpPath, json);
+
+                if (System.IO.File.Exists(path))
+                    System.IO.File.Replace(tmpPath, path, path + ".bak");
+                else
+                    System.IO.File.Move(tmpPath, path, true);
+
+                Core.StingLog.Info($"SidecarVersioning: wrote v{schemaVersion} to {System.IO.Path.GetFileName(path)}");
+            }
+            catch (Exception ex) { Core.StingLog.Warn($"SidecarVersioning.WriteSidecar: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Read versioned sidecar data. Returns (data, actualVersion).
+        /// If file has no version envelope (legacy format), returns the raw content as data with version "0.0".
+        /// </summary>
+        internal static (T data, string version) ReadSidecar<T>(string path, string expectedVersion) where T : class
+        {
+            if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+                return (null, null);
+            try
+            {
+                string json = System.IO.File.ReadAllText(path);
+                if (string.IsNullOrWhiteSpace(json)) return (null, null);
+
+                var token = Newtonsoft.Json.Linq.JToken.Parse(json);
+
+                // Check for versioned envelope
+                if (token is Newtonsoft.Json.Linq.JObject obj && obj["schema_version"] != null && obj["data"] != null)
+                {
+                    string actualVersion = obj["schema_version"]?.ToString() ?? "0.0";
+                    var data = obj["data"].ToObject<T>();
+                    if (actualVersion != expectedVersion)
+                        Core.StingLog.Info($"SidecarVersioning: {System.IO.Path.GetFileName(path)} version {actualVersion} (expected {expectedVersion}) — migration may apply");
+                    return (data, actualVersion);
+                }
+
+                // Legacy format: no envelope — deserialize raw content
+                var legacyData = Newtonsoft.Json.JsonConvert.DeserializeObject<T>(json);
+                return (legacyData, "0.0");
+            }
+            catch (Exception ex)
+            {
+                Core.StingLog.Warn($"SidecarVersioning.ReadSidecar: {ex.Message}");
+                return (null, null);
+            }
+        }
+    }
 }
