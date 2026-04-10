@@ -96,6 +96,76 @@ namespace StingTools.BIMManager
             return null;
         }
 
+        /// <summary>BIM-CDE-APPROVAL-01: Check for ANY pending approvals that block
+        /// SHARED→PUBLISHED transitions per ISO 19650-2 §5.6.</summary>
+        internal static (int Count, string Details) HasPendingApprovals(Document doc)
+        {
+            string approvalsPath = Path.Combine(GetBimDir(doc), "approvals.json");
+            var approvals = LoadJsonArray(approvalsPath);
+            var pending = approvals.OfType<JObject>()
+                .Where(a => (a["status"]?.ToString() ?? "").Equals("PENDING", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (pending.Count == 0) return (0, null);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"ISO 19650-2 §5.6 APPROVAL GATE — {pending.Count} pending approval(s):\n");
+            foreach (var p in pending.Take(20))
+            {
+                string docId = p["document_id"]?.ToString() ?? "?";
+                string approver = p["approver"]?.ToString() ?? "Unknown";
+                string requested = p["requested"]?.ToString() ?? "";
+                sb.AppendLine($"  • [{docId}] awaiting {approver} (requested {requested})");
+            }
+            if (pending.Count > 20) sb.AppendLine($"  ... and {pending.Count - 20} more");
+            sb.AppendLine("\nAll approvals must be resolved before SHARED → PUBLISHED transition.");
+            return (pending.Count, sb.ToString());
+        }
+
+        /// <summary>BIM-CDE-APPROVAL-01: Approve or reject a specific pending approval.</summary>
+        internal static bool ResolveApproval(Document doc, string documentId, string approver, bool approve)
+        {
+            string approvalsPath = Path.Combine(GetBimDir(doc), "approvals.json");
+            var approvals = LoadJsonArray(approvalsPath);
+            var match = approvals.OfType<JObject>().FirstOrDefault(a =>
+                (a["document_id"]?.ToString() ?? "").Equals(documentId, StringComparison.OrdinalIgnoreCase)
+                && (a["approver"]?.ToString() ?? "").Equals(approver, StringComparison.OrdinalIgnoreCase)
+                && (a["status"]?.ToString() ?? "").Equals("PENDING", StringComparison.OrdinalIgnoreCase));
+            if (match == null) return false;
+            match["status"] = approve ? "APPROVED" : "REJECTED";
+            match["resolved"] = DateTime.UtcNow.ToString("o");
+            match["resolved_by"] = Environment.UserName;
+            SaveJson(approvalsPath, approvals);
+            StingLog.Info($"CDE approval {(approve ? "APPROVED" : "REJECTED")}: doc={documentId}, approver={approver}");
+            return true;
+        }
+
+        /// <summary>BIM-CDE-APPROVAL-01: Log a PUBLISH_BLOCKED event to the workflow JSONL log.</summary>
+        internal static void LogPublishBlocked(Document doc, int pendingCount)
+        {
+            try
+            {
+                string dir = null;
+                if (doc != null && !string.IsNullOrEmpty(doc.PathName))
+                    dir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir))
+                    dir = StingToolsApp.DataPath ?? Path.GetTempPath();
+                string path = Path.Combine(dir, "STING_WORKFLOW_LOG.jsonl");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                var record = new JObject
+                {
+                    ["timestamp"] = DateTime.UtcNow.ToString("o"),
+                    ["action"] = "PUBLISH_BLOCKED",
+                    ["reason"] = "pending_approvals",
+                    ["pending_count"] = pendingCount,
+                    ["user"] = Environment.UserName,
+                    ["model"] = doc?.Title ?? ""
+                };
+                File.AppendAllText(path, record.ToString(Formatting.None) + Environment.NewLine);
+            }
+            catch (Exception ex) { StingLog.Warn($"LogPublishBlocked: {ex.Message}"); }
+        }
+
         // ═══════════════════════════════════════════════════════════════════
         //  CRIT-02: Cross-System Entity Linking
         // ═══════════════════════════════════════════════════════════════════
@@ -919,7 +989,7 @@ namespace StingTools.BIMManager
 
     #region ── CRITICAL Gap Commands ──
 
-    /// <summary>CRIT-01: CDE approval workflow integration.</summary>
+    /// <summary>CRIT-01: CDE approval workflow integration with approve/reject actions.</summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class CDEApprovalWorkflowCommand : IExternalCommand
@@ -936,16 +1006,63 @@ namespace StingTools.BIMManager
                 .Where(a => (a["status"]?.ToString() ?? "").Equals("PENDING", StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
+            if (pending.Count == 0)
+            {
+                TaskDialog.Show("STING CDE Approval", "No pending approvals. All documents are cleared for CDE transition.");
+                return Result.Succeeded;
+            }
+
+            // Show pending approvals with approve/reject options
             var sb = new StringBuilder();
             sb.AppendLine("CDE APPROVAL WORKFLOW STATUS\n");
             sb.AppendLine($"Total approvals: {approvals.Count}");
-            sb.AppendLine($"Pending: {pending.Count}");
+            sb.AppendLine($"Pending: {pending.Count}\n");
 
-            foreach (var p in pending.Take(20))
-                sb.AppendLine($"  [{p["document_id"]}] → {p["approver"]} ({p["requested"]})");
+            for (int i = 0; i < Math.Min(pending.Count, 20); i++)
+            {
+                var p = pending[i];
+                sb.AppendLine($"  {i + 1}. [{p["document_id"]}] → {p["approver"]} (requested {p["requested"]})");
+            }
+            if (pending.Count > 20) sb.AppendLine($"  ... and {pending.Count - 20} more");
 
-            sb.AppendLine("\nNote: All pending approvals must be resolved before SHARED→PUBLISHED transition.");
-            TaskDialog.Show("STING CDE Approval", sb.ToString());
+            var dlg = new TaskDialog("STING CDE Approval Workflow");
+            dlg.MainInstruction = $"{pending.Count} pending approval(s) — ISO 19650-2 §5.6";
+            dlg.MainContent = sb.ToString();
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Approve All Pending",
+                $"Approve all {pending.Count} pending approval(s) as {Environment.UserName}");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Reject All Pending",
+                $"Reject all {pending.Count} pending approval(s) as {Environment.UserName}");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Approve First Pending Only",
+                $"Approve [{pending[0]["document_id"]}] for {pending[0]["approver"]}");
+            dlg.CommonButtons = TaskDialogCommonButtons.Close;
+
+            var result = dlg.Show();
+            int resolved = 0;
+            string currentUser = Environment.UserName;
+
+            if (result == TaskDialogResult.CommandLink1)
+            {
+                foreach (var p in pending)
+                    if (GapFixEngine.ResolveApproval(ctx.Doc, p["document_id"]?.ToString(), p["approver"]?.ToString(), true))
+                        resolved++;
+                TaskDialog.Show("STING CDE Approval", $"Approved {resolved} of {pending.Count} pending approvals.");
+            }
+            else if (result == TaskDialogResult.CommandLink2)
+            {
+                foreach (var p in pending)
+                    if (GapFixEngine.ResolveApproval(ctx.Doc, p["document_id"]?.ToString(), p["approver"]?.ToString(), false))
+                        resolved++;
+                TaskDialog.Show("STING CDE Approval", $"Rejected {resolved} of {pending.Count} pending approvals.");
+            }
+            else if (result == TaskDialogResult.CommandLink3)
+            {
+                var first = pending[0];
+                if (GapFixEngine.ResolveApproval(ctx.Doc, first["document_id"]?.ToString(), first["approver"]?.ToString(), true))
+                    TaskDialog.Show("STING CDE Approval", $"Approved [{first["document_id"]}] for {first["approver"]}.");
+                else
+                    TaskDialog.Show("STING CDE Approval", "Failed to resolve approval — record may have changed.");
+            }
+
             return Result.Succeeded;
         }
     }
