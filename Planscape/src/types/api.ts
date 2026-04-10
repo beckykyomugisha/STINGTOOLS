@@ -91,6 +91,30 @@ export interface DashboardData {
 
 export type CDEStatus = 'WIP' | 'SHARED' | 'PUBLISHED' | 'ARCHIVE';
 
+export interface TaggedElement {
+  id: string;
+  projectId: string;
+  uniqueId: string;
+  assTag1: string;
+  discipline: string;
+  location: string;
+  zone: string;
+  level: string;
+  systemType: string;
+  function: string;
+  productCode: string;
+  sequenceNumber: string;
+  status: string;
+  revision: string;
+  categoryName: string;
+  familyName: string;
+  typeName: string;
+  roomName: string;
+  gridRef: string;
+  tag7Summary: string;
+  syncedAt: string;
+}
+
 export interface OfflineAction {
   id: string;
   type: 'CREATE_ISSUE' | 'UPDATE_ISSUE' | 'TRANSITION_CDE';

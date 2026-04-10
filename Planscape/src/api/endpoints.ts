@@ -8,6 +8,7 @@ import type {
   BimIssue,
   DocumentRecord,
   DashboardData,
+  TaggedElement,
 } from '../types/api';
 
 // ── Auth ──
@@ -85,4 +86,15 @@ export function transitionCDE(
     method: 'POST',
     body: JSON.stringify({ newStatus }),
   });
+}
+
+// ── Tag Sync / Element Lookup ──
+
+export function lookupElement(
+  projectId: string,
+  query: string
+): Promise<TaggedElement[]> {
+  return apiFetch(
+    `/api/tagsync/elements/search?projectId=${projectId}&q=${encodeURIComponent(query)}`
+  );
 }
