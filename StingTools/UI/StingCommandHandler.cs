@@ -746,6 +746,7 @@ namespace StingTools.UI
                     case "ScheduleStats": RunCommand<Temp.ScheduleStatsCommand>(app); break;
                     case "ScheduleDelete": RunCommand<Temp.ScheduleDeleteCommand>(app); break;
                     case "ScheduleReport": RunCommand<Temp.ScheduleReportCommand>(app); break;
+                    case "ScheduleFieldRemapAudit": RunCommand<Temp.ScheduleFieldRemapAuditCommand>(app); break;
 
                     // ── Templates / Views ──
                     case "CreateFilters": RunCommand<Temp.CreateFiltersCommand>(app); break;

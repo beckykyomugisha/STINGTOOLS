@@ -1053,6 +1053,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Stats" Tag="ScheduleStats" Click="Cmd_Click" ToolTip="Schedule statistics and data fill"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Delete" Tag="ScheduleDelete" Click="Cmd_Click" ToolTip="Batch delete empty/unplaced/non-STING schedules"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Report" Tag="ScheduleReport" Click="Cmd_Click" ToolTip="Export comprehensive schedule report to CSV"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Field Remap" Tag="ScheduleFieldRemapAudit" Click="Cmd_Click" ToolTip="Audit schedules for deprecated field names from SCHEDULE_FIELD_REMAP.csv"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

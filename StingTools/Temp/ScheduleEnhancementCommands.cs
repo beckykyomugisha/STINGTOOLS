@@ -1603,4 +1603,211 @@ namespace StingTools.Temp
             return defs;
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  SCHEDULE FIELD REMAP AUDIT
+    //  Scans all project schedules for deprecated field names listed
+    //  in SCHEDULE_FIELD_REMAP.csv and reports via StingResultPanel.
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Audit all schedules for deprecated field names from SCHEDULE_FIELD_REMAP.csv.
+    /// Reports REMAPPED fields (have a replacement) and REMOVED fields (no replacement).
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ScheduleFieldRemapAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Load REMAPPED entries via existing helper
+            var remapped = ScheduleHelper.LoadFieldRemaps();
+
+            // Load REMOVED entries (second pass of same CSV)
+            var removed = LoadRemovedFields();
+
+            if (remapped.Count == 0 && removed.Count == 0)
+            {
+                TaskDialog.Show("Field Remap Audit",
+                    "SCHEDULE_FIELD_REMAP.csv not found or contains no entries.");
+                return Result.Succeeded;
+            }
+
+            // Collect all schedules
+            var schedules = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSchedule))
+                .Cast<ViewSchedule>()
+                .Where(s => !s.IsTitleblockRevisionSchedule && !s.IsInternalKeynoteSchedule)
+                .OrderBy(s => s.Name)
+                .ToList();
+
+            if (schedules.Count == 0)
+            {
+                TaskDialog.Show("Field Remap Audit", "No schedules found in the project.");
+                return Result.Succeeded;
+            }
+
+            // Scan schedules for deprecated fields
+            int totalRemappedHits = 0;
+            int totalRemovedHits = 0;
+            int schedulesWithIssues = 0;
+            var tableRows = new List<string[]>();
+            var csvLines = new List<string>();
+            csvLines.Add("Schedule,Field,Status,Replacement,Sunset_Date");
+
+            foreach (var sched in schedules)
+            {
+                int remapHits = 0;
+                int removeHits = 0;
+
+                try
+                {
+                    int fieldCount = sched.Definition.GetFieldCount();
+                    for (int i = 0; i < fieldCount; i++)
+                    {
+                        string fieldName;
+                        try { fieldName = sched.Definition.GetField(i).GetName(); }
+                        catch (Exception ex) { StingLog.Warn($"FieldRemapAudit: cannot read field {i} in '{sched.Name}': {ex.Message}"); continue; }
+
+                        if (string.IsNullOrEmpty(fieldName)) continue;
+
+                        if (remapped.TryGetValue(fieldName, out string replacement))
+                        {
+                            remapHits++;
+                            totalRemappedHits++;
+                            tableRows.Add(new[] { sched.Name, fieldName, "REMAPPED", replacement });
+                            csvLines.Add($"\"{sched.Name}\",\"{fieldName}\",REMAPPED,\"{replacement}\",");
+                        }
+                        else if (removed.Contains(fieldName))
+                        {
+                            removeHits++;
+                            totalRemovedHits++;
+                            tableRows.Add(new[] { sched.Name, fieldName, "REMOVED", "(no replacement)" });
+                            csvLines.Add($"\"{sched.Name}\",\"{fieldName}\",REMOVED,,");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"FieldRemapAudit: error scanning '{sched.Name}': {ex.Message}");
+                }
+
+                if (remapHits > 0 || removeHits > 0)
+                    schedulesWithIssues++;
+            }
+
+            int totalHits = totalRemappedHits + totalRemovedHits;
+            double cleanPct = schedules.Count > 0
+                ? (double)(schedules.Count - schedulesWithIssues) / schedules.Count * 100.0
+                : 100.0;
+
+            StingLog.Info($"FieldRemapAudit: {schedules.Count} schedules scanned, " +
+                $"{totalRemappedHits} remapped + {totalRemovedHits} removed fields found " +
+                $"across {schedulesWithIssues} schedules");
+
+            // Build result panel
+            var builder = UI.StingResultPanel.Create("Schedule Field Remap Audit")
+                .SetSubtitle($"Scanned {schedules.Count} schedules against SCHEDULE_FIELD_REMAP.csv ({remapped.Count} remap + {removed.Count} removed rules)")
+                .AddSection("Summary")
+                .Metric("Total Schedules Scanned", schedules.Count.ToString())
+                .Metric("Remap Rules in CSV", remapped.Count.ToString())
+                .Metric("Removed Rules in CSV", removed.Count.ToString());
+
+            if (totalHits == 0)
+                builder.MetricHighlight("Deprecated Fields Found", "0 — all clean");
+            else
+                builder.MetricWarn("Deprecated Fields Found", $"{totalHits} ({totalRemappedHits} remapped + {totalRemovedHits} removed)");
+
+            if (schedulesWithIssues == 0)
+                builder.MetricHighlight("Schedules With Issues", "0");
+            else
+                builder.MetricError("Schedules With Issues", $"{schedulesWithIssues} of {schedules.Count}");
+
+            builder.RAGBar(cleanPct, "Schedule Cleanliness");
+
+            if (totalHits > 0)
+            {
+                builder.AddSection("Deprecated Fields Found")
+                    .Table(
+                        new[] { "Schedule", "Field", "Status", "Replacement" },
+                        tableRows);
+
+                if (totalRemovedHits > 0)
+                    builder.Alert($"{totalRemovedHits} field(s) are REMOVED with no replacement — " +
+                        "these should be deleted from schedules.");
+            }
+            else
+            {
+                builder.AddSection("Result")
+                    .Info("No deprecated fields found in any project schedule. All fields are current.");
+            }
+
+            // CSV export action
+            string csvContent = string.Join(Environment.NewLine, csvLines);
+            builder.Action("Export CSV", "Export findings to CSV file", (win) =>
+            {
+                try
+                {
+                    string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                    string csvPath = Path.Combine(outDir,
+                        $"STING_FieldRemapAudit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                    File.WriteAllText(csvPath, csvContent);
+                    TaskDialog.Show("Export Complete", $"Saved to:\n{csvPath}");
+                    StingLog.Info($"FieldRemapAudit CSV exported: {csvPath}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("FieldRemapAudit CSV export failed", ex);
+                    TaskDialog.Show("Export Failed", ex.Message);
+                }
+            });
+
+            builder.Show();
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Load REMOVED field names from SCHEDULE_FIELD_REMAP.csv.
+        /// Returns a case-insensitive HashSet of deprecated field names with no replacement.
+        /// </summary>
+        private static HashSet<string> LoadRemovedFields()
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string path = StingToolsApp.FindDataFile("SCHEDULE_FIELD_REMAP.csv");
+            if (path == null) return result;
+
+            try
+            {
+                var lines = File.ReadAllLines(path)
+                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                    .Skip(1);
+
+                foreach (string line in lines)
+                {
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    if (cols.Length < 3) continue;
+
+                    string oldField = cols[0].Trim();
+                    string action = cols[2].Trim();
+
+                    if (action.StartsWith("REMOVED", StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrEmpty(oldField))
+                    {
+                        result.Add(oldField);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Failed to load REMOVED fields from SCHEDULE_FIELD_REMAP.csv: {ex.Message}");
+            }
+
+            return result;
+        }
+    }
 }
