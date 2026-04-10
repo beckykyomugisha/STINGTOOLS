@@ -2194,16 +2194,21 @@ Critical review of the tagging workflow identified the following logic, automati
 
 **Planscape Server** is a cloud backend that transforms the single-machine Revit plugin into a multi-user, multi-tenant SaaS platform. Located in `Planscape.Server/`.
 
+> **Gap Analysis**: See `Planscape.Server/docs/PLANSCAPE_GAPS.md` (655 lines) for comprehensive gap analysis covering mobile collaboration, server API, plugin sync integration, on-site readiness assessment, and prioritised implementation roadmap with cost estimates.
+
 ### Technology Stack
 
 | Layer | Technology |
 |---|---|
 | API | ASP.NET Core 8.0 (net8.0) |
 | Database | PostgreSQL 16 + EF Core 8 |
-| Cache | Redis 7 |
-| Real-time | SignalR |
-| Auth | JWT + Refresh tokens |
+| Cache | Redis 7 (caching + SignalR backplane) |
+| Real-time | SignalR (ComplianceHub, TagSyncHub, NotificationHub) |
+| Auth | JWT + Refresh tokens (BCrypt password hashing) |
 | File Storage | MinIO (S3-compatible) |
+| Email | MailKit SMTP (IEmailService) |
+| Push | Firebase Cloud Messaging (FCM HTTP v1) |
+| Background | Hangfire (4 recurring jobs) |
 | Container | Docker Compose |
 
 ### Project Structure
@@ -2211,65 +2216,79 @@ Critical review of the tagging workflow identified the following logic, automati
 ```
 Planscape.Server/
 ├── Planscape.sln                         # Solution file
+├── docs/
+│   └── PLANSCAPE_GAPS.md                 # Gap analysis: mobile, server, integration, readiness
 ├── docker/
 │   ├── docker-compose.yml                # API + Postgres + Redis
 │   └── Dockerfile                        # Multi-stage API build
 └── src/
-    ├── Planscape.API/                    # ASP.NET Core Web API
+    ├── Planscape.API/                    # ASP.NET Core Web API (17 controllers)
     │   ├── Controllers/
     │   │   ├── AuthController.cs         # Login, register, refresh, change/forgot/reset password, /me, license
     │   │   ├── ProjectsController.cs     # CRUD + PUT settings + dashboard
-    │   │   ├── TagSyncController.cs      # Bulk tag sync from plugin
+    │   │   ├── ProjectMembersController.cs # Invite/remove/list team members with ISO 19650 roles
+    │   │   ├── TagSyncController.cs      # Bulk tag sync from plugin (batch upsert, Redis caching)
     │   │   ├── ComplianceController.cs   # Snapshot push/pull + trend
     │   │   ├── IssuesController.cs       # CRUD + SLA tracking + attachments (upload/list/delete/link)
-    │   │   ├── DocumentsController.cs    # CDE state machine + file upload/download
+    │   │   ├── DocumentsController.cs    # CDE state machine + file upload/download + approval gates
     │   │   ├── NotificationsController.cs # Push token subscribe/list/delete + test push
     │   │   ├── WorkflowsController.cs    # Run logging + trend
     │   │   ├── MeetingsController.cs     # Agenda + action items
     │   │   ├── SeqSyncController.cs      # Max-per-key merge
     │   │   ├── TransmittalsController.cs # ISO 19650 transmittals
     │   │   ├── WarningsController.cs     # Warning reports + baseline
+    │   │   ├── SearchController.cs       # Cross-project global search (tags, issues, docs, meetings)
+    │   │   ├── PlatformController.cs     # BIM platform integrations (ACC, Procore, Aconex, Trimble)
     │   │   ├── AdminController.cs        # Org + user + audit management
     │   │   └── MimController.cs          # Planscape MIM asset lifecycle
     │   ├── Middleware/
-    │   │   └── TenantResolutionMiddleware.cs
+    │   │   └── TenantResolutionMiddleware.cs  # Multi-tenant resolution with Redis-backed caching
     │   ├── SeedData.cs                   # Demo tenant + project + issues
-    │   └── Program.cs                    # DI, middleware, SignalR hubs
+    │   └── Program.cs                    # DI, middleware, SignalR hubs, Hangfire
     │
-    ├── Planscape.Core/                   # Domain entities + DTOs
+    ├── Planscape.Core/                   # Domain entities + DTOs (18 entities)
     │   ├── Entities/
     │   │   ├── Tenant.cs                 # Multi-tenant org
-    │   │   ├── AppUser.cs                # JWT user with ISO 19650 role
+    │   │   ├── AppUser.cs                # JWT user with ISO 19650 role (UserRole enum)
     │   │   ├── Project.cs                # BIM project container
+    │   │   ├── ProjectMember.cs          # User↔Project join with role
     │   │   ├── TaggedElement.cs          # 8-segment tag data
-    │   │   ├── BimIssue.cs               # RFI/NCR/SI issue
-    │   │   ├── DocumentRecord.cs         # CDE document with state
+    │   │   ├── BimIssue.cs               # RFI/NCR/SI issue with SLA tracking
+    │   │   ├── IssueAttachment.cs        # Join entity linking BimIssue to DocumentRecord
+    │   │   ├── DocumentRecord.cs         # CDE document with state (CDEState enum)
+    │   │   ├── DocumentApproval.cs       # ISO 19650-2 §5.6 approval workflow
+    │   │   ├── PlatformConnection.cs     # External BIM platform connection config
     │   │   ├── ComplianceSnapshot.cs     # Point-in-time compliance
     │   │   ├── SeqCounter.cs             # Sequence number counter
     │   │   ├── Meeting.cs                # Meeting + action items
     │   │   ├── Transmittal.cs            # Document transmittal
     │   │   ├── WorkflowRun.cs            # Workflow execution record
-    │   │   ├── LicenseKey.cs             # License with tier + seats
+    │   │   ├── LicenseKey.cs             # License with tier + seats (LicenseTier enum)
     │   │   ├── AuditLog.cs               # Write operation audit trail
-    │   │   ├── DevicePushToken.cs        # FCM/APNs device token for push notifications
-    │   │   └── IssueAttachment.cs        # Join entity linking BimIssue to DocumentRecord
+    │   │   └── DevicePushToken.cs        # FCM/APNs device token (PushPlatform enum)
     │   ├── DTOs/SyncDtos.cs              # Sync request/response models
     │   └── Interfaces/
     │       ├── IRepository.cs
+    │       ├── IEmailService.cs          # Email abstraction (SMTP/null fallback)
+    │       ├── INotificationService.cs   # SignalR notification dispatch
+    │       ├── IPlatformConnector.cs     # BIM platform integration (4 async methods)
     │       └── IPushNotificationService.cs  # Push notification abstraction (FCM/APNs/Web)
     │
-    ├── Planscape.Infrastructure/         # EF Core + SignalR
-    │   ├── Data/PlanscapeDbContext.cs     # 20 DbSets, indexes, relationships
+    ├── Planscape.Infrastructure/         # EF Core + SignalR + Services
+    │   ├── Data/PlanscapeDbContext.cs     # 21 DbSets, indexes, relationships
     │   ├── Data/Migrations/
     │   │   ├── 20250407000000_InitialCreate.cs      # Hand-written initial migration (all tables)
     │   │   └── PlanscapeDbContextModelSnapshot.cs   # EF Core model snapshot
     │   ├── Services/
-    │   │   ├── TenantContext.cs
-    │   │   ├── NotificationService.cs    # SignalR + push notification dispatch
-    │   │   ├── FirebasePushService.cs    # FCM HTTP v1 push implementation
-    │   │   └── BackgroundJobs.cs         # Hangfire: compliance, SLA escalation, cleanup
+    │   │   ├── TenantContext.cs           # ITenantContext with Redis-backed caching
+    │   │   ├── NotificationService.cs     # SignalR + push notification dispatch
+    │   │   ├── FirebasePushService.cs     # FCM HTTP v1 push (JWT auth, exponential retry)
+    │   │   ├── SmtpEmailService.cs        # MailKit SMTP + NullEmailService fallback
+    │   │   ├── PlatformConnectors.cs      # IPlatformConnector implementations (ACC, Procore, etc.)
+    │   │   └── BackgroundJobs.cs          # Hangfire: compliance, SLA escalation, cleanup, platform sync
     │   └── SignalR/
-    │       └── ComplianceHub.cs          # ComplianceHub + TagSyncHub
+    │       ├── ComplianceHub.cs           # Real-time compliance updates
+    │       └── NotificationHub.cs         # Real-time notification delivery
     │
     ├── Planscape.MIM/                    # Model Information Management
     │   ├── Entities/Asset.cs             # 40+ field asset entity
@@ -2281,10 +2300,10 @@ Planscape.Server/
     │   ├── Models/SyncModels.cs          # PluginSyncPayload DTOs
     │   └── Helpers/TagFormatHelper.cs    # Tag validation/parsing
     │
-    └── Planscape.PluginSync/            # Plugin-side sync client
-        ├── SyncClient.cs                # HTTP + JWT auth client
-        ├── OfflineQueue.cs              # File-backed offline queue
-        └── SyncScheduler.cs            # 5-min periodic sync
+    └── Planscape.PluginSync/            # Plugin-side sync client (UNUSED — see Integration note)
+        ├── SyncClient.cs                # HTTP + JWT auth client (dead code)
+        ├── OfflineQueue.cs              # File-backed offline queue (dead code)
+        └── SyncScheduler.cs             # 5-min periodic sync (dead code)
 ```
 
 ### API Endpoints Summary
@@ -2293,6 +2312,7 @@ Planscape.Server/
 |---|---|---|
 | Auth | `/api/auth/login`, `/register`, `/refresh`, `/change-password`, `/forgot-password`, `/reset-password`, `/me`, `/license/activate` | POST, GET |
 | Projects | `/api/projects`, `/api/projects/{id}` | GET, POST, PUT |
+| Project Members | `/api/projects/{id}/members` | GET, POST invite, DELETE remove |
 | Dashboard | `/api/projects/{id}/dashboard` | GET |
 | Tag Sync | `/api/tagsync/sync`, `/elements/{id}`, `/compliance/{id}` | POST, GET |
 | Compliance | `/api/projects/{id}/compliance` | POST, GET (latest/history/trend) |
@@ -2305,6 +2325,8 @@ Planscape.Server/
 | Transmittals | `/api/projects/{id}/transmittals` | GET, POST, PUT send |
 | Warnings | `/api/projects/{id}/warnings` | POST report/baseline, GET trend |
 | Notifications | `/api/notifications/subscribe`, `/tokens`, `/test` | POST, GET, DELETE |
+| Search | `/api/search?q=` | GET (cross-project: tags, issues, docs, meetings) |
+| Platform | `/api/projects/{id}/platform` | GET connections, POST connect/sync |
 | MIM | `/api/projects/{id}/mim/assets`, `/maintenance`, `/dashboard` | GET, POST, bulk |
 | Admin | `/api/admin/org`, `/users`, `/audit`, `/licenses` | GET, POST, PUT |
 | SignalR | `/hubs/compliance`, `/hubs/tagsync`, `/hubs/notifications` | WebSocket |
@@ -2320,14 +2342,106 @@ Planscape.Server/
 | Enterprise | 100+ | Custom | SSO, on-prem |
 | Planscape MIM | Add-on | $10-17/user/mo | FM, digital twin |
 
+### Plugin ↔ Server Sync Architecture
+
+> **CRITICAL NOTE**: Two parallel sync systems exist. Only one is actually used.
+
+| System | Location | Status | Mechanism |
+|---|---|---|---|
+| `Planscape.PluginSync` | `Planscape.Server/src/Planscape.PluginSync/` | **DEAD CODE** — never referenced by StingTools | Automatic 5-min scheduler, file-backed offline queue |
+| `StingBIMServerClient` | `StingTools/BIMManager/PlatformLinkCommands.cs` | **ACTUALLY USED** | Manual on-demand sync via BIM Coordination Center buttons |
+
+The `StingBIMServerClient` (2,222 lines in `PlatformLinkCommands.cs`) provides:
+- JWT login/token refresh via `/api/auth/login` and `/api/auth/refresh`
+- Tag sync via `/api/tagsync/sync` (bulk POST)
+- Compliance push via `/api/projects/{id}/compliance` (POST snapshot)
+- Issue sync via `/api/projects/{id}/issues` (GET/POST)
+- Document register via `/api/projects/{id}/documents` (GET/POST)
+- SEQ counter sync via `/api/projects/{id}/seq` (POST max-per-key merge)
+
+Missing from `StingBIMServerClient`: warnings sync, workflow run sync, meeting sync, transmittal sync, MIM asset sync, platform connections. See `PLANSCAPE_GAPS.md` INT-01 through INT-10 for details.
+
+## Planscape Mobile App
+
+### Overview
+
+**Planscape Mobile** is a React Native / Expo cross-platform mobile app for on-site BIM coordination, issue management, and document access. Located in `Planscape/`.
+
+### Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React Native + Expo SDK 52 |
+| Router | expo-router v4 (file-based routing) |
+| Language | TypeScript |
+| Camera | expo-camera (QR/barcode scanning) |
+| Storage | @react-native-async-storage (offline queue) |
+| HTTP | Fetch API via `src/api/client.ts` |
+
+### Mobile App Structure
+
+```
+Planscape/
+├── app.json                              # Expo config
+├── package.json                          # Dependencies
+├── tsconfig.json                         # TypeScript config
+├── app/
+│   ├── _layout.tsx                       # Root layout with tab navigation
+│   ├── login.tsx                         # Auth screen
+│   └── (tabs)/
+│       ├── _layout.tsx                   # Tab bar layout (5 tabs)
+│       ├── index.tsx                     # Dashboard tab
+│       ├── issues.tsx                    # Issues tab (list + create)
+│       ├── documents.tsx                 # Documents tab (list + CDE status)
+│       ├── scanner.tsx                   # QR/barcode scanner (828 lines)
+│       └── settings.tsx                  # Settings tab
+└── src/
+    ├── api/
+    │   ├── client.ts                     # HTTP client with JWT auth (97 lines)
+    │   └── endpoints.ts                  # API endpoint constants (100 lines)
+    ├── components/                       # Reusable UI components
+    ├── hooks/                            # Custom React hooks
+    ├── types/                            # TypeScript type definitions
+    └── utils/
+        └── offlineQueue.ts              # AsyncStorage-backed offline queue (124 lines)
+```
+
+### Mobile Offline Queue
+
+The mobile app supports 3 offline action types via `src/utils/offlineQueue.ts`:
+- `CREATE_ISSUE` — Create new RFI/NCR/SI with photos
+- `UPDATE_ISSUE` — Update existing issue status/priority
+- `TRANSITION_CDE` — Change document CDE state
+
+Queue is persisted to `AsyncStorage` and flushed when connectivity is restored.
+
+### Mobile Gap Summary
+
+The mobile app is at **prototype/demo stage** — NOT production-ready for on-site use. Key gaps documented in `PLANSCAPE_GAPS.md`:
+- No photo attachment support (MOB-01)
+- No GPS/location capture (MOB-02)
+- No offline-first data caching (MOB-03)
+- No push notification integration (MOB-04)
+- No document viewer/markup (MOB-06)
+- No compliance dashboard (MOB-09)
+- No meeting/transmittal screens (MOB-10, MOB-11)
+
+Estimated effort to reach on-site production readiness: **12-16 weeks, £33K-£39K** (see `PLANSCAPE_GAPS.md` sections 5-6 for detailed breakdown).
+
 ### Running Locally
 
 ```bash
+# Server
 cd Planscape.Server/docker
 docker compose up -d
 # API: http://localhost:5000
 # Swagger: http://localhost:5000/swagger
 # Demo login: admin@planscape.demo / admin123
+
+# Mobile (requires Node.js + Expo CLI)
+cd Planscape
+npm install
+npx expo start
 ```
 
 #### Completed (Phase 46 — Intelligent Warnings Manager, Auto-Tagger Bulk Fix, Token Writer Enhancement)
