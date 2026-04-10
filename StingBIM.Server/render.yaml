@@ -1,11 +1,11 @@
-# render.yaml — Render.com Infrastructure-as-Code for StingBIM Server
+# render.yaml — Render.com Infrastructure-as-Code for Planscape Server
 # Deploy: push to main → Render detects this file → provisions all services automatically
 # Docs: https://render.com/docs/infrastructure-as-code
 
 services:
-  # ── StingBIM API (ASP.NET Core 8) ──────────────────────────────────────────
+  # ── Planscape API (ASP.NET Core 8) ──────────────────────────────────────────
   - type: web
-    name: stingbim-api
+    name: planscape-api
     runtime: docker
     dockerfilePath: ./docker/Dockerfile
     dockerContext: .
@@ -23,22 +23,22 @@ services:
       # ── Database ──
       - key: ConnectionStrings__Default
         fromDatabase:
-          name: stingbim-db
+          name: planscape-db
           property: connectionString
 
       # ── JWT — set in Render dashboard (Settings → Environment) ──
       - key: Jwt__Key
         sync: false   # Must be set manually in Render dashboard — never commit secrets
       - key: Jwt__Issuer
-        value: StingBIM
+        value: Planscape
       - key: Jwt__Audience
-        value: StingBIM.Client
+        value: Planscape.Client
 
       # ── CORS — add your Flutter Web / dashboard origin ──
       - key: Cors__Origins__0
-        value: https://stingbim.io
+        value: https://planscape.io
       - key: Cors__Origins__1
-        value: https://app.stingbim.io
+        value: https://app.planscape.io
 
       # ── Serilog ──
       - key: Serilog__MinimumLevel__Default
@@ -53,7 +53,7 @@ services:
   # ── Background worker (Hangfire job processor) ─────────────────────────────
   # Uncomment when background jobs are needed (e.g., scheduled compliance snapshots)
   # - type: worker
-  #   name: stingbim-worker
+  #   name: planscape-worker
   #   runtime: docker
   #   dockerfilePath: ./docker/Dockerfile
   #   dockerContext: .
@@ -63,16 +63,16 @@ services:
   #   envVars:
   #     - key: ConnectionStrings__Default
   #       fromDatabase:
-  #         name: stingbim-db
+  #         name: planscape-db
   #         property: connectionString
   #     - key: WORKER_MODE
   #       value: "true"
 
 databases:
   # ── PostgreSQL 16 (managed by Render) ──────────────────────────────────────
-  - name: stingbim-db
-    databaseName: stingbim
-    user: stingbim
+  - name: planscape-db
+    databaseName: planscape
+    user: planscape
     region: frankfurt
     plan: starter    # £6/mo — 1GB storage, daily backups
     # Upgrade path: standard (£17/mo, 10GB) → pro (£70/mo, 100GB)

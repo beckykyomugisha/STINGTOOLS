@@ -1,4 +1,4 @@
-# StingBIM Server — Pricing Plan for 100 Users (Premium)
+# Planscape Server — Pricing Plan for 100 Users (Premium)
 
 ## Competitive Landscape Comparison (2025-2026)
 
@@ -13,12 +13,12 @@
 | **Oracle Aconex** | Enterprise custom | $80,000–$200,000+ | Custom | Partial | No | No |
 | **Bentley iTwin/ProjectWise** | Enterprise custom | $100,000–$300,000+ | Custom | Partial | No | No |
 | **BIMcollab Cloud** | Per user | ~$36,000 | $360 | BCF only | No | No |
-| **─── StingBIM Premium ───** | **Per user** | **$30,000** | **$300** | **Full** | **Full** | **Full** |
-| **─── StingBIM + StingMIM ───** | **Per user** | **$42,000** | **$420** | **Full** | **Full** | **Full** |
+| **─── Planscape Premium ───** | **Per user** | **$30,000** | **$300** | **Full** | **Full** | **Full** |
+| **─── Planscape + StingMIM ───** | **Per user** | **$42,000** | **$420** | **Full** | **Full** | **Full** |
 
 ---
 
-## StingBIM Pricing Tiers
+## Planscape Pricing Tiers
 
 ### Tier 1: Starter (Free)
 **$0/month** — Up to 5 users, 1 project
@@ -105,7 +105,7 @@
 
 ## StingMIM Add-On (Model Information Management)
 
-StingMIM extends StingBIM with deep model intelligence, digital twin, and FM handover capabilities.
+StingMIM extends Planscape with deep model intelligence, digital twin, and FM handover capabilities.
 
 ### StingMIM Pricing
 
@@ -138,16 +138,16 @@ StingMIM extends StingBIM with deep model intelligence, digital twin, and FM han
 
 | Bundle | Annual Cost | Per User/Year | Savings vs Competitors |
 |--------|-------------|---------------|----------------------|
-| **StingBIM Premium only** | $30,000 | $300 | 38% vs BIM 360, 77% vs ACC |
-| **StingBIM Premium + MIM Starter** | $42,000 | $420 | 13% vs BIM 360, 67% vs ACC |
-| **StingBIM Premium + MIM Pro** | $50,400 | $504 | ~= BIM 360, 61% vs ACC |
-| **StingBIM Enterprise + MIM Enterprise** | Custom | ~$600-800 | 38-53% vs ACC + ProjectWise |
+| **Planscape Premium only** | $30,000 | $300 | 38% vs BIM 360, 77% vs ACC |
+| **Planscape Premium + MIM Starter** | $42,000 | $420 | 13% vs BIM 360, 67% vs ACC |
+| **Planscape Premium + MIM Pro** | $50,400 | $504 | ~= BIM 360, 61% vs ACC |
+| **Planscape Enterprise + MIM Enterprise** | Custom | ~$600-800 | 38-53% vs ACC + ProjectWise |
 
 ---
 
 ## Key Differentiators vs Competition
 
-| Capability | StingBIM | BIM 360/ACC | Procore | Trimble | BIMcollab |
+| Capability | Planscape | BIM 360/ACC | Procore | Trimble | BIMcollab |
 |-----------|----------|-------------|---------|---------|-----------|
 | ISO 19650 native tagging | ✓ Full | ✗ | ✗ | ✗ | ✗ |
 | 8-segment asset tags | ✓ | ✗ | ✗ | ✗ | ✗ |
@@ -169,7 +169,7 @@ StingMIM extends StingBIM with deep model intelligence, digital twin, and FM han
 
 ## ROI Calculator (100 Users, Premium)
 
-| Metric | Without StingBIM | With StingBIM | Savings |
+| Metric | Without Planscape | With Planscape | Savings |
 |--------|-----------------|---------------|---------|
 | Manual tag creation | 40 hrs/week | 2 hrs/week | 38 hrs/week |
 | Compliance checking | 8 hrs/project | 5 min/project | 99% reduction |
@@ -177,4 +177,4 @@ StingMIM extends StingBIM with deep model intelligence, digital twin, and FM han
 | Tag errors | ~12% error rate | <0.5% error rate | 96% reduction |
 | Staff cost saved | - | ~$180,000/year | 6x ROI on Premium |
 
-**Net ROI: StingBIM Premium ($30K) saves ~$180K/year in manual BIM coordination = 6x return.**
+**Net ROI: Planscape Premium ($30K) saves ~$180K/year in manual BIM coordination = 6x return.**
