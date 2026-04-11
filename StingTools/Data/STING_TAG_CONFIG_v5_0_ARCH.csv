@@ -4,29 +4,29 @@ STING Tag Configuration v5.0 - ARCH (COMPLETE with Warnings)
 Tag Family #1: STING - Wall Tag
 TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Walls
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_WALL_TYPE_CLASSIFICATION_TXT,Type:,,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_TYPE_CLASSIFICATION_TXT, """")"
-5,T2,BLE_WALL_THICKNESS_MM,,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_THICKNESS_MM, """")"
-6,T2,BLE_ELE_AREA_SQ_M,,m²,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_ELE_AREA_SQ_M, """")"
-7,T2,PER_THERM_U_VALUE_W_M2K,,W/m²K,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
-8,T2,PER_FIRE_RATING_HR,,hr,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
-9,T2,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")"
-10,T2,BLE_WALL_EXTERIOR_FINISH_TXT,Fin:,,,,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_EXTERIOR_FINISH_TXT, """")"
-11,T2,BLE_WALL_CST_METHOD_TXT,Const:,,,✓,Common,Text,Show Tier 2 - 11,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_CST_METHOD_TXT, """")"
-12,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 12,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-13,T3,ARCH_TAG_7_PARA_WALL_TXT,,,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_WALL_TXT, """")"
-14,T3,BLE_WALL_PRIMARY_WALL_MAT_TXT,,,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_PRIMARY_WALL_MAT_TXT, """")"
-15,T3,BLE_WALL_CORE_MATERIAL_TXT,Core:,,,,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_CORE_MATERIAL_TXT, """")"
-16,T3,BLE_WALL_INSULATION_TXT,| Insul:,,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_INSULATION_TXT, """")"
-17,T3,PER_CONDENSATION_RISK_BOOL,Cond Risk:,,,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, PER_CONDENSATION_RISK_BOOL, """")"
-18,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")"
-19,T3,BLE_WALL_WATERPROOF_TXT,WP:,,,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_WATERPROOF_TXT, """")"
-20,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_WALL_TYPE_CLASSIFICATION_TXT,Type:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_TYPE_CLASSIFICATION_TXT, """")"
+5,T2,BLE_WALL_THICKNESS_MM,,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_THICKNESS_MM, """")"
+6,T2,BLE_ELE_AREA_SQ_M,,m²,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_ELE_AREA_SQ_M, """")"
+7,T2,PER_THERM_U_VALUE_W_M2K,,W/m²K,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
+8,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
+9,T2,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")"
+10,T2,BLE_WALL_EXTERIOR_FINISH_TXT,Fin:,,0,,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_EXTERIOR_FINISH_TXT, """")"
+11,T2,BLE_WALL_CST_METHOD_TXT,Const:,,0,✓,Common,Text,Show Tier 2 - 11,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_CST_METHOD_TXT, """")"
+12,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 12,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+13,T3,ARCH_TAG_7_PARA_WALL_TXT,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_WALL_TXT, """")"
+14,T3,BLE_WALL_PRIMARY_WALL_MAT_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_PRIMARY_WALL_MAT_TXT, """")"
+15,T3,BLE_WALL_CORE_MATERIAL_TXT,Core:,,0,,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_CORE_MATERIAL_TXT, """")"
+16,T3,BLE_WALL_INSULATION_TXT,| Insul:,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_INSULATION_TXT, """")"
+17,T3,PER_CONDENSATION_RISK_BOOL,Cond Risk:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, PER_CONDENSATION_RISK_BOOL, """")"
+18,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")"
+19,T3,BLE_WALL_WATERPROOF_TXT,WP:,,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_WATERPROOF_TXT, """")"
+20,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 21,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
-22,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,,,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
-23,T3,CST_LOCAL_MAT_BOOL,| Local:,,,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+22,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
+23,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,U > 0.70 W/m²K,Building Regs Part L2A / Uganda ES,Common,Text,⚠ Warning: Wall U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS, """")"
@@ -39,25 +39,25 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Walls
 Tag Family #2: STING - Floor Tag
 TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Floors
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_FLR_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_TYPE_TXT, """")"
-5,T2,BLE_FLR_THICKNESS_MM,,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_THICKNESS_MM, """")"
-6,T2,BLE_FLR_AREA_SQ_M,,m²,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_AREA_SQ_M, """")"
-7,T2,PER_THERM_U_VALUE_W_M2K,,W/m²K,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
-8,T2,PER_FIRE_RATING_HR,,hr,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
-9,T2,BLE_WALL_INTERIOR_FINISH_TXT,Fin:,,,,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_INTERIOR_FINISH_TXT, """")"
-10,T2,BLE_FLOOR_SLIP_RESISTANCE_TXT,Slip:,,,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, BLE_FLOOR_SLIP_RESISTANCE_TXT, """")"
-11,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 11,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-12,T3,ARCH_TAG_7_PARA_FLOOR_TXT,,,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FLOOR_TXT, """")"
-13,T3,BLE_FLR_FINISH_MAT_TXT,,,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_FLR_FINISH_MAT_TXT, """")"
-14,T3,BLE_FLOOR_LOAD_KN_M2,Load:,kN/m²,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, BLE_FLOOR_LOAD_KN_M2, """")"
-15,T3,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")"
-16,T3,BLE_FLR_STRUCTURAL_SYSTEM_TXT,Const:,,,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, BLE_FLR_STRUCTURAL_SYSTEM_TXT, """")"
-17,T3,BLE_FLOOR_WATERPROOF_TXT,| WP:,,,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, BLE_FLOOR_WATERPROOF_TXT, """")"
-18,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")"
-19,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_FLR_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_TYPE_TXT, """")"
+5,T2,BLE_FLR_THICKNESS_MM,,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_THICKNESS_MM, """")"
+6,T2,BLE_FLR_AREA_SQ_M,,m²,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_AREA_SQ_M, """")"
+7,T2,PER_THERM_U_VALUE_W_M2K,,W/m²K,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
+8,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
+9,T2,BLE_WALL_INTERIOR_FINISH_TXT,Fin:,,0,,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_INTERIOR_FINISH_TXT, """")"
+10,T2,BLE_FLOOR_SLIP_RESISTANCE_TXT,Slip:,,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, BLE_FLOOR_SLIP_RESISTANCE_TXT, """")"
+11,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 11,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+12,T3,ARCH_TAG_7_PARA_FLOOR_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FLOOR_TXT, """")"
+13,T3,BLE_FLR_FINISH_MAT_TXT,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_FLR_FINISH_MAT_TXT, """")"
+14,T3,BLE_FLOOR_LOAD_KN_M2,Load:,kN/m²,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, BLE_FLOOR_LOAD_KN_M2, """")"
+15,T3,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")"
+16,T3,BLE_FLR_STRUCTURAL_SYSTEM_TXT,Const:,,0,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, BLE_FLR_STRUCTURAL_SYSTEM_TXT, """")"
+17,T3,BLE_FLOOR_WATERPROOF_TXT,| WP:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, BLE_FLOOR_WATERPROOF_TXT, """")"
+18,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")"
+19,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 20,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -71,21 +71,21 @@ TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Floors
 Tag Family #3: STING - Ceiling Tag
 TAG7: ARCH_TAG_7_PARA_CEIL_TXT  •  Category: Ceilings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_CEILING_TYPE_CLASSIFICATION_TXT,Type:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_CEILING_TYPE_CLASSIFICATION_TXT, """")"
-5,T2,BLE_CEILING_HEIGHT_MM,Ht:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_CEILING_HEIGHT_MM, """")"
-6,T2,PER_FIRE_RATING_HR,,hr,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
-7,T2,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")"
-8,T2,BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_NR,NRC:,,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_NR, """")"
-9,T2,BLE_WALL_INTERIOR_FINISH_TXT,Fin:,,,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_INTERIOR_FINISH_TXT, """")"
-10,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-11,T3,ARCH_TAG_7_PARA_CEIL_TXT,,,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_CEIL_TXT, """")"
-12,T3,BLE_CEILING_MAT_TXT,,,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, BLE_CEILING_MAT_TXT, """")"
-13,T3,BLE_CEILING_GRID_TXT,Grid:,,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_CEILING_GRID_TXT, """")"
-14,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")"
-15,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_CEILING_TYPE_CLASSIFICATION_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_CEILING_TYPE_CLASSIFICATION_TXT, """")"
+5,T2,BLE_CEILING_HEIGHT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_CEILING_HEIGHT_MM, """")"
+6,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
+7,T2,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")"
+8,T2,BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_NR,NRC:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_NR, """")"
+9,T2,BLE_WALL_INTERIOR_FINISH_TXT,Fin:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_INTERIOR_FINISH_TXT, """")"
+10,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+11,T3,ARCH_TAG_7_PARA_CEIL_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_CEIL_TXT, """")"
+12,T3,BLE_CEILING_MAT_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, BLE_CEILING_MAT_TXT, """")"
+13,T3,BLE_CEILING_GRID_TXT,Grid:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_CEILING_GRID_TXT, """")"
+14,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")"
+15,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 16,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -96,23 +96,23 @@ TAG7: ARCH_TAG_7_PARA_CEIL_TXT  •  Category: Ceilings
 Tag Family #4: STING - Roof Tag
 TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roofs
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_ROOF_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_TYPE_TXT, """")"
-5,T2,BLE_ROOF_THICKNESS_MM,,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_THICKNESS_MM, """")"
-6,T2,PER_THERM_U_VALUE_W_M2K,,W/m²K,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
-7,T2,PER_FIRE_RATING_HR,,hr,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
-8,T2,BLE_ROOF_SLOPE_DEG,Slope:,°,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_SLOPE_DEG, """")"
-9,T2,BLE_ROOF_AREA_SQ_M,,m²,,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_AREA_SQ_M, """")"
-10,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-11,T3,ARCH_TAG_7_PARA_ROOF_TXT,,,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOF_TXT, """")"
-12,T3,BLE_ROOF_COVERING_MAT_TXT,,,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, BLE_ROOF_COVERING_MAT_TXT, """")"
-13,T3,BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Drain:,,,,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT, """")"
-14,T3,PER_CONDENSATION_RISK_BOOL,| Cond:,,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PER_CONDENSATION_RISK_BOOL, """")"
-15,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")"
-16,T3,BLE_ROOF_WATERPROOFING_SYSTEM_TXT,WP:,,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, BLE_ROOF_WATERPROOFING_SYSTEM_TXT, """")"
-17,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_ROOF_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_TYPE_TXT, """")"
+5,T2,BLE_ROOF_THICKNESS_MM,,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_THICKNESS_MM, """")"
+6,T2,PER_THERM_U_VALUE_W_M2K,,W/m²K,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
+7,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
+8,T2,BLE_ROOF_SLOPE_DEG,Slope:,°,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_SLOPE_DEG, """")"
+9,T2,BLE_ROOF_AREA_SQ_M,,m²,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_AREA_SQ_M, """")"
+10,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+11,T3,ARCH_TAG_7_PARA_ROOF_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOF_TXT, """")"
+12,T3,BLE_ROOF_COVERING_MAT_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, BLE_ROOF_COVERING_MAT_TXT, """")"
+13,T3,BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Drain:,,0,,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT, """")"
+14,T3,PER_CONDENSATION_RISK_BOOL,| Cond:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PER_CONDENSATION_RISK_BOOL, """")"
+15,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")"
+16,T3,BLE_ROOF_WATERPROOFING_SYSTEM_TXT,WP:,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, BLE_ROOF_WATERPROOFING_SYSTEM_TXT, """")"
+17,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 18,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -126,24 +126,24 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roofs
 Tag Family #5: STING - Door Tag
 TAG7: ARCH_TAG_7_PARA_DOOR_TXT  •  Category: Doors
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_DOOR_WIDTH_MM,W:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_WIDTH_MM, """")"
-5,T2,BLE_DOOR_HEIGHT_MM,× H:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_HEIGHT_MM, """")"
-6,T2,BLE_DOOR_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_TYPE_TXT, """")"
-7,T2,BLE_DOOR_OPERATION_TYPE_TXT,Op:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_OPERATION_TYPE_TXT, """")"
-8,T2,PER_FIRE_RATING_HR,,hr,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
-9,T2,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")"
-10,T2,BLE_DOOR_WIDTH_MM,Clear:,mm,,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_WIDTH_MM, """")"
-11,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 11,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-12,T3,ARCH_TAG_7_PARA_DOOR_TXT,,,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_DOOR_TXT, """")"
-13,T3,BLE_DOOR_MAT_TXT,,,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_DOOR_MAT_TXT, """")"
-14,T3,BLE_DOOR_HARDWARE_SPECIFICATION_TXT,HW:,,,,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, BLE_DOOR_HARDWARE_SPECIFICATION_TXT, """")"
-15,T3,BLE_DOOR_GLAZING_BOOL,| Glazed:,,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_DOOR_GLAZING_BOOL, """")"
-16,T3,BLE_DOOR_THRESHOLD_TXT,Thresh:,,,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, BLE_DOOR_THRESHOLD_TXT, """")"
-17,T3,BLE_DOOR_CLOSER_TXT,| Closer:,,,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, BLE_DOOR_CLOSER_TXT, """")"
-18,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_DOOR_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_WIDTH_MM, """")"
+5,T2,BLE_DOOR_HEIGHT_MM,× H:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_HEIGHT_MM, """")"
+6,T2,BLE_DOOR_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_TYPE_TXT, """")"
+7,T2,BLE_DOOR_OPERATION_TYPE_TXT,Op:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_OPERATION_TYPE_TXT, """")"
+8,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
+9,T2,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")"
+10,T2,BLE_DOOR_WIDTH_MM,Clear:,mm,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, BLE_DOOR_WIDTH_MM, """")"
+11,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 11,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+12,T3,ARCH_TAG_7_PARA_DOOR_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_DOOR_TXT, """")"
+13,T3,BLE_DOOR_MAT_TXT,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_DOOR_MAT_TXT, """")"
+14,T3,BLE_DOOR_HARDWARE_SPECIFICATION_TXT,HW:,,0,,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, BLE_DOOR_HARDWARE_SPECIFICATION_TXT, """")"
+15,T3,BLE_DOOR_GLAZING_BOOL,| Glazed:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_DOOR_GLAZING_BOOL, """")"
+16,T3,BLE_DOOR_THRESHOLD_TXT,Thresh:,,0,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, BLE_DOOR_THRESHOLD_TXT, """")"
+17,T3,BLE_DOOR_CLOSER_TXT,| Closer:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, BLE_DOOR_CLOSER_TXT, """")"
+18,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 19,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -156,22 +156,22 @@ TAG7: ARCH_TAG_7_PARA_DOOR_TXT  •  Category: Doors
 Tag Family #6: STING - Window Tag
 TAG7: ARCH_TAG_7_PARA_WIN_TXT  •  Category: Windows
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_WINDOW_WIDTH_MM,W:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_WIDTH_MM, """")"
-5,T2,BLE_WINDOW_HEIGHT_MM,× H:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_HEIGHT_MM, """")"
-6,T2,BLE_WINDOW_TYPE_CLASSIFICATION_TXT,Type:,,,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_TYPE_CLASSIFICATION_TXT, """")"
-7,T2,BLE_WINDOW_OPERATION_TYPE_TXT,Op:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_OPERATION_TYPE_TXT, """")"
-8,T2,PER_THERM_U_VALUE_W_M2K,,W/m²K,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
-9,T2,BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,g:,,,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR, """")"
-10,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-11,T3,ARCH_TAG_7_PARA_WIN_TXT,,,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_WIN_TXT, """")"
-12,T3,BLE_WINDOW_FRAME_MAT_TXT,Frame:,,,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, BLE_WINDOW_FRAME_MAT_TXT, """")"
-13,T3,BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,| Glaze:,,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT, """")"
-14,T3,BLE_WINDOW_AREA_SQ_M,Vent:,m²,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, BLE_WINDOW_AREA_SQ_M, """")"
-15,T3,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")"
-16,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_WINDOW_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_WIDTH_MM, """")"
+5,T2,BLE_WINDOW_HEIGHT_MM,× H:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_HEIGHT_MM, """")"
+6,T2,BLE_WINDOW_TYPE_CLASSIFICATION_TXT,Type:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_TYPE_CLASSIFICATION_TXT, """")"
+7,T2,BLE_WINDOW_OPERATION_TYPE_TXT,Op:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_OPERATION_TYPE_TXT, """")"
+8,T2,PER_THERM_U_VALUE_W_M2K,,W/m²K,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
+9,T2,BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,g:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR, """")"
+10,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+11,T3,ARCH_TAG_7_PARA_WIN_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_WIN_TXT, """")"
+12,T3,BLE_WINDOW_FRAME_MAT_TXT,Frame:,,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, BLE_WINDOW_FRAME_MAT_TXT, """")"
+13,T3,BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT,| Glaze:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT, """")"
+14,T3,BLE_WINDOW_AREA_SQ_M,Vent:,m²,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, BLE_WINDOW_AREA_SQ_M, """")"
+15,T3,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")"
+16,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 17,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -184,22 +184,22 @@ TAG7: ARCH_TAG_7_PARA_WIN_TXT  •  Category: Windows
 Tag Family #7: STING - Room Tag
 TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Rooms
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,ASS_ROOM_AREA_SQ_M,Area:,m²,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")"
-5,T2,ASS_DEPARTMENT_ASSIGNMENT_TXT,Dept:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_DEPARTMENT_ASSIGNMENT_TXT, """")"
-6,T2,BLE_ROOM_OCCUPANCY_NR,| Occ:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOM_OCCUPANCY_NR, """")"
-7,T2,BLE_HEADROOM_MM,Ht:,mm,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_HEADROOM_MM, """")"
-8,T2,BLE_ROOM_VENTILATION_RATE_LPS,Vent:,L/s,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOM_VENTILATION_RATE_LPS, """")"
-9,T2,ASS_DESIGN_LTG_LVL_LUX_NR,Lux:,lx,,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, ASS_DESIGN_LTG_LVL_LUX_NR, """")"
-10,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-11,T3,ARCH_TAG_7_PARA_ROOM_TXT,,,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOM_TXT, """")"
-12,T3,BLE_FLR_FINISH_TXT,Floor Fin:,,,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, BLE_FLR_FINISH_TXT, """")"
-13,T3,BLE_WALL_FINISH_TXT,| Wall Fin:,,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_FINISH_TXT, """")"
-14,T3,BLE_CEILING_FINISH_TXT,| Ceil Fin:,,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, BLE_CEILING_FINISH_TXT, """")"
-15,T3,BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR,Esc Cap:,,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR, """")"
-16,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_ROOM_AREA_SQ_M,Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")"
+5,T2,ASS_DEPARTMENT_ASSIGNMENT_TXT,Dept:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_DEPARTMENT_ASSIGNMENT_TXT, """")"
+6,T2,BLE_ROOM_OCCUPANCY_NR,| Occ:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOM_OCCUPANCY_NR, """")"
+7,T2,BLE_HEADROOM_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_HEADROOM_MM, """")"
+8,T2,BLE_ROOM_VENTILATION_RATE_LPS,Vent:,L/s,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOM_VENTILATION_RATE_LPS, """")"
+9,T2,ASS_DESIGN_LTG_LVL_LUX_NR,Lux:,lx,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, ASS_DESIGN_LTG_LVL_LUX_NR, """")"
+10,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+11,T3,ARCH_TAG_7_PARA_ROOM_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOM_TXT, """")"
+12,T3,BLE_FLR_FINISH_TXT,Floor Fin:,,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, BLE_FLR_FINISH_TXT, """")"
+13,T3,BLE_WALL_FINISH_TXT,| Wall Fin:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_FINISH_TXT, """")"
+14,T3,BLE_CEILING_FINISH_TXT,| Ceil Fin:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, BLE_CEILING_FINISH_TXT, """")"
+15,T3,BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR,Esc Cap:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR, """")"
+16,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 17,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -212,20 +212,20 @@ TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Rooms
 Tag Family #8: STING - Stair Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stairs
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_STAIR_WIDTH_MM,W:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_WIDTH_MM, """")"
-5,T2,BLE_STAIR_RISE_MM,R:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_RISE_MM, """")"
-6,T2,BLE_STAIR_GOING_MM,| G:,mm,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_GOING_MM, """")"
-7,T2,PER_FIRE_RATING_HR,,hr,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
-8,T2,BLE_STAIR_HEADROOM_MM,Hd:,mm,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_HEADROOM_MM, """")"
-9,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-10,T3,ARCH_TAG_7_PARA_STAIR_TXT,,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_STAIR_TXT, """")"
-11,T3,BLE_STAIR_HANDRAIL_MAT_TXT,Handrail:,,,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, BLE_STAIR_HANDRAIL_MAT_TXT, """")"
-12,T3,BLE_STAIR_NOSING_TYPE_TXT,| Nosing:,,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, BLE_STAIR_NOSING_TYPE_TXT, """")"
-13,T3,BLE_STAIR_TREAD_FINISH_TXT,Mat:,,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_STAIR_TREAD_FINISH_TXT, """")"
-14,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_STAIR_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_WIDTH_MM, """")"
+5,T2,BLE_STAIR_RISE_MM,R:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_RISE_MM, """")"
+6,T2,BLE_STAIR_GOING_MM,| G:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_GOING_MM, """")"
+7,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
+8,T2,BLE_STAIR_HEADROOM_MM,Hd:,mm,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_HEADROOM_MM, """")"
+9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+10,T3,ARCH_TAG_7_PARA_STAIR_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_STAIR_TXT, """")"
+11,T3,BLE_STAIR_HANDRAIL_MAT_TXT,Handrail:,,0,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, BLE_STAIR_HANDRAIL_MAT_TXT, """")"
+12,T3,BLE_STAIR_NOSING_TYPE_TXT,| Nosing:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, BLE_STAIR_NOSING_TYPE_TXT, """")"
+13,T3,BLE_STAIR_TREAD_FINISH_TXT,Mat:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, BLE_STAIR_TREAD_FINISH_TXT, """")"
+14,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -239,17 +239,17 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stairs
 Tag Family #9: STING - Ramp Tag
 TAG7: ARCH_TAG_7_PARA_RAMP_TXT  •  Category: Ramps
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_RAMP_SLOPE_PCT,Slope:,%,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAMP_SLOPE_PCT, """")"
-5,T2,BLE_RAMP_WIDTH_MM,W:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_RAMP_WIDTH_MM, """")"
-6,T2,BLE_RAMP_LENGTH_MM,L:,mm,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_RAMP_LENGTH_MM, """")"
-7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-8,T3,ARCH_TAG_7_PARA_RAMP_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_RAMP_TXT, """")"
-9,T3,BLE_RAMP_LANDING_TXT,Landing:,,,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_RAMP_LANDING_TXT, """")"
-10,T3,BLE_RAMP_HANDRAIL_BOOL,| Handrail:,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, BLE_RAMP_HANDRAIL_BOOL, """")"
-11,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_RAMP_SLOPE_PCT,Slope:,%,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAMP_SLOPE_PCT, """")"
+5,T2,BLE_RAMP_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_RAMP_WIDTH_MM, """")"
+6,T2,BLE_RAMP_LENGTH_MM,L:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_RAMP_LENGTH_MM, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ARCH_TAG_7_PARA_RAMP_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_RAMP_TXT, """")"
+9,T3,BLE_RAMP_LANDING_TXT,Landing:,,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_RAMP_LANDING_TXT, """")"
+10,T3,BLE_RAMP_HANDRAIL_BOOL,| Handrail:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, BLE_RAMP_HANDRAIL_BOOL, """")"
+11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 12,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -261,17 +261,17 @@ TAG7: ARCH_TAG_7_PARA_RAMP_TXT  •  Category: Ramps
 Tag Family #10: STING - Railing Tag
 TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Railings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_RAILING_HEIGHT_MM,Ht:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_HEIGHT_MM, """")"
-5,T2,BLE_RAILING_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_TYPE_TXT, """")"
-6,T2,BLE_RAILING_MATERIAL_TXT,Mat:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_MATERIAL_TXT, """")"
-7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-8,T3,ARCH_TAG_7_PARA_RAILING_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_RAILING_TXT, """")"
-9,T3,BLE_RAILING_INFILL_TXT,Infill:,,,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_RAILING_INFILL_TXT, """")"
-10,T3,BLE_RAILING_BALUSTER_SPACING_MM,| Bal:,mm,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, BLE_RAILING_BALUSTER_SPACING_MM, """")"
-11,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_RAILING_HEIGHT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_HEIGHT_MM, """")"
+5,T2,BLE_RAILING_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_TYPE_TXT, """")"
+6,T2,BLE_RAILING_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_MATERIAL_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ARCH_TAG_7_PARA_RAILING_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_RAILING_TXT, """")"
+9,T3,BLE_RAILING_INFILL_TXT,Infill:,,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_RAILING_INFILL_TXT, """")"
+10,T3,BLE_RAILING_BALUSTER_SPACING_MM,| Bal:,mm,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, BLE_RAILING_BALUSTER_SPACING_MM, """")"
+11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 12,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -282,17 +282,17 @@ TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Railings
 Tag Family #11: STING - Furniture Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,ASS_MANUFACTURER_TXT,Mfr:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
-5,T2,ASS_MODEL_NR_TXT,| ,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MODEL_NR_TXT, """")"
-6,T2,BLE_FURNITURE_FINISH_TXT,Fin:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_FURNITURE_FINISH_TXT, """")"
-7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-8,T3,ARCH_TAG_7_PARA_FURNITURE_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURNITURE_TXT, """")"
-9,T3,PER_FIRE_RATING_HR,,hr,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, PER_FIRE_RATING_HR, """")"
-10,T3,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yrs,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
-11,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
+5,T2,ASS_MODEL_NR_TXT,| ,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MODEL_NR_TXT, """")"
+6,T2,BLE_FURNITURE_FINISH_TXT,Fin:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_FURNITURE_FINISH_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ARCH_TAG_7_PARA_FURNITURE_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURNITURE_TXT, """")"
+9,T3,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, PER_FIRE_RATING_HR, """")"
+10,T3,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yrs,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
+11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 12,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -303,17 +303,17 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture
 Tag Family #12: STING - Casework Tag
 TAG7: ARCH_TAG_7_PARA_CASEWORK_TXT  •  Category: Casework
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_CASEWORK_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_CASEWORK_TYPE_TXT, """")"
-5,T2,BLE_CASEWORK_MATERIAL_TXT,Mat:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_CASEWORK_MATERIAL_TXT, """")"
-6,T2,BLE_CASEWORK_COUNTERTOP_TXT,Top:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_CASEWORK_COUNTERTOP_TXT, """")"
-7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-8,T3,ARCH_TAG_7_PARA_CASEWORK_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_CASEWORK_TXT, """")"
-9,T3,BLE_CASEWORK_HARDWARE_TXT,HW:,,,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_CASEWORK_HARDWARE_TXT, """")"
-10,T3,BLE_CASEWORK_ACCESSIBLE_BOOL,| Access:,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, BLE_CASEWORK_ACCESSIBLE_BOOL, """")"
-11,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_CASEWORK_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_CASEWORK_TYPE_TXT, """")"
+5,T2,BLE_CASEWORK_MATERIAL_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_CASEWORK_MATERIAL_TXT, """")"
+6,T2,BLE_CASEWORK_COUNTERTOP_TXT,Top:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_CASEWORK_COUNTERTOP_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ARCH_TAG_7_PARA_CASEWORK_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_CASEWORK_TXT, """")"
+9,T3,BLE_CASEWORK_HARDWARE_TXT,HW:,,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_CASEWORK_HARDWARE_TXT, """")"
+10,T3,BLE_CASEWORK_ACCESSIBLE_BOOL,| Access:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, BLE_CASEWORK_ACCESSIBLE_BOOL, """")"
+11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 12,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -324,17 +324,17 @@ TAG7: ARCH_TAG_7_PARA_CASEWORK_TXT  •  Category: Casework
 Tag Family #13: STING - Curtain Panel Tag
 TAG7: ARCH_TAG_7_PARA_CURTAIN_TXT  •  Category: Curtain Panels
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_PANEL_WIDTH_MM,W:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_WIDTH_MM, """")"
-5,T2,BLE_PANEL_HEIGHT_MM,× H:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_HEIGHT_MM, """")"
-6,T2,PER_THERM_U_VALUE_W_M2K,,W/m²K,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
-7,T2,BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,g:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR, """")"
-8,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-9,T3,ARCH_TAG_7_PARA_CURTAIN_TXT,,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_CURTAIN_TXT, """")"
-10,T3,BLE_PANEL_GLASS_TYPE_TXT,Glass:,,,,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, BLE_PANEL_GLASS_TYPE_TXT, """")"
-11,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_PANEL_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_WIDTH_MM, """")"
+5,T2,BLE_PANEL_HEIGHT_MM,× H:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_HEIGHT_MM, """")"
+6,T2,PER_THERM_U_VALUE_W_M2K,,W/m²K,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
+7,T2,BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,g:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR, """")"
+8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+9,T3,ARCH_TAG_7_PARA_CURTAIN_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_CURTAIN_TXT, """")"
+10,T3,BLE_PANEL_GLASS_TYPE_TXT,Glass:,,0,,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, BLE_PANEL_GLASS_TYPE_TXT, """")"
+11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 12,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -345,20 +345,20 @@ TAG7: ARCH_TAG_7_PARA_CURTAIN_TXT  •  Category: Curtain Panels
 Tag Family #14: STING - Curtain Wall Mullion Tag
 TAG7: ARCH_TAG_7_PARA_MULLION_TXT  •  Category: Curtain Wall Mullions
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_MULLION_DEPTH_MM,D:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_MULLION_DEPTH_MM, """")"
-5,T2,BLE_MULLION_MATERIAL_TXT,Mat:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_MULLION_MATERIAL_TXT, """")"
-6,T2,BLE_MULLION_FINISH_TXT,Fin:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_MULLION_FINISH_TXT, """")"
-7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-8,T3,ARCH_TAG_7_PARA_MULLION_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_MULLION_TXT, """")"
-9,T3,PER_THERM_U_VALUE_W_M2K,,W/m²K,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
-10,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
-11,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
-12,T2,BLE_PANEL_GLASS_TYPE_TXT,Glass:,,0,✓,Common,Text,Panel glass type,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_GLASS_TYPE_TXT, "")"
-13,T2,BLE_PANEL_HEIGHT_MM,PH:,mm,0,✓,Common,Text,Panel height,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_HEIGHT_MM, "")"
-14,T2,BLE_PANEL_WIDTH_MM,PW:,mm,0,✓,Common,Text,Panel width,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_WIDTH_MM, "")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_MULLION_DEPTH_MM,D:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_MULLION_DEPTH_MM, """")"
+5,T2,BLE_MULLION_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_MULLION_MATERIAL_TXT, """")"
+6,T2,BLE_MULLION_FINISH_TXT,Fin:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_MULLION_FINISH_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T2,BLE_PANEL_GLASS_TYPE_TXT,Glass:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_GLASS_TYPE_TXT, """")"
+9,T2,BLE_PANEL_HEIGHT_MM,PH:,mm,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_HEIGHT_MM, """")"
+10,T2,BLE_PANEL_WIDTH_MM,PW:,mm,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, BLE_PANEL_WIDTH_MM, """")"
+11,T3,ARCH_TAG_7_PARA_MULLION_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_MULLION_TXT, """")"
+12,T3,PER_THERM_U_VALUE_W_M2K,,W/m²K,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, PER_THERM_U_VALUE_W_M2K, """")"
+13,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+14,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PER_THERM_U_VALUE_W_M2K_NR_MULLION,Mullion U-value > 2.20 W/m²K,Building Regs Part L2A (curtain wall),Common,Text,⚠ Warning: Mullion Thermal,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_MULLION, """")"
@@ -368,15 +368,15 @@ TAG7: ARCH_TAG_7_PARA_MULLION_TXT  •  Category: Curtain Wall Mullions
 Tag Family #15: STING - Signage Tag
 TAG7: ARCH_TAG_7_PARA_SIGNAGE_TXT  •  Category: Signage
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_SIGN_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_SIGN_TYPE_TXT, """")"
-5,T2,BLE_SIGN_ILLUMINATED_BOOL,Illum:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_SIGN_ILLUMINATED_BOOL, """")"
-6,T2,MNT_HGT_MM,Ht:,mm,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
-7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-8,T3,ARCH_TAG_7_PARA_SIGNAGE_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SIGNAGE_TXT, """")"
-9,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_SIGN_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_SIGN_TYPE_TXT, """")"
+5,T2,BLE_SIGN_ILLUMINATED_BOOL,Illum:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_SIGN_ILLUMINATED_BOOL, """")"
+6,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ARCH_TAG_7_PARA_SIGNAGE_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SIGNAGE_TXT, """")"
+9,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 10,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -387,17 +387,17 @@ TAG7: ARCH_TAG_7_PARA_SIGNAGE_TXT  •  Category: Signage
 Tag Family #16: STING - Parking Tag
 TAG7: ARCH_TAG_7_PARA_PARKING_TXT  •  Category: Parking
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_PARK_BAY_WIDTH_MM,W:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_PARK_BAY_WIDTH_MM, """")"
-5,T2,BLE_PARK_BAY_LENGTH_MM,× L:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_PARK_BAY_LENGTH_MM, """")"
-6,T2,BLE_PARK_TYPE_TXT,Type:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_PARK_TYPE_TXT, """")"
-7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-8,T3,ARCH_TAG_7_PARA_PARKING_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_PARKING_TXT, """")"
-9,T3,BLE_PARK_ACCESSIBLE_BOOL,Access:,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_PARK_ACCESSIBLE_BOOL, """")"
-10,T3,BLE_PARK_EV_CHARGING_BOOL,| EV:,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, BLE_PARK_EV_CHARGING_BOOL, """")"
-11,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_PARK_BAY_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_PARK_BAY_WIDTH_MM, """")"
+5,T2,BLE_PARK_BAY_LENGTH_MM,× L:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_PARK_BAY_LENGTH_MM, """")"
+6,T2,BLE_PARK_TYPE_TXT,Type:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_PARK_TYPE_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ARCH_TAG_7_PARA_PARKING_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_PARKING_TXT, """")"
+9,T3,BLE_PARK_ACCESSIBLE_BOOL,Access:,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_PARK_ACCESSIBLE_BOOL, """")"
+10,T3,BLE_PARK_EV_CHARGING_BOOL,| EV:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, BLE_PARK_EV_CHARGING_BOOL, """")"
+11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 12,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -409,14 +409,14 @@ TAG7: ARCH_TAG_7_PARA_PARKING_TXT  •  Category: Parking
 Tag Family #17: STING - Areas Tag
 TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Areas
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,ASS_ROOM_AREA_SQ_M,Area:,m²,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")"
-5,T2,ASS_DEPARTMENT_ASSIGNMENT_TXT,Dept:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_DEPARTMENT_ASSIGNMENT_TXT, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_ROOM_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOM_TXT, """")"
-8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_ROOM_AREA_SQ_M,Area:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")"
+5,T2,ASS_DEPARTMENT_ASSIGNMENT_TXT,Dept:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_DEPARTMENT_ASSIGNMENT_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_ROOM_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOM_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -426,14 +426,14 @@ TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Areas
 Tag Family #18: STING - Wall Sweeps Tag
 TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Wall Sweeps
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_WALL_TYPE_CLASSIFICATION_TXT,Type:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_TYPE_CLASSIFICATION_TXT, """")"
-5,T2,BLE_WALL_PRIMARY_WALL_MAT_TXT,Mat:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_PRIMARY_WALL_MAT_TXT, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_WALL_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_WALL_TXT, """")"
-8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_WALL_TYPE_CLASSIFICATION_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_TYPE_CLASSIFICATION_TXT, """")"
+5,T2,BLE_WALL_PRIMARY_WALL_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_PRIMARY_WALL_MAT_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_WALL_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_WALL_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -443,15 +443,15 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Wall Sweeps
 Tag Family #19: STING - Slab Edges Tag
 TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Slab Edges
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_FLR_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_TYPE_TXT, """")"
-5,T2,BLE_FLR_THICKNESS_MM,,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_THICKNESS_MM, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_FLOOR_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FLOOR_TXT, """")"
-8,T3,BLE_FLR_FINISH_MAT_TXT,Mat:,,,,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, BLE_FLR_FINISH_MAT_TXT, """")"
-9,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_FLR_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_TYPE_TXT, """")"
+5,T2,BLE_FLR_THICKNESS_MM,,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_FLR_THICKNESS_MM, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_FLOOR_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FLOOR_TXT, """")"
+8,T3,BLE_FLR_FINISH_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, BLE_FLR_FINISH_MAT_TXT, """")"
+9,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 10,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -461,14 +461,14 @@ TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Slab Edges
 Tag Family #20: STING - Roof Soffits Tag
 TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roof Soffits
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_CEILING_MAT_TXT,Mat:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_CEILING_MAT_TXT, """")"
-5,T2,BLE_WALL_INTERIOR_FINISH_TXT,Fin:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_INTERIOR_FINISH_TXT, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_ROOF_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOF_TXT, """")"
-8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_CEILING_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_CEILING_MAT_TXT, """")"
+5,T2,BLE_WALL_INTERIOR_FINISH_TXT,Fin:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_INTERIOR_FINISH_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_ROOF_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOF_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -478,14 +478,14 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roof Soffits
 Tag Family #21: STING - Fascia Tag
 TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Fascia
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_ROOF_COVERING_MAT_TXT,Mat:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_COVERING_MAT_TXT, """")"
-5,T2,BLE_WALL_EXTERIOR_FINISH_TXT,Fin:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_EXTERIOR_FINISH_TXT, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_ROOF_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOF_TXT, """")"
-8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_ROOF_COVERING_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_COVERING_MAT_TXT, """")"
+5,T2,BLE_WALL_EXTERIOR_FINISH_TXT,Fin:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_EXTERIOR_FINISH_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_ROOF_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOF_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -495,14 +495,14 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Fascia
 Tag Family #22: STING - Gutter Tag
 TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Gutters
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Drain:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT, """")"
-5,T2,BLE_ROOF_COVERING_MAT_TXT,Mat:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_COVERING_MAT_TXT, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_ROOF_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOF_TXT, """")"
-8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Drain:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT, """")"
+5,T2,BLE_ROOF_COVERING_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_ROOF_COVERING_MAT_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_ROOF_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_ROOF_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -513,13 +513,14 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Gutters
 Tag Family #23: STING - Mass Tag
 TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Mass
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,ASS_ROOM_AREA_SQ_M,GIA:,m²,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")"
-5,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-6,T3,ARCH_TAG_7_PARA_WALL_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_WALL_TXT, """")"
-7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_ROOM_AREA_SQ_M,GIA:,m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_ROOM_AREA_SQ_M, """")"
+5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+6,T3,ARCH_TAG_7_PARA_WALL_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_WALL_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,LOW,WARN_BLE_ROOM_AREA_SQ_M_MASS,Mass element area not verified,RIBA Plan of Work / NBS,Common,Text,⚠ Warning: Mass Area,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_AREA_SQ_M_MASS, """")"
@@ -528,15 +529,15 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Mass
 Tag Family #24: STING - Furniture Systems Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture Systems
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,ASS_MANUFACTURER_TXT,Mfr:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
-5,T2,BLE_FURNITURE_FINISH_TXT,Fin:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_FURNITURE_FINISH_TXT, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_FURNITURE_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURNITURE_TXT, """")"
-8,T3,PER_FIRE_RATING_HR,,hr,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, PER_FIRE_RATING_HR, """")"
-9,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
+5,T2,BLE_FURNITURE_FINISH_TXT,Fin:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_FURNITURE_FINISH_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_FURNITURE_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURNITURE_TXT, """")"
+8,T3,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, PER_FIRE_RATING_HR, """")"
+9,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 10,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -547,15 +548,15 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Furniture Systems
 Tag Family #25: STING - Food Service Equipment Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Food Service Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,ASS_MANUFACTURER_TXT,Mfr:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
-5,T2,ASS_MODEL_NR_TXT,| ,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MODEL_NR_TXT, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_FURNITURE_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURNITURE_TXT, """")"
-8,T3,PER_FIRE_RATING_HR,,hr,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, PER_FIRE_RATING_HR, """")"
-9,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
+5,T2,ASS_MODEL_NR_TXT,| ,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MODEL_NR_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_FURNITURE_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURNITURE_TXT, """")"
+8,T3,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, PER_FIRE_RATING_HR, """")"
+9,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 10,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -566,15 +567,15 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Food Service Equipment
 Tag Family #26: STING - Medical Equipment Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Medical Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,ASS_MANUFACTURER_TXT,Mfr:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
-5,T2,ASS_MODEL_NR_TXT,| ,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MODEL_NR_TXT, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_FURNITURE_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURNITURE_TXT, """")"
-8,T3,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yrs,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
-9,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
+5,T2,ASS_MODEL_NR_TXT,| ,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MODEL_NR_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_FURNITURE_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURNITURE_TXT, """")"
+8,T3,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yrs,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
+9,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 10,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -585,13 +586,14 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Medical Equipment
 Tag Family #27: STING - Entourage Tag
 TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Entourage
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,ASS_MANUFACTURER_TXT,Mfr:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
-5,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-6,T3,ARCH_TAG_7_PARA_FURNITURE_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURNITURE_TXT, """")"
-7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
+5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+6,T3,ARCH_TAG_7_PARA_FURNITURE_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_FURNITURE_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,LOW,WARN_ASS_DESCRIPTION_ENTOURAGE,Entourage element has no description,RIBA Plan of Work,Common,Text,⚠ Warning: Entourage Description,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_DESCRIPTION_ENTOURAGE, """")"
@@ -600,16 +602,17 @@ TAG7: ARCH_TAG_7_PARA_FURNITURE_TXT  •  Category: Entourage
 Tag Family #28: STING - Stair Runs Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Runs
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_STAIR_RISE_MM,R:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_RISE_MM, """")"
-5,T2,BLE_STAIR_GOING_MM,| G:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_GOING_MM, """")"
-6,T2,BLE_STAIR_WIDTH_MM,W:,mm,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_WIDTH_MM, """")"
-7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-8,T3,ARCH_TAG_7_PARA_STAIR_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_STAIR_TXT, """")"
-9,T3,BLE_STAIR_TREAD_FINISH_TXT,Mat:,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_STAIR_TREAD_FINISH_TXT, """")"
-10,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_STAIR_RISE_MM,R:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_RISE_MM, """")"
+5,T2,BLE_STAIR_GOING_MM,| G:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_GOING_MM, """")"
+6,T2,BLE_STAIR_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_WIDTH_MM, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ARCH_TAG_7_PARA_STAIR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_STAIR_TXT, """")"
+9,T3,BLE_STAIR_TREAD_FINISH_TXT,Mat:,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_STAIR_TREAD_FINISH_TXT, """")"
+10,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+11,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_STAIR_RISER_MM_STAIR_RUNS,Riser > 220mm or < 150mm,Building Regs Part K,Common,Text,⚠ Warning: Stair Run Riser,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISER_MM_STAIR_RUNS, """")"
@@ -620,14 +623,15 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Runs
 Tag Family #29: STING - Stair Landings Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Landings
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_STAIR_WIDTH_MM,W:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_WIDTH_MM, """")"
-5,T2,BLE_STAIR_TREAD_FINISH_TXT,Mat:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_TREAD_FINISH_TXT, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_STAIR_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_STAIR_TXT, """")"
-8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_STAIR_WIDTH_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_WIDTH_MM, """")"
+5,T2,BLE_STAIR_TREAD_FINISH_TXT,Mat:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_STAIR_TREAD_FINISH_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_STAIR_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_STAIR_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_STAIR_WIDTH_MM_LANDINGS,Landing width < stair width or < 1000mm,Building Regs Part B / Part K,Common,Text,⚠ Warning: Landing Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_WIDTH_MM_LANDINGS, """")"
@@ -637,14 +641,15 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Landings
 Tag Family #30: STING - Stair Supports Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Supports
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_RAILING_MATERIAL_TXT,Mat:,,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_MATERIAL_TXT, """")"
-5,T2,PER_FIRE_RATING_HR,,hr,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_STAIR_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_STAIR_TXT, """")"
-8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_RAILING_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_MATERIAL_TXT, """")"
+5,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_STAIR_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_STAIR_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_STAIR_SUPPORTS,Stair support fire rating < 1.0 hr,Building Regs Part B,Common,Text,⚠ Warning: Stair Support Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_STAIR_SUPPORTS, """")"
@@ -653,14 +658,15 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Supports
 Tag Family #31: STING - Top Rails Tag
 TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Top Rails
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_RAILING_HEIGHT_MM,Ht:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_HEIGHT_MM, """")"
-5,T2,BLE_RAILING_MATERIAL_TXT,Mat:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_MATERIAL_TXT, """")"
-6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,ARCH_TAG_7_PARA_RAILING_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_RAILING_TXT, """")"
-8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_RAILING_HEIGHT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_HEIGHT_MM, """")"
+5,T2,BLE_RAILING_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_MATERIAL_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ARCH_TAG_7_PARA_RAILING_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_RAILING_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_RAILING_HEIGHT_MM_TOP_RAILS,Top rail height < 1100mm,Building Regs Part K / BS 6180,Common,Text,⚠ Warning: Top Rail Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAILING_HEIGHT_MM_TOP_RAILS, """")"
@@ -670,15 +676,16 @@ TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Top Rails
 Tag Family #32: STING - Handrails Tag
 TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Handrails
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,BLE_RAILING_HEIGHT_MM,Ht:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_HEIGHT_MM, """")"
-5,T2,BLE_RAILING_MATERIAL_TXT,Mat:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_MATERIAL_TXT, """")"
-6,T2,BLE_RAILING_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_TYPE_TXT, """")"
-7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-8,T3,ARCH_TAG_7_PARA_RAILING_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_RAILING_TXT, """")"
-9,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_RAILING_HEIGHT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_HEIGHT_MM, """")"
+5,T2,BLE_RAILING_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_MATERIAL_TXT, """")"
+6,T2,BLE_RAILING_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_RAILING_TYPE_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ARCH_TAG_7_PARA_RAILING_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_RAILING_TXT, """")"
+9,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+10,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_RAILING_HEIGHT_MM_HANDRAILS,Handrail height < 900mm (stair) or < 1000mm (ramp),Building Regs Part K / BS 8300,Common,Text,⚠ Warning: Handrail Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_RAILING_HEIGHT_MM_HANDRAILS, """")"
@@ -687,13 +694,13 @@ TAG7: ARCH_TAG_7_PARA_RAILING_TXT  •  Category: Handrails
 Tag Family #33: STING - Vertical Circulation Tag
 TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Vertical Circulation
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
-4,T2,ASS_MANUFACTURER_TXT,Mfr:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
-5,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-6,T3,ARCH_TAG_7_PARA_STAIR_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_STAIR_TXT, """")"
-7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
+5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+6,T3,ARCH_TAG_7_PARA_STAIR_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_STAIR_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
@@ -704,13 +711,13 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Vertical Circulation
 Tag Family #34: STING - Architectural Sheet Tag
 TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Architectural discipline
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,SHT_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,SHT_DISC_TXT,Disc:,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")"
-3,T2,SHT_FORM_TXT,Form:,,,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")"
-4,T2,SHT_LEVEL_TXT,Level:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, SHT_LEVEL_TXT, """")"
-5,T2,SHT_NUMBER_TXT,No:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, SHT_NUMBER_TXT, """")"
-6,T2,SHT_NAME_TXT,Name:,,,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, SHT_NAME_TXT, """")"
-7,T3,SHT_TAG_7_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, SHT_TAG_7_TXT, """")"
+1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")"
+3,T2,SHT_FORM_TXT,Form:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")"
+4,T2,SHT_LEVEL_TXT,Level:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, SHT_LEVEL_TXT, """")"
+5,T2,SHT_NUMBER_TXT,No:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, SHT_NUMBER_TXT, """")"
+6,T2,SHT_NAME_TXT,Name:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, SHT_NAME_TXT, """")"
+7,T3,SHT_TAG_7_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, SHT_TAG_7_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SHT_NAMING_ARCH,Sheet name does not match ISO 19650 naming convention for architectural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_ARCH, """")"
