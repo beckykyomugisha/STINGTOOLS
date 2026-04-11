@@ -934,3 +934,207 @@ Every button in the BCC dispatches an **action tag** — a short code that maps 
 | AddDocument | Register new deliverable in document register |
 | DocumentRegister | View/manage document register entries |
 | DocumentManager | Open Document Management Center |
+
+---
+
+## Appendix E — Real-World Workflow Examples
+
+These 5 scenarios show the BCC solving actual coordination problems. Each one includes the situation, the step-by-step solution, and the measurable outcome.
+
+---
+
+### Example 1: Monday Morning Model Health Check
+
+**Situation:** You arrive at 8:30 AM on a Monday. The MEP subcontractor worked over the weekend, adding 400+ ductwork elements. You need to know the model's state before the 10:00 AM design team meeting.
+
+**Solution — 4 clicks, 12 minutes:**
+
+1. **Open Revit → Open the project file**
+   - StingTools runs a morning briefing automatically — a dialog shows overnight compliance changes, stale element count, and any SLA violations.
+
+2. **Open BCC** (BIM tab → Coordination Center)
+   - The **Overview tab** loads instantly. You see 5 KPI cards:
+     - Total Elements: **14,280**
+     - Tag Compliance: **76%** (AMBER — was 82% GREEN on Friday)
+     - Warnings: **47** (up from 31)
+     - Open Issues: **3** (1 overdue)
+     - Container Compliance: **71%**
+
+3. **Click "Run Morning Check" in the Quick Actions toolbar**
+   - This triggers the `MorningHealthCheck` preset (10 steps):
+     - Retag 400 stale elements → auto-fix 12 warnings → tag 400 new elements → validate → template check → model health → issues review → revision check → compliance dashboard
+   - **Progress bar shows each step** — total run time: ~8 minutes on 14K elements
+
+4. **Check the result**
+   - Tag Compliance: **76% → 91%** (GREEN)
+   - Warnings: **47 → 29** (12 auto-fixed, 6 suppressed nuisance warnings)
+   - Stale elements: **412 → 0**
+   - The BCC stays open — you can drill into any tab for detail
+
+**Result:** In **12 minutes** you went from a weekend-disrupted model to **91% GREEN compliance**, ready for the 10 AM meeting. Without StingTools, manually tagging 400 elements and checking warnings would take **3–4 hours**.
+
+---
+
+### Example 2: Clash Coordination Meeting Prep
+
+**Situation:** You have a fortnightly clash coordination meeting at 2:00 PM. The structural engineer raised 8 RFIs last week, and Navisworks found 23 clashes between MEP and structure. You need an agenda, the latest compliance state, and BCF files for discussion.
+
+**Solution — 6 clicks, 18 minutes:**
+
+1. **Open BCC → Meetings tab**
+   - Click **"Auto Agenda"** — StingTools generates an agenda from:
+     - 8 open RFIs (grouped by discipline)
+     - 23 CLASH issues (from BCF import)
+     - 2 pending transmittals
+     - Current compliance: **88%** (up from 82% last meeting)
+     - 4 overdue action items from the last meeting
+
+2. **Switch to Issues tab**
+   - Filter by **Status: Open** — see all 31 active issues
+   - Double-click the highest-priority CLASH issue → BCC zooms to the clash location in a 3D section box view
+   - Right-click → **"Zoom to 3D Section Box"** on 3 more clashes to screenshot for the meeting slides
+
+3. **Click "BCF Export"** in the Issues action bar
+   - Exports all 23 CLASH issues as BCF 2.1 XML with camera viewpoints
+   - File saved next to the project: `ProjectName_BCF_2026-04-11.bcf`
+
+4. **Switch to Model Health tab → Click "Export Health"**
+   - Generates an HTML report with per-discipline compliance, warning summary, and KPI cards
+   - Share the `.html` file with attendees — **no Revit licence needed** to view it
+
+5. **During the meeting — log minutes directly in BCC**
+   - Meetings tab → **"Log Minutes"** → type decisions and notes
+   - **"Add Action Item"** → assign follow-ups with due dates
+
+6. **After the meeting — Click "Export Minutes"**
+   - Saves timestamped `.txt` file with all minutes and new action items
+
+**Result:** Meeting prep completed in **18 minutes** instead of the usual **2 hours** of manual screenshot-taking, spreadsheet-updating, and email-chasing. The BCF export means the structural engineer can **see exact clash locations** in their own BIM tool.
+
+---
+
+### Example 3: RIBA Stage 3 → Stage 4 Gate
+
+**Situation:** The client has a Stage 3 design freeze deadline on Friday. To pass the stage gate, the BEP requires ≥85% tag compliance, complete COBie Type and System sheets, and zero CRITICAL warnings. Your model is at 78%.
+
+**Solution — 3 sessions over 3 days, ~90 minutes total:**
+
+**Day 1 (Wednesday) — Assess the gap:**
+
+1. **Open BCC → Click "Stage Gate" in Overview Quick Actions**
+   - The `StageComplianceGate` command auto-detects RIBA Stage 3 → DD2 requirements:
+     - Tag compliance: **78%** — needs ≥85% (gap: **840 elements**)
+     - Container compliance: **72%** — needs ≥70% (PASS ✓)
+     - CRITICAL warnings: **4** — needs 0 (FAIL ✗)
+     - COBie Type sheet: **62 of 85 types populated** (FAIL ✗)
+
+2. **Run the `HandoverReadiness` workflow preset**
+   - Retags stale elements → full batch tag → validate → COBie export (preview mode)
+   - Tag compliance jumps: **78% → 86%** after batch tagging 840 previously untagged elements
+   - COBie preview shows 23 type records still missing manufacturer data
+
+3. **Switch to Warnings tab → Click "Auto Fix"**
+   - 3 of 4 CRITICAL warnings auto-fixed (duplicate instances, overlapping room separations)
+   - 1 remaining CRITICAL: "Host has been deleted" — needs manual fix (element reference lost)
+
+**Day 2 (Thursday) — Fix remaining gaps:**
+
+4. **Manually fix the 1 CRITICAL warning** (delete orphaned annotation referencing deleted host)
+
+5. **Open BCC → QA Dashboard tab**
+   - Token coverage matrix shows: DISC 100%, SYS 98%, FUNC 94%, PROD 91%
+   - 23 elements have placeholder PROD codes (GEN/XX) — switch to Issues tab, raise a bulk DATA issue
+
+6. **Run `COBieReadiness` workflow**
+   - Validates ISO codes → writes containers → exports COBie preview
+   - COBie Type sheet: **85 of 85 populated** (PASS ✓ after manufacturer data entry)
+
+**Day 3 (Friday) — Final check and submit:**
+
+7. **Open BCC → Click "Stage Gate" again**
+   - Tag compliance: **92%** (GREEN ✓)
+   - Container compliance: **89%** (GREEN ✓)
+   - CRITICAL warnings: **0** (GREEN ✓)
+   - COBie Type: **complete** (GREEN ✓)
+   - **Verdict: STAGE 3 GATE PASSED**
+
+8. **Click "Create Revision"** → CDE status → SHARED (S4: Fit for Stage Approval)
+
+**Result:** Stage gate passed in **~90 minutes of actual work** spread over 3 days. Compliance rose from **78% to 92%**. The COBie export was complete on first submission — **no client rejection and resubmission cycle**. Manual equivalent: 2–3 full days of a senior BIM coordinator's time.
+
+---
+
+### Example 4: Emergency Snagging Issue on Site
+
+**Situation:** It's Thursday afternoon. The site manager calls: "There's a sprinkler head clashing with a cable tray at Level 3, grid intersection C-7. We need a formal response before the ceiling goes up tomorrow morning."
+
+**Solution — 5 clicks, 8 minutes:**
+
+1. **Open BCC → Issues tab → Click "Raise Issue"**
+   - Issue Type: **CLASH** (hard clash, cross-discipline)
+   - Priority: **CRITICAL** (SLA = 4 hours)
+   - Title: "Sprinkler head / cable tray clash at L03 C-7"
+   - Select the 2 affected elements in the Revit model → they're auto-linked to the issue
+
+2. **The issue is auto-assigned** to the MEP lead (based on DISC=FP discipline detection from the selected elements)
+
+3. **Click "BCF Export"** — export the single issue as BCF with a 3D section box viewpoint centred on grid C-7
+   - Email the `.bcf` file to the MEP subcontractor for immediate review
+
+4. **Switch to Meetings tab → Click "Add Action Item"**
+   - Description: "Resolve sprinkler/cable tray clash at L03 C-7"
+   - Assignee: MEP Lead
+   - Due: Tomorrow 8:00 AM
+   - Priority: CRITICAL
+
+5. **The MEP subcontractor resolves the clash**, updates the model, and you **re-run AutoTag on the affected area**
+   - Come back to BCC → Issues tab → right-click the issue → **"Update Status" → CLOSED**
+   - StingTools auto-links the resolution to the latest revision snapshot
+
+**Result:** Issue raised, assigned, exported, and tracked in **8 minutes**. The 4-hour SLA was met. The full audit trail (issue → BCF → action item → resolution → revision) satisfies **ISO 19650-2 Section 5.6** requirements. Without BCC, the coordinator would spend **45+ minutes** writing emails, attaching screenshots, and manually logging the issue in a spreadsheet.
+
+---
+
+### Example 5: COBie Handover to Facilities Management
+
+**Situation:** The project is at RIBA Stage 6 (Handover). The FM team needs a complete COBie V2.4 workbook covering 2,400 MEP assets across 6 floors. The BEP requires DD4 compliance (≥95% tag completeness).
+
+**Solution — 2 sessions, ~45 minutes total:**
+
+**Session 1 — Validate readiness:**
+
+1. **Open BCC → Click "Data Drop Readiness" in Overview**
+   - Auto-detects DD4 milestone:
+     - Tag compliance: **93%** — needs ≥95% (gap: **168 elements**)
+     - Container compliance: **91%** — needs ≥95%
+     - Placeholders (GEN/XX/ZZ): **42 elements** — needs 0
+     - Stale elements: **7** — needs 0
+
+2. **Run `COBieReadiness` workflow (7 steps)**
+   - Retag 7 stale → resolve 42 placeholders → validate → write containers → schema validate → COBie preview → tag register
+   - Tag compliance: **93% → 97%** (GREEN ✓)
+   - Placeholders: **42 → 3** (3 elements in unmapped custom categories — raise DATA issue for manual resolution)
+
+3. **Fix the 3 remaining placeholders manually** (assign correct PROD codes via dockable panel TOKEN section)
+
+**Session 2 — Export and deliver:**
+
+4. **Open BCC → 4D/5D tab → Click "COBie Export"**
+   - StingTools runs a **pre-export compliance gate**: tag ≥95% ✓, containers ≥95% ✓, 0 CRITICAL warnings ✓, 0 stale ✓
+   - A **pre-export container staleness check** samples 200 elements — all containers current
+   - COBie V2.4 export generates **17 worksheets**:
+     - Instruction (metadata), Facility, Floor, Space, Zone, Type, Component (2,400 rows), System, Assembly, Connection, Spare, Resource, Job, Document, Coordinate, Attribute, Impact
+   - File saved: `ProjectName_COBie_2026-04-11.xlsx` (2.8 MB)
+
+5. **Verify the export**
+   - Open the Excel file — check Component sheet has 2,400 rows with SerialNumber, BarCode, InstallationDate populated
+   - Check Type sheet — all 85 equipment types have Manufacturer, ModelNumber, WarrantyDuration
+   - Check System sheet — 14 MEP systems grouped by actual SYS token distribution
+
+6. **Create final transmittal**
+   - BCC → Click "Create Transmittal" → recipient: FM Team → attach the COBie file
+   - CDE Status → PUBLISHED → ARCHIVE (S7: Fit for AIM Authorization)
+   - BCC → Click "Create Revision" — final handover revision with compliance snapshot
+
+**Result:** Complete **17-worksheet COBie V2.4 handover** delivered in **45 minutes** with **97% tag compliance**. The FM team receives a validated dataset that imports directly into their CAFM system — **no manual data re-entry**. Manual COBie population from scratch typically takes **2–3 weeks** for a project of this size.
+
