@@ -56,6 +56,7 @@ builder.Services.AddAuthorization();
 
 // ── Services ──
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
