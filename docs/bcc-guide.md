@@ -294,3 +294,329 @@ A snapshot records every element's tag values at a point in time. When you compa
 
 This is essential for ISO 19650 audit trails.
 
+---
+
+## 9. Workflows Tab
+
+The **Workflows** tab lets you chain multiple commands into a single automated sequence. Instead of running 8 separate operations one by one, you press one button and the BCC runs them all in order.
+
+### What is a Workflow?
+
+A workflow is a list of steps. Each step is a STING command (like "Retag Stale" or "Validate Tags"). The BCC runs them top to bottom, tracks timing, and reports results.
+
+### KPI Cards
+
+| Card | What it shows |
+|------|---------------|
+| **Total Runs** | How many workflows have been executed in this project |
+| **Last Run** | Name and time of the most recent workflow |
+| **Compliance Δ** | Change in compliance percentage from the last workflow run |
+| **History** | Number of recorded workflow executions |
+
+### Quick Workflow Buttons
+
+The tab shows buttons for the most commonly used presets. Click one to run the entire sequence:
+
+| Preset | What it does | When to use |
+|--------|-------------|-------------|
+| **Daily QA Sync** | Retag stale → validate → audit → completeness dashboard | Every morning |
+| **Morning Health Check** | Stale fix → warnings → tag new → validate → template audit | Start of day |
+| **Project Kickoff** | Full 26-step project setup from blank template | New projects |
+| **Handover Readiness** | Stale fix → tag → validate → COBie → BEP → revision | Before handover |
+| **COBie Readiness** | Retag → resolve → containers → validate → COBie export | Before COBie submission |
+| **End of Day Sync** | Retag → validate → baseline → registers → revision | End of each day |
+| **Drawing Issue** | Templates → naming → fix warnings → print PDF → register | Before issuing drawings |
+| **Clash Coordination** | Detect clashes → export BCF → create issues → assign | Before coordination meetings |
+| **Healthcare NHS** | Medical gas → infection zones → HTM compliance | NHS projects |
+| **Data Centre** | Power distribution → cooling → cable tray → Uptime Institute | Data centre projects |
+
+### Workflow History DataGrid
+
+A table below shows previous workflow runs:
+
+| Column | Meaning |
+|--------|---------|
+| Time | When the workflow ran |
+| Preset | Which workflow preset was used |
+| Steps | How many steps in the workflow |
+| Pass/Fail/Skip | How many steps succeeded, failed, or were skipped |
+| Duration | Total time taken |
+| Before/After | Compliance percentage before and after the run |
+
+### Conditional Steps
+
+Some workflows have **smart conditions**. For example:
+- "Skip this step if compliance is already above 90%"
+- "Only run this step if there are stale elements"
+- "Skip if no warnings exist"
+
+This means the workflow adapts to your model's current state rather than blindly running every step.
+
+---
+
+## 10. QA Dashboard Tab
+
+The **QA Dashboard** tab is your quality assurance centre. It shows what is wrong with the data in your model, not the geometry.
+
+### KPI Cards
+
+| Card | What it shows | Why it matters |
+|------|---------------|---------------|
+| **Placeholders** | Elements with generic codes like GEN, XX, ZZ, 0000 | These are not real codes — they need replacing with actual values |
+| **Anomalies** | Elements with detected data inconsistencies | E.g., DISC=M (Mechanical) but SYS=LV (Low Voltage) — a cross-discipline mismatch |
+| **Stale** | Elements that have moved or changed since they were last tagged | The tag data is out of date |
+| **Validation Errors** | Elements failing ISO 19650 code validation | Invalid codes that will be rejected at handover |
+
+### Token Coverage Matrix
+
+A table showing how many elements have each of the 8 tag tokens filled in:
+
+| Token | Filled | Empty | Placeholder |
+|-------|--------|-------|-------------|
+| DISC | 4,521 | 12 | 0 |
+| LOC | 4,200 | 321 | 12 |
+| ZONE | 3,890 | 543 | 100 |
+| ... | ... | ... | ... |
+
+This tells you exactly which tokens need the most work.
+
+### Cross-System Integrity
+
+Shows correlations between data problems:
+- Stale elements that also have warnings
+- Warning elements that also have open issues
+- Issues linked to elements with incomplete tags
+
+### Actions
+
+| Button | What it does |
+|--------|-------------|
+| Auto-Fix Anomalies | Automatically resolve cross-discipline mismatches |
+| Resolve All Issues | One-click ISO 19650 compliance resolution |
+| Schema Validate | Validate parameter data against the material schema |
+
+---
+
+## 11. 4D/5D Scheduling Tab
+
+The **4D/5D** tab links your BIM model to construction time (4D) and cost (5D).
+
+### What is 4D and 5D?
+
+- **4D** = 3D model + time. Each element gets a construction phase and date, so you can simulate the build sequence.
+- **5D** = 4D + cost. Each element also gets a cost, so you can track budgets.
+
+### KPI Cards
+
+| Card | What it shows |
+|------|---------------|
+| **Total Tasks** | Number of scheduled construction tasks |
+| **Est. Cost** | Total estimated project cost |
+| **Milestones** | Number of defined milestones (e.g., "structural frame complete") |
+| **Earned Value %** | How much of the planned work has been completed (EVM) |
+
+### Earned Value Management (EVM)
+
+Two key metrics are shown:
+
+| Metric | Formula | Meaning |
+|--------|---------|---------|
+| **CPI** (Cost Performance Index) | Earned Value ÷ Actual Cost | >1.0 = under budget, <1.0 = over budget |
+| **SPI** (Schedule Performance Index) | Earned Value ÷ Planned Value | >1.0 = ahead of schedule, <1.0 = behind |
+
+### Cost Breakdown
+
+A mini bar chart shows cost by construction phase (e.g., Substructure, Frame, Envelope, MEP, Fit-out). Each bar shows progress as a percentage.
+
+### Actions
+
+| Button | What it does |
+|--------|-------------|
+| AutoSchedule4D | Auto-assign construction phases to elements by trade sequence |
+| AutoCost5D | Auto-assign cost rates to elements from the cost database |
+| ViewTimeline | Show a Gantt-style timeline of construction phases |
+| CostReport | Generate a 5D cost summary report |
+| CashFlow | Show cash flow forecast over project duration |
+| ExportSchedule | Export 4D schedule to CSV for MS Project |
+
+---
+
+## 12. Deliverables Tab
+
+The **Deliverables** tab tracks documents and data packages that must be submitted at each project stage. In ISO 19650, these are called **data drops** (DD1–DD4).
+
+### KPI Cards
+
+| Card | What it shows | Colour logic |
+|------|---------------|-------------|
+| **Total** | All tracked deliverables | Blue (informational) |
+| **Pending** | Deliverables not yet started | Amber if >0, Green if 0 |
+| **Submitted** | Deliverables sent for review | Teal |
+| **Approved** | Deliverables accepted | Green |
+| **Overdue** | Deliverables past their due date | Red if >0, Green if 0 |
+
+### Deliverables DataGrid
+
+An editable table listing each deliverable:
+
+| Column | Description |
+|--------|-------------|
+| Name | Deliverable title (e.g., "COBie Component Sheet") |
+| Data Drop | Which milestone it belongs to (DD1/DD2/DD3/DD4) |
+| Status | Pending / In Progress / Submitted / Approved / Rejected |
+| Due Date | Deadline |
+| Assignee | Person responsible |
+
+You can edit cells directly in the grid to update status or assignee.
+
+### Transmittal Section
+
+Below the grid, a transmittal panel lets you create formal records of document submissions. Each transmittal gets a unique **TX-NNNN** reference number and records:
+- Which documents were sent
+- Who sent them and to whom
+- The date and CDE status
+
+---
+
+## 13. Meetings Tab
+
+The **Meetings** tab manages BIM coordination meetings. It has 4 sub-tabs:
+
+### Sub-tab 1: Meetings List
+
+Shows upcoming and past meetings in a DataGrid:
+
+| Column | Description |
+|--------|-------------|
+| Date | Meeting date |
+| Type | BIM Coordination / Design Review / Client Review / Clash Resolution / Handover |
+| Title | Meeting title |
+| Status | Scheduled / Completed / Cancelled |
+| Actions | Number of action items from this meeting |
+
+### Sub-tab 2: Action Items
+
+A full DataGrid of all action items across all meetings:
+
+| Column | Description |
+|--------|-------------|
+| ID | Unique reference (ACT-001, ACT-002, …) |
+| Description | What needs to be done |
+| Assignee | Who is responsible |
+| Due Date | Deadline |
+| Priority | CRITICAL / HIGH / MEDIUM / LOW |
+| Status | OPEN / IN PROGRESS / CLOSED |
+
+**Overdue** items are highlighted in red. You can bulk-close selected items.
+
+### Sub-tab 3: Minutes Editor
+
+A text editor for recording meeting minutes. Minutes are saved as timestamped `.txt` files alongside the project.
+
+### Sub-tab 4: Automation
+
+Six cross-system automation rules that link meetings to other BCC systems:
+
+| Rule | What it does |
+|------|-------------|
+| Overdue Action → Issue Escalation | Auto-creates NCR issues from overdue actions |
+| Open Issues → Next Meeting Agenda | Populates the next agenda from open issues |
+| Compliance Gate → Transmittal | Auto-creates transmittal when compliance hits 80% |
+| Meeting Closure → Follow-Up | Auto-schedules follow-up meeting with open actions |
+| SLA Violation → Escalation | Auto-escalates issue priority when SLA is breached |
+| Stale Elements → Auto-Retag | Auto-retags elements that have moved |
+
+---
+
+## 14. Project Members Tab
+
+The **Project Members** tab shows who is on the project team and what they can access. It has 3 sub-tabs:
+
+### Sub-tab 1: Member Directory
+
+Lists all team members with their name, role code, discipline, and contact.
+
+### Sub-tab 2: Permission Groups
+
+Shows the 14 ISO 19650 role definitions:
+
+| Code | Role | CDE Write Access | Can Approve | Can Issue |
+|------|------|-------------------|-------------|-----------|
+| A | Architect | WIP, SHARED | Yes | Yes |
+| M | MEP Engineer | WIP, SHARED | No | No |
+| E | Electrical Engineer | WIP, SHARED | No | No |
+| S | Structural Engineer | WIP, SHARED | No | No |
+| C | BIM Coordinator | WIP, SHARED | No | Yes |
+| K | BIM Manager | WIP, SHARED, PUBLISHED | Yes | Yes |
+| I | Information Manager | All | Yes | Yes |
+| Q | QA/QS | SHARED | No | No |
+
+### Sub-tab 3: CDE Access Matrix
+
+A table showing which roles can read, write, or approve documents in each CDE folder (WIP, SHARED, PUBLISHED, ARCHIVE, MODELS, DRAWINGS, etc.).
+
+---
+
+## 15. Platform Tab
+
+The **Platform** tab connects your Revit model to external cloud platforms.
+
+### Supported Platforms
+
+| Platform | What it is |
+|----------|-----------|
+| **ACC** | Autodesk Construction Cloud (BIM 360) |
+| **SharePoint** | Microsoft SharePoint / Teams document library |
+| **Procore** | Construction project management platform |
+| **Aconex** | Oracle Aconex document management |
+| **Trimble Connect** | Trimble's cloud collaboration |
+| **Bentley iTwin** | Bentley's digital twin platform |
+| **Viewpoint 4P** | Viewpoint For Projects document control |
+| **BCF Server** | BIM Collaboration Format server for clash management |
+
+Click a platform tile to see its detail panel with connection settings, sync status, and action buttons.
+
+### BCF Section
+
+At the bottom, a dedicated BCF panel allows you to:
+
+| Button | What it does |
+|--------|-------------|
+| BCF Export | Export issues as BCF 2.1 XML with 3D viewpoints |
+| BCF Import | Import clash results from Navisworks / Solibri / BIMcollab |
+
+BCF files are the standard way to share clash and issue data between different BIM tools.
+
+---
+
+## 16. Coord Log Tab
+
+The **Coord Log** tab is a chronological record of every significant action taken in the BCC.
+
+### What Gets Logged
+
+Every time someone runs a workflow, fixes warnings, raises an issue, creates a revision, or exports a deliverable, an entry is added to the log.
+
+### Columns
+
+| Column | Description |
+|--------|-------------|
+| Timestamp | When the action happened |
+| User | Who performed it |
+| Action | What was done (e.g., "AutoFixWarnings", "CreateRevision") |
+| Detail | Additional context (e.g., "Fixed 12 duplicate instances") |
+| Impact | HIGH / MEDIUM / LOW |
+
+### Filtering
+
+- **Search box** — type to filter by action name, detail text, or user
+- **Category dropdown** — filter by action category
+- **Impact dropdown** — show only HIGH, MEDIUM, or LOW impact entries
+
+### Actions
+
+| Button | What it does |
+|--------|-------------|
+| Export Log | Export the full log to CSV for audit purposes |
+| Clear Log | Clear the log (requires confirmation) |
+
