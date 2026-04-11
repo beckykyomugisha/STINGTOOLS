@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Planscape.Core.Entities;
@@ -16,6 +17,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/[controller]")]
 [Authorize]
+[EnableRateLimiting("mobile")]
 public class DocumentsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
@@ -16,6 +17,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("mobile")]
 public class BatchController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
@@ -13,6 +14,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/compliance")]
 [Authorize]
+[EnableRateLimiting("mobile")]
 public class ComplianceController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

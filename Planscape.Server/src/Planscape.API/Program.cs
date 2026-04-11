@@ -174,6 +174,21 @@ builder.Services.AddRateLimiter(options =>
         o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         o.QueueLimit          = 0;
     });
+
+    // Mobile: 120 req/min per device (partitioned by X-Device-Id header, IP fallback)
+    options.AddPolicy("mobile", context =>
+    {
+        var deviceId = context.Request.Headers["X-Device-Id"].FirstOrDefault()
+                       ?? context.Connection.RemoteIpAddress?.ToString()
+                       ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(deviceId, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 120,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0
+        });
+    });
 });
 
 // ── CORS for web dashboard ──

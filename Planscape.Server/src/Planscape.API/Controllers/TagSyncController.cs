@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.DTOs;
@@ -16,6 +17,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("mobile")]
 public class TagSyncController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

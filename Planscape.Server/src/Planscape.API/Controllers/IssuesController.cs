@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
@@ -10,6 +11,7 @@ namespace Planscape.API.Controllers;
 
 [ApiController]
 [Route("api/projects/{projectId}/[controller]")]
+[EnableRateLimiting("mobile")]
 [Authorize]
 public class IssuesController : ControllerBase
 {
