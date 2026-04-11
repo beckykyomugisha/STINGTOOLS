@@ -620,3 +620,189 @@ Every time someone runs a workflow, fixes warnings, raises an issue, creates a r
 | Export Log | Export the full log to CSV for audit purposes |
 | Clear Log | Clear the log (requires confirmation) |
 
+
+---
+
+## Appendix A — Daily Checklist
+
+Use this checklist every day to keep your model healthy. The BCC automates most of these steps, but this list helps you verify nothing is missed.
+
+### Morning (Start of Day)
+
+1. **Open your Revit model** — StingTools runs a morning briefing automatically on first interaction
+2. **Check the Overview tab** — look at the 5 KPI cards (Elements, Compliance %, Warnings, Issues, Containers)
+3. **Review Action Required panel** — click any orange items to fix them
+4. **Run Morning Health Check** — click "Run Morning Check" in the Workflows tab, or use the Overview quick action button
+5. **Check for stale elements** — if the stale count is >0, click "Retag Stale" to update moved/changed elements
+6. **Review SLA violations** — if any issues are overdue, update or escalate them in the Issues tab
+
+### Midday (Coordination Check)
+
+1. **Refresh the Overview** — press F5 to reload data
+2. **Check new warnings** — switch to Warnings tab, expand new categories
+3. **Run auto-fix** — click "Auto-Fix" for quick wins (duplicate instances, room separation overlaps)
+4. **Review any new issues** — check the Issues tab for items raised by team members
+5. **Update action items** — mark completed meeting actions in the Meetings tab
+
+### End of Day
+
+1. **Run "End of Day" workflow** — Workflows tab → "End of Day Sync"
+2. **Save warning baseline** — Warnings tab → "Save Baseline" to track progress
+3. **Create revision if needed** — Revisions tab → "Create Revision" for significant changes
+4. **Export registers** — if submitting data, export Tag Register and Sheet Register from Deliverables tab
+5. **Check compliance trend** — Overview tab → verify the trend arrow is stable or improving
+
+---
+
+## Appendix B — Common Problems and Solutions
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Compliance stuck at 0% | Shared parameters not loaded | Run "Load Parameters" from the TEMP tab or Master Setup |
+| Tags show as "GEN-XX-ZZ-XX-GEN-GEN-GEN-0000" | Elements have placeholder tokens only | Run "Resolve All Issues" from the QA Dashboard or "Full Auto-Populate" from CREATE tab |
+| Containers show 0% | Combine Parameters never run | Run "Combine Parameters" from CREATE tab — this writes TAG1 to all 53 discipline containers |
+| Warnings count is very high (500+) | Normal for new models | Run "Auto-Fix Warnings" — it resolves duplicate instances, overlapping room separation lines, and duplicate marks automatically |
+| Issues tab is empty | No issues raised yet | This is normal — issues are created when you click "Raise Issue" or when auto-creation triggers |
+| Revisions tab shows no data | No revision snapshots taken | Click "Take Snapshot" to capture the current model state |
+| 4D/5D tab shows zeros | No schedule or cost data loaded | Import cost rates from `cost_rates_5d.csv` via "Import Cost Rates" in the BIM tab |
+| Workflows fail mid-way | A required command cannot resolve | Check the error message — it usually names the failing step. Ensure data files exist in the Data folder |
+| Morning briefing does not appear | Model is already healthy (no alerts) | The briefing only shows when there are issues to report — a silent opening means good health |
+| Model Health score is RED | Multiple checks failing | Click "Fix" next to each failing check — the button runs the specific repair command |
+| Elements not tagging | Category not in the 22 supported categories | Check if your element category is in the taggable list (see CLAUDE.md "22 tagged categories") |
+| Stale count keeps increasing | Auto-tagger stale marker detecting geometry changes | Run "Retag Stale" to clear the backlog, then it will only track new changes |
+| COBie export blocked | Compliance below 60% gate | Improve tag compliance above 60% or override the gate when prompted |
+| CDE transition blocked | Compliance below required threshold | WIP→SHARED requires 70%, SHARED→PUBLISHED requires 90%. Improve tags or override |
+
+---
+
+## Appendix C — Keyboard Shortcuts
+
+All shortcuts work when the BIM Coordination Center dialog is open.
+
+| Shortcut | Action |
+|----------|--------|
+| **Escape** | Clear any open inline panel (closes detail views without closing the dialog) |
+| **F5** | Refresh the current tab with fresh data |
+| **Ctrl+E** | Export current report to CSV/HTML |
+| **Ctrl+Q** | Jump to QA Dashboard tab |
+| **Ctrl+Shift+S** | Jump to 4D/5D Scheduling tab |
+| **Ctrl+D** | Jump to Deliverables tab |
+| **Ctrl+L** | Jump to Coord Log tab |
+| **Ctrl+T** | Jump to Project Members tab |
+| **Ctrl+M** | Jump to Meetings tab |
+| **1–9** | Jump to tab by number (1=Overview, 2=Model Health, 3=Warnings, 4=Issues, 5=Revisions, 6=Platform, 7=Workflows, 8=QA, 9=4D/5D). Only works when a text box is not focused |
+
+### Mouse Interactions
+
+| Action | Where | What happens |
+|--------|-------|-------------|
+| **Double-click** a discipline row | Overview tab | Selects all elements of that discipline in the model |
+| **Double-click** a warning node | Warnings tab | Zooms to affected elements in a 3D section box view |
+| **Double-click** an issue row | Issues tab | Zooms to linked elements in a 3D section box view |
+| **Right-click** a warning/issue | Warnings or Issues tab | Context menu: Zoom to 3D, Select Elements, Update Status |
+| **Hover** over a KPI card | Any tab | Shows drill-down tooltip with detailed breakdown |
+| **Click "Fix"** on a health check | Model Health tab | Runs the specific repair command for that check |
+
+---
+
+## Appendix D — Action Tag Reference
+
+Every button in the BCC dispatches an **action tag** — a short code that maps to a StingTools command. This table lists all action tags available in the BCC.
+
+### Overview & Health
+
+| Action Tag | Description |
+|------------|-------------|
+| RunDailyQA | Run Daily QA workflow: retag stale → validate → audit → dashboard |
+| RunMorningCheck | Morning health check: warnings → tags → templates → issues → revisions |
+| RetagStale | Find elements with stale tags (moved/changed) and re-derive their tags |
+| TagNewOnly | Tag only new/untagged elements — skips already-tagged elements |
+| RefreshHealth | Refresh model health metrics (warnings, tags, stale elements) |
+| ExportHealth | Export model health report to CSV/HTML |
+| RunFullCheck | Run 45-point template validation check (data files, parameters, formulas) |
+| FullComplianceDashboard | Full project compliance report with per-discipline breakdown |
+| RepeatLastWorkflow | Re-run the last workflow preset that was executed |
+| ExportReport | Export current model health and compliance report to CSV or HTML |
+| SelectAllTaggable | Select all taggable elements in the active view for batch operations |
+| CombineParameters | Write tag values to all 53 discipline-specific container parameters |
+
+### Warnings
+
+| Action Tag | Description |
+|------------|-------------|
+| AutoFixWarnings | Auto-fix: duplicate instances, room separation overlaps, duplicate marks |
+| CreateIssuesFromWarnings | Create NCR/SI issues from critical/high severity warnings |
+| ExportWarnings | Export all classified warnings to CSV for BIM360/Aconex |
+| SaveBaseline | Save current warning count as baseline for trend tracking |
+| SaveExtendedBaseline | Save warning types + counts for regression analysis |
+| SelectWarningElements | Select elements associated with a specific warning type |
+| SuppressWarnings | Suppress warning types from dashboard (persisted to config) |
+| WarningsCompliance | Map warnings to ISO 19650 / CIBSE / BS 7671 requirements |
+
+### Issues & Revisions
+
+| Action Tag | Description |
+|------------|-------------|
+| RaiseIssue | Raise RFI/Clash/NCR/Snagging issue with element linking + BCF |
+| UpdateIssue | Update issue status, priority, assignee, or close issues |
+| BCFExport | Export issues as BCF 2.1 XML for Navisworks/Solibri/BIMcollab |
+| BCFImport | Import BCF issues from external clash detection tools |
+| CreateTransmittal | Create ISO 19650 document transmittal record |
+| CreateRevision | Create new revision with ISO 19650 naming and compliance gate |
+| AutoRevisionCloud | Auto-generate revision clouds for changed elements |
+| TakeSnapshot | Capture model compliance snapshot for trend tracking |
+| RevisionCompare | Compare tag values between revision snapshots |
+
+### Platform & Data Exchange
+
+| Action Tag | Description |
+|------------|-------------|
+| PlatformSync | Bidirectional sync with CDE platform (delta detection) |
+| CDEPackage | Package files into ISO 19650 CDE folder structure |
+| CDEStatus | Set CDE status (WIP → SHARED → PUBLISHED → ARCHIVE) |
+| ValidateDocNaming | Validate document naming against ISO 19650 convention |
+| ExportToExcel | Export element data to Excel (30+ columns with tags, identity, spatial) |
+| ImportFromExcel | Import data from Excel with validation and change tracking |
+| ExcelRoundTrip | One-click export → edit → import Excel data exchange |
+| COBieExport | Export COBie V2.4 (17 worksheets) for FM handover |
+| ExportCOBie | Export COBie V2.4 FM handover data (17 worksheets, XLSX) |
+| IFCExport | Export model as IFC with STING property mapping |
+| ACCPublish | Package for Autodesk Construction Cloud / BIM 360 |
+| SharePointExport | Export to corporate SharePoint / Microsoft Teams |
+
+### QA & Validation
+
+| Action Tag | Description |
+|------------|-------------|
+| ValidateTags | Validate tag completeness and ISO 19650 compliance |
+| PreTagAudit | Dry-run audit: predict tags, collisions, ISO violations before tagging |
+| AnomalyAutoFix | Auto-fix tag anomalies (DISC/SYS/FUNC/PROD/TAG7/stale) |
+| ResolveAllIssues | One-click ISO 19650 compliance resolution (batched, 500 elements) |
+| StageComplianceGate | RIBA stage-gated compliance check with data drop requirements |
+
+### Meetings
+
+| Action Tag | Description |
+|------------|-------------|
+| NewMeeting | Create new meeting (BIM Coordination, Design Review, Client Review, Handover, Clash Resolution) |
+| AddActionItem | Create action item with assignee, due date, and priority (ACT-NNNN ID) |
+| AutoAgenda | Auto-generate agenda from open issues, pending transmittals, recent revisions |
+| LogMinutes | Record timestamped meeting minutes |
+| MeetingTemplates | Browse 5 meeting templates |
+| MeetingHistory | View past meetings with minutes and action items |
+| OpenActions | View outstanding action items grouped by overdue/assignee |
+| ExportMinutes | Export minutes to timestamped text file |
+| SendReminder | Generate email reminder for outstanding action items |
+| EscalateActions | Auto-create NCR issues from overdue meeting actions |
+
+### Permissions & Documents
+
+| Action Tag | Description |
+|------------|-------------|
+| EditUserRole | Change your active ISO 19650 role (determines CDE access and approval rights) |
+| SavePermissions | Save permission matrix to project_config.json |
+| CreateFolders | Create ISO 19650 CDE folder structure |
+| ExportPermissionMatrix | Export role-based permission matrix to CSV |
+| AddDocument | Register new deliverable in document register |
+| DocumentRegister | View/manage document register entries |
+| DocumentManager | Open Document Management Center |
