@@ -1138,3 +1138,90 @@ These 5 scenarios show the BCC solving actual coordination problems. Each one in
 
 **Result:** Complete **17-worksheet COBie V2.4 handover** delivered in **45 minutes** with **97% tag compliance**. The FM team receives a validated dataset that imports directly into their CAFM system — **no manual data re-entry**. Manual COBie population from scratch typically takes **2–3 weeks** for a project of this size.
 
+
+---
+
+## Appendix F — Complete Workflow Preset Reference
+
+StingTools ships with **26 built-in workflow presets** that chain multiple commands into single-click automation sequences. Each preset runs inside an atomic `TransactionGroup` — if any critical step fails, the entire sequence rolls back. Presets support **19 conditional operators** for adaptive execution (e.g., skip retag if no stale elements exist).
+
+### How to Run a Workflow Preset
+
+1. Open the **BCC → WORKFLOWS** tab
+2. Click a **Quick Workflow** button, or type a preset name in the command bar
+3. Monitor progress via `StingProgressDialog` — press **Escape** to cancel between steps
+4. Review the execution summary showing pass/fail/skip counts and compliance delta
+
+### General-Purpose Presets
+
+| Preset | Steps | When to Use | Time Saved |
+|--------|-------|-------------|------------|
+| **ProjectKickoff** | 26 | First-time model setup: loads params, creates materials, schedules, templates, filters, worksets, then tags everything | **4–6 hours** vs manual setup |
+| **DailyQA** | 9 | Daily quality gate: retag stale → pre-tag audit → batch tag → validate → completeness dashboard. Conditional steps skip when compliance >95% | **25–40 min**/day |
+| **DocumentPackage** | 6 | Pre-issue document assembly: sheet naming → auto-number → drawing register → sheet register → batch print → export | **30–45 min** per issue |
+| **MorningHealthCheck** | 10 | BIM coordinator morning routine: retag stale → audit → tag new → validate → sheet naming → model health → template audit → issues → revisions → dashboard | **35–50 min**/morning |
+| **HandoverReadiness** | 9 | Pre-handover validation: retag → full tag → validate → template validate → COBie export → drawing register → BOQ → update BEP → create revision | **2–3 hours** per data drop |
+| **WeeklyDataDrop** | 10 | ISO 19650 weekly information exchange: retag → resolve placeholders → validate → audit CSV → COBie → Excel export → sheet compliance → register → model health → dashboard | **1.5–2 hours**/week |
+| **PostTaggingQA** | 5 | After any major tagging operation: pre-tag audit → validate → completeness dashboard → tag register export → validate template | **15–20 min** per QA cycle |
+
+### Coordination & Review Presets
+
+| Preset | Steps | When to Use | Time Saved |
+|--------|-------|-------------|------------|
+| **ModelAuditDeep** | 8 | Comprehensive model audit: warnings → templates → data pipeline → schedules → schema → tags → sheets → compliance | **1–2 hours** per audit |
+| **MEPCoordination** | 6 | MEP clash resolution: clash detection → system push → retag → validate → warnings → compliance | **45–60 min** per coordination round |
+| **CDE_Submission** | 8 | CDE package preparation: retag → resolve → validate → sheet naming → doc naming → register → sheet register → transmittal | **1–1.5 hours** per submission |
+| **DesignReviewPrep** | 5 | Pre-design review: auto-assign templates → warnings fix → sheet naming → compliance scores → completeness | **20–30 min** before reviews |
+| **IssueResolution** | 4 | Targeted issue fix: retag stale → auto-fix → resolve all → validate. Loops until compliance gate passes | **15–25 min** per resolution cycle |
+| **ClientReviewPrep** | 7 | Client presentation prep: clear stale → templates → naming → print → register → BEP → revision | **30–45 min** before client meetings |
+| **RegulatoryScan** | 3 | Standards compliance: Part B fire + Part L energy + Part M access + BS 7671 + CIBSE checks | **20–30 min** per scan |
+| **FederatedModelAudit** | 7 | Linked model audit: federated compliance → cross-model clash → naming audit → MEP clearance → spatial connectivity → warnings → coordinator report | **1–2 hours** per federated audit |
+| **PreMeetingPrep** | 7 | Quick pre-meeting prep: stale fix → warnings fix → validate → warnings summary → issues → revisions → HTML report | **15–20 min** before any meeting |
+
+### Deliverable-Specific Presets
+
+| Preset | Steps | When to Use | Time Saved |
+|--------|-------|-------------|------------|
+| **COBieReadiness** | 7 | COBie export prep: retag stale → resolve placeholders → write containers → validate ISO → schema validate → COBie export → tag register | **45–60 min** per COBie drop |
+| **DrawingIssue** | 7 | Drawing package: auto-assign templates → naming check → fix annotation warnings → sheet compliance → batch print PDF → sheet register → create revision | **30–45 min** per issue |
+| **SpatialQA** | 6 | Spatial data audit: room audit → spatial connectivity → fix room warnings → re-populate spatial tokens → validate → dashboard | **20–30 min** per audit |
+| **EndOfDaySync** | 8 | End-of-day wrap-up: retag stale → validate → save baseline → export registers → model health → warnings export → create revision | **20–30 min**/evening |
+
+### Sector-Specific Presets
+
+| Preset | Steps | When to Use | Time Saved |
+|--------|-------|-------------|------------|
+| **Healthcare_NHS** | 8 | NHS healthcare: HTM compliance → medical gas systems → infection control zones → ventilation → fire compartmentation → COBie for CAFM → tag all → validate | **2–3 hours** per NHS audit |
+| **DataCentre** | 7 | Data centre: power distribution → cooling systems → cable tray routing → Uptime Institute tier checks → redundancy → tag all → validate | **1.5–2 hours** per DC audit |
+| **CommercialOffice** | 7 | Commercial office: BCO Guide area checks → BREEAM evidence → lease demise boundaries → occupancy loads → fit-out standards → tag all → validate | **1–1.5 hours** per office audit |
+| **Residential** | 6 | Residential: Part L thermal → Part M access → Part B fire → plot numbering → sales schedules → tag all | **45–60 min** per residential audit |
+| **Education** | 7 | Education: BB103 area guidelines → DfE output specs → safeguarding zones → FF&E schedules → BREEAM → tag all → validate | **1–1.5 hours** per school audit |
+
+### Workflow Condition Operators
+
+Workflow steps support **19 condition types** that control execution:
+
+| Condition | Effect |
+|-----------|--------|
+| `has_stale` | Skip if no stale elements detected |
+| `has_untagged` | Skip if all elements already tagged |
+| `has_warnings` | Skip if model has zero warnings |
+| `has_critical_warnings` | Skip if no CRITICAL-severity warnings |
+| `has_open_issues` | Skip if no open issues in tracker |
+| `has_overdue_issues` | Skip if no SLA-breached issues |
+| `has_links` | Skip if model has no linked Revit files |
+| `has_cad_imports` | Skip if no DWG/DXF imports detected |
+| `has_placeholders` | Skip if no GEN/XX/ZZ placeholder tokens |
+| `has_container_gaps` | Skip if containers ≥95% complete |
+| `has_rooms` | Skip if no rooms placed in model |
+| `has_sheets` | Skip if no sheets in model |
+| `compliance_above_80` | Skip if compliance already ≥80% |
+| `compliance_above_90` | Skip if compliance already ≥90% |
+| `compliance_below_50` | Skip if model too early-stage (<50%) |
+| `compliance_below_70` | Skip if compliance below 70% |
+| `has_spatial_warnings` | Skip if no spatial-category warnings |
+| `has_mep_warnings` | Skip if no MEP-category warnings |
+| `tag_compliance_below_threshold` | Skip if compliance meets `MinCompliancePct` |
+
+> **Tip**: Create custom presets by saving JSON files to `Data/WORKFLOW_*.json`. See `WORKFLOW_DailyQA_Enhanced.json` for the conditional step syntax.
+
