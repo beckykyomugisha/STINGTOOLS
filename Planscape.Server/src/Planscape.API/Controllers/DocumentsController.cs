@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.API.Controllers;
@@ -53,15 +54,15 @@ public class DocumentsController : ControllerBase
         "SHARED->PUBLISHED"  // Publishing requires prior approval per ISO 19650-2 §5.6
     };
 
-    private readonly IConfiguration _config;
+    private readonly IFileStorageService _storage;
 
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
 
-    public DocumentsController(PlanscapeDbContext db, IConfiguration config)
+    public DocumentsController(PlanscapeDbContext db, IFileStorageService storage)
     {
         _db = db;
-        _config = config;
+        _storage = storage;
     }
 
     [HttpGet]
@@ -135,40 +136,21 @@ public class DocumentsController : ControllerBase
         if (file.Length == 0) return BadRequest("File is empty");
         if (file.Length > MaxFileSize) return BadRequest($"File exceeds {MaxFileSize / (1024 * 1024)} MB limit");
 
-        // Build storage path: {root}/{tenant_slug}/{project_code}/{filename}
-        var storageRoot = _config["Storage:Path"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
         var tenantSlug = project.Tenant?.Slug ?? tenantId.ToString();
-        var folder = Path.Combine(storageRoot, tenantSlug, project.Code);
-        Directory.CreateDirectory(folder);
 
-        // Deduplicate filename if it already exists
-        var fileName = file.FileName;
-        var filePath = Path.Combine(folder, fileName);
-        if (System.IO.File.Exists(filePath))
-        {
-            var name = Path.GetFileNameWithoutExtension(fileName);
-            var ext = Path.GetExtension(fileName);
-            fileName = $"{name}_{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
-            filePath = Path.Combine(folder, fileName);
-        }
+        // Buffer upload, compute SHA-256, then persist via storage abstraction
+        using var memStream = new MemoryStream();
+        await file.CopyToAsync(memStream);
+        var contentHash = Convert.ToHexString(SHA256.HashData(memStream.ToArray())).ToLowerInvariant();
 
-        // Write file and compute SHA-256 hash
-        string contentHash;
-        await using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-        await using (var hashStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-        {
-            var hash = await SHA256.HashDataAsync(hashStream);
-            contentHash = Convert.ToHexString(hash).ToLowerInvariant();
-        }
+        memStream.Position = 0;
+        var relativePath = await _storage.SaveAsync(tenantSlug, project.Code, file.FileName, memStream);
 
         var doc = new DocumentRecord
         {
             ProjectId = projectId,
-            FileName = fileName,
-            FilePath = filePath,
+            FileName = Path.GetFileName(relativePath),
+            FilePath = relativePath,
             Description = description,
             DocumentType = documentType ?? "",
             CdeStatus = "WIP",
@@ -208,10 +190,13 @@ public class DocumentsController : ControllerBase
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
 
-        if (string.IsNullOrEmpty(doc.FilePath) || !System.IO.File.Exists(doc.FilePath))
+        if (string.IsNullOrEmpty(doc.FilePath))
             return NotFound("File not found on disk");
 
-        var stream = new FileStream(doc.FilePath, FileMode.Open, FileAccess.Read);
+        var stream = await _storage.GetAsync(doc.FilePath);
+        if (stream == null)
+            return NotFound("File not found on disk");
+
         return File(stream, "application/octet-stream", doc.FileName);
     }
 
