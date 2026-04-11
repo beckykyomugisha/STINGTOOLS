@@ -57,14 +57,16 @@ public class DocumentsController : ControllerBase
     };
 
     private readonly IFileStorageService _storage;
+    private readonly IGeofenceValidationService _geofence;
 
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
 
-    public DocumentsController(PlanscapeDbContext db, IFileStorageService storage)
+    public DocumentsController(PlanscapeDbContext db, IFileStorageService storage, IGeofenceValidationService geofence)
     {
         _db = db;
         _storage = storage;
+        _geofence = geofence;
     }
 
     [HttpGet]
@@ -270,6 +272,16 @@ public class DocumentsController : ControllerBase
         var doc = await _db.Documents
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
+
+        // S12 — geofence boundary check for mobile downloads
+        if (HttpContext.Items.TryGetValue("Latitude", out var latObj) &&
+            HttpContext.Items.TryGetValue("Longitude", out var lngObj) &&
+            latObj is double lat && lngObj is double lng)
+        {
+            var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+            if (project != null && !_geofence.IsInsideBoundary(project.BoundaryPolygon, lat, lng))
+                return StatusCode(403, new { error = "Device location is outside the project geofence boundary" });
+        }
 
         if (string.IsNullOrEmpty(doc.FilePath))
             return NotFound("File not found on disk");

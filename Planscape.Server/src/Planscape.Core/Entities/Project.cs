@@ -22,6 +22,10 @@ public class Project
     public string? TagSuffix { get; set; }
     public string? ConfigJson { get; set; } // project_config.json equivalent
 
+    // Geofence boundary (S12) — GeoJSON Polygon
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
+    public string? BoundaryPolygon { get; set; }
+
     // Compliance metrics (cached)
     public double CompliancePercent { get; set; }
     public double ContainerCompliancePercent { get; set; }

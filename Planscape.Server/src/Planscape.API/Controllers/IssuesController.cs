@@ -19,6 +19,7 @@ public class IssuesController : ControllerBase
     private readonly Planscape.Core.Interfaces.INotificationService _notifications;
     private readonly Planscape.Core.Interfaces.IPushNotificationService _push;
     private readonly IFileStorageService _storage;
+    private readonly IGeofenceValidationService _geofence;
 
     private static readonly Dictionary<string, int> SLAHours = new()
     {
@@ -30,12 +31,14 @@ public class IssuesController : ControllerBase
     public IssuesController(PlanscapeDbContext db,
         Planscape.Core.Interfaces.INotificationService notifications,
         Planscape.Core.Interfaces.IPushNotificationService push,
-        IFileStorageService storage)
+        IFileStorageService storage,
+        IGeofenceValidationService geofence)
     {
         _db = db;
         _notifications = notifications;
         _push = push;
         _storage = storage;
+        _geofence = geofence;
     }
 
     [HttpGet]
@@ -71,6 +74,15 @@ public class IssuesController : ControllerBase
         var tenantId = GetTenantId();
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
+
+        // S12 — geofence boundary check for mobile issue creation
+        if (HttpContext.Items.TryGetValue("Latitude", out var latObj) &&
+            HttpContext.Items.TryGetValue("Longitude", out var lngObj) &&
+            latObj is double lat && lngObj is double lng)
+        {
+            if (!_geofence.IsInsideBoundary(project.BoundaryPolygon, lat, lng))
+                return StatusCode(403, new { error = "Device location is outside the project geofence boundary" });
+        }
 
         // Auto-generate issue code
         var lastIssue = await _db.Issues
