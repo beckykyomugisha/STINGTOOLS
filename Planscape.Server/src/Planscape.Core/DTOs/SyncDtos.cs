@@ -125,3 +125,33 @@ public record ResetPasswordRequest
     public string Token       { get; init; } = "";
     public string NewPassword { get; init; } = "";
 }
+
+// ── Batch Operations ────────────────────────────────────────────────
+
+public record BatchRequest
+{
+    public List<BatchOperation> Operations { get; init; } = new();
+}
+
+public record BatchOperation
+{
+    public string Type { get; init; } = "";  // CREATE_ISSUE, UPDATE_ISSUE, TRANSITION_CDE
+    public System.Text.Json.JsonElement Payload { get; init; }
+}
+
+public record BatchResponse
+{
+    public int Total { get; init; }
+    public int Succeeded { get; init; }
+    public int Failed { get; init; }
+    public List<BatchOperationResult> Results { get; init; } = new();
+}
+
+public record BatchOperationResult
+{
+    public int Index { get; init; }
+    public string Type { get; init; } = "";
+    public bool Success { get; init; }
+    public string? Error { get; init; }
+    public object? Data { get; init; }
+}
