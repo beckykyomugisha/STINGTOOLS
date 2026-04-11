@@ -115,7 +115,9 @@ public class DocumentsController : ControllerBase
 
     /// <summary>
     /// Upload a file and create a document record in one step.
-    /// Stores files under {StoragePath}/{tenantSlug}/{projectCode}/.
+    /// If a DocumentRecord with the same project + filename already exists,
+    /// creates a new DocumentVersion row, increments the version number,
+    /// and updates the DocumentRecord to point at the latest file.
     /// </summary>
     [HttpPost("upload")]
     [RequestSizeLimit(MaxFileSize)]
@@ -137,6 +139,7 @@ public class DocumentsController : ControllerBase
         if (file.Length > MaxFileSize) return BadRequest($"File exceeds {MaxFileSize / (1024 * 1024)} MB limit");
 
         var tenantSlug = project.Tenant?.Slug ?? tenantId.ToString();
+        var userName = User.FindFirst("display_name")?.Value ?? "Unknown";
 
         // Buffer upload, compute SHA-256, then persist via storage abstraction
         using var memStream = new MemoryStream();
@@ -146,6 +149,68 @@ public class DocumentsController : ControllerBase
         memStream.Position = 0;
         var relativePath = await _storage.SaveAsync(tenantSlug, project.Code, file.FileName, memStream);
 
+        // Check for existing document with same project + filename
+        var existingDoc = await _db.Documents
+            .Include(d => d.Versions)
+            .FirstOrDefaultAsync(d => d.ProjectId == projectId && d.FileName == file.FileName && d.Project!.TenantId == tenantId);
+
+        if (existingDoc != null)
+        {
+            // Determine next version number
+            var maxVersion = existingDoc.Versions.Count > 0
+                ? existingDoc.Versions.Max(v => v.VersionNumber)
+                : 1; // existing record without versions is implicitly v1
+            var nextVersion = maxVersion + 1;
+
+            // If there are no version rows yet, create one for the original upload
+            if (existingDoc.Versions.Count == 0 && !string.IsNullOrEmpty(existingDoc.FilePath))
+            {
+                _db.DocumentVersions.Add(new DocumentVersion
+                {
+                    DocumentId = existingDoc.Id,
+                    VersionNumber = 1,
+                    FilePath = existingDoc.FilePath,
+                    FileSizeBytes = existingDoc.FileSizeBytes,
+                    ContentHash = existingDoc.ContentHash,
+                    UploadedBy = existingDoc.UploadedBy,
+                    UploadedAt = existingDoc.UploadedAt
+                });
+            }
+
+            // Create version row for the new upload
+            _db.DocumentVersions.Add(new DocumentVersion
+            {
+                DocumentId = existingDoc.Id,
+                VersionNumber = nextVersion,
+                FilePath = relativePath,
+                FileSizeBytes = file.Length,
+                ContentHash = contentHash,
+                UploadedBy = userName,
+                UploadedAt = DateTime.UtcNow
+            });
+
+            // Update the head record to point at the latest file
+            existingDoc.FilePath = relativePath;
+            existingDoc.FileSizeBytes = file.Length;
+            existingDoc.ContentHash = contentHash;
+            existingDoc.Revision = revision ?? $"P{nextVersion:D2}";
+            existingDoc.UpdatedAt = DateTime.UtcNow;
+            if (description != null) existingDoc.Description = description;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                existingDoc.Id, existingDoc.FileName, existingDoc.FilePath, existingDoc.DocumentType,
+                existingDoc.CdeStatus, existingDoc.SuitabilityCode, existingDoc.Discipline,
+                existingDoc.Revision, existingDoc.FileSizeBytes, existingDoc.ContentHash,
+                existingDoc.UploadedBy, existingDoc.UploadedAt,
+                VersionNumber = nextVersion,
+                Message = $"New version {nextVersion} created"
+            });
+        }
+
+        // First upload — create new DocumentRecord + initial version row
         var doc = new DocumentRecord
         {
             ProjectId = projectId,
@@ -157,25 +222,39 @@ public class DocumentsController : ControllerBase
             SuitabilityCode = "S0",
             Discipline = discipline,
             Originator = originator,
-            Revision = revision,
+            Revision = revision ?? "P01",
             FileSizeBytes = file.Length,
             ContentHash = contentHash,
-            UploadedBy = User.FindFirst("display_name")?.Value ?? "Unknown",
+            UploadedBy = userName,
             StatusHistoryJson = JsonConvert.SerializeObject(new[]
             {
                 new { timestamp = DateTime.UtcNow, oldState = "", newState = "WIP", suitability = "S0",
-                    user = User.FindFirst("display_name")?.Value ?? "Unknown" }
+                    user = userName }
             })
         };
 
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
 
+        // Create version 1 row
+        _db.DocumentVersions.Add(new DocumentVersion
+        {
+            DocumentId = doc.Id,
+            VersionNumber = 1,
+            FilePath = relativePath,
+            FileSizeBytes = file.Length,
+            ContentHash = contentHash,
+            UploadedBy = userName,
+            UploadedAt = doc.UploadedAt
+        });
+        await _db.SaveChangesAsync();
+
         return CreatedAtAction(nameof(GetDocuments), new { projectId }, new
         {
             doc.Id, doc.FileName, doc.FilePath, doc.DocumentType,
             doc.CdeStatus, doc.SuitabilityCode, doc.Discipline, doc.Revision,
-            doc.FileSizeBytes, doc.ContentHash, doc.UploadedBy, doc.UploadedAt
+            doc.FileSizeBytes, doc.ContentHash, doc.UploadedBy, doc.UploadedAt,
+            VersionNumber = 1
         });
     }
 
@@ -194,6 +273,59 @@ public class DocumentsController : ControllerBase
             return NotFound("File not found on disk");
 
         var stream = await _storage.GetAsync(doc.FilePath);
+        if (stream == null)
+            return NotFound("File not found on disk");
+
+        return File(stream, "application/octet-stream", doc.FileName);
+    }
+
+    /// <summary>
+    /// Returns the version history for a document.
+    /// </summary>
+    [HttpGet("{docId}/versions")]
+    public async Task<ActionResult> GetVersions(Guid projectId, Guid docId)
+    {
+        var tenantId = GetTenantId();
+        var doc = await _db.Documents
+            .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
+        if (doc == null) return NotFound();
+
+        var versions = await _db.DocumentVersions
+            .Where(v => v.DocumentId == docId)
+            .OrderByDescending(v => v.VersionNumber)
+            .Select(v => new
+            {
+                v.Id,
+                v.VersionNumber,
+                v.FileSizeBytes,
+                v.ContentHash,
+                v.UploadedBy,
+                v.UploadedAt
+            })
+            .ToListAsync();
+
+        return Ok(versions);
+    }
+
+    /// <summary>
+    /// Download a specific historical version of a document.
+    /// </summary>
+    [HttpGet("{docId}/versions/{versionNumber:int}/download")]
+    public async Task<ActionResult> DownloadVersion(Guid projectId, Guid docId, int versionNumber)
+    {
+        var tenantId = GetTenantId();
+        var doc = await _db.Documents
+            .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
+        if (doc == null) return NotFound();
+
+        var version = await _db.DocumentVersions
+            .FirstOrDefaultAsync(v => v.DocumentId == docId && v.VersionNumber == versionNumber);
+        if (version == null) return NotFound("Version not found");
+
+        if (string.IsNullOrEmpty(version.FilePath))
+            return NotFound("File not found on disk");
+
+        var stream = await _storage.GetAsync(version.FilePath);
         if (stream == null)
             return NotFound("File not found on disk");
 

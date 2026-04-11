@@ -26,6 +26,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
     public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
+    public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
 
     // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
@@ -207,6 +208,14 @@ public class PlanscapeDbContext : DbContext
             e.Property(c => c.AccessToken).HasMaxLength(4000);
             e.Property(c => c.RefreshToken).HasMaxLength(4000);
             e.Property(c => c.WebhookSecret).HasMaxLength(500);
+        });
+
+        // ── DocumentVersion ──
+        modelBuilder.Entity<DocumentVersion>(e =>
+        {
+            e.HasKey(v => v.Id);
+            e.HasOne(v => v.Document).WithMany(d => d.Versions).HasForeignKey(v => v.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(v => new { v.DocumentId, v.VersionNumber }).IsUnique();
         });
 
         // ── Planscape MIM Entities ──
