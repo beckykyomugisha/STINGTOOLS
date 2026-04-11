@@ -42,6 +42,134 @@ The BCC covers the full BIM coordinator lifecycle:
 
 ---
 
+## 2a. Complete Abbreviations and Acronyms
+
+This reference covers every abbreviation you will encounter in the BCC and StingTools documentation.
+
+### Standards and Frameworks
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **ISO 19650** | International Standard for information management using BIM | The rulebook that governs how building data is created, named, shared, and archived across a project's lifecycle |
+| **BIM** | Building Information Modelling | A process that uses 3D models enriched with data — not just geometry but cost, material, maintenance, and performance attributes |
+| **BEP** | BIM Execution Plan | The project's BIM playbook: who does what, when, to what level of detail, and how information is exchanged — StingTools generates 22 sector-specific BEP presets |
+| **EIR** | Exchange Information Requirements | The client's wish-list: what data they need, at what RIBA stage, in what format — the BEP responds to the EIR |
+| **OIR** | Organisational Information Requirements | The client organisation's high-level data needs (e.g. "we need asset data for CAFM integration") |
+| **PIR** | Project Information Requirements | OIR translated into project-specific deliverables (e.g. "COBie for every MEP asset by DD3") |
+| **AIR** | Asset Information Requirements | Data needed for ongoing operations and maintenance after handover |
+| **MIDP** | Master Information Delivery Plan | The overall timetable for who produces what information, by when, at what suitability |
+| **TIDP** | Task Information Delivery Plan | Each discipline's detailed plan that feeds into the MIDP |
+| **PAS 1192** | Publicly Available Specification 1192 | The predecessor to ISO 19650, still referenced in legacy UK contracts |
+| **BS 1192** | British Standard 1192 | Naming conventions and CDE folder structures — now superseded by ISO 19650 but still widely used for file naming |
+| **LOD** | Level of Detail | How geometrically detailed a model element needs to be (LOD 100 = conceptual box, LOD 400 = fabrication-ready) |
+| **LOI** | Level of Information | How much non-geometric data (parameters, specifications) an element carries |
+| **LOA** | Level of Accuracy | How precisely geometry matches real-world as-built dimensions |
+| **RIBA** | Royal Institute of British Architects | Their Plan of Work defines 8 project stages (0–7) that govern when information is due |
+| **CDM 2015** | Construction Design and Management Regulations | UK H&S legislation requiring hazard data in BIM models |
+| **CIBSE** | Chartered Institution of Building Services Engineers | Publishes guides for MEP system design — StingTools uses CIBSE velocity limits and TM40 function codes |
+| **COBie** | Construction Operations Building Information Exchange | A 17-worksheet spreadsheet format for handing asset data to facilities managers — StingTools exports with 22 project-type presets |
+| **IFC** | Industry Foundation Classes | A vendor-neutral file format (ISO 16739) for exchanging BIM data between Revit, ArchiCAD, Tekla, etc. |
+| **BCF** | BIM Collaboration Format | An XML format for sharing clash/issue data between tools — StingTools exports BCF 2.1 with camera viewpoints |
+| **SFG20** | Standard for Good Practice in Maintenance | Defines maintenance task schedules — referenced in COBie Job worksheet |
+| **BS 8210** | Guide to Facilities Maintenance Management | UK standard for planned preventive maintenance — referenced in COBie spare parts data |
+| **Uniclass** | Unified Classification for the Construction Industry | A UK classification system with codes for systems (Ss), products (Pr), and spaces — used in STING SYS and FUNC codes |
+
+### CDE and Document Management
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **CDE** | Common Data Environment | The shared digital filing system — all project information lives here, moving through states (WIP → SHARED → PUBLISHED → ARCHIVE) |
+| **WIP** | Work In Progress | CDE state: file is being developed by the originator — not visible to other parties |
+| **S0** | Suitability Code: Work In Progress | Document is incomplete and not ready for coordination |
+| **S1** | Suitability Code: Fit for Coordination | Ready for checking against other disciplines |
+| **S2** | Suitability Code: Fit for Information | For reference only — not for design decisions |
+| **S3** | Suitability Code: Fit for Review and Comment | Issued for formal review with tracked comments |
+| **S4** | Suitability Code: Fit for Stage Approval | Design freeze — submitted for client or stage sign-off |
+| **S5** | Suitability Code: Fit for Manufacturing/Procurement | Approved for procurement, fabrication, or ordering |
+| **S6** | Suitability Code: Fit for PIM Authorization | Authorised for the Project Information Model |
+| **S7** | Suitability Code: Fit for AIM Authorization | Authorised for the Asset Information Model (handover to FM) |
+| **CR** | Code: Correspondence | Document type code for letters, emails, and formal communications |
+| **AB** | Code: As-Built | Indicates a document reflects the constructed (not designed) state |
+| **DD1** | Data Drop 1 — Concept (RIBA Stage 2) | First milestone: ≥30% tag compliance required |
+| **DD2** | Data Drop 2 — Design (RIBA Stage 3) | Second milestone: ≥60% tag compliance, COBie Type and System sheets required |
+| **DD3** | Data Drop 3 — Construction (RIBA Stage 4–5) | Third milestone: ≥85% tag compliance, full COBie export, O&M data |
+| **DD4** | Data Drop 4 — Handover (RIBA Stage 6) | Final milestone: ≥95% tag compliance, complete COBie, digital twin ready |
+| **TX** | Transmittal | A formal document exchange record with unique ID (TX-0001), tracking who sent what to whom |
+| **DR** | Drawing (2D) | Document type code for traditional 2D drawings and plans |
+| **M3** | 3D Model | Document type code for a three-dimensional Revit/IFC model |
+| **CM** | Combined Model (Federated) | Document type code for a federated model merging multiple discipline models |
+| **BQ** | Bill of Quantities | Document type code for priced quantities of materials and labour |
+| **CA** | Calculations | Document type code for engineering calculations and analysis reports |
+| **IE** | Information Exchange (COBie) | Document type code specifically for COBie data exchange files |
+| **MI** | Minutes / Action Notes | Document type code for meeting records and follow-up actions |
+| **HS** | Health and Safety | Document type code for CDM documentation, risk assessments, and H&S plans |
+
+### Issue Types
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **NCR** | Non-Conformance Report | Something does not meet the BEP, EIR, or agreed standard — **default priority: HIGH** |
+| **RFI** | Request for Information | A formal question requiring a documented answer — **default priority: MEDIUM** |
+| **RFA** | Request for Approval | Formal submission requiring sign-off from client or lead designer |
+| **TQ** | Technical Query | Technical question needing a specialist response |
+| **SI** | Site Instruction | On-site directive to change or clarify construction work |
+| **EWN** | Early Warning Notice | NEC-contractual alert: a risk that may affect time, cost, or quality |
+| **CE** | Compensation Event | NEC contract: a change event with cost or programme implications |
+| **VO** | Variation Order | JCT/FIDIC contract: formal instruction to change the scope of works |
+| **AI** | Architect's Instruction | Formal instruction issued by the lead designer |
+| **PMI** | Project Manager's Instruction | Instruction from the project manager directing action |
+| **CVI** | Confirmation of Verbal Instruction | Written confirmation of a previously spoken instruction |
+| **SLA** | Service Level Agreement | Time thresholds for issue resolution: CRITICAL = 4 hours, HIGH = 24 hours, MEDIUM = 7 days, LOW = 14 days |
+
+### Discipline Codes
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **M** | Mechanical | HVAC, heating, cooling, ventilation — covers ductwork, air handling, heat exchangers |
+| **E** | Electrical | Power distribution, lighting, fire alarm, data/comms |
+| **P** | Plumbing | Domestic water, sanitary drainage, rainwater, gas |
+| **A** | Architectural | Walls, doors, windows, ceilings, finishes |
+| **S** | Structural | Columns, beams, slabs, foundations, steelwork |
+| **FP** | Fire Protection | Sprinklers, fire suppression, fire-rated barriers |
+| **LV** | Low Voltage | Data, security, comms, access control systems |
+| **G** | General | Elements that don't fit a specific discipline |
+
+### Status and Tracking
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **RAG** | Red / Amber / Green | Traffic-light status: RED <50% compliance, AMBER 50–80%, GREEN ≥80% |
+| **KPI** | Key Performance Indicator | Measurable metric — the BCC overview shows 5 KPIs: elements, compliance %, warnings, issues, containers |
+| **SEQ** | Sequence Number | The 4-digit serial number at the end of a tag (e.g. `0003`) — auto-incremented per discipline/system group |
+| **EVM** | Earned Value Management | 4D/5D metric: CPI (Cost Performance Index) and SPI (Schedule Performance Index) measure project efficiency |
+| **CPI** | Cost Performance Index | EVM metric: CPI > 1.0 = under budget, CPI < 1.0 = over budget |
+| **SPI** | Schedule Performance Index | EVM metric: SPI > 1.0 = ahead of schedule, SPI < 1.0 = behind schedule |
+
+### MEP System and Equipment Codes
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **HVAC** | Heating, Ventilation and Air Conditioning | System code for ductwork, AHUs, FCUs, VAVs — the largest MEP system group |
+| **HWS** | Hot Water Supply | System code for domestic hot water distribution |
+| **DHW** | Domestic Hot Water | System code for heated potable water (boilers, calorifiers, cylinders) |
+| **DCW** | Domestic Cold Water | System code for potable cold water supply from mains |
+| **SAN** | Sanitary | System code for waste drainage — toilets, basins, showers |
+| **RWD** | Rainwater Drainage | System code for roof drainage, gutters, and downpipes |
+| **GAS** | Gas Supply | System code for natural gas distribution |
+| **FP** | Fire Protection (system) | System code for sprinkler and suppression systems |
+| **LV** | Low Voltage (system) | System code for data, telecoms, security, AV systems |
+| **FLS** | Fire Life Safety | System code for fire detection, alarm panels, emergency lighting |
+| **COM** | Communications | System code for structured cabling and telecoms |
+| **ICT** | Information and Communications Technology | System code for data networks, server rooms, Wi-Fi |
+| **AHU** | Air Handling Unit | Product code: large HVAC unit with fans, filters, heating/cooling coils |
+| **FCU** | Fan Coil Unit | Product code: small terminal HVAC unit serving a single zone |
+| **VAV** | Variable Air Volume | Product code: duct terminal that varies airflow to a zone |
+| **DB** | Distribution Board | Product code: electrical panel distributing power to circuits |
+| **WC** | Water Closet (Toilet) | Product code: sanitary fitting for plumbing discipline |
+| **WHB** | Wash Hand Basin | Product code: sanitary basin fitting |
+| **SPR** | Sprinkler Head | Product code: fire suppression discharge point |
+
+
 ## 3. Opening the BCC
 
 1. In Revit, look at the **STING Tools dockable panel** on the right side of your screen.
