@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.API.Controllers;
@@ -15,7 +16,7 @@ public class IssuesController : ControllerBase
     private readonly PlanscapeDbContext _db;
     private readonly Planscape.Core.Interfaces.INotificationService _notifications;
     private readonly Planscape.Core.Interfaces.IPushNotificationService _push;
-    private readonly IConfiguration _config;
+    private readonly IFileStorageService _storage;
 
     private static readonly Dictionary<string, int> SLAHours = new()
     {
@@ -27,12 +28,12 @@ public class IssuesController : ControllerBase
     public IssuesController(PlanscapeDbContext db,
         Planscape.Core.Interfaces.INotificationService notifications,
         Planscape.Core.Interfaces.IPushNotificationService push,
-        IConfiguration config)
+        IFileStorageService storage)
     {
         _db = db;
         _notifications = notifications;
         _push = push;
-        _config = config;
+        _storage = storage;
     }
 
     [HttpGet]
@@ -175,37 +176,23 @@ public class IssuesController : ControllerBase
         var project = await _db.Projects.Include(p => p.Tenant).FirstOrDefaultAsync(p => p.Id == projectId);
         if (project == null) return NotFound("Project not found");
 
-        // Store in {root}/{tenant}/{project}/issues/{issueCode}/
-        var storageRoot = _config["Storage:Path"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
         var tenantSlug = project.Tenant?.Slug ?? tenantId.ToString();
-        var folder = Path.Combine(storageRoot, tenantSlug, project.Code, "issues", issue.IssueCode);
-        Directory.CreateDirectory(folder);
 
-        var fileName = file.FileName;
-        var filePath = Path.Combine(folder, fileName);
-        if (System.IO.File.Exists(filePath))
-        {
-            var name = Path.GetFileNameWithoutExtension(fileName);
-            var ext = Path.GetExtension(fileName);
-            fileName = $"{name}_{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
-            filePath = Path.Combine(folder, fileName);
-        }
+        // Buffer upload, compute SHA-256, then persist via storage abstraction
+        using var memStream = new MemoryStream();
+        await file.CopyToAsync(memStream);
+        var contentHash = Convert.ToHexString(SHA256.HashData(memStream.ToArray())).ToLowerInvariant();
 
-        string contentHash;
-        await using (var stream = new FileStream(filePath, FileMode.Create))
-            await file.CopyToAsync(stream);
-        await using (var hashStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-        {
-            var hash = await SHA256.HashDataAsync(hashStream);
-            contentHash = Convert.ToHexString(hash).ToLowerInvariant();
-        }
+        memStream.Position = 0;
+        var subPath = $"{project.Code}/issues/{issue.IssueCode}";
+        var relativePath = await _storage.SaveAsync(tenantSlug, subPath, file.FileName, memStream);
 
         // Create a DocumentRecord for the file
         var doc = new DocumentRecord
         {
             ProjectId = projectId,
-            FileName = fileName,
-            FilePath = filePath,
+            FileName = Path.GetFileName(relativePath),
+            FilePath = relativePath,
             DocumentType = "ATTACHMENT",
             CdeStatus = "WIP",
             SuitabilityCode = "S0",
