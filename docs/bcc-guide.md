@@ -121,3 +121,176 @@ Five buttons for the most common coordinator tasks:
 
 If you have run workflows before, the BCC calculates a compliance trend from the last 5 runs and projects your compliance 3 cycles ahead, showing whether you are trending up, down, or stable.
 
+---
+
+## 5. Model Health Tab
+
+The **Model Health** tab is your diagnostic centre. It answers: "Is my model in good shape?"
+
+### Health Checks
+
+A list of checks runs automatically when you open this tab. Each check shows:
+
+- A **score** (e.g., 8/10)
+- A **pass/fail icon** (green tick or red cross)
+- A **Fix button** for failing checks
+
+| Check | What it measures | Fix action |
+|-------|-----------------|------------|
+| Warnings | Count and severity of Revit warnings | Auto-Fix Warnings |
+| Tag Completeness | % of elements with complete 8-segment tags | Tag New Only |
+| Stale Elements | Elements moved/changed since last tag | Retag Stale |
+| Parameters | Whether STING shared parameters are bound | Load Shared Params |
+| Containers | Whether discipline containers are populated | Combine Parameters |
+| Formulas | Whether 199 formulas have been evaluated | Evaluate Formulas |
+
+### Action Panels
+
+Click a failing check's **Fix** button to open an inline panel with:
+- A description of the problem
+- An element count showing how many elements are affected
+- A one-click fix button
+
+### Bottom Toolbar
+
+| Button | Action |
+|--------|--------|
+| Refresh Health | Recalculate all health metrics |
+| 45-Point Validation | Run the comprehensive template validation (data files, parameters, formulas, schedules, cross-references) |
+
+---
+
+## 6. Warnings Tab
+
+Revit generates warnings when something is wrong with the model — overlapping walls, duplicate marks, unconnected pipes. The **Warnings** tab classifies every warning by category and severity so you can fix the worst ones first.
+
+### Warning Tree
+
+Warnings are displayed in a **TreeView** grouped by category (Geometric, Spatial, MEP, Structural, Annotation, Data, Compliance, etc.). Expand a category node to see individual warning descriptions, each showing how many elements are affected.
+
+- **Double-click** a warning node to select the affected elements and zoom to them in a 3D section box view.
+- **Right-click** for a context menu: Zoom to 3D, Select Elements, Suppress Warning.
+
+### Warning Severity Levels
+
+| Severity | Meaning | SLA (time to fix) |
+|----------|---------|-------------------|
+| CRITICAL | Blocks deliverables (COBie, handover) | 4 hours |
+| HIGH | Affects data quality | 24 hours |
+| MEDIUM | Should be resolved before next milestone | 1 week |
+| LOW | Cosmetic or informational | 2 weeks |
+
+### Warning Actions
+
+| Button | What it does |
+|--------|-------------|
+| Auto-Fix Warnings | Automatically resolves: duplicate instances, room separation overlaps, duplicate marks, wall join issues |
+| Create Issues from Warnings | Converts critical/high warnings into NCR/SI issue records for tracking |
+| Export Warnings | Exports all warnings to CSV for BIM 360 / Aconex upload |
+| Save Baseline | Saves current warning count as a baseline for trend comparison |
+| Suppress Warnings | Hides specific warning types from the dashboard (persisted to config) |
+| Compliance Mapping | Maps warnings to ISO 19650 / CIBSE / BS 7671 standard requirements |
+
+### Health Score
+
+A weighted score from 0–100 displayed at the top:
+- Critical warnings: −20 points each
+- High: −5 each
+- Medium: −2 each
+- Low: −1 each
+
+---
+
+## 7. Issues Tab
+
+The **Issues** tab is your issue tracker — like a simplified Jira inside Revit. Every RFI, clash, snagging item, and non-conformance lives here.
+
+### Issue Types (20 types)
+
+Issues are colour-coded by type. Common types include:
+
+| Type | Code | When to use |
+|------|------|-------------|
+| Request for Information | RFI | When design information is unclear |
+| Non-Conformance Report | NCR | When something does not meet the standard |
+| Site Instruction | SI | When issuing a directive on-site |
+| Clash | CLASH | When two elements occupy the same space |
+| Snagging | SNAG | Defects found during inspection |
+| Design Change | DCR | When the design is formally changed |
+| Health & Safety | HSE | Safety-related observations |
+
+### Issue DataGrid
+
+A full data table shows all issues with columns:
+
+| Column | Description |
+|--------|-------------|
+| ID | Unique identifier (e.g., RFI-0001, NCR-0012) |
+| Title | Short description |
+| Type | Issue type code |
+| Priority | CRITICAL, HIGH, MEDIUM, LOW |
+| Status | OPEN, IN PROGRESS, CLOSED |
+| Assignee | Person responsible |
+| Created | Date raised |
+| Age | Days since creation |
+
+- **Overdue issues** are highlighted in red based on SLA thresholds (CRITICAL = 4 hours, HIGH = 24 hours).
+- **Double-click** a row to select linked elements in the model and zoom to them.
+- **Right-click** for context menu: Zoom to 3D Section Box, Select Elements, Update Status.
+
+### Issue Actions
+
+| Button | What it does |
+|--------|-------------|
+| Raise Issue | Create a new issue linked to selected Revit elements |
+| Update Issue | Change status, priority, or assignee |
+| BCF Export | Export issues as BCF 2.1 XML for Navisworks / Solibri / BIMcollab |
+| BCF Import | Import issues from external clash detection tools |
+| From Warnings | Auto-create NCR/SI issues from critical/high warnings |
+| Bulk Close | Close multiple resolved issues at once |
+
+### SLA Gate
+
+At the top of the tab, a gate indicator shows PASS or FAIL:
+- **PASS** — No critical or overdue issues
+- **FAIL** — Critical or overdue issues require resolution before handover
+
+---
+
+## 8. Revisions Tab
+
+The **Revisions** tab tracks changes to the model over time, following ISO 19650 revision procedures.
+
+### Revision DataGrid
+
+| Column | Description |
+|--------|-------------|
+| ID | Revision sequence number |
+| Name | ISO 19650 formatted name |
+| Date | Date created |
+| Description | What changed |
+| Clouds | Number of revision clouds |
+| Status | Current/superseded |
+
+- **Double-click** a revision to see a detailed dashboard with per-element changes.
+- **Right-click** for context menu: Zoom to 3D, View Details, Compare.
+
+### Revision Actions
+
+| Button | What it does |
+|--------|-------------|
+| Create Revision | Create a new revision with ISO 19650 naming. Includes a compliance gate — if tag compliance is below 80%, you are warned before proceeding. |
+| Take Snapshot | Capture the current model state (tag %, containers %, warnings, stale count) for later comparison |
+| Compare Revisions | Select two snapshots and see exactly which tokens changed on which elements |
+| Auto Rev Clouds | Automatically generate revision clouds around elements that changed since the last revision |
+| Revision Schedule | View/create Revit revision schedules |
+
+### Why Snapshots Matter
+
+A snapshot records every element's tag values at a point in time. When you compare two snapshots, you get a CSV showing:
+- **ADDED** — New elements tagged since the last snapshot
+- **CHANGED** — Elements whose tokens changed (with old and new values)
+- **REMOVED** — Elements deleted since the last snapshot
+
+This is essential for ISO 19650 audit trails.
+
