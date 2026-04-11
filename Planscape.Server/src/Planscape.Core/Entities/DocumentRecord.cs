@@ -25,4 +25,5 @@ public class DocumentRecord
 
     // Navigation
     public Project? Project { get; set; }
+    public List<DocumentVersion> Versions { get; set; } = new();
 }

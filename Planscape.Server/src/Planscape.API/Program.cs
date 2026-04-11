@@ -55,7 +55,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // ── Services ──
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
+builder.Services.AddScoped<Planscape.Core.Interfaces.IGeofenceValidationService, Planscape.Infrastructure.Services.GeofenceValidationService>();
 
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
@@ -173,6 +176,21 @@ builder.Services.AddRateLimiter(options =>
         o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         o.QueueLimit          = 0;
     });
+
+    // Mobile: 120 req/min per device (partitioned by X-Device-Id header, IP fallback)
+    options.AddPolicy("mobile", context =>
+    {
+        var deviceId = context.Request.Headers["X-Device-Id"].FirstOrDefault()
+                       ?? context.Connection.RemoteIpAddress?.ToString()
+                       ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(deviceId, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 120,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0
+        });
+    });
 });
 
 // ── CORS for web dashboard ──
@@ -199,6 +217,7 @@ app.UseRateLimiter();
 app.UseCors("Dashboard");
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // Must run AFTER auth so JWT claims are available
+app.UseMiddleware<MobileContextMiddleware>();
 app.UseAuthorization();
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions

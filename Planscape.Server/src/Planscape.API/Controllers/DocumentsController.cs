@@ -1,9 +1,11 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Planscape.Core.Entities;
+using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.API.Controllers;
@@ -15,6 +17,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/[controller]")]
 [Authorize]
+[EnableRateLimiting("mobile")]
 public class DocumentsController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -53,15 +56,17 @@ public class DocumentsController : ControllerBase
         "SHARED->PUBLISHED"  // Publishing requires prior approval per ISO 19650-2 §5.6
     };
 
-    private readonly IConfiguration _config;
+    private readonly IFileStorageService _storage;
+    private readonly IGeofenceValidationService _geofence;
 
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
 
-    public DocumentsController(PlanscapeDbContext db, IConfiguration config)
+    public DocumentsController(PlanscapeDbContext db, IFileStorageService storage, IGeofenceValidationService geofence)
     {
         _db = db;
-        _config = config;
+        _storage = storage;
+        _geofence = geofence;
     }
 
     [HttpGet]
@@ -114,7 +119,9 @@ public class DocumentsController : ControllerBase
 
     /// <summary>
     /// Upload a file and create a document record in one step.
-    /// Stores files under {StoragePath}/{tenantSlug}/{projectCode}/.
+    /// If a DocumentRecord with the same project + filename already exists,
+    /// creates a new DocumentVersion row, increments the version number,
+    /// and updates the DocumentRecord to point at the latest file.
     /// </summary>
     [HttpPost("upload")]
     [RequestSizeLimit(MaxFileSize)]
@@ -135,65 +142,123 @@ public class DocumentsController : ControllerBase
         if (file.Length == 0) return BadRequest("File is empty");
         if (file.Length > MaxFileSize) return BadRequest($"File exceeds {MaxFileSize / (1024 * 1024)} MB limit");
 
-        // Build storage path: {root}/{tenant_slug}/{project_code}/{filename}
-        var storageRoot = _config["Storage:Path"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
         var tenantSlug = project.Tenant?.Slug ?? tenantId.ToString();
-        var folder = Path.Combine(storageRoot, tenantSlug, project.Code);
-        Directory.CreateDirectory(folder);
+        var userName = User.FindFirst("display_name")?.Value ?? "Unknown";
 
-        // Deduplicate filename if it already exists
-        var fileName = file.FileName;
-        var filePath = Path.Combine(folder, fileName);
-        if (System.IO.File.Exists(filePath))
+        // Buffer upload, compute SHA-256, then persist via storage abstraction
+        using var memStream = new MemoryStream();
+        await file.CopyToAsync(memStream);
+        var contentHash = Convert.ToHexString(SHA256.HashData(memStream.ToArray())).ToLowerInvariant();
+
+        memStream.Position = 0;
+        var relativePath = await _storage.SaveAsync(tenantSlug, project.Code, file.FileName, memStream);
+
+        // Check for existing document with same project + filename
+        var existingDoc = await _db.Documents
+            .Include(d => d.Versions)
+            .FirstOrDefaultAsync(d => d.ProjectId == projectId && d.FileName == file.FileName && d.Project!.TenantId == tenantId);
+
+        if (existingDoc != null)
         {
-            var name = Path.GetFileNameWithoutExtension(fileName);
-            var ext = Path.GetExtension(fileName);
-            fileName = $"{name}_{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
-            filePath = Path.Combine(folder, fileName);
+            // Determine next version number
+            var maxVersion = existingDoc.Versions.Count > 0
+                ? existingDoc.Versions.Max(v => v.VersionNumber)
+                : 1; // existing record without versions is implicitly v1
+            var nextVersion = maxVersion + 1;
+
+            // If there are no version rows yet, create one for the original upload
+            if (existingDoc.Versions.Count == 0 && !string.IsNullOrEmpty(existingDoc.FilePath))
+            {
+                _db.DocumentVersions.Add(new DocumentVersion
+                {
+                    DocumentId = existingDoc.Id,
+                    VersionNumber = 1,
+                    FilePath = existingDoc.FilePath,
+                    FileSizeBytes = existingDoc.FileSizeBytes,
+                    ContentHash = existingDoc.ContentHash,
+                    UploadedBy = existingDoc.UploadedBy,
+                    UploadedAt = existingDoc.UploadedAt
+                });
+            }
+
+            // Create version row for the new upload
+            _db.DocumentVersions.Add(new DocumentVersion
+            {
+                DocumentId = existingDoc.Id,
+                VersionNumber = nextVersion,
+                FilePath = relativePath,
+                FileSizeBytes = file.Length,
+                ContentHash = contentHash,
+                UploadedBy = userName,
+                UploadedAt = DateTime.UtcNow
+            });
+
+            // Update the head record to point at the latest file
+            existingDoc.FilePath = relativePath;
+            existingDoc.FileSizeBytes = file.Length;
+            existingDoc.ContentHash = contentHash;
+            existingDoc.Revision = revision ?? $"P{nextVersion:D2}";
+            existingDoc.UpdatedAt = DateTime.UtcNow;
+            if (description != null) existingDoc.Description = description;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                existingDoc.Id, existingDoc.FileName, existingDoc.FilePath, existingDoc.DocumentType,
+                existingDoc.CdeStatus, existingDoc.SuitabilityCode, existingDoc.Discipline,
+                existingDoc.Revision, existingDoc.FileSizeBytes, existingDoc.ContentHash,
+                existingDoc.UploadedBy, existingDoc.UploadedAt,
+                VersionNumber = nextVersion,
+                Message = $"New version {nextVersion} created"
+            });
         }
 
-        // Write file and compute SHA-256 hash
-        string contentHash;
-        await using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-        await using (var hashStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-        {
-            var hash = await SHA256.HashDataAsync(hashStream);
-            contentHash = Convert.ToHexString(hash).ToLowerInvariant();
-        }
-
+        // First upload — create new DocumentRecord + initial version row
         var doc = new DocumentRecord
         {
             ProjectId = projectId,
-            FileName = fileName,
-            FilePath = filePath,
+            FileName = Path.GetFileName(relativePath),
+            FilePath = relativePath,
             Description = description,
             DocumentType = documentType ?? "",
             CdeStatus = "WIP",
             SuitabilityCode = "S0",
             Discipline = discipline,
             Originator = originator,
-            Revision = revision,
+            Revision = revision ?? "P01",
             FileSizeBytes = file.Length,
             ContentHash = contentHash,
-            UploadedBy = User.FindFirst("display_name")?.Value ?? "Unknown",
+            UploadedBy = userName,
             StatusHistoryJson = JsonConvert.SerializeObject(new[]
             {
                 new { timestamp = DateTime.UtcNow, oldState = "", newState = "WIP", suitability = "S0",
-                    user = User.FindFirst("display_name")?.Value ?? "Unknown" }
+                    user = userName }
             })
         };
 
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
 
+        // Create version 1 row
+        _db.DocumentVersions.Add(new DocumentVersion
+        {
+            DocumentId = doc.Id,
+            VersionNumber = 1,
+            FilePath = relativePath,
+            FileSizeBytes = file.Length,
+            ContentHash = contentHash,
+            UploadedBy = userName,
+            UploadedAt = doc.UploadedAt
+        });
+        await _db.SaveChangesAsync();
+
         return CreatedAtAction(nameof(GetDocuments), new { projectId }, new
         {
             doc.Id, doc.FileName, doc.FilePath, doc.DocumentType,
             doc.CdeStatus, doc.SuitabilityCode, doc.Discipline, doc.Revision,
-            doc.FileSizeBytes, doc.ContentHash, doc.UploadedBy, doc.UploadedAt
+            doc.FileSizeBytes, doc.ContentHash, doc.UploadedBy, doc.UploadedAt,
+            VersionNumber = 1
         });
     }
 
@@ -208,10 +273,76 @@ public class DocumentsController : ControllerBase
             .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
         if (doc == null) return NotFound();
 
-        if (string.IsNullOrEmpty(doc.FilePath) || !System.IO.File.Exists(doc.FilePath))
+        // S12 — geofence boundary check for mobile downloads
+        if (HttpContext.Items.TryGetValue("Latitude", out var latObj) &&
+            HttpContext.Items.TryGetValue("Longitude", out var lngObj) &&
+            latObj is double lat && lngObj is double lng)
+        {
+            var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+            if (project != null && !_geofence.IsInsideBoundary(project.BoundaryPolygon, lat, lng))
+                return StatusCode(403, new { error = "Device location is outside the project geofence boundary" });
+        }
+
+        if (string.IsNullOrEmpty(doc.FilePath))
             return NotFound("File not found on disk");
 
-        var stream = new FileStream(doc.FilePath, FileMode.Open, FileAccess.Read);
+        var stream = await _storage.GetAsync(doc.FilePath);
+        if (stream == null)
+            return NotFound("File not found on disk");
+
+        return File(stream, "application/octet-stream", doc.FileName);
+    }
+
+    /// <summary>
+    /// Returns the version history for a document.
+    /// </summary>
+    [HttpGet("{docId}/versions")]
+    public async Task<ActionResult> GetVersions(Guid projectId, Guid docId)
+    {
+        var tenantId = GetTenantId();
+        var doc = await _db.Documents
+            .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
+        if (doc == null) return NotFound();
+
+        var versions = await _db.DocumentVersions
+            .Where(v => v.DocumentId == docId)
+            .OrderByDescending(v => v.VersionNumber)
+            .Select(v => new
+            {
+                v.Id,
+                v.VersionNumber,
+                v.FileSizeBytes,
+                v.ContentHash,
+                v.UploadedBy,
+                v.UploadedAt
+            })
+            .ToListAsync();
+
+        return Ok(versions);
+    }
+
+    /// <summary>
+    /// Download a specific historical version of a document.
+    /// </summary>
+    [HttpGet("{docId}/versions/{versionNumber:int}/download")]
+    public async Task<ActionResult> DownloadVersion(Guid projectId, Guid docId, int versionNumber)
+    {
+        var tenantId = GetTenantId();
+        var doc = await _db.Documents
+            .FirstOrDefaultAsync(d => d.Id == docId && d.ProjectId == projectId && d.Project!.TenantId == tenantId);
+        if (doc == null) return NotFound();
+
+        var version = await _db.DocumentVersions
+            .FirstOrDefaultAsync(v => v.DocumentId == docId && v.VersionNumber == versionNumber);
+        if (version == null) return NotFound("Version not found");
+
+        if (string.IsNullOrEmpty(version.FilePath))
+            return NotFound("File not found on disk");
+
+        var stream = await _storage.GetAsync(version.FilePath);
+        if (stream == null)
+            return NotFound("File not found on disk");
+
         return File(stream, "application/octet-stream", doc.FileName);
     }
 

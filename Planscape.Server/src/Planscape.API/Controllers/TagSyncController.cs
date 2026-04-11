@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.DTOs;
@@ -16,6 +17,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("mobile")]
 public class TagSyncController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -130,13 +132,18 @@ public class TagSyncController : ControllerBase
     /// Get all tagged elements for a project (paginated).
     /// </summary>
     [HttpGet("elements/{projectId}")]
-    public async Task<ActionResult> GetElements(Guid projectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 100)
+    public async Task<ActionResult> GetElements(Guid projectId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 100,
+        [FromQuery] DateTime? lastSyncUtc = null)
     {
         var tenantId = GetTenantId();
         pageSize = Math.Clamp(pageSize, 1, 500);
 
         var baseQuery = _db.TaggedElements
             .Where(e => e.ProjectId == projectId && e.Project!.TenantId == tenantId);
+
+        if (lastSyncUtc.HasValue)
+            baseQuery = baseQuery.Where(e => e.SyncedAt > lastSyncUtc.Value);
 
         var total = await baseQuery.CountAsync();
         var elements = await baseQuery

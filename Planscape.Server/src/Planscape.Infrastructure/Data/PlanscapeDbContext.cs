@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 
@@ -5,7 +6,36 @@ namespace Planscape.Infrastructure.Data;
 
 public class PlanscapeDbContext : DbContext
 {
+    private readonly IHttpContextAccessor? _httpContextAccessor;
+
     public PlanscapeDbContext(DbContextOptions<PlanscapeDbContext> options) : base(options) { }
+
+    public PlanscapeDbContext(DbContextOptions<PlanscapeDbContext> options, IHttpContextAccessor httpContextAccessor)
+        : base(options)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var httpContext = _httpContextAccessor?.HttpContext;
+        if (httpContext != null)
+        {
+            foreach (var entry in ChangeTracker.Entries<AuditLog>().Where(e => e.State == EntityState.Added))
+            {
+                var log = entry.Entity;
+                if (httpContext.Items.TryGetValue("DeviceId", out var devId) && devId is string deviceId)
+                    log.DeviceId = deviceId;
+                if (httpContext.Items.TryGetValue("Latitude", out var lat) && lat is double latitude)
+                    log.Latitude = latitude;
+                if (httpContext.Items.TryGetValue("Longitude", out var lng) && lng is double longitude)
+                    log.Longitude = longitude;
+                if (log.DeviceId != null)
+                    log.Source = "mobile";
+            }
+        }
+        return await base.SaveChangesAsync(cancellationToken);
+    }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<AppUser> Users => Set<AppUser>();
@@ -26,6 +56,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
     public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
+    public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
 
     // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
@@ -207,6 +238,14 @@ public class PlanscapeDbContext : DbContext
             e.Property(c => c.AccessToken).HasMaxLength(4000);
             e.Property(c => c.RefreshToken).HasMaxLength(4000);
             e.Property(c => c.WebhookSecret).HasMaxLength(500);
+        });
+
+        // ── DocumentVersion ──
+        modelBuilder.Entity<DocumentVersion>(e =>
+        {
+            e.HasKey(v => v.Id);
+            e.HasOne(v => v.Document).WithMany(d => d.Versions).HasForeignKey(v => v.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(v => new { v.DocumentId, v.VersionNumber }).IsUnique();
         });
 
         // ── Planscape MIM Entities ──
