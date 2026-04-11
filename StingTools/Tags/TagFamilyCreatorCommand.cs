@@ -1088,42 +1088,13 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    // Add shared parameters (same as standard families)
-                    int paramCount = 0;
-                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
-                    {
-                        t.Start();
-                        app.SharedParametersFilename = sharedParamFile;
-                        var defFile = app.OpenSharedParameterFile();
-                        if (defFile != null)
-                        {
-                            foreach (string pName in TagFamilyConfig.TagParams
-                                .Concat(TagFamilyConfig.VisibilityParams)
-                                .Append("ASS_DESCRIPTION_TXT"))
-                            {
-                                foreach (DefinitionGroup grp in defFile.Groups)
-                                {
-                                    var def = grp.Definitions.get_Item(pName);
-                                    if (def != null)
-                                    {
-                                        try
-                                        {
-                                            famDoc.FamilyManager.AddParameter(
-                                                def as ExternalDefinition,
-                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
-                                                false);
-                                            paramCount++;
-                                        }
-                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        t.Commit();
-                    }
+                    // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
+                    var tieInParams = TagFamilyConfig.TagParams
+                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Append("ASS_DESCRIPTION_TXT").ToList();
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, tieInParams);
 
-                    // Save and load
+                    // Save and load — always proceeds even if params failed
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
@@ -1137,7 +1108,8 @@ namespace StingTools.Tags
                         t.Commit();
                     }
                     loaded++;
-                    report.AppendLine($"  [OK]   {tiein.display} — created and loaded ({paramCount} params)");
+                    string paramStatus = paramsAdded ? "with params" : "no params";
+                    report.AppendLine($"  [OK]   {tiein.display} — created and loaded ({paramStatus})");
                 }
                 catch (Exception ex)
                 {
@@ -1221,39 +1193,11 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    int paramCount = 0;
-                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
-                    {
-                        t.Start();
-                        app.SharedParametersFilename = sharedParamFile;
-                        var defFile = app.OpenSharedParameterFile();
-                        if (defFile != null)
-                        {
-                            foreach (string pName in TagFamilyConfig.TagParams
-                                .Concat(TagFamilyConfig.VisibilityParams)
-                                .Append("ASS_DESCRIPTION_TXT"))
-                            {
-                                foreach (DefinitionGroup grp in defFile.Groups)
-                                {
-                                    var def = grp.Definitions.get_Item(pName);
-                                    if (def != null)
-                                    {
-                                        try
-                                        {
-                                            famDoc.FamilyManager.AddParameter(
-                                                def as ExternalDefinition,
-                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
-                                                false);
-                                            paramCount++;
-                                        }
-                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        t.Commit();
-                    }
+                    // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
+                    var dsParams = TagFamilyConfig.TagParams
+                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Append("ASS_DESCRIPTION_TXT").ToList();
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, dsParams);
 
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -1268,7 +1212,8 @@ namespace StingTools.Tags
                         t.Commit();
                     }
                     loaded++;
-                    report.AppendLine($"  [OK]   {ds.display} — created and loaded ({paramCount} params)");
+                    string paramStatus = paramsAdded ? "with params" : "no params";
+                    report.AppendLine($"  [OK]   {ds.display} — created and loaded ({paramStatus})");
                 }
                 catch (Exception ex)
                 {
@@ -1352,39 +1297,11 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    int paramCount = 0;
-                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
-                    {
-                        t.Start();
-                        app.SharedParametersFilename = sharedParamFile;
-                        var defFile = app.OpenSharedParameterFile();
-                        if (defFile != null)
-                        {
-                            foreach (string pName in TagFamilyConfig.TagParams
-                                .Concat(TagFamilyConfig.VisibilityParams)
-                                .Append("ASS_DESCRIPTION_TXT"))
-                            {
-                                foreach (DefinitionGroup grp in defFile.Groups)
-                                {
-                                    var def = grp.Definitions.get_Item(pName);
-                                    if (def != null)
-                                    {
-                                        try
-                                        {
-                                            famDoc.FamilyManager.AddParameter(
-                                                def as ExternalDefinition,
-                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
-                                                false);
-                                            paramCount++;
-                                        }
-                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        t.Commit();
-                    }
+                    // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
+                    var svParams = TagFamilyConfig.TagParams
+                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Append("ASS_DESCRIPTION_TXT").ToList();
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, svParams);
 
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -1399,7 +1316,8 @@ namespace StingTools.Tags
                         t.Commit();
                     }
                     loaded++;
-                    report.AppendLine($"  [OK]   {sv.display} — created and loaded ({paramCount} params)");
+                    string paramStatus = paramsAdded ? "with params" : "no params";
+                    report.AppendLine($"  [OK]   {sv.display} — created and loaded ({paramStatus})");
                 }
                 catch (Exception ex)
                 {
@@ -1483,39 +1401,11 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    int paramCount = 0;
-                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
-                    {
-                        t.Start();
-                        app.SharedParametersFilename = sharedParamFile;
-                        var defFile = app.OpenSharedParameterFile();
-                        if (defFile != null)
-                        {
-                            foreach (string pName in TagFamilyConfig.TagParams
-                                .Concat(TagFamilyConfig.VisibilityParams)
-                                .Append("ASS_DESCRIPTION_TXT"))
-                            {
-                                foreach (DefinitionGroup grp in defFile.Groups)
-                                {
-                                    var def = grp.Definitions.get_Item(pName);
-                                    if (def != null)
-                                    {
-                                        try
-                                        {
-                                            famDoc.FamilyManager.AddParameter(
-                                                def as ExternalDefinition,
-                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
-                                                false);
-                                            paramCount++;
-                                        }
-                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        t.Commit();
-                    }
+                    // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
+                    var mvParams = TagFamilyConfig.TagParams
+                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Append("ASS_DESCRIPTION_TXT").ToList();
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, mvParams);
 
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -1530,7 +1420,8 @@ namespace StingTools.Tags
                         t.Commit();
                     }
                     loaded++;
-                    report.AppendLine($"  [OK]   {mv.display} — created and loaded ({paramCount} params)");
+                    string paramStatus = paramsAdded ? "with params" : "no params";
+                    report.AppendLine($"  [OK]   {mv.display} — created and loaded ({paramStatus})");
                 }
                 catch (Exception ex)
                 {
