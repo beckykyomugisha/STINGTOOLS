@@ -803,17 +803,17 @@ namespace StingTools.Core
             {
                 { "M", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
                     "AHU", "FCU", "VAV", "CHR", "BLR", "PMP", "FAN", "HRU", "SPL", "GRL",
-                    "DAC", "DFT", "DU", "FDU", "IND", "RAD", "DAM", "CLT", "VFD", "GEN" } },
+                    "DAC", "DFT", "DU", "FDU", "IND", "RAD", "DAM", "CLT", "VFD", "SLV", "GEN" } },
                 { "E", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
                     "DB", "MCC", "MSB", "SWB", "UPS", "TRF", "ATS", "VFD", "SPD", "RCD",
                     "ISO", "SFS", "BKP", "SKT", "LUM", "LDV", "DWN", "LIN", "SPT", "WSH",
-                    "BOL", "UPL", "FLD", "EML", "TRK", "DEC", "CDT", "CFT", "CBLT", "CTF", "GEN" } },
+                    "BOL", "UPL", "FLD", "EML", "TRK", "DEC", "CDT", "CFT", "CBLT", "CTF", "SLV", "GEN" } },
                 { "P", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
                     "PP", "PFT", "PAC", "FPP", "FIX", "WC", "WHB", "URN", "SNK", "SHW",
-                    "BTH", "DRK", "CWL", "TRP", "BID", "EWS", "MOP", "GEN" } },
+                    "BTH", "DRK", "CWL", "TRP", "BID", "EWS", "MOP", "SLV", "GEN" } },
                 { "FP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
                     "SPR", "FAD", "SML", "MCP", "BLL", "STB", "HTD", "FIM", "PP", "PFT",
-                    "PAC", "GEN" } },
+                    "PAC", "SLV", "GEN" } },
                 { "A", new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
                     "DR", "WIN", "WL", "FL", "CLG", "RF", "RM", "FUR", "FUS", "CWK",
                     "RLG", "STR", "RMP", "CPN", "MUL", "CWS", "GEN" } },
@@ -2376,6 +2376,12 @@ namespace StingTools.Core
                     if (upper.Contains("CHECK") || upper.Contains("NON RETURN") || upper.Contains("NRV")) return "NRV";
                     if (upper.Contains("PRESSURE REDUC") || upper.Contains("PRV")) return "PRV";
                     if (upper.Contains("STRAINER") || upper.Contains("FILTER")) return "STN";
+                }
+                // Generic Models — MEP Sleeves (fire-rated penetration elements)
+                else if (categoryName == "Generic Models")
+                {
+                    if (upper.Contains("SLEEVE") || upper.Contains("SLV") || upper.Contains("PENETRATION")
+                        || upper.Contains("FIRESTOP") || upper.Contains("FIRE STOP") || upper.Contains("FIRE SEAL")) return "SLV";
                 }
             }
 

@@ -15899,3 +15899,17 @@ WARN_SHT_NAMING_ARCH,Generic Models,Type,True
 WARN_SHT_NAMING_STR,Generic Models,Type,True
 WARN_SHT_REV_MISSING,Generic Models,Type,True
 WARN_SHT_TAG1_EMPTY,Generic Models,Type,True
+SLV_REF_TXT,Generic Models,Instance,True
+SLV_SZ_MM,Generic Models,Instance,True
+SLV_MAT_TXT,Generic Models,Instance,True
+SLV_FIRE_RATING_TXT,Generic Models,Instance,True
+SLV_SEAL_TYPE_TXT,Generic Models,Instance,True
+SLV_SERVICE_TXT,Generic Models,Instance,True
+SLV_WALL_TYPE_TXT,Generic Models,Instance,True
+SLV_WALL_THICKNESS_MM,Generic Models,Instance,True
+SLV_ANNULAR_GAP_MM,Generic Models,Instance,True
+SLV_FIRESTOP_MFR_TXT,Generic Models,Instance,True
+SLV_FIRESTOP_PRODUCT_TXT,Generic Models,Instance,True
+SLV_TESTED_TO_TXT,Generic Models,Instance,True
+SLV_STATUS_TXT,Generic Models,Instance,True
+SLV_INSPECTION_DATE_TXT,Generic Models,Instance,True

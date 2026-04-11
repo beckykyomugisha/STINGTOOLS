@@ -1189,3 +1189,37 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_SHT_MULTI_DISC_MEP,Multiple MEP disciplines on same sheet — coordination risk,ISO 19650-2 / PAS 1192-2,Common,Text,⚠ Warning: Multi-Discipline Sheet,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_MULTI_DISC_MEP, """")"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAG FAMILY #53 — STING - MEP Sleeve Tag
+# ═══════════════════════════════════════════════════════════════════════════════
+# Category: Generic Models | PROD: SLV | FUNC: PEN | Disciplines: M, E, P, FP
+# Fire-rated construction penetration sleeves per BS EN 1366-3 / BS 9999
+# ───────────────────────────────────────────────────────────────────────────────
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Calculated Value Formula
+1,T2,ASS_TAG_2_TXT,,,0,✓,---,---,---,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+2,T2,SLV_SZ_MM,Ø,mm,0,✓,Common,Number,Sleeve Size,"if(TAG_PARA_STATE_2_BOOL, SLV_SZ_MM, """")"
+3,T2,SLV_FIRE_RATING_TXT,,, 0,✓,Common,Text,Fire Rating,"if(TAG_PARA_STATE_2_BOOL, SLV_FIRE_RATING_TXT, """")"
+4,T2,SLV_SERVICE_TXT,Service:,,0,✓,Common,Text,Service Through,"if(TAG_PARA_STATE_2_BOOL, SLV_SERVICE_TXT, """")"
+5,T2,SLV_STATUS_TXT,,,0,✓,Common,Text,Sleeve Status,"if(TAG_PARA_STATE_2_BOOL, SLV_STATUS_TXT, """")"
+
+★ TIER 3 — FULL SPECIFICATION (gated by TAG_PARA_STATE_3_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Calculated Value Formula
+1,T3,SLV_MAT_TXT,Material:,,0,✓,Common,Text,Sleeve Material,"if(TAG_PARA_STATE_3_BOOL, SLV_MAT_TXT, """")"
+2,T3,SLV_SEAL_TYPE_TXT,Seal:,,0,✓,Common,Text,Seal Type,"if(TAG_PARA_STATE_3_BOOL, SLV_SEAL_TYPE_TXT, """")"
+3,T3,SLV_WALL_TYPE_TXT,Host:,,0,✓,Common,Text,Host Element,"if(TAG_PARA_STATE_3_BOOL, SLV_WALL_TYPE_TXT, """")"
+4,T3,SLV_FIRESTOP_PRODUCT_TXT,Firestop:,,0,✓,Common,Text,Firestop Product,"if(TAG_PARA_STATE_3_BOOL, SLV_FIRESTOP_PRODUCT_TXT, """")"
+5,T3,SLV_TESTED_TO_TXT,Tested:,,0,✓,Common,Text,Test Standard,"if(TAG_PARA_STATE_3_BOOL, SLV_TESTED_TO_TXT, """")"
+6,T3,SLV_INSPECTION_DATE_TXT,Inspected:,,0,✓,Common,Text,Last Inspection,"if(TAG_PARA_STATE_3_BOOL, SLV_INSPECTION_DATE_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_SLV_NO_FIRE_RATING,SLV_FIRE_RATING_TXT empty — penetration seal cannot be validated,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_FIRE_RATING, """")"
+2,HIGH,WARN_SLV_NO_REF,SLV_REF_TXT empty — asset cannot be tracked,ISO 19650-2:2018,Common,Text,⚠ Warning: No Sleeve Ref,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_REF, """")"
+3,HIGH,WARN_SLV_NO_SEAL,SLV_SEAL_TYPE_TXT empty — fire compartmentation incomplete,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Seal Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_SEAL, """")"
