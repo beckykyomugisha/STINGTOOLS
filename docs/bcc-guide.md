@@ -333,7 +333,7 @@ A weighted score from 0–100 displayed at the top:
 
 The **Issues** tab is your issue tracker — like a simplified Jira inside Revit. Every RFI, clash, snagging item, and non-conformance lives here.
 
-### Issue Types (20 types)
+### Issue Types (33 types)
 
 Issues are colour-coded by type. Common types include:
 
@@ -342,9 +342,9 @@ Issues are colour-coded by type. Common types include:
 | Request for Information | RFI | When design information is unclear |
 | Non-Conformance Report | NCR | When something does not meet the standard |
 | Site Instruction | SI | When issuing a directive on-site |
-| Clash | CLASH | When two elements occupy the same space |
-| Snagging | SNAG | Defects found during inspection |
-| Design Change | DCR | When the design is formally changed |
+| Clash | CLH | When two elements occupy the same space |
+| Snagging Item | SNI | Defects found during inspection |
+| Design Issue | DSN | When the design requires resolution or change |
 | Health & Safety | HSE | Safety-related observations |
 
 ### Issue DataGrid
@@ -984,18 +984,18 @@ These 5 scenarios show the BCC solving actual coordination problems. Each one in
 1. **Open BCC → Meetings tab**
    - Click **"Auto Agenda"** — StingTools generates an agenda from:
      - 8 open RFIs (grouped by discipline)
-     - 23 CLASH issues (from BCF import)
+     - 23 CLH (clash) issues (from BCF import)
      - 2 pending transmittals
      - Current compliance: **88%** (up from 82% last meeting)
      - 4 overdue action items from the last meeting
 
 2. **Switch to Issues tab**
    - Filter by **Status: Open** — see all 31 active issues
-   - Double-click the highest-priority CLASH issue → BCC zooms to the clash location in a 3D section box view
+   - Double-click the highest-priority CLH issue → BCC zooms to the clash location in a 3D section box view
    - Right-click → **"Zoom to 3D Section Box"** on 3 more clashes to screenshot for the meeting slides
 
 3. **Click "BCF Export"** in the Issues action bar
-   - Exports all 23 CLASH issues as BCF 2.1 XML with camera viewpoints
+   - Exports all 23 CLH (clash) issues as BCF 2.1 XML with camera viewpoints
    - File saved next to the project: `ProjectName_BCF_2026-04-11.bcf`
 
 4. **Switch to Model Health tab → Click "Export Health"**
@@ -1071,7 +1071,7 @@ These 5 scenarios show the BCC solving actual coordination problems. Each one in
 **Solution — 5 clicks, 8 minutes:**
 
 1. **Open BCC → Issues tab → Click "Raise Issue"**
-   - Issue Type: **CLASH** (hard clash, cross-discipline)
+   - Issue Type: **CLH** (hard clash, cross-discipline)
    - Priority: **CRITICAL** (SLA = 4 hours)
    - Title: "Sprinkler head / cable tray clash at L03 C-7"
    - Select the 2 affected elements in the Revit model → they're auto-linked to the issue
