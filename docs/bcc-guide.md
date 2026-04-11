@@ -1225,3 +1225,163 @@ Workflow steps support **19 condition types** that control execution:
 
 > **Tip**: Create custom presets by saving JSON files to `Data/WORKFLOW_*.json`. See `WORKFLOW_DailyQA_Enhanced.json` for the conditional step syntax.
 
+
+---
+
+## Appendix G — Issue Type Reference
+
+The BCC supports **33 standardised issue types** organised into 8 categories. Each type has a default priority and SLA threshold per ISO 19650 / NEC / JCT conventions.
+
+### Construction & Quality Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| RFI | Request for Information | Clarification needed on design intent, specification, or coordination | MEDIUM | 1 week |
+| NCR | Non-Conformance Report | Work not matching approved drawings, specs, or standards | HIGH | 24 hours |
+| SI | Site Instruction | Formal instruction to contractor for changed or additional work | MEDIUM | 1 week |
+| TQ | Technical Query | Technical question about buildability, materials, or methods | MEDIUM | 1 week |
+| SNI | Snagging Item | Defect or incomplete work identified during inspection | HIGH | 24 hours |
+| DFT | Defect Notice | Post-handover defect requiring rectification | HIGH | 24 hours |
+| CLH | Clash | Geometric or spatial conflict between building elements | CRITICAL | 4 hours |
+
+### Design Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| DSN | Design Issue | Design development or change requiring resolution | MEDIUM | 1 week |
+| VRN | Variation | Scope change affecting cost, programme, or specification | HIGH | 24 hours |
+| CRN | Concession | Acceptance of non-conforming work as-is with justification | MEDIUM | 1 week |
+| CDI | Coordination Issue | Multi-discipline coordination requiring resolution | HIGH | 24 hours |
+
+### Compliance Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| HSE | Health & Safety | Safety risk requiring immediate attention per CDM 2015 | CRITICAL | 4 hours |
+| ENV | Environmental | Environmental impact or regulation breach | HIGH | 24 hours |
+| REG | Regulatory | Building regulation or planning condition non-compliance | HIGH | 24 hours |
+| ACC | Accessibility | Accessibility standard non-compliance (BS 8300 / Part M) | MEDIUM | 1 week |
+| FIR | Fire Safety | Fire safety issue (Part B / BS 9999 / BS 9991) | CRITICAL | 4 hours |
+
+### Data & BIM Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| TAG | Tagging Issue | Missing, incomplete, or invalid ISO 19650 asset tags | MEDIUM | 1 week |
+| DAT | Data Quality | Parameter data inconsistency or missing information | MEDIUM | 1 week |
+| MOD | Model Issue | Model structure, performance, or standards non-compliance | HIGH | 24 hours |
+| COB | COBie Issue | COBie data gap blocking FM handover | HIGH | 24 hours |
+| IFC | IFC Issue | IFC export or property set mapping problem | MEDIUM | 1 week |
+
+### Programme & Commercial Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| DLY | Delay Notice | Programme delay notification per NEC/JCT contract | HIGH | 24 hours |
+| CST | Cost Issue | Cost overrun, underestimate, or budget variance | HIGH | 24 hours |
+| PRG | Programme | Programme milestone risk or dependency conflict | MEDIUM | 1 week |
+| PRO | Procurement | Material or equipment procurement issue | MEDIUM | 1 week |
+
+### Contractual Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| EWN | Early Warning Notice | NEC early warning of risk to cost, time, or quality | HIGH | 24 hours |
+| CEN | Compensation Event | NEC compensation event notification | HIGH | 24 hours |
+| PMI | Project Manager Instruction | NEC project manager instruction | MEDIUM | 1 week |
+
+### Handover & Operations Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| COM | Commissioning | Equipment commissioning issue or test failure | HIGH | 24 hours |
+| TNO | Training Need | O&M training requirement for FM team | LOW | 2 weeks |
+| DOC | Documentation | Missing or incomplete handover documentation | MEDIUM | 1 week |
+| WTY | Warranty | Warranty claim or defects liability period issue | HIGH | 24 hours |
+| MNT | Maintenance | Planned or reactive maintenance requirement | MEDIUM | 1 week |
+
+### Priority Levels & SLA Thresholds
+
+| Priority | Response SLA | Resolution Target | Escalation | BCC Colour |
+|----------|-------------|-------------------|------------|------------|
+| **CRITICAL** | 4 hours | Same working day | Auto-escalate to BIM Manager after 2h | Red (#E53935) |
+| **HIGH** | 24 hours | 3 working days | Auto-escalate after 12h | Orange (#FF8F00) |
+| **MEDIUM** | 1 week | 10 working days | Auto-escalate after 5 days | Amber (#FFC107) |
+| **LOW** | 2 weeks | 20 working days | Review at next coordination meeting | Blue (#42A5F5) |
+
+> SLA thresholds are configurable per project via `WARNING_SLA_CRITICAL_HOURS`, `WARNING_SLA_HIGH_HOURS`, `WARNING_SLA_MEDIUM_HOURS`, `WARNING_SLA_LOW_HOURS` in `project_config.json`.
+
+---
+
+## Appendix H — BCC Action Tags Quick Reference
+
+Every button in the BCC dispatches an **action tag** through `StingCommandHandler`. Use these tags in workflow presets or the NLP command bar.
+
+### Overview Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `RunDailyQA` | Run Daily QA | Executes the DailyQA workflow preset |
+| `MorningHealthCheck` | Morning Check | Runs the MorningHealthCheck preset |
+| `FullComplianceDashboard` | Full Dashboard | Opens the full compliance report |
+| `DocumentManager` | Document Center | Opens the Document Management Center |
+| `RepeatLastWorkflow` | Repeat Last | Re-runs the last executed workflow |
+| `TakeModelSnapshot` | Take Snapshot | Captures compliance state for trend tracking |
+| `NewMeeting` | New Meeting | Creates a new coordination meeting record |
+| `ValidateTags` | Validate Tags | Runs full ISO 19650 tag validation |
+
+### Model Health Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `RefreshHealth` | Refresh | Re-scans model health metrics |
+| `ExportHealth` | Export | Exports model health report to CSV |
+| `RunFullCheck` | Full Check | Runs comprehensive 45-point validation |
+| `RetagStale` | Fix Stale | Re-tags elements with changed geometry |
+| `BatchTag` | Tag All | Tags all untagged elements in the project |
+| `WarningsAutoFix` | Auto-Fix | Applies safe automatic warning fixes |
+
+### Warnings Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `WarningsDashboard` | Dashboard | Shows warnings breakdown by category |
+| `WarningsAutoFix` | Auto-Fix | Batch-fixes duplicate instances, marks, overlaps |
+| `WarningsExport` | Export CSV | Exports all warnings to CSV for BIM 360 |
+| `WarningsBaseline` | Save Baseline | Saves current warning count as baseline |
+| `WarningsCompliance` | ISO Check | Maps warnings to ISO/BS standard requirements |
+
+### Issues Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `RaiseIssue` | New Issue | Creates a new issue from selected elements |
+| `IssueDashboard` | Dashboard | Shows issue summary with SLA status |
+| `UpdateIssue` | Update | Bulk-updates issue status/priority |
+| `SelectIssueElements` | Select | Selects elements linked to an issue |
+
+### 4D/5D Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `AutoSchedule4D` | Auto Schedule | Generates 4D construction sequence |
+| `AutoCost5D` | Auto Cost | Calculates 5D cost estimates from model |
+| `ViewTimeline4D` | View Timeline | Displays Gantt-style timeline |
+| `CostReport5D` | Cost Report | Generates detailed cost breakdown |
+| `CashFlow5D` | Cash Flow | Projects cash flow over construction phases |
+| `ExportSchedule4D` | Export | Exports schedule to CSV/MS Project format |
+
+### Platform Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `ACCPublish` | ACC Publish | Packages model for Autodesk Construction Cloud |
+| `BCFExport` | BCF Export | Exports issues as BCF 2.1 for external tools |
+| `BCFImport` | BCF Import | Imports BCF issues with deduplication |
+| `CDEPackage` | CDE Package | Creates ISO 19650 CDE folder structure |
+| `PlatformSync` | Sync | Bidirectional sync with connected platform |
+| `SharePointExport` | SharePoint | Exports to SharePoint/Teams document library |
+| `ExportCOBie` | COBie Export | Full 17-worksheet COBie V2.4 export |
+
+> **Tip**: Use `NLPCommandProcessor` to search for action tags by description — type natural language queries like "export my model health" in the command bar.
+
