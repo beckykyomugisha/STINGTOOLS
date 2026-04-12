@@ -53,6 +53,9 @@ public class TaggedElement
     public DateTime SyncedAt { get; set; } = DateTime.UtcNow;
     public string SyncedBy { get; set; } = "";
 
+    public int Version { get; set; } = 1;
+    public DateTime? LastModifiedUtc { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
 }

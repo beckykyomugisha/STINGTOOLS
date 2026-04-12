@@ -57,6 +57,8 @@ public class PlanscapeDbContext : DbContext
     public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
+    public DbSet<SyncWatermark> SyncWatermarks { get; set; }
+    public DbSet<SyncConflict> SyncConflicts { get; set; }
 
     // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
@@ -246,6 +248,23 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(v => v.Id);
             e.HasOne(v => v.Document).WithMany(d => d.Versions).HasForeignKey(v => v.DocumentId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(v => new { v.DocumentId, v.VersionNumber }).IsUnique();
+        });
+
+        // ── SyncWatermark ──
+        modelBuilder.Entity<SyncWatermark>(e =>
+        {
+            e.HasKey(w => w.Id);
+            e.HasOne(w => w.Project).WithMany().HasForeignKey(w => w.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(w => new { w.ProjectId, w.DeviceId, w.EntityType }).IsUnique();
+        });
+
+        // ── SyncConflict ──
+        modelBuilder.Entity<SyncConflict>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.HasOne(c => c.Project).WithMany().HasForeignKey(c => c.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(c => new { c.ProjectId, c.EntityType, c.DetectedAt });
+            e.HasIndex(c => new { c.ProjectId, c.Resolution }).HasFilter("\"Resolution\" = 'PENDING'");
         });
 
         // ── Planscape MIM Entities ──

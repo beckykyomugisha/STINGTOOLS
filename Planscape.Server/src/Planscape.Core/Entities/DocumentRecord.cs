@@ -23,6 +23,9 @@ public class DocumentRecord
     public DateTime? UpdatedAt { get; set; }
     public string? StatusHistoryJson { get; set; } // JSON array of status transitions
 
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
     public List<DocumentVersion> Versions { get; set; } = new();

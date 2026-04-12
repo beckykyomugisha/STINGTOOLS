@@ -23,6 +23,11 @@ public class BimIssue
     public string? LinkedElementIds { get; set; } // JSON array of Revit element IDs
     public string? BcfGuid { get; set; } // BCF 2.1 topic GUID
 
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public double? LocationAccuracy { get; set; }
+    public string? DeviceId { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
     public List<IssueAttachment> Attachments { get; set; } = new();
