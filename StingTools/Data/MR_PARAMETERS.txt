@@ -2084,6 +2084,9 @@ PARAM	c7339c1f-be98-56a4-abc0-cbde47bd9108	WARN_SITE_ROAD_GRADIENT	TEXT		17	1	Ta
 PARAM	331a765d-3070-5be5-a98b-3c2bda024c95	WARN_SITE_ROAD_SPEC_MISSING	TEXT		17	1	Tag warning: site road spec missing	1
 PARAM	a30afb6b-986b-569a-84a3-995b47b9579c	WARN_SITE_TOPOSOLID_LINK_MISSING	TEXT		17	1	Tag warning: site toposolid link missing	1
 PARAM	c1b44d33-620d-58ea-84cd-26d51a53bee9	WARN_SITE_TOPOSOLID_MATERIAL_MISSING	TEXT		17	1	Tag warning: site toposolid material missing	1
+PARAM	6efed066-5053-591b-95c5-d27ce25ffa11	WARN_SLV_NO_FIRE_RATING	TEXT		17	1	Tag warning: sleeve missing fire rating	1
+PARAM	bd8e24b9-0cf7-5b1e-8680-5e8d13e4aa56	WARN_SLV_NO_REF	TEXT		17	1	Tag warning: sleeve missing reference	1
+PARAM	dc546eb8-fe7b-534d-97bd-f2958ad7c3ce	WARN_SLV_NO_SEAL	TEXT		17	1	Tag warning: sleeve missing seal	1
 PARAM	78214125-72ad-565d-b4c8-31df3e88ad0f	WARN_STR_ANLYT_LINK_RIGIDITY	TEXT		17	1	Tag warning: str anlyt link rigidity	1
 PARAM	fd39e003-f6b2-5cd7-a688-26483aef5637	WARN_STR_ANLYT_NODE_UNCONNECTED	TEXT		17	1	Tag warning: str anlyt node unconnected	1
 PARAM	b16714c0-9af1-5a37-aa85-2558117d359d	WARN_STR_ANLYT_NO_HOST	TEXT		17	1	Tag warning: str anlyt no host	1
