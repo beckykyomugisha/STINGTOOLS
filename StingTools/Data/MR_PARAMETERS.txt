@@ -2382,14 +2382,14 @@ PARAM	ce2a3aba-950d-5a00-b0bd-3691ae912df7	WARN_SHT_NAMING_STR	TEXT		15	1	Warnin
 PARAM	9d229c53-3e50-580f-8fb2-e9f953255be7	WARN_SHT_REV_MISSING	TEXT		15	1	Warning: sheet revision information missing [ISO 19650]	0
 PARAM	99dfa464-1361-5041-bcfc-f042aa64dd74	WARN_SHT_TAG1_EMPTY	TEXT		15	1	Warning: sheet primary tag (TAG1) is empty [ISO 19650]	0
 PARAM	a32226dd-518c-5158-b3c7-aa3df7ac0b43	SLV_REF_TXT	TEXT		19	1	Sleeve reference code	1
-PARAM	ed2365b1-c559-573e-a9ae-c8554db2572b	SLV_SZ_MM	NUMBER		19	1	Sleeve size in millimetres	1
+PARAM	ed2365b1-c559-573e-a9ae-c8554db2572b	SLV_SZ_MM	TEXT		19	1	Sleeve size in millimetres	1
 PARAM	9b6071cf-8b10-574c-b40e-2dfbfc60b8d9	SLV_MAT_TXT	TEXT		19	1	Sleeve material (steel/PVC/cast iron)	1
 PARAM	ea8a8a2a-597c-56d6-a9fb-08c0fc59f372	SLV_FIRE_RATING_TXT	TEXT		19	1	Sleeve fire rating (e.g. EI60, EI120)	1
 PARAM	6d8aceb4-eea7-53ca-ab61-d1a87824571c	SLV_SEAL_TYPE_TXT	TEXT		19	1	Seal type (intumescent/mechanical/composite)	1
 PARAM	76c2ac35-3b7f-5dea-b60d-bf0179b15b92	SLV_SERVICE_TXT	TEXT		19	1	Service passing through sleeve	1
 PARAM	3d601083-e89c-50c8-9165-004c8610b0ff	SLV_WALL_TYPE_TXT	TEXT		19	1	Host wall or floor type	1
-PARAM	9489a0ec-44b6-5f55-81d5-f26c546faf3f	SLV_WALL_THICKNESS_MM	NUMBER		19	1	Host element thickness in mm	1
-PARAM	61c211b4-cdf2-53b8-84e5-84a7663f0aaf	SLV_ANNULAR_GAP_MM	NUMBER		19	1	Annular gap between service and sleeve in mm	1
+PARAM	9489a0ec-44b6-5f55-81d5-f26c546faf3f	SLV_WALL_THICKNESS_MM	TEXT		19	1	Host element thickness in mm	1
+PARAM	61c211b4-cdf2-53b8-84e5-84a7663f0aaf	SLV_ANNULAR_GAP_MM	TEXT		19	1	Annular gap between service and sleeve in mm	1
 PARAM	9f3cc22a-3076-5166-9f42-e6e52126cbaf	SLV_FIRESTOP_MFR_TXT	TEXT		19	1	Firestop system manufacturer	1
 PARAM	1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f	SLV_FIRESTOP_PRODUCT_TXT	TEXT		19	1	Firestop product reference	1
 PARAM	0a2943a3-036b-55ae-89ee-01055824fad8	SLV_TESTED_TO_TXT	TEXT		19	1	Fire test standard (BS EN 1366-3, ASTM E814)	1
