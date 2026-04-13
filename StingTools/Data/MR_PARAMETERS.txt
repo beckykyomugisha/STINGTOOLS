@@ -2429,3 +2429,7 @@ PARAM	fbbff16e-ad11-554f-a2a3-1ba91250ddfd	WARN_SLV_NO_FIRESTOP	TEXT		17	1	Tag w
 PARAM	3c5e1027-76c0-54f9-a6dd-0f7fcf654ba7	WARN_SLV_NO_INSPECTION	TEXT		17	1	Tag warning: sleeve missing inspection record [ISO 19650-3:2020]	1
 PARAM	3dcb019c-4d45-50d4-976a-f7e434824ccd	WARN_SLV_NO_SERVICE	TEXT		17	1	Tag warning: sleeve missing service identification [ISO 19650-3:2020]	1
 PARAM	5c78cafc-d62b-5d50-99de-19cb2dea49de	WARN_SLV_NO_SIZE	TEXT		17	1	Tag warning: sleeve missing size specification [ISO 19650-3:2020]	1
+PARAM	b8d5f342-0a93-5e2b-c5b1-4f7029e3ad16	ASS_INHERIT_STATUS_TXT	TEXT		1	1	Token inheritance status (PROXIMITY_OK/PROXIMITY_FAIL/TYPE_INHERIT/MANUAL)	1
+PARAM	a7c4e231-9f82-5d1a-b4a0-3e6f18d29c05	ASS_STALE_TOKENS_TXT	TEXT		18	1	Comma-separated list of stale token names for targeted re-derivation	1
+PARAM	c9e60453-1ba4-5f3c-d6c2-508a3af4be27	STING_DATA_HASH	TEXT		1	1	Hash of data directory for workflow skip-if-unchanged detection	1
+PARAM	daf71564-2cb5-504d-e7d3-619b4b05cf38	STING_SETUP_COMPLETE	TEXT		1	1	Timestamp of last MasterSetup completion for idempotency check	1
