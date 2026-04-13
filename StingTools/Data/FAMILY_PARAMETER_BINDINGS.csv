@@ -5863,14 +5863,14 @@ WARN_THRESHOLD,WARN_STR_TRUSS_SPAN,f81ac5b3-62fc-5104-b9b8-2863203a6941,TEXT,Typ
 WARN_THRESHOLD,WARN_STR_WLD_STRENGTH_MPA,ad5b3ff0-5ad9-5b58-a40a-bef5eb9cef36,TEXT,Type,Weld strength minimum [CRITICAL],Generic Models,ad5b3ff0-5ad9-5b58-a40a-bef5eb9cef36
 WARN_THRESHOLD,WARN_STR_WLD_THROAT_MM,3346cfd2-c1b6-5b8d-81fe-594737dd5ca5,TEXT,Type,Weld throat thickness minimum [HIGH],Generic Models,3346cfd2-c1b6-5b8d-81fe-594737dd5ca5
 SLV_SLEEVE_PARAMS,SLV_REF_TXT,a32226dd-518c-5158-b3c7-aa3df7ac0b43,TEXT,Instance,Sleeve reference code,Generic Models,a32226dd-518c-5158-b3c7-aa3df7ac0b43
-SLV_SLEEVE_PARAMS,SLV_SZ_MM,ed2365b1-c559-573e-a9ae-c8554db2572b,NUMBER,Instance,Sleeve size in millimetres,Generic Models,ed2365b1-c559-573e-a9ae-c8554db2572b
+SLV_SLEEVE_PARAMS,SLV_SZ_MM,ed2365b1-c559-573e-a9ae-c8554db2572b,TEXT,Instance,Sleeve size in millimetres,Generic Models,ed2365b1-c559-573e-a9ae-c8554db2572b
 SLV_SLEEVE_PARAMS,SLV_MAT_TXT,9b6071cf-8b10-574c-b40e-2dfbfc60b8d9,TEXT,Instance,Sleeve material,Generic Models,9b6071cf-8b10-574c-b40e-2dfbfc60b8d9
 SLV_SLEEVE_PARAMS,SLV_FIRE_RATING_TXT,ea8a8a2a-597c-56d6-a9fb-08c0fc59f372,TEXT,Instance,Sleeve fire rating,Generic Models,ea8a8a2a-597c-56d6-a9fb-08c0fc59f372
 SLV_SLEEVE_PARAMS,SLV_SEAL_TYPE_TXT,6d8aceb4-eea7-53ca-ab61-d1a87824571c,TEXT,Instance,Seal type,Generic Models,6d8aceb4-eea7-53ca-ab61-d1a87824571c
 SLV_SLEEVE_PARAMS,SLV_SERVICE_TXT,76c2ac35-3b7f-5dea-b60d-bf0179b15b92,TEXT,Instance,Service passing through sleeve,Generic Models,76c2ac35-3b7f-5dea-b60d-bf0179b15b92
 SLV_SLEEVE_PARAMS,SLV_WALL_TYPE_TXT,3d601083-e89c-50c8-9165-004c8610b0ff,TEXT,Instance,Host wall or floor type,Generic Models,3d601083-e89c-50c8-9165-004c8610b0ff
-SLV_SLEEVE_PARAMS,SLV_WALL_THICKNESS_MM,9489a0ec-44b6-5f55-81d5-f26c546faf3f,NUMBER,Instance,Host element thickness in mm,Generic Models,9489a0ec-44b6-5f55-81d5-f26c546faf3f
-SLV_SLEEVE_PARAMS,SLV_ANNULAR_GAP_MM,61c211b4-cdf2-53b8-84e5-84a7663f0aaf,NUMBER,Instance,Annular gap in mm,Generic Models,61c211b4-cdf2-53b8-84e5-84a7663f0aaf
+SLV_SLEEVE_PARAMS,SLV_WALL_THICKNESS_MM,9489a0ec-44b6-5f55-81d5-f26c546faf3f,TEXT,Instance,Host element thickness in mm,Generic Models,9489a0ec-44b6-5f55-81d5-f26c546faf3f
+SLV_SLEEVE_PARAMS,SLV_ANNULAR_GAP_MM,61c211b4-cdf2-53b8-84e5-84a7663f0aaf,TEXT,Instance,Annular gap in mm,Generic Models,61c211b4-cdf2-53b8-84e5-84a7663f0aaf
 SLV_SLEEVE_PARAMS,SLV_FIRESTOP_MFR_TXT,9f3cc22a-3076-5166-9f42-e6e52126cbaf,TEXT,Instance,Firestop system manufacturer,Generic Models,9f3cc22a-3076-5166-9f42-e6e52126cbaf
 SLV_SLEEVE_PARAMS,SLV_FIRESTOP_PRODUCT_TXT,1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f,TEXT,Instance,Firestop product reference,Generic Models,1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f
 SLV_SLEEVE_PARAMS,SLV_TESTED_TO_TXT,0a2943a3-036b-55ae-89ee-01055824fad8,TEXT,Instance,Fire test standard,Generic Models,0a2943a3-036b-55ae-89ee-01055824fad8

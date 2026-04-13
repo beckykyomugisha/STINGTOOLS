@@ -2329,14 +2329,14 @@ Generic Models,WARN_SHT_NAMING_STR,ce2a3aba-950d-5a00-b0bd-3691ae912df7,TEXT,WAR
 Generic Models,WARN_SHT_REV_MISSING,9d229c53-3e50-580f-8fb2-e9f953255be7,TEXT,WARN_THRESHOLDS,Type,Warning: sheet revision information missing [ISO 19650],False,,,MULTI,1,0
 Generic Models,WARN_SHT_TAG1_EMPTY,99dfa464-1361-5041-bcfc-f042aa64dd74,TEXT,WARN_THRESHOLDS,Type,Warning: sheet primary tag (TAG1) is empty [ISO 19650],False,,,MULTI,1,0
 Generic Models,SLV_REF_TXT,a32226dd-518c-5158-b3c7-aa3df7ac0b43,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve reference code,False,,,MULTI,1,1
-Generic Models,SLV_SZ_MM,ed2365b1-c559-573e-a9ae-c8554db2572b,NUMBER,SLV_SLEEVE_PARAMS,Instance,Sleeve size in millimetres,False,,,MULTI,1,1
+Generic Models,SLV_SZ_MM,ed2365b1-c559-573e-a9ae-c8554db2572b,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve size in millimetres,False,,,MULTI,1,1
 Generic Models,SLV_MAT_TXT,9b6071cf-8b10-574c-b40e-2dfbfc60b8d9,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve material (steel/PVC/cast iron),False,,,MULTI,1,1
 Generic Models,SLV_FIRE_RATING_TXT,ea8a8a2a-597c-56d6-a9fb-08c0fc59f372,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve fire rating (e.g. EI60 EI120),False,,,MULTI,1,1
 Generic Models,SLV_SEAL_TYPE_TXT,6d8aceb4-eea7-53ca-ab61-d1a87824571c,TEXT,SLV_SLEEVE_PARAMS,Instance,Seal type (intumescent/mechanical/composite),False,,,MULTI,1,1
 Generic Models,SLV_SERVICE_TXT,76c2ac35-3b7f-5dea-b60d-bf0179b15b92,TEXT,SLV_SLEEVE_PARAMS,Instance,Service passing through sleeve,False,,,MULTI,1,1
 Generic Models,SLV_WALL_TYPE_TXT,3d601083-e89c-50c8-9165-004c8610b0ff,TEXT,SLV_SLEEVE_PARAMS,Instance,Host wall or floor type,False,,,MULTI,1,1
-Generic Models,SLV_WALL_THICKNESS_MM,9489a0ec-44b6-5f55-81d5-f26c546faf3f,NUMBER,SLV_SLEEVE_PARAMS,Instance,Host element thickness in mm,False,,,MULTI,1,1
-Generic Models,SLV_ANNULAR_GAP_MM,61c211b4-cdf2-53b8-84e5-84a7663f0aaf,NUMBER,SLV_SLEEVE_PARAMS,Instance,Annular gap between service and sleeve in mm,False,,,MULTI,1,1
+Generic Models,SLV_WALL_THICKNESS_MM,9489a0ec-44b6-5f55-81d5-f26c546faf3f,TEXT,SLV_SLEEVE_PARAMS,Instance,Host element thickness in mm,False,,,MULTI,1,1
+Generic Models,SLV_ANNULAR_GAP_MM,61c211b4-cdf2-53b8-84e5-84a7663f0aaf,TEXT,SLV_SLEEVE_PARAMS,Instance,Annular gap between service and sleeve in mm,False,,,MULTI,1,1
 Generic Models,SLV_FIRESTOP_MFR_TXT,9f3cc22a-3076-5166-9f42-e6e52126cbaf,TEXT,SLV_SLEEVE_PARAMS,Instance,Firestop system manufacturer,False,,,MULTI,1,1
 Generic Models,SLV_FIRESTOP_PRODUCT_TXT,1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f,TEXT,SLV_SLEEVE_PARAMS,Instance,Firestop product reference,False,,,MULTI,1,1
 Generic Models,SLV_TESTED_TO_TXT,0a2943a3-036b-55ae-89ee-01055824fad8,TEXT,SLV_SLEEVE_PARAMS,Instance,Fire test standard (BS EN 1366-3 ASTM E814),False,,,MULTI,1,1
