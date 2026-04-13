@@ -600,7 +600,7 @@ TAG7 visibility controlled by `TAG_PARA_STATE_1/2/3_BOOL` parameters:
 - Tier 3: Full (+ technical + classification)
 - Tiers 4-10: Custom depth levels
 
-> **Note**: All `_BOOL` parameters (including `TAG_PARA_STATE_1/2/3_BOOL`, `TAG_WARN_VISIBLE_BOOL`, and `TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) use **YESNO** datatype in `MR_PARAMETERS.txt`. This matches Revit's shared parameter type system and prevents "Inconsistent Units" errors when loading parameters into families. In calculated value formulas, the `if()` condition accepts YESNO parameters directly — see TAG_FAMILY_CREATION_GUIDE.md for details.
+> **Note — `_BOOL` Parameter Datatypes**: The 12 **gating** parameters (`TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL` and `TAG_WARN_VISIBLE_BOOL`) use **INTEGER** datatype in `MR_PARAMETERS.txt`. INTEGER is unitless, which prevents "Inconsistent Units" errors when these parameters are used as conditions in label Calculated Value `if()` formulas (e.g., `if(TAG_PARA_STATE_2_BOOL, <text_param>, "")`). The 134 **style visibility** parameters (`TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) remain **YESNO** datatype because they bind directly to label row **Visibility** toggles (not `if()` formula conditions), where YESNO is the correct type. Both INTEGER and YESNO use `StorageType.Integer` internally — values are `1`/`0` in both cases.
 
 Set via: CREATE → Presentation → Set Paragraph Depth
 
