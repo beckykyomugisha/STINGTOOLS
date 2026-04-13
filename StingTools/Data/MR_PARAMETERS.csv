@@ -968,10 +968,10 @@ Generic Models,ASS_ORIGINATOR_COD_TXT,87dc564e-8542-497d-a36f-ee335fd32bd4,TEXT,
 Generic Models,ASS_VOLUME_COD_TXT,4f51f371-c2b1-43f5-9dea-da797442c1fb,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
 Generic Models,ASS_STATUS_COD_TXT,a57dfe0c-6db9-4fb6-80e0-d2c453fe653b,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
 Generic Models,ASS_REV_COD_TXT,83b2139d-67bb-48db-a50f-32140c0dc753,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_1_BOOL,e26e01ef-33d8-5a57-9ab7-fa30faa4ceff,YESNO,STINGTags_ISO19650,Type,Compact mode (tier 1 only) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_2_BOOL,b1080057-9890-5a0c-959a-46fb8847c766,YESNO,STINGTags_ISO19650,Type,Standard mode (tiers 1+2) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_3_BOOL,825a73c0-4b3b-5474-8db5-f54072ff40b8,YESNO,STINGTags_ISO19650,Type,Comprehensive mode (tiers 1+2+3) [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,YESNO,STINGTags_ISO19650,Type,Enable/disable warning text in tags [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_1_BOOL,e26e01ef-33d8-5a57-9ab7-fa30faa4ceff,INTEGER,STINGTags_ISO19650,Type,Compact mode (tier 1 only) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_2_BOOL,b1080057-9890-5a0c-959a-46fb8847c766,INTEGER,STINGTags_ISO19650,Type,Standard mode (tiers 1+2) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_3_BOOL,825a73c0-4b3b-5474-8db5-f54072ff40b8,INTEGER,STINGTags_ISO19650,Type,Comprehensive mode (tiers 1+2+3) [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,TAG_WARN_VISIBLE_BOOL,11d1c84f-a3f8-5cb9-a4aa-cfe44ef42a8f,INTEGER,STINGTags_ISO19650,Type,Enable/disable warning text in tags [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_WARN_SEVERITY_FILTER_TXT,ef7bf5e9-5bac-5ed4-bad3-87efd578ce6b,TEXT,STINGTags_ISO19650,Type,"Filter: CRITICAL, HIGH, MEDIUM, ALL [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,BLE_CEILING_AREA_SQ_M,b2d67f62-bb98-5390-89d7-4f5c5cba97a3,TEXT,BLE_ELES,Type,Ble Ceiling Area Sq M [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_CEILING_FIN_TILE_QTY_NR,02e86218-684e-50f6-a23b-d0f517d65766,TEXT,BLE_ELES,Type,Ble Ceiling Fin Tile Qty Nr [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -1442,13 +1442,13 @@ Generic Models,TAG_7_SECTION_VISIBLE_C_BOOL,0e535d1a-d2eb-5b15-b954-360ad46e1a57
 Generic Models,TAG_7_SECTION_VISIBLE_D_BOOL,74f5360e-4107-539f-af72-38389e7b64bd,YESNO,STINGTags_ISO19650,Type,TAG7 Section D (Lifecycle) visibility flag,False,,,MULTI,1,0
 Generic Models,TAG_7_SECTION_VISIBLE_E_BOOL,fdb2ccfa-6128-545c-8b6c-6a656d418948,YESNO,STINGTags_ISO19650,Type,TAG7 Section E (Technical) visibility flag,False,,,MULTI,1,0
 Generic Models,TAG_7_SECTION_VISIBLE_F_BOOL,329929ad-5f26-5d15-98b2-54604ecda858,YESNO,STINGTags_ISO19650,Type,TAG7 Section F (Classification) visibility flag,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_4_BOOL,3ac69694-7584-5ba2-9bce-4d045ca21088,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 4,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_5_BOOL,c9045501-eee6-54ce-b725-3ea589ee8025,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 5,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_6_BOOL,9b913556-ac00-5a04-b53c-1e262498ad1d,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 6,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_7_BOOL,8eb03b28-aaf9-5803-8e87-f0655afbf08d,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 7,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_8_BOOL,dd2f491c-8806-5cd2-bb21-d3b915646070,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 8,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_9_BOOL,482475c4-be76-5db3-87a6-8aac4a53dc74,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 9,False,,,MULTI,1,0
-Generic Models,TAG_PARA_STATE_10_BOOL,8be3ef27-42ab-5668-8cd0-a376578c805a,YESNO,STINGTags_ISO19650,Type,Paragraph depth state tier 10,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_4_BOOL,3ac69694-7584-5ba2-9bce-4d045ca21088,INTEGER,STINGTags_ISO19650,Type,Paragraph depth state tier 4,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_5_BOOL,c9045501-eee6-54ce-b725-3ea589ee8025,INTEGER,STINGTags_ISO19650,Type,Paragraph depth state tier 5,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_6_BOOL,9b913556-ac00-5a04-b53c-1e262498ad1d,INTEGER,STINGTags_ISO19650,Type,Paragraph depth state tier 6,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_7_BOOL,8eb03b28-aaf9-5803-8e87-f0655afbf08d,INTEGER,STINGTags_ISO19650,Type,Paragraph depth state tier 7,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_8_BOOL,dd2f491c-8806-5cd2-bb21-d3b915646070,INTEGER,STINGTags_ISO19650,Type,Paragraph depth state tier 8,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_9_BOOL,482475c4-be76-5db3-87a6-8aac4a53dc74,INTEGER,STINGTags_ISO19650,Type,Paragraph depth state tier 9,False,,,MULTI,1,0
+Generic Models,TAG_PARA_STATE_10_BOOL,8be3ef27-42ab-5668-8cd0-a376578c805a,INTEGER,STINGTags_ISO19650,Type,Paragraph depth state tier 10,False,,,MULTI,1,0
 Generic Models,ASS_MATERIAL_TXT,a1b2c3d4-5001-4a01-b001-000000000101,TEXT,ASS_MNG,Type,Asset material description [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_SUPPLIER_TXT,a1b2c3d4-5002-4a01-b001-000000000102,TEXT,ASS_MNG,Type,Asset supplier name [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_BARCODE_TXT,a1b2c3d4-5003-4a01-b001-000000000103,TEXT,ASS_MNG,Type,Asset barcode identifier [COBie V2.4],False,,,MULTI,1,0
@@ -2342,3 +2342,30 @@ Generic Models,SLV_FIRESTOP_PRODUCT_TXT,1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f,TEX
 Generic Models,SLV_TESTED_TO_TXT,0a2943a3-036b-55ae-89ee-01055824fad8,TEXT,SLV_SLEEVE_PARAMS,Instance,Fire test standard (BS EN 1366-3 ASTM E814),False,,,MULTI,1,1
 Generic Models,SLV_STATUS_TXT,91403abb-2a37-5571-9435-d68bc6cacec1,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve status (OPEN/SEALED/PENDING INSPECTION),False,,,MULTI,1,1
 Generic Models,SLV_INSPECTION_DATE_TXT,53b14c0e-eef5-5415-85d1-ebe2aeb53cd7,TEXT,SLV_SLEEVE_PARAMS,Instance,Last inspection date,False,,,MULTI,1,1
+Generic Models,COM_DEV_TAG,61d0d77d-c061-5d3b-9f64-5f0f8b279eef,TEXT,COM_DAT,Type,Communications device tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,ELC_CDT_TAG,29253d2b-7320-5139-a738-9e6b44b9fd46,TEXT,ELC_PWR,Type,Electrical conduit tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,ELC_CTR_TAG,983fe026-ff4f-50a6-9486-f08a54b87f70,TEXT,ELC_PWR,Type,Electrical cable tray tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,ELC_EQP_TAG,caaefdb2-cf82-56a1-8167-246ee3982b24,TEXT,ELC_PWR,Type,Electrical equipment tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,ELE_FIX_TAG,874f037a-66e2-58f3-9d66-b137b4b184cf,TEXT,ELC_PWR,Type,Electrical fixture tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,FLS_DEV_TAG,7ec98623-d3f0-583b-9552-b09b12736551,TEXT,FLS_LIFE_SFTY,Type,Fire/life safety device tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,HVC_DCT_TAG,c198faa1-c0c6-5aca-b92c-5e9b021affe7,TEXT,HVC_SYSTEMS,Type,HVAC duct tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,HVC_FLX_TAG,8ae538e1-f6cb-5271-a357-c390ac7605eb,TEXT,HVC_SYSTEMS,Type,HVAC flex duct tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,ICT_DEV_TAG,63eea465-921a-5218-b38e-c15f5793549f,TEXT,COM_DAT,Type,ICT device tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,LTG_FIX_TAG,449aa2da-345f-5d91-8f4b-037cc0fd9db3,TEXT,LTG_CONTROLS,Type,Lighting fixture tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,NCL_DEV_TAG,1c1a61fc-29d0-57c8-8e74-e8b9b4502126,TEXT,COM_DAT,Type,Nurse call / low-voltage device tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,PLM_EQP_TAG,37d954b4-c5a7-50c5-8629-2b2957ad440e,TEXT,PLM_DRN,Type,Plumbing equipment tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,SEC_DEV_TAG,de2cd955-4727-5488-a783-5d9be9942169,TEXT,COM_DAT,Type,Security device tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_FINISH_TXT,2808be20-c49b-5167-868e-fc894cf8161d,TEXT,BLE_ELES,Instance,Building element finish description [ISO 19650-2:2018],False,,,MULTI,1,1
+Generic Models,BLE_MATERIAL_TXT,6a532cfc-c412-5f81-9b93-5c7e4d0ac31a,TEXT,BLE_ELES,Instance,Building element material description [ISO 19650-2:2018],False,,,MULTI,1,1
+Generic Models,SLV_TAG_7_PARA_TXT,4529fc89-90fb-56f9-955a-2d54998a294c,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve paragraph container [ISO 19650-3:2020],False,,,MULTI,1,1
+Generic Models,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH,f2f0b231-ac86-59fd-a1f7-5e7dc0c111a1,TEXT,STINGTags_ISO19650,Type,Tag warning: per embodied carbon kg CO2/m2 architectural [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SHT_DISC_MISMATCH,ae00ba3e-96a9-5dac-bee2-b89817614765,TEXT,WARN_THRESHOLDS,Type,Warning: sheet discipline mismatch between name and content [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_DISC,745e3b6f-84a1-537c-af98-6cd0415c0610,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no discipline code [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_LEVEL,8033c0d1-0e55-5f56-9d71-af7f7d849900,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no level reference [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_ORIGINATOR,9ffd26e3-dfdf-50d6-b0c1-2e377a82b792,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no originator code [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_TAG1,7f9ff3af-83eb-5ffc-be71-2056c8959aad,TEXT,WARN_THRESHOLDS,Type,Warning: sheet primary tag (TAG1) missing [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_TAG7,03d934d7-342d-54b9-8a9d-605f11ff2f3e,TEXT,WARN_THRESHOLDS,Type,Warning: sheet TAG7 narrative missing [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_FIRESTOP,fbbff16e-ad11-554f-a2a3-1ba91250ddfd,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing firestop system [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_INSPECTION,3c5e1027-76c0-54f9-a6dd-0f7fcf654ba7,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing inspection record [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_SERVICE,3dcb019c-4d45-50d4-976a-f7e434824ccd,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing service identification [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_SIZE,5c78cafc-d62b-5d50-99de-19cb2dea49de,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing size specification [ISO 19650-3:2020],False,,,MULTI,1,0
