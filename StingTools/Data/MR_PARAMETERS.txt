@@ -2417,6 +2417,7 @@ PARAM	2808be20-c49b-5167-868e-fc894cf8161d	BLE_FINISH_TXT	TEXT		10	1	Building el
 PARAM	6a532cfc-c412-5f81-9b93-5c7e4d0ac31a	BLE_MATERIAL_TXT	TEXT		10	1	Building element material description [ISO 19650-2:2018]	1
 # ── Sleeve paragraph container ───────────────────────────────────────────────
 PARAM	4529fc89-90fb-56f9-955a-2d54998a294c	SLV_TAG_7_PARA_TXT	TEXT		19	1	Sleeve paragraph container [ISO 19650-3:2020]	1
+PARAM	fa93b8a1-3383-5c1f-8935-0dadba420f50	SLV_TAG	TEXT		19	1	MEP Sleeve discipline tag container [ISO 19650-3:2020]	1
 # ── Validation warning parameters (sheet and sleeve) ────────────────────────
 PARAM	f2f0b231-ac86-59fd-a1f7-5e7dc0c111a1	WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH	TEXT		17	1	Tag warning: per embodied carbon kg CO2/m2 architectural [ISO 19650-3:2020]	1
 PARAM	ae00ba3e-96a9-5dac-bee2-b89817614765	WARN_SHT_DISC_MISMATCH	TEXT		15	1	Warning: sheet discipline mismatch between name and content [ISO 19650]	0

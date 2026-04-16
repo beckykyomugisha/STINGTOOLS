@@ -2042,7 +2042,7 @@ namespace StingTools.Core
                 ["S"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "STR_", "MAT_" },
                 ["FP"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "FLS_", "MAT_" },
                 ["LV"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "COM_", "SEC_", "NCL_", "ICT_", "MAT_" },
-                ["G"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "MAT_" },
+                ["G"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "MAT_", "SLV_" },
             };
 
         /// <summary>FUT-20: Check if a container param is relevant for the given discipline.</summary>
