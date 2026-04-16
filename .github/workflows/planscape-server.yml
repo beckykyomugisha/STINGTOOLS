@@ -1,0 +1,106 @@
+name: Planscape Server — Build, Test & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Planscape.Server/**'
+      - '.github/workflows/planscape-server.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Planscape.Server/**'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/planscape-api
+
+jobs:
+  # ── Build & Test ──────────────────────────────────────────────────────────────
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Planscape.Server
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore Planscape.sln
+
+      - name: Build
+        run: dotnet build Planscape.sln --no-restore --configuration Release
+
+      - name: Run tests
+        run: dotnet test Planscape.sln --no-build --configuration Release --verbosity normal
+        continue-on-error: true  # No tests yet — don't fail CI
+
+  # ── Docker Build & Push ───────────────────────────────────────────────────────
+  docker:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: Planscape.Server
+          file: Planscape.Server/docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Deploy to Render.com ──────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Render.com
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://planscape-api.onrender.com
+
+    steps:
+      - name: Trigger Render.com deploy
+        run: |
+          curl -s -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache": false}'
+        # Secrets required: RENDER_API_KEY, RENDER_SERVICE_ID
+        # Add these in GitHub → Settings → Secrets and variables → Actions

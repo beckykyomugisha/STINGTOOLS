@@ -714,3 +714,29 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Architectural discipline
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_SHT_NAMING_ARCH,Sheet name does not match ISO 19650 naming convention for architectural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_ARCH, """")"
+
+Tag Family #35: STING - Architectural Column Tag
+TAG7: ARCH_TAG_7_PARA_COLUMNS_TXT  •  Category: Columns — Architectural discipline
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_STRUCT_COLUMN_SZ_TXT,Size:,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_COLUMN_SZ_TXT, """")"
+5,T2,BLE_COLUMN_SLENDERNESS,λ:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_COLUMN_SLENDERNESS, """")"
+6,T2,BLE_MATERIAL_TXT,Mat:,,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_MATERIAL_TXT, """")"
+7,T2,BLE_FINISH_TXT,Fin:,,,,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_FINISH_TXT, """")"
+8,T2,PER_FIRE_RATING_HR,,,hr,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")"
+9,T2,RGL_STD_TXT,Std:,,,,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+10,T3,ARCH_TAG_7_PARA_COLUMNS_TXT,,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_COLUMNS_TXT, """")"
+11,T3,ASS_GRID_REF_TXT,Grid:,,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_GRID_REF_TXT, """")"
+12,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+13,T3,ASS_CST_TOTAL_UGX_NR,,,UGX,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+14,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,,days,,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
+15,T3,CST_LOCAL_MAT_BOOL,| Local:,,,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+16,T3,PER_SUST_EMBODIED_CARBON_KG,,,kgCO₂/m²,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")"
+17,T3,RGL_QA_COMMISSIONING_REQ_TXT,Comm:,,,,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS,Fire rating < 1.0 hr for architectural column,Building Regs Part B / BS 9999 Table 10,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS, """")"
+2,CRITICAL,WARN_BLE_COLUMN_SLENDERNESS,Column slenderness ratio exceeds limit,BS EN 1992-1-1 / EC2 5.8.3,Common,Text,⚠ Warning: Column Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_COLUMN_SLENDERNESS, """")"
+3,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH,Carbon > 500 kgCO₂/m² for architectural element,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH, """")"

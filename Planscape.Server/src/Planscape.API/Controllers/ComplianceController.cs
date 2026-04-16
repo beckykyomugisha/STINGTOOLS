@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
@@ -12,6 +14,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId}/compliance")]
 [Authorize]
+[EnableRateLimiting("mobile")]
 public class ComplianceController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -59,6 +62,19 @@ public class ComplianceController : ControllerBase
         project.TaggedElements = req.TaggedComplete + req.TaggedIncomplete;
         project.WarningCount = req.WarningCount;
         project.RagStatus = req.RagStatus;
+
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = tenantId,
+            ProjectId = projectId,
+            UserId = userId,
+            Action = "compliance_snapshot_pushed",
+            EntityType = "ComplianceSnapshot",
+            EntityId = snapshot.Id.ToString(),
+            DetailsJson = JsonSerializer.Serialize(new { req.TagPercent, req.StrictPercent, req.ContainerPercent, req.RagStatus, req.TotalElements }),
+            Timestamp = DateTime.UtcNow
+        });
 
         await _db.SaveChangesAsync();
         return Ok(new { id = snapshot.Id, capturedAt = snapshot.CapturedAt });

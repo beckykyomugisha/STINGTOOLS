@@ -14,12 +14,6 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 - **WPF dockable panel** (9 tabs, primary UI) + 1 BIM Coordination Center (13 tabs) + 1 Material Manager (7 tabs) + 1 Document Management Center (8 tabs) + ribbon retained for legacy compat
 - **Phase 76 additions**: Revisions inline panels, Workflow ToggleButton tabs, QR code generation (ZXing.Net), Code Legend (120+ entries), Project Members unified tab, Material Manager 7-tab dialog, Issues dynamic context panels
 - **Phase 77 additions**: BCC complete UX overhaul — Deliverables inline editable grid + transmittal section, Meetings 4-sub-tab inline panel (Meetings List, Action Items, Minutes Editor, Automation), Model Health inline action panels, QR Codes section in Overview, 20 issue types with color coding, StingCommandHandler wired for all BCC action tags, keyboard navigation (Escape/F5), ShowStatus helper, RefreshBadges method, Overview quick actions toolbar
-- **Phase 88 additions**: BCC ISO 19650 issue type codes (19 BCF/NEC/JCT types from BIMManagerEngine), notify recipients checkboxes, GetISOStandardMembers() helper (23 roles), 23+ placeholder command dispatches wired to proper handlers
-- **Phase 89 additions**: Branch merge from main (condescending-blackburn worktree work); 6 conflict resolutions; server FullSync DTOs (FullSyncRequest/Response + compliance/warning snapshots); type-filtered global search API (elements/issues/documents with project scoping); ExportTimeline4DPNG + ExportReport commands wired in StingCommandHandler
-- **Phase 89 additions**: Tag Family Creator 126→136 fix — added OST_Sheets base category, 2 pipe tie-in variants, 3 discipline sheet variants, 4 structural variants via new DisciplineSheetFamilies + StructuralVariantFamilies tuple arrays with Step 5c/5d creation loops
-- **Phase 90 additions**: Error audit & comment fix — outdated "132" tag family count comments corrected to "136", full 190-file brace balance audit (all balanced), compilation error scan (no blocking errors)
-- **Phase 91 additions**: ZoomToWarnings/WeeklyCoordinatorReport/EvaluateFormulas/SelectElement_ handler fixes; IssueTrackerDashboard live DataGrid + real member name dropdown; HandleProjectMembersAction JSON save; Issues tab Location+RaisedBy fields + Location column; AutoPopulateIssueLocation from element selection; WarningsDashboardDialog internal-static builder methods + WarningsPanelState; BCC 6-tab inline Warnings panel; WarningRow.ElementIds lazy expand in Browse & Select; full AEC/FM meeting type groups (39 types) in BCC + DocumentManagementDialog; Issue↔Revision↔Transmittal cross-linking; REV auto-propagation on revision creation; ForecastCompletionDate + FORECAST KPI card; CDE folder auto-init on BCC open; Data Drop milestone tracker in Deliverables tab; workload heatmap + discipline column; transmittal CDE gate validation; COBie System worksheet from live SYS scan
-- **Phase 91 follow-up**: (1) BCC Meetings DataGrid `mtgTypes` expanded from 12 to 39 AEC/FM types in 6 groups; (2) Project Members Role + Discipline columns changed from `DataGridTextColumn` to `DataGridComboBoxColumn` with comprehensive ISO 19650 role list (37 entries) and discipline codes (25 entries A–Z); (3) `BuildWarningsTab()` rewritten as single-panel `DockPanel` — 8-card KPI strip top, action bar bottom, 6-tab `TabControl` fill — removing all duplicated old scrollable content (~400 lines removed); (4) `WarningsDashboardDialog` all 6 tab builders gain optional `WarningsPanelState state` param; `_embeddedState` static field added so `MakeOperationCard.SelectCard()` updates `state.SelectedOperation`; `GetSelectedOperation()` internal getter added for BCC fallback; `BuildBrowseSelectTab` warning tree items gain right-click context menus (8 options: Select in Model, Auto-Fix, Ignore/Suppress, Set Baseline, Root Cause, Export BCF, Copy Description, SLA Status) and lazy element expand with element ID child nodes (cap 50), each with double-click select/zoom and right-click copy
 
 ## Technology Stack
 
@@ -837,7 +831,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `ScheduleAuditHelper` | `Temp/ScheduleEnhancementCommands.cs` | CSV definition loader, ScheduleDefinition model, shared infrastructure for schedule management commands |
 | `FormulaEngine` | `Temp/FormulaEvaluatorCommand.cs` | Formula parsing, context building, text/numeric evaluation, includes `ExpressionParser` recursive descent parser |
 | `TemplateManager` | `Temp/TemplateManagerCommands.cs` | Deep template intelligence engine: 5-layer auto-assignment, compliance scoring, VG diff, style definitions |
-| `TagFamilyConfig` | `Tags/TagFamilyCreatorCommand.cs` | Configuration for tag family creation: 121 `BuiltInCategory` to `.rft` template mappings + 8 tie-in point + 3 discipline sheet + 4 structural variant tuple arrays (136 total families), seed family lookup, output directory management |
+| `TagFamilyConfig` | `Tags/TagFamilyCreatorCommand.cs` | Configuration for tag family creation: 50 `BuiltInCategory` to `.rft` template mappings, seed family lookup, output directory management |
 | `LegendBuilder` | `Tags/LegendBuilderCommands.cs` | Legend creation engine: drafting view legends with FilledRegion swatches and TextNote labels, multi-column grid layout |
 | `StingColorRegistry` | `Tags/LegendBuilderCommands.cs` | Central color registry for all colorization schemes (discipline, status, system, parameter-based) |
 | `LegendSyncEngine` | `Tags/LegendBuilderCommands.cs` | Legend synchronization: updates existing legends when element data changes |
@@ -1598,7 +1592,7 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 
 53. **Auto-modeling engine** — `Model/` directory with 16 commands: walls, floors, roofs, columns, beams, MEP, rooms, building shell, DWG-to-BIM conversion. `ModelEngine` + `CADToModelEngine` with `LayerMapper` for 18 DWG layer categories.
 54. **Tag style engine** — `TagStyleEngine.cs` + `TagStyleCommands.cs` with 9 commands: 128 style combinations via `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` parameter matrix. 8 built-in color schemes (Discipline, Warm, Cool, Red, Yellow, Blue, Monochrome, Dark).
-55. **Tag family expansion to 136 categories** — `TagFamilyCreatorCommand.cs` expanded to v5.0 with comprehensive category coverage (121 standard + 8 tie-in point + 3 discipline sheet + 4 structural variant), TAG7 sub-sections, and label configuration.
+55. **Tag family expansion to 124 categories** — `TagFamilyCreatorCommand.cs` expanded to v5.0 with comprehensive category coverage, TAG7 sub-sections, and label configuration.
 56. **LABEL_DEFINITIONS.json v5.0** — Expanded to complete tiers, TAG7, and warnings for all 123 categories.
 57. **TAG7 natural language** — Enhanced TAG7 narrative with natural language connecting words throughout all sections.
 58. **Family parameter processor** — `FamilyParameterProcessorCommand` for batch .rfa file parameter processing.
@@ -2194,11 +2188,13 @@ Critical review of the tagging workflow identified the following logic, automati
 
 ---
 
-## StingBIM Server
+## Planscape Server
 
 ### Overview
 
-**StingBIM Server** is a cloud backend that transforms the single-machine Revit plugin into a multi-user, multi-tenant SaaS platform. Located in `StingBIM.Server/`.
+**Planscape Server** is a cloud backend that transforms the single-machine Revit plugin into a multi-user, multi-tenant SaaS platform. Located in `Planscape.Server/`.
+
+> **Gap Analysis**: See `Planscape.Server/docs/PLANSCAPE_GAPS.md` (655 lines) for comprehensive gap analysis covering mobile collaboration, server API, plugin sync integration, on-site readiness assessment, and prioritised implementation roadmap with cost estimates.
 
 ### Technology Stack
 
@@ -2206,91 +2202,108 @@ Critical review of the tagging workflow identified the following logic, automati
 |---|---|
 | API | ASP.NET Core 8.0 (net8.0) |
 | Database | PostgreSQL 16 + EF Core 8 |
-| Cache | Redis 7 |
-| Real-time | SignalR |
-| Auth | JWT + Refresh tokens |
+| Cache | Redis 7 (caching + SignalR backplane) |
+| Real-time | SignalR (ComplianceHub, TagSyncHub, NotificationHub) |
+| Auth | JWT + Refresh tokens (BCrypt password hashing) |
 | File Storage | MinIO (S3-compatible) |
+| Email | MailKit SMTP (IEmailService) |
+| Push | Firebase Cloud Messaging (FCM HTTP v1) |
+| Background | Hangfire (4 recurring jobs) |
 | Container | Docker Compose |
 
 ### Project Structure
 
 ```
-StingBIM.Server/
-├── StingBIM.sln                          # Solution file
+Planscape.Server/
+├── Planscape.sln                         # Solution file
+├── docs/
+│   └── PLANSCAPE_GAPS.md                 # Gap analysis: mobile, server, integration, readiness
 ├── docker/
 │   ├── docker-compose.yml                # API + Postgres + Redis
 │   └── Dockerfile                        # Multi-stage API build
 └── src/
-    ├── StingBIM.API/                     # ASP.NET Core Web API
+    ├── Planscape.API/                    # ASP.NET Core Web API (17 controllers)
     │   ├── Controllers/
     │   │   ├── AuthController.cs         # Login, register, refresh, change/forgot/reset password, /me, license
     │   │   ├── ProjectsController.cs     # CRUD + PUT settings + dashboard
-    │   │   ├── TagSyncController.cs      # Bulk tag sync from plugin
+    │   │   ├── ProjectMembersController.cs # Invite/remove/list team members with ISO 19650 roles
+    │   │   ├── TagSyncController.cs      # Bulk tag sync from plugin (batch upsert, Redis caching)
     │   │   ├── ComplianceController.cs   # Snapshot push/pull + trend
     │   │   ├── IssuesController.cs       # CRUD + SLA tracking + attachments (upload/list/delete/link)
-    │   │   ├── DocumentsController.cs    # CDE state machine + file upload/download
+    │   │   ├── DocumentsController.cs    # CDE state machine + file upload/download + approval gates
     │   │   ├── NotificationsController.cs # Push token subscribe/list/delete + test push
     │   │   ├── WorkflowsController.cs    # Run logging + trend
     │   │   ├── MeetingsController.cs     # Agenda + action items
     │   │   ├── SeqSyncController.cs      # Max-per-key merge
     │   │   ├── TransmittalsController.cs # ISO 19650 transmittals
     │   │   ├── WarningsController.cs     # Warning reports + baseline
+    │   │   ├── SearchController.cs       # Cross-project global search (tags, issues, docs, meetings)
+    │   │   ├── PlatformController.cs     # BIM platform integrations (ACC, Procore, Aconex, Trimble)
     │   │   ├── AdminController.cs        # Org + user + audit management
-    │   │   └── MimController.cs          # StingMIM asset lifecycle
+    │   │   └── MimController.cs          # Planscape MIM asset lifecycle
     │   ├── Middleware/
-    │   │   └── TenantResolutionMiddleware.cs
+    │   │   └── TenantResolutionMiddleware.cs  # Multi-tenant resolution with Redis-backed caching
     │   ├── SeedData.cs                   # Demo tenant + project + issues
-    │   └── Program.cs                    # DI, middleware, SignalR hubs
+    │   └── Program.cs                    # DI, middleware, SignalR hubs, Hangfire
     │
-    ├── StingBIM.Core/                    # Domain entities + DTOs
+    ├── Planscape.Core/                   # Domain entities + DTOs (18 entities)
     │   ├── Entities/
     │   │   ├── Tenant.cs                 # Multi-tenant org
-    │   │   ├── AppUser.cs                # JWT user with ISO 19650 role
+    │   │   ├── AppUser.cs                # JWT user with ISO 19650 role (UserRole enum)
     │   │   ├── Project.cs                # BIM project container
+    │   │   ├── ProjectMember.cs          # User↔Project join with role
     │   │   ├── TaggedElement.cs          # 8-segment tag data
-    │   │   ├── BimIssue.cs               # RFI/NCR/SI issue
-    │   │   ├── DocumentRecord.cs         # CDE document with state
+    │   │   ├── BimIssue.cs               # RFI/NCR/SI issue with SLA tracking
+    │   │   ├── IssueAttachment.cs        # Join entity linking BimIssue to DocumentRecord
+    │   │   ├── DocumentRecord.cs         # CDE document with state (CDEState enum)
+    │   │   ├── DocumentApproval.cs       # ISO 19650-2 §5.6 approval workflow
+    │   │   ├── PlatformConnection.cs     # External BIM platform connection config
     │   │   ├── ComplianceSnapshot.cs     # Point-in-time compliance
     │   │   ├── SeqCounter.cs             # Sequence number counter
     │   │   ├── Meeting.cs                # Meeting + action items
     │   │   ├── Transmittal.cs            # Document transmittal
     │   │   ├── WorkflowRun.cs            # Workflow execution record
-    │   │   ├── LicenseKey.cs             # License with tier + seats
+    │   │   ├── LicenseKey.cs             # License with tier + seats (LicenseTier enum)
     │   │   ├── AuditLog.cs               # Write operation audit trail
-    │   │   ├── DevicePushToken.cs        # FCM/APNs device token for push notifications
-    │   │   └── IssueAttachment.cs        # Join entity linking BimIssue to DocumentRecord
+    │   │   └── DevicePushToken.cs        # FCM/APNs device token (PushPlatform enum)
     │   ├── DTOs/SyncDtos.cs              # Sync request/response models
     │   └── Interfaces/
     │       ├── IRepository.cs
+    │       ├── IEmailService.cs          # Email abstraction (SMTP/null fallback)
+    │       ├── INotificationService.cs   # SignalR notification dispatch
+    │       ├── IPlatformConnector.cs     # BIM platform integration (4 async methods)
     │       └── IPushNotificationService.cs  # Push notification abstraction (FCM/APNs/Web)
     │
-    ├── StingBIM.Infrastructure/          # EF Core + SignalR
-    │   ├── Data/StingBimDbContext.cs      # 20 DbSets, indexes, relationships
+    ├── Planscape.Infrastructure/         # EF Core + SignalR + Services
+    │   ├── Data/PlanscapeDbContext.cs     # 21 DbSets, indexes, relationships
     │   ├── Data/Migrations/
     │   │   ├── 20250407000000_InitialCreate.cs      # Hand-written initial migration (all tables)
-    │   │   └── StingBimDbContextModelSnapshot.cs    # EF Core model snapshot
+    │   │   └── PlanscapeDbContextModelSnapshot.cs   # EF Core model snapshot
     │   ├── Services/
-    │   │   ├── TenantContext.cs
-    │   │   ├── NotificationService.cs    # SignalR + push notification dispatch
-    │   │   ├── FirebasePushService.cs    # FCM HTTP v1 push implementation
-    │   │   └── BackgroundJobs.cs         # Hangfire: compliance, SLA escalation, cleanup
+    │   │   ├── TenantContext.cs           # ITenantContext with Redis-backed caching
+    │   │   ├── NotificationService.cs     # SignalR + push notification dispatch
+    │   │   ├── FirebasePushService.cs     # FCM HTTP v1 push (JWT auth, exponential retry)
+    │   │   ├── SmtpEmailService.cs        # MailKit SMTP + NullEmailService fallback
+    │   │   ├── PlatformConnectors.cs      # IPlatformConnector implementations (ACC, Procore, etc.)
+    │   │   └── BackgroundJobs.cs          # Hangfire: compliance, SLA escalation, cleanup, platform sync
     │   └── SignalR/
-    │       └── ComplianceHub.cs          # ComplianceHub + TagSyncHub
+    │       ├── ComplianceHub.cs           # Real-time compliance updates
+    │       └── NotificationHub.cs         # Real-time notification delivery
     │
-    ├── StingBIM.MIM/                     # Model Information Management
+    ├── Planscape.MIM/                    # Model Information Management
     │   ├── Entities/Asset.cs             # 40+ field asset entity
     │   ├── Entities/MaintenanceTask.cs   # PPM scheduling per BS 8210
     │   └── Services/AssetService.cs
     │
-    ├── StingBIM.Shared/                  # Cross-cutting (plugin + server)
+    ├── Planscape.Shared/                 # Cross-cutting (plugin + server)
     │   ├── Constants/ISO19650Codes.cs    # DISC/SYS/FUNC/PROD/LOC/ZONE codes
     │   ├── Models/SyncModels.cs          # PluginSyncPayload DTOs
     │   └── Helpers/TagFormatHelper.cs    # Tag validation/parsing
     │
-    └── StingBIM.PluginSync/             # Plugin-side sync client
-        ├── SyncClient.cs                # HTTP + JWT auth client
-        ├── OfflineQueue.cs              # File-backed offline queue
-        └── SyncScheduler.cs            # 5-min periodic sync
+    └── Planscape.PluginSync/            # Plugin-side sync client (UNUSED — see Integration note)
+        ├── SyncClient.cs                # HTTP + JWT auth client (dead code)
+        ├── OfflineQueue.cs              # File-backed offline queue (dead code)
+        └── SyncScheduler.cs             # 5-min periodic sync (dead code)
 ```
 
 ### API Endpoints Summary
@@ -2299,6 +2312,7 @@ StingBIM.Server/
 |---|---|---|
 | Auth | `/api/auth/login`, `/register`, `/refresh`, `/change-password`, `/forgot-password`, `/reset-password`, `/me`, `/license/activate` | POST, GET |
 | Projects | `/api/projects`, `/api/projects/{id}` | GET, POST, PUT |
+| Project Members | `/api/projects/{id}/members` | GET, POST invite, DELETE remove |
 | Dashboard | `/api/projects/{id}/dashboard` | GET |
 | Tag Sync | `/api/tagsync/sync`, `/elements/{id}`, `/compliance/{id}` | POST, GET |
 | Compliance | `/api/projects/{id}/compliance` | POST, GET (latest/history/trend) |
@@ -2311,6 +2325,8 @@ StingBIM.Server/
 | Transmittals | `/api/projects/{id}/transmittals` | GET, POST, PUT send |
 | Warnings | `/api/projects/{id}/warnings` | POST report/baseline, GET trend |
 | Notifications | `/api/notifications/subscribe`, `/tokens`, `/test` | POST, GET, DELETE |
+| Search | `/api/search?q=` | GET (cross-project: tags, issues, docs, meetings) |
+| Platform | `/api/projects/{id}/platform` | GET connections, POST connect/sync |
 | MIM | `/api/projects/{id}/mim/assets`, `/maintenance`, `/dashboard` | GET, POST, bulk |
 | Admin | `/api/admin/org`, `/users`, `/audit`, `/licenses` | GET, POST, PUT |
 | SignalR | `/hubs/compliance`, `/hubs/tagsync`, `/hubs/notifications` | WebSocket |
@@ -2324,16 +2340,108 @@ StingBIM.Server/
 | Professional | 1-5 | $15/user/mo | 5, cloud sync |
 | Premium | 6-100 | $25/user/mo | Unlimited |
 | Enterprise | 100+ | Custom | SSO, on-prem |
-| StingMIM | Add-on | $10-17/user/mo | FM, digital twin |
+| Planscape MIM | Add-on | $10-17/user/mo | FM, digital twin |
+
+### Plugin ↔ Server Sync Architecture
+
+> **CRITICAL NOTE**: Two parallel sync systems exist. Only one is actually used.
+
+| System | Location | Status | Mechanism |
+|---|---|---|---|
+| `Planscape.PluginSync` | `Planscape.Server/src/Planscape.PluginSync/` | **DEAD CODE** — never referenced by StingTools | Automatic 5-min scheduler, file-backed offline queue |
+| `StingBIMServerClient` | `StingTools/BIMManager/PlatformLinkCommands.cs` | **ACTUALLY USED** | Manual on-demand sync via BIM Coordination Center buttons |
+
+The `StingBIMServerClient` (2,222 lines in `PlatformLinkCommands.cs`) provides:
+- JWT login/token refresh via `/api/auth/login` and `/api/auth/refresh`
+- Tag sync via `/api/tagsync/sync` (bulk POST)
+- Compliance push via `/api/projects/{id}/compliance` (POST snapshot)
+- Issue sync via `/api/projects/{id}/issues` (GET/POST)
+- Document register via `/api/projects/{id}/documents` (GET/POST)
+- SEQ counter sync via `/api/projects/{id}/seq` (POST max-per-key merge)
+
+Missing from `StingBIMServerClient`: warnings sync, workflow run sync, meeting sync, transmittal sync, MIM asset sync, platform connections. See `PLANSCAPE_GAPS.md` INT-01 through INT-10 for details.
+
+## Planscape Mobile App
+
+### Overview
+
+**Planscape Mobile** is a React Native / Expo cross-platform mobile app for on-site BIM coordination, issue management, and document access. Located in `Planscape/`.
+
+### Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React Native + Expo SDK 52 |
+| Router | expo-router v4 (file-based routing) |
+| Language | TypeScript |
+| Camera | expo-camera (QR/barcode scanning) |
+| Storage | @react-native-async-storage (offline queue) |
+| HTTP | Fetch API via `src/api/client.ts` |
+
+### Mobile App Structure
+
+```
+Planscape/
+├── app.json                              # Expo config
+├── package.json                          # Dependencies
+├── tsconfig.json                         # TypeScript config
+├── app/
+│   ├── _layout.tsx                       # Root layout with tab navigation
+│   ├── login.tsx                         # Auth screen
+│   └── (tabs)/
+│       ├── _layout.tsx                   # Tab bar layout (5 tabs)
+│       ├── index.tsx                     # Dashboard tab
+│       ├── issues.tsx                    # Issues tab (list + create)
+│       ├── documents.tsx                 # Documents tab (list + CDE status)
+│       ├── scanner.tsx                   # QR/barcode scanner (828 lines)
+│       └── settings.tsx                  # Settings tab
+└── src/
+    ├── api/
+    │   ├── client.ts                     # HTTP client with JWT auth (97 lines)
+    │   └── endpoints.ts                  # API endpoint constants (100 lines)
+    ├── components/                       # Reusable UI components
+    ├── hooks/                            # Custom React hooks
+    ├── types/                            # TypeScript type definitions
+    └── utils/
+        └── offlineQueue.ts              # AsyncStorage-backed offline queue (124 lines)
+```
+
+### Mobile Offline Queue
+
+The mobile app supports 3 offline action types via `src/utils/offlineQueue.ts`:
+- `CREATE_ISSUE` — Create new RFI/NCR/SI with photos
+- `UPDATE_ISSUE` — Update existing issue status/priority
+- `TRANSITION_CDE` — Change document CDE state
+
+Queue is persisted to `AsyncStorage` and flushed when connectivity is restored.
+
+### Mobile Gap Summary
+
+The mobile app is at **prototype/demo stage** — NOT production-ready for on-site use. Key gaps documented in `PLANSCAPE_GAPS.md`:
+- No photo attachment support (MOB-01)
+- No GPS/location capture (MOB-02)
+- No offline-first data caching (MOB-03)
+- No push notification integration (MOB-04)
+- No document viewer/markup (MOB-06)
+- No compliance dashboard (MOB-09)
+- No meeting/transmittal screens (MOB-10, MOB-11)
+
+Estimated effort to reach on-site production readiness: **12-16 weeks, £33K-£39K** (see `PLANSCAPE_GAPS.md` sections 5-6 for detailed breakdown).
 
 ### Running Locally
 
 ```bash
-cd StingBIM.Server/docker
+# Server
+cd Planscape.Server/docker
 docker compose up -d
 # API: http://localhost:5000
 # Swagger: http://localhost:5000/swagger
-# Demo login: admin@stingbim.demo / admin123
+# Demo login: admin@planscape.demo / admin123
+
+# Mobile (requires Node.js + Expo CLI)
+cd Planscape
+npm install
+npx expo start
 ```
 
 #### Completed (Phase 46 — Intelligent Warnings Manager, Auto-Tagger Bulk Fix, Token Writer Enhancement)
@@ -2459,7 +2567,7 @@ docker compose up -d
 528. **COBieHandoverExportCommand dispatched** — Missing dispatch entry wired in `StingCommandHandler.cs`.
 529. **4 new workflow presets** — `ModelAuditDeep` (8 steps: warnings→templates→data pipeline→schedules→schema→tags→sheets→compliance), `MEPCoordination` (6 steps: clashes→system push→retag→validate→warnings→compliance), `CDE_Submission` (8 steps: retag→resolve→validate→sheet naming→doc naming→register→sheet register→transmittal), `DesignReviewPrep` (5 steps: auto-assign templates→warnings fix→sheet naming→compliance scores→completeness).
 530. **12 new workflow command resolutions** — `ScheduleAudit`, `SchemaValidate`, `SheetComplianceCheck`, `SheetNamingCheck`, `TemplateAudit`, `TemplateComplianceScore`, `ClashDetection`, `BatchSystemPush`, `ExportSheetRegister`, `COBieHandoverExport`, `GenerateBEP`, `WarningsMonitor` added to `WorkflowEngine.ResolveCommand()`.
-531. **Branch consolidation** — Merged `claude/fix-ui-enhance-workflows-t7m5b` (StingBIM Server + 25 gap fixes) and `claude/structural-modeling-automation-sPf3f` (5 commits: advanced structural, plastering, coverings, design intelligence, architectural creation) into `claude/review-merge-conflicts-aaVRG`. All merge conflicts resolved cleanly.
+531. **Branch consolidation** — Merged `claude/fix-ui-enhance-workflows-t7m5b` (Planscape Server + 25 gap fixes) and `claude/structural-modeling-automation-sPf3f` (5 commits: advanced structural, plastering, coverings, design intelligence, architectural creation) into `claude/review-merge-conflicts-aaVRG`. All merge conflicts resolved cleanly.
 
 #### Completed (Phase 56 — Second-Pass Deep Review: Warnings Intelligence, Model Validation, Morning Briefing & Compliance Trends)
 
@@ -3204,67 +3312,4 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 - **Document upload**: `POST /api/projects/{id}/documents/upload` with `IFormFile`, tenant/project path isolation (`{StoragePath}/{tenantSlug}/{projectCode}/`), SHA-256 content hashing, timestamp-suffix dedup, 100MB limit. `GET /download/{docId}` with `PhysicalFileResult`. CDE state transitions with ISO 19650 suitability codes.
 - **Project settings**: `PUT /api/projects/{id}` for project name/code/description/settings updates.
 - **SLA escalation push**: `SlaEscalationJob` (Hangfire, 15-min interval) queries overdue issues per SLA thresholds (CRITICAL=4h, HIGH=24h, MEDIUM=168h, LOW=336h), sends push to assignee + project admins.
-- **Hand-written EF Core migration**: `20250407000000_InitialCreate.cs` (822 lines) + `StingBimDbContextModelSnapshot.cs` (1454 lines) covering all 20 entities including DevicePushToken and IssueAttachment with indexes, foreign keys, and filtered indexes.
-
-#### Completed (Phase 88 — BCC Command Wiring, ISO 19650 Issue Types & Project Members)
-
-856. **ISO 19650 issue type codes** — BCC Issues tab issue type dropdown now uses canonical `BIMManagerEngine.IssueTypes` dictionary (19 types: RFI, RFA, TQ, CLASH, DESIGN, SITE, SI, NCR, SNAGGING, CHANGE, VO, AI, CVI, EWN, CE, PMI, RISK, ACTION, COMMENT) with proper BCF and NEC/JCT construction contract codes. Replaced old incomplete hardcoded list.
-857. **Notify Recipients (CC) checkboxes** — RaiseIssue inline panel now includes a scrollable checkbox section for selecting notification recipients from all 23 ISO 19650 standard project members. Selected recipients passed via `ExtraParam("NotifyRecipients")` as comma-separated string.
-858. **GetISOStandardMembers() helper** — New helper method in `BIMCoordinationCenter.cs` returning all 23 ISO 19650-2 standard project member roles (Client/Appointing Party, Project Manager, BIM Manager, Contract Administrator, QS, Architect, Structural/MEP/Mechanical/Electrical/PH/Fire/Civil Engineer, Interior Designer, Landscape Architect, Main Contractor, Specialist Subcontractor, Clerk of Works, Facilities Manager, Operations Manager, BIM Coordinator, BIM Technician, General). Replaces 3 hardcoded fallback lists (RaiseIssue assignee, AssignIssues, Transmittal recipients).
-859. **23+ placeholder command dispatches wired** — `StingCommandHandler.cs`: Replaced 23+ `ExportCoordLogCommand` placeholder dispatches with proper handlers across 6 BCC sections: Meetings/Actions (BulkCloseActions, ExportMeetingMinutes, ExportMinutesWord, ExportMinutesPDF, ExportMeetingsPDF, ScheduleMeetingFollowUp → `DocumentManagementDialog` methods), Deliverables (BulkDeliverableStatus → `BulkBIMExportCommand`, ExportDeliverablesRegister → `TagRegisterExportCommand`), Platform (FMHandover → `HandoverManualCommand`, StageGate → `StageComplianceGateCommand`, SheetRegister → `ExportSheetRegisterCommand`), 4D/5D (ExportMilestones → `MilestoneRegisterCommand`, ExportCashFlow → `CashFlow5DCommand`, SaveWorkingCalendar → `WorkingCalendarCommand`), Meetings extra (NewMeeting, AddActionItem, AutoAgenda, LogMinutes, MeetingHistory, OpenActions, SendReminder, ExportMinutes → `DocumentManagementDialog` static methods), Warnings (AutoFixWarnings → `WarningsAutoFixCommand`, SaveBaseline → `WarningsBaselineCommand`).
-
-#### Completed (Phase 89 — Branch Merge: main → feature, conflict resolution, server DTOs & search)
-
-860. **Branch merge & 6-conflict resolution** — Merged `main` (containing `condescending-blackburn` worktree work) into `claude/continue-sting-davis-work-g4OjY`; resolved all 6 merge conflicts with deliberate strategy: kept HEAD `IPushNotificationService` abstraction in `NotificationsController.cs`; adopted main's type-filtered `SearchController.cs` (adds `type=all|elements|issues|documents` query param, `projectId=` scoping, three private helper methods); kept HEAD's `db.Database.Migrate()` startup (over main's `EnsureCreated`) and removed main's duplicate Hangfire registrations from `Program.cs`; adopted main's expanded `SyncDtos.cs` (`FullSyncRequest/Response`, `FullSyncComplianceDto`, `DiscSummaryDto`, `FullSyncWarningDto`, `ProjectSettingsRequest`, `IssueDto`, `CreateIssueRequest`, `CreateProjectRequest`); used `IsoIssueTypes` array in both BCC `RaiseIssue` and `CreateIssue` inline panels (defined at line 148, cleaner `ComboBoxItem.Tag` access vs string-parsing); merged StingCommandHandler keeping HEAD's specific 4D commands (`MilestoneRegisterCommand`, `CashFlow5DCommand`, `WorkingCalendarCommand`) and adding main's `ExportTimeline4DPNG` + `ExportReport` cases.
-861. **Server: FullSync DTOs** — `SyncDtos.cs` now includes `FullSyncRequest` (plugin v2.2+ enhanced sync: elements + compliance snapshot + warning summary + SEQ counters in one atomic call), `FullSyncComplianceDto` (per-discipline breakdown, empty token counts, `ByDiscDetail` map), `DiscSummaryDto`, `FullSyncWarningDto`, `FullSyncResponse`. Also adds `CreateProjectRequest`, `CreateIssueRequest`, `ProjectSettingsRequest`, `IssueDto`.
-862. **Server: type-filtered global search** — `SearchController.cs` now supports `GET /api/search?q=…&type=all|elements|issues|documents&projectId=…&limit=20` with per-entity helper methods (`SearchElements`, `SearchIssues`, `SearchDocuments`); searches family name and discipline fields on elements; includes assignee in issue search; includes discipline and revision in document search.
-
-#### Completed (Phase 91 — BCC Enhancement, Bug Fix & Automation)
-
-863. **ZoomToWarnings handler** — `StingCommandHandler.cs`: Added `case "ZoomToWarnings"` routing to `Core.WarningsSelectElementsCommand`. `WarningsDashboardDialog` Browse & Select toolbar dispatched the bare string `"ZoomToWarnings"` causing "not handled" dialog on every click.
-864. **WeeklyCoordinatorReport handler** — Added `case "WeeklyCoordinatorReport"` routing to `BIMManager.GenerateDashboardCommand`.
-865. **EvaluateFormulas handler** — Added `case "EvaluateFormulas"` routing to `Core.FormulaEvaluatorCommand`.
-866. **SelectElement_ dynamic prefix routing** — Added `if (tag.StartsWith("SelectElement_"))` block in the dynamic-prefix default block. Parses trailing integer as Revit `ElementId`, sets selection, zooms via `uidoc.ShowElements()`. Used by WarningsDashboardDialog expand-to-element double-click.
-867. **IssueTrackerDashboard real member names** — `IssueTrackerDashboard.Show()` now accepts `List<string> memberNames = null`. Loads `team_members.json` via `GetBIMManagerFilePath` and passes real team names to the assignee ComboBox. Falls back to 13 generic roles. Adds separator item.
-868. **IssueTrackerDashboard MANAGE ISSUES live DataGrid** — `BuildManageIssuesTab()` replaced with live DataGrid from `GetExtraParam("LastIssuesPath")`. Columns: ID, Title, Type, Priority, Status, Assignee, Location, Disc, Elems, Created, Age. Row styles: overdue=red, CRITICAL=bold, CLOSED=grey. Filter bar + action toolbar (Update Status, Reassign, Select Elements, BCF Export, Close Issue, Escalate, Export Excel).
-869. **HandleProjectMembersAction JSON save** — Replaced stub with full implementation: `SaveProjectMembers` serialises `_data.TeamMembers` to `team_members.json`; `AddTeamMember` appends row and refreshes tab; `RemoveMember`/`RemoveTeamMember` removes by name. All in try/catch with `ShowStatus` feedback.
-870. **GetTeamMemberNames() on BIMCoordinationCenter** — New public method returns `_data.TeamMembers` name list for `IssueTrackerDashboard` and `StingCommandHandler`.
-871. **IssueRow.Location + IssueRow.RaisedBy** — Added properties to `IssueRow`. `BuildCoordData()` maps `obj["location"]`/`obj["room"]`/`obj["level"]` to `Location` and `obj["raised_by"]` to `RaisedBy` when loading `issues.json`.
-872. **Location column in BCC Issues DataGrid** — Added `DataGridTextColumn` for "Location" (width 90) after Assignee column in `BuildIssuesTab()`.
-873. **AutoPopulateIssueLocation helper** — New `internal static string AutoPopulateIssueLocation(Document, IEnumerable<ElementId>)`. Reads LVL/ZONE/LOC tokens, falls back to `GetLevelCode`, reads `FamilyInstance.Room`, joins with " / ".
-874. **Auto-populate location on RaiseIssue panel** — Location TextBox `Loaded` event reads current Revit selection and calls `AutoPopulateIssueLocation`; shows hint label that clears on manual edit.
-875. **Persist location + raised_by in RaiseIssueCommand** — `BIMManagerCommands.cs` now writes `["location"]` and `["raised_by"]` to the issue JObject from `GetExtraParam`.
-876. **WarningsDashboardDialog internal-static builders + WarningsPanelState** — All 6 tab-builder methods promoted to `internal static`. Added `WarningsPanelState` inner class (`SelectedOperation`, `StatusText`, `SelectedElementIds`). Standalone `Show()` creates local state; BCC reuses it.
-877. **BCC 6-tab inline Warnings panel** — `BuildWarningsTab()` replaced with inner `TabControl` hosting all 6 sub-tabs from `WarningsDashboardDialog`. Run button dispatches `state.SelectedOperation` via `DispatchAction()`.
-878. **WarningRow.ElementIds + lazy expand in Browse & Select** — Added `List<int> ElementIds` to `WarningRow`. `ScanWarnings()` populates from `fm.GetFailingElementIds()`. `BuildBrowseSelectTab()` adds lazy child `TreeViewItem`s per element (cap 50); double-click sets `state.SelectedOperation = "SelectElement_{eid}"`.
-879. **All warnings action tags wired** — Added/verified in `StingCommandHandler.cs`: `AutoFixWarnings`, `WarningsExportExcel`, `WarningsExportBCF`, `SetWarningBaseline`/`SaveBaseline`, `WarningPrediction`, `WarningsCompliance`, `DeliverableReadiness`, `WarningRootCause`, `ModelHealthScore`. Missing classes added as stubs.
-880. **Full AEC/FM meeting types (39 types, 6 groups)** — BCC Attendee Manager uses grouped `ComboBoxItem`s with `Tag`=short code. Groups: Pre-Construction (8), Design & Coordination (8), Procurement & Commercial (5), Construction (7), Handover & FM (7), General (5). Default: BIM_COORD.
-881. **DocumentManagementDialog.CreateMeeting() 39 meeting types** — Replaced static string list with `List<(string Code, string Label)>` (39 entries). Uses `StingListPicker.Show()`; stores code as `type` field in `meetings.json`.
-882. **Issue/Revision/Transmittal cross-linking** — `RaiseIssueCommand`: after save, links to last OPEN/DRAFT revision in `revisions.json`. `CreateTransmittalCommand`: adds OPEN issue IDs to `linked_issues`; writes `linked_transmittal` back to each issue.
-883. **REV auto-propagation on revision creation** — `CreateRevisionCommand`: transaction scans all tagged elements, calls `ParameterHelpers.SetIfEmpty(el, ParamRegistry.REV, revCode)` on each.
-884. **ForecastCompletionDate + FORECAST KPI card** — `ComplianceScan.ForecastCompletionDate(doc, targetPct)`: linear regression on last 10 points of `compliance_trend.jsonl`. BCC Overview adds "FORECAST" KPI card with projected date.
-885. **CDE folder auto-init on BCC open** — `BuildCoordData()` end: checks if `01_WIP` exists; if not, calls `ProjectFolderEngine.CreateFolderStructure(doc)`.
-886. **Data Drop milestone tracker in Deliverables tab** — Section above deliverables grid. Reads DD1–DD4 dates/statuses from `project_bep.json`. Each row: RAG dot, code, label, date, status, days remaining/overdue.
-887. **Workload heatmap color + discipline column** — Issues tab ASSIGNEE WORKLOAD: `CRed` for overdue/critical, `CAmber` for >3 open/high, `CGreen` otherwise. Added Discipline column from `_data.TeamMembers` name match.
-888. **Transmittal CDE gate validation** — `CreateTransmittalCommand`: checks compliance ≥ 50% and warning gate (0 critical, ≤ 20 total) before creating. Shows Yes/No TaskDialog if checks fail.
-889. **COBie System worksheet from live SYS scan** — COBie System worksheet built from live `FilteredElementCollector` scan, grouped by SYS token, sorted by count. Falls back to `TagConfig.SysMap` for descriptions.
-
-#### Completed (Phase 89b — Tag Family Creator: 126→136 Family Count Fix)
-
-890. **Tag Family Creator 126→136 fix** — `TagFamilyCreatorCommand.cs`: Root cause: `CreateTagFamiliesCommand` was creating only 126 families instead of the 136 defined across the 4 STING_TAG_CONFIG CSV files (ARCH=34, MEP=52, GEN=33, STR=17). 10 missing families identified by cross-referencing CSV definitions against `CategoryTemplateMap` dictionary and `TieInPointFamilies` array.
-891. **CategoryTemplateMap expanded to 121 entries** — Added `OST_Sheets` (base category for sheet tags) to both `CategoryTemplateMap` and `CategoryDisplayName` dictionaries. Previous count was 120.
-892. **TieInPointFamilies expanded to 8 entries** — Added 2 pipe system-specific tie-in variants: "Tie-In Point (Fire Protection Pipe)" and "Tie-In Point (Gas Pipe)" from MEP CSV families #49 and #50. Previous count was 6.
-893. **DisciplineSheetFamilies tuple array (3 entries)** — New `(BuiltInCategory, string, string, string)[]` array for discipline-specific sheet tag variants that share `OST_Sheets` BuiltInCategory: Architectural Sheet, MEP Sheet, Structural Sheet. Cannot be in dictionary due to key uniqueness constraint.
-894. **StructuralVariantFamilies tuple array (4 entries)** — New tuple array for structural discipline variants sharing BuiltInCategory with existing architectural entries: Structural Slab (`OST_Floors`), Structural Wall (`OST_Walls`), Brace Truss (`OST_StructuralFraming`), Architectural Column (`OST_Columns`).
-895. **TotalFamilyCount property** — New computed property: `CategoryTemplateMap.Count + TieInPointFamilies.Length + DisciplineSheetFamilies.Length + StructuralVariantFamilies.Length` = 121 + 8 + 3 + 4 = 136.
-896. **Execute method Step 5c + 5d iteration loops** — Added two new family creation loops in `CreateTagFamiliesCommand.Execute()` after existing Step 5b. Step 5c iterates `DisciplineSheetFamilies`, Step 5d iterates `StructuralVariantFamilies`. Both use `GetTieInFamilyName()`/`GetTieInFamilyFileName()` naming, template resolution with fallback chain, shared parameter injection, and full error handling. Pre-check counting block updated to include both new arrays.
-
-#### Completed (Phase 90 — Error Audit & Comment Fix)
-
-897. **Outdated tag family count comments fixed** — `TagFamilyCreatorCommand.cs` lines 714 and 718 still referenced "132" after Phase 89 expanded the family count to 136. Updated both comment lines to "136" with correct breakdown "(121 base + 8 tie-in point + 3 discipline sheet + 4 structural variant)".
-898. **Full codebase brace balance audit** — All 190 C# source files verified as brace-balanced using a custom interpolation-aware parser that correctly handles C# `$"...{expr}..."` string interpolation (where `{`/`}` delimiters are not code braces), verbatim interpolated strings (`$@"..."`), regular strings, verbatim strings, char literals, line comments, and block comments. Zero imbalances found.
-899. **Compilation error audit** — Full codebase scan confirmed no blocking compilation errors: all class references resolve (duplicate class names exist only in different namespaces which is valid C#), all method references from recent commits resolve correctly, all new command classes are properly defined. Bare `catch { }` blocks identified as warnings only (not errors) — 256 were already converted to diagnostic `catch (Exception ex) { StingLog.Warn(...); }` in Phase 31a.
-
-#### Completed (Phase 92 — Branch Merge to Main)
-
-900. **Feature branch merged to main** — Merged `claude/continue-sting-davis-work-g4OjY` into `main`. Resolved CLAUDE.md merge conflicts (2 regions: Quick Stats phase bullets and detailed changelog entries). All C# source code merged cleanly with no conflicts. Tag Family Creator 126→136 fix, error audit, and all Phase 89-91 work now consolidated on main.
+- **Hand-written EF Core migration**: `20250407000000_InitialCreate.cs` (822 lines) + `PlanscapeDbContextModelSnapshot.cs` (1454 lines) covering all 20 entities including DevicePushToken and IssueAttachment with indexes, foreign keys, and filtered indexes.

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
@@ -11,6 +12,25 @@ namespace Planscape.Infrastructure.SignalR;
 [Authorize]
 public class NotificationHub : Hub
 {
+    private static readonly ConcurrentDictionary<string, (string DeviceId, string ProjectId)> _connections = new();
+
+    /// <summary>
+    /// Join a project notification group for project-scoped alerts.
+    /// </summary>
+    public async Task JoinProject(string projectId)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"project-{projectId}");
+        await Clients.Caller.SendAsync("JoinedProject", projectId);
+    }
+
+    /// <summary>
+    /// Leave a project notification group.
+    /// </summary>
+    public async Task LeaveProject(string projectId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"project-{projectId}");
+    }
+
     /// <summary>
     /// Join the tenant notification group to receive broadcast notifications.
     /// </summary>
@@ -37,8 +57,18 @@ public class NotificationHub : Hub
         await Clients.Caller.SendAsync("RegisteredUser", userId);
     }
 
+    public override async Task OnConnectedAsync()
+    {
+        var httpContext = Context.GetHttpContext();
+        var deviceId = httpContext?.Request.Query["device_id"].ToString() ?? "";
+        var projectId = httpContext?.Request.Query["project_id"].ToString() ?? "";
+        _connections[Context.ConnectionId] = (deviceId, projectId);
+        await base.OnConnectedAsync();
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        _connections.TryRemove(Context.ConnectionId, out _);
         await base.OnDisconnectedAsync(exception);
     }
 }

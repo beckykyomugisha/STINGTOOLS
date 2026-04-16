@@ -206,3 +206,11 @@ SHEET_RULE,MEDIUM,WARN_SHT_NO_ORIGINATOR,SHT_ORIGINATOR_TXT=XX,ISO 19650-2:2018 
 SHEET_RULE,MEDIUM,WARN_SHT_NO_LEVEL,SHT_LEVEL_TXT=XX,ISO 19650-2:2018 Clause 11,Sheet level code unknown — views have no associated level
 SHEET_RULE,LOW,WARN_SHT_NO_TAG7,SHT_TAG_7_TXT empty,ISO 19650-2:2018,Sheet has no rich narrative description
 SHEET_RULE,LOW,WARN_SHT_DISC_MISMATCH,SHT_DISC_TXT != sheet number prefix,ISO 19650-2:2018 Clause 11,Sheet discipline derived from viewports doesn't match sheet number prefix convention
+# --- Section 14: MEP Sleeve (SLV) validation rules ---
+SLV_RULE,CRITICAL,WARN_SLV_NO_FIRE_RATING,SLV_FIRE_RATING_TXT empty,BS EN 1366-3:2009,Sleeve has no fire rating — penetration seal cannot be validated
+SLV_RULE,HIGH,WARN_SLV_NO_REF,SLV_REF_TXT empty,ISO 19650-2:2018,Sleeve has no reference code — asset cannot be tracked
+SLV_RULE,HIGH,WARN_SLV_NO_SIZE,SLV_SZ_MM empty or 0,BS EN 1366-3:2009,Sleeve size missing — cannot verify annular gap compliance
+SLV_RULE,HIGH,WARN_SLV_NO_SEAL,SLV_SEAL_TYPE_TXT empty,BS EN 1366-3:2009,No seal type specified — fire compartmentation incomplete
+SLV_RULE,MEDIUM,WARN_SLV_NO_SERVICE,SLV_SERVICE_TXT empty,ISO 19650-2:2018,Service through sleeve not identified
+SLV_RULE,MEDIUM,WARN_SLV_NO_FIRESTOP,SLV_FIRESTOP_PRODUCT_TXT empty,BS EN 1366-3:2009,Firestop product not specified — cannot verify fire test compliance
+SLV_RULE,LOW,WARN_SLV_NO_INSPECTION,SLV_INSPECTION_DATE_TXT empty,BS 9999:2017,No inspection date recorded for sleeve

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
@@ -11,15 +12,32 @@ namespace Planscape.Infrastructure.SignalR;
 [Authorize]
 public class ComplianceHub : Hub
 {
+    private static readonly ConcurrentDictionary<string, (string DeviceId, string ProjectId)> _connections = new();
+
     public async Task JoinProject(string projectId)
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, projectId);
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"project-{projectId}");
         await Clients.Caller.SendAsync("Joined", projectId);
     }
 
     public async Task LeaveProject(string projectId)
     {
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, projectId);
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"project-{projectId}");
+    }
+
+    public override async Task OnConnectedAsync()
+    {
+        var httpContext = Context.GetHttpContext();
+        var deviceId = httpContext?.Request.Query["device_id"].ToString() ?? "";
+        var projectId = httpContext?.Request.Query["project_id"].ToString() ?? "";
+        _connections[Context.ConnectionId] = (deviceId, projectId);
+        await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        _connections.TryRemove(Context.ConnectionId, out _);
+        await base.OnDisconnectedAsync(exception);
     }
 }
 
@@ -30,14 +48,16 @@ public class ComplianceHub : Hub
 [Authorize]
 public class TagSyncHub : Hub
 {
+    private static readonly ConcurrentDictionary<string, (string DeviceId, string ProjectId)> _connections = new();
+
     public async Task JoinProject(string projectId)
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, projectId);
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"project-{projectId}");
     }
 
     public async Task LeaveProject(string projectId)
     {
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, projectId);
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"project-{projectId}");
     }
 
     /// <summary>
@@ -45,11 +65,26 @@ public class TagSyncHub : Hub
     /// </summary>
     public async Task NotifyTaggingComplete(string projectId, int elementsTagged, double compliancePct)
     {
-        await Clients.Group(projectId).SendAsync("TaggingComplete", new
+        await Clients.Group($"project-{projectId}").SendAsync("TaggingComplete", new
         {
             elementsTagged,
             compliancePct,
             timestamp = DateTime.UtcNow
         });
+    }
+
+    public override async Task OnConnectedAsync()
+    {
+        var httpContext = Context.GetHttpContext();
+        var deviceId = httpContext?.Request.Query["device_id"].ToString() ?? "";
+        var projectId = httpContext?.Request.Query["project_id"].ToString() ?? "";
+        _connections[Context.ConnectionId] = (deviceId, projectId);
+        await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        _connections.TryRemove(Context.ConnectionId, out _);
+        await base.OnDisconnectedAsync(exception);
     }
 }

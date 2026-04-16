@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.1,CREATED=2026-03-16,UPDATED=2026-03-19,FIXES=1_param_name_mismatch_aligned_to_MR_PARAMETERS
+﻿#SCHEMA_VERSION=5.1,CREATED=2026-03-16,UPDATED=2026-03-19,FIXES=1_param_name_mismatch_aligned_to_MR_PARAMETERS
 STING Tag Configuration v5.0 - MEP (COMPLETE with Warnings)
 6C — HVAC
 Tag Family #1: STING - Air Terminal Tag
@@ -16,6 +16,7 @@ TAG7: HVC_TAG_7_PARA_AT_TXT  •  Category: Air Terminals
 10,T3,HVC_DCT_TERMINAL_SZ_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, HVC_DCT_TERMINAL_SZ_TXT, """")"
 11,T3,HVC_TERMINAL_MAT_TXT,,m,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, HVC_TERMINAL_MAT_TXT, """")"
 12,T3,HVC_TERMINAL_FINISH_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, HVC_TERMINAL_FINISH_TXT, """")"
+13,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_NOISE_NC_AIR_TERMINALS,Noise level > NC 30,ASHRAE Ch 48 / CIBSE Guide B5,Common,Text,⚠ Warning: Air Terminal Noise,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_NOISE_NC_AIR_TERMINALS, """")"
@@ -32,6 +33,7 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Accessories
 4,T2,HVC_DCT_PROPERTY_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_PROPERTY_TXT, """")"
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,HVC_TAG_7_PARA_DCTACC_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_DCTACC_TXT, """")"
+7,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_DCT_PROPERTY_DUCT_ACC,Check parameter value,CIBSE Guide B3,Common,Text,⚠ Warning: Duct Accessory Check,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DCT_PROPERTY_DUCT_ACC, """")"
@@ -47,6 +49,7 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Fittings
 4,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 5,T3,HVC_TAG_7_PARA_DCTACC_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_DCTACC_TXT, """")"
 6,T3,HVC_DUCT_CLASS_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_CLASS_TXT, """")"
+7,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_DUCT_CLASS_DUCT_FITTINGS,Duct class mismatch,CIBSE DW/144 / SMACNA,Common,Text,⚠ Warning: Duct Fitting Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_CLASS_DUCT_FITTINGS, """")"
@@ -64,17 +67,17 @@ TAG7: HVC_TAG_7_PARA_DUCT_TXT  •  Category: Ducts
 7,T2,HVC_DCT_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_MAT_TXT, """")"
 8,T2,HVC_INSULATION_TXT,| Insul:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, HVC_INSULATION_TXT, """")"
 9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-10,T3,HVC_TAG_7_PARA_DUCT_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_DUCT_TXT, """")"
-11,T3,HVC_DUCT_CLASS_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_CLASS_TXT, """")"
-12,T3,HVC_DUCT_LINING_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_LINING_TXT, """")"
-13,T3,HVC_DUCT_AREA_SQ_M,,m²,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_AREA_SQ_M, """")"
-14,T3,HVC_DUCT_FLOWRATE_M3H,,m³/h,1,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_FLOWRATE_M3H, """")"
-15,T3,HVC_DCT_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, HVC_DCT_TAG_01_TXT, """")"
-16,T3,HVC_DCT_TAG_02_TXT,,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, HVC_DCT_TAG_02_TXT, """")"
-17,T3,HVC_DCT_TAG_03_TXT,,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, HVC_DCT_TAG_03_TXT, """")"
-18,T3,HVC_PIPE_LENGTH_M,,m,1,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, HVC_PIPE_LENGTH_M, """")"
-19,T3,HVC_AIR_CHANGES_PER_HR,,A,1,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, HVC_AIR_CHANGES_PER_HR, """")"
-20,T2,HVC_DCT_SHOP_DRAWING_REQ_BOOL,Shop:,,0,✓,Common,Text,Show Tier 2 - 20,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_SHOP_DRAWING_REQ_BOOL, """")"
+10,T2,HVC_DCT_SHOP_DRAWING_REQ_BOOL,Shop:,,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_SHOP_DRAWING_REQ_BOOL, """")"
+11,T3,HVC_TAG_7_PARA_DUCT_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_DUCT_TXT, """")"
+12,T3,HVC_DUCT_CLASS_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_CLASS_TXT, """")"
+13,T3,HVC_DUCT_LINING_TXT,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_LINING_TXT, """")"
+14,T3,HVC_DUCT_AREA_SQ_M,,m²,1,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_AREA_SQ_M, """")"
+15,T3,HVC_DUCT_FLOWRATE_M3H,,m³/h,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_FLOWRATE_M3H, """")"
+16,T3,HVC_DCT_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, HVC_DCT_TAG_01_TXT, """")"
+17,T3,HVC_DCT_TAG_02_TXT,,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, HVC_DCT_TAG_02_TXT, """")"
+18,T3,HVC_DCT_TAG_03_TXT,,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, HVC_DCT_TAG_03_TXT, """")"
+19,T3,HVC_PIPE_LENGTH_M,,m,1,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, HVC_PIPE_LENGTH_M, """")"
+20,T3,HVC_AIR_CHANGES_PER_HR,,A,1,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, HVC_AIR_CHANGES_PER_HR, """")"
 21,T3,HVC_DCT_FAB_METHOD_TXT,Fab:,,0,,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, HVC_DCT_FAB_METHOD_TXT, """")"
 22,T3,HVC_DCT_SEAM_TYPE_TXT,| Seam:,,0,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, HVC_DCT_SEAM_TYPE_TXT, """")"
 23,T3,HVC_DCT_SUPPORTS_SPACING_MM,Supt:,mm,0,,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, HVC_DCT_SUPPORTS_SPACING_MM, """")"
@@ -82,6 +85,7 @@ TAG7: HVC_TAG_7_PARA_DUCT_TXT  •  Category: Ducts
 25,T3,CST_CALC_LENGTH_M,Length:,m,0,,Common,Text,Show Tier 3 - 25,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_LENGTH_M, """")"
 26,T3,CST_CALC_AREA_M2,| Area:,m²,0,✓,Common,Text,Show Tier 3 - 26,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_AREA_M2, """")"
 27,T3,CST_LOCAL_MAT_BOOL,Local:,,0,,Common,Text,Show Tier 3 - 27,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+28,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 28,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_VEL_MPS_DUCTS,Velocity > 6.0 m/s (main) or > 4.0 m/s (branch),CIBSE Guide B3 / ASHRAE Fundamentals,Common,Text,⚠ Warning: Duct Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_DUCTS, """")"
@@ -98,10 +102,11 @@ TAG7: HVC_TAG_7_PARA_FLEXDUCT_TXT  •  Category: Flex Ducts
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,HVC_DCT_FLW_CFM,Flow:,CFM,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_FLW_CFM, """")"
 4,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-5,T3,HVC_TAG_7_PARA_FLEXDUCT_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_FLEXDUCT_TXT, """")"
-6,T3,HVC_DUCT_FLOWRATE_M3H,,m³/h,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_FLOWRATE_M3H, """")"
-7,T2,HVC_DCT_SZ_TXT,Size:,,0,✓,Common,Text,Duct size,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_SZ_TXT, "")"
-8,T2,INS_MATERIAL_TXT,Ins:,,0,✓,Common,Text,Insulation material,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, "")"
+5,T2,HVC_DCT_SZ_TXT,Size:,,0,✓,Common,Text,Duct size,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_SZ_TXT, "")"
+6,T2,INS_MATERIAL_TXT,Ins:,,0,✓,Common,Text,Insulation material,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, "")"
+7,T3,HVC_TAG_7_PARA_FLEXDUCT_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_FLEXDUCT_TXT, """")"
+8,T3,HVC_DUCT_FLOWRATE_M3H,,m³/h,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_FLOWRATE_M3H, """")"
+9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_VEL_MPS_FLEX_DUCTS,Velocity > 4.0 m/s,CIBSE Guide B3 / ASHRAE Fundamentals,Common,Text,⚠ Warning: Flex Duct Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_VEL_MPS_FLEX_DUCTS, """")"
@@ -124,28 +129,28 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Mechanical Equipment
 11,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 11,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
 12,T2,ASS_MODEL_NR_TXT,|,,0,✓,Common,Text,Show Tier 2 - 12,"if(TAG_PARA_STATE_2_BOOL, ASS_MODEL_NR_TXT, """")"
 13,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 13,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-14,T3,HVC_TAG_7_PARA_SPEC_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_SPEC_TXT, """")"
-15,T3,HVC_EQP_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, HVC_EQP_TAG_01_TXT, """")"
-16,T3,HVC_EQP_TAG_02_TXT,,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, HVC_EQP_TAG_02_TXT, """")"
-17,T3,HVC_EQP_TAG_03_TXT,,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, HVC_EQP_TAG_03_TXT, """")"
-18,T3,HVC_CAP_TR,,TR,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, HVC_CAP_TR, """")"
-19,T3,HVC_VLT_V,,V,1,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, HVC_VLT_V, """")"
-20,T3,HVC_CONTROL_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, HVC_CONTROL_TYPE_TXT, """")"
-21,T3,ASS_SERIAL_NR_TXT,,,0,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_SERIAL_NR_TXT, """")"
-22,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
-23,T3,ASS_SYSTEM_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, ASS_SYSTEM_TYPE_TXT, """")"
-24,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 24,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
-25,T3,ASS_CRITICALITY_RATING_NR,,,0,✓,Common,Text,Show Tier 3 - 25,"if(TAG_PARA_STATE_3_BOOL, ASS_CRITICALITY_RATING_NR, """")"
-26,T3,ASS_EXPECTED_LIFE_YEARS_YRS,,,0,✓,Common,Text,Show Tier 3 - 26,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
-27,T3,ASS_MAINTENANCE_FREQUENCY_MONTHS,,m,1,✓,Common,Text,Show Tier 3 - 27,"if(TAG_PARA_STATE_3_BOOL, ASS_MAINTENANCE_FREQUENCY_MONTHS, """")"
-28,T3,RGL_NEMA_APPROVAL_REQ_BOOL,,A,1,✓,Common,Text,Show Tier 3 - 28,"if(TAG_PARA_STATE_3_BOOL, RGL_NEMA_APPROVAL_REQ_BOOL, """")"
-29,T3,RGL_QA_APVD_VENDOR_TXT,,A,1,✓,Common,Text,Show Tier 3 - 29,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_APVD_VENDOR_TXT, """")"
-30,T3,RGL_NEMA_CERT_NR,Cert:,,0,,Common,Text,Show Tier 3 - 30,"if(TAG_PARA_STATE_3_BOOL, RGL_NEMA_CERT_NR, """")"
-31,T3,RGL_QA_COMMISSIONING_REQ_TXT,| Comm:,,0,✓,Common,Text,Show Tier 3 - 31,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
-32,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 32,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
-33,T3,CST_IMPORT_REQUIRED_BOOL,| Import:,,0,✓,Common,Text,Show Tier 3 - 33,"if(TAG_PARA_STATE_3_BOOL, CST_IMPORT_REQUIRED_BOOL, """")"
-34,T3,CST_ENERGY_ANNUAL_UGX_NUM_NR,Energy:,UGX/yr,0,,Common,Text,Show Tier 3 - 34,"if(TAG_PARA_STATE_3_BOOL, CST_ENERGY_ANNUAL_UGX_NUM_NR, """")"
-35,T2,MEC_SET_CAPACITY_KW,Cap:,kW,0,✓,Common,Text,Set capacity,"if(TAG_PARA_STATE_2_BOOL, MEC_SET_CAPACITY_KW, "")"
+14,T2,MEC_SET_CAPACITY_KW,Cap:,kW,0,✓,Common,Text,Set capacity,"if(TAG_PARA_STATE_2_BOOL, MEC_SET_CAPACITY_KW, "")"
+15,T3,HVC_TAG_7_PARA_SPEC_TXT,,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_SPEC_TXT, """")"
+16,T3,HVC_EQP_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, HVC_EQP_TAG_01_TXT, """")"
+17,T3,HVC_EQP_TAG_02_TXT,,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, HVC_EQP_TAG_02_TXT, """")"
+18,T3,HVC_EQP_TAG_03_TXT,,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, HVC_EQP_TAG_03_TXT, """")"
+19,T3,HVC_CAP_TR,,TR,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, HVC_CAP_TR, """")"
+20,T3,HVC_VLT_V,,V,1,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, HVC_VLT_V, """")"
+21,T3,HVC_CONTROL_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, HVC_CONTROL_TYPE_TXT, """")"
+22,T3,ASS_SERIAL_NR_TXT,,,0,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, ASS_SERIAL_NR_TXT, """")"
+23,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+24,T3,ASS_SYSTEM_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 24,"if(TAG_PARA_STATE_3_BOOL, ASS_SYSTEM_TYPE_TXT, """")"
+25,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 25,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+26,T3,ASS_CRITICALITY_RATING_NR,,,0,✓,Common,Text,Show Tier 3 - 26,"if(TAG_PARA_STATE_3_BOOL, ASS_CRITICALITY_RATING_NR, """")"
+27,T3,ASS_EXPECTED_LIFE_YEARS_YRS,,,0,✓,Common,Text,Show Tier 3 - 27,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
+28,T3,ASS_MAINTENANCE_FREQUENCY_MONTHS,,m,1,✓,Common,Text,Show Tier 3 - 28,"if(TAG_PARA_STATE_3_BOOL, ASS_MAINTENANCE_FREQUENCY_MONTHS, """")"
+29,T3,RGL_NEMA_APPROVAL_REQ_BOOL,,A,1,✓,Common,Text,Show Tier 3 - 29,"if(TAG_PARA_STATE_3_BOOL, RGL_NEMA_APPROVAL_REQ_BOOL, """")"
+30,T3,RGL_QA_APVD_VENDOR_TXT,,A,1,✓,Common,Text,Show Tier 3 - 30,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_APVD_VENDOR_TXT, """")"
+31,T3,RGL_NEMA_CERT_NR,Cert:,,0,,Common,Text,Show Tier 3 - 31,"if(TAG_PARA_STATE_3_BOOL, RGL_NEMA_CERT_NR, """")"
+32,T3,RGL_QA_COMMISSIONING_REQ_TXT,| Comm:,,0,✓,Common,Text,Show Tier 3 - 32,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
+33,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 33,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
+34,T3,CST_IMPORT_REQUIRED_BOOL,| Import:,,0,✓,Common,Text,Show Tier 3 - 34,"if(TAG_PARA_STATE_3_BOOL, CST_IMPORT_REQUIRED_BOOL, """")"
+35,T3,CST_ENERGY_ANNUAL_UGX_NUM_NR,Energy:,UGX/yr,0,,Common,Text,Show Tier 3 - 35,"if(TAG_PARA_STATE_3_BOOL, CST_ENERGY_ANNUAL_UGX_NUM_NR, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI,Efficiency COP < 3.0 below minimum,Building Regs Part L / ASHRAE 90.1,Common,Text,⚠ Warning: Efficiency Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_EFF_RATIO_NR_MECHANICAL_EQUI, """")"
@@ -166,6 +171,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Flex Pipes
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,PLM_TAG_7_PARA_PIPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPE_TXT, """")"
 7,T3,PLM_PPE_LENGTH_M,,m,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_LENGTH_M, """")"
+8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_PLM_PPE_LENGTH_FLEX_PIPE,Flex pipe length > 1.5 m,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Flex Pipe Length,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PPE_LENGTH_FLEX_PIPE, """")"
@@ -179,6 +185,7 @@ TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Accessories
 4,T2,ASS_DESCRIPTION_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,PLM_TAG_7_PARA_PIPEACC_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPEACC_TXT, """")"
+7,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_PLM_PPE_SZ_PIPE_ACC,Check pipe accessory sizing,BS EN 806,Common,Text,⚠ Warning: Pipe Accessory Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PPE_SZ_PIPE_ACC, """")"
@@ -194,6 +201,7 @@ TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Fittings
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,PLM_TAG_7_PARA_PIPEACC_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPEACC_TXT, """")"
 7,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")"
+8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PLM_PPE_PSR_RATING_PIPE_FITTINGS,Pressure exceeds fitting rating,BS EN 1254 / ASME B16,Common,Text,⚠ Warning: Pipe Fitting Pressure,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PPE_PSR_RATING_PIPE_FITTINGS, """")"
@@ -211,23 +219,24 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Pipes
 7,T2,PLM_PPE_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_MAT_TXT, """")"
 8,T2,PLM_INSULATION_TXT,| Insul:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PLM_INSULATION_TXT, """")"
 9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-10,T3,PLM_TAG_7_PARA_PIPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPE_TXT, """")"
-11,T3,PLM_PPE_JOINT_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_JOINT_TYPE_TXT, """")"
-12,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")"
-13,T3,PLM_PPE_INS_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_INS_TYPE_TXT, """")"
-14,T3,PLM_PPE_INS_THK_MM,,mm,1,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_INS_THK_MM, """")"
-15,T3,PLM_PPE_LENGTH_M,,m,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_LENGTH_M, """")"
-16,T3,PLM_EQP_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PLM_EQP_TAG_01_TXT, """")"
-17,T3,PLM_EQP_TAG_02_TXT,,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, PLM_EQP_TAG_02_TXT, """")"
-18,T3,PLM_VLV_END_CONNECTION_TXT,,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, PLM_VLV_END_CONNECTION_TXT, """")"
-19,T3,PLM_VLV_PSR_CLASS_TXT,,,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, PLM_VLV_PSR_CLASS_TXT, """")"
-20,T2,PLM_PPE_SHOP_DRAWING_REQ_BOOL,Shop:,,0,✓,Common,Text,Show Tier 2 - 20,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SHOP_DRAWING_REQ_BOOL, """")"
+10,T2,PLM_PPE_SHOP_DRAWING_REQ_BOOL,Shop:,,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SHOP_DRAWING_REQ_BOOL, """")"
+11,T3,PLM_TAG_7_PARA_PIPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPE_TXT, """")"
+12,T3,PLM_PPE_JOINT_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_JOINT_TYPE_TXT, """")"
+13,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")"
+14,T3,PLM_PPE_INS_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_INS_TYPE_TXT, """")"
+15,T3,PLM_PPE_INS_THK_MM,,mm,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_INS_THK_MM, """")"
+16,T3,PLM_PPE_LENGTH_M,,m,1,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_LENGTH_M, """")"
+17,T3,PLM_EQP_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, PLM_EQP_TAG_01_TXT, """")"
+18,T3,PLM_EQP_TAG_02_TXT,,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, PLM_EQP_TAG_02_TXT, """")"
+19,T3,PLM_VLV_END_CONNECTION_TXT,,,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, PLM_VLV_END_CONNECTION_TXT, """")"
+20,T3,PLM_VLV_PSR_CLASS_TXT,,,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, PLM_VLV_PSR_CLASS_TXT, """")"
 21,T3,PLM_PPE_FAB_METHOD_TXT,Fab:,,0,,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_FAB_METHOD_TXT, """")"
 22,T3,PLM_PPE_WELD_TYPE_TXT,| Weld:,,0,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_WELD_TYPE_TXT, """")"
 23,T3,PLM_PPE_SUPPORTS_SPACING_MM,| Supt:,mm,0,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_SUPPORTS_SPACING_MM, """")"
 24,T3,PLM_PPE_HANGER_TYPE_TXT,Hanger:,,0,,Common,Text,Show Tier 3 - 24,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_HANGER_TYPE_TXT, """")"
 25,T3,CST_CALC_LENGTH_M,| Length:,m,0,✓,Common,Text,Show Tier 3 - 25,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_LENGTH_M, """")"
 26,T3,CST_LOCAL_MAT_BOOL,Local:,,0,,Common,Text,Show Tier 3 - 26,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+27,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 27,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE,Flow rate exceeded,BS EN 806 / CIBSE Guide G,Common,Text,⚠ Warning: Pipe Flow Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_PPE_FLW_LPS_PIPES__HOT_WATE, """")"
@@ -247,19 +256,20 @@ TAG7: PLM_TAG_7_PARA_FIXTURE_TXT  •  Category: Plumbing Fixtures
 5,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
 6,T2,ASS_MODEL_NR_TXT,|,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ASS_MODEL_NR_TXT, """")"
 7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-8,T3,PLM_TAG_7_PARA_FIXTURE_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_FIXTURE_TXT, """")"
-9,T3,PLM_VLV_ACTUATION_TYPE_TXT,,A,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, PLM_VLV_ACTUATION_TYPE_TXT, """")"
-10,T3,PLM_VLV_BODY_MAT_TXT,,V,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, PLM_VLV_BODY_MAT_TXT, """")"
-11,T3,PLM_VLV_CV_NR,,V,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, PLM_VLV_CV_NR, """")"
-12,T3,PLM_ACC_CONNECTION_SZ_NR,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, PLM_ACC_CONNECTION_SZ_NR, """")"
-13,T3,PLM_VNT_SZ_NR,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PLM_VNT_SZ_NR, """")"
-14,T3,ASS_EXPECTED_LIFE_YEARS_YRS,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
-15,T3,PER_SUST_WTR_RATING_NR,,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_WTR_RATING_NR, """")"
-16,T2,RGL_NWSC_APPROVAL_REQ_BOOL,NWSC:,,0,✓,Common,Text,Show Tier 2 - 16,"if(TAG_PARA_STATE_2_BOOL, RGL_NWSC_APPROVAL_REQ_BOOL, """")"
+8,T2,RGL_NWSC_APPROVAL_REQ_BOOL,NWSC:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_NWSC_APPROVAL_REQ_BOOL, """")"
+9,T3,PLM_TAG_7_PARA_FIXTURE_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_FIXTURE_TXT, """")"
+10,T3,PLM_VLV_ACTUATION_TYPE_TXT,,A,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, PLM_VLV_ACTUATION_TYPE_TXT, """")"
+11,T3,PLM_VLV_BODY_MAT_TXT,,V,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, PLM_VLV_BODY_MAT_TXT, """")"
+12,T3,PLM_VLV_CV_NR,,V,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, PLM_VLV_CV_NR, """")"
+13,T3,PLM_ACC_CONNECTION_SZ_NR,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PLM_ACC_CONNECTION_SZ_NR, """")"
+14,T3,PLM_VNT_SZ_NR,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PLM_VNT_SZ_NR, """")"
+15,T3,ASS_EXPECTED_LIFE_YEARS_YRS,,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
+16,T3,PER_SUST_WTR_RATING_NR,,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_WTR_RATING_NR, """")"
 17,T3,RGL_NWSC_CERT_NR,Cert:,,0,,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, RGL_NWSC_CERT_NR, """")"
 18,T3,PER_SUST_WATER_RATING_TXT,| Water:,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_WATER_RATING_TXT, """")"
 19,T3,CST_LOCAL_MAT_BOOL,Local:,,0,,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
 20,T3,CST_DELIVERY_LEAD_TIME_DAYS,| Lead:,days,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
+21,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_PLM_FIXTURE_WATER_EFFICIENCY,Water usage exceeds efficiency rating,WELS / BS EN 200 / EDGE / Water Regulations,Common,Text,⚠ Warning: Fixture Water Efficiency,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIXTURE_WATER_EFFICIENCY, """")"
@@ -277,17 +287,18 @@ TAG7: FLS_TAG_7_PARA_FA_TXT  •  Category: Fire Alarm Devices
 4,T2,FLS_SFTY_DEV_ZONE_TXT,|,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FLS_SFTY_DEV_ZONE_TXT, """")"
 5,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
 6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,FLS_TAG_7_PARA_FA_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, FLS_TAG_7_PARA_FA_TXT, """")"
-8,T3,FLS_SFTY_DEV_LOOP_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_DEV_LOOP_TXT, """")"
-9,T3,FLS_SFTY_DEV_ADDRESS_TXT,,A,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_DEV_ADDRESS_TXT, """")"
-10,T3,FLS_SFTY_DEV_DETECTOR_SENSITIVITY_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_DEV_DETECTOR_SENSITIVITY_TXT, """")"
-11,T3,FLS_ALARM_CIRCUIT_COUNT_NR,,A,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, FLS_ALARM_CIRCUIT_COUNT_NR, """")"
-12,T3,FLS_DETECTOR_COUNT_NR,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, FLS_DETECTOR_COUNT_NR, """")"
-13,T3,FLS_DETECTION_COST_UGX,,UGX,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, FLS_DETECTION_COST_UGX, """")"
-14,T3,RGL_QA_TST_REPORT_REF_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_TST_REPORT_REF_TXT, """")"
-15,T2,RGL_KCCA_APPROVAL_REQ_BOOL,KCCA:,,0,✓,Common,Text,Show Tier 2 - 15,"if(TAG_PARA_STATE_2_BOOL, RGL_KCCA_APPROVAL_REQ_BOOL, """")"
+7,T2,RGL_KCCA_APPROVAL_REQ_BOOL,KCCA:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_KCCA_APPROVAL_REQ_BOOL, """")"
+8,T3,FLS_TAG_7_PARA_FA_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, FLS_TAG_7_PARA_FA_TXT, """")"
+9,T3,FLS_SFTY_DEV_LOOP_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_DEV_LOOP_TXT, """")"
+10,T3,FLS_SFTY_DEV_ADDRESS_TXT,,A,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_DEV_ADDRESS_TXT, """")"
+11,T3,FLS_SFTY_DEV_DETECTOR_SENSITIVITY_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_DEV_DETECTOR_SENSITIVITY_TXT, """")"
+12,T3,FLS_ALARM_CIRCUIT_COUNT_NR,,A,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, FLS_ALARM_CIRCUIT_COUNT_NR, """")"
+13,T3,FLS_DETECTOR_COUNT_NR,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, FLS_DETECTOR_COUNT_NR, """")"
+14,T3,FLS_DETECTION_COST_UGX,,UGX,1,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, FLS_DETECTION_COST_UGX, """")"
+15,T3,RGL_QA_TST_REPORT_REF_TXT,,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_TST_REPORT_REF_TXT, """")"
 16,T3,RGL_KCCA_CERT_NR,Cert:,,0,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, RGL_KCCA_CERT_NR, """")"
 17,T3,RGL_QA_COMMISSIONING_REQ_TXT,| Comm:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
+18,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR,Coverage > 12 m² per head,BS EN 12845 / NFPA 13,Common,Text,⚠ Warning: Sprinkler Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR, """")"
@@ -305,19 +316,20 @@ TAG7: FLS_TAG_7_PARA_SPR_TXT  •  Category: Sprinklers
 4,T2,FLS_SFTY_K_FACTOR_NR,| K=,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FLS_SFTY_K_FACTOR_NR, """")"
 5,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
 6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-7,T3,FLS_TAG_7_PARA_SPR_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, FLS_TAG_7_PARA_SPR_TXT, """")"
-8,T3,FLS_SFTY_TEMP_RATING_C,,°C,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_TEMP_RATING_C, """")"
-9,T3,FLS_PROT_SPRINKLER_HED_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, FLS_PROT_SPRINKLER_HED_TYPE_TXT, """")"
-10,T3,FLS_SFTY_FLW_RATE_LPM_NR,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_FLW_RATE_LPM_NR, """")"
-11,T3,FLS_DEV_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, FLS_DEV_TAG_01_TXT, """")"
-12,T3,FLS_DEV_TAG_02_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, FLS_DEV_TAG_02_TXT, """")"
-13,T3,FLS_DETECTION_COST_UGX,,UGX,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, FLS_DETECTION_COST_UGX, """")"
-14,T3,FLS_DETECTOR_COUNT_NR,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, FLS_DETECTOR_COUNT_NR, """")"
-15,T3,FLS_SFTY_HEADS_OPERATING_NR,,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_HEADS_OPERATING_NR, """")"
-16,T2,RGL_KCCA_APPROVAL_REQ_BOOL,KCCA:,,0,✓,Common,Text,Show Tier 2 - 16,"if(TAG_PARA_STATE_2_BOOL, RGL_KCCA_APPROVAL_REQ_BOOL, """")"
+7,T2,RGL_KCCA_APPROVAL_REQ_BOOL,KCCA:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_KCCA_APPROVAL_REQ_BOOL, """")"
+8,T3,FLS_TAG_7_PARA_SPR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, FLS_TAG_7_PARA_SPR_TXT, """")"
+9,T3,FLS_SFTY_TEMP_RATING_C,,°C,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_TEMP_RATING_C, """")"
+10,T3,FLS_PROT_SPRINKLER_HED_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, FLS_PROT_SPRINKLER_HED_TYPE_TXT, """")"
+11,T3,FLS_SFTY_FLW_RATE_LPM_NR,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_FLW_RATE_LPM_NR, """")"
+12,T3,FLS_DEV_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, FLS_DEV_TAG_01_TXT, """")"
+13,T3,FLS_DEV_TAG_02_TXT,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, FLS_DEV_TAG_02_TXT, """")"
+14,T3,FLS_DETECTION_COST_UGX,,UGX,1,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, FLS_DETECTION_COST_UGX, """")"
+15,T3,FLS_DETECTOR_COUNT_NR,,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, FLS_DETECTOR_COUNT_NR, """")"
+16,T3,FLS_SFTY_HEADS_OPERATING_NR,,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, FLS_SFTY_HEADS_OPERATING_NR, """")"
 17,T3,RGL_KCCA_CERT_NR,Cert:,,0,,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, RGL_KCCA_CERT_NR, """")"
 18,T3,RGL_QA_COMMISSIONING_REQ_TXT,| Comm:,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
 19,T3,CST_LOCAL_MAT_BOOL,Local:,,0,,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+20,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR,Coverage > 12 m² per head,BS EN 12845 / NFPA 13,Common,Text,⚠ Warning: Sprinkler Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR, """")"
@@ -336,6 +348,7 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Tray Fittings
 4,T2,ELC_CTR_MAT_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_MAT_TXT, """")"
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,ELC_TAG_7_PARA_TRAY_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_TRAY_TXT, """")"
+7,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS,Fitting material incompatible with tray,IEC 61537 / BS EN 61537,Common,Text,⚠ Warning: Cable Tray Fitting,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_MAT_CABLE_TRAY_FTGS, """")"
@@ -349,16 +362,17 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Trays
 3,T2,ELC_CTR_MAT_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_MAT_TXT, """")"
 4,T2,MNT_HGT_MM,| Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-6,T3,ELC_TAG_7_PARA_TRAY_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_TRAY_TXT, """")"
-7,T3,ELC_CTR_WIDTH_MM,,mm,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ELC_CTR_WIDTH_MM, """")"
-8,T3,ELC_CTR_FILL_PCT,,%,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ELC_CTR_FILL_PCT, """")"
-9,T3,ELC_CTR_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ELC_CTR_TAG_01_TXT, """")"
-10,T2,ELC_CBT_SHOP_DRAWING_REQ_BOOL,Shop:,,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, ELC_CBT_SHOP_DRAWING_REQ_BOOL, """")"
-11,T3,ELC_CBT_FAB_TYPE_TXT,Fab:,,0,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ELC_CBT_FAB_TYPE_TXT, """")"
-12,T3,ELC_CBT_SUPPORT_SPACING_MM,| Supt:,mm,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ELC_CBT_SUPPORT_SPACING_MM, """")"
-13,T3,CST_CALC_LENGTH_M,Length:,m,0,,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_LENGTH_M, """")"
-14,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
-15,T2,ELC_CTR_SZ_TXT,Size:,,0,✓,Common,Text,Cable tray size,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_SZ_TXT, "")"
+6,T2,ELC_CBT_SHOP_DRAWING_REQ_BOOL,Shop:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ELC_CBT_SHOP_DRAWING_REQ_BOOL, """")"
+7,T2,ELC_CTR_SZ_TXT,Size:,,0,✓,Common,Text,Cable tray size,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_SZ_TXT, "")"
+8,T3,ELC_TAG_7_PARA_TRAY_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_TRAY_TXT, """")"
+9,T3,ELC_CTR_WIDTH_MM,,mm,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ELC_CTR_WIDTH_MM, """")"
+10,T3,ELC_CTR_FILL_PCT,,%,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ELC_CTR_FILL_PCT, """")"
+11,T3,ELC_CTR_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ELC_CTR_TAG_01_TXT, """")"
+12,T3,ELC_CBT_FAB_TYPE_TXT,Fab:,,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ELC_CBT_FAB_TYPE_TXT, """")"
+13,T3,ELC_CBT_SUPPORT_SPACING_MM,| Supt:,mm,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ELC_CBT_SUPPORT_SPACING_MM, """")"
+14,T3,CST_CALC_LENGTH_M,Length:,m,0,,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_LENGTH_M, """")"
+15,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+16,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS,Cable tray fill ratio > 50%,BS EN 61537 / IEC 61537,Common,Text,⚠ Warning: Cable Tray Fill,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_FILL_PCT_CABLE_TRAYS, """")"
@@ -375,6 +389,7 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduit Fittings
 4,T2,ELC_CDT_SZ_MM,Conduit:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CDT_SZ_MM, """")"
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,ELC_TAG_7_PARA_CONDUIT_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_CONDUIT_TXT, """")"
+7,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ELC_CDT_SZ_CONDUIT_FITTINGS,Conduit fitting size mismatch with conduit,BS EN 50086-1 / BS 7671,Common,Text,⚠ Warning: Conduit Fitting Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CDT_SZ_CONDUIT_FITTINGS, """")"
@@ -404,6 +419,7 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduits
 19,T3,ELC_CDT_SUPPORT_SPACING_MM,| Supt:,mm,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, ELC_CDT_SUPPORT_SPACING_MM, """")"
 20,T3,CST_CALC_LENGTH_M,Length:,m,0,,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, CST_CALC_LENGTH_M, """")"
 21,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
+22,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ELC_CDT_CBL_FILL_PCT_CONDUITS,Conduit fill ratio > 40%,BS 7671 Table 4C1 / IEC 60364,Common,Text,⚠ Warning: Conduit Fill,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CDT_CBL_FILL_PCT_CONDUITS, """")"
@@ -429,29 +445,29 @@ TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
 13,T2,ELC_CBL_FEEDER_SZ_MM2,Feeder:,mm²,0,,Common,Text,Show Tier 2 - 13,"if(TAG_PARA_STATE_2_BOOL, ELC_CBL_FEEDER_SZ_MM2, """")"
 14,T2,ELC_PNL_IP_RATING_TXT,|,,0,✓,Common,Text,Show Tier 2 - 14,"if(TAG_PARA_STATE_2_BOOL, ELC_PNL_IP_RATING_TXT, """")"
 15,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 15,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-16,T3,ELC_TAG_7_PARA_PANEL_TXT,,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_PANEL_TXT, """")"
-17,T3,ELC_EQP_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, ELC_EQP_TAG_01_TXT, """")"
-18,T3,ELC_EQP_TAG_02_TXT,,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, ELC_EQP_TAG_02_TXT, """")"
-19,T3,ELC_PNL_FED_FROM_PNL_TXT,,,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, ELC_PNL_FED_FROM_PNL_TXT, """")"
-20,T3,ELC_SPARE_WAYS_NR,,,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ELC_SPARE_WAYS_NR, """")"
-21,T3,ELC_DIV_FCT_NR,,,0,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ELC_DIV_FCT_NR, """")"
-22,T3,ELC_IP_RATING_TXT,,,0,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, ELC_IP_RATING_TXT, """")"
-23,T3,ASS_SERIAL_NR_TXT,,,0,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, ASS_SERIAL_NR_TXT, """")"
-24,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 24,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
-25,T3,ASS_CRITICALITY_RATING_NR,,,0,✓,Common,Text,Show Tier 3 - 25,"if(TAG_PARA_STATE_3_BOOL, ASS_CRITICALITY_RATING_NR, """")"
-26,T3,ASS_EXPECTED_LIFE_YEARS_YRS,,,0,✓,Common,Text,Show Tier 3 - 26,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
-27,T3,ELC_CBL_AMPACITY_A,,A,1,✓,Common,Text,Show Tier 3 - 27,"if(TAG_PARA_STATE_3_BOOL, ELC_CBL_AMPACITY_A, """")"
-28,T3,ELC_CBL_LENGTH_M,,m,1,✓,Common,Text,Show Tier 3 - 28,"if(TAG_PARA_STATE_3_BOOL, ELC_CBL_LENGTH_M, """")"
-29,T3,RGL_UMEME_APPROVAL_BOOL,,A,1,✓,Common,Text,Show Tier 3 - 29,"if(TAG_PARA_STATE_3_BOOL, RGL_UMEME_APPROVAL_BOOL, """")"
-30,T3,RGL_NEMA_APPROVAL_REQ_BOOL,,A,1,✓,Common,Text,Show Tier 3 - 30,"if(TAG_PARA_STATE_3_BOOL, RGL_NEMA_APPROVAL_REQ_BOOL, """")"
-31,T2,RGL_UMEME_APPROVAL_REQ_BOOL,UMEME:,,0,✓,Common,Text,Show Tier 2 - 31,"if(TAG_PARA_STATE_2_BOOL, RGL_UMEME_APPROVAL_REQ_BOOL, """")"
-32,T3,RGL_UMEME_CERT_NR,Cert:,,0,,Common,Text,Show Tier 3 - 32,"if(TAG_PARA_STATE_3_BOOL, RGL_UMEME_CERT_NR, """")"
-33,T3,RGL_QA_COMMISSIONING_REQ_TXT,Comm:,,0,,Common,Text,Show Tier 3 - 33,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
-34,T3,CST_DELIVERY_LEAD_TIME_DAYS,| Lead:,days,0,✓,Common,Text,Show Tier 3 - 34,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
-35,T3,CST_IMPORT_REQUIRED_BOOL,Import:,,0,,Common,Text,Show Tier 3 - 35,"if(TAG_PARA_STATE_3_BOOL, CST_IMPORT_REQUIRED_BOOL, """")"
-36,T3,CST_ENERGY_ANNUAL_UGX_NUM_NR,| Energy:,UGX/yr,0,✓,Common,Text,Show Tier 3 - 36,"if(TAG_PARA_STATE_3_BOOL, CST_ENERGY_ANNUAL_UGX_NUM_NR, """")"
-37,T2,ELC_VOLTAGE_V,V:,V,0,✓,Common,Text,Device voltage,"if(TAG_PARA_STATE_2_BOOL, ELC_VOLTAGE_V, "")"
-38,T2,ELC_CONN_TYPE_TXT,Conn:,,0,✓,Common,Text,Connector type,"if(TAG_PARA_STATE_2_BOOL, ELC_CONN_TYPE_TXT, "")"
+16,T2,RGL_UMEME_APPROVAL_REQ_BOOL,UMEME:,,0,✓,Common,Text,Show Tier 2 - 16,"if(TAG_PARA_STATE_2_BOOL, RGL_UMEME_APPROVAL_REQ_BOOL, """")"
+17,T2,ELC_VOLTAGE_V,V:,V,0,✓,Common,Text,Device voltage,"if(TAG_PARA_STATE_2_BOOL, ELC_VOLTAGE_V, "")"
+18,T2,ELC_CONN_TYPE_TXT,Conn:,,0,✓,Common,Text,Connector type,"if(TAG_PARA_STATE_2_BOOL, ELC_CONN_TYPE_TXT, "")"
+19,T3,ELC_TAG_7_PARA_PANEL_TXT,,,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_PANEL_TXT, """")"
+20,T3,ELC_EQP_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ELC_EQP_TAG_01_TXT, """")"
+21,T3,ELC_EQP_TAG_02_TXT,,,0,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ELC_EQP_TAG_02_TXT, """")"
+22,T3,ELC_PNL_FED_FROM_PNL_TXT,,,0,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, ELC_PNL_FED_FROM_PNL_TXT, """")"
+23,T3,ELC_SPARE_WAYS_NR,,,0,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, ELC_SPARE_WAYS_NR, """")"
+24,T3,ELC_DIV_FCT_NR,,,0,✓,Common,Text,Show Tier 3 - 24,"if(TAG_PARA_STATE_3_BOOL, ELC_DIV_FCT_NR, """")"
+25,T3,ELC_IP_RATING_TXT,,,0,✓,Common,Text,Show Tier 3 - 25,"if(TAG_PARA_STATE_3_BOOL, ELC_IP_RATING_TXT, """")"
+26,T3,ASS_SERIAL_NR_TXT,,,0,✓,Common,Text,Show Tier 3 - 26,"if(TAG_PARA_STATE_3_BOOL, ASS_SERIAL_NR_TXT, """")"
+27,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 27,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+28,T3,ASS_CRITICALITY_RATING_NR,,,0,✓,Common,Text,Show Tier 3 - 28,"if(TAG_PARA_STATE_3_BOOL, ASS_CRITICALITY_RATING_NR, """")"
+29,T3,ASS_EXPECTED_LIFE_YEARS_YRS,,,0,✓,Common,Text,Show Tier 3 - 29,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
+30,T3,ELC_CBL_AMPACITY_A,,A,1,✓,Common,Text,Show Tier 3 - 30,"if(TAG_PARA_STATE_3_BOOL, ELC_CBL_AMPACITY_A, """")"
+31,T3,ELC_CBL_LENGTH_M,,m,1,✓,Common,Text,Show Tier 3 - 31,"if(TAG_PARA_STATE_3_BOOL, ELC_CBL_LENGTH_M, """")"
+32,T3,RGL_UMEME_APPROVAL_BOOL,,A,1,✓,Common,Text,Show Tier 3 - 32,"if(TAG_PARA_STATE_3_BOOL, RGL_UMEME_APPROVAL_BOOL, """")"
+33,T3,RGL_NEMA_APPROVAL_REQ_BOOL,,A,1,✓,Common,Text,Show Tier 3 - 33,"if(TAG_PARA_STATE_3_BOOL, RGL_NEMA_APPROVAL_REQ_BOOL, """")"
+34,T3,RGL_UMEME_CERT_NR,Cert:,,0,,Common,Text,Show Tier 3 - 34,"if(TAG_PARA_STATE_3_BOOL, RGL_UMEME_CERT_NR, """")"
+35,T3,RGL_QA_COMMISSIONING_REQ_TXT,Comm:,,0,,Common,Text,Show Tier 3 - 35,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")"
+36,T3,CST_DELIVERY_LEAD_TIME_DAYS,| Lead:,days,0,✓,Common,Text,Show Tier 3 - 36,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")"
+37,T3,CST_IMPORT_REQUIRED_BOOL,Import:,,0,,Common,Text,Show Tier 3 - 37,"if(TAG_PARA_STATE_3_BOOL, CST_IMPORT_REQUIRED_BOOL, """")"
+38,T3,CST_ENERGY_ANNUAL_UGX_NUM_NR,| Energy:,UGX/yr,0,✓,Common,Text,Show Tier 3 - 38,"if(TAG_PARA_STATE_3_BOOL, CST_ENERGY_ANNUAL_UGX_NUM_NR, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI,Voltage drop > 3% (lighting) or > 5% (other),BS 7671 Appendix 12 / IEC 60364,Common,Text,⚠ Warning: Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI, """")"
@@ -472,8 +488,9 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
 6,T2,ELC_PNL_DESIGNATION_NAME_TXT,|,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ELC_PNL_DESIGNATION_NAME_TXT, """")"
 7,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
 8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
-9,T3,ELC_TAG_7_PARA_CIRCUIT_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_CIRCUIT_TXT, """")"
-10,T2,ELC_VOLTAGE_V,V:,V,0,✓,Common,Text,Device voltage,"if(TAG_PARA_STATE_2_BOOL, ELC_VOLTAGE_V, "")"
+9,T2,ELC_VOLTAGE_V,V:,V,0,✓,Common,Text,Device voltage,"if(TAG_PARA_STATE_2_BOOL, ELC_VOLTAGE_V, "")"
+10,T3,ELC_TAG_7_PARA_CIRCUIT_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_CIRCUIT_TXT, """")"
+11,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ELC_VLT_DROP_PCT_ELECTRICAL_FIX,Voltage drop > 3% at final circuit,BS 7671 Appendix 12 / IEC 60364,Common,Text,⚠ Warning: Electrical Fixture Voltage Drop,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_VLT_DROP_PCT_ELECTRICAL_FIX, """")"
@@ -491,6 +508,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Devices
 6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 7,T3,ELC_TAG_7_PARA_CIRCUIT_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_CIRCUIT_TXT, """")"
 8,T3,LTG_CTRL_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, LTG_CTRL_TYPE_TXT, """")"
+9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES,Control type unassigned,CIBSE LG7 / BS EN 15232,Common,Text,⚠ Warning: Lighting Control Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_CTRL_TYPE_LIGHTING_DEVICES, """")"
@@ -522,6 +540,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Fixtures
 20,T3,LTG_DESIGN_ILLUMINANCE_LUX,,lux,1,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, LTG_DESIGN_ILLUMINANCE_LUX, """")"
 21,T3,ASS_EXPECTED_LIFE_YEARS_YRS,,,0,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")"
 22,T3,PER_SUST_ENERGY_RATING_TXT,,,0,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_ENERGY_RATING_TXT, """")"
+23,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_LTG_EFFICACY_LM_W_LIGHTING,Efficacy < 80 lm/W below Part L minimum,Building Regs Part L / CIBSE LG7 / ASHRAE 90.1,Common,Text,⚠ Warning: Lighting Efficacy,"if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_EFFICACY_LM_W_LIGHTING, """")"
@@ -549,6 +568,7 @@ TAG7: COM_TAG_7_PARA_BMS_TXT  •  Category: Communication Devices
 12,T3,COM_BMS_RANGE_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, COM_BMS_RANGE_TXT, """")"
 13,T3,COM_C_DEV_BACNET_INSTANCE_INT,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, COM_C_DEV_BACNET_INSTANCE_INT, """")"
 14,T3,COM_C_DEV_CONTROLLER_NAME_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, COM_C_DEV_CONTROLLER_NAME_TXT, """")"
+15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_COM_C_PROTOCOL_COMM_DEVICES,Protocol mismatch with BMS,BACnet / Modbus / ASHRAE 135,Common,Text,⚠ Warning: Comms Protocol Mismatch,"if(TAG_WARN_VISIBLE_BOOL, WARN_COM_C_PROTOCOL_COMM_DEVICES, """")"
@@ -565,6 +585,7 @@ TAG7: ICT_TAG_7_PARA_DATA_TXT  •  Category: Data Devices
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,ICT_TAG_7_PARA_DATA_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ICT_TAG_7_PARA_DATA_TXT, """")"
 7,T3,ICT_DEV_TAG_01_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ICT_DEV_TAG_01_TXT, """")"
+8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ICT_OUTLET_TYPE_DATA_DEVICES,Outlet category unassigned,TIA-568 / BS EN 50173,Common,Text,⚠ Warning: Data Outlet Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_ICT_OUTLET_TYPE_DATA_DEVICES, """")"
@@ -580,6 +601,7 @@ TAG7: NCL_TAG_7_PARA_NURSECALL_TXT  •  Category: Nurse Call Devices
 4,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
 5,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 6,T3,NCL_TAG_7_PARA_NURSECALL_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, NCL_TAG_7_PARA_NURSECALL_TXT, """")"
+7,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_NCL_ZONE_NURSE_CALL,Zone coverage gap,HTM 08-03 / BS 6839-1,Common,Text,⚠ Warning: Nurse Call Zone Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_NCL_ZONE_NURSE_CALL, """")"
@@ -595,6 +617,7 @@ TAG7: SEC_TAG_7_PARA_SECURITY_TXT  •  Category: Security Devices
 5,T2,MNT_HGT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, MNT_HGT_MM, """")"
 6,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 7,T3,SEC_TAG_7_PARA_SECURITY_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, SEC_TAG_7_PARA_SECURITY_TXT, """")"
+8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_SEC_DEV_ZONE_SECURITY,Security zone unassigned,BS EN 50131 / BS 7671,Common,Text,⚠ Warning: Security Zone Unassigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_SEC_DEV_ZONE_SECURITY, """")"
@@ -614,6 +637,7 @@ TAG7: ICT_TAG_7_PARA_TEL_TXT  •  Category: Telephone Devices
 8,T3,ICT_TAG_7_PARA_TEL_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ICT_TAG_7_PARA_TEL_TXT, """")"
 9,T3,ICT_TEL_OUTLET_QTY_NR,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ICT_TEL_OUTLET_QTY_NR, """")"
 10,T3,ICT_TEL_PORT_TYPE_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ICT_TEL_PORT_TYPE_TXT, """")"
+11,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ICT_OUTLET_TYPE_TELEPHONE,Port type unassigned,TIA-568 / BS EN 50173,Common,Text,⚠ Warning: Telephone Port Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_ICT_OUTLET_TYPE_TELEPHONE, """")"
@@ -640,6 +664,7 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Generic Models
 15,T3,CST_IMPORT_REQUIRED_BOOL,Import:,,0,,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, CST_IMPORT_REQUIRED_BOOL, """")"
 16,T3,PER_SUST_EPD_REF_TXT,| EPD:,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EPD_REF_TXT, """")"
 17,T3,RGL_QA_STD_COMPLY_TXT,Standard:,,0,,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_STD_COMPLY_TXT, """")"
+18,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ASS_DESCRIPTION_GENERIC_MODEL,Description missing,ISO 19650 / COBie,Common,Text,⚠ Warning: Generic Model Description,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_DESCRIPTION_GENERIC_MODEL, """")"
@@ -683,6 +708,8 @@ TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
 2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")"
+5,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+6,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < 25 mm minimum for duct insulation,BS 5422 / ASHRAE 90.1,Common,Text,⚠ Warning: Insulation Below Minimum,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_INSULATION_THK_PIPES, """")"
@@ -696,6 +723,7 @@ TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")"
 5,T3,HVC_TAG_7_PARA_DUCT_LINING_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_DUCT_LINING_TXT, """")"
+6,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_INS_THICKNESS_DUCT_LINING,Lining thickness < minimum,CIBSE DW/144 / ASHRAE,Common,Text,⚠ Warning: Duct Lining Thickness,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_DUCT_LINING, """")"
@@ -709,6 +737,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_INSULATION_TXT  •  Category: Pipe Insulation
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")"
 5,T3,PLM_TAG_7_PARA_PIPE_INSULATION_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, PLM_TAG_7_PARA_PIPE_INSULATION_TXT, """")"
+6,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_INS_THICKNESS_PIPE_INSULATION,Insulation thickness < minimum for pipe diameter and service,BS 5422 / CIBSE Guide C / ASHRAE 90.1,Common,Text,⚠ Warning: Pipe Insulation Thickness,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_PIPE_INSULATION, """")"
@@ -752,6 +781,7 @@ TAG7: HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT  •  Category: Mechanical Control Device
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,MEC_CTRL_SIGNAL_TXT,Signal:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MEC_CTRL_SIGNAL_TXT, """")"
 5,T3,HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT, """")"
+6,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_MEC_CTRL_SIGNAL_CTRL_DEV,Signal type unassigned,ASHRAE / CIBSE Guide H,Common,Text,⚠ Warning: Control Signal Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_MEC_CTRL_SIGNAL_CTRL_DEV, """")"
@@ -763,6 +793,7 @@ TAG7: HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT  •  Category: Mechanical Equipment Se
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T3,MEC_SET_CAPACITY_KW,Capacity:,kW,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, MEC_SET_CAPACITY_KW, """")"
+4,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_MEC_SET_CAPACITY_EQUIP_SETS,Capacity exceeds design,ASHRAE / CIBSE Guide B,Common,Text,⚠ Warning: Equipment Set Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_MEC_SET_CAPACITY_EQUIP_SETS, """")"
@@ -775,6 +806,7 @@ TAG7: ELC_TAG_7_PARA_ELC_CONNECTORS_TXT  •  Category: Electrical Connectors
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,ELC_CKT_BRK_RATING_A,,A,1,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_CKT_BRK_RATING_A, """")"
 5,T3,ELC_TAG_7_PARA_ELC_CONNECTORS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_ELC_CONNECTORS_TXT, """")"
+6,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ELC_CONN_RATING_CONNECTORS,Rating exceeded,IEC 60309 / BS EN 60309,Common,Text,⚠ Warning: Connector Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CONN_RATING_CONNECTORS, """")"
@@ -792,6 +824,7 @@ TAG7: FLS_TAG_7_PARA_FIRE_PROT_TXT  •  Category: Fire Protection
 8,T3,FLS_EVACUATION_TIME_MIN,,m,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, FLS_EVACUATION_TIME_MIN, """")"
 9,T3,FLS_PROT_FLS_RESISTANCE_MINUTES_CALC,,m,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, FLS_PROT_FLS_RESISTANCE_MINUTES_CALC, """")"
 10,T3,RGL_OCCUPANCY_CERT_REQ_BOOL,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, RGL_OCCUPANCY_CERT_REQ_BOOL, """")"
+11,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_FLS_PROT_COVERAGE,Coverage gap detected,BS 9999 / Building Regs Part B,Common,Text,⚠ Warning: Fire Protection Coverage Gap,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_PROT_COVERAGE, """")"
@@ -805,6 +838,8 @@ TAG7: ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT  •  Category: MEP Fabrication Contain
 2,T1,FAB_CONTAINMENT_W_MM,,×,0,,---,---,---,Add directly
 3,T1,FAB_CONTAINMENT_D_MM,,mm,0,✓,---,---,---,Add directly
 4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+5,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+6,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_FAB_CONTAINMENT_DIMENSIONS,Containment size mismatch,IEC 61537,Common,Text,⚠ Warning: Containment Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_CONTAINMENT_DIMENSIONS, """")"
@@ -817,6 +852,8 @@ TAG7: HVC_TAG_7_PARA_FAB_DUCTWORK_TXT  •  Category: MEP Fabrication Ductwork
 2,T1,FAB_DCT_W_MM,,×,0,,---,---,---,Add directly
 3,T1,FAB_DCT_H_MM,,mm,0,✓,---,---,---,Add directly
 4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+5,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+6,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_FAB_DCT_DIMENSIONS_DUCTWORK,Fabrication duct size mismatch with design,CIBSE DW/144 / SMACNA,Common,Text,⚠ Warning: Fab Duct Dimensions,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_DCT_DIMENSIONS_DUCTWORK, """")"
@@ -828,8 +865,10 @@ TAG7: HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT  •  Category: MEP Fabrication Duct
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FAB_STIFF_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-4,T2,FAB_DCT_W_MM,W:,mm,0,✓,Common,Text,Duct width,"if(TAG_PARA_STATE_2_BOOL, FAB_DCT_W_MM, "")"
-5,T2,FAB_DCT_H_MM,H:,mm,0,✓,Common,Text,Duct height,"if(TAG_PARA_STATE_2_BOOL, FAB_DCT_H_MM, "")"
+4,T2,FAB_DCT_W_MM,W:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FAB_DCT_W_MM, """")"
+5,T2,FAB_DCT_H_MM,H:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, FAB_DCT_H_MM, """")"
+6,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+7,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_FAB_STIFF_TYPE_STIFFENERS,Stiffener type unassigned,SMACNA HVAC Duct,Common,Text,⚠ Warning: Stiffener Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_STIFF_TYPE_STIFFENERS, """")"
@@ -841,6 +880,8 @@ TAG7: MEP_TAG_7_PARA_FAB_HANGERS_TXT  •  Category: MEP Fabrication Hangers
 2,T1,FAB_HANGER_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 4,T2,FAB_HANGER_LOAD_KN,Load:,kN,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FAB_HANGER_LOAD_KN, """")"
+5,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+6,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_FAB_HANGER_LOAD_KN,Hanger load exceeds safe working load,BS EN 1991 / CIBSE Guide B / Manufacturer SWL,Common,Text,⚠ Warning: Hanger Overloaded,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, """")"
@@ -852,6 +893,8 @@ TAG7: PLM_TAG_7_PARA_FAB_PIPEWORK_TXT  •  Category: MEP Fabrication Pipework
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FAB_PIPE_DN_MM,DN,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+4,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+5,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_FAB_PIPE_DN_PIPEWORK,Pipe DN mismatch with design,BS EN 10255 / ASME B36,Common,Text,⚠ Warning: Fab Pipe DN,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_PIPE_DN_PIPEWORK, """")"
@@ -878,6 +921,7 @@ TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 16,T3,PROP_TENS_STRENGTH_MPA,ft:,MPa,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PROP_TENS_STRENGTH_MPA, """")"
 17,T3,MAT_DURABILITY,Durability:,,0,,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, MAT_DURABILITY, """")"
 18,T3,MAT_APPLICATION,Use:,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, MAT_APPLICATION, """")"
+19,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_PROP_FIRE_RATING_MATERIALS,PROP_FIRE_RATING empty — fire rating not specified,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Material Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_FIRE_RATING_MATERIALS, """")"
@@ -918,6 +962,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
 8,T3,HVC_TAG_7_PARA_SPEC_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_SPEC_TXT, """")"
 9,T3,BLE_ROOM_OCCUPANCY_NR,Occ:,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, BLE_ROOM_OCCUPANCY_NR, """")"
 10,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+11,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_ROOM_VENTILATION_SPACES,Ventilation rate < 10 L/s/person,Building Regs Part F / CIBSE Guide A,Common,Text,⚠ Warning: Space Ventilation Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_VENTILATION_SPACES, """")"
@@ -936,6 +981,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
 7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
 8,T3,HVC_TAG_7_PARA_SPEC_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, HVC_TAG_7_PARA_SPEC_TXT, """")"
 9,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+10,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_CONTROL_TYPE_ZONES,Zone has no BMS control type assigned,CIBSE Guide H / BS EN ISO 16484,Common,Text,⚠ Warning: Zone Control,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_CONTROL_TYPE_ZONES, """")"
@@ -1015,6 +1061,7 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 13,T3,PLM_PPE_MAT_TXT,Mat:,,0,,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_MAT_TXT, """")"
 14,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")"
 15,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+16,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ASS_TIEIN_OPEN_PIPE,Tie-in point status = OPEN (unresolved live termination),ISO 10628-2 / PAS 1192 Interface Mgmt,Common,Text,⚠ Warning: Open Pipe Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_PIPE, """")"
@@ -1038,6 +1085,7 @@ TAG7: HVC_TAG_7_PARA_TIEIN_TXT  •  Category: Ducts
 13,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
 14,T3,HVC_DUCT_CLASS_TXT,Class:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, HVC_DUCT_CLASS_TXT, """")"
 15,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+16,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ASS_TIEIN_OPEN_DUCT,Tie-in point status = OPEN (unresolved duct stub),SMACNA / CIBSE Guide B3,Common,Text,⚠ Warning: Open Duct Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_DUCT, """")"
@@ -1058,6 +1106,7 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Conduits
 10,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
 11,T3,ELC_CDT_CBL_FILL_PCT,Fill:,%,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ELC_CDT_CBL_FILL_PCT, """")"
 12,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+13,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ASS_TIEIN_OPEN_CONDUIT,Tie-in point status = OPEN (unresolved conduit stub),BS 7671 / IEC 60364,Common,Text,⚠ Warning: Open Conduit Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_CONDUIT, """")"
@@ -1077,6 +1126,7 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Cable Trays
 10,T3,ASS_TIEIN_BY_TXT,By:,,0,,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_BY_TXT, """")"
 11,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
 12,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+13,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ASS_TIEIN_OPEN_CABLETRAY,Tie-in status = OPEN (tray dead-end unresolved),IEC 61537 / BS EN 61537,Common,Text,⚠ Warning: Open Cable Tray Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_CABLETRAY, """")"
@@ -1097,6 +1147,7 @@ TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
 11,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
 12,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")"
 13,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+14,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_ASS_TIEIN_OPEN_FIREPIPE,Tie-in OPEN on fire suppression system — life safety risk,NFPA 13 / FM Global / BS EN 12845,Common,Text,⚠ CRITICAL: Open Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_FIREPIPE, """")"
@@ -1119,6 +1170,7 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
 12,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")"
 13,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")"
 14,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")"
+15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_ASS_TIEIN_OPEN_GAS,Tie-in OPEN on gas system — explosion / asphyxiation risk,BS 6891 / NFPA 54 / ISO 17484,Common,Text,⚠ CRITICAL: Open Gas Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_GAS, """")"
@@ -1127,13 +1179,47 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
 Tag Family #52: STING - MEP Sheet Tag
 TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
-1,T1,SHT_TAG_1_TXT,,,,✓,---,---,---,Add directly
-2,T2,SHT_DISC_TXT,Disc:,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")"
-3,T2,SHT_FORM_TXT,Form:,,,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")"
-4,T2,SHT_LEVEL_TXT,Level:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, SHT_LEVEL_TXT, """")"
-5,T2,SHT_NUMBER_TXT,No:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, SHT_NUMBER_TXT, """")"
-6,T2,SHT_NAME_TXT,Name:,,,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, SHT_NAME_TXT, """")"
-7,T3,SHT_TAG_7_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, SHT_TAG_7_TXT, """")"
+1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")"
+3,T2,SHT_FORM_TXT,Form:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")"
+4,T2,SHT_LEVEL_TXT,Level:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, SHT_LEVEL_TXT, """")"
+5,T2,SHT_NUMBER_TXT,No:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, SHT_NUMBER_TXT, """")"
+6,T2,SHT_NAME_TXT,Name:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, SHT_NAME_TXT, """")"
+7,T3,SHT_TAG_7_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, SHT_TAG_7_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_SHT_MULTI_DISC_MEP,Multiple MEP disciplines on same sheet — coordination risk,ISO 19650-2 / PAS 1192-2,Common,Text,⚠ Warning: Multi-Discipline Sheet,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_MULTI_DISC_MEP, """")"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAG FAMILY #53 — STING - MEP Sleeve Tag
+# ═══════════════════════════════════════════════════════════════════════════════
+# Category: Generic Models | PROD: SLV | FUNC: PEN | Disciplines: M, E, P, FP
+# Fire-rated construction penetration sleeves per BS EN 1366-3 / BS 9999
+# ───────────────────────────────────────────────────────────────────────────────
+
+★ TIER 1 — COMPACT (always visible)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
+
+★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Calculated Value Formula
+1,T2,ASS_TAG_2_TXT,,,0,✓,---,---,---,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+2,T2,SLV_SZ_MM,Ø,mm,0,✓,Common,Text,Sleeve Size,"if(TAG_PARA_STATE_2_BOOL, SLV_SZ_MM, """")"
+3,T2,SLV_FIRE_RATING_TXT,,, 0,✓,Common,Text,Fire Rating,"if(TAG_PARA_STATE_2_BOOL, SLV_FIRE_RATING_TXT, """")"
+4,T2,SLV_SERVICE_TXT,Service:,,0,✓,Common,Text,Service Through,"if(TAG_PARA_STATE_2_BOOL, SLV_SERVICE_TXT, """")"
+5,T2,SLV_STATUS_TXT,,,0,✓,Common,Text,Sleeve Status,"if(TAG_PARA_STATE_2_BOOL, SLV_STATUS_TXT, """")"
+
+★ TIER 3 — FULL SPECIFICATION (gated by TAG_PARA_STATE_3_BOOL)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Calculated Value Formula
+1,T3,SLV_MAT_TXT,Material:,,0,✓,Common,Text,Sleeve Material,"if(TAG_PARA_STATE_3_BOOL, SLV_MAT_TXT, """")"
+2,T3,SLV_SEAL_TYPE_TXT,Seal:,,0,✓,Common,Text,Seal Type,"if(TAG_PARA_STATE_3_BOOL, SLV_SEAL_TYPE_TXT, """")"
+3,T3,SLV_WALL_TYPE_TXT,Host:,,0,✓,Common,Text,Host Element,"if(TAG_PARA_STATE_3_BOOL, SLV_WALL_TYPE_TXT, """")"
+4,T3,SLV_FIRESTOP_PRODUCT_TXT,Firestop:,,0,✓,Common,Text,Firestop Product,"if(TAG_PARA_STATE_3_BOOL, SLV_FIRESTOP_PRODUCT_TXT, """")"
+5,T3,SLV_TESTED_TO_TXT,Tested:,,0,✓,Common,Text,Test Standard,"if(TAG_PARA_STATE_3_BOOL, SLV_TESTED_TO_TXT, """")"
+6,T3,SLV_INSPECTION_DATE_TXT,Inspected:,,0,✓,Common,Text,Last Inspection,"if(TAG_PARA_STATE_3_BOOL, SLV_INSPECTION_DATE_TXT, """")"
+
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_SLV_NO_FIRE_RATING,SLV_FIRE_RATING_TXT empty — penetration seal cannot be validated,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_FIRE_RATING, """")"
+2,HIGH,WARN_SLV_NO_REF,SLV_REF_TXT empty — asset cannot be tracked,ISO 19650-2:2018,Common,Text,⚠ Warning: No Sleeve Ref,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_REF, """")"
+3,HIGH,WARN_SLV_NO_SEAL,SLV_SEAL_TYPE_TXT empty — fire compartmentation incomplete,BS EN 1366-3:2009,Common,Text,⚠ Warning: No Seal Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_SLV_NO_SEAL, """")"

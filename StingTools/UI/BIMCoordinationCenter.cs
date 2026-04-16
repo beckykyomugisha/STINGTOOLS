@@ -121,7 +121,8 @@ namespace StingTools.UI
         // Phase 77 Item 7: Model Health action panel area
         private ContentControl _modelHealthActionArea;
 
-        // Phase 78 Section 1.1: Additional inline panel ContentControl fields
+        // Phase 78 Section 1.1: Additional inline panel ContentControl fields (reserved for future tab detail areas)
+#pragma warning disable CS0169 // Field is not used yet — reserved for future inline detail panels
         private ContentControl _meetingDetailArea;       // Meetings tab inline detail
         private ContentControl _meetingMinutesArea;      // Minutes editor area
         private ContentControl _meetingActionsArea;      // Action items area
@@ -132,6 +133,7 @@ namespace StingTools.UI
         private ContentControl _coordLogDetailArea;      // Coord log filter + detail
         private ContentControl _permissionsDetailArea;   // Permissions inline
         private ContentControl _stingBIMDetailArea;      // StingBIM hub detail
+#pragma warning restore CS0169
 
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
         internal static Action<string> ActionDispatcher { get; set; }

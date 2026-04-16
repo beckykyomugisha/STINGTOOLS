@@ -238,6 +238,9 @@ namespace StingTools.Core
         public const string SHT_TAG_1 = "SHT_TAG_1_TXT";
         public const string SHT_TAG_7 = "SHT_TAG_7_TXT";
 
+        // Phase 79: MEP Sleeve Container
+        public const string SLV_TAG = "SLV_TAG";
+
         // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
         // Loaded from extended_params section. Keys map to param_name values.
         private static Dictionary<string, string> _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);

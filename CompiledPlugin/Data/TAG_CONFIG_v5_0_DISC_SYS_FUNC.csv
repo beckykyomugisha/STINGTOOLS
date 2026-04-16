@@ -198,3 +198,13 @@ TIEIN_SYS,Conduits,LV,COM,STING - Tie-In Point Tag (Conduit)
 TIEIN_SYS,Conduits,LV,ICT,STING - Tie-In Point Tag (Conduit)
 TIEIN_SYS,Cable Trays,E,LV,STING - Tie-In Point Tag (Cable Tray)
 TIEIN_SYS,Cable Trays,LV,COM,STING - Tie-In Point Tag (Cable Tray)
+# --- Section 8: MEP Sleeve (SLV) product code mappings ---
+SLV_PROD,Generic Models,M,HVAC,PEN,SLV,STING - MEP Sleeve Tag
+SLV_PROD,Generic Models,M,DHW,PEN,SLV,STING - MEP Sleeve Tag
+SLV_PROD,Generic Models,M,HWS,PEN,SLV,STING - MEP Sleeve Tag
+SLV_PROD,Generic Models,P,DCW,PEN,SLV,STING - MEP Sleeve Tag
+SLV_PROD,Generic Models,P,SAN,PEN,SLV,STING - MEP Sleeve Tag
+SLV_PROD,Generic Models,P,RWD,PEN,SLV,STING - MEP Sleeve Tag
+SLV_PROD,Generic Models,E,LV,PEN,SLV,STING - MEP Sleeve Tag
+SLV_PROD,Generic Models,FP,FP,PEN,SLV,STING - MEP Sleeve Tag
+SLV_PROD,Generic Models,P,GAS,PEN,SLV,STING - MEP Sleeve Tag
