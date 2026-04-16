@@ -1,0 +1,60 @@
+# STING Tools — Parameter Duplicate Analysis
+
+Scope: `StingTools/Data/MR_PARAMETERS.txt` (2,378 `PARAM` lines).
+Method: for every candidate pair, count tag-config CSV references and C# compile-time references. A duplicate is flagged only when BOTH variants are genuinely used or one is provably dead.
+
+**Total deprecation candidates: 12 TRUE + 6 UNUSED = 18 params (0.76 % redundancy).**
+
+---
+
+## A. TRUE DUPLICATES — both names used, consolidate
+
+| # | Duplicate pair | Recommendation |
+|---|---|---|
+| 1 | `ASS_STATUS_TXT` vs `ASS_STATUS_COD_TXT` | **Keep `ASS_STATUS_TXT`** (94 CSV refs, 27 code refs). `ASS_STATUS_COD_TXT` has 0 CSV refs — deprecate. |
+| 2 | `ASS_MANUFACTURER_TXT` vs `BLE_MAT_MANUFACTURER_TXT` vs `MAT_MANUFACTURER` | **Keep `ASS_MANUFACTURER_TXT`** (BIMManager, GapAnalysis, formulas). `BLE_MAT_MANUFACTURER_TXT` used only in `MaterialCommands.cs:188` — redundant with `MAT_MANUFACTURER` (`MaterialCommands.cs:121`). Map the CSV column to `ASS_MANUFACTURER_TXT`. |
+| 3 | `PER_THERM_U_VALUE_W_M2K` vs `PER_THERM_U_VALUE_W_M2K_NR` | Tag CSVs use the un-suffixed form (6 refs); `_NR` variant only referenced by its own `WARN_*_NR` wrappers. **Keep `PER_THERM_U_VALUE_W_M2K`** — rename warnings. |
+| 4 | `CST_TAG_7_PARA_CONCRETE_TXT` vs `CST_TAG_7_PARA_CONC_TXT` | **Keep `CST_TAG_7_PARA_CONC_TXT`** (`ParamRegistry.cs:1737`). `CST_TAG_7_PARA_CONCRETE_TXT` has zero non-definition refs — deprecate. |
+| 5 | `BLE_WINDOW_U_VALUE` vs `BLE_WINDOW_U_VALUE_W_M_2K_NR` | **Keep `BLE_WINDOW_U_VALUE_W_M_2K_NR`** (formulas, LABEL_DEFINITIONS, schedules). Unsuffixed variant only in `TagConfig.cs:5708` legacy reader — deprecate. |
+| 6 | `BLE_FIRE_RATING_TXT` vs `PER_FIRE_RATING_HR` | `PER_FIRE_RATING_HR` has 17+ tag-CSV refs; `BLE_FIRE_RATING_TXT` has 2 code refs. Route element-level fire rating through `PER_FIRE_RATING_HR` and deprecate `BLE_FIRE_RATING_TXT`. (The other `_FIRE_RATING_*` variants serve distinct scopes — see Section C.) |
+| 7 | `ASS_WARRANTY_START_TXT` vs `COM_WARRANTY_START_TXT` | **Keep `COM_WARRANTY_START_TXT`** (`BIMManagerCommands:2719, 3165`, `StingExportDialog`). `ASS_WARRANTY_START_TXT` only in ParamRegistry alias — deprecate. |
+| 8 | `ASS_WARRANTY_EXPIRATION_DATE_TXT` vs `MNT_WARRANTY_EXPIRY_TXT` | **Keep `MNT_WARRANTY_EXPIRY_TXT`** (100+ LABEL_DEFINITIONS refs, `TagConfig.cs:5023`). Migrate `ASS_WARRANTY_EXPIRATION_DATE_TXT` callers in DocAutomation + IoT. |
+| 9 | `ASS_WARRANTY_PERIOD_TXT` + `ASS_WARRANTY_DUR_TXT` vs `ASS_WARRANTY_DURATION_PARTS_YRS` + `ASS_WARRANTY_DURATION_LABOR_YRS` | Four overlapping duration fields. Keep the COBie-aligned `DURATION_PARTS_YRS` / `DURATION_LABOR_YRS` + `ASS_WARRANTY_DUR_UNIT_TXT`. Deprecate `ASS_WARRANTY_PERIOD_TXT` and `ASS_WARRANTY_DUR_TXT`. |
+| 10 | `ASS_UNIT_COST_TXT` vs `ASS_CST_UNIT_PRICE_UGX_NR` | **Keep `ASS_CST_UNIT_PRICE_UGX_NR`** (BOQ_TEMPLATE, formulas, BIMManager, pyRevit manifest). `ASS_UNIT_COST_TXT` only in `DataPipelineCommands:2860` — migrate and deprecate. |
+| 11 | `BLE_STRUCT_FIRE_PROTECTION_TYPE_TXT` vs `STR_FIRE_PROTECTION_TYPE_TXT` | **Keep `STR_FIRE_PROTECTION_TYPE_TXT`** (5 tag-CSV refs). `BLE_STRUCT_FIRE_PROTECTION_TYPE_TXT` has no CSV refs — deprecate. |
+| 12 | `CST_CALC_CONCRETE_M3` vs `CST_S_CON_VOLUME_CU_M` | **Keep `CST_S_CON_VOLUME_CU_M`** (pyRevit manifest + structural pipeline). `CST_CALC_CONCRETE_M3` used only in cost-calc preset — consolidate. |
+
+## B. UNUSED DUPLICATES — dead parameters
+
+| Parameter | Notes |
+|---|---|
+| `ASS_REPLACE_COST_TXT` | 0 external refs; superseded by `PER_REPLACEMENT_COST_UGX` |
+| `CST_TAG_7_PARA_CONCRETE_TXT` | 0 refs; active alias is `CST_TAG_7_PARA_CONC_TXT` |
+| `ASS_STATUS_COD_TXT` | 0 tag-CSV refs (126 LABEL_DEFINITIONS refs appear residual) |
+| `BLE_RAMP_HANDRAIL_TXT` | Only the `_BOOL` variant is used (`ARCH:251`) |
+| `BLE_DOOR_GLAZING_PCT` | Only the `_BOOL` variant is used |
+| `ELC_PNL_RATED_BOOL` | Only the `_KW` variant is used (formulas, MEP CSV) |
+| `ELC_PNL_SPARE_WAYS_PCT` | Only the `_NR` variant is actively referenced; `_PCT` only in `TagConfig.cs:5755` legacy reader |
+| `BLE_STRUCT_FIRE_PROTECTION_TYPE_TXT` | Superseded by `STR_FIRE_PROTECTION_TYPE_TXT` |
+
+## C. APPARENT DUPLICATES — distinct, keep
+
+Document these to prevent accidental consolidation in future merges.
+
+| Family | Variants | Why distinct |
+|---|---|---|
+| Tile quantity | `BLE_CEILING_FIN_TILE_QTY_NR` / `BLE_FINISH_TILE_QUANTITY_NR` / `BLE_FLR_TILE_QTY_NR` | Element scope differs: ceiling / wall-finish / floor |
+| Currency pairs | `MAT_COST_UGX` + `MAT_COST_USD`, `MAT_COST_ASSEMBLY_UGX` + `MAT_COST_ASSEMBLY_USD` | Dual-currency BOQ is intentional |
+| Fire-rating hierarchy | `BLE_FIRE_RATING_TXT` (element) / `PER_FIRE_RATING_HR` (performance) / `PROP_FIRE_RATING` (material) / `RGL_FIRE_RATING_TXT` (regulatory) / `SLV_FIRE_RATING_TXT` (sleeve) | 5 distinct ISO 19650 scopes. Only BLE↔PER overlap is a true-dup candidate (row 6 above) |
+| Warranty family | PARTS / LABOR × DURATION / TXT | COBie V2.4 pattern — keep as-is |
+| CST groups | `CST_CALC_*` / `CST_S_*_*` / `CST_TOTAL_*_COST` | Calculator inputs / structural sub-group / aggregate totals — orthogonal |
+| Description axes | `ASS_DESCRIPTION_TXT` / `ASS_CLASS_DESC_TXT` / `ASS_UNIFORMAT_DESC_TXT` / `ASS_ASSEMBLY_DESC_TXT` | Distinct classification axes |
+
+## Deprecation process
+
+1. Pick one victim from Section A or B.
+2. Grep the repo (code + CSVs + JSON) for all references; rewrite to the canonical name.
+3. Remove the deprecated `PARAM` row from `MR_PARAMETERS.txt` AND the matching row in `MR_PARAMETERS.csv`.
+4. Run the tag-family audit (`grep -P '^PARAM\t[^\t]+\tDEPRECATED_NAME\t' StingTools/Data/MR_PARAMETERS.txt` should return empty).
+5. Bump the schema version comment in affected CSVs.
+6. Document the change in CLAUDE.md.

@@ -1,9 +1,28 @@
-﻿#SCHEMA_VERSION=5.1,CREATED=2026-03-16,UPDATED=2026-03-19,FIXES=1_param_name_mismatch_aligned_to_MR_PARAMETERS
+﻿#SCHEMA_VERSION=5.2,CREATED=2026-03-16,UPDATED=2026-04-16,FIXES=1_param_name_mismatch_aligned_to_MR_PARAMETERS
+#
+# SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
+#   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
+#   Color  : BLACK | BLUE | GREEN | RED | ORANGE | PURPLE | GREY | WHITE  (default: BLACK)
+#   Size   : 2 | 2.5 | 3 | 3.5                              (default per tier: T1=2.5, T2=2.0, T3=2.0)
+#
+# Prescribed styles for TAG7 sub-sections (A-F) per ISO 19650 presentation convention:
+#   ASS_TAG_7A_TXT  Identity Header              BOLD    BLUE     (2.5)
+#   ASS_TAG_7B_TXT  System & Function            ITALIC  GREEN    (2.0)
+#   ASS_TAG_7C_TXT  Spatial Context              NOM     ORANGE   (2.0)
+#   ASS_TAG_7D_TXT  Lifecycle & Status           NOM     RED      (2.0)
+#   ASS_TAG_7E_TXT  Technical Specs              BOLD    PURPLE   (2.0)
+#   ASS_TAG_7F_TXT  Classification               ITALIC  GREY     (2.0)
+#
+# Tag Style Engine matrix: TAG_{SIZE}{STYLE}_{COLOR}_BOOL  (128 combos = 4 sizes x 4 styles x 8 colors).
+# ApplyTagStyleCommand sets exactly one BOOL true per element type; label rows gated by that BOOL become
+# visible. Blank Style/Color/Size fields in this CSV mean "inherit tier default" — values are picked up
+# by TagFamilyCreatorCommand when generating the label row and by ApplyTagStyleCommand when switching.
+#
 STING Tag Configuration v5.0 - MEP (COMPLETE with Warnings)
 6C — HVAC
 Tag Family #1: STING - Air Terminal Tag
 TAG7: HVC_TAG_7_PARA_AT_TXT  •  Category: Air Terminals
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -26,7 +45,7 @@ TAG7: HVC_TAG_7_PARA_AT_TXT  •  Category: Air Terminals
 5,LOW,WARN_HVC_MOUNTING_HEIGHT_AIR_TERMINALS,Mounting height outside recommended range,CIBSE Guide A / ASHRAE,Common,Text,⚠ Warning: Air Terminal Mounting Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_MOUNTING_HEIGHT_AIR_TERMINALS, """")"
 Tag Family #2: STING - Duct Accessory Tag
 TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Accessories
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -42,7 +61,7 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Accessories
 4,MEDIUM,WARN_HVC_LEAKAGE_CLASS_DUCT_ACC,Leakage class not specified for sealed system,CIBSE DW/144 / BS EN 15727,Common,Text,⚠ Warning: Duct Accessory Leakage Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_LEAKAGE_CLASS_DUCT_ACC, """")"
 Tag Family #3: STING - Duct Fitting Tag
 TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Fittings
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,HVC_DCT_PROPERTY_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_PROPERTY_TXT, """")"
@@ -57,7 +76,7 @@ TAG7: HVC_TAG_7_PARA_DCTACC_TXT  •  Category: Duct Fittings
 3,HIGH,WARN_HVC_DUCT_CLASS_MISMATCH_FITTINGS,Fitting duct class does not match connected duct class,SMACNA HVAC Duct Standards / CIBSE DW/144,Common,Text,⚠ Warning: Duct Class Mismatch at Fitting,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_CLASS_MISMATCH_FITTINGS, """")"
 Tag Family #4: STING - Duct Tag
 TAG7: HVC_TAG_7_PARA_DUCT_TXT  •  Category: Ducts
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,HVC_DCT_PROPERTY_TXT,[,],0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -97,7 +116,7 @@ TAG7: HVC_TAG_7_PARA_DUCT_TXT  •  Category: Ducts
 7,LOW,WARN_HVC_DUCT_AREA_DUCTS,Duct cross-section area undersized for design airflow,CIBSE Guide B3 / ASHRAE,Common,Text,⚠ Warning: Duct Sizing,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_DUCT_AREA_DUCTS, """")"
 Tag Family #5: STING - Flex Duct Tag
 TAG7: HVC_TAG_7_PARA_FLEXDUCT_TXT  •  Category: Flex Ducts
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,HVC_DCT_FLW_CFM,Flow:,CFM,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, HVC_DCT_FLW_CFM, """")"
@@ -115,7 +134,7 @@ TAG7: HVC_TAG_7_PARA_FLEXDUCT_TXT  •  Category: Flex Ducts
 4,LOW,WARN_HVC_INSULATION_FLEX_DUCTS,Flex duct insulation not specified,BS 5422 / ASHRAE 90.1,Common,Text,⚠ Warning: Flex Duct Insulation Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_INSULATION_FLEX_DUCTS, """")"
 Tag Family #6: STING - Mechanical Equipment Tag
 TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Mechanical Equipment
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -163,7 +182,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Mechanical Equipment
 6D — Plumbing
 Tag Family #7: STING - Flex Pipe Tag
 TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Flex Pipes
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,PLM_PPE_SZ_MM,DN,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SZ_MM, """")"
@@ -178,7 +197,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Flex Pipes
 2,MEDIUM,WARN_PLM_VEL_MPS_FLEX_PIPE,Velocity > 1.5 m/s in flex connection,CIBSE Guide G / BS 6700,Common,Text,⚠ Warning: Flex Pipe Velocity,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_VEL_MPS_FLEX_PIPE, """")"
 Tag Family #8: STING - Pipe Accessory Tag
 TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Accessories
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,PLM_PPE_SZ_MM,DN,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SZ_MM, """")"
@@ -193,7 +212,7 @@ TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Accessories
 3,CRITICAL,WARN_PLM_FIRE_RATING_PIPE_ACC,Fire rating not specified for compartment penetration,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Pipe Accessory Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_FIRE_RATING_PIPE_ACC, """")"
 Tag Family #9: STING - Pipe Fitting Tag
 TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Fittings
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,PLM_PPE_SZ_MM,DN,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SZ_MM, """")"
@@ -209,7 +228,7 @@ TAG7: PLM_TAG_7_PARA_PIPEACC_TXT  •  Category: Pipe Fittings
 3,MEDIUM,WARN_PLM_MATERIAL_MISMATCH_PIPE_FITTINGS,Fitting material incompatible with pipe material (galvanic corrosion risk),BS EN 806-2 / CIBSE Guide G,Common,Text,⚠ Warning: Pipe Fitting Material Mismatch,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_MATERIAL_MISMATCH_PIPE_FITTINGS, """")"
 Tag Family #10: STING - Pipe Tag
 TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Pipes
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,PLM_PPE_SZ_MM,DN,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -248,7 +267,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_TXT  •  Category: Pipes
 7,MEDIUM,WARN_PLM_NOISE_PIPES,Pipe noise transmission > 35 dB in occupied area,BS 8233 / BB93 / CIBSE Guide B5,Common,Text,⚠ Warning: Pipe Noise Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_NOISE_PIPES, """")"
 Tag Family #11: STING - Plumbing Fixture Tag
 TAG7: PLM_TAG_7_PARA_FIXTURE_TXT  •  Category: Plumbing Fixtures
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,PLM_PPE_SZ_MM,DN,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_SZ_MM, """")"
@@ -280,7 +299,7 @@ TAG7: PLM_TAG_7_PARA_FIXTURE_TXT  •  Category: Plumbing Fixtures
 6E — Fire Protection
 Tag Family #12: STING - Fire Alarm Device Tag
 TAG7: FLS_TAG_7_PARA_FA_TXT  •  Category: Fire Alarm Devices
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,FLS_SFTY_DEV_TYPE_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, FLS_SFTY_DEV_TYPE_TXT, """")"
@@ -309,7 +328,7 @@ TAG7: FLS_TAG_7_PARA_FA_TXT  •  Category: Fire Alarm Devices
 6,MEDIUM,WARN_FLS_DETECTOR_SENSITIVITY_FIRE_ALARM,Detector sensitivity not matched to environment,BS 5839-1 Cl. 22 / BS EN 54-7,Common,Text,⚠ Warning: Fire Alarm Detector Sensitivity,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_DETECTOR_SENSITIVITY_FIRE_ALARM, """")"
 Tag Family #13: STING - Sprinkler Tag
 TAG7: FLS_TAG_7_PARA_SPR_TXT  •  Category: Sprinklers
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,FLS_SFTY_COVERAGE_AREA_SQ_M,Coverage:,m²,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, FLS_SFTY_COVERAGE_AREA_SQ_M, """")"
@@ -341,7 +360,7 @@ TAG7: FLS_TAG_7_PARA_SPR_TXT  •  Category: Sprinklers
 6F — Electrical
 Tag Family #14: STING - Cable Tray Fitting Tag
 TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Tray Fittings
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -356,7 +375,7 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Tray Fittings
 
 Tag Family #15: STING - Cable Tray Tag
 TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Trays
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ELC_CTR_MAT_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ELC_CTR_MAT_TXT, """")"
@@ -382,7 +401,7 @@ TAG7: ELC_TAG_7_PARA_TRAY_TXT  •  Category: Cable Trays
 5,LOW,WARN_ELC_CTR_EARTHING_CABLE_TRAYS,Earth bonding continuity not verified across joints,BS 7671 / IEC 60364-5-54,Common,Text,⚠ Warning: Cable Tray Earth Bonding,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CTR_EARTHING_CABLE_TRAYS, """")"
 Tag Family #16: STING - Conduit Fitting Tag
 TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduit Fittings
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -397,7 +416,7 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduit Fittings
 
 Tag Family #17: STING - Conduit Tag
 TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduits
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,ELC_CDT_SZ_MM,Conduit:,mm,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -429,7 +448,7 @@ TAG7: ELC_TAG_7_PARA_CONDUIT_TXT  •  Category: Conduits
 5,LOW,WARN_ELC_CDT_EARTHING_CONDUITS,Metallic conduit earth continuity not verified,BS 7671 Regulation 543 / IEC 60364-5-54,Common,Text,⚠ Warning: Conduit Earthing,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CDT_EARTHING_CONDUITS, """")"
 Tag Family #18: STING - Electrical Equipment Tag
 TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,ELC_PNL_DESIGNATION_NAME_TXT,Panel:,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -479,7 +498,7 @@ TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
 7,LOW,WARN_ELC_LABELLING_ELECTRICAL_EQUI,Panel schedule / circuit labelling incomplete,BS 7671 Regulation 514 / IEC 60364,Common,Text,⚠ Warning: Panel Labelling Incomplete,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LABELLING_ELECTRICAL_EQUI, """")"
 Tag Family #19: STING - Electrical Fixture Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ELC_PWR_KW,Power:,kW,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ELC_PWR_KW, """")"
@@ -499,7 +518,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
 4,MEDIUM,WARN_ELC_IP_RATING_ELECTRICAL_FIX,IP rating insufficient for zone (bathroom/wet area),BS 7671 Section 701 / BS EN 60529,Common,Text,⚠ Warning: Fixture IP Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_IP_RATING_ELECTRICAL_FIX, """")"
 Tag Family #20: STING - Lighting Device Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Devices
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ELC_CKT_NR,Ckt:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ELC_CKT_NR, """")"
@@ -517,7 +536,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Devices
 4,MEDIUM,WARN_LTG_EMERGENCY_LIGHTING_DEVICES,Emergency lighting provision not specified,BS 5266-1 / BS EN 1838,Common,Text,⚠ Warning: Lighting Device Emergency Provision,"if(TAG_WARN_VISIBLE_BOOL, WARN_LTG_EMERGENCY_LIGHTING_DEVICES, """")"
 Tag Family #21: STING - Lighting Fixture Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Fixtures
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,LTG_FIX_TYPE_CLASSIFICATION_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -553,7 +572,7 @@ TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Lighting Fixtures
 6G — LV / ICT
 Tag Family #22: STING - Communication Device Tag
 TAG7: COM_TAG_7_PARA_BMS_TXT  •  Category: Communication Devices
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,COM_C_PROTOCOL_TXT,,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, COM_C_PROTOCOL_TXT, """")"
@@ -577,7 +596,7 @@ TAG7: COM_TAG_7_PARA_BMS_TXT  •  Category: Communication Devices
 4,LOW,WARN_COM_C_POWER_SUPPLY_COMM_DEVICES,Power supply voltage outside device operating range,Manufacturer spec / BS EN 50173,Common,Text,⚠ Warning: Comms Power Supply,"if(TAG_WARN_VISIBLE_BOOL, WARN_COM_C_POWER_SUPPLY_COMM_DEVICES, """")"
 Tag Family #23: STING - Data Device Tag
 TAG7: ICT_TAG_7_PARA_DATA_TXT  •  Category: Data Devices
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ICT_OUTLET_TYPE_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ICT_OUTLET_TYPE_TXT, """")"
@@ -594,7 +613,7 @@ TAG7: ICT_TAG_7_PARA_DATA_TXT  •  Category: Data Devices
 4,LOW,WARN_ICT_COVERAGE_DATA_DEVICES,Data outlet coverage — work area exceeds 12 m² per outlet,TIA-568 / BS EN 50173,Common,Text,⚠ Warning: Data Outlet Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_ICT_COVERAGE_DATA_DEVICES, """")"
 Tag Family #24: STING - Nurse Call Device Tag
 TAG7: NCL_TAG_7_PARA_NURSECALL_TXT  •  Category: Nurse Call Devices
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,NCL_ZONE_TXT,Zone:,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, NCL_ZONE_TXT, """")"
@@ -609,7 +628,7 @@ TAG7: NCL_TAG_7_PARA_NURSECALL_TXT  •  Category: Nurse Call Devices
 3,MEDIUM,WARN_NCL_RESPONSE_TIME_NURSE_CALL,Response annunciation time exceeds clinical requirement,HTM 08-03 / CQC standards,Common,Text,⚠ Warning: Nurse Call Response Time,"if(TAG_WARN_VISIBLE_BOOL, WARN_NCL_RESPONSE_TIME_NURSE_CALL, """")"
 Tag Family #25: STING - Security Device Tag
 TAG7: SEC_TAG_7_PARA_SECURITY_TXT  •  Category: Security Devices
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,SEC_DEV_ZONE_TXT,Zone:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SEC_DEV_ZONE_TXT, """")"
@@ -626,7 +645,7 @@ TAG7: SEC_TAG_7_PARA_SECURITY_TXT  •  Category: Security Devices
 4,MEDIUM,WARN_SEC_TAMPER_SECURITY,Tamper detection not enabled for security device,BS EN 50131-1 Grade 2+ requirement,Common,Text,⚠ Warning: Security Tamper Detection,"if(TAG_WARN_VISIBLE_BOOL, WARN_SEC_TAMPER_SECURITY, """")"
 Tag Family #26: STING - Telephone Devices Tag
 TAG7: ICT_TAG_7_PARA_TEL_TXT  •  Category: Telephone Devices
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ICT_OUTLET_TYPE_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ICT_OUTLET_TYPE_TXT, """")"
@@ -646,7 +665,7 @@ TAG7: ICT_TAG_7_PARA_TEL_TXT  •  Category: Telephone Devices
 6H — General
 Tag Family #27: STING - Generic Model Tag
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Generic Models
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -672,7 +691,7 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Generic Models
 3,LOW,WARN_ASS_EXPECTED_LIFE_GENERIC_MODEL,Expected life not assigned — affects FM planning,PAS 1192-3 / BS 8210,Common,Text,⚠ Warning: Generic Model Expected Life,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_EXPECTED_LIFE_GENERIC_MODEL, """")"
 Tag Family #28: STING - Specialty Equipment Tag
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -703,7 +722,7 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 6I — MEP Fabrication & Materials
 Tag Family #29: STING - Duct Insulation Tag
 TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -717,7 +736,7 @@ TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
 3,LOW,WARN_INS_VAPOUR_BARRIER_DUCT_INS,Vapour barrier not specified for cold duct insulation,BS 5422 / CIBSE Guide B3,Common,Text,⚠ Warning: Duct Insulation Vapour Barrier,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_VAPOUR_BARRIER_DUCT_INS, """")"
 Tag Family #30: STING - Duct Lining Tag
 TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -731,7 +750,7 @@ TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
 3,LOW,WARN_INS_EROSION_DUCT_LINING,Duct lining velocity > erosion limit for material type,SMACNA / CIBSE DW/144,Common,Text,⚠ Warning: Duct Lining Erosion Risk,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_EROSION_DUCT_LINING, """")"
 Tag Family #31: STING - Pipe Insulation Tag
 TAG7: PLM_TAG_7_PARA_PIPE_INSULATION_TXT  •  Category: Pipe Insulation
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,PLM_INS_THICKNESS_MM,,mm,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -745,7 +764,7 @@ TAG7: PLM_TAG_7_PARA_PIPE_INSULATION_TXT  •  Category: Pipe Insulation
 3,LOW,WARN_INS_VAPOUR_BARRIER_PIPE_INSULATION,Vapour barrier not specified for cold water pipe insulation,BS 5422 / CIBSE Guide C,Common,Text,⚠ Warning: Pipe Insulation Vapour Barrier,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_VAPOUR_BARRIER_PIPE_INSULATION, """")"
 Tag Family #32: STING - Plumbing Equipment Tag
 TAG7: PLM_TAG_7_PARA_PLM_EQUIP_TXT  •  Category: Plumbing Equipment
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -775,7 +794,7 @@ TAG7: PLM_TAG_7_PARA_PLM_EQUIP_TXT  •  Category: Plumbing Equipment
 4,MEDIUM,WARN_PLM_MAINTENANCE_ACCESS_PLM_EQUIP,Maintenance access clearance not verified,CIBSE Guide M / BS 8210,Common,Text,⚠ Warning: Plumbing Equipment Access,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_MAINTENANCE_ACCESS_PLM_EQUIP, """")"
 Tag Family #33: STING - Mechanical Control Devices Tag
 TAG7: HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT  •  Category: Mechanical Control Devices
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,MEC_CTRL_FUNCTION_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -789,7 +808,7 @@ TAG7: HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT  •  Category: Mechanical Control Device
 3,LOW,WARN_MEC_CTRL_CALIBRATION_CTRL_DEV,Calibration requirement not specified,CIBSE Guide H / BSRIA BG 30,Common,Text,⚠ Warning: Control Calibration Not Specified,"if(TAG_WARN_VISIBLE_BOOL, WARN_MEC_CTRL_CALIBRATION_CTRL_DEV, """")"
 Tag Family #34: STING - Mechanical Equipment Sets Tag
 TAG7: HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT  •  Category: Mechanical Equipment Sets
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T3,MEC_SET_CAPACITY_KW,Capacity:,kW,0,✓,Common,Text,Show Tier 3 - 3,"if(TAG_PARA_STATE_3_BOOL, MEC_SET_CAPACITY_KW, """")"
@@ -800,7 +819,7 @@ TAG7: HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT  •  Category: Mechanical Equipment Se
 2,MEDIUM,WARN_MEC_SET_REDUNDANCY_EQUIP_SETS,N+1 redundancy not provided for critical systems,CIBSE Guide B / ASHRAE,Common,Text,⚠ Warning: Equipment Set Redundancy,"if(TAG_WARN_VISIBLE_BOOL, WARN_MEC_SET_REDUNDANCY_EQUIP_SETS, """")"
 Tag Family #35: STING - Electrical Connectors Tag
 TAG7: ELC_TAG_7_PARA_ELC_CONNECTORS_TXT  •  Category: Electrical Connectors
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,ELC_CONN_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -813,7 +832,7 @@ TAG7: ELC_TAG_7_PARA_ELC_CONNECTORS_TXT  •  Category: Electrical Connectors
 2,MEDIUM,WARN_ELC_CONN_IP_CONNECTORS,IP rating insufficient for installation environment,BS EN 60529 / IEC 60309,Common,Text,⚠ Warning: Connector IP Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_CONN_IP_CONNECTORS, """")"
 Tag Family #36: STING - Fire Protection Tag
 TAG7: FLS_TAG_7_PARA_FIRE_PROT_TXT  •  Category: Fire Protection
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,,min,1,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -833,7 +852,7 @@ TAG7: FLS_TAG_7_PARA_FIRE_PROT_TXT  •  Category: Fire Protection
 4,MEDIUM,WARN_FLS_PROT_EVACUATION_TIME,Evacuation time exceeds design target,BS 9999 / PD 7974-6,Common,Text,⚠ Warning: Evacuation Time Exceeded,"if(TAG_WARN_VISIBLE_BOOL, WARN_FLS_PROT_EVACUATION_TIME, """")"
 Tag Family #37: STING - MEP Fabrication Containment Tag
 TAG7: ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT  •  Category: MEP Fabrication Containment
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FAB_CONTAINMENT_W_MM,,×,0,,---,---,---,Add directly
 3,T1,FAB_CONTAINMENT_D_MM,,mm,0,✓,---,---,---,Add directly
@@ -847,7 +866,7 @@ TAG7: ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT  •  Category: MEP Fabrication Contain
 3,HIGH,WARN_FAB_CONTAINMENT_FIRE_RATING,Containment fire rating not specified at compartment boundary,Building Regs Part B / BS 8519,Common,Text,⚠ Warning: Containment Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_CONTAINMENT_FIRE_RATING, """")"
 Tag Family #38: STING - MEP Fabrication Ductwork Tag
 TAG7: HVC_TAG_7_PARA_FAB_DUCTWORK_TXT  •  Category: MEP Fabrication Ductwork
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FAB_DCT_W_MM,,×,0,,---,---,---,Add directly
 3,T1,FAB_DCT_H_MM,,mm,0,✓,---,---,---,Add directly
@@ -861,7 +880,7 @@ TAG7: HVC_TAG_7_PARA_FAB_DUCTWORK_TXT  •  Category: MEP Fabrication Ductwork
 3,LOW,WARN_FAB_DCT_MATERIAL_DUCTWORK,Fab duct material gauge < minimum for duct class,SMACNA HVAC Duct Standards / CIBSE DW/144,Common,Text,⚠ Warning: Fab Duct Material Gauge,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_DCT_MATERIAL_DUCTWORK, """")"
 Tag Family #39: STING - MEP Fabrication Ductwork Stiffeners Tag
 TAG7: HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT  •  Category: MEP Fabrication Ductwork Stiffeners
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FAB_STIFF_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -875,7 +894,7 @@ TAG7: HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT  •  Category: MEP Fabrication Duct
 2,MEDIUM,WARN_FAB_STIFF_SPACING_STIFFENERS,Stiffener spacing exceeds maximum for duct dimension,SMACNA HVAC Duct / CIBSE DW/144,Common,Text,⚠ Warning: Stiffener Spacing,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_STIFF_SPACING_STIFFENERS, """")"
 Tag Family #40: STING - MEP Fabrication Hangers Tag
 TAG7: MEP_TAG_7_PARA_FAB_HANGERS_TXT  •  Category: MEP Fabrication Hangers
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FAB_HANGER_TYPE_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -889,7 +908,7 @@ TAG7: MEP_TAG_7_PARA_FAB_HANGERS_TXT  •  Category: MEP Fabrication Hangers
 3,HIGH,WARN_FAB_HANGER_SEISMIC,Seismic restraint not provided for critical services,BS EN 1998 / ASCE 7 (where applicable),Common,Text,⚠ Warning: Hanger Seismic Restraint,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_SEISMIC, """")"
 Tag Family #41: STING - MEP Fabrication Pipework Tag
 TAG7: PLM_TAG_7_PARA_FAB_PIPEWORK_TXT  •  Category: MEP Fabrication Pipework
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,FAB_PIPE_DN_MM,DN,,0,✓,---,---,---,Add directly
 3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
@@ -902,7 +921,7 @@ TAG7: PLM_TAG_7_PARA_FAB_PIPEWORK_TXT  •  Category: MEP Fabrication Pipework
 3,MEDIUM,WARN_FAB_PIPE_WELD_PIPEWORK,Weld specification not assigned for pressure pipe,BS EN ISO 5817 / ASME IX,Common,Text,⚠ Warning: Fab Pipe Weld Spec,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_PIPE_WELD_PIPEWORK, """")"
 Tag Family #42: STING - Materials Tag
 TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,MAT_NAME,,,0,✓,Common,Text,Show Tier 1 - 2,Add directly
 3,T1,MAT_CATEGORY,,,0,✓,Common,Text,Show Tier 1 - 3,Add directly
@@ -931,7 +950,7 @@ TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 
 Tag Family #43: STING - Audio Visual Devices Tag
 TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -951,7 +970,7 @@ TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
 6G — HVAC Spaces/Zones
 Tag Family #44: STING - Spaces Tag
 TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -971,7 +990,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
 
 Tag Family #45: STING - Zones Tag
 TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -1045,7 +1064,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
 
 Tag Family #46: STING - Tie-In Point Tag (Pipe — Plumbing & Hydraulic)
 TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,PLM_PPE_SZ_MM,DN,,0,✓,---,---,---,Add directly
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
@@ -1069,7 +1088,7 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 
 Tag Family #47: STING - Tie-In Point Tag (Duct — HVAC)
 TAG7: HVC_TAG_7_PARA_TIEIN_TXT  •  Category: Ducts
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,HVC_DCT_SZ_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
@@ -1093,7 +1112,7 @@ TAG7: HVC_TAG_7_PARA_TIEIN_TXT  •  Category: Ducts
 
 Tag Family #48: STING - Tie-In Point Tag (Conduit — Electrical LV/ELV)
 TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Conduits
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,ELC_CDT_SZ_MM,∅,,0,✓,---,---,---,Add directly
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
@@ -1113,7 +1132,7 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Conduits
 
 Tag Family #49: STING - Tie-In Point Tag (Cable Tray — Electrical)
 TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Cable Trays
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,ELC_CTR_SZ_TXT,,,0,✓,---,---,---,Add directly
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
@@ -1133,7 +1152,7 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Cable Trays
 
 Tag Family #50: STING - Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)
 TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,PLM_PPE_SZ_MM,DN,,0,✓,---,---,---,Add directly
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
@@ -1155,7 +1174,7 @@ TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
 
 Tag Family #51: STING - Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)
 TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T1,PLM_PPE_SZ_MM,DN,,0,✓,---,---,---,Add directly
 3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")"
@@ -1178,7 +1197,7 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
 
 Tag Family #52: STING - MEP Sheet Tag
 TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")"
 3,T2,SHT_FORM_TXT,Form:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")"
@@ -1198,11 +1217,11 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 # ───────────────────────────────────────────────────────────────────────────────
 
 ★ TIER 1 — COMPACT (always visible)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Calculated Value Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Calculated Value Formula,Style,Color,Size
 1,T2,ASS_TAG_2_TXT,,,0,✓,---,---,---,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 2,T2,SLV_SZ_MM,Ø,mm,0,✓,Common,Text,Sleeve Size,"if(TAG_PARA_STATE_2_BOOL, SLV_SZ_MM, """")"
 3,T2,SLV_FIRE_RATING_TXT,,, 0,✓,Common,Text,Fire Rating,"if(TAG_PARA_STATE_2_BOOL, SLV_FIRE_RATING_TXT, """")"
@@ -1210,7 +1229,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 5,T2,SLV_STATUS_TXT,,,0,✓,Common,Text,Sleeve Status,"if(TAG_PARA_STATE_2_BOOL, SLV_STATUS_TXT, """")"
 
 ★ TIER 3 — FULL SPECIFICATION (gated by TAG_PARA_STATE_3_BOOL)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Calculated Value Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Calculated Value Formula,Style,Color,Size
 1,T3,SLV_MAT_TXT,Material:,,0,✓,Common,Text,Sleeve Material,"if(TAG_PARA_STATE_3_BOOL, SLV_MAT_TXT, """")"
 2,T3,SLV_SEAL_TYPE_TXT,Seal:,,0,✓,Common,Text,Seal Type,"if(TAG_PARA_STATE_3_BOOL, SLV_SEAL_TYPE_TXT, """")"
 3,T3,SLV_WALL_TYPE_TXT,Host:,,0,✓,Common,Text,Host Element,"if(TAG_PARA_STATE_3_BOOL, SLV_WALL_TYPE_TXT, """")"

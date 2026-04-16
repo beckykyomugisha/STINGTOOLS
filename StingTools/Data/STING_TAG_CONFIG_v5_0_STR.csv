@@ -1,9 +1,28 @@
-#SCHEMA_VERSION=5.1,CREATED=2026-03-16,UPDATED=2026-03-19,FIXES=8_param_name_mismatches_aligned_to_MR_PARAMETERS
+#SCHEMA_VERSION=5.2,CREATED=2026-03-16,UPDATED=2026-04-16,FIXES=8_param_name_mismatches_aligned_to_MR_PARAMETERS
+#
+# SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
+#   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
+#   Color  : BLACK | BLUE | GREEN | RED | ORANGE | PURPLE | GREY | WHITE  (default: BLACK)
+#   Size   : 2 | 2.5 | 3 | 3.5                              (default per tier: T1=2.5, T2=2.0, T3=2.0)
+#
+# Prescribed styles for TAG7 sub-sections (A-F) per ISO 19650 presentation convention:
+#   ASS_TAG_7A_TXT  Identity Header              BOLD    BLUE     (2.5)
+#   ASS_TAG_7B_TXT  System & Function            ITALIC  GREEN    (2.0)
+#   ASS_TAG_7C_TXT  Spatial Context              NOM     ORANGE   (2.0)
+#   ASS_TAG_7D_TXT  Lifecycle & Status           NOM     RED      (2.0)
+#   ASS_TAG_7E_TXT  Technical Specs              BOLD    PURPLE   (2.0)
+#   ASS_TAG_7F_TXT  Classification               ITALIC  GREY     (2.0)
+#
+# Tag Style Engine matrix: TAG_{SIZE}{STYLE}_{COLOR}_BOOL  (128 combos = 4 sizes x 4 styles x 8 colors).
+# ApplyTagStyleCommand sets exactly one BOOL true per element type; label rows gated by that BOOL become
+# visible. Blank Style/Color/Size fields in this CSV mean "inherit tier default" — values are picked up
+# by TagFamilyCreatorCommand when generating the label row and by ApplyTagStyleCommand when switching.
+#
 STING Tag Configuration v5.0 - STR (COMPLETE with Warnings)
 6B — Structural
 Tag Family #1: STING - Structural Column Tag
 TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Structural Columns
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -38,7 +57,7 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Structural Columns
 
 Tag Family #2: STING - Structural Framing Tag
 TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -74,7 +93,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
 
 Tag Family #3: STING - Structural Foundation Tag
 TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -108,7 +127,7 @@ TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
 
 Tag Family #4: STING - Structural Slab Tag
 TAG7: STR_TAG_7_PARA_SLAB_TXT  •  Category: Floors (Structural)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -137,7 +156,7 @@ TAG7: STR_TAG_7_PARA_SLAB_TXT  •  Category: Floors (Structural)
 
 Tag Family #5: STING - Structural Wall Tag
 TAG7: STR_TAG_7_PARA_WALL_TXT  •  Category: Walls (Structural/Load-bearing)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -162,7 +181,7 @@ TAG7: STR_TAG_7_PARA_WALL_TXT  •  Category: Walls (Structural/Load-bearing)
 
 Tag Family #6: STING - Brace / Truss Tag
 TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing (Bracing)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -185,7 +204,7 @@ TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing (Bracing)
 
 Tag Family #7: STING - Structural Rebar Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -210,7 +229,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
 
 Tag Family #8: STING - Structural Connection Tag
 TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Structural Connections
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -235,7 +254,7 @@ TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Structural Connections
 
 Tag Family #9: STING - Columns Tag
 TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Columns (Architectural)
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -255,7 +274,7 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Columns (Architectural)
 
 Tag Family #10: STING - Structural Trusses Tag
 TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Trusses
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -281,7 +300,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Trusses
 
 Tag Family #11: STING - Structural Stiffeners Tag
 TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Stiffeners
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -298,7 +317,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Stiffeners
 
 Tag Family #12: STING - Structural Beam Systems Tag
 TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Beam Systems
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -318,7 +337,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Beam Systems
 
 Tag Family #13: STING - Structural Rebar Couplers Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar Couplers
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -334,7 +353,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar Couplers
 
 Tag Family #14: STING - Structural Fabric Reinforcement Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -351,7 +370,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
 
 Tag Family #15: STING - Structural Area Reinforcement Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -369,7 +388,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
 
 Tag Family #16: STING - Structural Path Reinforcement Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -390,7 +409,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
 
 Tag Family #17: STING - Internal Point Loads Tag
 TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -407,7 +426,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
 
 Tag Family #18: STING - Internal Line Loads Tag
 TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -424,7 +443,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
 
 Tag Family #19: STING - Internal Area Loads Tag
 TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -442,7 +461,7 @@ TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
 6G — Analytical Model
 Tag Family #20: STING - Analytical Members Tag
 TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
 3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
@@ -458,7 +477,7 @@ TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
 1,HIGH,WARN_STR_ANLYT_NO_HOST,Analytical member has no physical host element,BS EN 1992-1-1 / BS EN 1993-1-1,Common,Text,⚠ Warning: No Physical Host,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_NO_HOST, """")"
 Tag Family #21: STING - Structural Sheet Tag
 TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Structural discipline
-#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size
 1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")"
 3,T2,SHT_FORM_TXT,Form:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")"
