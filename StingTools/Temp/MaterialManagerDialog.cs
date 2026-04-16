@@ -388,51 +388,189 @@ namespace StingTools.Temp
             sp.Children.Add(new TextBlock { Text = "BOQ Link", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 10) });
             sp.Children.Add(new TextBlock
             {
-                Text = "Link project materials to NRM2 BOQ descriptions from BOQ_DESCRIPTIONS.json.\n" +
-                       "Select a material, choose a BOQ description, and save the link for quantity take-off.",
+                Text = "Link project materials to NRM2 BOQ paragraph descriptions. Paragraphs describe " +
+                       "the item's properties (material, dimensions, standard, finishes). Quantities and " +
+                       "costs are measured from the model and written to separate columns at export.",
                 FontSize = 11, Foreground = WpfBrushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10)
             });
 
-            // Load BOQ descriptions
-            var boqDescriptions = new List<string>();
-            try
-            {
-                string boqPath = Path.Combine(_dataPath, "BOQ_DESCRIPTIONS.json");
-                if (File.Exists(boqPath))
-                {
-                    var arr = JArray.Parse(File.ReadAllText(boqPath));
-                    foreach (var item in arr)
-                        boqDescriptions.Add(item["description"]?.ToString() ?? item["name"]?.ToString() ?? "");
-                }
-            }
-            catch { /* ignore, show empty */ }
+            // ── Load paragraph templates from BOQ_DESCRIPTIONS.json ──
+            var descRows = BOQLinkStore.LoadDescriptions(_dataPath);
+            var links = BOQLinkStore.LoadLinks(_doc);
 
+            // ── Project Material ──
             sp.Children.Add(Label("Project Material:"));
-            var matCb = new WpfComboBox { Height = 26, Margin = new Thickness(0, 2, 0, 8) };
-            foreach (var m in _materials.Take(50)) matCb.Items.Add(m.Name);
-            if (matCb.Items.Count == 0) matCb.Items.Add("(no materials)");
+            var matCb = new WpfComboBox { Height = 26, Margin = new Thickness(0, 2, 0, 8), IsEditable = true };
+            foreach (var m in _materials) matCb.Items.Add(m.Name);
+            if (matCb.Items.Count == 0) { matCb.Items.Add("(no materials in project)"); matCb.IsEnabled = false; }
             matCb.SelectedIndex = 0;
             sp.Children.Add(matCb);
 
-            sp.Children.Add(Label("BOQ Description:"));
-            var boqCb = new WpfComboBox { Height = 26, Margin = new Thickness(0, 2, 0, 8) };
-            foreach (var d in boqDescriptions.Take(36)) boqCb.Items.Add(d);
-            if (boqCb.Items.Count == 0) boqCb.Items.Add("(no BOQ descriptions — ensure BOQ_DESCRIPTIONS.json is present)");
-            boqCb.SelectedIndex = 0;
+            // ── BOQ Description ──
+            sp.Children.Add(Label("BOQ Description (paragraph template):"));
+            var boqCb = new WpfComboBox { Height = 26, Margin = new Thickness(0, 2, 0, 8), IsEditable = true, MaxDropDownHeight = 280 };
+            foreach (var d in descRows)
+                boqCb.Items.Add($"§{d.Nrm2Section,-3} {d.Category,-22}  {d.Preview}");
+            if (boqCb.Items.Count == 0)
+            {
+                boqCb.Items.Add("(no BOQ descriptions — BOQ_DESCRIPTIONS.json missing)");
+                boqCb.IsEnabled = false;
+            }
             sp.Children.Add(boqCb);
 
+            // ── NRM2 Section (auto-filled) ──
             sp.Children.Add(Label("NRM2 Section:"));
             var sectionBox = new System.Windows.Controls.TextBox { Height = 26, Margin = new Thickness(0, 2, 0, 8), IsReadOnly = true, Background = new SolidColorBrush(WpfColor.FromRgb(0xF5, 0xF8, 0xFF)) };
             sp.Children.Add(sectionBox);
 
-            sp.Children.Add(Label("Notes:"));
+            // ── Paragraph preview (read-only, wraps) ──
+            sp.Children.Add(Label("Paragraph preview (placeholders resolved at export):"));
+            var previewBox = new System.Windows.Controls.TextBox
+            {
+                Height = 70, IsReadOnly = true, TextWrapping = TextWrapping.Wrap,
+                Background = new SolidColorBrush(WpfColor.FromRgb(0xF5, 0xF8, 0xFF)),
+                Margin = new Thickness(0, 2, 0, 8), FontStyle = FontStyles.Italic
+            };
+            sp.Children.Add(previewBox);
+
+            // ── Notes ──
+            sp.Children.Add(Label("Notes (optional — e.g., bespoke specification references):"));
             var notesBox = new System.Windows.Controls.TextBox { Height = 50, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 10) };
             sp.Children.Add(notesBox);
 
+            // ── Link status + button row ──
+            var statusBlock = new TextBlock { FontSize = 10, Foreground = WpfBrushes.Gray, Margin = new Thickness(0, 0, 0, 6) };
+            sp.Children.Add(statusBlock);
+
+            // Sync preview and status when selection changes
+            void RefreshPreview()
+            {
+                int idx = boqCb.SelectedIndex;
+                if (idx >= 0 && idx < descRows.Count)
+                {
+                    sectionBox.Text = $"NRM2 §{descRows[idx].Nrm2Section} — {descRows[idx].Category}";
+                    previewBox.Text = descRows[idx].Paragraph;
+                }
+                else { sectionBox.Text = ""; previewBox.Text = ""; }
+
+                string matName = matCb.Text?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(matName) && links.TryGetValue(matName, out var existing))
+                {
+                    statusBlock.Text = $"Linked: §{existing.Nrm2Section} {existing.Category} (updated {existing.UpdatedDate:yyyy-MM-dd})";
+                    statusBlock.Foreground = GreenBrush;
+                }
+                else
+                {
+                    statusBlock.Text = "Not linked — choose a description and click Save Link.";
+                    statusBlock.Foreground = WpfBrushes.Gray;
+                }
+            }
+            boqCb.SelectionChanged += (s, e) => RefreshPreview();
+            matCb.SelectionChanged += (s, e) =>
+            {
+                // Auto-jump to existing link for this material
+                string matName = matCb.Text?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(matName) && links.TryGetValue(matName, out var existing))
+                {
+                    int idx = descRows.FindIndex(d => d.Category == existing.Category && d.Nrm2Section == existing.Nrm2Section && d.Paragraph == existing.Paragraph);
+                    if (idx < 0) idx = descRows.FindIndex(d => d.Category == existing.Category);
+                    if (idx >= 0) boqCb.SelectedIndex = idx;
+                    notesBox.Text = existing.Notes ?? "";
+                }
+                RefreshPreview();
+            };
+            RefreshPreview();
+
+            // ── Buttons ──
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
-            btnRow.Children.Add(Btn("Save Link", GreenBrush, () => TaskDialog.Show("STING", "BOQ link saved for material.")));
-            btnRow.Children.Add(Btn("View All Links", NavyBrush, () => TaskDialog.Show("STING", "Showing all material-BOQ links."), margin: new Thickness(6, 0, 0, 0)));
-            btnRow.Children.Add(Btn("Export BOQ", AmberBrush, () => TaskDialog.Show("STING", "BOQ export with linked descriptions generated."), margin: new Thickness(6, 0, 0, 0)));
+            btnRow.Children.Add(Btn("Save Link", GreenBrush, () =>
+            {
+                string matName = matCb.Text?.Trim() ?? "";
+                if (string.IsNullOrEmpty(matName) || matName.StartsWith("(no "))
+                {
+                    TaskDialog.Show("BOQ Link", "Select a project material first.");
+                    return;
+                }
+                int idx = boqCb.SelectedIndex;
+                if (idx < 0 || idx >= descRows.Count)
+                {
+                    TaskDialog.Show("BOQ Link", "Choose a BOQ paragraph description.");
+                    return;
+                }
+                var d = descRows[idx];
+                links[matName] = new BOQLinkStore.Link
+                {
+                    MaterialName = matName,
+                    Category = d.Category,
+                    Nrm2Section = d.Nrm2Section,
+                    Paragraph = d.Paragraph,
+                    Notes = notesBox.Text?.Trim() ?? "",
+                    UpdatedBy = Environment.UserName ?? "unknown",
+                    UpdatedDate = DateTime.Now
+                };
+                try
+                {
+                    BOQLinkStore.SaveLinks(_doc, links);
+                    TaskDialog.Show("BOQ Link", $"Saved link:\n{matName}  →  §{d.Nrm2Section} {d.Category}");
+                    RefreshPreview();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"BOQ link save failed: {ex.Message}");
+                    TaskDialog.Show("BOQ Link", $"Could not save link:\n{ex.Message}");
+                }
+            }));
+            btnRow.Children.Add(Btn("View All Links", NavyBrush, () =>
+            {
+                if (links.Count == 0)
+                {
+                    TaskDialog.Show("BOQ Link", "No material→BOQ links saved yet.");
+                    return;
+                }
+                var msg = new System.Text.StringBuilder();
+                msg.AppendLine($"Saved material → BOQ links  ({links.Count}):");
+                msg.AppendLine(new string('─', 60));
+                foreach (var kv in links.OrderBy(k => k.Value.Nrm2Section).ThenBy(k => k.Key))
+                {
+                    msg.AppendLine($"  {kv.Key,-30}  §{kv.Value.Nrm2Section,-3} {kv.Value.Category}");
+                    if (!string.IsNullOrEmpty(kv.Value.Notes))
+                        msg.AppendLine($"    note: {kv.Value.Notes}");
+                }
+                var td = new TaskDialog("STING — BOQ Links")
+                {
+                    MainInstruction = $"{links.Count} material link(s)",
+                    MainContent = msg.ToString()
+                };
+                td.CommonButtons = TaskDialogCommonButtons.Ok;
+                td.Show();
+            }, margin: new Thickness(6, 0, 0, 0)));
+            btnRow.Children.Add(Btn("Unlink Selected", new SolidColorBrush(WpfColor.FromRgb(0xC6, 0x28, 0x28)), () =>
+            {
+                string matName = matCb.Text?.Trim() ?? "";
+                if (!links.Remove(matName))
+                {
+                    TaskDialog.Show("BOQ Link", "No link to remove for the selected material.");
+                    return;
+                }
+                try { BOQLinkStore.SaveLinks(_doc, links); } catch (Exception ex) { StingLog.Warn($"Unlink save: {ex.Message}"); }
+                RefreshPreview();
+                TaskDialog.Show("BOQ Link", $"Removed link for {matName}.");
+            }, margin: new Thickness(6, 0, 0, 0)));
+            btnRow.Children.Add(Btn("Export BOQ", AmberBrush, () =>
+            {
+                Close();
+                try
+                {
+                    var cmd = new StingTools.Temp.BOQExportCommand();
+                    string m = null;
+                    cmd.Execute(null, ref m, null);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"BOQ export launch failed: {ex.Message}");
+                    TaskDialog.Show("BOQ Export", $"Launch failed:\n{ex.Message}\n\nUse BIM tab → Export BOQ instead.");
+                }
+            }, margin: new Thickness(6, 0, 0, 0)));
             sp.Children.Add(btnRow);
 
             return new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -464,6 +602,133 @@ namespace StingTools.Temp
             sp.Children.Add(new TextBlock { Text = label, FontSize = 10, Foreground = WpfBrushes.Gray, HorizontalAlignment = HorizontalAlignment.Center });
             b.Child = sp;
             return b;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  BOQLinkStore — persists Material→BOQ-description links as a JSON
+    //  sidecar alongside the Revit file (_bim_manager/material_boq_links.json).
+    //  Also loads the paragraph catalogue from BOQ_DESCRIPTIONS.json.
+    // ══════════════════════════════════════════════════════════════════════
+
+    internal static class BOQLinkStore
+    {
+        public class DescriptionRow
+        {
+            public string Category;
+            public string Nrm2Section;
+            public string Paragraph;
+            public string[] Placeholders;
+            public string Preview
+            {
+                get
+                {
+                    if (string.IsNullOrEmpty(Paragraph)) return "";
+                    string s = Paragraph.Length <= 60 ? Paragraph : Paragraph.Substring(0, 60) + "…";
+                    return s;
+                }
+            }
+        }
+
+        public class Link
+        {
+            public string MaterialName;
+            public string Category;
+            public string Nrm2Section;
+            public string Paragraph;
+            public string Notes;
+            public string UpdatedBy;
+            public DateTime UpdatedDate;
+        }
+
+        public static List<DescriptionRow> LoadDescriptions(string dataPath)
+        {
+            var rows = new List<DescriptionRow>();
+            try
+            {
+                string p = Path.Combine(dataPath ?? "", "BOQ_DESCRIPTIONS.json");
+                if (!File.Exists(p)) return rows;
+                var arr = JArray.Parse(File.ReadAllText(p));
+                foreach (var item in arr)
+                {
+                    string cat = item["category"]?.ToString() ?? "";
+                    string sec = item["nrm2_section"]?.ToString() ?? "";
+                    string para = item["paragraph"]?.ToString() ?? "";
+                    if (string.IsNullOrEmpty(para)) continue;
+                    var phArr = item["placeholders"] as JArray;
+                    var ph = phArr?.Select(t => t?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToArray() ?? Array.Empty<string>();
+                    rows.Add(new DescriptionRow { Category = cat, Nrm2Section = sec, Paragraph = para, Placeholders = ph });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadDescriptions: {ex.Message}"); }
+            return rows;
+        }
+
+        private static string GetSidecarPath(Document doc)
+        {
+            string projDir;
+            try { projDir = Path.GetDirectoryName(doc.PathName) ?? ""; }
+            catch (Exception ex) { StingLog.Warn($"Sidecar path: {ex.Message}"); projDir = ""; }
+            if (string.IsNullOrEmpty(projDir))
+                projDir = Path.Combine(Path.GetTempPath(), "STING");
+            string dir = Path.Combine(projDir, "_bim_manager");
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "material_boq_links.json");
+        }
+
+        public static Dictionary<string, Link> LoadLinks(Document doc)
+        {
+            var map = new Dictionary<string, Link>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string p = GetSidecarPath(doc);
+                if (!File.Exists(p)) return map;
+                var arr = JArray.Parse(File.ReadAllText(p));
+                foreach (var item in arr)
+                {
+                    string name = item["material_name"]?.ToString();
+                    if (string.IsNullOrEmpty(name)) continue;
+                    var link = new Link
+                    {
+                        MaterialName = name,
+                        Category = item["category"]?.ToString() ?? "",
+                        Nrm2Section = item["nrm2_section"]?.ToString() ?? "",
+                        Paragraph = item["paragraph"]?.ToString() ?? "",
+                        Notes = item["notes"]?.ToString() ?? "",
+                        UpdatedBy = item["updated_by"]?.ToString() ?? ""
+                    };
+                    if (DateTime.TryParse(item["updated_date"]?.ToString(), out var dt)) link.UpdatedDate = dt;
+                    map[name] = link;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadLinks: {ex.Message}"); }
+            return map;
+        }
+
+        public static void SaveLinks(Document doc, Dictionary<string, Link> links)
+        {
+            string p = GetSidecarPath(doc);
+            var arr = new JArray();
+            foreach (var kv in links.OrderBy(k => k.Value.Nrm2Section).ThenBy(k => k.Key))
+            {
+                var l = kv.Value;
+                arr.Add(new JObject
+                {
+                    ["material_name"] = l.MaterialName,
+                    ["category"] = l.Category,
+                    ["nrm2_section"] = l.Nrm2Section,
+                    ["paragraph"] = l.Paragraph,
+                    ["notes"] = l.Notes ?? "",
+                    ["updated_by"] = l.UpdatedBy ?? "",
+                    ["updated_date"] = l.UpdatedDate.ToString("o")
+                });
+            }
+            // Atomic write: tmp + replace + .bak (matches pattern used across the codebase)
+            string tmp = p + ".tmp";
+            string bak = p + ".bak";
+            File.WriteAllText(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+            if (File.Exists(p)) File.Replace(tmp, p, bak);
+            else File.Move(tmp, p);
         }
     }
 
