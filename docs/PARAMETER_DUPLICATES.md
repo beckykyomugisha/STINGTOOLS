@@ -1,6 +1,8 @@
 # STING Tools — Parameter Duplicate Analysis
 
-Scope: `StingTools/Data/MR_PARAMETERS.txt` (2,378 `PARAM` lines).
+> **Status (2026-04-16):** Consolidation EXECUTED in commit history. Registry shrunk from 2,378 → 2,361 `PARAM` lines (−17). All callers migrated to canonical names; no residual references outside this historical doc. Sections A and B below describe the consolidation that was performed.
+
+Scope: `StingTools/Data/MR_PARAMETERS.txt` (was 2,378 `PARAM` lines).
 Method: for every candidate pair, count tag-config CSV references and C# compile-time references. A duplicate is flagged only when BOTH variants are genuinely used or one is provably dead.
 
 **Total deprecation candidates: 12 TRUE + 6 UNUSED = 18 params (0.76 % redundancy).**

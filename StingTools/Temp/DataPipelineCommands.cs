@@ -2857,7 +2857,7 @@ namespace StingTools.Temp
             sb.AppendLine();
             sb.AppendLine("PropertySet:\tSTING_AssetCost\tI\t" +
                 "IfcBuildingElement,IfcDistributionElement");
-            string costParam = "ASS_UNIT_COST_TXT";
+            string costParam = "ASS_CST_UNIT_PRICE_UGX_NR";
             string areaParam = "ASS_AREA_M2_TXT";
             sb.AppendLine($"\t{costParam}\tText");
             sb.AppendLine($"\t{areaParam}\tText");
@@ -2969,7 +2969,7 @@ namespace StingTools.Temp
                         {
                             string cost = ws.Cell(r, costCol).GetString().Trim();
                             if (!string.IsNullOrEmpty(cost))
-                                updates.Add((tag, "ASS_UNIT_COST_TXT", cost));
+                                updates.Add((tag, "ASS_CST_UNIT_PRICE_UGX_NR", cost));
                         }
                         if (descCol > 0)
                         {
@@ -4267,7 +4267,7 @@ namespace StingTools.Temp
             string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
             string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
-            string fireRating = ParameterHelpers.GetString(el, "BLE_FIRE_RATING_TXT");
+            string fireRating = ParameterHelpers.GetString(el, "PER_FIRE_RATING_HR");
             string material = GetMaterialName(doc, el);
 
             // System/function descriptions

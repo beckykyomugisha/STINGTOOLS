@@ -1706,7 +1706,7 @@ namespace StingTools.Core
             _extendedParams["HVC_INSULATION"] = "HVC_INS_THICKNESS_MM"; _extendedParams["HVC_DUCT_LENGTH"] = "HVC_DCT_LENGTH_M";
             // ISO 19650 naming
             _extendedParams["PROJECT_COD"] = "ASS_PROJECT_COD_TXT"; _extendedParams["ORIGINATOR_COD"] = "ASS_ORIGINATOR_COD_TXT";
-            _extendedParams["VOLUME_COD"] = "ASS_VOLUME_COD_TXT"; _extendedParams["STATUS_COD"] = "ASS_STATUS_COD_TXT";
+            _extendedParams["VOLUME_COD"] = "ASS_VOLUME_COD_TXT"; _extendedParams["STATUS_COD"] = "ASS_STATUS_TXT";
             _extendedParams["REV_COD"] = "ASS_REV_COD_TXT";
             // Paragraph containers
             _extendedParams["PARA_WALL"] = "ARCH_TAG_7_PARA_WALL_TXT"; _extendedParams["PARA_FLOOR"] = "ARCH_TAG_7_PARA_FLOOR_TXT";
@@ -1771,7 +1771,6 @@ namespace StingTools.Core
             _extendedParams["PARA_STAIR_LAND"] = "BLE_TAG_7_PARA_STAIR_LANDINGS_TXT";
             _extendedParams["PARA_STAIR_SUPP"] = "BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT";
             // Warning thresholds
-            _extendedParams["ELC_PNL_RATED"] = "ELC_PNL_RATED_BOOL";
             _extendedParams["WARN_RAMP_SLOPE"] = "WARN_BLE_RAMP_SLOPE_PCT_RAMPS";
             _extendedParams["WARN_VLT_DROP"] = "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI";
             _extendedParams["WARN_SPR_COVER"] = "WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR";
@@ -1790,7 +1789,7 @@ namespace StingTools.Core
             _extendedParams["PRJ_REV_COD"] = "PRJ_REV_COD_TXT";
             // COBie / warranty / commissioning / asset management
             _extendedParams["BARCODE"] = "ASS_BARCODE_TXT"; _extendedParams["ASSET_ID"] = "ASS_ASSET_ID_TXT";
-            _extendedParams["CONDITION"] = "ASS_CONDITION_TXT"; _extendedParams["WARRANTY_START"] = "ASS_WARRANTY_START_TXT";
+            _extendedParams["CONDITION"] = "ASS_CONDITION_TXT"; _extendedParams["WARRANTY_START"] = "COM_WARRANTY_START_TXT";
             _extendedParams["WARR_GUAR_PARTS"] = "ASS_WARRANTY_PARTS_TXT"; _extendedParams["WARR_DUR_PARTS"] = "ASS_WARRANTY_DURATION_PARTS_YRS";
             _extendedParams["WARR_GUAR_LABOR"] = "ASS_WARRANTY_LABOR_TXT"; _extendedParams["WARR_DUR_LABOR"] = "ASS_WARRANTY_DURATION_LABOR_YRS";
             _extendedParams["WARR_DUR_UNIT"] = "ASS_WARRANTY_DUR_UNIT_TXT"; _extendedParams["MODEL_REF"] = "ASS_MODEL_REF_TXT";

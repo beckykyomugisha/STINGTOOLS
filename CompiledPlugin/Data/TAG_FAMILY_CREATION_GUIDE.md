@@ -728,7 +728,7 @@ This is the complete label spec for Walls as defined in `LABEL_DEFINITIONS.json`
 | 3 | `BLE_WALL_TYPE_CLASSIFICATION_TXT` | ` \| ` | | YES | Classification |
 | 4 | `BLE_WALL_PRIMARY_WALL_MAT_TXT` | | | NO | Primary material |
 | 5 | `BLE_WALL_CST_METHOD_TXT` | ` \| ` | | YES | Construction method |
-| 6 | `PER_THERM_U_VALUE_W_M2K_NR` | | | NO | U-value |
+| 6 | `PER_THERM_U_VALUE_W_M2K` | | | NO | U-value |
 | 7 | `PER_THERM_R_VALUE_M2K_W` | ` \| R=` | | NO | R-value |
 | 8 | `PER_THERM_CONDENSATION_RISK_TXT` | ` \| ` | | YES | Condensation |
 | 9 | `FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN` | `FRR: ` | | NO | Fire resistance |

@@ -2905,7 +2905,7 @@
       },
       {
         "key": "STATUS_COD",
-        "param_name": "ASS_STATUS_COD_TXT",
+        "param_name": "ASS_STATUS_TXT",
         "guid": "a57dfe0c-6db9-4fb6-80e0-d2c453fe653b",
         "description": "ISO 19650 status/suitability code (GROUP 17)"
       },
@@ -3707,7 +3707,7 @@
       },
       {
         "key": "PARA_CST_CONC",
-        "param_name": "CST_TAG_7_PARA_CONCRETE_TXT",
+        "param_name": "CST_TAG_7_PARA_CONC_TXT",
         "guid": "5e68d7eb-d7a9-5929-9825-1a82beb5d822",
         "description": "Concrete/masonry specification paragraph (tier 3)"
       },

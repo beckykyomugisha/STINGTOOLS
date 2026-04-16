@@ -595,7 +595,7 @@ namespace StingTools.Temp
                         {
                             string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                             ParameterHelpers.SetString(el, "ASS_WARRANTY_TXT", $"{yrs} years", false);
-                            ParameterHelpers.SetString(el, "ASS_WARRANTY_EXPIRATION_DATE_TXT", expiry, false);
+                            ParameterHelpers.SetString(el, "MNT_WARRANTY_EXPIRY_TXT", expiry, false);
                             csvLines.Add($"{tag},{name},{ParameterHelpers.GetFamilyName(el)},{yrs},{installDate},{expiry},ACTIVE");
                             total++;
                         }
