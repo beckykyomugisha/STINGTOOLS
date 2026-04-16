@@ -65,7 +65,7 @@ public class IssuesController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(new { issues, total, page, pageSize });
+        return Ok(new { items = issues, total, page, pageSize });
     }
 
     [HttpPost]

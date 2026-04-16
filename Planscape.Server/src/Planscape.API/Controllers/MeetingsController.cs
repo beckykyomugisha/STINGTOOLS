@@ -23,6 +23,12 @@ public class MeetingsController : ControllerBase
     public async Task<ActionResult> GetMeetings(Guid projectId)
     {
         var tenantId = GetTenantId();
+
+        // Tenant isolation: 404 if the project does not belong to this tenant
+        var projectExists = await _db.Projects
+            .AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (!projectExists) return NotFound("Project not found");
+
         var meetings = await _db.Meetings
             .Where(m => m.ProjectId == projectId && m.Project!.TenantId == tenantId)
             .OrderByDescending(m => m.ScheduledAt)
@@ -91,7 +97,7 @@ public class MeetingsController : ControllerBase
 
         _db.MeetingActionItems.Add(item);
         await _db.SaveChangesAsync();
-        return Ok(item);
+        return CreatedAtAction(nameof(GetOpenActions), new { projectId }, item);
     }
 
     [HttpPut("{meetingId}/actions/{actionId}")]

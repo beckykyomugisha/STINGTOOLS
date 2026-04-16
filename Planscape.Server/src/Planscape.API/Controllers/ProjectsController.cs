@@ -76,6 +76,11 @@ public class ProjectsController : ControllerBase
         var tenant = await _db.Tenants.FindAsync(tenantId);
         if (tenant == null) return NotFound("Tenant not found");
 
+        // 409 Conflict on duplicate project Code within tenant
+        var duplicate = await _db.Projects.AnyAsync(p => p.TenantId == tenantId && p.Code == req.Code);
+        if (duplicate)
+            return Conflict(new { message = $"A project with code '{req.Code}' already exists" });
+
         var projectCount = await _db.Projects.CountAsync(p => p.TenantId == tenantId);
         if (projectCount >= tenant.MaxProjects)
             return BadRequest($"Project limit ({tenant.MaxProjects}) reached for {tenant.Tier} tier");

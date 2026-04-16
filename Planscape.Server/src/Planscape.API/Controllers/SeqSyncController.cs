@@ -31,7 +31,7 @@ public class SeqSyncController : ControllerBase
         if (project == null) return NotFound("Project not found");
 
         var userName = User.FindFirst("display_name")?.Value ?? "Unknown";
-        int merged = 0;
+        var merged = new List<string>();
 
         // Load all existing counters in one query (avoids N+1)
         var existingCounters = await _db.SeqCounters
@@ -47,7 +47,7 @@ public class SeqSyncController : ControllerBase
                     existing.CurrentValue = value;
                     existing.UpdatedBy = userName;
                     existing.UpdatedAt = DateTime.UtcNow;
-                    merged++;
+                    merged.Add(key);
                 }
             }
             else
@@ -59,7 +59,7 @@ public class SeqSyncController : ControllerBase
                     CurrentValue = value,
                     UpdatedBy = userName
                 });
-                merged++;
+                merged.Add(key);
             }
         }
 
@@ -71,7 +71,7 @@ public class SeqSyncController : ControllerBase
             UserId = userId,
             Action = "seq_counters_synced",
             EntityType = "SeqCounter",
-            DetailsJson = JsonSerializer.Serialize(new { merged, total = req.Counters.Count }),
+            DetailsJson = JsonSerializer.Serialize(new { mergedCount = merged.Count, total = req.Counters.Count }),
             Timestamp = DateTime.UtcNow
         });
 
@@ -88,7 +88,8 @@ public class SeqSyncController : ControllerBase
         var tenantId = GetTenantId();
         var counters = await _db.SeqCounters
             .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId)
-            .ToDictionaryAsync(s => s.CounterKey, s => s.CurrentValue);
+            .Select(s => new { key = s.CounterKey, value = s.CurrentValue })
+            .ToListAsync();
 
         return Ok(counters);
     }

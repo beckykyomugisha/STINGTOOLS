@@ -149,7 +149,7 @@ public class AuthController : ControllerBase
         var licenseKey = new LicenseKey
         {
             TenantId       = tenant.Id,
-            Key            = $"PLANSCAPE-TRIAL-{Guid.NewGuid():N}".ToUpper()[..32],
+            Key            = $"STING-TRIAL-{Guid.NewGuid():N}".ToUpper()[..32],
             Tier           = LicenseTier.Starter,
             MaxActivations = 3,
             MimEnabled     = false,
@@ -217,7 +217,10 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Me()
     {
-        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : Guid.Empty;
+        // JWT middleware maps "sub" to ClaimTypes.NameIdentifier by default, so check both
+        var subClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        var userId = Guid.TryParse(subClaim, out var id) ? id : Guid.Empty;
         var user = await _db.Users.Include(u => u.Tenant).FirstOrDefaultAsync(u => u.Id == userId);
         if (user == null) return NotFound();
 

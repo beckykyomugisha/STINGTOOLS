@@ -31,7 +31,7 @@ public class WarningsController : ControllerBase
         project.WarningCount = req.TotalWarnings;
         await _db.SaveChangesAsync();
 
-        return Ok(new
+        return CreatedAtAction(nameof(GetTrend), new { projectId }, new
         {
             projectId,
             totalWarnings = req.TotalWarnings,
