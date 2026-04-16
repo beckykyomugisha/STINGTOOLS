@@ -12,8 +12,8 @@ using StingTools.Core;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Creates and loads STING tag families (.rfa) for all 136 taggable categories
-    /// (121 standard + 8 tie-in point + 3 discipline sheet + 4 structural variant).
+    /// Creates and loads STING tag families (.rfa) for all 137 taggable categories
+    /// (121 standard + 8 tie-in point + 3 discipline sheet + 4 structural variant + 1 MEP variant).
     /// Each tag family is created from the appropriate Revit .rft annotation template
     /// and configured with STING shared parameters (ASS_TAG_1_TXT, etc.).
     ///
@@ -389,12 +389,23 @@ namespace StingTools.Tags
             (BuiltInCategory.OST_Columns,           "Generic Tag.rft",           "Columns (Architectural)",              "Architectural Column"),
         };
 
+        /// <summary>
+        /// MEP category variant tag families.
+        /// These create ADDITIONAL tag families for categories already in CategoryTemplateMap
+        /// but with MEP-specific naming (e.g., MEP Sleeve uses OST_GenericModel).
+        /// </summary>
+        public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] MepVariantFamilies =
+        {
+            (BuiltInCategory.OST_GenericModel, "Generic Model Tag.rft", "MEP Sleeve (Fire-rated penetration)", "MEP Sleeve"),
+        };
+
         /// <summary>Total tag family count including standard categories + all variant arrays.</summary>
         public static int TotalFamilyCount =>
             CategoryTemplateMap.Count +
             TieInPointFamilies.Length +
             DisciplineSheetFamilies.Length +
-            StructuralVariantFamilies.Length;
+            StructuralVariantFamilies.Length +
+            MepVariantFamilies.Length;
 
         /// <summary>Generate tie-in family name from suffix.</summary>
         public static string GetTieInFamilyName(string suffix) => $"{FamilyPrefix} - {suffix} Tag";
@@ -711,11 +722,11 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  Create Tag Families — create all 136 tag families from templates
+    //  Create Tag Families — create all 137 tag families from templates
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Creates STING tag families (.rfa) for all 136 taggable categories (121 base + 8 tie-in point + 3 discipline sheet + 4 structural variant).
+    /// Creates STING tag families (.rfa) for all 137 taggable categories (121 base + 8 tie-in point + 3 discipline sheet + 4 structural variant + 1 MEP variant).
     /// Each family is created from the appropriate Revit annotation template,
     /// configured with STING shared parameters, saved, and loaded into the project.
     ///
@@ -823,6 +834,13 @@ namespace StingTools.Tags
             foreach (var sv in TagFamilyConfig.StructuralVariantFamilies)
             {
                 string famName = TagFamilyConfig.GetTieInFamilyName(sv.suffix);
+                if (loadedFamilies.Contains(famName))
+                    alreadyLoaded++;
+            }
+            // Also count MEP variant families
+            foreach (var mv in TagFamilyConfig.MepVariantFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(mv.suffix);
                 if (loadedFamilies.Contains(famName))
                     alreadyLoaded++;
             }
@@ -1070,42 +1088,13 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    // Add shared parameters (same as standard families)
-                    int paramCount = 0;
-                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
-                    {
-                        t.Start();
-                        app.SharedParametersFilename = sharedParamFile;
-                        var defFile = app.OpenSharedParameterFile();
-                        if (defFile != null)
-                        {
-                            foreach (string pName in TagFamilyConfig.TagParams
-                                .Concat(TagFamilyConfig.VisibilityParams)
-                                .Append("ASS_DESCRIPTION_TXT"))
-                            {
-                                foreach (DefinitionGroup grp in defFile.Groups)
-                                {
-                                    var def = grp.Definitions.get_Item(pName);
-                                    if (def != null)
-                                    {
-                                        try
-                                        {
-                                            famDoc.FamilyManager.AddParameter(
-                                                def as ExternalDefinition,
-                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
-                                                false);
-                                            paramCount++;
-                                        }
-                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        t.Commit();
-                    }
+                    // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
+                    var tieInParams = TagFamilyConfig.TagParams
+                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Append("ASS_DESCRIPTION_TXT").ToList();
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, tieInParams);
 
-                    // Save and load
+                    // Save and load — always proceeds even if params failed
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
@@ -1119,7 +1108,8 @@ namespace StingTools.Tags
                         t.Commit();
                     }
                     loaded++;
-                    report.AppendLine($"  [OK]   {tiein.display} — created and loaded ({paramCount} params)");
+                    string paramStatus = paramsAdded ? "with params" : "no params";
+                    report.AppendLine($"  [OK]   {tiein.display} — created and loaded ({paramStatus})");
                 }
                 catch (Exception ex)
                 {
@@ -1203,39 +1193,11 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    int paramCount = 0;
-                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
-                    {
-                        t.Start();
-                        app.SharedParametersFilename = sharedParamFile;
-                        var defFile = app.OpenSharedParameterFile();
-                        if (defFile != null)
-                        {
-                            foreach (string pName in TagFamilyConfig.TagParams
-                                .Concat(TagFamilyConfig.VisibilityParams)
-                                .Append("ASS_DESCRIPTION_TXT"))
-                            {
-                                foreach (DefinitionGroup grp in defFile.Groups)
-                                {
-                                    var def = grp.Definitions.get_Item(pName);
-                                    if (def != null)
-                                    {
-                                        try
-                                        {
-                                            famDoc.FamilyManager.AddParameter(
-                                                def as ExternalDefinition,
-                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
-                                                false);
-                                            paramCount++;
-                                        }
-                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        t.Commit();
-                    }
+                    // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
+                    var dsParams = TagFamilyConfig.TagParams
+                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Append("ASS_DESCRIPTION_TXT").ToList();
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, dsParams);
 
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -1250,7 +1212,8 @@ namespace StingTools.Tags
                         t.Commit();
                     }
                     loaded++;
-                    report.AppendLine($"  [OK]   {ds.display} — created and loaded ({paramCount} params)");
+                    string paramStatus = paramsAdded ? "with params" : "no params";
+                    report.AppendLine($"  [OK]   {ds.display} — created and loaded ({paramStatus})");
                 }
                 catch (Exception ex)
                 {
@@ -1334,39 +1297,11 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    int paramCount = 0;
-                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
-                    {
-                        t.Start();
-                        app.SharedParametersFilename = sharedParamFile;
-                        var defFile = app.OpenSharedParameterFile();
-                        if (defFile != null)
-                        {
-                            foreach (string pName in TagFamilyConfig.TagParams
-                                .Concat(TagFamilyConfig.VisibilityParams)
-                                .Append("ASS_DESCRIPTION_TXT"))
-                            {
-                                foreach (DefinitionGroup grp in defFile.Groups)
-                                {
-                                    var def = grp.Definitions.get_Item(pName);
-                                    if (def != null)
-                                    {
-                                        try
-                                        {
-                                            famDoc.FamilyManager.AddParameter(
-                                                def as ExternalDefinition,
-                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
-                                                false);
-                                            paramCount++;
-                                        }
-                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        t.Commit();
-                    }
+                    // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
+                    var svParams = TagFamilyConfig.TagParams
+                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Append("ASS_DESCRIPTION_TXT").ToList();
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, svParams);
 
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -1381,7 +1316,8 @@ namespace StingTools.Tags
                         t.Commit();
                     }
                     loaded++;
-                    report.AppendLine($"  [OK]   {sv.display} — created and loaded ({paramCount} params)");
+                    string paramStatus = paramsAdded ? "with params" : "no params";
+                    report.AppendLine($"  [OK]   {sv.display} — created and loaded ({paramStatus})");
                 }
                 catch (Exception ex)
                 {
@@ -1389,6 +1325,110 @@ namespace StingTools.Tags
                     failures.Add($"{sv.display}: {ex.Message}");
                     report.AppendLine($"  [FAIL] {sv.display} — {ex.Message}");
                     StingLog.Error($"Structural variant tag family creation failed for {sv.display}", ex);
+                }
+            }
+
+            // ── Step 5e: Create MEP variant tag families ──
+            report.AppendLine();
+            report.AppendLine("── MEP Variant Families ──");
+            foreach (var mv in TagFamilyConfig.MepVariantFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(mv.suffix);
+                string fileName = TagFamilyConfig.GetTieInFamilyFileName(mv.suffix);
+
+                if (loadedFamilies.Contains(famName))
+                {
+                    report.AppendLine($"  [SKIP] {mv.display} — already loaded");
+                    continue;
+                }
+
+                // Check for existing .rfa on disk
+                string existingRfa = Path.Combine(outputDir, fileName);
+                if (File.Exists(existingRfa))
+                {
+                    try
+                    {
+                        using (Transaction t = new Transaction(doc, "STING Load MEP Variant Tag"))
+                        {
+                            t.Start();
+                            doc.LoadFamily(existingRfa);
+                            t.Commit();
+                        }
+                        loaded++;
+                        report.AppendLine($"  [LOAD] {mv.display} — loaded from existing .rfa");
+                        continue;
+                    }
+                    catch (Exception ex)
+                    {
+                        report.AppendLine($"  [FAIL] {mv.display} — load failed: {ex.Message}");
+                    }
+                }
+
+                // Find template and create family
+                string tpl = null;
+                foreach (string dir in new[] { templateDir })
+                {
+                    string specific = Path.Combine(dir, mv.template);
+                    if (File.Exists(specific)) { tpl = specific; break; }
+                    string metric = Path.Combine(dir, "Metric " + mv.template);
+                    if (File.Exists(metric)) { tpl = metric; break; }
+                }
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    string generic = Path.Combine(templateDir, "Generic Tag.rft");
+                    if (File.Exists(generic)) tpl = generic;
+                    else
+                    {
+                        string metricGeneric = Path.Combine(templateDir, "Metric Generic Tag.rft");
+                        if (File.Exists(metricGeneric)) tpl = metricGeneric;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    templateMissing++;
+                    report.AppendLine($"  [MISS] {mv.display} — no template found");
+                    continue;
+                }
+
+                try
+                {
+                    Document famDoc = app.NewFamilyDocument(tpl);
+                    if (famDoc == null)
+                    {
+                        failed++;
+                        report.AppendLine($"  [FAIL] {mv.display} — NewFamilyDocument returned null");
+                        continue;
+                    }
+
+                    // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
+                    var mvParams = TagFamilyConfig.TagParams
+                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Append("ASS_DESCRIPTION_TXT").ToList();
+                    bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, mvParams);
+
+                    string savePath = Path.Combine(outputDir, fileName);
+                    var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                    famDoc.SaveAs(savePath, saveOpts);
+                    famDoc.Close(false);
+                    created++;
+
+                    using (Transaction t = new Transaction(doc, "STING Load MEP Variant Tag"))
+                    {
+                        t.Start();
+                        doc.LoadFamily(savePath);
+                        t.Commit();
+                    }
+                    loaded++;
+                    string paramStatus = paramsAdded ? "with params" : "no params";
+                    report.AppendLine($"  [OK]   {mv.display} — created and loaded ({paramStatus})");
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    failures.Add($"{mv.display}: {ex.Message}");
+                    report.AppendLine($"  [FAIL] {mv.display} — {ex.Message}");
+                    StingLog.Error($"MEP variant tag family creation failed for {mv.display}", ex);
                 }
             }
 

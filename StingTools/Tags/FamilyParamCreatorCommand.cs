@@ -687,9 +687,11 @@ namespace StingTools.Tags
                     }
 
                     // Inject shared parameters
+                    string familyFileName = Path.GetFileNameWithoutExtension(rfaPath);
                     var paramList = opts.ParamNames.Count > 0
                         ? opts.ParamNames
-                        : GetDefaultParamsForCategory(catName, discCode);
+                        : GetParamsForFamily(familyFileName)
+                          ?? GetDefaultParamsForCategory(catName, discCode);
                     var (added, skipped) = InjectSharedParams(famDoc, app, paramList);
                     result.ParamsAdded = added;
                     result.ParamsSkipped = skipped;
@@ -757,6 +759,177 @@ namespace StingTools.Tags
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Get family-specific parameter names for tie-in and sleeve tag families.
+        /// Returns null for non-matching families so the caller falls back to GetDefaultParamsForCategory.
+        /// Parameter lists derived from STING_TAG_CONFIG_v5_0_MEP.csv tag family definitions.
+        /// </summary>
+        private static List<string> GetParamsForFamily(string familyFileName)
+        {
+            if (string.IsNullOrEmpty(familyFileName)) return null;
+            string name = familyFileName.ToUpperInvariant();
+
+            // Common STING base tokens (included in every family)
+            var baseParams = new List<string>
+            {
+                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+                ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS
+            };
+
+            // Add TAG container param names (ASS_TAG_1_TXT .. ASS_TAG_7F_TXT, discipline containers, SLV_TAG, etc.)
+            var containers = ParamRegistry.AllContainers;
+            if (containers != null)
+            {
+                foreach (var c in containers)
+                {
+                    if (c != null && !string.IsNullOrEmpty(c.ParamName) && !baseParams.Contains(c.ParamName))
+                        baseParams.Add(c.ParamName);
+                }
+            }
+
+            // 3-tier gating booleans (progressive disclosure)
+            var gatingBools = new[]
+            {
+                "TAG_PARA_STATE_2_BOOL",
+                "TAG_PARA_STATE_3_BOOL",
+                "TAG_WARN_VISIBLE_BOOL"
+            };
+            foreach (var g in gatingBools)
+                if (!baseParams.Contains(g)) baseParams.Add(g);
+
+            // Common tie-in params shared by ALL tie-in families (#46-#51)
+            var tieinCommon = new[]
+            {
+                "ASS_TIEIN_TAG_1_TXT",
+                "ASS_TIEIN_STATUS_TXT",
+                "ASS_TIEIN_ELEV_TXT",
+                "ASS_TIEIN_PHASE_TXT",
+                "ASS_TIEIN_BY_TXT",
+                "ASS_TIEIN_IFC_REF_TXT",
+                "ASS_TIEIN_CONNECTED_BOOL",
+                "ASS_TIEIN_FLOW_DIR_TXT",
+                "ASS_CST_TOTAL_UGX_NR",
+                "RGL_STD_TXT"
+            };
+
+            List<string> familySpecific = null;
+
+            // ── Tie-In Pipe (#46) ──
+            if (name.Contains("TIE-IN PIPE") || name.Contains("TIE_IN_PIPE") || name.Contains("TIEIN PIPE"))
+            {
+                familySpecific = new List<string>(tieinCommon)
+                {
+                    "PLM_PPE_SZ_MM",
+                    "PLM_PPE_FLW_LPS",
+                    "PLM_PSR_KPA",
+                    "PLM_TAG_7_PARA_TIEIN_TXT",
+                    "PLM_PPE_MAT_TXT",
+                    "PLM_PPE_PSR_RATING_BAR",
+                    "WARN_ASS_TIEIN_OPEN_PIPE",
+                    "WARN_ASS_TIEIN_DEFERRED_PIPE"
+                };
+            }
+            // ── Tie-In Duct (#47) ──
+            else if (name.Contains("TIE-IN DUCT") || name.Contains("TIE_IN_DUCT") || name.Contains("TIEIN DUCT"))
+            {
+                familySpecific = new List<string>(tieinCommon)
+                {
+                    "HVC_DCT_SZ_TXT",
+                    "HVC_DCT_FLW_CFM",
+                    "HVC_VEL_MPS",
+                    "HVC_DCT_MAT_TXT",
+                    "HVC_TAG_7_PARA_TIEIN_TXT",
+                    "HVC_DUCT_CLASS_TXT",
+                    "WARN_ASS_TIEIN_OPEN_DUCT",
+                    "WARN_ASS_TIEIN_DEFERRED_DUCT"
+                };
+            }
+            // ── Tie-In Conduit (#48) ──
+            else if (name.Contains("TIE-IN CONDUIT") || name.Contains("TIE_IN_CONDUIT") || name.Contains("TIEIN CONDUIT"))
+            {
+                familySpecific = new List<string>(tieinCommon)
+                {
+                    "ELC_CDT_SZ_MM",
+                    "ELC_CDT_MAT_TXT",
+                    "ELC_TAG_7_PARA_TIEIN_TXT",
+                    "ELC_CDT_CBL_FILL_PCT",
+                    "WARN_ASS_TIEIN_OPEN_CONDUIT"
+                };
+            }
+            // ── Tie-In Cable Tray (#49) ──
+            else if (name.Contains("TIE-IN CABLE TRAY") || name.Contains("TIE_IN_CABLE_TRAY") || name.Contains("TIEIN CABLE"))
+            {
+                familySpecific = new List<string>(tieinCommon)
+                {
+                    "ELC_CTR_SZ_TXT",
+                    "ELC_CTR_MAT_TXT",
+                    "ELC_CTR_FILL_PCT",
+                    "ELC_TAG_7_PARA_TIEIN_TXT",
+                    "WARN_ASS_TIEIN_OPEN_CABLETRAY"
+                };
+            }
+            // ── Tie-In Fire Protection (#50) ──
+            else if (name.Contains("TIE-IN FIRE") || name.Contains("TIE_IN_FIRE") || name.Contains("TIEIN FIRE"))
+            {
+                familySpecific = new List<string>(tieinCommon)
+                {
+                    "PLM_PPE_SZ_MM",
+                    "PLM_PPE_FLW_LPS",
+                    "PLM_PSR_KPA",
+                    "FLS_TAG_7_PARA_TIEIN_TXT",
+                    "PLM_PPE_PSR_RATING_BAR",
+                    "WARN_ASS_TIEIN_OPEN_FIREPIPE",
+                    "WARN_ASS_TIEIN_DEFERRED_FIREPIPE"
+                };
+            }
+            // ── Tie-In Gas (#51) ──
+            else if (name.Contains("TIE-IN GAS") || name.Contains("TIE_IN_GAS") || name.Contains("TIEIN GAS"))
+            {
+                familySpecific = new List<string>(tieinCommon)
+                {
+                    "PLM_PPE_SZ_MM",
+                    "PLM_PSR_KPA",
+                    "PLM_PPE_MAT_TXT",
+                    "PLM_TAG_7_PARA_TIEIN_TXT",
+                    "PLM_PPE_PSR_RATING_BAR",
+                    "WARN_ASS_TIEIN_OPEN_GAS",
+                    "WARN_ASS_TIEIN_DEFERRED_GAS"
+                };
+            }
+            // ── MEP Sleeve (#53) ──
+            else if (name.Contains("SLEEVE") || name.Contains("GENERIC MODELS TAG"))
+            {
+                familySpecific = new List<string>
+                {
+                    "SLV_SZ_MM",
+                    "SLV_FIRE_RATING_TXT",
+                    "SLV_SERVICE_TXT",
+                    "SLV_STATUS_TXT",
+                    "SLV_MAT_TXT",
+                    "SLV_SEAL_TYPE_TXT",
+                    "SLV_WALL_TYPE_TXT",
+                    "SLV_FIRESTOP_PRODUCT_TXT",
+                    "SLV_TESTED_TO_TXT",
+                    "SLV_INSPECTION_DATE_TXT",
+                    "WARN_SLV_NO_FIRE_RATING",
+                    "WARN_SLV_NO_REF",
+                    "WARN_SLV_NO_SEAL"
+                };
+            }
+
+            if (familySpecific == null) return null;
+
+            // Merge: base + family-specific (dedup)
+            foreach (var p in familySpecific)
+            {
+                if (!string.IsNullOrEmpty(p) && !baseParams.Contains(p))
+                    baseParams.Add(p);
+            }
+
+            return baseParams;
         }
 
         /// <summary>Get default parameter names for a category/discipline.</summary>

@@ -2329,16 +2329,51 @@ Generic Models,WARN_SHT_NAMING_STR,ce2a3aba-950d-5a00-b0bd-3691ae912df7,TEXT,WAR
 Generic Models,WARN_SHT_REV_MISSING,9d229c53-3e50-580f-8fb2-e9f953255be7,TEXT,WARN_THRESHOLDS,Type,Warning: sheet revision information missing [ISO 19650],False,,,MULTI,1,0
 Generic Models,WARN_SHT_TAG1_EMPTY,99dfa464-1361-5041-bcfc-f042aa64dd74,TEXT,WARN_THRESHOLDS,Type,Warning: sheet primary tag (TAG1) is empty [ISO 19650],False,,,MULTI,1,0
 Generic Models,SLV_REF_TXT,a32226dd-518c-5158-b3c7-aa3df7ac0b43,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve reference code,False,,,MULTI,1,1
-Generic Models,SLV_SZ_MM,ed2365b1-c559-573e-a9ae-c8554db2572b,NUMBER,SLV_SLEEVE_PARAMS,Instance,Sleeve size in millimetres,False,,,MULTI,1,1
+Generic Models,SLV_SZ_MM,ed2365b1-c559-573e-a9ae-c8554db2572b,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve size in millimetres,False,,,MULTI,1,1
 Generic Models,SLV_MAT_TXT,9b6071cf-8b10-574c-b40e-2dfbfc60b8d9,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve material (steel/PVC/cast iron),False,,,MULTI,1,1
 Generic Models,SLV_FIRE_RATING_TXT,ea8a8a2a-597c-56d6-a9fb-08c0fc59f372,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve fire rating (e.g. EI60 EI120),False,,,MULTI,1,1
 Generic Models,SLV_SEAL_TYPE_TXT,6d8aceb4-eea7-53ca-ab61-d1a87824571c,TEXT,SLV_SLEEVE_PARAMS,Instance,Seal type (intumescent/mechanical/composite),False,,,MULTI,1,1
 Generic Models,SLV_SERVICE_TXT,76c2ac35-3b7f-5dea-b60d-bf0179b15b92,TEXT,SLV_SLEEVE_PARAMS,Instance,Service passing through sleeve,False,,,MULTI,1,1
 Generic Models,SLV_WALL_TYPE_TXT,3d601083-e89c-50c8-9165-004c8610b0ff,TEXT,SLV_SLEEVE_PARAMS,Instance,Host wall or floor type,False,,,MULTI,1,1
-Generic Models,SLV_WALL_THICKNESS_MM,9489a0ec-44b6-5f55-81d5-f26c546faf3f,NUMBER,SLV_SLEEVE_PARAMS,Instance,Host element thickness in mm,False,,,MULTI,1,1
-Generic Models,SLV_ANNULAR_GAP_MM,61c211b4-cdf2-53b8-84e5-84a7663f0aaf,NUMBER,SLV_SLEEVE_PARAMS,Instance,Annular gap between service and sleeve in mm,False,,,MULTI,1,1
+Generic Models,SLV_WALL_THICKNESS_MM,9489a0ec-44b6-5f55-81d5-f26c546faf3f,TEXT,SLV_SLEEVE_PARAMS,Instance,Host element thickness in mm,False,,,MULTI,1,1
+Generic Models,SLV_ANNULAR_GAP_MM,61c211b4-cdf2-53b8-84e5-84a7663f0aaf,TEXT,SLV_SLEEVE_PARAMS,Instance,Annular gap between service and sleeve in mm,False,,,MULTI,1,1
 Generic Models,SLV_FIRESTOP_MFR_TXT,9f3cc22a-3076-5166-9f42-e6e52126cbaf,TEXT,SLV_SLEEVE_PARAMS,Instance,Firestop system manufacturer,False,,,MULTI,1,1
 Generic Models,SLV_FIRESTOP_PRODUCT_TXT,1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f,TEXT,SLV_SLEEVE_PARAMS,Instance,Firestop product reference,False,,,MULTI,1,1
 Generic Models,SLV_TESTED_TO_TXT,0a2943a3-036b-55ae-89ee-01055824fad8,TEXT,SLV_SLEEVE_PARAMS,Instance,Fire test standard (BS EN 1366-3 ASTM E814),False,,,MULTI,1,1
 Generic Models,SLV_STATUS_TXT,91403abb-2a37-5571-9435-d68bc6cacec1,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve status (OPEN/SEALED/PENDING INSPECTION),False,,,MULTI,1,1
 Generic Models,SLV_INSPECTION_DATE_TXT,53b14c0e-eef5-5415-85d1-ebe2aeb53cd7,TEXT,SLV_SLEEVE_PARAMS,Instance,Last inspection date,False,,,MULTI,1,1
+Generic Models,COM_DEV_TAG,61d0d77d-c061-5d3b-9f64-5f0f8b279eef,TEXT,COM_DAT,Type,Communications device tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,ELC_CDT_TAG,29253d2b-7320-5139-a738-9e6b44b9fd46,TEXT,ELC_PWR,Type,Electrical conduit tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,ELC_CTR_TAG,983fe026-ff4f-50a6-9486-f08a54b87f70,TEXT,ELC_PWR,Type,Electrical cable tray tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,ELC_EQP_TAG,caaefdb2-cf82-56a1-8167-246ee3982b24,TEXT,ELC_PWR,Type,Electrical equipment tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,ELE_FIX_TAG,874f037a-66e2-58f3-9d66-b137b4b184cf,TEXT,ELC_PWR,Type,Electrical fixture tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,FLS_DEV_TAG,7ec98623-d3f0-583b-9552-b09b12736551,TEXT,FLS_LIFE_SFTY,Type,Fire/life safety device tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,HVC_DCT_TAG,c198faa1-c0c6-5aca-b92c-5e9b021affe7,TEXT,HVC_SYSTEMS,Type,HVAC duct tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,HVC_FLX_TAG,8ae538e1-f6cb-5271-a357-c390ac7605eb,TEXT,HVC_SYSTEMS,Type,HVAC flex duct tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,ICT_DEV_TAG,63eea465-921a-5218-b38e-c15f5793549f,TEXT,COM_DAT,Type,ICT device tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,LTG_FIX_TAG,449aa2da-345f-5d91-8f4b-037cc0fd9db3,TEXT,LTG_CONTROLS,Type,Lighting fixture tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,NCL_DEV_TAG,1c1a61fc-29d0-57c8-8e74-e8b9b4502126,TEXT,COM_DAT,Type,Nurse call / low-voltage device tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,PLM_EQP_TAG,37d954b4-c5a7-50c5-8629-2b2957ad440e,TEXT,PLM_DRN,Type,Plumbing equipment tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,SEC_DEV_TAG,de2cd955-4727-5488-a783-5d9be9942169,TEXT,COM_DAT,Type,Security device tag container [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_FINISH_TXT,2808be20-c49b-5167-868e-fc894cf8161d,TEXT,BLE_ELES,Instance,Building element finish description [ISO 19650-2:2018],False,,,MULTI,1,1
+Generic Models,BLE_MATERIAL_TXT,6a532cfc-c412-5f81-9b93-5c7e4d0ac31a,TEXT,BLE_ELES,Instance,Building element material description [ISO 19650-2:2018],False,,,MULTI,1,1
+Generic Models,SLV_TAG_7_PARA_TXT,4529fc89-90fb-56f9-955a-2d54998a294c,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve paragraph container [ISO 19650-3:2020],False,,,MULTI,1,1
+Generic Models,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH,f2f0b231-ac86-59fd-a1f7-5e7dc0c111a1,TEXT,STINGTags_ISO19650,Type,Tag warning: per embodied carbon kg CO2/m2 architectural [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SHT_DISC_MISMATCH,ae00ba3e-96a9-5dac-bee2-b89817614765,TEXT,WARN_THRESHOLDS,Type,Warning: sheet discipline mismatch between name and content [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_DISC,745e3b6f-84a1-537c-af98-6cd0415c0610,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no discipline code [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_LEVEL,8033c0d1-0e55-5f56-9d71-af7f7d849900,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no level reference [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_ORIGINATOR,9ffd26e3-dfdf-50d6-b0c1-2e377a82b792,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no originator code [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_TAG1,7f9ff3af-83eb-5ffc-be71-2056c8959aad,TEXT,WARN_THRESHOLDS,Type,Warning: sheet primary tag (TAG1) missing [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_TAG7,03d934d7-342d-54b9-8a9d-605f11ff2f3e,TEXT,WARN_THRESHOLDS,Type,Warning: sheet TAG7 narrative missing [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_FIRESTOP,fbbff16e-ad11-554f-a2a3-1ba91250ddfd,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing firestop system [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_INSPECTION,3c5e1027-76c0-54f9-a6dd-0f7fcf654ba7,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing inspection record [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_SERVICE,3dcb019c-4d45-50d4-976a-f7e434824ccd,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing service identification [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_SIZE,5c78cafc-d62b-5d50-99de-19cb2dea49de,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing size specification [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_DOOR_MATERIAL_FINISH_TXT,88ef6723-f840-5bad-b4ab-404bfe2734ed,TEXT,BLE_ELES,Type,"Door material and finish specification [ISO 19650-1:2018]",False,,,MULTI,1,0
+Generic Models,BLE_STRUCT_STEEL_SECTION_TXT,3409f563-245b-54f0-ac10-943a04d01711,TEXT,BLE_ELES,Type,"Structural steel section size designation [ISO 19650-1:2018]",False,,,MULTI,1,0
+Generic Models,CST_S_SUPPLIER_TXT,19c35478-2931-539c-aae4-1d650103f02e,TEXT,COM_DAT,Type,"Material supplier name for BOQ schedules [ISO 19650-2:2018]",False,,,MULTI,1,0
+Generic Models,PER_ACOUSTICS_NRC_NR,fa8c2f84-1460-5dd7-9e30-0ea892613156,TEXT,PER_SUST,Type,"Noise Reduction Coefficient for acoustic performance [ISO 19650-1:2018]",False,,,MULTI,0,0
+Generic Models,WARN_PROP_CARBON_MATERIALS,49ce16f4-fc21-5e30-9bc3-958b117ae699,TEXT,WARN_THRESHOLDS,Type,"Tag warning: prop carbon materials",False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_FIRE_RATING,6efed066-5053-591b-95c5-d27ce25ffa11,TEXT,WARN_THRESHOLDS,Type,"Tag warning: sleeve missing fire rating",False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_REF,bd8e24b9-0cf7-5b1e-8680-5e8d13e4aa56,TEXT,WARN_THRESHOLDS,Type,"Tag warning: sleeve missing reference",False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_SEAL,dc546eb8-fe7b-534d-97bd-f2958ad7c3ce,TEXT,WARN_THRESHOLDS,Type,"Tag warning: sleeve missing seal",False,,,MULTI,1,0
