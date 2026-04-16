@@ -632,6 +632,117 @@ namespace StingTools.Temp
                 catch (Exception ex) { TaskDialog.Show("BOQ Template", $"Export failed:\n{ex.Message}"); }
             }, margin: new Thickness(6, 0, 0, 0)));
 
+            // ── Git-friendly folder I/O (one file per template) ──
+            tplRow.Children.Add(Btn("Export → Folder…", NavyBrush, () =>
+            {
+                // Use SaveFileDialog as a "pick a folder" shim (OpenFolderDialog is .NET 8+;
+                // keep portability by synthesising a folder from the chosen file's directory).
+                var sfd = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Choose a folder (name any file inside it — its folder will be used)",
+                    FileName = "BOQ_Library",
+                    Filter = "Folder (select any file inside) (*.*)|*.*",
+                    CheckPathExists = true
+                };
+                if (sfd.ShowDialog() != true) return;
+                try
+                {
+                    string folder = System.IO.Path.GetDirectoryName(sfd.FileName) ?? sfd.FileName;
+                    // If user gave us a bare folder that doesn't exist yet, create it
+                    if (!System.IO.Directory.Exists(folder) && !System.IO.File.Exists(sfd.FileName))
+                        System.IO.Directory.CreateDirectory(folder);
+                    var toExport = templates.Where(t => t.Source != "builtin").ToList();
+                    int n = BOQTemplateLibrary.ExportToFolder(folder, toExport);
+                    TaskDialog.Show("BOQ Template",
+                        $"Exported {n} template(s) as individual JSON files.\n\n" +
+                        $"Folder: {folder}\n\nEach template is one file — commit the folder to Git to review changes per template.");
+                }
+                catch (Exception ex) { TaskDialog.Show("BOQ Template", $"Folder export failed:\n{ex.Message}"); }
+            }, margin: new Thickness(6, 0, 0, 0)));
+
+            tplRow.Children.Add(Btn("Import ← Folder…", NavyBrush, () =>
+            {
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Choose a folder (pick any *.json inside — its folder is imported)",
+                    Filter = "JSON template (*.json)|*.json",
+                    CheckFileExists = true
+                };
+                if (ofd.ShowDialog() != true) return;
+                try
+                {
+                    string folder = System.IO.Path.GetDirectoryName(ofd.FileName);
+                    if (string.IsNullOrEmpty(folder) || !System.IO.Directory.Exists(folder))
+                    {
+                        TaskDialog.Show("BOQ Template", "Could not resolve folder from the selected file.");
+                        return;
+                    }
+                    var td = new TaskDialog("BOQ Folder Import")
+                    {
+                        MainInstruction = "Import where?",
+                        MainContent = "★ Company library is shared across all your projects on this machine. ◆ This project only keeps the imports in this project's sidecar."
+                    };
+                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "★ Company library");
+                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "◆ This project only");
+                    td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    var choice = td.Show();
+                    string target = choice == TaskDialogResult.CommandLink1 ? "company"
+                                  : choice == TaskDialogResult.CommandLink2 ? "project" : null;
+                    if (target == null) return;
+                    int n = BOQTemplateLibrary.ImportFromFolder(folder, target, _doc);
+                    ReloadAndSelect(null);
+                    TaskDialog.Show("BOQ Template", $"Imported {n} template(s) from folder.\n\nFolder: {folder}");
+                }
+                catch (Exception ex) { TaskDialog.Show("BOQ Template", $"Folder import failed:\n{ex.Message}"); }
+            }, margin: new Thickness(6, 0, 0, 0)));
+
+            tplRow.Children.Add(Btn("Library Path…", NavyBrush, () =>
+            {
+                string current = BOQTemplateLibrary.CompanyLibraryPath;
+                var td = new TaskDialog("BOQ Company Library Path")
+                {
+                    MainInstruction = "Where is the shared company template library?",
+                    MainContent =
+                        $"Current path:\n{current}\n\n" +
+                        "Set a network share path to share the library across a team without manual import/export. " +
+                        "This is a per-machine setting (stored in %APPDATA%/STING/boq_config.json) " +
+                        "but any project_config.json with BOQ_COMPANY_LIBRARY_PATH takes precedence."
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Choose a file…");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Reset to default (%APPDATA%)");
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var choice = td.Show();
+                if (choice == TaskDialogResult.CommandLink1)
+                {
+                    var sfd = new Microsoft.Win32.SaveFileDialog
+                    {
+                        Title = "Choose company library file (existing or new)",
+                        FileName = "boq_templates_library.json",
+                        Filter = "STING BOQ library (*.json)|*.json"
+                    };
+                    if (sfd.ShowDialog() == true)
+                    {
+                        try
+                        {
+                            BOQTemplateLibrary.SetCompanyLibraryPathMachine(sfd.FileName);
+                            ReloadAndSelect(null);
+                            TaskDialog.Show("BOQ Template", $"Company library path set to:\n{sfd.FileName}");
+                        }
+                        catch (Exception ex) { TaskDialog.Show("BOQ Template", $"Set library path failed:\n{ex.Message}"); }
+                    }
+                }
+                else if (choice == TaskDialogResult.CommandLink2)
+                {
+                    try
+                    {
+                        BOQTemplateLibrary.SetCompanyLibraryPathMachine(null);
+                        ReloadAndSelect(null);
+                        TaskDialog.Show("BOQ Template", "Reverted to default (%APPDATA%/STING/boq_templates_library.json).");
+                    }
+                    catch (Exception ex) { TaskDialog.Show("BOQ Template", $"Reset failed:\n{ex.Message}"); }
+                }
+            }, margin: new Thickness(6, 0, 0, 0)));
+
             sp.Children.Add(tplRow);
 
             // ══════════════════════════════════════════════════════════
@@ -732,10 +843,28 @@ namespace StingTools.Temp
             btnRow.Children.Add(Btn("Coverage Audit", NavyBrush, () =>
             {
                 var audit = BuildCoverageAudit(_materials.Select(x => x.Name).ToList(), links, templates);
+                // Gap 2 — resolvability audit: scan project elements against each template
+                var resolv = BOQTemplateLibrary.AuditResolvability(
+                    _doc, templates,
+                    doc => new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType()
+                            .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                            .ToList(),
+                    el => el?.Category?.Name ?? "",
+                    (el, token) => ResolvePlaceholderForAudit(el, token));
+
+                var combined = audit.summary
+                    + Environment.NewLine
+                    + new string('─', 60) + Environment.NewLine
+                    + "RESOLVABILITY (per-template placeholder coverage)" + Environment.NewLine
+                    + new string('─', 60) + Environment.NewLine
+                    + resolv.FormatSummary();
+
                 var td = new TaskDialog("BOQ Coverage Audit")
                 {
-                    MainInstruction = $"{audit.linked}/{audit.total} materials linked  ({audit.percent:F0}%)",
-                    MainContent = audit.summary
+                    MainInstruction = $"{audit.linked}/{audit.total} materials linked  ({audit.percent:F0}%)   ·   " +
+                                      $"{resolv.TotalFullyResolved}/{resolv.TotalElementsEvaluated} elements fully resolve  ({resolv.ResolvedPercent:F0}%)",
+                    MainContent = combined
                 };
                 td.CommonButtons = TaskDialogCommonButtons.Ok;
                 td.Show();
@@ -768,6 +897,98 @@ namespace StingTools.Temp
         /// Best-guess template match for a material using keyword scoring.
         /// Returns null when no template scores above threshold.
         /// </summary>
+        /// <summary>
+        /// Probe whether a placeholder token would resolve for an element.
+        /// Mirrors the key mappings used by BOQDescriptionEngine.BuildPlaceholderValues
+        /// so the resolvability audit matches what the exporter actually produces.
+        /// Returns empty string when the placeholder would be blank at export time.
+        /// </summary>
+        private static string ResolvePlaceholderForAudit(Element el, string token)
+        {
+            if (el == null || string.IsNullOrEmpty(token)) return "";
+            try
+            {
+                switch (token.ToLowerInvariant())
+                {
+                    case "material":
+                        // Prefer STING material param, then structural material, then type material
+                        string mat = ParameterHelpers.GetString(el, "INS_MATERIAL_TXT");
+                        if (!string.IsNullOrEmpty(mat)) return mat;
+                        try
+                        {
+                            var p = el.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+                            if (p != null && p.AsElementId() != ElementId.InvalidElementId) return "✓";
+                        } catch (Exception ex) { StingLog.Warn($"Audit material: {ex.Message}"); }
+                        return "";
+                    case "element_type":
+                    case "type":
+                    case "door_type":
+                    case "window_type":
+                    case "foundation_type":
+                    case "terminal_type":
+                    case "equipment_type":
+                    case "furniture_type":
+                    case "casework_type":
+                        return ParameterHelpers.GetFamilySymbolName(el) ?? "";
+                    case "family":
+                        return ParameterHelpers.GetFamilyName(el) ?? "";
+                    case "manufacturer":          return ParameterHelpers.GetString(el, "ASS_MANUFACTURER_TXT");
+                    case "model":
+                    case "model_ref":             return ParameterHelpers.GetString(el, "ASS_MODEL_NR_TXT");
+                    case "manufacturer_ref":
+                        return (ParameterHelpers.GetString(el, "ASS_MANUFACTURER_TXT") + " " +
+                                ParameterHelpers.GetString(el, "ASS_MODEL_NR_TXT")).Trim();
+                    case "location":
+                    case "level":                 return ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                    case "width":                 return FirstNonEmpty(el, "BLE_DOOR_WIDTH_NR", "BLE_WINDOW_WIDTH_NR", "BLE_CBL_TRAY_WIDTH_NR", "BLE_WALL_LENGTH_NR");
+                    case "height":                return FirstNonEmpty(el, "BLE_WALL_HEIGHT_NR", "BLE_DOOR_HEIGHT_NR", "BLE_WINDOW_HEIGHT_NR");
+                    case "thickness":             return FirstNonEmpty(el, "BLE_WALL_THICKNESS_NR", "BLE_FLOOR_THICKNESS_NR");
+                    case "depth":                 return FirstNonEmpty(el, "BLE_CBL_TRAY_DEPTH_NR", "BLE_FLOOR_THICKNESS_NR");
+                    case "sill_height":           return ParameterHelpers.GetString(el, "BLE_WINDOW_SILL_HEIGHT_NR");
+                    case "size":
+                    case "diameter":              return ParameterHelpers.GetString(el, "ASS_SIZE_TXT");
+                    case "airflow":               return ParameterHelpers.GetString(el, "HVC_AIRFLOW_LS_NR");
+                    case "rating":                return FirstNonEmpty(el, "ELC_EQP_LOAD_KW_NR", "ELC_EQP_AMPS_NR");
+                    case "voltage":               return ParameterHelpers.GetString(el, "ELC_EQP_VOLTS_NR");
+                    case "phases":                return ParameterHelpers.GetString(el, "ELC_EQP_PHASE_NR");
+                    case "fire_rating":           return ParameterHelpers.GetString(el, "BLE_FIRE_RATING_TXT");
+                    case "finish":                return ParameterHelpers.GetString(el, "ASS_FINISH_TXT");
+                    case "insulation":            return ParameterHelpers.GetString(el, "BLE_INSULATION_TXT");
+                    case "substrate":             return ParameterHelpers.GetString(el, "BLE_SUBSTRATE_TXT");
+                    case "fixings":               return ParameterHelpers.GetString(el, "ASS_FIXINGS_TXT");
+                    case "frame_material":        return ParameterHelpers.GetString(el, "BLE_FRAME_MATERIAL_TXT");
+                    case "hardware":              return ParameterHelpers.GetString(el, "BLE_HARDWARE_TXT");
+                    case "glass_spec":            return ParameterHelpers.GetString(el, "BLE_GLASS_SPEC_TXT");
+                    case "concrete_spec":         return ParameterHelpers.GetString(el, "STR_CONCRETE_GRADE_TXT");
+                    case "reinforcement":         return ParameterHelpers.GetString(el, "STR_REBAR_SPEC_TXT");
+                    case "section_size":          return ParameterHelpers.GetString(el, "STR_SECTION_SIZE_TXT");
+                    case "worktop_material":      return ParameterHelpers.GetString(el, "BLE_WORKTOP_MATERIAL_TXT");
+                    case "edge_trim":             return ParameterHelpers.GetString(el, "BLE_EDGE_TRIM_TXT");
+                    case "spacing":               return ParameterHelpers.GetString(el, "ASS_SPACING_MM_NR");
+                    case "description":           return ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT");
+                    case "notes":                 return ParameterHelpers.GetString(el, "ASS_NOTES_TXT");
+                    case "standard":              return "✓"; // engine always supplies via workmanship table
+                    case "dimensions":
+                        // Considered resolvable if width+height, or size
+                        return (!string.IsNullOrEmpty(FirstNonEmpty(el, "BLE_DOOR_WIDTH_NR", "BLE_WINDOW_WIDTH_NR")) ||
+                                !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "ASS_SIZE_TXT"))) ? "✓" : "";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolvePlaceholderForAudit({token}): {ex.Message}"); }
+            // Unknown token → try a loose parameter lookup using the token as a param name
+            return ParameterHelpers.GetString(el, token) ?? "";
+        }
+
+        private static string FirstNonEmpty(Element el, params string[] paramNames)
+        {
+            foreach (var n in paramNames)
+            {
+                string v = ParameterHelpers.GetString(el, n);
+                if (!string.IsNullOrEmpty(v) && v != "0") return v;
+            }
+            return "";
+        }
+
         private static BOQTemplate FindBestTemplateForMaterial(string materialName, string materialCategory, List<BOQTemplate> templates)
         {
             if (string.IsNullOrEmpty(materialName) || templates.Count == 0) return null;

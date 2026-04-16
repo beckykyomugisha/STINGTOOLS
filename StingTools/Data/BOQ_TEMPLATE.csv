@@ -223,3 +223,46 @@ INCLUDE_DIMENSIONS,TRUE,Include measured dimensions in description
 INCLUDE_WORKMANSHIP_STD,TRUE,Include workmanship standard reference (NRM2)
 DESCRIPTION_MAX_LENGTH,250,Maximum description length before truncation
 BOQ_MODE,NRM2,Description style: NRM2 (standard) or NARRATIVE (TAG7 natural language)
+
+## SECTION 11: CATEGORY INFERENCE RULES
+## Data-driven workmanship standards and unit inference for BOQ paragraph resolution.
+## CATEGORY_PATTERN matches element Revit category (case-insensitive substring).
+## STANDARD becomes the default [standard] placeholder when a template doesn't override.
+## UNIT is the fallback QTY unit when ASS_PMT_INV_UNIT_TXT is empty on the element.
+## First-match-wins; rows nearer the top take precedence. Add project/region-specific
+## overrides above the generic rows.
+## Units: LM=linear metre · SM=square metre · CM=cubic metre · NO=number · KG=kilogram
+SECTION,CATEGORY_INFERENCE
+CATEGORY_PATTERN,STANDARD,UNIT,NOTES
+wall,BS EN 1996 / BS 8000-3 workmanship,SM,Masonry & blockwork
+partition,BS 8212 drylining,SM,Drywall partitions
+curtain,BS EN 13830 curtain walling,SM,Curtain walling
+floor,BS EN 13670 / BS 8000-2,SM,Suspended floors
+slab,BS EN 13670 structural concrete,SM,Structural slabs
+ceiling,BS 8212 suspended ceilings,SM,Suspended ceilings
+roof,BS 8217 flat roofs / BS 5534 pitched roofs,SM,Roofing
+door,BS 8000-11 / BS EN 14351-1 doors,NO,Doors
+window,BS 8000-11 / BS EN 14351-1 windows,NO,Windows
+stair,BS 5395 / Part K,NO,Stairs
+ramp,BS 8300 / Part M,NO,Ramps
+railing,BS 6180 guarding,LM,Railings
+column,BS EN 1992 / BS EN 1993,NO,Structural columns
+beam,BS EN 1992 / BS EN 1993,NO,Structural beams
+foundation,BS EN 1997 / BS EN 1992,NO,Foundations
+framing,BS EN 1993 / BS 5950,NO,Structural framing
+pipe,BS EN 12056 / BS 6700,LM,Plumbing pipework
+duct,DW/144 / CIBSE Guide B,LM,Ductwork
+conduit,BS 7671 / BS 8519,LM,Electrical conduit
+cable tray,BS EN 61537,LM,Cable containment
+cable,BS 7671 / BS 6724,LM,Cabling
+electric,BS 7671 wiring regulations,NO,Electrical equipment
+light,BS 7671 / BS EN 12464-1 lighting,NO,Lighting
+hvac,CIBSE Guide B / DW/144,NO,HVAC equipment
+mechanical,CIBSE Guide B / DW/144,NO,Mechanical equipment
+sprinkler,BS 9251 / BS EN 12845,NO,Sprinklers
+fire alarm,BS 5839-1,NO,Fire detection
+fire,BS 9999 / BS 5839,NO,Fire systems
+plumb,BS EN 12056 / BS 6700,NO,Plumbing fixtures
+sanit,BS 6465 sanitary installations,NO,Sanitaryware
+furniture,BS 5873 office furniture,NO,Furniture
+casework,BS 8000-5 carpentry,NO,Joinery & casework

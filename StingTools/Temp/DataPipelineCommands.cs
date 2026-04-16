@@ -1170,19 +1170,9 @@ namespace StingTools.Temp
                     if (item.TotalCost == 0 && item.UnitPrice > 0)
                         item.TotalCost = item.UnitPrice * item.Quantity;
 
-                    // Generate unit if empty
+                    // Generate unit if empty — SECTION 11 rules, then hardcoded fallback
                     if (string.IsNullOrEmpty(item.Unit))
-                    {
-                        item.Unit = catName switch
-                        {
-                            var c when c.Contains("Pipe") || c.Contains("Duct") ||
-                                       c.Contains("Conduit") || c.Contains("Cable Tray") => "LM",
-                            var c when c.Contains("Floor") || c.Contains("Ceiling") ||
-                                       c.Contains("Wall") || c.Contains("Roof") => "SM",
-                            var c when c.Contains("Concrete") || c.Contains("Foundation") => "CM",
-                            _ => "NO",
-                        };
-                    }
+                        item.Unit = BOQDescriptionEngine.InferUnitForCategory(catName);
 
                     // Use Revit measured qty as the primary quantity for linear/area items
                     if (item.MeasuredLength_m > 0 && (item.Unit == "LM" || item.Unit == "m"))
@@ -4310,6 +4300,16 @@ namespace StingTools.Temp
             public string Nrm2Section;
             public string Paragraph;           // e.g., "Supply and fix [material] [element_type] ..."
             public string[] Placeholders;      // e.g., ["material","element_type","location","standard"]
+            // Variant match criteria (Gap 3) — empty = no constraint
+            public string FamilyContains;
+            public string TypeContains;
+            public string SystemContains;
+            public string DiscContains;
+            public int Specificity =>
+                  (string.IsNullOrEmpty(FamilyContains) ? 0 : 1)
+                + (string.IsNullOrEmpty(TypeContains) ? 0 : 1)
+                + (string.IsNullOrEmpty(SystemContains) ? 0 : 1)
+                + (string.IsNullOrEmpty(DiscContains) ? 0 : 1);
         }
 
         /// <summary>All paragraph templates indexed per-category (may have multiple variants per category).</summary>
@@ -4452,7 +4452,11 @@ namespace StingTools.Temp
                         Category = t.Category ?? "",
                         Nrm2Section = t.Nrm2Section ?? "",
                         Paragraph = t.Paragraph ?? "",
-                        Placeholders = t.Placeholders ?? Array.Empty<string>()
+                        Placeholders = t.Placeholders ?? Array.Empty<string>(),
+                        FamilyContains = t.FamilyContains ?? "",
+                        TypeContains = t.TypeContains ?? "",
+                        SystemContains = t.SystemContains ?? "",
+                        DiscContains = t.DiscContains ?? ""
                     });
                 }
 
@@ -4535,19 +4539,44 @@ namespace StingTools.Temp
             if (!string.IsNullOrEmpty(materialName) && _materialLinks.TryGetValue(materialName, out var linkTpl))
                 tpl = linkTpl;
 
-            // 2. Category-matched paragraph (first match wins; could be made smarter
-            //    e.g. by matching on ASS_ELEMENT_TYPE_TXT to pick variant).
+            // 2. Category-matched paragraph with specificity-ranked selection (Gap 3).
+            //    Variant templates (FamilyContains/TypeContains/SystemContains/DiscContains)
+            //    beat plain category templates when all their non-empty matchers match the
+            //    element. A variant with 2 matching matchers beats one with 1.
             if (tpl == null && _paragraphs != null)
             {
-                tpl = _paragraphs.FirstOrDefault(p => string.Equals(p.Category, categoryName, StringComparison.OrdinalIgnoreCase));
-                if (tpl == null)
+                string system = ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "";
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "";
+                string family = familyName ?? "";
+                string type = typeName ?? "";
+
+                bool VariantMatches(ParagraphTemplate p)
                 {
-                    // Try looser match: category contains or is contained in paragraph category
-                    tpl = _paragraphs.FirstOrDefault(p =>
-                        !string.IsNullOrEmpty(p.Category) &&
-                        (categoryName.IndexOf(p.Category, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                         p.Category.IndexOf(categoryName, StringComparison.OrdinalIgnoreCase) >= 0));
+                    // All non-empty variant fields must be satisfied
+                    if (!string.IsNullOrEmpty(p.FamilyContains) &&
+                        family.IndexOf(p.FamilyContains, StringComparison.OrdinalIgnoreCase) < 0) return false;
+                    if (!string.IsNullOrEmpty(p.TypeContains) &&
+                        type.IndexOf(p.TypeContains, StringComparison.OrdinalIgnoreCase) < 0) return false;
+                    if (!string.IsNullOrEmpty(p.SystemContains) &&
+                        system.IndexOf(p.SystemContains, StringComparison.OrdinalIgnoreCase) < 0) return false;
+                    if (!string.IsNullOrEmpty(p.DiscContains) &&
+                        !string.Equals(disc, p.DiscContains, StringComparison.OrdinalIgnoreCase)) return false;
+                    return true;
                 }
+
+                bool CategoryMatches(ParagraphTemplate p)
+                {
+                    if (string.IsNullOrEmpty(p.Category)) return false;
+                    if (string.Equals(p.Category, categoryName, StringComparison.OrdinalIgnoreCase)) return true;
+                    return categoryName.IndexOf(p.Category, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                           p.Category.IndexOf(categoryName, StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+
+                tpl = _paragraphs
+                    .Where(p => CategoryMatches(p) && VariantMatches(p))
+                    .OrderByDescending(p => p.Specificity)  // more-specific variants win
+                    .ThenBy(p => string.Equals(p.Category, categoryName, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                    .FirstOrDefault();
             }
 
             // 3. If still no paragraph template, fall back to existing NRM2/TAG7 builder.
@@ -4667,10 +4696,92 @@ namespace StingTools.Temp
         }
 
         /// <summary>Maps category to a default workmanship standard (BS EN / Part L / etc.).</summary>
+        /// <summary>
+        /// Category → (workmanship standard, default unit) rules loaded from
+        /// BOQ_TEMPLATE.csv SECTION 11. Populated lazily by
+        /// <see cref="EnsureInferenceRules"/>. Items near the top of the CSV
+        /// section win on ties (first-match-wins).
+        /// </summary>
+        private static List<(string pattern, string standard, string unit)> _inferenceRules;
+
+        /// <summary>Loads SECTION 11 rules on first use.</summary>
+        private static void EnsureInferenceRules()
+        {
+            if (_inferenceRules != null) return;
+            var rules = new List<(string, string, string)>();
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("BOQ_TEMPLATE.csv");
+                if (!string.IsNullOrEmpty(csvPath) && File.Exists(csvPath))
+                {
+                    bool inSection = false;
+                    bool headerSkipped = false;
+                    foreach (string line in File.ReadLines(csvPath))
+                    {
+                        string t = line?.Trim();
+                        if (string.IsNullOrEmpty(t) || t.StartsWith("##")) continue;
+                        if (t.StartsWith("SECTION,", StringComparison.OrdinalIgnoreCase))
+                        {
+                            inSection = t.Substring(8).Trim().Equals("CATEGORY_INFERENCE", StringComparison.OrdinalIgnoreCase);
+                            headerSkipped = false;
+                            continue;
+                        }
+                        if (!inSection) continue;
+                        if (!headerSkipped) { headerSkipped = true; continue; }
+                        var cols = StingToolsApp.ParseCsvLine(t);
+                        if (cols.Length >= 3)
+                        {
+                            string pat = cols[0].Trim().ToLowerInvariant();
+                            string std = cols[1].Trim();
+                            string unit = cols[2].Trim();
+                            if (!string.IsNullOrEmpty(pat)) rules.Add((pat, std, unit));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"EnsureInferenceRules: {ex.Message}"); }
+            _inferenceRules = rules;
+            if (rules.Count > 0) StingLog.Info($"BOQ category inference rules loaded: {rules.Count}");
+        }
+
+        /// <summary>
+        /// Data-driven unit inference — SECTION 11 first, then hardcoded fallback.
+        /// Used by BOQExportCommand when ASS_PMT_INV_UNIT_TXT is empty on an element.
+        /// </summary>
+        internal static string InferUnitForCategory(string category)
+        {
+            if (string.IsNullOrEmpty(category)) return "NO";
+            EnsureInferenceRules();
+            string c = category.ToLowerInvariant();
+            foreach (var r in _inferenceRules)
+                if (c.Contains(r.pattern) && !string.IsNullOrEmpty(r.unit)) return r.unit;
+            // Legacy fallback
+            if (c.Contains("pipe") || c.Contains("duct") || c.Contains("conduit") || c.Contains("cable tray")) return "LM";
+            if (c.Contains("floor") || c.Contains("ceiling") || c.Contains("wall") || c.Contains("roof")) return "SM";
+            if (c.Contains("concrete") || c.Contains("foundation")) return "CM";
+            return "NO";
+        }
+
+        /// <summary>Exposes the loaded inference rule count (for reporting).</summary>
+        internal static int InferenceRuleCount
+        {
+            get { EnsureInferenceRules(); return _inferenceRules.Count; }
+        }
+
+        /// <summary>
+        /// Returns the default workmanship standard for a category. First tries
+        /// SECTION 11 rules (CSV-driven), then falls back to hardcoded defaults
+        /// for projects that haven't populated the CSV.
+        /// </summary>
         private static string ResolveWorkmanshipStandard(string category)
         {
             if (string.IsNullOrEmpty(category)) return "BS 8000 general workmanship";
+            EnsureInferenceRules();
             string c = category.ToLowerInvariant();
+            foreach (var r in _inferenceRules)
+                if (c.Contains(r.pattern) && !string.IsNullOrEmpty(r.standard)) return r.standard;
+            // Fallback — legacy hardcoded defaults keep the plugin working if the CSV
+            // section is missing (e.g., users running the stock 1.0 data files).
             if (c.Contains("wall") || c.Contains("partition")) return "BS EN 1996 / BS 8000-3 workmanship";
             if (c.Contains("floor")) return "BS EN 13670 / BS 8000-2";
             if (c.Contains("ceiling")) return "BS 8212";

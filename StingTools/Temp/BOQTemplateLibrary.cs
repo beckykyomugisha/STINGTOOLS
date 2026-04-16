@@ -34,6 +34,31 @@ namespace StingTools.Temp
         public int Version;
         public string Notes;
 
+        /// <summary>
+        /// Optional match criteria (Gap 3 — variant selection). When populated,
+        /// the engine prefers this template over the plain category match for
+        /// elements whose family/type/system/disc contains the substring.
+        /// All fields are case-insensitive. Empty = no constraint.
+        /// Specificity (non-empty count) breaks ties so variants beat category-only.
+        /// </summary>
+        public string FamilyContains;   // e.g. "curtain" → curtain walls
+        public string TypeContains;     // e.g. "automatic" → automatic sliding doors
+        public string SystemContains;   // e.g. "HVAC"
+        public string DiscContains;     // e.g. "M" → mechanical-only
+
+        public int Specificity
+        {
+            get
+            {
+                int s = 0;
+                if (!string.IsNullOrEmpty(FamilyContains)) s++;
+                if (!string.IsNullOrEmpty(TypeContains)) s++;
+                if (!string.IsNullOrEmpty(SystemContains)) s++;
+                if (!string.IsNullOrEmpty(DiscContains)) s++;
+                return s;
+            }
+        }
+
         public string DisplayLabel
         {
             get
@@ -45,8 +70,14 @@ namespace StingTools.Temp
                     "project" => "◆ ",    // project-specific custom
                     _ => ""
                 };
-                string preview = Paragraph?.Length > 60 ? Paragraph.Substring(0, 60) + "…" : (Paragraph ?? "");
-                return $"{prefix}§{Nrm2Section,-3} {Category,-22}  {preview}";
+                var bits = new List<string>();
+                if (!string.IsNullOrEmpty(FamilyContains)) bits.Add("family~" + FamilyContains);
+                if (!string.IsNullOrEmpty(TypeContains)) bits.Add("type~" + TypeContains);
+                if (!string.IsNullOrEmpty(SystemContains)) bits.Add("sys~" + SystemContains);
+                if (!string.IsNullOrEmpty(DiscContains)) bits.Add("disc~" + DiscContains);
+                string variant = bits.Count > 0 ? "  [" + string.Join(", ", bits) + "]" : "";
+                string preview = Paragraph?.Length > 50 ? Paragraph.Substring(0, 50) + "…" : (Paragraph ?? "");
+                return $"{prefix}§{Nrm2Section,-3} {Category,-22}{variant}  {preview}";
             }
         }
     }
@@ -102,15 +133,95 @@ namespace StingTools.Temp
 
         // ── Path resolution ─────────────────────────────────────────────
 
+        /// <summary>
+        /// Path to the company template library.
+        /// Resolution order (first non-empty wins):
+        ///   1. BOQ_COMPANY_LIBRARY_PATH in <see cref="StingToolsApp.DataPath"/>'s sibling project_config.json
+        ///      (so a project can pin its library to a network share)
+        ///   2. BOQ_COMPANY_LIBRARY_PATH in %APPDATA%/STING/boq_config.json
+        ///      (per-machine default for all projects on this workstation)
+        ///   3. %APPDATA%/STING/boq_templates_library.json (legacy default)
+        /// The resolved path may point at a shared drive so a team's templates
+        /// stay in sync without manual import/export.
+        /// </summary>
         public static string CompanyLibraryPath
         {
             get
             {
+                string configured = TryReadConfiguredLibraryPath();
+                if (!string.IsNullOrEmpty(configured))
+                {
+                    try
+                    {
+                        string parent = Path.GetDirectoryName(configured);
+                        if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"CompanyLibraryPath parent: {ex.Message}"); }
+                    return configured;
+                }
                 string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 string dir = Path.Combine(appData ?? Path.GetTempPath(), "STING");
                 Directory.CreateDirectory(dir);
                 return Path.Combine(dir, "boq_templates_library.json");
             }
+        }
+
+        /// <summary>
+        /// Sets (and persists) a company library path override at per-machine scope.
+        /// The plugin now resolves to this path for all projects on this workstation
+        /// until another override is set. Pass null/empty to revert to the default.
+        /// </summary>
+        public static void SetCompanyLibraryPathMachine(string newPath)
+        {
+            string cfg = GetMachineConfigPath();
+            JObject obj = new JObject();
+            try
+            {
+                if (File.Exists(cfg)) obj = JObject.Parse(File.ReadAllText(cfg));
+            }
+            catch (Exception ex) { StingLog.Warn($"SetCompanyLibraryPath read: {ex.Message}"); }
+            if (string.IsNullOrWhiteSpace(newPath)) obj.Remove("BOQ_COMPANY_LIBRARY_PATH");
+            else obj["BOQ_COMPANY_LIBRARY_PATH"] = newPath.Trim();
+            string tmp = cfg + ".tmp";
+            File.WriteAllText(tmp, obj.ToString(Newtonsoft.Json.Formatting.Indented));
+            if (File.Exists(cfg)) File.Replace(tmp, cfg, cfg + ".bak"); else File.Move(tmp, cfg);
+        }
+
+        private static string GetMachineConfigPath()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string dir = Path.Combine(appData ?? Path.GetTempPath(), "STING");
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "boq_config.json");
+        }
+
+        private static string TryReadConfiguredLibraryPath()
+        {
+            // 1. project_config.json next to the plugin data (TagConfig loads this on doc open)
+            try
+            {
+                string projCfg = Path.Combine(StingToolsApp.DataPath ?? "", "project_config.json");
+                if (File.Exists(projCfg))
+                {
+                    var j = JObject.Parse(File.ReadAllText(projCfg));
+                    string v = j["BOQ_COMPANY_LIBRARY_PATH"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(v)) return v.Trim();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TryReadConfiguredLibraryPath project: {ex.Message}"); }
+            // 2. per-machine config (%APPDATA%/STING/boq_config.json)
+            try
+            {
+                string cfg = GetMachineConfigPath();
+                if (File.Exists(cfg))
+                {
+                    var j = JObject.Parse(File.ReadAllText(cfg));
+                    string v = j["BOQ_COMPANY_LIBRARY_PATH"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(v)) return v.Trim();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TryReadConfiguredLibraryPath machine: {ex.Message}"); }
+            return null;
         }
 
         public static string ProjectCustomPath(Document doc)
@@ -228,7 +339,12 @@ namespace StingTools.Temp
                     UpdatedBy = j["updated_by"]?.ToString() ?? "",
                     UpdatedDate = upd,
                     Version = ver,
-                    Notes = j["notes"]?.ToString() ?? ""
+                    Notes = j["notes"]?.ToString() ?? "",
+                    // Variant match criteria (Gap 3) — optional
+                    FamilyContains = j["family_contains"]?.ToString() ?? "",
+                    TypeContains = j["type_contains"]?.ToString() ?? "",
+                    SystemContains = j["system_contains"]?.ToString() ?? "",
+                    DiscContains = j["disc_contains"]?.ToString() ?? ""
                 };
             }
             catch (Exception ex) { StingLog.Warn($"BOQ template parse: {ex.Message}"); return null; }
@@ -287,7 +403,7 @@ namespace StingTools.Temp
 
         private static JObject ToJson(BOQTemplate t)
         {
-            return new JObject
+            var o = new JObject
             {
                 ["id"] = t.Id,
                 ["category"] = t.Category ?? "",
@@ -299,6 +415,12 @@ namespace StingTools.Temp
                 ["version"] = t.Version,
                 ["notes"] = t.Notes ?? ""
             };
+            // Variant match criteria — only write when non-empty to keep JSON clean
+            if (!string.IsNullOrEmpty(t.FamilyContains)) o["family_contains"] = t.FamilyContains;
+            if (!string.IsNullOrEmpty(t.TypeContains)) o["type_contains"] = t.TypeContains;
+            if (!string.IsNullOrEmpty(t.SystemContains)) o["system_contains"] = t.SystemContains;
+            if (!string.IsNullOrEmpty(t.DiscContains)) o["disc_contains"] = t.DiscContains;
+            return o;
         }
 
         private static void WriteAtomic(string path, JArray arr)
@@ -388,6 +510,192 @@ namespace StingTools.Temp
                 warnings.Add("No placeholders found — every item will read identically. Add [material], [location], etc. to vary by element.");
             return (errors, warnings);
         }
+
+        // ── Folder-format I/O (Git-friendly — Gap 5) ────────────────────
+
+        /// <summary>
+        /// Exports a template catalogue to a folder, one JSON file per template.
+        /// Filenames are deterministic (category + section + short id) so the
+        /// tree is diff-friendly for engineering teams using Git. Existing .json
+        /// files in the folder for templates not in the set are preserved.
+        /// </summary>
+        public static int ExportToFolder(string folderPath, IEnumerable<BOQTemplate> templates)
+        {
+            Directory.CreateDirectory(folderPath);
+            int n = 0;
+            foreach (var t in templates)
+            {
+                if (t == null || string.IsNullOrEmpty(t.Paragraph)) continue;
+                string safeCat = MakeSafeFileName(t.Category ?? "uncategorised");
+                string idFrag = string.IsNullOrEmpty(t.Id) ? Guid.NewGuid().ToString("N").Substring(0, 6) : t.Id.Substring(0, Math.Min(6, t.Id.Length));
+                string fname = $"§{t.Nrm2Section}_{safeCat}_{idFrag}.json";
+                string path = Path.Combine(folderPath, fname);
+                string tmp = path + ".tmp";
+                File.WriteAllText(tmp, ToJson(t).ToString(Newtonsoft.Json.Formatting.Indented));
+                if (File.Exists(path)) File.Replace(tmp, path, null);
+                else File.Move(tmp, path);
+                n++;
+            }
+            return n;
+        }
+
+        /// <summary>
+        /// Imports every *.json file in a folder into the chosen target.
+        /// Matches the folder export format (one template per file) but also
+        /// accepts JSON arrays for backward compatibility.
+        /// </summary>
+        public static int ImportFromFolder(string folderPath, string targetSource, Document doc)
+        {
+            if (!Directory.Exists(folderPath)) return 0;
+            int n = 0;
+            foreach (string f in Directory.EnumerateFiles(folderPath, "*.json", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    string text = File.ReadAllText(f);
+                    JToken root;
+                    try { root = JToken.Parse(text); } catch { continue; }
+                    IEnumerable<JToken> items = root is JArray arr ? arr : new[] { root };
+                    foreach (var item in items)
+                    {
+                        var t = FromJson(item, targetSource);
+                        if (t == null) continue;
+                        if (string.IsNullOrEmpty(t.Id)) t.Id = Guid.NewGuid().ToString("N");
+                        if (targetSource == "company") SaveToCompany(t);
+                        else if (targetSource == "project" && doc != null) SaveToProject(doc, t);
+                        n++;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ImportFromFolder({f}): {ex.Message}"); }
+            }
+            return n;
+        }
+
+        private static string MakeSafeFileName(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "item";
+            var chars = Path.GetInvalidFileNameChars().Concat(new[] { ' ', '/', '\\' }).ToArray();
+            var arr = s.Select(c => chars.Contains(c) ? '-' : c).ToArray();
+            string r = new string(arr).Trim('-');
+            return string.IsNullOrEmpty(r) ? "item" : r;
+        }
+
+        // ── Per-project resolvability audit (Gap 2) ─────────────────────
+
+        /// <summary>
+        /// Shape of the per-project resolvability report. Lists, per template,
+        /// which placeholder tokens could not be resolved for the project's
+        /// current elements — so a QS can see "this template uses [fire_rating]
+        /// but 23 of 45 walls have it blank" BEFORE exporting the BOQ.
+        /// </summary>
+        public class ResolvabilityReport
+        {
+            public class TemplateResult
+            {
+                public BOQTemplate Template;
+                public int ElementsInCategory;
+                public int ElementsFullyResolved;  // all placeholders populated on the element
+                public Dictionary<string, int> UnresolvedByToken = new Dictionary<string, int>();
+            }
+            public List<TemplateResult> Templates = new List<TemplateResult>();
+            public int TotalElementsEvaluated;
+            public int TotalFullyResolved;
+            public double ResolvedPercent => TotalElementsEvaluated == 0 ? 0 : 100.0 * TotalFullyResolved / TotalElementsEvaluated;
+
+            public string FormatSummary(int topN = 15)
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Templates scanned: {Templates.Count}");
+                sb.AppendLine($"Elements evaluated: {TotalElementsEvaluated}");
+                sb.AppendLine($"Fully resolved:     {TotalFullyResolved}  ({ResolvedPercent:F0}%)");
+                sb.AppendLine();
+                int shown = 0;
+                foreach (var r in Templates.Where(t => t.UnresolvedByToken.Count > 0)
+                    .OrderByDescending(t => t.UnresolvedByToken.Sum(x => x.Value)).Take(topN))
+                {
+                    double pct = r.ElementsInCategory == 0 ? 0 : 100.0 * r.ElementsFullyResolved / r.ElementsInCategory;
+                    sb.AppendLine($"§{r.Template.Nrm2Section} {r.Template.Category} — {r.ElementsFullyResolved}/{r.ElementsInCategory} fully resolve ({pct:F0}%)");
+                    foreach (var kv in r.UnresolvedByToken.OrderByDescending(x => x.Value).Take(6))
+                        sb.AppendLine($"    [{kv.Key}] unresolved on {kv.Value} element(s)");
+                    sb.AppendLine();
+                    shown++;
+                }
+                if (shown == 0) sb.AppendLine("All templates resolve cleanly on the current model.");
+                return sb.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Scans the project's elements against the template catalogue and
+        /// reports which placeholders won't resolve per template. Uses an
+        /// element predicate supplied by the caller so we don't have to import
+        /// the ParameterHelpers coupling into the library.
+        /// </summary>
+        public static ResolvabilityReport AuditResolvability(
+            Document doc, List<BOQTemplate> templates,
+            Func<Document, List<Element>> collectElements,
+            Func<Element, string> getCategory,
+            Func<Element, string, string> getPlaceholderValue)
+        {
+            var report = new ResolvabilityReport();
+            if (doc == null || templates == null || templates.Count == 0) return report;
+            var elems = collectElements(doc) ?? new List<Element>();
+
+            // Bucket elements by category (lowercased) for fast lookup per template
+            var byCat = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var el in elems)
+            {
+                string cat = (getCategory(el) ?? "").ToLowerInvariant();
+                if (string.IsNullOrEmpty(cat)) continue;
+                if (!byCat.TryGetValue(cat, out var list)) byCat[cat] = list = new List<Element>();
+                list.Add(el);
+            }
+
+            var seenElementsFullyResolved = new HashSet<long>();
+            foreach (var tpl in templates)
+            {
+                if (string.IsNullOrEmpty(tpl.Category) || string.IsNullOrEmpty(tpl.Paragraph)) continue;
+                string tplCat = tpl.Category.ToLowerInvariant();
+                // Loose category match — a template's category is contained in, or contains, the element category
+                var matchedLists = byCat.Where(kv => kv.Key.Contains(tplCat) || tplCat.Contains(kv.Key)).ToList();
+                var matched = matchedLists.SelectMany(kv => kv.Value).Distinct().ToList();
+                if (matched.Count == 0) continue;
+
+                var tokens = ExtractPlaceholders(tpl.Paragraph)
+                    .Where(t => !ForbiddenPlaceholders.Contains(t)).ToArray();
+
+                var tplResult = new ResolvabilityReport.TemplateResult
+                {
+                    Template = tpl,
+                    ElementsInCategory = matched.Count
+                };
+
+                foreach (var el in matched)
+                {
+                    bool allResolved = tokens.Length > 0;
+                    foreach (var tok in tokens)
+                    {
+                        string val = getPlaceholderValue?.Invoke(el, tok);
+                        if (string.IsNullOrEmpty(val))
+                        {
+                            allResolved = false;
+                            if (!tplResult.UnresolvedByToken.ContainsKey(tok)) tplResult.UnresolvedByToken[tok] = 0;
+                            tplResult.UnresolvedByToken[tok]++;
+                        }
+                    }
+                    if (allResolved)
+                    {
+                        tplResult.ElementsFullyResolved++;
+                        seenElementsFullyResolved.Add(el.Id.Value);
+                    }
+                }
+                report.Templates.Add(tplResult);
+            }
+
+            report.TotalElementsEvaluated = elems.Count;
+            report.TotalFullyResolved = seenElementsFullyResolved.Count;
+            return report;
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -406,6 +714,10 @@ namespace StingTools.Temp
         private TextBox _categoryBox;
         private TextBox _sectionBox;
         private TextBox _paragraphBox;
+        private TextBox _familyBox;
+        private TextBox _typeBox;
+        private TextBox _systemBox;
+        private TextBox _discBox;
         private TextBlock _validationBlock;
         private TextBlock _previewBlock;
         private RadioButton _targetCompany;
@@ -463,6 +775,44 @@ namespace StingTools.Temp
             left.Children.Add(Label("NRM2 Section (number only, e.g. 14):"));
             _sectionBox = new TextBox { Height = 26, Margin = new Thickness(0, 2, 0, 8), Text = _seed.Nrm2Section ?? "" };
             left.Children.Add(_sectionBox);
+
+            // ── Optional variant match (Gap 3): narrows this template to a subset of the category ──
+            var variantExpander = new Expander
+            {
+                Header = "Variant matchers (optional — narrow this template to specific elements)",
+                Margin = new Thickness(0, 0, 0, 8),
+                IsExpanded = _seed != null && _seed.Specificity > 0
+            };
+            var variantPanel = new StackPanel { Margin = new Thickness(4, 4, 4, 4) };
+            variantPanel.Children.Add(new TextBlock
+            {
+                Text = "Leave blank for a plain category template. Fill any combination to make this a variant. " +
+                       "The engine prefers the most specific template at export. Matches are case-insensitive substring.",
+                FontSize = 10, Foreground = WpfBrushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6)
+            });
+            var variantGrid = new Grid();
+            variantGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            variantGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int i = 0; i < 4; i++) variantGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            void AddField(string label, TextBox tb, int row, int col)
+            {
+                var p = new StackPanel { Margin = new Thickness(0, 0, 4, 4) };
+                p.Children.Add(new TextBlock { Text = label, FontSize = 10, FontWeight = FontWeights.SemiBold });
+                p.Children.Add(tb);
+                Grid.SetRow(p, row); Grid.SetColumn(p, col);
+                variantGrid.Children.Add(p);
+            }
+            _familyBox = new TextBox { Height = 24, FontSize = 11, Text = _seed?.FamilyContains ?? "" };
+            _typeBox = new TextBox { Height = 24, FontSize = 11, Text = _seed?.TypeContains ?? "" };
+            _systemBox = new TextBox { Height = 24, FontSize = 11, Text = _seed?.SystemContains ?? "" };
+            _discBox = new TextBox { Height = 24, FontSize = 11, Text = _seed?.DiscContains ?? "" };
+            AddField("Family name contains:", _familyBox, 0, 0);
+            AddField("Type name contains:", _typeBox, 0, 1);
+            AddField("System (SYS token) contains:", _systemBox, 1, 0);
+            AddField("Discipline (DISC) equals:", _discBox, 1, 1);
+            variantPanel.Children.Add(variantGrid);
+            variantExpander.Content = variantPanel;
+            left.Children.Add(variantExpander);
 
             left.Children.Add(Label("Paragraph (use [token] placeholders for element-specific data):"));
             _paragraphBox = new TextBox
@@ -629,7 +979,11 @@ namespace StingTools.Temp
                 Placeholders = BOQTemplateLibrary.ExtractPlaceholders(para),
                 Source = SaveTarget,
                 Version = _seed?.Version ?? 0,
-                Notes = _seed?.Notes ?? ""
+                Notes = _seed?.Notes ?? "",
+                FamilyContains = _familyBox?.Text?.Trim() ?? "",
+                TypeContains = _typeBox?.Text?.Trim() ?? "",
+                SystemContains = _systemBox?.Text?.Trim() ?? "",
+                DiscContains = _discBox?.Text?.Trim() ?? ""
             };
             Saved = true;
             Close();
