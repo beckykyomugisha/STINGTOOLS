@@ -51,6 +51,7 @@ public class TagSyncController : ControllerBase
         if (project == null) return NotFound("Project not found");
 
         int created = 0, updated = 0;
+        var conflicts = new List<SyncConflictDto>();
 
         // Load all existing elements for this project in one query (avoids N+1)
         var incomingIds = request.Elements.Select(e => e.RevitElementId).ToHashSet();
@@ -65,13 +66,51 @@ public class TagSyncController : ControllerBase
             {
                 if (existingElements.TryGetValue(dto.RevitElementId, out var existing))
                 {
-                    MapDtoToEntity(dto, existing, request.UserName);
-                    updated++;
+                    // Conflict detection: last-write-wins via LastModifiedUtc.
+                    // - If the client did not supply a timestamp, accept the update (legacy client).
+                    // - If the server has no stored timestamp, accept and adopt the client's.
+                    // - If client timestamp > server timestamp, accept and bump Version.
+                    // - Otherwise treat as a stale update — keep the server copy and record a conflict.
+                    var clientTs = dto.LastModifiedUtc;
+                    var serverTs = existing.LastModifiedUtc;
+
+                    if (clientTs.HasValue && serverTs.HasValue && clientTs.Value <= serverTs.Value)
+                    {
+                        var conflict = new SyncConflict
+                        {
+                            ProjectId = project.Id,
+                            TaggedElementId = existing.Id,
+                            ElementId = dto.RevitElementId.ToString(),
+                            ConflictType = "STALE_UPDATE",
+                            Resolution = "SERVER_WINS",
+                            ServerTimestamp = serverTs,
+                            ClientTimestamp = clientTs,
+                            ClientUserName = request.UserName
+                        };
+                        _db.SyncConflicts.Add(conflict);
+                        conflicts.Add(new SyncConflictDto
+                        {
+                            ElementId = dto.RevitElementId.ToString(),
+                            ServerTimestamp = serverTs,
+                            ClientTimestamp = clientTs,
+                            Resolution = "SERVER_WINS"
+                        });
+                        // Do NOT overwrite — server wins.
+                    }
+                    else
+                    {
+                        MapDtoToEntity(dto, existing, request.UserName);
+                        existing.Version += 1;
+                        existing.LastModifiedUtc = clientTs ?? DateTime.UtcNow;
+                        updated++;
+                    }
                 }
                 else
                 {
                     var entity = new TaggedElement { ProjectId = project.Id };
                     MapDtoToEntity(dto, entity, request.UserName);
+                    entity.Version = 1;
+                    entity.LastModifiedUtc = dto.LastModifiedUtc ?? DateTime.UtcNow;
                     _db.TaggedElements.Add(entity);
                     existingElements[dto.RevitElementId] = entity; // prevent duplicate adds
                     created++;
@@ -111,7 +150,8 @@ public class TagSyncController : ControllerBase
             Created = created,
             Updated = updated,
             CompliancePercent = metrics.CompliancePercent,
-            RagStatus = metrics.RagStatus
+            RagStatus = metrics.RagStatus,
+            Conflicts = conflicts
         });
     }
 
