@@ -48,6 +48,11 @@ public sealed class StingBIMServerClient : IDisposable
     // ── Public state ───────────────────────────────────────────────────────────
     public bool   IsConnected   => !string.IsNullOrEmpty(_accessToken) && _tokenExpiry > DateTime.UtcNow.AddMinutes(5);
     public string ServerUrl     => _serverUrl;
+    /// <summary>
+    /// S03: JWT bearer token acquired during login. Used by the Planscape
+    /// SyncScheduler so background sync doesn't have to re-authenticate.
+    /// </summary>
+    public string AuthToken     => _accessToken;
     public string ConnectedUser { get; private set; } = "";
     public string TierName      { get; private set; } = "";
     public bool   MimEnabled    { get; private set; }
@@ -186,6 +191,7 @@ public sealed class StingBIMServerClient : IDisposable
     /// Full sync: elements + compliance snapshot + warning summary + SEQ counters.
     /// Sends everything in one call. Auto-creates the project if projectId == Guid.Empty.
     /// </summary>
+    [Obsolete("Use SyncScheduler for sync operations")]
     public async Task<FullSyncResult> FullSyncAsync(FullSyncPayload payload)
     {
         if (!await EnsureAuthenticatedAsync())
@@ -232,6 +238,7 @@ public sealed class StingBIMServerClient : IDisposable
     // ────────────────────────────────────────────────────────────────────────────
 
     /// <summary>Legacy: sync elements only via POST /api/tagsync/sync.</summary>
+    [Obsolete("Use SyncScheduler for sync operations")]
     public async Task<SyncResult> SyncElementsAsync(
         Guid projectId, string revitVersion, string pluginVersion,
         List<TagElementPayload> elements)

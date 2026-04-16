@@ -8,6 +8,8 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.Attributes;
 using StingTools.UI;
+using StingTools.BIMManager;
+using Planscape.PluginSync;
 
 namespace StingTools.Core
 {
@@ -84,6 +86,25 @@ namespace StingTools.Core
 
                 // AUTO-SYNC: Queue lightweight compliance sync on document save
                 application.ControlledApplication.DocumentSaved += OnDocumentSaved;
+
+                // S03b: Start the Planscape sync scheduler if the plugin has already
+                // authenticated with the server. Runs on a 5-min timer in-process and
+                // drains the offline queue; safe no-op if not configured.
+                try
+                {
+                    var serverUrl = StingBIMServerClient.Instance?.ServerUrl;
+                    var authToken = StingBIMServerClient.Instance?.AuthToken;
+                    if (!string.IsNullOrEmpty(serverUrl) && !string.IsNullOrEmpty(authToken))
+                    {
+                        SyncScheduler.Start(serverUrl, authToken);
+                        StingLog.Info($"SyncScheduler started against {serverUrl}");
+                    }
+                    else
+                    {
+                        StingLog.Info("SyncScheduler not started — no server URL / auth token yet (will run offline-queue only)");
+                    }
+                }
+                catch (Exception syncEx) { StingLog.Warn($"SyncScheduler start failed: {syncEx.Message}"); }
 
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
@@ -499,13 +520,13 @@ namespace StingTools.Core
 
         // ── Auto-Sync on DocumentSaved ─────────────────────────────
         private static volatile bool _isSyncing;
-        internal static string _pendingSyncDoc;
-        internal static DateTime _pendingSyncTime;
 
         /// <summary>
         /// AUTO-SYNC: Collect a lightweight compliance summary when the user saves
-        /// and queue the data for the next SyncScheduler tick.
-        /// HTTP calls must NOT happen inside Revit event handlers — they block the UI.
+        /// and hand it to the Planscape OfflineQueue — the SyncScheduler drains the
+        /// queue on its own timer. HTTP calls must NEVER happen inside Revit event
+        /// handlers (S03c/d: replaced the old _pendingSyncDoc / _pendingSyncTime
+        /// dead-code fields with a proper enqueue).
         /// </summary>
         private static void OnDocumentSaved(object sender,
             Autodesk.Revit.DB.Events.DocumentSavedEventArgs e)
@@ -522,15 +543,24 @@ namespace StingTools.Core
                 // Collect lightweight compliance summary (cached scan — fast path)
                 int totalElements = 0;
                 int taggedCount = 0;
-                double compliancePct = 0;
+                int staleCount = 0;
+                int placeholderCount = 0;
+                int warningCount = 0;
+                double tagPct = 0;
+                double strictPct = 0;
+                double containerPct = 0;
+                string ragStatus = "RED";
                 try
                 {
                     var comp = ComplianceScan.Scan(doc);
                     if (comp != null)
                     {
-                        totalElements = comp.TotalElements;
-                        taggedCount = comp.TaggedComplete;
-                        compliancePct = comp.CompliancePercent;
+                        totalElements    = comp.TotalElements;
+                        taggedCount      = comp.TaggedComplete;
+                        staleCount       = comp.StaleCount;
+                        placeholderCount = comp.PlaceholderCount;
+                        tagPct           = comp.CompliancePercent;
+                        ragStatus        = comp.RAGStatus ?? "RED";
                     }
                 }
                 catch (Exception compEx)
@@ -538,13 +568,50 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentSaved compliance scan: {compEx.Message}");
                 }
 
-                // Queue sync data for next SyncScheduler tick
-                // (Don't make HTTP calls inside Revit events — they block the UI)
-                _pendingSyncDoc = doc.Title;
-                _pendingSyncTime = DateTime.UtcNow;
+                // Build the sync payload and hand it to the offline queue.
+                // If SyncScheduler hasn't been started yet (user isn't logged in),
+                // OfflineQueue.Shared is null and we log+skip.
+                try
+                {
+                    var client = StingBIMServerClient.Instance;
+                    var payload = new Planscape.Shared.Models.PluginSyncPayload
+                    {
+                        ProjectId     = Guid.Empty, // server resolves via auth/tenant scope
+                        UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
+                        RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
+                                          .GetName().Version?.ToString() ?? "",
+                        PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
+                        Timestamp     = DateTime.UtcNow,
+                        Compliance    = new Planscape.Shared.Models.ComplianceSync
+                        {
+                            TotalElements     = totalElements,
+                            TaggedComplete    = taggedCount,
+                            StaleCount        = staleCount,
+                            PlaceholderCount  = placeholderCount,
+                            WarningCount      = warningCount,
+                            TagPercent        = tagPct,
+                            StrictPercent     = strictPct,
+                            ContainerPercent  = containerPct,
+                            RagStatus         = ragStatus
+                        }
+                    };
 
-                StingLog.Info($"DocumentSaved: {doc.Title} — compliance {compliancePct:F1}% " +
-                    $"({taggedCount}/{totalElements}) queued for sync");
+                    var queue = OfflineQueue.Shared;
+                    if (queue != null)
+                    {
+                        queue.Enqueue(payload);
+                        StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
+                            $"({taggedCount}/{totalElements}) enqueued (queue depth: {queue.Count})");
+                    }
+                    else
+                    {
+                        StingLog.Info($"DocumentSaved: {doc.Title} — SyncScheduler not running, sync skipped");
+                    }
+                }
+                catch (Exception qEx)
+                {
+                    StingLog.Warn($"DocumentSaved enqueue: {qEx.Message}");
+                }
             }
             catch (Exception ex)
             {
@@ -563,6 +630,10 @@ namespace StingTools.Core
             // Unhook DocumentSaved sync handler
             try { application.ControlledApplication.DocumentSaved -= OnDocumentSaved; }
             catch (Exception ex) { StingLog.Warn($"DocumentSaved unhook: {ex.Message}"); }
+
+            // S03: Tear down the sync scheduler and its background timer.
+            try { SyncScheduler.StopShared(); }
+            catch (Exception ex) { StingLog.Warn($"SyncScheduler stop: {ex.Message}"); }
 
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();

@@ -1946,12 +1946,53 @@ namespace StingTools.BIMManager
             string revitVer = app.Application.VersionNumber;
             string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
 
-            // Blocking async call — safe in ExternalEvent context
-            SyncResult result;
+            // S03e: Redirected to Planscape.PluginSync.SyncScheduler — central queue +
+            // retry + offline persistence live in the scheduler, no longer in StingBIM.
+            // Convert the collected element payloads to the shared TagElementSync shape
+            // and hand off via SyncScheduler.SyncNow (which queues + drains in one go).
+            var tagSync = new List<Planscape.Shared.Models.TagElementSync>(elements.Count);
+            foreach (var p in elements)
+            {
+                tagSync.Add(new Planscape.Shared.Models.TagElementSync
+                {
+                    RevitElementId  = p.RevitElementId,
+                    UniqueId        = p.UniqueId ?? "",
+                    Disc = p.Disc ?? "", Loc = p.Loc ?? "",
+                    Zone = p.Zone ?? "", Lvl = p.Lvl ?? "",
+                    Sys  = p.Sys ?? "",  Func = p.Func ?? "",
+                    Prod = p.Prod ?? "", Seq  = p.Seq ?? "",
+                    Tag1 = p.Tag1 ?? "", Tag7 = p.Tag7,
+                    CategoryName = p.CategoryName ?? "",
+                    FamilyName   = p.FamilyName ?? "",
+                    Status       = p.Status,
+                    Rev          = p.Rev,
+                    IsComplete       = p.IsComplete,
+                    IsFullyResolved  = p.IsFullyResolved
+                });
+            }
+
+            var payload = new Planscape.Shared.Models.PluginSyncPayload
+            {
+                ProjectId     = projectId,
+                UserName      = client.ConnectedUser ?? Environment.UserName,
+                RevitVersion  = revitVer,
+                PluginVersion = pluginVer,
+                Timestamp     = DateTime.UtcNow,
+                TagElements   = tagSync
+            };
+
+            // Lazy-start the scheduler if the plugin connected after OnStartup.
+            if (Planscape.PluginSync.SyncScheduler.Instance == null
+                && !string.IsNullOrEmpty(client.ServerUrl)
+                && !string.IsNullOrEmpty(client.AuthToken))
+            {
+                Planscape.PluginSync.SyncScheduler.Start(client.ServerUrl, client.AuthToken);
+            }
+
+            Planscape.PluginSync.SyncResult sResult;
             try
             {
-                result = client.SyncElementsAsync(projectId, revitVer, pluginVer, elements)
-                               .GetAwaiter().GetResult();
+                sResult = Planscape.PluginSync.SyncScheduler.SyncNow(payload).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -1959,35 +2000,34 @@ namespace StingTools.BIMManager
                 return;
             }
 
-            if (!result.Success)
+            if (!sResult.Success)
             {
-                TaskDialog.Show("StingBIM Sync Failed", $"The server returned an error:\n\n{result.Error}");
+                TaskDialog.Show("StingBIM Sync Failed",
+                    $"The scheduler could not reach the server:\n\n{sResult.ErrorMessage}\n\n" +
+                    $"Payload was queued for automatic retry on the next 5-min sync tick.");
                 return;
             }
 
-            // Update sync timestamp
+            // Update sync timestamp (server-returned compliance metrics are now delivered
+            // via the ComplianceHub — we store the request-side counts only).
             try
             {
                 var cfg = File.Exists(cfgPath)
                     ? JObject.Parse(File.ReadAllText(cfgPath))
                     : new JObject();
                 cfg["lastSyncAt"] = DateTime.UtcNow.ToString("o");
-                cfg["lastSyncElements"] = result.Received;
-                cfg["lastCompliancePct"] = result.CompliancePercent;
-                cfg["lastRagStatus"] = result.RagStatus;
+                cfg["lastSyncElements"] = tagSync.Count;
                 File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
             }
-            catch { /* non-fatal */ }
+            catch (Exception ex) { StingLog.Warn($"StingBIM sync timestamp update: {ex.Message}"); }
 
-            string ragEmoji = result.RagStatus == "GREEN" ? "🟢" : result.RagStatus == "AMBER" ? "🟡" : "🔴";
             TaskDialog.Show("StingBIM Sync — Complete",
-                $"✅ Sync to StingBIM server complete!\n\n" +
-                $"Elements sent:    {result.Received:N0}\n" +
-                $"New records:      {result.Created:N0}\n" +
-                $"Updated records:  {result.Updated:N0}\n\n" +
-                $"{ragEmoji} Project compliance: {result.CompliancePercent:F1}% ({result.RagStatus})\n\n" +
+                $"Sync to StingBIM server complete!\n\n" +
+                $"Elements sent:    {tagSync.Count:N0}\n" +
+                $"Drained payloads: {sResult.TagsCreated:N0}\n\n" +
                 $"Server: {client.ServerUrl}\n" +
-                $"User: {client.ConnectedUser}");
+                $"User: {client.ConnectedUser}\n\n" +
+                $"Compliance metrics will arrive on the ComplianceHub.");
         }
 
         private static Guid LoadStingBIMProjectId(string cfgPath)

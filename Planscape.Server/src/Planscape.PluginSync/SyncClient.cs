@@ -20,6 +20,19 @@ public class SyncClient : IDisposable
     public bool IsAuthenticated => !string.IsNullOrEmpty(_accessToken) && _tokenExpiresAt > DateTime.UtcNow;
     public string? ServerUrl => _baseUrl;
 
+    /// <summary>
+    /// S03: Inject a bearer token that was obtained elsewhere (e.g. by the
+    /// StingBIMServerClient in the Revit plugin). Avoids a second login
+    /// round-trip when the plugin already has a valid session.
+    /// </summary>
+    public void SetAuthToken(string token, DateTime? expiresAt = null)
+    {
+        _accessToken = token ?? "";
+        _tokenExpiresAt = expiresAt ?? DateTime.UtcNow.AddHours(8);
+        _http.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _accessToken);
+    }
+
     public SyncClient(string serverUrl)
     {
         _baseUrl = serverUrl.TrimEnd('/');
