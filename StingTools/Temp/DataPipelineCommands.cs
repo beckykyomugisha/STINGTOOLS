@@ -1090,8 +1090,8 @@ namespace StingTools.Temp
 
             // ── Load NRM2 description templates + TAG7 integration settings ──
             BOQDescriptionEngine.LoadTemplates();
-            // Paragraph catalogue from BOQ_DESCRIPTIONS.json + material links sidecar
-            BOQDescriptionEngine.LoadParagraphTemplates();
+            // 3-layer paragraph catalogue (built-in + company library + project custom)
+            BOQDescriptionEngine.LoadParagraphTemplates(doc);
             BOQDescriptionEngine.LoadMaterialLinks(doc);
             int tag7DescCount = 0;
             int paragraphDescCount = 0;
@@ -4411,37 +4411,54 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Loads NRM2 paragraph templates from BOQ_DESCRIPTIONS.json.
-        /// Each entry has: category, nrm2_section, paragraph with [placeholder] tokens.
+        /// Loads NRM2 paragraph templates.
+        /// When <paramref name="doc"/> is supplied, this merges THREE sources via
+        /// <see cref="BOQTemplateLibrary.LoadAll"/>:
+        ///   1. built-in   — Data/BOQ_DESCRIPTIONS.json (ships with plugin)
+        ///   2. company    — %APPDATA%/STING/boq_templates_library.json (reusable across projects)
+        ///   3. project    — &lt;project&gt;/_bim_manager/boq_custom_templates.json (per-project)
+        /// When doc is null, falls back to built-in only (keeps compatibility with
+        /// any callers that don't have a document handle).
         /// </summary>
-        internal static void LoadParagraphTemplates()
+        internal static void LoadParagraphTemplates(Document doc = null)
         {
             _paragraphs = new List<ParagraphTemplate>();
             try
             {
-                string p = StingToolsApp.FindDataFile("BOQ_DESCRIPTIONS.json");
-                if (string.IsNullOrEmpty(p) || !File.Exists(p)) return;
-                var arr = JArray.Parse(File.ReadAllText(p));
-                foreach (var item in arr)
+                IEnumerable<BOQTemplate> merged;
+                if (doc != null)
                 {
-                    string cat = item["category"]?.ToString() ?? "";
-                    string sec = item["nrm2_section"]?.ToString() ?? "";
-                    string para = item["paragraph"]?.ToString() ?? "";
-                    if (string.IsNullOrEmpty(para)) continue;
-                    var phArr = item["placeholders"] as JArray;
-                    var ph = phArr?.Select(t => t?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToArray() ?? Array.Empty<string>();
+                    merged = BOQTemplateLibrary.LoadAll(doc, StingToolsApp.DataPath);
+                }
+                else
+                {
+                    merged = BOQTemplateLibrary.LoadBuiltin(StingToolsApp.DataPath);
+                }
 
-                    // Safety check: if any placeholder is a forbidden cost/quantity token, drop it
-                    // (the paragraph will have the placeholder cleanly removed at resolve time).
-                    foreach (var token in ph)
+                foreach (var t in merged)
+                {
+                    if (string.IsNullOrEmpty(t?.Paragraph)) continue;
+                    // Safety check: strip any forbidden cost/qty tokens at load time.
+                    // ForbiddenPlaceholders lives in BOQTemplateLibrary and is also
+                    // enforced at placeholder-resolution time as a belt-and-braces measure.
+                    foreach (var token in t.Placeholders ?? Array.Empty<string>())
                     {
                         if (_forbiddenParagraphTokens.Contains(token))
-                            StingLog.Warn($"BOQ_DESCRIPTIONS.json: cost/qty token '{token}' in paragraph for {cat} §{sec} — will be stripped at export.");
+                            StingLog.Warn($"BOQ template ({t.Source}): cost/qty token '{token}' in paragraph for {t.Category} §{t.Nrm2Section} — stripped at export.");
                     }
 
-                    _paragraphs.Add(new ParagraphTemplate { Category = cat, Nrm2Section = sec, Paragraph = para, Placeholders = ph });
+                    _paragraphs.Add(new ParagraphTemplate
+                    {
+                        Category = t.Category ?? "",
+                        Nrm2Section = t.Nrm2Section ?? "",
+                        Paragraph = t.Paragraph ?? "",
+                        Placeholders = t.Placeholders ?? Array.Empty<string>()
+                    });
                 }
-                StingLog.Info($"BOQ paragraph templates loaded: {_paragraphs.Count}");
+
+                if (_paragraphs.Count > 0)
+                    StingLog.Info($"BOQ paragraph templates loaded: {_paragraphs.Count}" +
+                                  (doc != null ? " (built-in + company + project)" : " (built-in only)"));
             }
             catch (Exception ex) { StingLog.Warn($"LoadParagraphTemplates: {ex.Message}"); }
         }

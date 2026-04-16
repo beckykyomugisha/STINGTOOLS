@@ -385,18 +385,19 @@ namespace StingTools.Temp
         private UIElement BuildBOQLinkTab()
         {
             var sp = new StackPanel { Margin = new Thickness(12) };
-            sp.Children.Add(new TextBlock { Text = "BOQ Link", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 10) });
+            sp.Children.Add(new TextBlock { Text = "BOQ Link", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = NavyBrush, Margin = new Thickness(0, 0, 0, 6) });
             sp.Children.Add(new TextBlock
             {
-                Text = "Link project materials to NRM2 BOQ paragraph descriptions. Paragraphs describe " +
-                       "the item's properties (material, dimensions, standard, finishes). Quantities and " +
-                       "costs are measured from the model and written to separate columns at export.",
+                Text = "Link project materials to NRM2 paragraph templates. Paragraphs describe item " +
+                       "properties only (material, dimensions, finish, standard) — quantities and costs " +
+                       "go in their own columns at export.  Badges:  ◆ = project-only   ★ = company library (reusable)",
                 FontSize = 11, Foreground = WpfBrushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10)
             });
 
-            // ── Load paragraph templates from BOQ_DESCRIPTIONS.json ──
-            var descRows = BOQLinkStore.LoadDescriptions(_dataPath);
+            // ── Load 3-layer template catalogue + material links sidecar ──
+            var templates = new List<BOQTemplate>(BOQTemplateLibrary.LoadAll(_doc, _dataPath));
             var links = BOQLinkStore.LoadLinks(_doc);
+            var redBrush = new SolidColorBrush(WpfColor.FromRgb(0xC6, 0x28, 0x28));
 
             // ── Project Material ──
             sp.Children.Add(Label("Project Material:"));
@@ -406,20 +407,34 @@ namespace StingTools.Temp
             matCb.SelectedIndex = 0;
             sp.Children.Add(matCb);
 
-            // ── BOQ Description ──
+            // ── BOQ Description (template catalogue) ──
             sp.Children.Add(Label("BOQ Description (paragraph template):"));
-            var boqCb = new WpfComboBox { Height = 26, Margin = new Thickness(0, 2, 0, 8), IsEditable = true, MaxDropDownHeight = 280 };
-            foreach (var d in descRows)
-                boqCb.Items.Add($"§{d.Nrm2Section,-3} {d.Category,-22}  {d.Preview}");
-            if (boqCb.Items.Count == 0)
+            var boqCb = new WpfComboBox { Height = 26, Margin = new Thickness(0, 2, 0, 8), IsEditable = true, MaxDropDownHeight = 320 };
+            void RebuildTemplateDropdown(string preferredId = null)
             {
-                boqCb.Items.Add("(no BOQ descriptions — BOQ_DESCRIPTIONS.json missing)");
-                boqCb.IsEnabled = false;
+                int selectIdx = 0;
+                boqCb.Items.Clear();
+                for (int i = 0; i < templates.Count; i++)
+                {
+                    boqCb.Items.Add(templates[i].DisplayLabel);
+                    if (!string.IsNullOrEmpty(preferredId) && templates[i].Id == preferredId) selectIdx = i;
+                }
+                if (templates.Count == 0)
+                {
+                    boqCb.Items.Add("(no BOQ paragraph templates — Data/BOQ_DESCRIPTIONS.json missing)");
+                    boqCb.IsEnabled = false;
+                }
+                else
+                {
+                    boqCb.IsEnabled = true;
+                    boqCb.SelectedIndex = selectIdx;
+                }
             }
+            RebuildTemplateDropdown();
             sp.Children.Add(boqCb);
 
-            // ── NRM2 Section (auto-filled) ──
-            sp.Children.Add(Label("NRM2 Section:"));
+            // ── NRM2 Section + source badge (auto-filled) ──
+            sp.Children.Add(Label("NRM2 Section / template source:"));
             var sectionBox = new System.Windows.Controls.TextBox { Height = 26, Margin = new Thickness(0, 2, 0, 8), IsReadOnly = true, Background = new SolidColorBrush(WpfColor.FromRgb(0xF5, 0xF8, 0xFF)) };
             sp.Children.Add(sectionBox);
 
@@ -435,33 +450,35 @@ namespace StingTools.Temp
 
             // ── Notes ──
             sp.Children.Add(Label("Notes (optional — e.g., bespoke specification references):"));
-            var notesBox = new System.Windows.Controls.TextBox { Height = 50, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 10) };
+            var notesBox = new System.Windows.Controls.TextBox { Height = 40, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 6) };
             sp.Children.Add(notesBox);
 
-            // ── Link status + button row ──
+            // ── Link status line ──
             var statusBlock = new TextBlock { FontSize = 10, Foreground = WpfBrushes.Gray, Margin = new Thickness(0, 0, 0, 6) };
             sp.Children.Add(statusBlock);
 
-            // Sync preview and status when selection changes
+            BOQTemplate Current() => (boqCb.SelectedIndex >= 0 && boqCb.SelectedIndex < templates.Count) ? templates[boqCb.SelectedIndex] : null;
+
             void RefreshPreview()
             {
-                int idx = boqCb.SelectedIndex;
-                if (idx >= 0 && idx < descRows.Count)
+                var t = Current();
+                if (t != null)
                 {
-                    sectionBox.Text = $"NRM2 §{descRows[idx].Nrm2Section} — {descRows[idx].Category}";
-                    previewBox.Text = descRows[idx].Paragraph;
+                    string src = t.Source switch { "company" => "★ company library", "project" => "◆ this project", _ => "built-in" };
+                    sectionBox.Text = $"NRM2 §{t.Nrm2Section} — {t.Category}   ·   {src}";
+                    previewBox.Text = t.Paragraph;
                 }
                 else { sectionBox.Text = ""; previewBox.Text = ""; }
 
                 string matName = matCb.Text?.Trim() ?? "";
                 if (!string.IsNullOrEmpty(matName) && links.TryGetValue(matName, out var existing))
                 {
-                    statusBlock.Text = $"Linked: §{existing.Nrm2Section} {existing.Category} (updated {existing.UpdatedDate:yyyy-MM-dd})";
+                    statusBlock.Text = $"Linked: §{existing.Nrm2Section} {existing.Category} (updated {existing.UpdatedDate:yyyy-MM-dd} by {existing.UpdatedBy})";
                     statusBlock.Foreground = GreenBrush;
                 }
                 else
                 {
-                    statusBlock.Text = "Not linked — choose a description and click Save Link.";
+                    statusBlock.Text = "Not linked — choose a template and click Save Link.";
                     statusBlock.Foreground = WpfBrushes.Gray;
                 }
             }
@@ -472,8 +489,8 @@ namespace StingTools.Temp
                 string matName = matCb.Text?.Trim() ?? "";
                 if (!string.IsNullOrEmpty(matName) && links.TryGetValue(matName, out var existing))
                 {
-                    int idx = descRows.FindIndex(d => d.Category == existing.Category && d.Nrm2Section == existing.Nrm2Section && d.Paragraph == existing.Paragraph);
-                    if (idx < 0) idx = descRows.FindIndex(d => d.Category == existing.Category);
+                    int idx = templates.FindIndex(t => t.Category == existing.Category && t.Nrm2Section == existing.Nrm2Section && t.Paragraph == existing.Paragraph);
+                    if (idx < 0) idx = templates.FindIndex(t => t.Category == existing.Category);
                     if (idx >= 0) boqCb.SelectedIndex = idx;
                     notesBox.Text = existing.Notes ?? "";
                 }
@@ -481,8 +498,148 @@ namespace StingTools.Temp
             };
             RefreshPreview();
 
-            // ── Buttons ──
-            var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
+            // ══════════════════════════════════════════════════════════
+            //  Row 1 — Template library management
+            // ══════════════════════════════════════════════════════════
+            sp.Children.Add(Label("Template library:"));
+            var tplRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 8) };
+
+            void ReloadAndSelect(string selectId)
+            {
+                templates.Clear();
+                templates.AddRange(BOQTemplateLibrary.LoadAll(_doc, _dataPath));
+                RebuildTemplateDropdown(selectId);
+                RefreshPreview();
+            }
+
+            void OpenEditor(BOQTemplate seed, bool isNew)
+            {
+                try
+                {
+                    var dlg = new BOQParagraphEditorDialog(seed, _doc, isNew) { Owner = this };
+                    dlg.ShowDialog();
+                    if (!dlg.Saved || dlg.Result == null) return;
+                    var t = dlg.Result;
+                    if (dlg.SaveTarget == "company") BOQTemplateLibrary.SaveToCompany(t);
+                    else if (dlg.SaveTarget == "project" && _doc != null) BOQTemplateLibrary.SaveToProject(_doc, t);
+                    ReloadAndSelect(t.Id);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"BOQ editor: {ex.Message}");
+                    TaskDialog.Show("BOQ Template", $"Editor failed:\n{ex.Message}");
+                }
+            }
+
+            tplRow.Children.Add(Btn("★ New Template…", GreenBrush, () => OpenEditor(null, true)));
+            tplRow.Children.Add(Btn("Edit…", NavyBrush, () =>
+            {
+                var t = Current();
+                if (t == null) { TaskDialog.Show("BOQ Template", "Select a template first."); return; }
+                if (t.Source == "builtin")
+                {
+                    var ans = MessageBox.Show(
+                        "Built-in templates are read-only. Edit a copy in the company library instead?",
+                        "BOQ Template", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+                    if (ans != MessageBoxResult.OK) return;
+                    // Seed from the builtin but reset id → becomes a new company template
+                    var seed = new BOQTemplate
+                    {
+                        Id = null, Category = t.Category, Nrm2Section = t.Nrm2Section,
+                        Paragraph = t.Paragraph, Placeholders = t.Placeholders, Source = "company"
+                    };
+                    OpenEditor(seed, false);
+                    return;
+                }
+                OpenEditor(t, false);
+            }, margin: new Thickness(6, 0, 0, 0)));
+
+            tplRow.Children.Add(Btn("Duplicate…", NavyBrush, () =>
+            {
+                var t = Current();
+                if (t == null) { TaskDialog.Show("BOQ Template", "Select a template first."); return; }
+                var seed = new BOQTemplate
+                {
+                    Id = null,  // new id on save
+                    Category = t.Category + " (copy)",
+                    Nrm2Section = t.Nrm2Section,
+                    Paragraph = t.Paragraph,
+                    Placeholders = t.Placeholders,
+                    Source = "company"
+                };
+                OpenEditor(seed, true);
+            }, margin: new Thickness(6, 0, 0, 0)));
+
+            tplRow.Children.Add(Btn("Delete", redBrush, () =>
+            {
+                var t = Current();
+                if (t == null) { TaskDialog.Show("BOQ Template", "Select a template first."); return; }
+                if (t.Source == "builtin") { TaskDialog.Show("BOQ Template", "Built-in templates cannot be deleted."); return; }
+                var ans = MessageBox.Show($"Delete this {t.Source} template?\n\n§{t.Nrm2Section} {t.Category}", "Confirm Delete",
+                    MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+                if (ans != MessageBoxResult.OK) return;
+                bool ok = false;
+                if (t.Source == "company") ok = BOQTemplateLibrary.DeleteFromCompany(t.Id);
+                else if (t.Source == "project" && _doc != null) ok = BOQTemplateLibrary.DeleteFromProject(_doc, t.Id);
+                if (ok) { ReloadAndSelect(null); TaskDialog.Show("BOQ Template", "Template deleted."); }
+                else TaskDialog.Show("BOQ Template", "Delete failed — template may have been externally modified.");
+            }, margin: new Thickness(6, 0, 0, 0)));
+
+            tplRow.Children.Add(Btn("Import Library…", NavyBrush, () =>
+            {
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Import BOQ Template Library",
+                    Filter = "STING BOQ library (*.json)|*.json|All files (*.*)|*.*"
+                };
+                if (ofd.ShowDialog() != true) return;
+                var td = new TaskDialog("BOQ Library Import")
+                {
+                    MainInstruction = "Import where?",
+                    MainContent = "★ Company library is shared across all your projects on this machine. ◆ This project only keeps the imports in this project's sidecar."
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "★ Company library");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "◆ This project only");
+                td.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var choice = td.Show();
+                string target = choice == TaskDialogResult.CommandLink1 ? "company" : choice == TaskDialogResult.CommandLink2 ? "project" : null;
+                if (target == null) return;
+                try
+                {
+                    int n = BOQTemplateLibrary.ImportLibrary(ofd.FileName, target, _doc);
+                    ReloadAndSelect(null);
+                    TaskDialog.Show("BOQ Template", $"Imported {n} template(s) into the {target} library.");
+                }
+                catch (Exception ex) { TaskDialog.Show("BOQ Template", $"Import failed:\n{ex.Message}"); }
+            }, margin: new Thickness(6, 0, 0, 0)));
+
+            tplRow.Children.Add(Btn("Export Library…", NavyBrush, () =>
+            {
+                var sfd = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Export BOQ Template Library",
+                    FileName = $"STING_BOQ_Library_{DateTime.Now:yyyyMMdd}.json",
+                    Filter = "STING BOQ library (*.json)|*.json"
+                };
+                if (sfd.ShowDialog() != true) return;
+                try
+                {
+                    // Export everything EXCEPT builtin (builtin ships with the plugin already)
+                    var toExport = templates.Where(t => t.Source != "builtin").ToList();
+                    int n = BOQTemplateLibrary.ExportLibrary(sfd.FileName, toExport);
+                    TaskDialog.Show("BOQ Template", $"Exported {n} template(s) (company + project).\n\nFile: {sfd.FileName}");
+                }
+                catch (Exception ex) { TaskDialog.Show("BOQ Template", $"Export failed:\n{ex.Message}"); }
+            }, margin: new Thickness(6, 0, 0, 0)));
+
+            sp.Children.Add(tplRow);
+
+            // ══════════════════════════════════════════════════════════
+            //  Row 2 — Material linking + automation
+            // ══════════════════════════════════════════════════════════
+            sp.Children.Add(Label("Material linking & automation:"));
+            var btnRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) };
+
             btnRow.Children.Add(Btn("Save Link", GreenBrush, () =>
             {
                 string matName = matCb.Text?.Trim() ?? "";
@@ -491,19 +648,14 @@ namespace StingTools.Temp
                     TaskDialog.Show("BOQ Link", "Select a project material first.");
                     return;
                 }
-                int idx = boqCb.SelectedIndex;
-                if (idx < 0 || idx >= descRows.Count)
-                {
-                    TaskDialog.Show("BOQ Link", "Choose a BOQ paragraph description.");
-                    return;
-                }
-                var d = descRows[idx];
+                var t = Current();
+                if (t == null) { TaskDialog.Show("BOQ Link", "Choose a BOQ paragraph template."); return; }
                 links[matName] = new BOQLinkStore.Link
                 {
                     MaterialName = matName,
-                    Category = d.Category,
-                    Nrm2Section = d.Nrm2Section,
-                    Paragraph = d.Paragraph,
+                    Category = t.Category,
+                    Nrm2Section = t.Nrm2Section,
+                    Paragraph = t.Paragraph,
                     Notes = notesBox.Text?.Trim() ?? "",
                     UpdatedBy = Environment.UserName ?? "unknown",
                     UpdatedDate = DateTime.Now
@@ -511,7 +663,7 @@ namespace StingTools.Temp
                 try
                 {
                     BOQLinkStore.SaveLinks(_doc, links);
-                    TaskDialog.Show("BOQ Link", $"Saved link:\n{matName}  →  §{d.Nrm2Section} {d.Category}");
+                    TaskDialog.Show("BOQ Link", $"Saved link:\n{matName}  →  §{t.Nrm2Section} {t.Category}");
                     RefreshPreview();
                 }
                 catch (Exception ex)
@@ -520,42 +672,75 @@ namespace StingTools.Temp
                     TaskDialog.Show("BOQ Link", $"Could not save link:\n{ex.Message}");
                 }
             }));
+
             btnRow.Children.Add(Btn("View All Links", NavyBrush, () =>
             {
-                if (links.Count == 0)
-                {
-                    TaskDialog.Show("BOQ Link", "No material→BOQ links saved yet.");
-                    return;
-                }
+                if (links.Count == 0) { TaskDialog.Show("BOQ Link", "No material→BOQ links saved yet."); return; }
                 var msg = new System.Text.StringBuilder();
                 msg.AppendLine($"Saved material → BOQ links  ({links.Count}):");
                 msg.AppendLine(new string('─', 60));
                 foreach (var kv in links.OrderBy(k => k.Value.Nrm2Section).ThenBy(k => k.Key))
                 {
                     msg.AppendLine($"  {kv.Key,-30}  §{kv.Value.Nrm2Section,-3} {kv.Value.Category}");
-                    if (!string.IsNullOrEmpty(kv.Value.Notes))
-                        msg.AppendLine($"    note: {kv.Value.Notes}");
+                    if (!string.IsNullOrEmpty(kv.Value.Notes)) msg.AppendLine($"    note: {kv.Value.Notes}");
                 }
-                var td = new TaskDialog("STING — BOQ Links")
-                {
-                    MainInstruction = $"{links.Count} material link(s)",
-                    MainContent = msg.ToString()
-                };
+                var td = new TaskDialog("STING — BOQ Links") { MainInstruction = $"{links.Count} material link(s)", MainContent = msg.ToString() };
                 td.CommonButtons = TaskDialogCommonButtons.Ok;
                 td.Show();
             }, margin: new Thickness(6, 0, 0, 0)));
-            btnRow.Children.Add(Btn("Unlink Selected", new SolidColorBrush(WpfColor.FromRgb(0xC6, 0x28, 0x28)), () =>
+
+            btnRow.Children.Add(Btn("Unlink Selected", redBrush, () =>
             {
                 string matName = matCb.Text?.Trim() ?? "";
-                if (!links.Remove(matName))
-                {
-                    TaskDialog.Show("BOQ Link", "No link to remove for the selected material.");
-                    return;
-                }
+                if (!links.Remove(matName)) { TaskDialog.Show("BOQ Link", "No link to remove for the selected material."); return; }
                 try { BOQLinkStore.SaveLinks(_doc, links); } catch (Exception ex) { StingLog.Warn($"Unlink save: {ex.Message}"); }
                 RefreshPreview();
                 TaskDialog.Show("BOQ Link", $"Removed link for {matName}.");
             }, margin: new Thickness(6, 0, 0, 0)));
+
+            btnRow.Children.Add(Btn("Auto-Link All", AmberBrush, () =>
+            {
+                if (_materials.Count == 0) { TaskDialog.Show("BOQ Link", "No materials in project."); return; }
+                int proposed = 0, skipped = 0;
+                foreach (var m in _materials)
+                {
+                    if (links.ContainsKey(m.Name)) { skipped++; continue; }
+                    var best = FindBestTemplateForMaterial(m.Name, m.MaterialCategory ?? "", templates);
+                    if (best == null) continue;
+                    links[m.Name] = new BOQLinkStore.Link
+                    {
+                        MaterialName = m.Name,
+                        Category = best.Category,
+                        Nrm2Section = best.Nrm2Section,
+                        Paragraph = best.Paragraph,
+                        Notes = "(auto-linked by category keyword match — review before export)",
+                        UpdatedBy = Environment.UserName ?? "auto",
+                        UpdatedDate = DateTime.Now
+                    };
+                    proposed++;
+                }
+                try { BOQLinkStore.SaveLinks(_doc, links); } catch (Exception ex) { StingLog.Warn($"Auto-link save: {ex.Message}"); }
+                RefreshPreview();
+                TaskDialog.Show("BOQ Link",
+                    $"Auto-link complete:\n" +
+                    $"  {proposed} new links proposed\n" +
+                    $"  {skipped} already linked (unchanged)\n" +
+                    $"  {_materials.Count - proposed - skipped} unmatched (add template or link manually)\n\n" +
+                    "Review each auto-linked material — the category keyword match is a best-guess.");
+            }, margin: new Thickness(6, 0, 0, 0)));
+
+            btnRow.Children.Add(Btn("Coverage Audit", NavyBrush, () =>
+            {
+                var audit = BuildCoverageAudit(_materials.Select(x => x.Name).ToList(), links, templates);
+                var td = new TaskDialog("BOQ Coverage Audit")
+                {
+                    MainInstruction = $"{audit.linked}/{audit.total} materials linked  ({audit.percent:F0}%)",
+                    MainContent = audit.summary
+                };
+                td.CommonButtons = TaskDialogCommonButtons.Ok;
+                td.Show();
+            }, margin: new Thickness(6, 0, 0, 0)));
+
             btnRow.Children.Add(Btn("Export BOQ", AmberBrush, () =>
             {
                 Close();
@@ -571,9 +756,85 @@ namespace StingTools.Temp
                     TaskDialog.Show("BOQ Export", $"Launch failed:\n{ex.Message}\n\nUse BIM tab → Export BOQ instead.");
                 }
             }, margin: new Thickness(6, 0, 0, 0)));
+
             sp.Children.Add(btnRow);
 
             return new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        }
+
+        // ── BOQ automation helpers ──────────────────────────────────────
+
+        /// <summary>
+        /// Best-guess template match for a material using keyword scoring.
+        /// Returns null when no template scores above threshold.
+        /// </summary>
+        private static BOQTemplate FindBestTemplateForMaterial(string materialName, string materialCategory, List<BOQTemplate> templates)
+        {
+            if (string.IsNullOrEmpty(materialName) || templates.Count == 0) return null;
+            string haystack = (materialName + " " + materialCategory).ToLowerInvariant();
+
+            int BestScore(BOQTemplate t)
+            {
+                int score = 0;
+                string cat = (t.Category ?? "").ToLowerInvariant();
+                if (cat.Length > 0 && haystack.Contains(cat)) score += 10;
+                // token-level match against category words
+                foreach (var word in cat.Split(' ', '-', '/'))
+                {
+                    if (word.Length >= 4 && haystack.Contains(word)) score += 3;
+                }
+                // common construction keywords give weaker bonus
+                string[] keys = { "wall", "floor", "ceiling", "roof", "door", "window", "column", "beam", "pipe", "duct", "cable", "tray", "concrete", "timber", "steel", "glass", "paint", "insul" };
+                foreach (var k in keys) if (cat.Contains(k) && haystack.Contains(k)) score += 2;
+                return score;
+            }
+
+            var best = templates
+                .Select(t => (t, score: BestScore(t)))
+                .Where(x => x.score >= 6)
+                .OrderByDescending(x => x.score)
+                .ThenBy(x => x.t.Source == "project" ? 0 : x.t.Source == "company" ? 1 : 2)  // prefer user templates on ties
+                .FirstOrDefault();
+            return best.t;
+        }
+
+        /// <summary>
+        /// Produces a coverage audit summary for the BOQ workflow — linked vs
+        /// unlinked materials, plus unresolvable-placeholder detection for the
+        /// current project.
+        /// </summary>
+        private (int total, int linked, double percent, string summary) BuildCoverageAudit(
+            List<string> materialNames, Dictionary<string, BOQLinkStore.Link> links, List<BOQTemplate> templates)
+        {
+            int total = materialNames.Count;
+            int linkedCount = materialNames.Count(n => links.ContainsKey(n));
+            double pct = total == 0 ? 0 : 100.0 * linkedCount / total;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Linked:     {linkedCount,4} / {total}  ({pct:F0}%)");
+            sb.AppendLine($"Unlinked:   {total - linkedCount,4}");
+            sb.AppendLine();
+
+            var unlinked = materialNames.Where(n => !links.ContainsKey(n)).Take(20).ToList();
+            if (unlinked.Count > 0)
+            {
+                sb.AppendLine("UNLINKED MATERIALS (first 20):");
+                foreach (var n in unlinked) sb.AppendLine("  · " + n);
+                if (materialNames.Count(n => !links.ContainsKey(n)) > 20) sb.AppendLine("  …");
+                sb.AppendLine();
+            }
+
+            // Template-side stats
+            int builtin = templates.Count(t => t.Source == "builtin");
+            int company = templates.Count(t => t.Source == "company");
+            int project = templates.Count(t => t.Source == "project");
+            sb.AppendLine($"Template catalogue: {templates.Count}  (built-in {builtin}, ★ company {company}, ◆ project {project})");
+
+            // Surface unique NRM2 sections covered
+            var sections = templates.Select(t => t.Nrm2Section).Where(s => !string.IsNullOrEmpty(s)).Distinct().OrderBy(s => s).ToList();
+            sb.AppendLine($"NRM2 sections covered: {string.Join(", ", sections)}");
+
+            return (total, linkedCount, pct, sb.ToString());
         }
 
         // ── Helpers ─────────────────────────────────────────────────────
