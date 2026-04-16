@@ -15,22 +15,22 @@ using StingTools.Core;
 namespace StingTools.BIMManager;
 
 /// <summary>
-/// HTTP client for StingBIM Server API.
+/// HTTP client for Planscape Server API.
 /// Handles authentication, automatic token refresh, and all sync/query operations.
-/// Thread-safe singleton — use StingBIMServerClient.Instance.
+/// Thread-safe singleton — use PlanscapeServerClient.Instance.
 /// </summary>
-public sealed class StingBIMServerClient : IDisposable
+public sealed class PlanscapeServerClient : IDisposable
 {
     // ── Singleton ──────────────────────────────────────────────────────────────
-    private static StingBIMServerClient? _instance;
+    private static PlanscapeServerClient? _instance;
     private static readonly object _instanceLock = new();
 
-    public static StingBIMServerClient Instance
+    public static PlanscapeServerClient Instance
     {
         get
         {
             if (_instance == null)
-                lock (_instanceLock) { _instance ??= new StingBIMServerClient(); }
+                lock (_instanceLock) { _instance ??= new PlanscapeServerClient(); }
             return _instance;
         }
     }
@@ -58,7 +58,7 @@ public sealed class StingBIMServerClient : IDisposable
     public bool   MimEnabled    { get; private set; }
     public string? LastError    { get; private set; }
 
-    private StingBIMServerClient() { }
+    private PlanscapeServerClient() { }
 
     // ────────────────────────────────────────────────────────────────────────────
     //  Authentication
@@ -77,10 +77,10 @@ public sealed class StingBIMServerClient : IDisposable
 
             ParseAuthResponse(JObject.Parse(resp.body), email);
             LastError = null;
-            StingLog.Info($"StingBIM: Authenticated as {ConnectedUser} @ {_serverUrl} (tier: {TierName})");
+            StingLog.Info($"Planscape: Authenticated as {ConnectedUser} @ {_serverUrl} (tier: {TierName})");
             return true;
         }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Error("StingBIM: Login failed", ex); return false; }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Error("Planscape: Login failed", ex); return false; }
     }
 
     /// <summary>
@@ -93,23 +93,23 @@ public sealed class StingBIMServerClient : IDisposable
         try
         {
             var resp = await PostJsonAsync("/api/auth/refresh", new { refreshToken = _refreshToken });
-            if (!resp.ok) { StingLog.Warn($"StingBIM: Token refresh failed: {resp.body}"); return false; }
+            if (!resp.ok) { StingLog.Warn($"Planscape: Token refresh failed: {resp.body}"); return false; }
 
             var json = JObject.Parse(resp.body);
             _accessToken  = json["accessToken"]?.Value<string>()  ?? "";
             _refreshToken = json["refreshToken"]?.Value<string>() ?? _refreshToken;
             _tokenExpiry  = json["expiresAt"]?.Value<DateTime>()  ?? DateTime.UtcNow.AddHours(8);
             _http!.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
-            StingLog.Info("StingBIM: Token refreshed.");
+            StingLog.Info("Planscape: Token refreshed.");
             return true;
         }
-        catch (Exception ex) { StingLog.Warn($"StingBIM: Token refresh error: {ex.Message}"); return false; }
+        catch (Exception ex) { StingLog.Warn($"Planscape: Token refresh error: {ex.Message}"); return false; }
     }
 
     /// <summary>Ensure the token is valid, refreshing if needed. Returns false if not authenticated.</summary>
     private async Task<bool> EnsureAuthenticatedAsync()
     {
-        if (string.IsNullOrEmpty(_accessToken)) { LastError = "Not connected to StingBIM server."; return false; }
+        if (string.IsNullOrEmpty(_accessToken)) { LastError = "Not connected to Planscape server."; return false; }
         // Refresh if token expires within 10 minutes
         if (_tokenExpiry <= DateTime.UtcNow.AddMinutes(10))
             return await RefreshTokenAsync();
@@ -124,7 +124,7 @@ public sealed class StingBIMServerClient : IDisposable
         _tokenExpiry  = DateTime.MinValue;
         ConnectedUser = "";
         _http?.DefaultRequestHeaders.Authorization = null;
-        StingLog.Info("StingBIM: Disconnected.");
+        StingLog.Info("Planscape: Disconnected.");
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -230,7 +230,7 @@ public sealed class StingBIMServerClient : IDisposable
                 RagStatus         = json["ragStatus"]?.Value<string>()      ?? "AMBER"
             };
         }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Error("StingBIM: FullSync failed", ex); return new FullSyncResult { Success = false, Error = ex.Message }; }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Error("Planscape: FullSync failed", ex); return new FullSyncResult { Success = false, Error = ex.Message }; }
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -266,7 +266,7 @@ public sealed class StingBIMServerClient : IDisposable
                 RagStatus         = json["ragStatus"]?.Value<string>()      ?? "AMBER"
             };
         }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Error("StingBIM: Sync failed", ex); return new SyncResult { Success = false, Error = ex.Message }; }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Error("Planscape: Sync failed", ex); return new SyncResult { Success = false, Error = ex.Message }; }
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -363,7 +363,7 @@ public sealed class StingBIMServerClient : IDisposable
 
             File.WriteAllText(configPath, settings.ToString(Formatting.Indented));
         }
-        catch (Exception ex) { StingLog.Warn($"StingBIM: Could not save connection settings: {ex.Message}"); }
+        catch (Exception ex) { StingLog.Warn($"Planscape: Could not save connection settings: {ex.Message}"); }
     }
 
     /// <summary>Load saved connection settings (server URL, email, and linked project ID).</summary>

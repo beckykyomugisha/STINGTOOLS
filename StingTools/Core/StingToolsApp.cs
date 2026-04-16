@@ -92,8 +92,8 @@ namespace StingTools.Core
                 // drains the offline queue; safe no-op if not configured.
                 try
                 {
-                    var serverUrl = StingBIMServerClient.Instance?.ServerUrl;
-                    var authToken = StingBIMServerClient.Instance?.AuthToken;
+                    var serverUrl = PlanscapeServerClient.Instance?.ServerUrl;
+                    var authToken = PlanscapeServerClient.Instance?.AuthToken;
                     if (!string.IsNullOrEmpty(serverUrl) && !string.IsNullOrEmpty(authToken))
                     {
                         SyncScheduler.Start(serverUrl, authToken);
@@ -573,7 +573,7 @@ namespace StingTools.Core
                 // OfflineQueue.Shared is null and we log+skip.
                 try
                 {
-                    var client = StingBIMServerClient.Instance;
+                    var client = PlanscapeServerClient.Instance;
                     var payload = new Planscape.Shared.Models.PluginSyncPayload
                     {
                         ProjectId     = Guid.Empty, // server resolves via auth/tenant scope

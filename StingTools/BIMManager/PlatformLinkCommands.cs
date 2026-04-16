@@ -1869,23 +1869,23 @@ namespace StingTools.BIMManager
             }
         }
 
-        // ── StingBIM Server Sync ──────────────────────────────────────────────
+        // ── Planscape Server Sync ──────────────────────────────────────────────
         /// <summary>
-        /// Push all tagged elements in the document to the connected StingBIM server.
-        /// Called when the "Sync Now" button is pressed on the StingBIM platform panel.
-        /// Requires prior authentication via StingBIMConnectCommand.
+        /// Push all tagged elements in the document to the connected Planscape server.
+        /// Called when the "Sync Now" button is pressed on the Planscape platform panel.
+        /// Requires prior authentication via PlanscapeConnectCommand.
         /// </summary>
-        internal static void SyncToStingBIMServer(UIApplication app)
+        internal static void SyncToPlanscapeServer(UIApplication app)
         {
-            var client = StingBIMServerClient.Instance;
+            var client = PlanscapeServerClient.Instance;
             if (!client.IsConnected)
             {
-                TaskDialog.Show("StingBIM", "Not connected to StingBIM server.\n\nUse the PLATFORM tab → StingBIM → Connect to authenticate first.");
+                TaskDialog.Show("Planscape", "Not connected to Planscape server.\n\nUse the PLATFORM tab → Planscape → Connect to authenticate first.");
                 return;
             }
 
             var doc = app.ActiveUIDocument?.Document;
-            if (doc == null) { TaskDialog.Show("StingBIM", "No document open."); return; }
+            if (doc == null) { TaskDialog.Show("Planscape", "No document open."); return; }
 
             // Collect all elements that have a Tag1 parameter
             var elements = new List<TagElementPayload>();
@@ -1928,18 +1928,18 @@ namespace StingTools.BIMManager
 
             if (elements.Count == 0)
             {
-                TaskDialog.Show("StingBIM", "No tagged elements found.\n\nRun Tag → Auto Tag or Batch Tag first to populate ASS_TAG_1 parameters.");
+                TaskDialog.Show("Planscape", "No tagged elements found.\n\nRun Tag → Auto Tag or Batch Tag first to populate ASS_TAG_1 parameters.");
                 return;
             }
 
             // Load project ID from connection config
             string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
-            string cfgPath = Path.Combine(bimDir, "stingbim_connection.json");
-            Guid projectId = LoadStingBIMProjectId(cfgPath);
+            string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
+            Guid projectId = LoadPlanscapeProjectId(cfgPath);
 
             if (projectId == Guid.Empty)
             {
-                TaskDialog.Show("StingBIM", "No StingBIM project linked.\n\nIn the StingBIM connection settings, select or create a project on the server first.");
+                TaskDialog.Show("Planscape", "No Planscape project linked.\n\nIn the Planscape connection settings, select or create a project on the server first.");
                 return;
             }
 
@@ -1947,7 +1947,7 @@ namespace StingTools.BIMManager
             string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
 
             // S03e: Redirected to Planscape.PluginSync.SyncScheduler — central queue +
-            // retry + offline persistence live in the scheduler, no longer in StingBIM.
+            // retry + offline persistence live in the scheduler, no longer in Planscape.
             // Convert the collected element payloads to the shared TagElementSync shape
             // and hand off via SyncScheduler.SyncNow (which queues + drains in one go).
             var tagSync = new List<Planscape.Shared.Models.TagElementSync>(elements.Count);
@@ -1996,13 +1996,13 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("StingBIM Sync Error", $"Sync failed: {ex.Message}");
+                TaskDialog.Show("Planscape Sync Error", $"Sync failed: {ex.Message}");
                 return;
             }
 
             if (!sResult.Success)
             {
-                TaskDialog.Show("StingBIM Sync Failed",
+                TaskDialog.Show("Planscape Sync Failed",
                     $"The scheduler could not reach the server:\n\n{sResult.ErrorMessage}\n\n" +
                     $"Payload was queued for automatic retry on the next 5-min sync tick.");
                 return;
@@ -2019,10 +2019,10 @@ namespace StingTools.BIMManager
                 cfg["lastSyncElements"] = tagSync.Count;
                 File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
             }
-            catch (Exception ex) { StingLog.Warn($"StingBIM sync timestamp update: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"Planscape sync timestamp update: {ex.Message}"); }
 
-            TaskDialog.Show("StingBIM Sync — Complete",
-                $"Sync to StingBIM server complete!\n\n" +
+            TaskDialog.Show("Planscape Sync — Complete",
+                $"Sync to Planscape server complete!\n\n" +
                 $"Elements sent:    {tagSync.Count:N0}\n" +
                 $"Drained payloads: {sResult.TagsCreated:N0}\n\n" +
                 $"Server: {client.ServerUrl}\n" +
@@ -2030,7 +2030,7 @@ namespace StingTools.BIMManager
                 $"Compliance metrics will arrive on the ComplianceHub.");
         }
 
-        private static Guid LoadStingBIMProjectId(string cfgPath)
+        private static Guid LoadPlanscapeProjectId(string cfgPath)
         {
             try
             {
@@ -2171,45 +2171,45 @@ namespace StingTools.BIMManager
     #endregion
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //  StingBIM Server — Connect / Authenticate
+    //  Planscape Server — Connect / Authenticate
     // ═══════════════════════════════════════════════════════════════════════════
 
-    #region ── StingBIM Connect ──
+    #region ── Planscape Connect ──
 
     /// <summary>
-    /// Authenticates the current user with the StingBIM server.
+    /// Authenticates the current user with the Planscape server.
     /// The server URL, email, and project ID are passed via SetExtraParam before raising this command.
     /// Password is never written to disk — only held in memory for the Revit session.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class StingBIMConnectCommand : IExternalCommand
+    public class PlanscapeConnectCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
             try
             {
-                string serverUrl = StingCommandHandler.GetExtraParam("StingBIMServerUrl") ?? "";
-                string email     = StingCommandHandler.GetExtraParam("StingBIMEmail")     ?? "";
-                string password  = StingCommandHandler.GetExtraParam("StingBIMPassword")  ?? "";
-                string projectId = StingCommandHandler.GetExtraParam("StingBIMProjectId") ?? "";
+                string serverUrl = StingCommandHandler.GetExtraParam("PlanscapeServerUrl") ?? "";
+                string email     = StingCommandHandler.GetExtraParam("PlanscapeEmail")     ?? "";
+                string password  = StingCommandHandler.GetExtraParam("PlanscapePassword")  ?? "";
+                string projectId = StingCommandHandler.GetExtraParam("PlanscapeProjectId") ?? "";
 
                 if (string.IsNullOrWhiteSpace(serverUrl) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
                 {
-                    TaskDialog.Show("StingBIM Connect", "Please enter the server URL, email, and password.");
+                    TaskDialog.Show("Planscape Connect", "Please enter the server URL, email, and password.");
                     return Result.Cancelled;
                 }
 
                 // Blocking async call — safe in ExternalEvent context
-                bool ok = StingBIMServerClient.Instance
+                bool ok = PlanscapeServerClient.Instance
                     .LoginAsync(serverUrl.Trim(), email.Trim(), password)
                     .GetAwaiter().GetResult();
 
                 if (!ok)
                 {
-                    TaskDialog.Show("StingBIM Connect — Failed",
-                        $"Authentication failed.\n\n{StingBIMServerClient.Instance.LastError ?? "Unknown error"}\n\n" +
+                    TaskDialog.Show("Planscape Connect — Failed",
+                        $"Authentication failed.\n\n{PlanscapeServerClient.Instance.LastError ?? "Unknown error"}\n\n" +
                         $"Please check:\n  • Server URL is reachable\n  • Email and password are correct\n  • Network connection is available");
                     return Result.Failed;
                 }
@@ -2219,8 +2219,8 @@ namespace StingTools.BIMManager
                 if (doc != null)
                 {
                     string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
-                    string cfgPath = Path.Combine(bimDir, "stingbim_connection.json");
-                    StingBIMServerClient.Instance.SaveConnectionSettings(cfgPath, email.Trim());
+                    string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
+                    PlanscapeServerClient.Instance.SaveConnectionSettings(cfgPath, email.Trim());
 
                     // Save the project ID if provided
                     if (!string.IsNullOrWhiteSpace(projectId))
@@ -2237,22 +2237,22 @@ namespace StingTools.BIMManager
                     }
                 }
 
-                var client = StingBIMServerClient.Instance;
-                TaskDialog.Show("StingBIM — Connected",
-                    $"✅ Successfully connected to StingBIM!\n\n" +
+                var client = PlanscapeServerClient.Instance;
+                TaskDialog.Show("Planscape — Connected",
+                    $"✅ Successfully connected to Planscape!\n\n" +
                     $"Server:  {client.ServerUrl}\n" +
                     $"User:    {client.ConnectedUser}\n" +
                     $"Tier:    {client.TierName}\n" +
                     $"MIM:     {(client.MimEnabled ? "Enabled" : "Not enabled")}\n\n" +
                     "You can now use 'Sync Now' to push tagged elements to the server.");
 
-                StingLog.Info($"StingBIM: Connected — {client.ConnectedUser} @ {client.ServerUrl}");
+                StingLog.Info($"Planscape: Connected — {client.ConnectedUser} @ {client.ServerUrl}");
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                StingLog.Error("StingBIMConnectCommand failed", ex);
-                TaskDialog.Show("StingBIM Connect Error", $"Connection error: {ex.Message}");
+                StingLog.Error("PlanscapeConnectCommand failed", ex);
+                TaskDialog.Show("Planscape Connect Error", $"Connection error: {ex.Message}");
                 return Result.Failed;
             }
         }

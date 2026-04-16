@@ -22,7 +22,7 @@ public class SyncClient : IDisposable
 
     /// <summary>
     /// S03: Inject a bearer token that was obtained elsewhere (e.g. by the
-    /// StingBIMServerClient in the Revit plugin). Avoids a second login
+    /// PlanscapeServerClient in the Revit plugin). Avoids a second login
     /// round-trip when the plugin already has a valid session.
     /// </summary>
     public void SetAuthToken(string token, DateTime? expiresAt = null)

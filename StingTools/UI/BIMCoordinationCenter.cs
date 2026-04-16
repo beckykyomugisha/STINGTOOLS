@@ -132,7 +132,7 @@ namespace StingTools.UI
         private ContentControl _warningsDetailArea;      // Warnings full inline panel
         private ContentControl _coordLogDetailArea;      // Coord log filter + detail
         private ContentControl _permissionsDetailArea;   // Permissions inline
-        private ContentControl _stingBIMDetailArea;      // StingBIM hub detail
+        private ContentControl _planscapeDetailArea;      // Planscape hub detail
 #pragma warning restore CS0169
 
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
@@ -3033,7 +3033,7 @@ namespace StingTools.UI
             // Platform definitions: name, connected (placeholder)
             var platforms = new[]
             {
-                ("StingBIM ★", false),
+                ("Planscape ★", false),
                 ("ACC", false), ("SharePoint", false), ("Procore", false), ("Aconex", false),
                 ("Trimble Connect", false), ("Bentley iTwin", false), ("Viewpoint 4P", false), ("BCF Server", false)
             };
@@ -3117,10 +3117,10 @@ namespace StingTools.UI
             var navyBrush = Br(CHeaderBg);
             var detailStack = new StackPanel { Margin = new Thickness(8) };
 
-            // ── StingBIM: native collaboration hub ──
-            if (platformName.StartsWith("StingBIM"))
+            // ── Planscape: native collaboration hub ──
+            if (platformName.StartsWith("Planscape"))
             {
-                detailStack.Children.Add(new TextBlock { Text = "StingBIM — Native Collaboration Hub", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 6) });
+                detailStack.Children.Add(new TextBlock { Text = "Planscape — Native Collaboration Hub", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 6) });
                 detailStack.Children.Add(new TextBlock { Text = "Share coordination data, model health, issues and meeting records with your team — no external platform required.", FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0x44, 0x44, 0x44)), Margin = new Thickness(0, 0, 0, 10) });
 
                 // Quick-share buttons
@@ -3128,12 +3128,12 @@ namespace StingTools.UI
                 var shareRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
                 var btns = new (string Label, string Action, Color Clr, string Tip)[]
                 {
-                    ("📋 Copy Dashboard Link", "StingBIMCopyLink", Color.FromRgb(0x45, 0x50, 0x6E), "Copy shareable HTML dashboard link to clipboard"),
-                    ("📧 Email Report",        "StingBIMEmail",    Color.FromRgb(0x15, 0x65, 0xC0), "Generate email with project status summary (Excel attachment)"),
-                    ("💬 Teams Message",       "StingBIMTeams",    Color.FromRgb(0x46, 0x4E, 0xB8), "Generate Teams/Slack message with coordination status cards"),
-                    ("📱 WhatsApp Update",     "StingBIMWhatsApp", CGreen,                           "Generate WhatsApp-ready text with project summary link"),
-                    ("🔗 Generate QR Link",    "StingBIMQR",       CHeaderBg,                        "Generate QR code linking to the latest exported HTML dashboard"),
-                    ("📊 Export HTML Dashboard","StingBIMHTML",    Color.FromRgb(0x6A, 0x1B, 0x9A), "Export full coordination dashboard as standalone HTML file (shareable, no login needed)"),
+                    ("📋 Copy Dashboard Link", "PlanscapeCopyLink", Color.FromRgb(0x45, 0x50, 0x6E), "Copy shareable HTML dashboard link to clipboard"),
+                    ("📧 Email Report",        "PlanscapeEmail",    Color.FromRgb(0x15, 0x65, 0xC0), "Generate email with project status summary (Excel attachment)"),
+                    ("💬 Teams Message",       "PlanscapeTeams",    Color.FromRgb(0x46, 0x4E, 0xB8), "Generate Teams/Slack message with coordination status cards"),
+                    ("📱 WhatsApp Update",     "PlanscapeWhatsApp", CGreen,                           "Generate WhatsApp-ready text with project summary link"),
+                    ("🔗 Generate QR Link",    "PlanscapeQR",       CHeaderBg,                        "Generate QR code linking to the latest exported HTML dashboard"),
+                    ("📊 Export HTML Dashboard","PlanscapeHTML",    Color.FromRgb(0x6A, 0x1B, 0x9A), "Export full coordination dashboard as standalone HTML file (shareable, no login needed)"),
                 };
                 foreach (var (lbl, act, clr, tip) in btns)
                 {
@@ -3155,11 +3155,11 @@ namespace StingTools.UI
                 detailStack.Children.Add(accessGrid);
 
                 // ── Server Connection ────────────────────────────────────────
-                bool sbConnected = BIMManager.StingBIMServerClient.Instance.IsConnected;
+                bool sbConnected = BIMManager.PlanscapeServerClient.Instance.IsConnected;
                 var connStatus = new TextBlock
                 {
                     Text = sbConnected
-                        ? $"🟢 Connected — {BIMManager.StingBIMServerClient.Instance.ConnectedUser}  |  {BIMManager.StingBIMServerClient.Instance.TierName}"
+                        ? $"🟢 Connected — {BIMManager.PlanscapeServerClient.Instance.ConnectedUser}  |  {BIMManager.PlanscapeServerClient.Instance.TierName}"
                         : "🔴 Not connected",
                     FontSize = 11, FontWeight = FontWeights.SemiBold,
                     Foreground = sbConnected ? Br(CGreen) : Br(CRed),
@@ -3170,7 +3170,7 @@ namespace StingTools.UI
                 detailStack.Children.Add(new TextBlock { Text = "SERVER CONNECTION", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4) });
 
                 // Pre-load saved connection settings so the fields are populated on open
-                string _savedUrl = BIMManager.StingBIMServerClient.Instance.ServerUrl;
+                string _savedUrl = BIMManager.PlanscapeServerClient.Instance.ServerUrl;
                 string _savedEmail = "";
                 if (!sbConnected && !string.IsNullOrEmpty(_data.FilePath))
                 {
@@ -3179,8 +3179,8 @@ namespace StingTools.UI
                         string _cfgDir = System.IO.Path.Combine(
                             System.IO.Path.GetDirectoryName(_data.FilePath) ?? "",
                             "STING_BIM_MANAGER");
-                        string _cfgPath = System.IO.Path.Combine(_cfgDir, "stingbim_connection.json");
-                        var (_url, _email, _pid) = BIMManager.StingBIMServerClient.LoadConnectionSettings(_cfgPath);
+                        string _cfgPath = System.IO.Path.Combine(_cfgDir, "planscape_connection.json");
+                        var (_url, _email, _pid) = BIMManager.PlanscapeServerClient.LoadConnectionSettings(_cfgPath);
                         if (!string.IsNullOrEmpty(_url))   _savedUrl   = _url;
                         if (!string.IsNullOrEmpty(_email)) _savedEmail = _email;
                     }
@@ -3188,7 +3188,7 @@ namespace StingTools.UI
                 }
                 else if (sbConnected)
                 {
-                    _savedEmail = BIMManager.StingBIMServerClient.Instance.ConnectedUser;
+                    _savedEmail = BIMManager.PlanscapeServerClient.Instance.ConnectedUser;
                 }
 
                 var sbUrlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
@@ -3196,15 +3196,15 @@ namespace StingTools.UI
                 var sbUrlBox = new System.Windows.Controls.TextBox
                 {
                     Width = 270, FontSize = 11, Margin = new Thickness(4, 0, 0, 0),
-                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "https://stingbim-api.onrender.com",
-                    ToolTip = "StingBIM API server URL (your Render.com deployment)"
+                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "https://planscape-api.onrender.com",
+                    ToolTip = "Planscape API server URL (your Render.com deployment)"
                 };
                 sbUrlRow.Children.Add(sbUrlBox);
                 detailStack.Children.Add(sbUrlRow);
 
                 var sbEmailRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
                 sbEmailRow.Children.Add(new TextBlock { Text = "Email:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
-                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), Text = _savedEmail, ToolTip = "Your StingBIM account email" };
+                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), Text = _savedEmail, ToolTip = "Your Planscape account email" };
                 sbEmailRow.Children.Add(sbEmailBox);
                 detailStack.Children.Add(sbEmailRow);
 
@@ -3219,21 +3219,21 @@ namespace StingTools.UI
                 var sbDiscoBtn = new Button { Content = "Disconnect", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(CRed),          Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0), IsEnabled = sbConnected };
                 sbConnBtn.Click += (s, e) =>
                 {
-                    StingCommandHandler.SetExtraParam("StingBIMServerUrl", sbUrlBox.Text.Trim());
-                    StingCommandHandler.SetExtraParam("StingBIMEmail", sbEmailBox.Text.Trim());
-                    StingCommandHandler.SetExtraParam("StingBIMPassword", sbPassBox.Password);
-                    DispatchAction("StingBIMConnect");
+                    StingCommandHandler.SetExtraParam("PlanscapeServerUrl", sbUrlBox.Text.Trim());
+                    StingCommandHandler.SetExtraParam("PlanscapeEmail", sbEmailBox.Text.Trim());
+                    StingCommandHandler.SetExtraParam("PlanscapePassword", sbPassBox.Password);
+                    DispatchAction("PlanscapeConnect");
                     // Refresh the panel after connect completes (Revit external event is async)
                     var refreshTimer = new System.Windows.Threading.DispatcherTimer
                         { Interval = TimeSpan.FromSeconds(2) };
-                    refreshTimer.Tick += (ts, te) => { refreshTimer.Stop(); ShowPlatformDetail("StingBIM"); };
+                    refreshTimer.Tick += (ts, te) => { refreshTimer.Stop(); ShowPlatformDetail("Planscape"); };
                     refreshTimer.Start();
                 };
                 sbDiscoBtn.Click += (s, e) =>
                 {
-                    DispatchAction("StingBIMDisconnect");
+                    DispatchAction("PlanscapeDisconnect");
                     // Disconnect is synchronous — refresh immediately on next idle cycle
-                    Dispatcher.BeginInvoke(new Action(() => ShowPlatformDetail("StingBIM")),
+                    Dispatcher.BeginInvoke(new Action(() => ShowPlatformDetail("Planscape")),
                         System.Windows.Threading.DispatcherPriority.Background);
                 };
                 sbConnBtnRow.Children.Add(sbConnBtn); sbConnBtnRow.Children.Add(sbDiscoBtn);
@@ -3241,12 +3241,12 @@ namespace StingTools.UI
 
                 // ── Sync settings ────────────────────────────────────────────
                 detailStack.Children.Add(new TextBlock { Text = "SYNC OPTIONS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 4, 0, 4) });
-                var syncOptsStingBIM = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+                var syncOptsPlanscape = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
                 foreach (var opt in new[] { "Auto-sync on model save", "Include model snapshots", "Notify on new issues", "Send weekly digest" })
-                    syncOptsStingBIM.Children.Add(new CheckBox { Content = opt, Margin = new Thickness(0, 0, 14, 4), FontSize = 11 });
-                detailStack.Children.Add(syncOptsStingBIM);
+                    syncOptsPlanscape.Children.Add(new CheckBox { Content = opt, Margin = new Thickness(0, 0, 14, 4), FontSize = 11 });
+                detailStack.Children.Add(syncOptsPlanscape);
 
-                var stingBIMBtnRow = new StackPanel { Orientation = Orientation.Horizontal };
+                var planscapeBtnRow = new StackPanel { Orientation = Orientation.Horizontal };
                 var syncNowBtnS = new Button
                 {
                     Content = "⬆ Sync Elements to Server", Height = 28, Padding = new Thickness(12, 0, 12, 0),
@@ -3254,14 +3254,14 @@ namespace StingTools.UI
                     FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0),
                     IsEnabled = sbConnected,
                     ToolTip = sbConnected
-                        ? "Push all tagged elements (ASS_TAG_1 parameters) to the StingBIM server"
-                        : "Connect to the StingBIM server first"
+                        ? "Push all tagged elements (ASS_TAG_1 parameters) to the Planscape server"
+                        : "Connect to the Planscape server first"
                 };
                 var viewDashBtn = new Button { Content = "📊 HTML Dashboard", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0), ToolTip = "Export standalone HTML dashboard (no login required — share with anyone)" };
-                syncNowBtnS.Click += (s, e) => DispatchAction("StingBIMSyncNow");
-                viewDashBtn.Click += (s, e) => DispatchAction("StingBIMHTML");
-                stingBIMBtnRow.Children.Add(syncNowBtnS); stingBIMBtnRow.Children.Add(viewDashBtn);
-                detailStack.Children.Add(stingBIMBtnRow);
+                syncNowBtnS.Click += (s, e) => DispatchAction("PlanscapeSyncNow");
+                viewDashBtn.Click += (s, e) => DispatchAction("PlanscapeHTML");
+                planscapeBtnRow.Children.Add(syncNowBtnS); planscapeBtnRow.Children.Add(viewDashBtn);
+                detailStack.Children.Add(planscapeBtnRow);
 
                 var detailBorderS = new Border { Background = Br(CCardBg), BorderBrush = Br(CBorder), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(16), Child = detailStack };
                 _platformDetailArea.Content = detailBorderS;
@@ -5674,7 +5674,7 @@ namespace StingTools.UI
         }
 
         // Phase 78 Section 3.1: Scrollable, searchable assignee checkbox grid
-        // Used in RaiseIssue, AssignIssues, UpdateIssue context panels and StingBIM Sharing tab.
+        // Used in RaiseIssue, AssignIssues, UpdateIssue context panels and Planscape Sharing tab.
         private UIElement BuildAssigneeCheckboxGrid(out Func<List<string>> getSelected)
         {
             var outer = new StackPanel();
