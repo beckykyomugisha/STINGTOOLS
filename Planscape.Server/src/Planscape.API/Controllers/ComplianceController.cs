@@ -77,7 +77,7 @@ public class ComplianceController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
-        return Ok(new { id = snapshot.Id, capturedAt = snapshot.CapturedAt });
+        return CreatedAtAction(nameof(GetLatest), new { projectId }, new { id = snapshot.Id, capturedAt = snapshot.CapturedAt });
     }
 
     /// <summary>

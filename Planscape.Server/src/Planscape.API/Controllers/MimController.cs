@@ -105,7 +105,7 @@ public class MimController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
-        return Ok(new { created, skipped = assets.Count - created });
+        return CreatedAtAction(nameof(GetAssets), new { projectId }, new { created, skipped = assets.Count - created });
     }
 
     [HttpGet("assets/{assetId}")]
@@ -171,7 +171,7 @@ public class MimController : ControllerBase
 
         _db.MaintenanceTasks.Add(task);
         await _db.SaveChangesAsync();
-        return Ok(task);
+        return CreatedAtAction(nameof(GetMaintenanceTasks), new { projectId }, task);
     }
 
     // ── Analytics ──

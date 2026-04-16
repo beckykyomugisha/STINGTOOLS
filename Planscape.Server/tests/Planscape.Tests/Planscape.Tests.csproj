@@ -25,6 +25,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Planscape.Core\Planscape.Core.csproj" />
     <ProjectReference Include="..\..\src\Planscape.Shared\Planscape.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Planscape.Infrastructure\Planscape.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Planscape.API\Planscape.API.csproj" />
   </ItemGroup>
 
 </Project>
