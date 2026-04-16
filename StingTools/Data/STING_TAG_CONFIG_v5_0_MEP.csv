@@ -1204,7 +1204,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 ★ TIER 2 — TECHNICAL (gated by TAG_PARA_STATE_2_BOOL)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Calculated Value Formula
 1,T2,ASS_TAG_2_TXT,,,0,✓,---,---,---,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-2,T2,SLV_SZ_MM,Ø,mm,0,✓,Common,Number,Sleeve Size,"if(TAG_PARA_STATE_2_BOOL, SLV_SZ_MM, """")"
+2,T2,SLV_SZ_MM,Ø,mm,0,✓,Common,Text,Sleeve Size,"if(TAG_PARA_STATE_2_BOOL, SLV_SZ_MM, """")"
 3,T2,SLV_FIRE_RATING_TXT,,, 0,✓,Common,Text,Fire Rating,"if(TAG_PARA_STATE_2_BOOL, SLV_FIRE_RATING_TXT, """")"
 4,T2,SLV_SERVICE_TXT,Service:,,0,✓,Common,Text,Service Through,"if(TAG_PARA_STATE_2_BOOL, SLV_SERVICE_TXT, """")"
 5,T2,SLV_STATUS_TXT,,,0,✓,Common,Text,Sleeve Status,"if(TAG_PARA_STATE_2_BOOL, SLV_STATUS_TXT, """")"

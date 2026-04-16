@@ -21,6 +21,7 @@ GROUP	15	RGL_CMPL
 GROUP	16	BLE_STRUCTURE
 GROUP	17	STINGTags_ISO19650
 GROUP	18	WARN_THRESHOLDS
+GROUP	19	SLV_SLEEVE_PARAMS
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1
@@ -1477,13 +1478,13 @@ PARAM	0e535d1a-d2eb-5b15-b954-360ad46e1a57	TAG_7_SECTION_VISIBLE_C_BOOL	YESNO		1
 PARAM	74f5360e-4107-539f-af72-38389e7b64bd	TAG_7_SECTION_VISIBLE_D_BOOL	YESNO		17	1	TAG7 Section D (Lifecycle) visibility flag	1
 PARAM	fdb2ccfa-6128-545c-8b6c-6a656d418948	TAG_7_SECTION_VISIBLE_E_BOOL	YESNO		17	1	TAG7 Section E (Technical) visibility flag	1
 PARAM	329929ad-5f26-5d15-98b2-54604ecda858	TAG_7_SECTION_VISIBLE_F_BOOL	YESNO		17	1	TAG7 Section F (Classification) visibility flag	1
-PARAM	3ac69694-7584-5ba2-9bce-4d045ca21088	TAG_PARA_STATE_4_BOOL	YESNO		17	1	Paragraph depth state tier 4	1
-PARAM	c9045501-eee6-54ce-b725-3ea589ee8025	TAG_PARA_STATE_5_BOOL	YESNO		17	1	Paragraph depth state tier 5	1
-PARAM	9b913556-ac00-5a04-b53c-1e262498ad1d	TAG_PARA_STATE_6_BOOL	YESNO		17	1	Paragraph depth state tier 6	1
-PARAM	8eb03b28-aaf9-5803-8e87-f0655afbf08d	TAG_PARA_STATE_7_BOOL	YESNO		17	1	Paragraph depth state tier 7	1
-PARAM	dd2f491c-8806-5cd2-bb21-d3b915646070	TAG_PARA_STATE_8_BOOL	YESNO		17	1	Paragraph depth state tier 8	1
-PARAM	482475c4-be76-5db3-87a6-8aac4a53dc74	TAG_PARA_STATE_9_BOOL	YESNO		17	1	Paragraph depth state tier 9	1
-PARAM	8be3ef27-42ab-5668-8cd0-a376578c805a	TAG_PARA_STATE_10_BOOL	YESNO		17	1	Paragraph depth state tier 10	1
+PARAM	3ac69694-7584-5ba2-9bce-4d045ca21088	TAG_PARA_STATE_4_BOOL	YESNO		17	1	Paragraph depth state tier 4 [ISO 19650-3:2020]	1
+PARAM	c9045501-eee6-54ce-b725-3ea589ee8025	TAG_PARA_STATE_5_BOOL	YESNO		17	1	Paragraph depth state tier 5 [ISO 19650-3:2020]	1
+PARAM	9b913556-ac00-5a04-b53c-1e262498ad1d	TAG_PARA_STATE_6_BOOL	YESNO		17	1	Paragraph depth state tier 6 [ISO 19650-3:2020]	1
+PARAM	8eb03b28-aaf9-5803-8e87-f0655afbf08d	TAG_PARA_STATE_7_BOOL	YESNO		17	1	Paragraph depth state tier 7 [ISO 19650-3:2020]	1
+PARAM	dd2f491c-8806-5cd2-bb21-d3b915646070	TAG_PARA_STATE_8_BOOL	YESNO		17	1	Paragraph depth state tier 8 [ISO 19650-3:2020]	1
+PARAM	482475c4-be76-5db3-87a6-8aac4a53dc74	TAG_PARA_STATE_9_BOOL	YESNO		17	1	Paragraph depth state tier 9 [ISO 19650-3:2020]	1
+PARAM	8be3ef27-42ab-5668-8cd0-a376578c805a	TAG_PARA_STATE_10_BOOL	YESNO		17	1	Paragraph depth state tier 10 [ISO 19650-3:2020]	1
 PARAM	a1b2c3d4-5001-4a01-b001-000000000101	ASS_MATERIAL_TXT	TEXT		1	1	Asset material description [COBie V2.4]	1
 PARAM	a1b2c3d4-5002-4a01-b001-000000000102	ASS_SUPPLIER_TXT	TEXT		1	1	Asset supplier name [COBie V2.4]	1
 PARAM	a1b2c3d4-5003-4a01-b001-000000000103	ASS_BARCODE_TXT	TEXT		1	1	Asset barcode identifier [COBie V2.4]	1
@@ -2083,6 +2084,9 @@ PARAM	c7339c1f-be98-56a4-abc0-cbde47bd9108	WARN_SITE_ROAD_GRADIENT	TEXT		17	1	Ta
 PARAM	331a765d-3070-5be5-a98b-3c2bda024c95	WARN_SITE_ROAD_SPEC_MISSING	TEXT		17	1	Tag warning: site road spec missing	1
 PARAM	a30afb6b-986b-569a-84a3-995b47b9579c	WARN_SITE_TOPOSOLID_LINK_MISSING	TEXT		17	1	Tag warning: site toposolid link missing	1
 PARAM	c1b44d33-620d-58ea-84cd-26d51a53bee9	WARN_SITE_TOPOSOLID_MATERIAL_MISSING	TEXT		17	1	Tag warning: site toposolid material missing	1
+PARAM	6efed066-5053-591b-95c5-d27ce25ffa11	WARN_SLV_NO_FIRE_RATING	TEXT		17	1	Tag warning: sleeve missing fire rating	1
+PARAM	bd8e24b9-0cf7-5b1e-8680-5e8d13e4aa56	WARN_SLV_NO_REF	TEXT		17	1	Tag warning: sleeve missing reference	1
+PARAM	dc546eb8-fe7b-534d-97bd-f2958ad7c3ce	WARN_SLV_NO_SEAL	TEXT		17	1	Tag warning: sleeve missing seal	1
 PARAM	78214125-72ad-565d-b4c8-31df3e88ad0f	WARN_STR_ANLYT_LINK_RIGIDITY	TEXT		17	1	Tag warning: str anlyt link rigidity	1
 PARAM	fd39e003-f6b2-5cd7-a688-26483aef5637	WARN_STR_ANLYT_NODE_UNCONNECTED	TEXT		17	1	Tag warning: str anlyt node unconnected	1
 PARAM	b16714c0-9af1-5a37-aa85-2558117d359d	WARN_STR_ANLYT_NO_HOST	TEXT		17	1	Tag warning: str anlyt no host	1
@@ -2380,18 +2384,52 @@ PARAM	bb241f6b-869c-5a5c-81d1-517e05f59f6a	WARN_SHT_NAMING_ARCH	TEXT		15	1	Warni
 PARAM	ce2a3aba-950d-5a00-b0bd-3691ae912df7	WARN_SHT_NAMING_STR	TEXT		15	1	Warning: structural sheet naming non-compliant [ISO 19650]	0
 PARAM	9d229c53-3e50-580f-8fb2-e9f953255be7	WARN_SHT_REV_MISSING	TEXT		15	1	Warning: sheet revision information missing [ISO 19650]	0
 PARAM	99dfa464-1361-5041-bcfc-f042aa64dd74	WARN_SHT_TAG1_EMPTY	TEXT		15	1	Warning: sheet primary tag (TAG1) is empty [ISO 19650]	0
-GROUP	11223344-5566-7788-99AA-BBCCDDEEFF00	SLV_SLEEVE_PARAMS
 PARAM	a32226dd-518c-5158-b3c7-aa3df7ac0b43	SLV_REF_TXT	TEXT		19	1	Sleeve reference code	1
-PARAM	ed2365b1-c559-573e-a9ae-c8554db2572b	SLV_SZ_MM	NUMBER		19	1	Sleeve size in millimetres	1
+PARAM	ed2365b1-c559-573e-a9ae-c8554db2572b	SLV_SZ_MM	TEXT		19	1	Sleeve size in millimetres	1
 PARAM	9b6071cf-8b10-574c-b40e-2dfbfc60b8d9	SLV_MAT_TXT	TEXT		19	1	Sleeve material (steel/PVC/cast iron)	1
 PARAM	ea8a8a2a-597c-56d6-a9fb-08c0fc59f372	SLV_FIRE_RATING_TXT	TEXT		19	1	Sleeve fire rating (e.g. EI60, EI120)	1
 PARAM	6d8aceb4-eea7-53ca-ab61-d1a87824571c	SLV_SEAL_TYPE_TXT	TEXT		19	1	Seal type (intumescent/mechanical/composite)	1
 PARAM	76c2ac35-3b7f-5dea-b60d-bf0179b15b92	SLV_SERVICE_TXT	TEXT		19	1	Service passing through sleeve	1
 PARAM	3d601083-e89c-50c8-9165-004c8610b0ff	SLV_WALL_TYPE_TXT	TEXT		19	1	Host wall or floor type	1
-PARAM	9489a0ec-44b6-5f55-81d5-f26c546faf3f	SLV_WALL_THICKNESS_MM	NUMBER		19	1	Host element thickness in mm	1
-PARAM	61c211b4-cdf2-53b8-84e5-84a7663f0aaf	SLV_ANNULAR_GAP_MM	NUMBER		19	1	Annular gap between service and sleeve in mm	1
+PARAM	9489a0ec-44b6-5f55-81d5-f26c546faf3f	SLV_WALL_THICKNESS_MM	TEXT		19	1	Host element thickness in mm	1
+PARAM	61c211b4-cdf2-53b8-84e5-84a7663f0aaf	SLV_ANNULAR_GAP_MM	TEXT		19	1	Annular gap between service and sleeve in mm	1
 PARAM	9f3cc22a-3076-5166-9f42-e6e52126cbaf	SLV_FIRESTOP_MFR_TXT	TEXT		19	1	Firestop system manufacturer	1
 PARAM	1927f0e9-ce4c-52bb-a27f-a8a9a4cebc1f	SLV_FIRESTOP_PRODUCT_TXT	TEXT		19	1	Firestop product reference	1
 PARAM	0a2943a3-036b-55ae-89ee-01055824fad8	SLV_TESTED_TO_TXT	TEXT		19	1	Fire test standard (BS EN 1366-3, ASTM E814)	1
 PARAM	91403abb-2a37-5571-9435-d68bc6cacec1	SLV_STATUS_TXT	TEXT		19	1	Sleeve status (OPEN/SEALED/PENDING INSPECTION)	1
 PARAM	53b14c0e-eef5-5415-85d1-ebe2aeb53cd7	SLV_INSPECTION_DATE_TXT	TEXT		19	1	Last inspection date	1
+# ── Container tag parameters (parent containers for discipline-specific tags) ────
+PARAM	61d0d77d-c061-5d3b-9f64-5f0f8b279eef	COM_DEV_TAG	TEXT		3	1	Communications device tag container [ISO 19650-2:2018]	1
+PARAM	29253d2b-7320-5139-a738-9e6b44b9fd46	ELC_CDT_TAG	TEXT		4	1	Electrical conduit tag container [ISO 19650-2:2018]	1
+PARAM	983fe026-ff4f-50a6-9486-f08a54b87f70	ELC_CTR_TAG	TEXT		4	1	Electrical cable tray tag container [ISO 19650-2:2018]	1
+PARAM	caaefdb2-cf82-56a1-8167-246ee3982b24	ELC_EQP_TAG	TEXT		4	1	Electrical equipment tag container [ISO 19650-2:2018]	1
+PARAM	874f037a-66e2-58f3-9d66-b137b4b184cf	ELE_FIX_TAG	TEXT		4	1	Electrical fixture tag container [ISO 19650-2:2018]	1
+PARAM	7ec98623-d3f0-583b-9552-b09b12736551	FLS_DEV_TAG	TEXT		8	1	Fire/life safety device tag container [ISO 19650-2:2018]	1
+PARAM	c198faa1-c0c6-5aca-b92c-5e9b021affe7	HVC_DCT_TAG	TEXT		5	1	HVAC duct tag container [ISO 19650-2:2018]	1
+PARAM	8ae538e1-f6cb-5271-a357-c390ac7605eb	HVC_FLX_TAG	TEXT		5	1	HVAC flex duct tag container [ISO 19650-2:2018]	1
+PARAM	63eea465-921a-5218-b38e-c15f5793549f	ICT_DEV_TAG	TEXT		3	1	ICT device tag container [ISO 19650-2:2018]	1
+PARAM	449aa2da-345f-5d91-8f4b-037cc0fd9db3	LTG_FIX_TAG	TEXT		7	1	Lighting fixture tag container [ISO 19650-2:2018]	1
+PARAM	1c1a61fc-29d0-57c8-8e74-e8b9b4502126	NCL_DEV_TAG	TEXT		3	1	Nurse call / low-voltage device tag container [ISO 19650-2:2018]	1
+PARAM	37d954b4-c5a7-50c5-8629-2b2957ad440e	PLM_EQP_TAG	TEXT		6	1	Plumbing equipment tag container [ISO 19650-2:2018]	1
+PARAM	de2cd955-4727-5488-a783-5d9be9942169	SEC_DEV_TAG	TEXT		3	1	Security device tag container [ISO 19650-2:2018]	1
+# ── BLE material/finish text parameters ──────────────────────────────────────
+PARAM	2808be20-c49b-5167-868e-fc894cf8161d	BLE_FINISH_TXT	TEXT		10	1	Building element finish description [ISO 19650-2:2018]	1
+PARAM	6a532cfc-c412-5f81-9b93-5c7e4d0ac31a	BLE_MATERIAL_TXT	TEXT		10	1	Building element material description [ISO 19650-2:2018]	1
+# ── Sleeve paragraph container ───────────────────────────────────────────────
+PARAM	4529fc89-90fb-56f9-955a-2d54998a294c	SLV_TAG_7_PARA_TXT	TEXT		19	1	Sleeve paragraph container [ISO 19650-3:2020]	1
+# ── Validation warning parameters (sheet and sleeve) ────────────────────────
+PARAM	f2f0b231-ac86-59fd-a1f7-5e7dc0c111a1	WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH	TEXT		17	1	Tag warning: per embodied carbon kg CO2/m2 architectural [ISO 19650-3:2020]	1
+PARAM	ae00ba3e-96a9-5dac-bee2-b89817614765	WARN_SHT_DISC_MISMATCH	TEXT		15	1	Warning: sheet discipline mismatch between name and content [ISO 19650]	0
+PARAM	745e3b6f-84a1-537c-af98-6cd0415c0610	WARN_SHT_NO_DISC	TEXT		15	1	Warning: sheet has no discipline code [ISO 19650]	0
+PARAM	8033c0d1-0e55-5f56-9d71-af7f7d849900	WARN_SHT_NO_LEVEL	TEXT		15	1	Warning: sheet has no level reference [ISO 19650]	0
+PARAM	9ffd26e3-dfdf-50d6-b0c1-2e377a82b792	WARN_SHT_NO_ORIGINATOR	TEXT		15	1	Warning: sheet has no originator code [ISO 19650]	0
+PARAM	7f9ff3af-83eb-5ffc-be71-2056c8959aad	WARN_SHT_NO_TAG1	TEXT		15	1	Warning: sheet primary tag (TAG1) missing [ISO 19650]	0
+PARAM	03d934d7-342d-54b9-8a9d-605f11ff2f3e	WARN_SHT_NO_TAG7	TEXT		15	1	Warning: sheet TAG7 narrative missing [ISO 19650]	0
+PARAM	fbbff16e-ad11-554f-a2a3-1ba91250ddfd	WARN_SLV_NO_FIRESTOP	TEXT		17	1	Tag warning: sleeve missing firestop system [ISO 19650-3:2020]	1
+PARAM	3c5e1027-76c0-54f9-a6dd-0f7fcf654ba7	WARN_SLV_NO_INSPECTION	TEXT		17	1	Tag warning: sleeve missing inspection record [ISO 19650-3:2020]	1
+PARAM	3dcb019c-4d45-50d4-976a-f7e434824ccd	WARN_SLV_NO_SERVICE	TEXT		17	1	Tag warning: sleeve missing service identification [ISO 19650-3:2020]	1
+PARAM	5c78cafc-d62b-5d50-99de-19cb2dea49de	WARN_SLV_NO_SIZE	TEXT		17	1	Tag warning: sleeve missing size specification [ISO 19650-3:2020]	1
+PARAM	b8d5f342-0a93-5e2b-c5b1-4f7029e3ad16	ASS_INHERIT_STATUS_TXT	TEXT		1	1	Token inheritance status (PROXIMITY_OK/PROXIMITY_FAIL/TYPE_INHERIT/MANUAL)	1
+PARAM	a7c4e231-9f82-5d1a-b4a0-3e6f18d29c05	ASS_STALE_TOKENS_TXT	TEXT		18	1	Comma-separated list of stale token names for targeted re-derivation	1
+PARAM	c9e60453-1ba4-5f3c-d6c2-508a3af4be27	STING_DATA_HASH	TEXT		1	1	Hash of data directory for workflow skip-if-unchanged detection	1
+PARAM	daf71564-2cb5-504d-e7d3-619b4b05cf38	STING_SETUP_COMPLETE	TEXT		1	1	Timestamp of last MasterSetup completion for idempotency check	1

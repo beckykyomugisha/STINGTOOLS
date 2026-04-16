@@ -504,3 +504,6 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets (ViewSheet)
 1,HIGH,WARN_SHT_DISC_MISSING,SHT_DISC_TXT empty — sheet discipline not derived from viewport contents,ISO 19650-2 Clause 11.2,Common,Text,⚠ Warning: Sheet Discipline Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_DISC_MISSING, """")"
 2,MEDIUM,WARN_SHT_TAG1_EMPTY,SHT_TAG_1_TXT empty — ISO 19650 document code not assembled,ISO 19650-2 / BS 1192,Common,Text,⚠ Warning: Sheet Tag Not Assembled,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_TAG1_EMPTY, """")"
 3,HIGH,WARN_SHT_REV_MISSING,SHT_REV_TXT empty — revision code not set on sheet,ISO 19650-2 Clause 11.3,Common,Text,⚠ Warning: Sheet Revision Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_REV_MISSING, """")"
+
+# CROSS-REFERENCE: Generic Models with PROD=SLV (MEP Sleeves/Penetrations) use the MEP Sleeve Tag defined in STING_TAG_CONFIG_v5_0_MEP.csv
+# Category: Generic Models | FUNC: PEN | Disciplines: M, E, P, FP | Standard: BS EN 1366-3
