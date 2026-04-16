@@ -1090,7 +1090,11 @@ namespace StingTools.Temp
 
             // ── Load NRM2 description templates + TAG7 integration settings ──
             BOQDescriptionEngine.LoadTemplates();
+            // 3-layer paragraph catalogue (built-in + company library + project custom)
+            BOQDescriptionEngine.LoadParagraphTemplates(doc);
+            BOQDescriptionEngine.LoadMaterialLinks(doc);
             int tag7DescCount = 0;
+            int paragraphDescCount = 0;
 
             // ── Build BOQ items ──
             var boqItems = new List<BOQItem>();
@@ -1166,19 +1170,9 @@ namespace StingTools.Temp
                     if (item.TotalCost == 0 && item.UnitPrice > 0)
                         item.TotalCost = item.UnitPrice * item.Quantity;
 
-                    // Generate unit if empty
+                    // Generate unit if empty — SECTION 11 rules, then hardcoded fallback
                     if (string.IsNullOrEmpty(item.Unit))
-                    {
-                        item.Unit = catName switch
-                        {
-                            var c when c.Contains("Pipe") || c.Contains("Duct") ||
-                                       c.Contains("Conduit") || c.Contains("Cable Tray") => "LM",
-                            var c when c.Contains("Floor") || c.Contains("Ceiling") ||
-                                       c.Contains("Wall") || c.Contains("Roof") => "SM",
-                            var c when c.Contains("Concrete") || c.Contains("Foundation") => "CM",
-                            _ => "NO",
-                        };
-                    }
+                        item.Unit = BOQDescriptionEngine.InferUnitForCategory(catName);
 
                     // Use Revit measured qty as the primary quantity for linear/area items
                     if (item.MeasuredLength_m > 0 && (item.Unit == "LM" || item.Unit == "m"))
@@ -1261,6 +1255,13 @@ namespace StingTools.Temp
             coverWs.Range(cr, 2, cr, 6).Merge();
 
             // ═══════════════════════════════════════════════════════════════
+            //  PREAMBLE & MEASUREMENT NOTES
+            //  Stating the rules of measurement up front is required for a
+            //  contractually complete BOQ (NRM2 §1 General, RICS guidance).
+            // ═══════════════════════════════════════════════════════════════
+            WritePreambleSheet(wb, doc, boqItems.Count, billGroups.Count, giaM2);
+
+            // ═══════════════════════════════════════════════════════════════
             //  BILL SHEETS (one worksheet per discipline)
             // ═══════════════════════════════════════════════════════════════
             foreach (var billGroup in billGroups)
@@ -1341,19 +1342,24 @@ namespace StingTools.Temp
                             if (lineTotal == 0 && avgRate > 0)
                                 lineTotal = avgRate * qty;
 
-                            // ── TAG7 + NRM2 intelligent description ──
-                            // Try to get rich description from first element in group
+                            // ── Paragraph / NRM2 / TAG7 intelligent description ──
+                            // Paragraph mode (from BOQ_DESCRIPTIONS.json + material links) is preferred;
+                            // BuildParagraphDescription falls back to BuildDescription internally.
                             string desc = "";
                             try
                             {
                                 Element sampleEl = doc.GetElement(new ElementId(sample.ElementId));
                                 if (sampleEl != null)
                                 {
-                                    desc = BOQDescriptionEngine.BuildDescription(
+                                    desc = BOQDescriptionEngine.BuildParagraphDescription(
                                         doc, sampleEl, sample.Category,
                                         sample.FamilyName, sample.TypeName, sample.Description);
                                     if (!string.IsNullOrEmpty(desc) && desc != $"{sample.FamilyName} - {sample.TypeName}")
+                                    {
                                         tag7DescCount++;
+                                        // Paragraphs end in a full stop; count those as "paragraph-style"
+                                        if (desc.TrimEnd().EndsWith(".")) paragraphDescCount++;
+                                    }
                                 }
                             }
                             catch (Exception ex) { StingLog.Warn($"Build BOQ description for '{sample.FamilyName}': {ex.Message}"); }
@@ -1365,15 +1371,28 @@ namespace StingTools.Temp
                             }
 
                             // ITEM | DESCRIPTION | QTY | UNIT | RATE | AMOUNT
+                            // Paragraph descriptions wrap within the cell; quantities/rates/amounts
+                            // remain in their own right-aligned numeric columns (NRM2 presentation).
                             ws.Cell(row, 1).Value = itemLetter;
                             ws.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                            ws.Cell(row, 1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
                             ws.Cell(row, 2).Value = desc;
+                            ws.Cell(row, 2).Style.Alignment.WrapText = true;
+                            ws.Cell(row, 2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
                             ws.Cell(row, 3).Value = qty;
                             ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0";
+                            ws.Cell(row, 3).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
                             ws.Cell(row, 4).Value = sample.Unit;
                             ws.Cell(row, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                            ws.Cell(row, 4).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
                             if (avgRate > 0) WriteAmount(ws, row, 5, avgRate);
                             if (lineTotal > 0) WriteAmount(ws, row, 6, lineTotal);
+                            ws.Cell(row, 5).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+                            ws.Cell(row, 6).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+                            // Grow row height for long paragraphs (ClosedXML auto-height can be unreliable
+                            // inside merged regions, so set a floor proportional to text length)
+                            int estLines = Math.Max(1, (desc?.Length ?? 0) / 70);
+                            if (estLines > 1) ws.Row(row).Height = Math.Min(90, 15 * estLines);
                             row++;
 
                             subSectionTotal += lineTotal;
@@ -1682,6 +1701,11 @@ namespace StingTools.Temp
                 summary.AppendLine($"\n  {rateDefaultsApplied} elements used rate defaults from BOQ_TEMPLATE.csv");
             if (tag7DescCount > 0)
                 summary.AppendLine($"  {tag7DescCount} line items enriched with TAG7/NRM2 descriptions");
+            if (paragraphDescCount > 0)
+                summary.AppendLine($"  {paragraphDescCount} line items rendered as NRM2 prose paragraphs");
+            if (BOQDescriptionEngine.MaterialLinkCount > 0)
+                summary.AppendLine($"  {BOQDescriptionEngine.MaterialLinkCount} material→BOQ links applied (Material Manager)");
+            summary.AppendLine($"  Paragraph templates loaded: {BOQDescriptionEngine.ParagraphTemplateCount} (BOQ_DESCRIPTIONS.json)");
             summary.AppendLine();
             summary.AppendLine($"Exported to: {exportPath}");
 
@@ -1707,6 +1731,108 @@ namespace StingTools.Temp
             ws.Column(6).Width = 20;  // AMOUNT (UGX)
             ws.Style.Font.FontName = "Arial";
             ws.Style.Font.FontSize = 10;
+        }
+
+        /// <summary>
+        /// Writes the "Preamble" sheet stating the rules of measurement,
+        /// description conventions, unit conventions, and data-quality disclaimers.
+        /// Required by NRM2 for a contractually complete BOQ.
+        /// </summary>
+        private static void WritePreambleSheet(XLWorkbook wb, Document doc, int itemCount, int billCount, double giaM2)
+        {
+            var ws = wb.AddWorksheet("Preamble");
+            SetStandardColumnWidths(ws);
+            // Make column 2 wider and wrap all body text
+            ws.Column(2).Width = 90;
+
+            int r = 2;
+            WriteMergedBold(ws, r, 2, 6, "PREAMBLE & NOTES ON THE BILL OF QUANTITIES", 14); r += 2;
+
+            WritePreambleSection(ws, ref r, "1. RULES OF MEASUREMENT",
+                "This Bill of Quantities has been prepared in accordance with the RICS New Rules of " +
+                "Measurement (NRM2): Detailed measurement for building works. Quantities are measured net " +
+                "in-place unless specifically noted otherwise. Descriptions follow the NRM2 work section " +
+                "structure; each section is identified by its NRM2 reference in the column headings.");
+
+            WritePreambleSection(ws, ref r, "2. DESCRIPTIONS",
+                "Descriptions in the DESCRIPTION column are paragraph-form prose describing each item's " +
+                "material, dimensions, finish, relevant standard, fire rating, location and other " +
+                "properties relevant to pricing. Descriptions DO NOT state quantities, units, rates or " +
+                "amounts — those are presented in the dedicated QTY, UNIT, RATE and AMOUNT columns " +
+                "alongside each description. This separation is deliberate: tenderers price against the " +
+                "description, and the measured quantity is audited independently.");
+
+            WritePreambleSection(ws, ref r, "3. UNITS OF MEASUREMENT",
+                "LM = linear metre  ·  SM = square metre  ·  CM = cubic metre  ·  NO = number/enumerated  ·  " +
+                "KG = kilogram  ·  HR = hour  ·  LS = lump sum. All dimensions quoted in descriptions are in " +
+                "millimetres (mm) unless otherwise stated. Rates and amounts are in local currency units as " +
+                "indicated in column headings.");
+
+            WritePreambleSection(ws, ref r, "4. SCOPE & ORIGIN OF QUANTITIES",
+                "Quantities have been measured directly from the Revit BIM model by the STING plugin. " +
+                "Lengths are taken from centreline geometry; areas from host-area-computed; volumes from " +
+                "host-volume-computed. Where the model exports a measurable geometry, the measured value " +
+                "takes precedence over any manually entered quantity on the element.");
+
+            WritePreambleSection(ws, ref r, "5. RATES",
+                "Rates shown in the RATE column are the project's priced rates as populated on each " +
+                "element (ASS_CST_UNIT_PRICE_UGX_NR). Where an element has no priced rate, the plugin may " +
+                "have substituted a default rate from the project's BOQ_TEMPLATE.csv — this substitution is " +
+                "flagged in the Data Quality sheet. All rates are exclusive of VAT and contingency; these " +
+                "are applied at the Main Summary.");
+
+            WritePreambleSection(ws, ref r, "6. STRUCTURE OF THIS DOCUMENT",
+                $"This document comprises: (a) a Cover Page; (b) this Preamble; (c) {billCount} discipline " +
+                "Bill worksheets, each grouped by level then by system/category, with a per-bill Summary " +
+                "at the foot of each sheet; (d) a Main Summary consolidating all bills with " +
+                "contingencies, VAT and final total; and (e) a Data Quality sheet noting any measurement " +
+                "or pricing gaps identified during export.");
+
+            WritePreambleSection(ws, ref r, "7. MATERIAL LINKS",
+                "Where a project material has been linked to a specific NRM2 paragraph template via the " +
+                "STING Material Manager (BOQ Link tab), that paragraph is used in preference to the " +
+                "category default. Unlinked materials fall back to the generic category paragraph.");
+
+            WritePreambleSection(ws, ref r, "8. DISCLAIMERS",
+                "The BOQ is generated from the BIM model at a single point in time; model changes after " +
+                "export are NOT reflected. Tenderers should satisfy themselves of the adequacy of the " +
+                "description and measured quantity before pricing. The Employer accepts no liability for " +
+                "omissions inherent in the model or in the plugin's measurement rules.");
+
+            // Export metadata footer
+            r++;
+            WriteMergedBold(ws, r, 2, 6, "EXPORT METADATA", 11); r++;
+            ws.Cell(r, 2).Value = $"Project: {doc.Title}"; r++;
+            ws.Cell(r, 2).Value = $"Generated: {DateTime.Now:yyyy-MM-dd HH:mm}"; r++;
+            ws.Cell(r, 2).Value = $"By: {Environment.UserName ?? "unknown"}"; r++;
+            ws.Cell(r, 2).Value = $"Items priced: {itemCount:N0}"; r++;
+            if (giaM2 > 0) { ws.Cell(r, 2).Value = $"GIA: {giaM2:F2} m²"; r++; }
+            ws.Cell(r, 2).Value = $"BOQ mode: {BOQDescriptionEngine.CurrentMode}  ·  " +
+                                  $"Paragraph templates: {BOQDescriptionEngine.ParagraphTemplateCount}  ·  " +
+                                  $"Material links: {BOQDescriptionEngine.MaterialLinkCount}";
+
+            ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+            ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
+            ws.PageSetup.FitToPages(1, 0);
+        }
+
+        private static void WritePreambleSection(IXLWorksheet ws, ref int r, string heading, string body)
+        {
+            var h = ws.Cell(r, 2);
+            h.Value = heading;
+            h.Style.Font.Bold = true;
+            h.Style.Font.FontSize = 11;
+            ws.Range(r, 2, r, 6).Merge();
+            r++;
+            var b = ws.Cell(r, 2);
+            b.Value = body;
+            b.Style.Alignment.WrapText = true;
+            b.Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+            ws.Range(r, 2, r, 6).Merge();
+            // Grow row height for body text
+            int estLines = Math.Max(2, (body?.Length ?? 0) / 110);
+            ws.Row(r).Height = Math.Min(120, 14 * estLines);
+            r += 2;
         }
 
         /// <summary>Write a merged bold cell spanning columns.</summary>
@@ -4167,6 +4293,42 @@ namespace StingTools.Temp
         private static Dictionary<string, DescriptionTemplate> _templates;
         private static Tag7Settings _settings;
 
+        /// <summary>Paragraph templates loaded from BOQ_DESCRIPTIONS.json (one per NRM2 item).</summary>
+        internal class ParagraphTemplate
+        {
+            public string Category;
+            public string Nrm2Section;
+            public string Paragraph;           // e.g., "Supply and fix [material] [element_type] ..."
+            public string[] Placeholders;      // e.g., ["material","element_type","location","standard"]
+            // Variant match criteria (Gap 3) — empty = no constraint
+            public string FamilyContains;
+            public string TypeContains;
+            public string SystemContains;
+            public string DiscContains;
+            public int Specificity =>
+                  (string.IsNullOrEmpty(FamilyContains) ? 0 : 1)
+                + (string.IsNullOrEmpty(TypeContains) ? 0 : 1)
+                + (string.IsNullOrEmpty(SystemContains) ? 0 : 1)
+                + (string.IsNullOrEmpty(DiscContains) ? 0 : 1);
+        }
+
+        /// <summary>All paragraph templates indexed per-category (may have multiple variants per category).</summary>
+        private static List<ParagraphTemplate> _paragraphs;
+
+        /// <summary>Material-name → paragraph-template override (loaded from _bim_manager/material_boq_links.json).</summary>
+        private static Dictionary<string, ParagraphTemplate> _materialLinks;
+
+        /// <summary>
+        /// Tokens that MUST NEVER appear in a description paragraph. Costs and
+        /// quantities belong in their own columns; a QS should never see figures
+        /// embedded in the descriptive prose.
+        /// </summary>
+        private static readonly HashSet<string> _forbiddenParagraphTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "qty", "quantity", "rate", "unit_rate", "amount", "total", "cost",
+            "price", "unit_price", "subtotal"
+        };
+
         /// <summary>
         /// Load NRM2 description templates and TAG7 integration settings from BOQ_TEMPLATE.csv.
         /// </summary>
@@ -4243,10 +4405,497 @@ namespace StingTools.Temp
             {
                 StingLog.Warn($"Failed to load BOQ description templates: {ex.Message}");
             }
+
+            // Also load the paragraph catalogue (NRM2-per-item prose templates)
+            LoadParagraphTemplates();
         }
 
         /// <summary>
-        /// Build a QS-grade BOQ item description for an element by combining:
+        /// Loads NRM2 paragraph templates.
+        /// When <paramref name="doc"/> is supplied, this merges THREE sources via
+        /// <see cref="BOQTemplateLibrary.LoadAll"/>:
+        ///   1. built-in   — Data/BOQ_DESCRIPTIONS.json (ships with plugin)
+        ///   2. company    — %APPDATA%/STING/boq_templates_library.json (reusable across projects)
+        ///   3. project    — &lt;project&gt;/_bim_manager/boq_custom_templates.json (per-project)
+        /// When doc is null, falls back to built-in only (keeps compatibility with
+        /// any callers that don't have a document handle).
+        /// </summary>
+        internal static void LoadParagraphTemplates(Document doc = null)
+        {
+            _paragraphs = new List<ParagraphTemplate>();
+            try
+            {
+                IEnumerable<BOQTemplate> merged;
+                if (doc != null)
+                {
+                    merged = BOQTemplateLibrary.LoadAll(doc, StingToolsApp.DataPath);
+                }
+                else
+                {
+                    merged = BOQTemplateLibrary.LoadBuiltin(StingToolsApp.DataPath);
+                }
+
+                foreach (var t in merged)
+                {
+                    if (string.IsNullOrEmpty(t?.Paragraph)) continue;
+                    // Safety check: strip any forbidden cost/qty tokens at load time.
+                    // ForbiddenPlaceholders lives in BOQTemplateLibrary and is also
+                    // enforced at placeholder-resolution time as a belt-and-braces measure.
+                    foreach (var token in t.Placeholders ?? Array.Empty<string>())
+                    {
+                        if (_forbiddenParagraphTokens.Contains(token))
+                            StingLog.Warn($"BOQ template ({t.Source}): cost/qty token '{token}' in paragraph for {t.Category} §{t.Nrm2Section} — stripped at export.");
+                    }
+
+                    _paragraphs.Add(new ParagraphTemplate
+                    {
+                        Category = t.Category ?? "",
+                        Nrm2Section = t.Nrm2Section ?? "",
+                        Paragraph = t.Paragraph ?? "",
+                        Placeholders = t.Placeholders ?? Array.Empty<string>(),
+                        FamilyContains = t.FamilyContains ?? "",
+                        TypeContains = t.TypeContains ?? "",
+                        SystemContains = t.SystemContains ?? "",
+                        DiscContains = t.DiscContains ?? ""
+                    });
+                }
+
+                if (_paragraphs.Count > 0)
+                    StingLog.Info($"BOQ paragraph templates loaded: {_paragraphs.Count}" +
+                                  (doc != null ? " (built-in + company + project)" : " (built-in only)"));
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadParagraphTemplates: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Loads per-material paragraph overrides from _bim_manager/material_boq_links.json
+        /// (written by the Material Manager BOQ Link tab). Call once per export run.
+        /// </summary>
+        internal static void LoadMaterialLinks(Document doc)
+        {
+            _materialLinks = new Dictionary<string, ParagraphTemplate>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                if (string.IsNullOrEmpty(projDir)) return;
+                string p = Path.Combine(projDir, "_bim_manager", "material_boq_links.json");
+                if (!File.Exists(p)) return;
+                var arr = JArray.Parse(File.ReadAllText(p));
+                foreach (var item in arr)
+                {
+                    string name = item["material_name"]?.ToString();
+                    string para = item["paragraph"]?.ToString() ?? "";
+                    if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(para)) continue;
+                    _materialLinks[name] = new ParagraphTemplate
+                    {
+                        Category = item["category"]?.ToString() ?? "",
+                        Nrm2Section = item["nrm2_section"]?.ToString() ?? "",
+                        Paragraph = para,
+                        Placeholders = Array.Empty<string>()
+                    };
+                }
+                if (_materialLinks.Count > 0)
+                    StingLog.Info($"Material→BOQ links loaded: {_materialLinks.Count}");
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadMaterialLinks: {ex.Message}"); }
+        }
+
+        /// <summary>The current BOQ mode (NRM2 / NARRATIVE / PARAGRAPH) — exposed for callers.</summary>
+        internal static string CurrentMode => _settings?.BOQMode ?? "NRM2";
+
+        /// <summary>Paragraph template count (for pre-flight reporting).</summary>
+        internal static int ParagraphTemplateCount => _paragraphs?.Count ?? 0;
+
+        /// <summary>Material link count (for pre-flight reporting).</summary>
+        internal static int MaterialLinkCount => _materialLinks?.Count ?? 0;
+
+        /// <summary>
+        /// Builds a prose paragraph description for a BOQ line item.
+        /// Rules (NRM2-compliant):
+        ///   1. Paragraph describes the ITEM'S PROPERTIES ONLY
+        ///      (material, dimensions, standard, finishes, location, fire rating).
+        ///   2. NEVER includes quantity, unit rate, amount, or cost — those go
+        ///      in dedicated columns at the export layer.
+        ///   3. Placeholder resolution draws from STING tokens, native Revit
+        ///      parameters, measured geometry, and TAG7 narrative sections.
+        ///   4. Template selection priority:
+        ///        a) material link override (if the element's material is linked)
+        ///        b) category-matched paragraph from BOQ_DESCRIPTIONS.json
+        ///        c) NRM2 {TOKEN} pattern from BOQ_TEMPLATE.csv (legacy)
+        ///        d) TAG7-joined sentence (final fallback)
+        /// </summary>
+        internal static string BuildParagraphDescription(Document doc, Element el,
+            string categoryName, string familyName, string typeName, string existingDesc)
+        {
+            if (_paragraphs == null) LoadParagraphTemplates();
+            if (_materialLinks == null) _materialLinks = new Dictionary<string, ParagraphTemplate>(StringComparer.OrdinalIgnoreCase);
+
+            // Gather element properties for placeholder resolution.
+            var vals = BuildPlaceholderValues(doc, el, categoryName, familyName, typeName, existingDesc);
+
+            // 1. Material link override takes priority
+            ParagraphTemplate tpl = null;
+            string materialName = vals.TryGetValue("material", out var m) ? m : "";
+            if (!string.IsNullOrEmpty(materialName) && _materialLinks.TryGetValue(materialName, out var linkTpl))
+                tpl = linkTpl;
+
+            // 2. Category-matched paragraph with specificity-ranked selection (Gap 3).
+            //    Variant templates (FamilyContains/TypeContains/SystemContains/DiscContains)
+            //    beat plain category templates when all their non-empty matchers match the
+            //    element. A variant with 2 matching matchers beats one with 1.
+            if (tpl == null && _paragraphs != null)
+            {
+                string system = ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "";
+                string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "";
+                string family = familyName ?? "";
+                string type = typeName ?? "";
+
+                bool VariantMatches(ParagraphTemplate p)
+                {
+                    // All non-empty variant fields must be satisfied
+                    if (!string.IsNullOrEmpty(p.FamilyContains) &&
+                        family.IndexOf(p.FamilyContains, StringComparison.OrdinalIgnoreCase) < 0) return false;
+                    if (!string.IsNullOrEmpty(p.TypeContains) &&
+                        type.IndexOf(p.TypeContains, StringComparison.OrdinalIgnoreCase) < 0) return false;
+                    if (!string.IsNullOrEmpty(p.SystemContains) &&
+                        system.IndexOf(p.SystemContains, StringComparison.OrdinalIgnoreCase) < 0) return false;
+                    if (!string.IsNullOrEmpty(p.DiscContains) &&
+                        !string.Equals(disc, p.DiscContains, StringComparison.OrdinalIgnoreCase)) return false;
+                    return true;
+                }
+
+                bool CategoryMatches(ParagraphTemplate p)
+                {
+                    if (string.IsNullOrEmpty(p.Category)) return false;
+                    if (string.Equals(p.Category, categoryName, StringComparison.OrdinalIgnoreCase)) return true;
+                    return categoryName.IndexOf(p.Category, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                           p.Category.IndexOf(categoryName, StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+
+                tpl = _paragraphs
+                    .Where(p => CategoryMatches(p) && VariantMatches(p))
+                    .OrderByDescending(p => p.Specificity)  // more-specific variants win
+                    .ThenBy(p => string.Equals(p.Category, categoryName, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                    .FirstOrDefault();
+            }
+
+            // 3. If still no paragraph template, fall back to existing NRM2/TAG7 builder.
+            if (tpl == null)
+                return BuildDescription(doc, el, categoryName, familyName, typeName, existingDesc);
+
+            // 4. Resolve [placeholder] tokens.
+            string result = ResolveParagraphPlaceholders(tpl.Paragraph, vals);
+
+            // 5. Truncate only if grossly oversize (NRM2 items can be long, allow 500 chars).
+            int maxLen = Math.Max(_settings?.DescriptionMaxLength ?? 250, 500);
+            if (result.Length > maxLen) result = result.Substring(0, maxLen - 3) + "...";
+
+            return result;
+        }
+
+        /// <summary>
+        /// Builds the placeholder value dictionary used for paragraph resolution.
+        /// Keys are lowercase to match BOQ_DESCRIPTIONS.json placeholder names.
+        /// </summary>
+        private static Dictionary<string, string> BuildPlaceholderValues(Document doc, Element el,
+            string categoryName, string familyName, string typeName, string existingDesc)
+        {
+            var v = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            void Put(string key, string val) { if (!string.IsNullOrEmpty(val)) v[key] = val; }
+
+            // Identity
+            Put("material", GetMaterialName(doc, el));
+            Put("element_type", typeName);
+            Put("family", familyName);
+            Put("type", typeName);
+            Put("manufacturer", ParameterHelpers.GetString(el, "ASS_MANUFACTURER_TXT"));
+            Put("model", ParameterHelpers.GetString(el, "ASS_MODEL_NR_TXT"));
+            Put("model_ref", ParameterHelpers.GetString(el, "ASS_MODEL_NR_TXT"));
+            Put("manufacturer_ref", (ParameterHelpers.GetString(el, "ASS_MANUFACTURER_TXT") + " " + ParameterHelpers.GetString(el, "ASS_MODEL_NR_TXT")).Trim());
+
+            // Spatial context
+            string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+            string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+            string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+            string room = "";
+            try
+            {
+                var r = ParameterHelpers.GetRoomAtElement(doc, el);
+                if (r != null) room = r.Name ?? "";
+            }
+            catch (Exception ex) { StingLog.Warn($"Room lookup for BOQ paragraph: {ex.Message}"); }
+            string locDesc = BuildLocationPhrase(room, loc, zone, lvl);
+            Put("location", locDesc);
+            Put("level", lvl);
+
+            // Dimensions (mm / m / m²) sourced from STING params with safe fallbacks
+            PutDim(el, v, "width",       "BLE_DOOR_WIDTH_NR", "BLE_WINDOW_WIDTH_NR", "BLE_CBL_TRAY_WIDTH_NR", "BLE_WALL_LENGTH_NR");
+            PutDim(el, v, "height",      "BLE_WALL_HEIGHT_NR", "BLE_DOOR_HEIGHT_NR", "BLE_WINDOW_HEIGHT_NR");
+            PutDim(el, v, "thickness",   "BLE_WALL_THICKNESS_NR", "BLE_FLOOR_THICKNESS_NR");
+            PutDim(el, v, "depth",       "BLE_CBL_TRAY_DEPTH_NR", "BLE_FLOOR_THICKNESS_NR");
+            PutDim(el, v, "sill_height", "BLE_WINDOW_SILL_HEIGHT_NR");
+            PutDim(el, v, "size",        "ASS_SIZE_TXT");
+            PutDim(el, v, "diameter",    "ASS_SIZE_TXT");
+            PutDim(el, v, "airflow",     "HVC_AIRFLOW_LS_NR");
+            PutDim(el, v, "rating",      "ELC_EQP_LOAD_KW_NR", "ELC_EQP_AMPS_NR");
+            PutDim(el, v, "voltage",     "ELC_EQP_VOLTS_NR");
+            PutDim(el, v, "phases",      "ELC_EQP_PHASE_NR");
+
+            // Specs / standards
+            Put("fire_rating", ParameterHelpers.GetString(el, "BLE_FIRE_RATING_TXT"));
+            Put("standard", ResolveWorkmanshipStandard(categoryName));
+            Put("finish", ParameterHelpers.GetString(el, "ASS_FINISH_TXT"));
+            Put("insulation", ParameterHelpers.GetString(el, "BLE_INSULATION_TXT"));
+            Put("substrate", ParameterHelpers.GetString(el, "BLE_SUBSTRATE_TXT"));
+            Put("fixings", ParameterHelpers.GetString(el, "ASS_FIXINGS_TXT"));
+            Put("frame_material", ParameterHelpers.GetString(el, "BLE_FRAME_MATERIAL_TXT"));
+            Put("hardware", ParameterHelpers.GetString(el, "BLE_HARDWARE_TXT"));
+            Put("glass_spec", ParameterHelpers.GetString(el, "BLE_GLASS_SPEC_TXT"));
+            Put("door_type", typeName);
+            Put("window_type", typeName);
+            Put("foundation_type", typeName);
+            Put("terminal_type", typeName);
+            Put("concrete_spec", ParameterHelpers.GetString(el, "STR_CONCRETE_GRADE_TXT"));
+            Put("reinforcement", ParameterHelpers.GetString(el, "STR_REBAR_SPEC_TXT"));
+            Put("section_size", ParameterHelpers.GetString(el, "STR_SECTION_SIZE_TXT"));
+            Put("equipment_type", typeName);
+            Put("furniture_type", typeName);
+            Put("casework_type", typeName);
+            Put("worktop_material", ParameterHelpers.GetString(el, "BLE_WORKTOP_MATERIAL_TXT"));
+            Put("edge_trim", ParameterHelpers.GetString(el, "BLE_EDGE_TRIM_TXT"));
+            Put("spacing", ParameterHelpers.GetString(el, "ASS_SPACING_MM_NR"));
+            Put("dimensions", BuildDimensionSummary(v));
+
+            // User-provided descriptions (last resort)
+            Put("description", existingDesc ?? ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT"));
+            Put("notes", ParameterHelpers.GetString(el, "ASS_NOTES_TXT"));
+
+            return v;
+        }
+
+        /// <summary>Builds a readable location phrase from spatial tokens.</summary>
+        private static string BuildLocationPhrase(string room, string loc, string zone, string lvl)
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(lvl) && lvl != "XX")
+            {
+                string lvlName = lvl switch
+                {
+                    "GF" or "L00" => "Ground Floor",
+                    "RF" => "Roof Level",
+                    _ when lvl.StartsWith("B") => $"Basement {lvl.Substring(1)}",
+                    _ when lvl.StartsWith("L") => $"Level {lvl.Substring(1).TrimStart('0')}",
+                    _ => lvl
+                };
+                parts.Add(lvlName);
+            }
+            if (!string.IsNullOrEmpty(room)) parts.Add(room);
+            else if (!string.IsNullOrEmpty(zone) && zone != "ZZ") parts.Add($"Zone {zone}");
+            if (parts.Count == 0 && !string.IsNullOrEmpty(loc) && loc != "XX") parts.Add(loc);
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>Maps category to a default workmanship standard (BS EN / Part L / etc.).</summary>
+        /// <summary>
+        /// Category → (workmanship standard, default unit) rules loaded from
+        /// BOQ_TEMPLATE.csv SECTION 11. Populated lazily by
+        /// <see cref="EnsureInferenceRules"/>. Items near the top of the CSV
+        /// section win on ties (first-match-wins).
+        /// </summary>
+        private static List<(string pattern, string standard, string unit)> _inferenceRules;
+
+        /// <summary>Loads SECTION 11 rules on first use.</summary>
+        private static void EnsureInferenceRules()
+        {
+            if (_inferenceRules != null) return;
+            var rules = new List<(string, string, string)>();
+            try
+            {
+                string csvPath = StingToolsApp.FindDataFile("BOQ_TEMPLATE.csv");
+                if (!string.IsNullOrEmpty(csvPath) && File.Exists(csvPath))
+                {
+                    bool inSection = false;
+                    bool headerSkipped = false;
+                    foreach (string line in File.ReadLines(csvPath))
+                    {
+                        string t = line?.Trim();
+                        if (string.IsNullOrEmpty(t) || t.StartsWith("##")) continue;
+                        if (t.StartsWith("SECTION,", StringComparison.OrdinalIgnoreCase))
+                        {
+                            inSection = t.Substring(8).Trim().Equals("CATEGORY_INFERENCE", StringComparison.OrdinalIgnoreCase);
+                            headerSkipped = false;
+                            continue;
+                        }
+                        if (!inSection) continue;
+                        if (!headerSkipped) { headerSkipped = true; continue; }
+                        var cols = StingToolsApp.ParseCsvLine(t);
+                        if (cols.Length >= 3)
+                        {
+                            string pat = cols[0].Trim().ToLowerInvariant();
+                            string std = cols[1].Trim();
+                            string unit = cols[2].Trim();
+                            if (!string.IsNullOrEmpty(pat)) rules.Add((pat, std, unit));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"EnsureInferenceRules: {ex.Message}"); }
+            _inferenceRules = rules;
+            if (rules.Count > 0) StingLog.Info($"BOQ category inference rules loaded: {rules.Count}");
+        }
+
+        /// <summary>
+        /// Data-driven unit inference — SECTION 11 first, then hardcoded fallback.
+        /// Used by BOQExportCommand when ASS_PMT_INV_UNIT_TXT is empty on an element.
+        /// </summary>
+        internal static string InferUnitForCategory(string category)
+        {
+            if (string.IsNullOrEmpty(category)) return "NO";
+            EnsureInferenceRules();
+            string c = category.ToLowerInvariant();
+            foreach (var r in _inferenceRules)
+                if (c.Contains(r.pattern) && !string.IsNullOrEmpty(r.unit)) return r.unit;
+            // Legacy fallback
+            if (c.Contains("pipe") || c.Contains("duct") || c.Contains("conduit") || c.Contains("cable tray")) return "LM";
+            if (c.Contains("floor") || c.Contains("ceiling") || c.Contains("wall") || c.Contains("roof")) return "SM";
+            if (c.Contains("concrete") || c.Contains("foundation")) return "CM";
+            return "NO";
+        }
+
+        /// <summary>Exposes the loaded inference rule count (for reporting).</summary>
+        internal static int InferenceRuleCount
+        {
+            get { EnsureInferenceRules(); return _inferenceRules.Count; }
+        }
+
+        /// <summary>
+        /// Returns the default workmanship standard for a category. First tries
+        /// SECTION 11 rules (CSV-driven), then falls back to hardcoded defaults
+        /// for projects that haven't populated the CSV.
+        /// </summary>
+        private static string ResolveWorkmanshipStandard(string category)
+        {
+            if (string.IsNullOrEmpty(category)) return "BS 8000 general workmanship";
+            EnsureInferenceRules();
+            string c = category.ToLowerInvariant();
+            foreach (var r in _inferenceRules)
+                if (c.Contains(r.pattern) && !string.IsNullOrEmpty(r.standard)) return r.standard;
+            // Fallback — legacy hardcoded defaults keep the plugin working if the CSV
+            // section is missing (e.g., users running the stock 1.0 data files).
+            if (c.Contains("wall") || c.Contains("partition")) return "BS EN 1996 / BS 8000-3 workmanship";
+            if (c.Contains("floor")) return "BS EN 13670 / BS 8000-2";
+            if (c.Contains("ceiling")) return "BS 8212";
+            if (c.Contains("roof")) return "BS 8217 / BS 5534";
+            if (c.Contains("door") || c.Contains("window")) return "BS 8000-11 / BS EN 14351";
+            if (c.Contains("pipe") || c.Contains("plumb")) return "BS EN 12056 / BS 6700";
+            if (c.Contains("duct") || c.Contains("mechanical") || c.Contains("hvac")) return "CIBSE Guide B / DW/144";
+            if (c.Contains("cable") || c.Contains("electric") || c.Contains("conduit")) return "BS 7671 / BS 8519";
+            if (c.Contains("fire")) return "BS 9999 / BS 5839";
+            if (c.Contains("structural") || c.Contains("foundation") || c.Contains("column") || c.Contains("beam")) return "BS EN 1992 / BS EN 1993";
+            return "BS 8000 workmanship and the specification";
+        }
+
+        /// <summary>Reads a dimension parameter and puts it (as a rounded string) into the placeholder map.</summary>
+        private static void PutDim(Element el, Dictionary<string, string> v, string key, params string[] paramNames)
+        {
+            if (v.ContainsKey(key)) return;
+            foreach (string pName in paramNames)
+            {
+                string s = ParameterHelpers.GetString(el, pName);
+                if (!string.IsNullOrEmpty(s) && s != "0")
+                {
+                    // If numeric, round to sensible precision
+                    if (double.TryParse(s, out double d))
+                        s = Math.Round(d, 1).ToString("0.#");
+                    v[key] = s;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Builds a "300 × 450 mm" style dimension summary when individual fields exist.</summary>
+        private static string BuildDimensionSummary(Dictionary<string, string> v)
+        {
+            var dims = new List<string>();
+            if (v.TryGetValue("width", out var w)) dims.Add(w);
+            if (v.TryGetValue("height", out var h)) dims.Add(h);
+            if (v.TryGetValue("depth", out var d)) dims.Add(d);
+            if (dims.Count >= 2) return string.Join(" × ", dims) + " mm";
+            if (v.TryGetValue("size", out var sz)) return sz;
+            return "";
+        }
+
+        /// <summary>
+        /// Resolves [token] placeholders in a BOQ_DESCRIPTIONS.json paragraph.
+        /// For every token present in the template:
+        ///   - if the key is a forbidden cost/quantity token → strip it (safety net).
+        ///   - if a value exists → substitute verbatim.
+        ///   - if no value → remove the [token] and tidy the surrounding prose so
+        ///     we don't leave "including ,  and" or dangling "at mm" fragments.
+        /// </summary>
+        private static string ResolveParagraphPlaceholders(string paragraph, Dictionary<string, string> values)
+        {
+            if (string.IsNullOrEmpty(paragraph)) return "";
+            string s = paragraph;
+
+            // Find every [token] in the paragraph; the token name is whatever sits between [ and ].
+            var tokens = System.Text.RegularExpressions.Regex
+                .Matches(s, @"\[([a-zA-Z0-9_]+)\]")
+                .Cast<System.Text.RegularExpressions.Match>()
+                .Select(m => m.Groups[1].Value)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var tok in tokens)
+            {
+                if (_forbiddenParagraphTokens.Contains(tok))
+                {
+                    // Safety net — never let cost/qty tokens leak into prose
+                    s = ReplacePlaceholder(s, tok, "");
+                    continue;
+                }
+
+                if (values.TryGetValue(tok, out var val) && !string.IsNullOrEmpty(val))
+                    s = ReplacePlaceholder(s, tok, val);
+                else
+                    s = ReplacePlaceholder(s, tok, "");
+            }
+
+            return TidyParagraph(s);
+        }
+
+        private static string ReplacePlaceholder(string s, string token, string replacement)
+        {
+            return s.Replace("[" + token + "]", replacement ?? "");
+        }
+
+        /// <summary>Cleans up a resolved paragraph so missing placeholders leave no ugly artifacts.</summary>
+        private static string TidyParagraph(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var rx = System.Text.RegularExpressions.RegexOptions.IgnoreCase;
+            // Remove dangling "at mm"/"× mm"/"and mm" fragments caused by missing dimension tokens
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\bat\s+mm\b", "", rx);
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\bat\s*m²\b", "", rx);
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"×\s*mm", "", rx);
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\bmm\s+(?=[;,.])", "", rx);
+            // "including ," / "including  and" / ", ," / ", ." / ". ," /  " ,"
+            s = System.Text.RegularExpressions.Regex.Replace(s, @",\s*,", ",", rx);
+            s = System.Text.RegularExpressions.Regex.Replace(s, @",\s*and\b", " and", rx);
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\band\s*,", ",", rx);
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"including\s*,", "including", rx);
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"including\s+and\b", "including", rx);
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\bto\s*[;,.]", ";", rx);
+            // Collapse whitespace
+            while (s.Contains("  ")) s = s.Replace("  ", " ");
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+([;,.])", "$1");
+            s = System.Text.RegularExpressions.Regex.Replace(s, @";\s*;", ";", rx);
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\.\s*\.", ".", rx);
+            // Ensure it ends in a full stop
+            s = s.Trim(' ', ';', ',', '\t');
+            if (s.Length > 0 && !s.EndsWith(".")) s += ".";
+            return s;
+        }
         /// 1. TAG7 Section A (Identity) — asset name, manufacturer, model
         /// 2. TAG7 Section E (Technical) — discipline-specific specs
         /// 3. NRM2 template pattern — category-specific description template
