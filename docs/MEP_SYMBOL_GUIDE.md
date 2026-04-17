@@ -195,3 +195,141 @@ Once a seed family has subcategories, the host project sees them under `Object S
 
 For projects mixing multiple standards in one view, use a `Parameter Filter` on the `SYMBOL_SHOW_IEC` / `SYMBOL_SHOW_BS` / `SYMBOL_SHOW_ANSI` Yes/No parameters. This toggles the host family's visibility, not the subcategory's, so it applies per-instance rather than per-subcategory. Slower to configure but useful for presentation drawings that deliberately show two standards side by side on the same sheet.
 
+
+---
+
+## 3. Drawing checklist per discipline
+
+A drafter sitting down to build seed families from this library should work through each discipline with a short, repeatable routine. Each checklist assumes the drafter has already:
+
+- Opened the right `.rft` template (see `revit_template` column in the CSV).
+- Created the three subcategories per §2.1.
+- Placed two reference planes at the origin (one horizontal, one vertical).
+
+What follows is the per-discipline drawing sequence. The steps are **identical in grammar** across disciplines, but the geometry and insertion points differ.
+
+### 3.1 Gas (21 seeds)
+
+1. Pipes (`GAS_PIPE_NG`, `_LPG`, `_MED`) — drawn in project as Pipe Types with labels, not as families. Skip these three from the seed build; they are system-type rows in the CSV for reference only.
+2. Meters (`GAS_MTR_DOM`, `_COM`) — Ø6 or 8 mm rectangles. Insertion at geometric centre. Lock geometry to both reference planes. Add `SYMBOL_SHOW_*` Yes/No parameters.
+3. Regulators and valves — draw the two-triangle PID body once, save as a family template `Gas_Valve_Base.rfa`. Duplicate for each valve type and add the distinguishing marker (spring for relief, coil for solenoid, 'E' for ESV, handle for cock/ball).
+4. Gas train (`GAS_TRAIN`) — compound symbol 20×8mm. Only one in the library; build once from rectangle + internal guide lines.
+5. Connections (`GAS_BLR_CONN`, `_HOB_CONN`, `_FIRE_CONN`) — small wall-hosted stubs. Use wall-based `.rft` not generic annotation.
+6. Manifold, riser, drain, cylinder — single-instance symbols. Build each from scratch.
+
+**Estimated time:** ~3 hours for a drafter who has done this once before.
+
+### 3.2 Controls / BMS (32 seeds)
+
+1. Build a `BMS_Sensor_Base.rfa` once — Ø5 mm circle at origin with a parameter-driven text label. The 15 sensor rows differ only in the letter; they can all share one family with a text-type parameter.
+2. Actuators and valves reuse the host family's valve symbol, adding a 4×4 mm 'M' box. The 'M' is a small rectangle nested as shared annotation.
+3. Controllers (DDC, PLC, HMI) — rectangles 8-12 mm with parameter-driven labels. One shared family per controller category.
+4. Fieldbus routes are drawn in-project as annotation lines with dashed line style; no family required. Keep the three CSV rows for reference.
+5. Room/zone controllers (`BMS_RM_CTRL`, `_ZN_CTRL`) — small rectangles with label. Wall-hosted.
+6. Override switch, fault lamp — single-instance symbols.
+
+**Collapse count:** 32 rows → ~8 actual seed families through shared templates. **Estimated time:** 4 hours.
+
+### 3.3 Lighting (31 seeds)
+
+Revit already ships comprehensive lighting fixture categories. The library does **not** replace those; it adds the IEC/BS/ANSI annotation overlay on plan views.
+
+1. Open each `Lighting Fixture Ceiling based.rft` and draw the plan symbol on the `Symbolic Lines` layer. Lock to the centre reference planes.
+2. Build one `Luminaire_Square_6mm.rfa` and one `Luminaire_Circle_6mm.rfa` as the two base shapes; every other luminaire symbol inherits via nested family.
+3. Emergency variants (`_EMRG_*`) are the same base with an added shaded half-circle or 'M/NM' label. Use a Yes/No parameter `EMERGENCY_SHOW_SHADE` to toggle.
+4. External luminaires use `Lighting Fixture Wall based.rft` and the base symbols extended with rays or directional arrows.
+5. Exit sign (`LTG_EMRG_EXIT`) is the single most-used family in the discipline — **spend extra time on this one**. Include the ISO 7010 running-man pictogram, which is the same across all three standards.
+6. Switches are annotation-only (no host-element category); drawn as generic annotation families. One `Switch_Base.rfa` with the angled line, dots, and dimmer arrow as Yes/No parameters covers all 10 switch rows.
+
+**Collapse count:** 31 rows → ~10 base families. **Estimated time:** 6 hours.
+
+### 3.4 Public Health (40 seeds)
+
+1. Gullies and traps — most are 5-10 mm footprints with grate or trap markers. Build 4 base families (gully, trap, access, stack) and vary with text/parameter.
+2. Rainwater (`PH_RWP`, `_HOPPER`, `_GUTTER`, `_OUTLET`) — small circles or rectangles at pipe centreline. Four separate families.
+3. Fixture waste connections reuse the Plumbing fixture footprint (since they share geometry) — add a small 'trap' icon via nested family.
+4. SuDS symbols (soakaway, attenuation tank, swale) are drawn at larger scales (1:100-1:500). Use 5-10× larger dimensions and a separate subcategory `ISO_Symbols_PH_SuDS_*`.
+5. Cleaning eye, rodding bend, stop end — small fittings. Draw once, reuse.
+
+**Estimated time:** 5 hours.
+
+### 3.5 Comms / LV (39 seeds)
+
+1. Data outlets (`LV_RJ45_*`) — triangle with number inside. One `Data_Outlet_Base.rfa` with a `PORT_COUNT` parameter covers all five rows.
+2. CCTV (dome, bullet, PTZ) — three different base shapes. Build as three families.
+3. Access control, door entry, intercom — wall-hosted rectangles. One shared base.
+4. PA speaker, horn, mic — three families.
+5. Wireless AP (ceiling vs wall) — two families, ceiling-based and wall-based.
+6. Clock, nurse call, staff attack — individual families (each has unique geometry and colour requirements).
+7. Cable routes (UTP, STP, fibre, coax) are line-based; set up as project-level line styles, not families. Keep the four CSV rows for reference.
+
+**Collapse count:** 39 rows → ~15 seed families. **Estimated time:** 5 hours.
+
+### 3.6 Fire Protection (52 seeds)
+
+This is the discipline with the **highest life-safety stakes** — invest in getting the symbols right the first time.
+
+1. Detection (`FP_SMK_*`, `FP_HEAT_*`, `FP_MULTI`, `FP_FLAME`, `FP_CO_DET`) — all Ø6 mm circles or squares with a single letter. One `FD_Detector_Base.rfa` with a `DEVICE_TYPE_TXT` parameter covers all 11 rows.
+2. MCP, sounder, beacon, VAD — four base families. The BS EN 54-23 compliance category must be a type parameter (`VAD_CATEGORY` = C/W/O) with values per the standard.
+3. Sprinklers (`FP_SPK_*`) — nine rows, all Ø4 mm circles with a small triangle indicating orientation (up/down/sideways/concealed/ESFR/dry). One `Sprinkler_Base.rfa` with `ORIENTATION` type parameter.
+4. Valves and pumps — reuse the Plumbing valve base; override labels to `AV-W`, `AV-D`, `FP`, `JP`.
+5. Fire telephones, FACP, repeater, isolator, interface — five wall-hosted rectangles.
+6. Extinguishers and blankets — vertical ovals on wall. Colour is standard-specific (BS EN 3-7 uses red body with agent-coloured strip; NFPA 10 uses red body). Use type parameter `AGENT_TYPE` + view filter to swap colours.
+7. Gaseous suppression nozzles — Ø5 mm circles on ceiling. Three agent types share one base family.
+
+**Collapse count:** 52 rows → ~12 seed families. **Estimated time:** 8 hours.
+
+### 3.7 Plumbing (81 seeds)
+
+The largest discipline in terms of fixture diversity. Break the build into three half-days:
+
+1. **Half-day 1 — Sanitaryware (25 rows).** WC, urinal, basin, bath, shower, bidet, sink, Belfast, dishwasher, washing machine. Most already exist in Revit's out-of-the-box families; the library only adds the plan symbol overlay. Open each OOTB family, draw the symbol on symbolic lines, save as an overridden version.
+2. **Half-day 2 — Pipes and fittings (15 rows).** Pipes are project pipe-type rows; fittings are two rows. Limited family work — mostly line-style and labelling setup.
+3. **Half-day 3 — Valves, pumps, tanks, accessories (41 rows).** Build one `Plumbing_Valve_Base.rfa` per fitting style (gate, globe, ball, butterfly, check, relief). Every valve type is an instance of one of six bases plus a distinguishing marker. Pumps and tanks are 6-10 mm equipment boxes — one per shape.
+
+**Collapse count:** 81 rows → ~20 seed families. **Estimated time:** 12 hours (1.5 days).
+
+### 3.8 Electrical (101 seeds)
+
+The most jurisdiction-sensitive discipline. Build per-jurisdiction or per-standard, not all three at once.
+
+1. Sockets and outlets — 15 rows for the five socket morphologies (BS 1363, Schuko, NEMA 5-15R, NEMA 5-20R, AS/NZS 3112) plus 10 variant types (switched, double, USB, RCD, weatherproof, industrial 16/32/63A, floor, clean). Build the five base families once; the variants are type parameters.
+2. FCUs, isolators, spurs — five rows, each a small wall-hosted rectangle. One shared family.
+3. Control devices (emergency stop, push-start, key switch, foot switch, pull cord) — five individual families.
+4. Floor boxes and wall management — 10 rows. Most share geometry; use type parameters.
+5. Distribution boards and switchgear — 6 rows. Rectangle + label. One shared family with `BOARD_TYPE` parameter.
+6. Transformers, UPS, generators, inverters — 8 rows. Each is visually distinct; expect 8 separate families.
+7. Protection devices (MCB, RCD, RCBO, MCCB, ACB, fuse, SPD, isolator) — 12 rows. Reuse IEC thermal+magnetic symbol as shared annotation.
+8. Motors and starters — 6 rows. Three motor base families (1P, 3P, servo) + three starter variations.
+9. Cabling and containment — 12 rows. Mostly line styles, not families. Trunking and tray are tag-based.
+10. Lightning and renewables — 10 rows. Each is unique (air rod, down conductor, PV module, BESS, EV charger).
+
+**Collapse count:** 101 rows → ~25 seed families. **Estimated time:** 20 hours (2.5 days).
+
+### 3.9 HVAC (120 seeds)
+
+The largest discipline. Three working days is realistic. Split by functional zone:
+
+1. **Day 1 — Air terminals (15 rows), dampers (5 rows).** All square or rectangular 6-8 mm bases. Arrows, slot lines, blade icons as type-parameter variants. ~6 base families.
+2. **Day 2 — Ducts and fittings (25 rows), VAV/CAV (5 rows), fans (10 rows).** Ducts are project duct-type rows, not families. VAV boxes and fans are rectangles or circles with annotation. ~8 seed families.
+3. **Day 3 — Equipment (35 rows), radiators (4 rows), instrumentation (11 rows), refrigerant (5 rows), kitchen (3 rows), misc (7 rows).** Most equipment is a labelled rectangle with manufacturer-style schematic icons. AHU, FCU, chiller, boiler, heat pump each get a dedicated family; internal geometry differs substantially.
+
+**Collapse count:** 120 rows → ~35 seed families. **Estimated time:** 24 hours (3 days).
+
+### 3.10 Aggregate estimate
+
+| Discipline | Rows | Collapsed families | Time (drafter hours) |
+|---|---:|---:|---:|
+| Gas | 21 | 10 | 3 |
+| Controls | 32 | 8 | 4 |
+| Lighting | 31 | 10 | 6 |
+| Public Health | 40 | 15 | 5 |
+| Comms/LV | 39 | 15 | 5 |
+| Fire Protection | 52 | 12 | 8 |
+| Plumbing | 81 | 20 | 12 |
+| Electrical | 101 | 25 | 20 |
+| HVAC | 120 | 35 | 24 |
+| **Total** | **516** | **~150** | **~87** |
+
+**Two working weeks for one drafter** to build the complete seed library. The seed families then feed `FamilyParamCreator` for batched parameter injection (§6.2), and the project-wide subcategory scheme (§2) turns every loaded family into a standard-switchable asset.
+
