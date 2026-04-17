@@ -318,6 +318,41 @@ public class IssuesController : ControllerBase
         return Ok(issue);
     }
 
+    // ── Activity timeline (NEW-INFO-06/07) ─────────────────────────────────
+    /// <summary>
+    /// Return the audit-log entries for this issue in chronological order.
+    /// Includes CREATE + every UPDATE and its diff payload.
+    /// </summary>
+    [HttpGet("{issueId}/activity")]
+    public async Task<ActionResult> GetActivity(Guid projectId, Guid issueId)
+    {
+        var tenantId = GetTenantId();
+        var exists = await _db.Issues.AnyAsync(i =>
+            i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
+        if (!exists) return NotFound();
+
+        var idString = issueId.ToString();
+        var entries = await _db.AuditLogs
+            .Where(a => a.TenantId == tenantId
+                && a.EntityType == "Issue"
+                && a.EntityId == idString)
+            .OrderBy(a => a.Timestamp)
+            .Select(a => new
+            {
+                a.Id,
+                a.Action,
+                a.EntityType,
+                a.EntityId,
+                a.UserId,
+                a.Timestamp,
+                a.Source,
+                a.DetailsJson
+            })
+            .ToListAsync();
+
+        return Ok(entries);
+    }
+
     // ── Issue Attachments ────────────────────────────────────────────────
 
     /// <summary>

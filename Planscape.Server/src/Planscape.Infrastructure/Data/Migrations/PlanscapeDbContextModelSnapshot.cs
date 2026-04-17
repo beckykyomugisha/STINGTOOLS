@@ -333,6 +333,29 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.ToTable("DevicePushTokens");
             });
 
+            modelBuilder.Entity("Planscape.Core.Entities.UserNotificationPreferences", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("UserId").HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<bool>("IssuesEnabled").HasColumnType("boolean");
+                b.Property<bool>("ComplianceEnabled").HasColumnType("boolean");
+                b.Property<bool>("RevisionsEnabled").HasColumnType("boolean");
+                b.Property<bool>("MeetingsEnabled").HasColumnType("boolean");
+                b.Property<bool>("SlaBreachesEnabled").HasColumnType("boolean");
+                b.Property<string>("Channel").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("QuietHoursStart").HasMaxLength(5).HasColumnType("character varying(5)");
+                b.Property<string>("QuietHoursEnd").HasMaxLength(5).HasColumnType("character varying(5)");
+                b.Property<string>("TimeZone").HasMaxLength(64).HasColumnType("character varying(64)");
+                b.Property<DateTime>("UpdatedAt").HasColumnType("timestamp with time zone");
+
+                b.HasKey("Id");
+                b.HasIndex("UserId").IsUnique();
+                b.HasIndex("TenantId");
+
+                b.ToTable("UserNotificationPreferences");
+            });
+
             modelBuilder.Entity("Planscape.Core.Entities.IssueAttachment", b =>
             {
                 b.Property<Guid>("Id")
@@ -1320,6 +1343,24 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.Navigation("Tenant");
 
+                b.Navigation("User");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.UserNotificationPreferences", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.AppUser", "User")
+                    .WithMany()
+                    .HasForeignKey("UserId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
+                    .WithMany()
+                    .HasForeignKey("TenantId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Tenant");
                 b.Navigation("User");
             });
 

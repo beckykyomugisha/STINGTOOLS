@@ -189,3 +189,79 @@ export function subscribePushToken(args: SubscribeArgs): Promise<void> {
     body: JSON.stringify(args),
   });
 }
+
+// ── NEW-INT-01 mobile coverage for server endpoints ────────────────────
+
+import type {
+  Transmittal,
+  Meeting,
+  WorkflowRun,
+  WarningRecord,
+  ProjectSettings,
+  NotificationPreferences,
+  IssueActivityEntry,
+} from '../types/api';
+
+// Transmittals
+export function listTransmittals(projectId: string): Promise<Transmittal[]> {
+  return apiFetch(`/api/projects/${projectId}/transmittals`);
+}
+export function createTransmittal(projectId: string, body: Partial<Transmittal>): Promise<Transmittal> {
+  return apiFetch(`/api/projects/${projectId}/transmittals`, { method: 'POST', body: JSON.stringify(body) });
+}
+export function sendTransmittal(projectId: string, id: string): Promise<Transmittal> {
+  return apiFetch(`/api/projects/${projectId}/transmittals/${id}/send`, { method: 'POST' });
+}
+
+// Meetings
+export function listMeetings(projectId: string): Promise<Meeting[]> {
+  return apiFetch(`/api/projects/${projectId}/meetings`);
+}
+
+// Workflow runs
+export function listWorkflowRuns(projectId: string): Promise<WorkflowRun[]> {
+  return apiFetch(`/api/projects/${projectId}/workflows`);
+}
+
+// Warnings
+export function listWarnings(projectId: string): Promise<WarningRecord[]> {
+  return apiFetch(`/api/projects/${projectId}/warnings`);
+}
+
+// Global search (NEW-INT-12)
+export interface SearchResults {
+  tags: unknown[]; issues: unknown[]; documents: unknown[]; meetings: unknown[];
+}
+export function globalSearch(query: string): Promise<SearchResults> {
+  return apiFetch(`/api/search?q=${encodeURIComponent(query)}`);
+}
+
+// Project settings (NEW-FLEX-02/05/08)
+export function getProjectSettings(projectId: string): Promise<ProjectSettings> {
+  return apiFetch(`/api/projects/${projectId}/settings`);
+}
+
+// Notification preferences (NEW-FLEX-12)
+export function getNotificationPreferences(): Promise<NotificationPreferences> {
+  return apiFetch('/api/me/notifications/preferences');
+}
+export function updateNotificationPreferences(prefs: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
+  return apiFetch('/api/me/notifications/preferences', { method: 'PUT', body: JSON.stringify(prefs) });
+}
+
+// Issue activity timeline (NEW-INFO-06/07)
+export function getIssueActivity(projectId: string, issueId: string): Promise<IssueActivityEntry[]> {
+  return apiFetch(`/api/projects/${projectId}/issues/${issueId}/activity`);
+}
+
+// Document approval (NEW-INT-15)
+export function requestDocumentApproval(projectId: string, documentId: string, targetState: string): Promise<unknown> {
+  return apiFetch(`/api/projects/${projectId}/documents/${documentId}/approvals`, {
+    method: 'POST', body: JSON.stringify({ targetState }),
+  });
+}
+export function decideDocumentApproval(projectId: string, documentId: string, approvalId: string, decision: 'APPROVED' | 'REJECTED', comment?: string): Promise<unknown> {
+  return apiFetch(`/api/projects/${projectId}/documents/${documentId}/approvals/${approvalId}`, {
+    method: 'PUT', body: JSON.stringify({ decision, comment }),
+  });
+}
