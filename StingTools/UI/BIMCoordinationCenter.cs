@@ -432,6 +432,10 @@ namespace StingTools.UI
             public string Status { get; set; }
             public string Agenda { get; set; }
             public int Attendees { get; set; }
+            // Phase 98: Chair must be a string (team member name). The DataGrid
+            // previously bound the Chair column to Attendees (int) which rendered
+            // the numeric attendee count instead of a person's name.
+            public string Chair { get; set; }
         }
 
         /// <summary>Phase 77 Item 6: Action item data row for inline grid.</summary>
@@ -3951,21 +3955,25 @@ namespace StingTools.UI
                 "Configure and display interactive Gantt timeline with phase/trade breakdown"));
             actionsWrap.Children.Add(Make4DPanelButton("Cost Report", "CostReport5D", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
                 "Configure detailed 5D cost report: by category, discipline, phase with subtotals"));
-            actionsWrap.Children.Add(MakeActionButton("Cash Flow", "CashFlow5D", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+            // Phase 98: all 4D/5D operations now reveal their inline configuration /
+            // summary panels in-place rather than opening new TaskDialog windows that
+            // break the BCC z-order and force the coordinator to hunt for the popup.
+            // The switch in Build4DPanelFor already has cases for every tag below.
+            actionsWrap.Children.Add(Make4DPanelButton("Cash Flow", "CashFlow5D", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
                 "S-curve cash flow forecast with monthly planned vs actual spend"));
-            actionsWrap.Children.Add(MakeActionButton("Export Schedule", "ExportSchedule4D", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            actionsWrap.Children.Add(Make4DPanelButton("Export Schedule", "ExportSchedule4D", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Export 4D schedule to CSV for Navisworks TimeLiner / Synchro import"));
-            actionsWrap.Children.Add(MakeActionButton("Import MS Project", "ImportMSProject", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            actionsWrap.Children.Add(Make4DPanelButton("Import MS Project", "ImportMSProject", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Import tasks from Microsoft Project XML/CSV for 4D integration"));
-            actionsWrap.Children.Add(MakeActionButton("Milestone Register", "MilestoneRegister", Br(CAccent),
+            actionsWrap.Children.Add(Make4DPanelButton("Milestone Register", "MilestoneRegister", Br(CAccent),
                 "View/manage construction milestones with completion tracking"));
-            actionsWrap.Children.Add(MakeActionButton("Phase Summary", "PhaseSummary", Br(CHeaderBg),
+            actionsWrap.Children.Add(Make4DPanelButton("Phase Summary", "PhaseSummary", Br(CHeaderBg),
                 "Phase-by-phase summary: element counts, completion status, duration"));
-            actionsWrap.Children.Add(MakeActionButton("Working Calendar", "WorkingCalendar", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            actionsWrap.Children.Add(Make4DPanelButton("Working Calendar", "WorkingCalendar", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Configure working days, holidays, and shift patterns for scheduling"));
-            actionsWrap.Children.Add(MakeActionButton("Navisworks Export", "NavisworksTimeLiner", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+            actionsWrap.Children.Add(Make4DPanelButton("Navisworks Export", "NavisworksTimeLiner", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
                 "Export Navisworks TimeLiner CSV with element-to-task mapping"));
-            actionsWrap.Children.Add(MakeActionButton("Element Cost Trace", "ElementCostTrace", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+            actionsWrap.Children.Add(Make4DPanelButton("Element Cost Trace", "ElementCostTrace", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
                 "Trace cost allocation per element: material + labour + plant rates"));
             stack.Children.Add(actionsWrap);
 
@@ -4150,10 +4158,19 @@ namespace StingTools.UI
                         Height = 150,
                         Margin = new Thickness(0, 0, 0, 8)
                     };
-                    dg.Columns.Add(new DataGridTextColumn { Header = "Category",  Binding = new System.Windows.Data.Binding("Category"),  Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    dg.Columns.Add(new DataGridTextColumn { Header = "Rate UGX",  Binding = new System.Windows.Data.Binding("RateUGX"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    dg.Columns.Add(new DataGridTextColumn { Header = "Rate USD",  Binding = new System.Windows.Data.Binding("RateUSD"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    dg.Columns.Add(new DataGridTextColumn { Header = "Unit",      Binding = new System.Windows.Data.Binding("Unit"),      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    // Phase 98: Unit column is now a strict dropdown so the
+                    // 5D roll-up doesn't get salted with "m2"/"m²"/"sq.m"/"Sq m"
+                    // inconsistencies that broke cost aggregation by unit.
+                    var costUnitList = new List<string>
+                    {
+                        "m²", "m³", "m", "kg", "tonne", "no.", "item", "ea", "l/s", "kW", "kVA", "hour", "day", "sum"
+                    };
+                    var costUnitStyle = new Style(typeof(ComboBox));
+                    costUnitStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+                    dg.Columns.Add(new DataGridTextColumn     { Header = "Category",  Binding = new System.Windows.Data.Binding("Category"),                                          Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn     { Header = "Rate UGX",  Binding = new System.Windows.Data.Binding("RateUGX"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn     { Header = "Rate USD",  Binding = new System.Windows.Data.Binding("RateUSD"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridComboBoxColumn { Header = "Unit",      ItemsSource = costUnitList, SelectedItemBinding = new System.Windows.Data.Binding("Unit"),       Width = new DataGridLength(1, DataGridLengthUnitType.Star), EditingElementStyle = costUnitStyle });
                     dg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<CostRateRow>
                     {
                         new CostRateRow { Category = "Walls",       RateUGX = "850000",  RateUSD = "230",  Unit = "m²" },
@@ -4280,11 +4297,22 @@ namespace StingTools.UI
                     toolbar.Children.Add(addRowBtn); toolbar.Children.Add(delRowBtn); toolbar.Children.Add(exportBtn);
                     sp.Children.Add(toolbar);
 
+                    // Phase 98: strict dropdowns on Discipline + Status so
+                    // milestone reports roll up cleanly ("ARCH" vs "Architecture"
+                    // vs "architecture" have historically fragmented status boards).
+                    var mileDiscList = new List<string>
+                    {
+                        "A", "S", "M", "E", "P", "FP", "LV", "G", "C", "I", "All Disciplines"
+                    };
+                    var mileStatusList = new List<string>
+                    {
+                        "PLANNED", "IN PROGRESS", "AT RISK", "ACHIEVED", "MISSED", "CARRIED FORWARD", "CANCELLED"
+                    };
                     var mileDg = MakeExcelDataGrid(180);
-                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Milestone",   Binding = new System.Windows.Data.Binding("Milestone"),   Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Date",        Binding = new System.Windows.Data.Binding("Date"),        Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Discipline",  Binding = new System.Windows.Data.Binding("Discipline"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Status",      Binding = new System.Windows.Data.Binding("Status"),      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridTextColumn     { Header = "Milestone",   Binding = new System.Windows.Data.Binding("Milestone"),                                            Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridTextColumn     { Header = "Date",        Binding = new System.Windows.Data.Binding("Date"),                                                 Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridComboBoxColumn { Header = "Discipline",  ItemsSource = mileDiscList,   SelectedItemBinding = new System.Windows.Data.Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status",      ItemsSource = mileStatusList, SelectedItemBinding = new System.Windows.Data.Binding("Status"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                     mileDg.Columns.Add(new DataGridTextColumn { Header = "Notes",       Binding = new System.Windows.Data.Binding("Notes"),       Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
                     var mileSource = new System.Collections.ObjectModel.ObservableCollection<MilestoneEditRow>();
                     foreach (var m in _data.Milestones.Take(20))
@@ -4453,11 +4481,18 @@ namespace StingTools.UI
 
                     sp.Children.Add(new TextBlock { Text = "Cost Rates (editable):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
                     var rateDg = MakeExcelDataGrid(160);
-                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Category",    Binding = new System.Windows.Data.Binding("Category"),    Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Unit",        Binding = new System.Windows.Data.Binding("Unit"),        Width = 60 });
-                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Rate UGX",    Binding = new System.Windows.Data.Binding("RateUGX"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Rate USD",    Binding = new System.Windows.Data.Binding("RateUSD"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Description", Binding = new System.Windows.Data.Binding("Description"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    // Phase 98: Unit dropdown — matches the 5D Cost Rates grid above.
+                    var rateUnitList = new List<string>
+                    {
+                        "m²", "m³", "m", "kg", "tonne", "no.", "item", "ea", "l/s", "kW", "kVA", "hour", "day", "sum"
+                    };
+                    var rateUnitStyle = new Style(typeof(ComboBox));
+                    rateUnitStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Category",    Binding = new System.Windows.Data.Binding("Category"),                                          Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    rateDg.Columns.Add(new DataGridComboBoxColumn { Header = "Unit",        ItemsSource = rateUnitList, SelectedItemBinding = new System.Windows.Data.Binding("Unit"),       Width = 70, EditingElementStyle = rateUnitStyle });
+                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Rate UGX",    Binding = new System.Windows.Data.Binding("RateUGX"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Rate USD",    Binding = new System.Windows.Data.Binding("RateUSD"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Description", Binding = new System.Windows.Data.Binding("Description"),                                       Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
                     rateDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<ElementCostRow>
                     {
                         new ElementCostRow { Category = "Walls",   Unit = "m²", RateUGX = "850000",  RateUSD = "230",  Description = "Masonry / Blockwork" },
@@ -7339,15 +7374,31 @@ namespace StingTools.UI
                 "Client Meeting", "Stakeholder Engagement", "Project Board Meeting", "Change Control Meeting",
                 "Lessons Learned", "Weekly Team Meeting", "Issue Resolution Meeting", "Workshop", "Other"
             };
-            var mtgStatuses = new List<string> { "PLANNED", "IN PROGRESS", "COMPLETED", "CANCELLED" };
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("MeetingId"), Width = 70, IsReadOnly = true });
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Title"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type", ItemsSource = mtgTypes, SelectedItemBinding = new Binding("Type"), Width = 140 });
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Date", Binding = new Binding("Date"), Width = 78 });
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Time", Binding = new Binding("Time"), Width = 55 });
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Location / Link", Binding = new Binding("Location"), Width = 100 });
-            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status", ItemsSource = mtgStatuses, SelectedItemBinding = new Binding("Status"), Width = 100 });
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Chair", Binding = new Binding("Attendees"), Width = 80 });
+            var mtgStatuses = new List<string> { "PLANNED", "IN PROGRESS", "COMPLETED", "CANCELLED", "POSTPONED", "NO QUORUM" };
+            // Phase 98: strict dropdowns on the remaining typo-prone meeting columns.
+            // Chair: seeded from team directory (so BIM Managers can't be typed as
+            // "BIM Mgr" / "BIMM" / "B. Manager" on different rows) — editable for
+            // client-side chairs not in the team list.
+            var mtgChairList = _data.TeamMembers.Select(m => m.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().OrderBy(n => n).ToList();
+            if (mtgChairList.Count == 0)
+                mtgChairList.AddRange(new[] { "BIM Manager", "Project Manager", "Lead Architect", "Client", "Contractor", "TBC" });
+            var mtgLocationPresets = new List<string>
+            {
+                "Site Meeting Room", "Client Office", "Design Team Office", "Contractor Site Office",
+                "MS Teams", "Zoom", "Google Meet", "Webex", "Hybrid (In-Person + MS Teams)", "Hybrid (In-Person + Zoom)",
+                "Construction Site (Block A)", "Construction Site (Block B)", "BIM Hub", "TBC"
+            };
+            var mtgEditableStyle = new Style(typeof(ComboBox));
+            mtgEditableStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+            mtgDg.Columns.Add(new DataGridTextColumn     { Header = "ID",              Binding = new Binding("MeetingId"),                                        Width = 70, IsReadOnly = true });
+            mtgDg.Columns.Add(new DataGridTextColumn     { Header = "Title",           Binding = new Binding("Title"),                                             Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type",            ItemsSource = mtgTypes,            SelectedItemBinding = new Binding("Type"),     Width = 140, EditingElementStyle = mtgEditableStyle });
+            mtgDg.Columns.Add(new DataGridTextColumn     { Header = "Date",            Binding = new Binding("Date"),                                              Width = 78 });
+            mtgDg.Columns.Add(new DataGridTextColumn     { Header = "Time",            Binding = new Binding("Time"),                                              Width = 55 });
+            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Location / Link", ItemsSource = mtgLocationPresets,  SelectedItemBinding = new Binding("Location"), Width = 140, EditingElementStyle = mtgEditableStyle });
+            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status",          ItemsSource = mtgStatuses,         SelectedItemBinding = new Binding("Status"),   Width = 110 });
+            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Chair",           ItemsSource = mtgChairList,        SelectedItemBinding = new Binding("Chair"),    Width = 130, EditingElementStyle = mtgEditableStyle });
             mtgDg.ItemsSource = mtgSource;
 
             // Row colouring by status
@@ -7578,11 +7629,20 @@ namespace StingTools.UI
             minutesPanel.Children.Add(MakeSectionHeader("AGENDA / MINUTES"));
             var agendaDg = MakeExcelDataGrid(160);
             agendaDg.IsReadOnly = false;
-            agendaDg.Columns.Add(new DataGridTextColumn { Header = "#", Binding = new Binding("ActionId"), Width = 35 });
-            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Topic", Binding = new Binding("Description"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Discussion / Notes", Binding = new Binding("Owner"), Width = 170 });
-            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Decision", Binding = new Binding("Status"), Width = 120 });
-            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Action Ref", Binding = new Binding("MeetingRef"), Width = 80 });
+            // Phase 98: Decision column is now a strict dropdown (matching real
+            // meeting-minute practice: each agenda item gets one of a small set
+            // of outcomes). Free text here tends to produce "agreed"/"AGREED"/
+            // "Agreed ✓"/"ok" variants that confuse status reporting.
+            var decisionList = new List<string>
+            {
+                "AGREED", "ACTIONED", "DEFERRED", "REJECTED", "NOTED", "PENDING INFO",
+                "FOR REVIEW", "SUPERSEDED BY", "CARRIED FORWARD", "FOR APPROVAL"
+            };
+            agendaDg.Columns.Add(new DataGridTextColumn     { Header = "#",                  Binding = new Binding("ActionId"),                                             Width = 35 });
+            agendaDg.Columns.Add(new DataGridTextColumn     { Header = "Topic",              Binding = new Binding("Description"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            agendaDg.Columns.Add(new DataGridTextColumn     { Header = "Discussion / Notes", Binding = new Binding("Owner"),                                                 Width = 170 });
+            agendaDg.Columns.Add(new DataGridComboBoxColumn { Header = "Decision",           ItemsSource = decisionList, SelectedItemBinding = new Binding("Status"),        Width = 140 });
+            agendaDg.Columns.Add(new DataGridTextColumn     { Header = "Action Ref",         Binding = new Binding("MeetingRef"),                                            Width = 80 });
             agendaDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<ActionItemRow>();
             minutesPanel.Children.Add(agendaDg);
             minutesPanel.Children.Add(MakeSectionHeader("ATTENDEES PRESENT"));
@@ -8382,5 +8442,69 @@ namespace StingTools.UI
     {
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
         internal static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+    }
+
+    /// <summary>Phase 98: Centralised window-owner helper.
+    /// <para>
+    /// Problem: modeless WPF windows opened from Revit commands default to no owner,
+    /// which in Revit produces two bugs — child dialogs open BEHIND the BCC when the
+    /// BCC is visible, and when the child is clicked the BCC disappears behind the
+    /// Revit main window (because its only Z-parent was the Revit HWND).
+    /// </para>
+    /// <para>
+    /// Fix: call <see cref="ApplyOwner"/> on any WPF Window before <c>Show()</c> or
+    /// <c>ShowDialog()</c>. It prefers the BCC (when visible) so child windows stack
+    /// above it; otherwise it sets the Revit main window HWND via
+    /// <see cref="System.Windows.Interop.WindowInteropHelper"/> so the window still
+    /// behaves like a proper Revit child.
+    /// </para>
+    /// </summary>
+    public static class StingWindowHelper
+    {
+        /// <summary>Set a sensible owner on <paramref name="w"/> so it always stacks
+        /// above the BCC / Revit main window. Call BEFORE <c>Show()</c> or
+        /// <c>ShowDialog()</c> — WPF doesn't let you change Owner after.</summary>
+        public static void ApplyOwner(System.Windows.Window w)
+        {
+            if (w == null) return;
+            try
+            {
+                // Prefer BCC as owner when it's open — keeps child dialogs above the
+                // coordination centre where the user expects them.
+                var bcc = BIMCoordinationCenter.CurrentInstance;
+                if (bcc != null && bcc != w && bcc.IsLoaded)
+                {
+                    w.Owner = bcc;
+                    return;
+                }
+                // No BCC — fall back to Revit main HWND so switching apps preserves
+                // the same child-window relationship BCC itself uses.
+                var revitHwnd = NativeMethods.FindWindow("Rvt_MainWindow", null);
+                var handle = revitHwnd != IntPtr.Zero
+                    ? revitHwnd
+                    : System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                if (handle != IntPtr.Zero)
+                    new System.Windows.Interop.WindowInteropHelper(w).Owner = handle;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"StingWindowHelper.ApplyOwner: {ex.Message}");
+            }
+        }
+
+        /// <summary>Convenience wrapper — apply owner then call <c>ShowDialog()</c>.
+        /// Returns the dialog result.</summary>
+        public static bool? ShowDialogOwned(System.Windows.Window w)
+        {
+            ApplyOwner(w);
+            return w.ShowDialog();
+        }
+
+        /// <summary>Convenience wrapper — apply owner then call <c>Show()</c>.</summary>
+        public static void ShowOwned(System.Windows.Window w)
+        {
+            ApplyOwner(w);
+            w.Show();
+        }
     }
 }

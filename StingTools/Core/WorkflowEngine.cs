@@ -1515,6 +1515,14 @@ namespace StingTools.Core
                 // share bar. Same double-path issue as QR — only wired in StingCommandHandler
                 // so BCC's ExternalEvent path produced "Action 'CodeLegend' is not handled."
                 case "CodeLegend":             return new Tags.CodeLegendCommand();
+
+                // Phase 98: 4D/5D scheduling commands dispatched from BCC 4D/5D tab. Same
+                // double-path gap as QR/CodeLegend — only wired in StingCommandHandler so
+                // BCC's ExternalEvent path produced "Action 'X' is not handled".
+                case "WorkingCalendar":        return new BIMManager.WorkingCalendarCommand();
+                case "SaveWorkingCalendar":    return new BIMManager.WorkingCalendarCommand();
+                case "NavisworksTimeLiner":    return new BIMManager.NavisworksTimeLinerExportCommand();
+                case "ElementCostTrace":       return new BIMManager.ElementCostTraceCommand();
                 // WF-02: EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand.
                 // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
                 // which is handled by the plugin hook fallback + error logging in RunCommandByTag.

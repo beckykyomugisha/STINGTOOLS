@@ -38,8 +38,11 @@ namespace StingTools.Tags
                 catch (Exception ex) { StingLog.Warn($"CodeLegend: failed to parse {legendPath}: {ex.Message}"); }
             }
 
+            // Phase 98: modeless Show + owner set so it stacks above BCC (when BCC
+            // is open) or above Revit's main window otherwise, and doesn't drop
+            // behind on focus. ShowDialog would have blocked the BCC message loop.
             var win = new CodeLegendWindow(legend);
-            win.ShowDialog();
+            StingTools.UI.StingWindowHelper.ShowOwned(win);
             return Result.Succeeded;
         }
     }

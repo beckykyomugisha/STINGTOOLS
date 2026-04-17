@@ -441,12 +441,9 @@ namespace StingTools.Select
             // Re-populate to apply validation coloring
             picker.PopulateList(items);
 
-            try
-            {
-                var helper = new System.Windows.Interop.WindowInteropHelper(picker);
-                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
-            }
-            catch (Exception ex) { StingLog.Warn($"StingListPicker owner: {ex.Message}"); }
+            // Phase 98: prefer BCC as owner when it's open so the picker stacks
+            // above the coordination centre (was falling behind with raw Revit HWND).
+            StingTools.UI.StingWindowHelper.ApplyOwner(picker);
 
             picker.ShowDialog();
             return picker._result;
@@ -457,13 +454,9 @@ namespace StingTools.Select
         {
             var dlg = new StingListPicker(title, subtitle, items, allowMultiSelect);
 
-            // FIX-B13: Set Revit main window as owner so the dialog stays on top
-            try
-            {
-                var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
-                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
-            }
-            catch (Exception ex) { StingLog.Warn($"Set window owner failed: {ex.Message}"); }
+            // Phase 98: prefer BCC as owner when open so the picker stacks above
+            // the coordination centre; falls back to Revit main HWND otherwise.
+            StingTools.UI.StingWindowHelper.ApplyOwner(dlg);
 
             dlg.ShowDialog();
             return dlg._result;

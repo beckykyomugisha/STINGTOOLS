@@ -550,6 +550,7 @@ namespace StingTools.UI
             Dictionary<string, int> elementCounts)
         {
             var dlg = new CombineConfigDialog(groups, elementCounts);
+            StingWindowHelper.ApplyOwner(dlg);
             dlg.ShowDialog();
             return dlg._result ?? new CombineConfigResult { Cancelled = true };
         }

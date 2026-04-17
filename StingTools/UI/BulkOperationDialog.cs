@@ -890,6 +890,7 @@ namespace StingTools.UI
         public static BulkOperationResult Show(int elementCount, List<PreviewEntry> previewData = null)
         {
             var dlg = new BulkOperationDialog(elementCount, previewData);
+            StingWindowHelper.ApplyOwner(dlg);
             dlg.ShowDialog();
             return dlg._result ?? new BulkOperationResult { Cancelled = true };
         }

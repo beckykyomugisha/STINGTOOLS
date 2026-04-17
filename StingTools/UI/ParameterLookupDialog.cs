@@ -585,6 +585,8 @@ namespace StingTools.UI
             Func<List<Condition>, string, List<long>> filterFunc)
         {
             var dlg = new ParameterLookupDialog(parameters, categories, queryFunc, filterFunc);
+            // Phase 98: BCC-aware owner so the lookup stacks above BCC when dispatched from it.
+            StingWindowHelper.ApplyOwner(dlg);
             dlg.ShowDialog();
             return dlg._result;
         }
