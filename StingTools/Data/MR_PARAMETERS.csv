@@ -293,7 +293,6 @@ Generic Models,BLE_MAT_CATEGORY_TXT,baa96504-505d-5c7e-976a-ce8fb8f5f93d,TEXT,CS
 Generic Models,CP_STYLE_TXT,bd30ce04-7273-4a90-80f2-45d95529cade,TEXT,TPL_TRACKING,Type,Style category [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,VT_TEMPLATE_NAME_TXT,0411de04-abf2-4d80-862c-068ac46a593c,TEXT,TPL_TRACKING,Type,View template name [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_PRODCT_COD_TXT,082a2a05-3387-5501-b355-51dd45e23e9f,TEXT,ASS_MNG,Type,Ass Prodct Cod Txt [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,CST_CALC_CONCRETE_M3,37e3e205-e39e-4d43-bc4b-2ac9367f2540,TEXT,COM_DAT,Type,Calculated concrete volume in cubic meters [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_INSTALL_UGX_NR,01fcf005-60b1-5886-b52f-015cc7598787,TEXT,ASS_MNG,Type,Ass Cst Install Ugx Nr [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PLM_ACC_CONNECTION_SZ_NR,75ca3206-aa70-5fe0-85b3-90cd4bf3d798,TEXT,PLM_DRN,Type,Plm Acc Connection Sz Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_UNIT_PRICE_SAND_UGX,d5f55c06-5782-43c1-b8d6-47ac44a03f29,TEXT,COM_DAT,Type,Unit price per cubic meter sand in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -379,7 +378,6 @@ Generic Models,MAT_THICKNESS_INCH,77700220-09d7-5b22-b67c-282123db6b2d,TEXT,MAT_
 Generic Models,COM_C_MEASUREMENT_RANGE_TXT,03350a20-2839-57c9-944d-3a16489eb2ec,TEXT,COM_DAT,Type,Com C Measurement Range Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_PWR_CIR_LOAD_TYPE_TXT,2c471520-95f9-5dd1-a2d8-6c0f806dbb7f,TEXT,ELC_PWR,Type,Elc Pwr Cir Load Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_LAYER_3_MATERIAL,20281f20-2ca0-549c-8720-4426956630fc,TEXT,MAT_INFO,Type,Mat Layer 3 Material [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_MAT_MANUFACTURER_TXT,4558d620-d027-570c-8aa9-d098e11fdba5,TEXT,CST_PROC,Type,Ble Mat Manufacturer Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_DRN_TRAP_TYPE_TXT,f3047521-82db-5ab3-aeb9-517696913fa5,TEXT,PLM_DRN,Type,Plm Drn Trap Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_MAS_CEMENT_BAGS_NR,64a7b021-378e-5b41-9cd8-46e3f9bf9849,TEXT,COM_DAT,Type,Cst S Mas Cement Bags Nr [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_STAIR_TYPE_TXT,c15cc821-78dc-51b7-b237-0d5ee6e7c2fe,TEXT,CST_PROC,Type,Ble Stair Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -502,7 +500,7 @@ Generic Models,MAT_LAYER_5_THICKNESS_MM,70322b56-805e-5cc0-b939-0baea195fb6f,TEX
 Generic Models,PER_SUST_LEED_CONTRIB_TXT,710bd756-8685-53df-9e99-ff974d4d1ad9,TEXT,PER_SUST,Type,Per Sust Leed Contrib Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,SUST_MAT_TAG_2_TXT,7f2ca957-dd29-4a9a-835a-c39dbdfed8d9,TEXT,PER_SUST,Type,"Green certification tag: LEED credits, EDGE savings, energy rating [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,PLM_VENT_CONNECTED_TO_TXT,aec0b857-0c69-550c-a3f2-0dbed660038a,TEXT,PLM_DRN,Type,Plm Vent Connected To Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PER_SUST_RECYCLABLE_BOOL,30d1ec57-f844-5585-8af5-8828d9f98dbb,TEXT,PER_SUST,Type,Per Sust Recyclable Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PER_SUST_RECYCLABLE_BOOL,30d1ec57-f844-5585-8af5-8828d9f98dbb,YESNO,PER_SUST,Type,Per Sust Recyclable Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_FOUNDATION_TYPE_TXT,d6705b58-9a98-5a20-98e8-3fe13dfb048a,TEXT,CST_PROC,Type,Ble Struct Foundation Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,SYS_APPLICABLE_STANDARDS_TXT,ffea8a58-370e-4783-a55b-32e5c8da41e8,TEXT,TPL_TRACKING,Type,Applicable standards [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PRJ_TB_CHECKED_BY_TXT,052af358-d13d-5e2e-aaf2-9a7e58d18371,TEXT,PRJ_INFORMATION,Type,Prj Tb Checked By Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -521,7 +519,6 @@ Generic Models,RGL_CMPL_SPARE_02_TXT,e09f8a5d-d804-4eab-9ae5-da56f1f77e02,TEXT,R
 Generic Models,VT_ISO_COMPLIANCE_TXT,98f5015e-f788-43c3-8bfc-f185040c5d23,TEXT,TPL_TRACKING,Type,ISO 19650 compliance status [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FACADE_VENTILATED_TXT,e2903b5e-3c83-52f5-be65-38035c5ae234,TEXT,CST_PROC,Type,Ble Facade Ventilated Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_DOWNPPE_SZ_MM,0593605e-34af-58ad-a721-1812417ba5db,TEXT,CST_PROC,Type,Ble Roof Downppe Sz Mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_DOOR_GLAZING_PCT,97c22b5f-f1e0-51af-af99-441981dff085,TEXT,CST_PROC,Type,Ble Door Glazing Pct [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_UNIT_PRICE_BLOCK_UGX,981b325f-f103-4911-810f-b1e07b5325dd,TEXT,COM_DAT,Type,Unit price per block in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,MA_ELEMENT_CATEGORY_TXT,7a57b85f-2cbc-4e28-908d-ec2a200d3bae,TEXT,TPL_TRACKING,Type,Element category [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,CST_SUP_ALTERNATIVE_SUPPLIERS_TXT,886b0a60-5446-5dc8-9f6c-319ffdd0fd1d,TEXT,COM_DAT,Type,Cst Sup Alternative Suppliers Txt [ISO 19650-2:2018],False,,,MULTI,1,0
@@ -761,7 +758,6 @@ Generic Models,ASS_INST_DATE_TXT,0d021db7-c85a-5df7-82e3-6a2fd48eb619,TEXT,ASS_M
 Generic Models,CST_UNIT_PRICE_PRIMER_UGX,3e752ab7-7a0f-4564-8931-c2fc456343cf,TEXT,COM_DAT,Type,Unit price per liter primer in UGX [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PLM_DRN_VNT_TERMINAL_HEIGHT_FT,64a030b7-5e50-5175-a885-5935e46c619f,TEXT,PLM_DRN,Type,Plm Drn Vnt Terminal Height Ft [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ASS_PMT_CST_LABOUR_CST_UGX_NR,5188a0b7-bdc3-5aa4-85a9-b986c53e4bea,TEXT,ASS_MNG,Type,Ass Pmt Cst Labour Cst Ugx Nr [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,PER_THERM_U_VALUE_W_M2K_NR,497231b8-269c-5d9b-ab0b-d4d2b40192d8,TEXT,PER_SUST,Type,Per Therm U Value W M2k Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_PERCENTAGE_OF_TOTAL_PCT,e5f6a7b8-c9d0-1234-efab-5678901234e5,TEXT,CST_PROC,Type,Percentage of total project cost [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,CST_CALC_AGGREGATE_M3,a4e3d4b8-5844-43d9-bda6-a7c32fc037b3,TEXT,COM_DAT,Type,Calculated aggregate volume in cubic meters [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,COLOR_B_INT,fa8343b9-546a-44ad-a4ab-358ee8a446c1,INTEGER,TPL_TRACKING,Type,Palette color blue [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -822,9 +818,7 @@ Generic Models,COM_C_DEV_CONTROLLER_NAME_TXT,046c4fcc-67dc-5359-96f8-063acff7c6a
 Generic Models,COM_C_PROTOCOL_TXT,892356cc-e1c9-5eea-a99c-d92dfca7caab,TEXT,COM_DAT,Type,Com C Protocol Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_MAS_MORTAR_RATIO_TXT,96387ecc-1772-5ec6-92eb-74354f6fb7a6,TEXT,COM_DAT,Type,Cst S Mas Mortar Ratio Txt [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,PLM_PPE_PROPERTY_TXT,7867a5cc-a8e4-5b4c-a10a-520576bb28cc,TEXT,PLM_DRN,Type,Plm Ppe Property Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ASS_WARRANTY_PERIOD_TXT,3a89b2cc-b017-50b4-9492-22369b5313f7,TEXT,ASS_MNG,Type,Ass Warranty Period Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,SYS_ABBREVIATION_TXT,56c866cd-ccae-4b65-aa91-ea2f8f03dbec,TEXT,TPL_TRACKING,Type,System abbreviation [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ASS_WARRANTY_EXPIRATION_DATE_TXT,bb4c8fcd-1997-5f0c-9670-f5c245517a8f,TEXT,ASS_MNG,Type,Ass Warranty Expiration Date Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,PRJ_ADDRESS_2_TXT,4390abcd-ec43-5e4c-9d70-3c3f933fe7df,TEXT,PRJ_INFORMATION,Type,Prj Address 2 Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_DRN_BKWTR_VALVE_TXT,b0edd1cd-19ed-5204-8f9c-98f27ab053be,TEXT,PLM_DRN,Type,Plm Drn Bkwtr Valve Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_STRUCTURE_TYPE_TXT,64ed7ace-2c12-5bfb-86be-314ee494b706,TEXT,CST_PROC,Type,Ble Roof Structure Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -966,7 +960,6 @@ Generic Models,SEC_TAG_7_PARA_SECURITY_TXT,d10b0b0c-12d1-55b8-9d48-feda6544696a,
 Generic Models,ASS_PROJECT_COD_TXT,24bc19e4-8ec6-4d4c-b457-5e14a1f42e58,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
 Generic Models,ASS_ORIGINATOR_COD_TXT,87dc564e-8542-497d-a36f-ee335fd32bd4,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
 Generic Models,ASS_VOLUME_COD_TXT,4f51f371-c2b1-43f5-9dea-da797442c1fb,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
-Generic Models,ASS_STATUS_COD_TXT,a57dfe0c-6db9-4fb6-80e0-d2c453fe653b,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
 Generic Models,ASS_REV_COD_TXT,83b2139d-67bb-48db-a50f-32140c0dc753,TEXT,STINGTags_ISO19650,Type,,False,,,MULTI,1,0
 Generic Models,TAG_PARA_STATE_1_BOOL,e26e01ef-33d8-5a57-9ab7-fa30faa4ceff,YESNO,STINGTags_ISO19650,Type,Compact mode (tier 1 only) [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,TAG_PARA_STATE_2_BOOL,b1080057-9890-5a0c-959a-46fb8847c766,YESNO,STINGTags_ISO19650,Type,Standard mode (tiers 1+2) [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -997,7 +990,6 @@ Generic Models,ARCH_TAG_7_PARA_ROOM_TXT,dc8a2075-2dfd-5f4c-9b4b-4cc938e87797,TEX
 Generic Models,ARCH_TAG_7_PARA_CEIL_TXT,ec301803-ef10-50a5-8cd0-12c129155328,TEXT,BLE_ELES,Type,Ceiling paragraph container - NEW v4.3 [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ARCH_TAG_7_PARA_ROOF_TXT,15306275-b3a6-509c-995a-d1a48b11f567,TEXT,BLE_ELES,Type,Roof paragraph container - NEW v4.3 [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,CST_S_REI_UNIT_WT_KG,cb3db2ab-9bf9-56f8-a5e5-0f2c0aaaa114,TEXT,CST_PROC,Type,Cst S Rei Unit Wt Kg [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,CST_TAG_7_PARA_CONCRETE_TXT,5e68d7eb-d7a9-5929-9825-1a82beb5d822,TEXT,CST_PROC,Type,"Concrete/masonry specification paragraph (grade, strength, admixture, mix ratio) [ISO 19650-3:2020]",False,,,MULTI,1,0
 Generic Models,ELC_ENERGY_COST_UGX_PA,fe962fba-4285-59c3-90eb-bd4dd678316e,TEXT,ELC_PWR,Type,Elc Energy Cost Ugx Pa [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_ENERGY_KWH_PA,73afac01-e2d8-5bd9-a934-6b25d894c67f,TEXT,ELC_PWR,Type,Elc Energy Kwh Pa [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_LP_SOIL_RESIST_OHM_M,ccefd339-0549-58de-892c-ee9ea6c8c304,TEXT,ELC_PWR,Type,Elc Lp Soil Resist Ohm M [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -1454,14 +1446,12 @@ Generic Models,ASS_SUPPLIER_TXT,a1b2c3d4-5002-4a01-b001-000000000102,TEXT,ASS_MN
 Generic Models,ASS_BARCODE_TXT,a1b2c3d4-5003-4a01-b001-000000000103,TEXT,ASS_MNG,Type,Asset barcode identifier [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_ASSET_ID_TXT,a1b2c3d4-5004-4a01-b001-000000000104,TEXT,ASS_MNG,Type,Unique asset identifier [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_CONDITION_TXT,a1b2c3d4-5005-4a01-b001-000000000105,TEXT,ASS_MNG,Type,Asset condition assessment [COBie V2.4],False,,,MULTI,1,0
-Generic Models,ASS_WARRANTY_START_TXT,a1b2c3d4-5006-4a01-b001-000000000106,TEXT,ASS_MNG,Type,Warranty start date [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_WARR_GUAR_PARTS_TXT,a1b2c3d4-5007-4a01-b001-000000000107,TEXT,ASS_MNG,Type,Warranty guarantor for parts [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_WARR_DUR_PARTS_TXT,a1b2c3d4-5008-4a01-b001-000000000108,TEXT,ASS_MNG,Type,Warranty duration for parts [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_WARR_GUAR_LABOR_TXT,a1b2c3d4-5009-4a01-b001-000000000109,TEXT,ASS_MNG,Type,Warranty guarantor for labor [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_WARR_DUR_LABOR_TXT,a1b2c3d4-500a-4a01-b001-000000000110,TEXT,ASS_MNG,Type,Warranty duration for labor [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_WARR_DUR_UNIT_TXT,a1b2c3d4-500b-4a01-b001-000000000111,TEXT,ASS_MNG,Type,Warranty duration unit (year/month) [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_DUR_UNIT_TXT,a1b2c3d4-500c-4a01-b001-000000000112,TEXT,ASS_MNG,Type,Expected life duration unit [COBie V2.4],False,,,MULTI,1,0
-Generic Models,ASS_REPLACE_COST_TXT,a1b2c3d4-500d-4a01-b001-000000000113,TEXT,ASS_MNG,Type,Replacement cost estimate [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_NOM_LENGTH_TXT,a1b2c3d4-500e-4a01-b001-000000000114,TEXT,ASS_MNG,Type,Nominal length [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_NOM_WIDTH_TXT,a1b2c3d4-500f-4a01-b001-000000000115,TEXT,ASS_MNG,Type,Nominal width [COBie V2.4],False,,,MULTI,1,0
 Generic Models,ASS_NOM_HEIGHT_TXT,a1b2c3d4-5010-4a01-b001-000000000116,TEXT,ASS_MNG,Type,Nominal height [COBie V2.4],False,,,MULTI,1,0
@@ -1546,7 +1536,6 @@ Generic Models,HVC_PRESSURE_DROP_PA,a1b2c3d4-504a-4a01-b001-000000000174,TEXT,HV
 Generic Models,HVC_AIRFLOW_LPS,a1b2c3d4-504b-4a01-b001-000000000175,TEXT,HVC_SYSTEMS,Type,HVAC airflow in litres per second,False,,,MULTI,1,0
 Generic Models,ELC_CIRCUIT_NR,a1b2c3d4-504c-4a01-b001-000000000176,TEXT,ELC_PWR,Type,Electrical circuit number,False,,,MULTI,1,0
 Generic Models,ELC_PNL_FED_FROM,a1b2c3d4-504d-4a01-b001-000000000177,TEXT,ELC_PWR,Type,Panel fed from source,False,,,MULTI,1,0
-Generic Models,ELC_PNL_RATED_BOOL,a1b2c3d4-504e-4a01-b001-000000000178,YESNO,ELC_PWR,Type,Panel rated capacity flag,False,,,MULTI,1,0
 Generic Models,LTG_FIX_LAMP_TYPE_TXT,a1b2c3d4-504f-4a01-b001-000000000179,TEXT,LTG_CONTROLS,Type,Lamp type (LED/Fluorescent/HID/Incandescent),False,,,MULTI,1,0
 Generic Models,LTG_FIX_EFFICACY_LM_W,a1b2c3d4-5050-4a01-b001-000000000180,TEXT,LTG_CONTROLS,Type,Luminaire efficacy in lumens per watt,False,,,MULTI,1,0
 Generic Models,PLM_FLOW_RATE_LPS,a1b2c3d4-5054-4a01-b001-000000000184,TEXT,PLM_DRN,Type,Plumbing flow rate in litres per second,False,,,MULTI,1,0
@@ -1620,7 +1609,6 @@ Generic Models,BLE_FURN_WORKSTATION_TYPE_TXT,f7a76836-9037-5107-9089-56359d40e31
 Generic Models,BLE_PARKING_SIZE_TXT,7b1ff45c-0ace-5f3f-8d17-28a923b43eb7,TEXT,BLE_ELES,Type,Ble Parking Size [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_PARKING_TYPE_TXT,4c056451-0b1f-5135-bb0c-32fca3f9509c,TEXT,BLE_ELES,Type,Ble Parking Type [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_RAMP_HANDRAIL_BOOL,a0c9bd40-8190-5ba4-b83c-e6021487e529,TEXT,BLE_ELES,Type,Ble Ramp Handrail [ISO 19650],False,,,MULTI,1,0
-Generic Models,BLE_RAMP_HANDRAIL_TXT,a0f13f16-8dbe-5c40-9163-739d5a0e70e5,TEXT,BLE_ELES,Type,Ble Ramp Handrail [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_RAMP_SURFACE_TXT,02722adc-5b60-5a4e-98a4-91fd38b0f2d8,TEXT,BLE_ELES,Type,Ble Ramp Surface [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_ROOF_DRAINAGE_TYPE_TXT,dccbf6b1-4ec2-584b-ade5-e9690409ef71,TEXT,BLE_ELES,Type,Ble Roof Drainage Type [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_ROOM_OCCUPANCY_NR,9ae2bd6a-1cd6-57ae-b021-677d0d7fc77d,TEXT,BLE_ELES,Type,Ble Room Occupancy [ISO 19650],False,,,MULTI,1,0
@@ -1629,7 +1617,6 @@ Generic Models,BLE_STRUCT_CAMBER_MM,61923c99-e1ae-5562-a508-ff47f6e696a8,TEXT,BL
 Generic Models,BLE_STRUCT_COVER_MM,857ec2f6-f710-5bf4-9989-896925852ce3,TEXT,BLE_ELES,Type,Ble Struct Cover Mm [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_DEPTH_MM,0fe238c3-8e59-538b-ae52-5c7b02159f13,TEXT,BLE_ELES,Type,Ble Struct Depth Mm [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_EXPOSURE_CLASS_TXT,7aca83fa-0893-5ec1-8df0-5fa9881c8324,TEXT,BLE_ELES,Type,Ble Struct Exposure Class [ISO 19650],False,,,MULTI,1,0
-Generic Models,BLE_STRUCT_FIRE_PROTECTION_TYPE_TXT,e4bb52a7-f8f8-516a-aa05-37d51af178c0,TEXT,BLE_ELES,Type,Ble Struct Fire Protection Type [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_SPAN_MM,6fc47034-f4a3-5af5-a88b-317b5149912c,TEXT,BLE_ELES,Type,Ble Struct Span Mm [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_WATERPROOFING_TXT,02326eda-b65b-5a28-b9c4-ccb8ffb8bea1,TEXT,BLE_ELES,Type,Ble Struct Waterproofing [ISO 19650],False,,,MULTI,1,0
 Generic Models,BLE_WINDOW_SHGC_NR,2076ba01-9a86-5747-8a97-4f0eff7c05df,TEXT,BLE_ELES,Type,Ble Window Shgc [ISO 19650],False,,,MULTI,1,0
@@ -2254,7 +2241,6 @@ Generic Models,ASS_MAINT_NEXT_TXT,ee8bbc8d-e28d-5123-91fc-d563ad7f2bfe,TEXT,ASS_
 Generic Models,ASS_NRM_CODE_TXT,c5aed1e4-fedb-5e8b-9805-a1f8c1c66730,TEXT,ASS_MNG,Type,NRM classification code,False,,,MULTI,1,0
 Generic Models,ASS_TAG_3D_TXT,57a75c25-166b-5246-a053-7ea761aed180,TEXT,ASS_MNG,Type,3D view tag text,False,,,MULTI,1,0
 Generic Models,ASS_UNICLASS_2015_TXT,211dbcbc-361e-513e-a25c-ba0c730c6409,TEXT,ASS_MNG,Type,Uniclass 2015 classification code,False,,,MULTI,1,0
-Generic Models,ASS_UNIT_COST_TXT,098758fb-ab76-577c-baf4-7a3742783194,TEXT,ASS_MNG,Type,Unit cost value,False,,,MULTI,1,0
 Generic Models,ASS_WARRANTY_DURATION_LABOR_YRS,cff93906-a238-526b-8b29-af4c681f0032,TEXT,ASS_MNG,Type,Warranty duration labor in years (COBie),False,,,MULTI,1,0
 Generic Models,ASS_WARRANTY_DURATION_PARTS_YRS,2d93e44d-2520-5108-ae5c-680043fe53db,TEXT,ASS_MNG,Type,Warranty duration parts in years (COBie),False,,,MULTI,1,0
 Generic Models,ASS_WARRANTY_LABOR_TXT,185175fb-822c-5978-9955-1ffd1fa2025c,TEXT,ASS_MNG,Type,Warranty guarantor labor (COBie),False,,,MULTI,1,0
@@ -2265,7 +2251,6 @@ Generic Models,COM_COMMISSION_STATUS_TXT,4d8b0acf-5149-5e0b-9195-15abaebf246f,TE
 Generic Models,COM_INSTALL_DATE_TXT,f8a42943-9f11-52d1-b373-6b9b0b7db29f,TEXT,COM_DAT,Type,Installation date (COBie),False,,,MULTI,1,0
 Generic Models,COM_WARRANTY_START_TXT,4c40b92b-76eb-5140-ae41-8823580d4a5d,TEXT,COM_DAT,Type,Warranty start date (COBie),False,,,MULTI,1,0
 Generic Models,ELC_CDT_FILL_RATIO,a9e2d3cf-00ae-5057-a888-e88e97f0927a,TEXT,ELC_PWR,Type,Conduit fill ratio,False,,,MULTI,1,0
-Generic Models,ELC_PNL_SPARE_WAYS_PCT,9f46b7d6-ffc3-5227-a59f-6fe99f932e3c,TEXT,ELC_PWR,Type,Panel spare ways percentage,False,,,MULTI,1,0
 Generic Models,PLM_TRAP_SEAL_MM,46ba5500-b9b1-5ec2-99fc-bb61e8a19616,TEXT,PLM_DRN,Type,Trap seal depth in mm,False,,,MULTI,1,0
 Generic Models,LTG_ILLUMINANCE_LUX,699655a9-e357-5a15-8784-bac95407f2be,TEXT,LTG_CONTROLS,Type,Illuminance level in lux,False,,,MULTI,1,0
 Generic Models,MNT_NEXT_SERVICE_DATE_TXT,882b643a-b0d8-5ebf-8151-d266ecac4378,TEXT,PER_SUST,Type,Next service date,False,,,MULTI,1,0
@@ -2280,9 +2265,7 @@ Generic Models,PER_RECYCLED_CONTENT_PCT_NR,5da0f8a9-e70e-5b23-bd2c-0b48d7c53346,
 Generic Models,PER_VOC_EMISSIONS_UG_M3,05e7966d-5288-5cf3-9bd3-8cc27be2e031,TEXT,PER_SUST,Type,VOC emissions in ug/m3,False,,,MULTI,1,0
 Generic Models,BLE_COLUMN_SLENDERNESS,fcfbe043-f427-5f06-8b50-d7297033dad9,TEXT,BLE_ELES,Type,Column slenderness ratio,False,,,MULTI,1,0
 Generic Models,BLE_CW_PANEL_SHGC,10685bd1-43f8-5fe7-b2f7-c013c3ff734e,TEXT,BLE_ELES,Type,Curtain wall panel solar heat gain coefficient,False,,,MULTI,1,0
-Generic Models,BLE_FIRE_RATING_TXT,13ccc8b4-aa47-5661-89b4-08440a22a0b2,TEXT,BLE_ELES,Type,Element fire rating,False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_FDN_BEARING_KPA,fe1d4c69-165a-574a-a2e6-c13a2fe7712f,TEXT,BLE_ELES,Type,Foundation bearing capacity in kPa,False,,,MULTI,1,0
-Generic Models,BLE_WINDOW_U_VALUE,fbd9842c-1412-5fc9-9b7a-a6d8875eacaa,TEXT,BLE_ELES,Type,Window U-value W/m2K,False,,,MULTI,1,0
 Generic Models,RGL_ACCESSIBILITY_COMPLIANT_TXT,3adfc6e8-7199-5994-83b4-5905f093a225,TEXT,RGL_CMPL,Type,Accessibility compliance status (COBie),False,,,MULTI,1,0
 Generic Models,RGL_CERTIFICATION_REF_TXT,67da24bd-1e07-54d9-8eef-bcef22f2032d,TEXT,RGL_CMPL,Type,Certification reference (COBie),False,,,MULTI,1,0
 Generic Models,RGL_COMPLIANCE_STATUS_TXT,2894aaba-6fe0-5245-85c1-ce55b2199110,TEXT,RGL_CMPL,Type,Compliance status (COBie),False,,,MULTI,1,0
@@ -2358,6 +2341,7 @@ Generic Models,SEC_DEV_TAG,de2cd955-4727-5488-a783-5d9be9942169,TEXT,COM_DAT,Typ
 Generic Models,BLE_FINISH_TXT,2808be20-c49b-5167-868e-fc894cf8161d,TEXT,BLE_ELES,Instance,Building element finish description [ISO 19650-2:2018],False,,,MULTI,1,1
 Generic Models,BLE_MATERIAL_TXT,6a532cfc-c412-5f81-9b93-5c7e4d0ac31a,TEXT,BLE_ELES,Instance,Building element material description [ISO 19650-2:2018],False,,,MULTI,1,1
 Generic Models,SLV_TAG_7_PARA_TXT,4529fc89-90fb-56f9-955a-2d54998a294c,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve paragraph container [ISO 19650-3:2020],False,,,MULTI,1,1
+Generic Models,SLV_TAG,fa93b8a1-3383-5c1f-8935-0dadba420f50,TEXT,SLV_SLEEVE_PARAMS,Instance,MEP Sleeve discipline tag container [ISO 19650-3:2020],False,,,MULTI,1,1
 Generic Models,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH,f2f0b231-ac86-59fd-a1f7-5e7dc0c111a1,TEXT,STINGTags_ISO19650,Type,Tag warning: per embodied carbon kg CO2/m2 architectural [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,WARN_SHT_DISC_MISMATCH,ae00ba3e-96a9-5dac-bee2-b89817614765,TEXT,WARN_THRESHOLDS,Type,Warning: sheet discipline mismatch between name and content [ISO 19650],False,,,MULTI,1,0
 Generic Models,WARN_SHT_NO_DISC,745e3b6f-84a1-537c-af98-6cd0415c0610,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no discipline code [ISO 19650],False,,,MULTI,1,0

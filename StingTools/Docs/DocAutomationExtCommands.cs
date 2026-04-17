@@ -3220,8 +3220,8 @@ namespace StingTools.Docs
                         ("COST", ParamRegistry.COST, "UGX", "Unit cost"),
                         ("REPLACE_COST", ParamRegistry.REPLACE_COST, "UGX", "Replacement cost"),
                         ("EXPECTED_LIFE", "ASS_EXPECTED_LIFE_YEARS_YRS", "year", "Expected life"),
-                        ("WARRANTY_PERIOD", "ASS_WARRANTY_PERIOD_TXT", "", "Warranty period"),
-                        ("WARRANTY_EXPIRY", "ASS_WARRANTY_EXPIRATION_DATE_TXT", "", "Warranty expiration"),
+                        ("WARRANTY_PERIOD", "ASS_WARRANTY_DURATION_PARTS_YRS", "", "Warranty period"),
+                        ("WARRANTY_EXPIRY", "MNT_WARRANTY_EXPIRY_TXT", "", "Warranty expiration"),
                         ("CONDITION", ParamRegistry.CONDITION, "", "Condition assessment"),
                         ("FIRE_RATING", ParamRegistry.FIRE_RATING, "min", "Fire resistance rating"),
                         ("COLOR", ParamRegistry.COLOR, "", "Element colour"),
@@ -3362,7 +3362,7 @@ namespace StingTools.Docs
                             string desc = ParameterHelpers.GetString(el, ParamRegistry.DESC);
                             string cost = ParameterHelpers.GetString(el, ParamRegistry.COST);
                             string condition = ParameterHelpers.GetString(el, ParamRegistry.CONDITION);
-                            string warranty = ParameterHelpers.GetString(el, "ASS_WARRANTY_PERIOD_TXT");
+                            string warranty = ParameterHelpers.GetString(el, "ASS_WARRANTY_DURATION_PARTS_YRS");
                             string fireRating = ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING);
                             string material = ParameterHelpers.GetString(el, ParamRegistry.MATERIAL);
                             string supplier = ParameterHelpers.GetString(el, ParamRegistry.SUPPLIER);

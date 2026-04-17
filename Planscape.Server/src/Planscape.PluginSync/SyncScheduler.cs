@@ -25,6 +25,67 @@ public class SyncScheduler : IDisposable
     /// </summary>
     public event Action<SyncResult>? OnSyncComplete;
 
+    // ── Static process-wide facade (S03) ──────────────────────────────────
+    // The Revit plugin only ever wants ONE scheduler per Revit session, so we
+    // expose a static singleton + lifecycle helpers. These coexist with the
+    // instance API (used by hosted/test scenarios and the server).
+    private static SyncScheduler? _instance;
+    private static readonly object _instanceLock = new();
+
+    /// <summary>The process-wide scheduler instance, or null if Start was never called.</summary>
+    public static SyncScheduler? Instance => _instance;
+
+    /// <summary>
+    /// Start the process-wide scheduler with a pre-authenticated bearer token.
+    /// Idempotent — subsequent calls are no-ops while a scheduler is running.
+    /// </summary>
+    public static void Start(string serverUrl, string authToken,
+        string? offlineQueueDir = null, TimeSpan? interval = null)
+    {
+        lock (_instanceLock)
+        {
+            if (_instance != null && _instance.IsRunning) return;
+            offlineQueueDir ??= Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "STING Tools", "sync-queue");
+            var client = new SyncClient(serverUrl);
+            client.SetAuthToken(authToken);
+            _instance = new SyncScheduler(client, offlineQueueDir);
+            _instance.Start(interval);
+            OfflineQueue.SetShared(_instance._queue);
+        }
+    }
+
+    /// <summary>
+    /// Stop and dispose the process-wide scheduler (call on Revit shutdown).
+    /// Name differs from the instance Stop() because C# disallows static/instance
+    /// overloads with identical signatures.
+    /// </summary>
+    public static void StopShared()
+    {
+        lock (_instanceLock)
+        {
+            try { _instance?.Stop(); }
+            catch { /* best-effort — sync is opportunistic */ }
+            try { _instance?.Dispose(); }
+            catch { /* best-effort */ }
+            _instance = null;
+            OfflineQueue.SetShared(null);
+        }
+    }
+
+    /// <summary>
+    /// Force an immediate sync attempt against the process-wide scheduler.
+    /// Returns a completed task with an error if no scheduler has been started.
+    /// </summary>
+    public static Task<SyncResult> SyncNow(PluginSyncPayload? payload = null)
+    {
+        var inst = _instance;
+        if (inst == null)
+            return Task.FromResult(new SyncResult { ErrorMessage = "SyncScheduler not started" });
+        return inst.SyncNowAsync(payload);
+    }
+
     public SyncScheduler(SyncClient client, string offlineQueueDir)
     {
         _client = client;

@@ -5646,7 +5646,7 @@ namespace StingTools.Core
 
             // U-value checks
             if (wp.Contains("U_VALUE"))
-                return ParameterHelpers.GetString(el, "PER_THERM_U_VALUE_W_M2K_NR");
+                return ParameterHelpers.GetString(el, "PER_THERM_U_VALUE_W_M2K");
             // Voltage drop
             if (wp.Contains("VLT_DROP"))
                 return ParameterHelpers.GetString(el, ParamRegistry.ELC_VOLTAGE);
@@ -5705,7 +5705,7 @@ namespace StingTools.Core
                 return ParameterHelpers.GetString(el, "BLE_CW_PANEL_SHGC");
             // Window U-value
             if (wp.Contains("WINDOW_U_VALUE"))
-                return ParameterHelpers.GetString(el, "BLE_WINDOW_U_VALUE");
+                return ParameterHelpers.GetString(el, "BLE_WINDOW_U_VALUE_W_M_2K_NR");
             // Rail height
             if (wp.Contains("RAIL_HEIGHT"))
                 return ParameterHelpers.GetString(el, "BLE_RAIL_HEIGHT_MM");
@@ -5752,7 +5752,6 @@ namespace StingTools.Core
                 return ParameterHelpers.GetString(el, "ELC_PNL_SHORT_CIRCUIT_KA");
             // Spare ways
             if (wp.Contains("SPARE_WAYS"))
-                return ParameterHelpers.GetString(el, "ELC_PNL_SPARE_WAYS_PCT");
             // Pipe gradient
             if (wp.Contains("PIPE_GRADIENT"))
                 return ParameterHelpers.GetString(el, "PLM_PIPE_GRADIENT_PCT");

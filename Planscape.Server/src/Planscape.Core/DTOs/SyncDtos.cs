@@ -32,6 +32,12 @@ public record TagElementDto
     public string? Rev { get; init; }
     public bool IsComplete { get; init; }
     public bool IsFullyResolved { get; init; }
+    /// <summary>
+    /// Client-supplied wall-clock timestamp of the most recent modification.
+    /// Used by the server to detect stale updates (older than the stored value).
+    /// Nullable for backward compatibility with older plugin builds.
+    /// </summary>
+    public DateTime? LastModifiedUtc { get; init; }
 }
 
 public record TagSyncResponse
@@ -42,6 +48,21 @@ public record TagSyncResponse
     public double CompliancePercent { get; init; }
     public string RagStatus { get; init; } = "";
     public DateTime SyncedAt { get; init; } = DateTime.UtcNow;
+    /// <summary>
+    /// Conflicts detected where the client sent a LastModifiedUtc older than
+    /// the server's stored value. The server retains its own copy
+    /// (SERVER_WINS) and reports each rejected element here so the client can
+    /// merge or prompt the user.
+    /// </summary>
+    public List<SyncConflictDto> Conflicts { get; init; } = new();
+}
+
+public record SyncConflictDto
+{
+    public string ElementId { get; init; } = "";
+    public DateTime? ServerTimestamp { get; init; }
+    public DateTime? ClientTimestamp { get; init; }
+    public string Resolution { get; init; } = "";
 }
 
 public record ComplianceSummaryDto

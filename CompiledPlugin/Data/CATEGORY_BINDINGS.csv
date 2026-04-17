@@ -622,34 +622,34 @@ ASS_TAG_3_TXT,Sprinklers,Type,True
 ASS_TAG_3_TXT,Stairs,Type,True
 ASS_TAG_3_TXT,Walls,Type,True
 ASS_TAG_3_TXT,Windows,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Air Terminals,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Cable Trays,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Casework,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Conduits,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Electrical Equipment,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Electrical Fixtures,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Furniture,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Generic Models,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Lighting Fixtures,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Mechanical Equipment,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Plumbing Equipment,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Plumbing Fixtures,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Specialty Equipment,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Sprinklers,Type,True
-ASS_WARRANTY_PERIOD_TXT,Air Terminals,Type,True
-ASS_WARRANTY_PERIOD_TXT,Cable Trays,Type,True
-ASS_WARRANTY_PERIOD_TXT,Casework,Type,True
-ASS_WARRANTY_PERIOD_TXT,Conduits,Type,True
-ASS_WARRANTY_PERIOD_TXT,Electrical Equipment,Type,True
-ASS_WARRANTY_PERIOD_TXT,Electrical Fixtures,Type,True
-ASS_WARRANTY_PERIOD_TXT,Furniture,Type,True
-ASS_WARRANTY_PERIOD_TXT,Generic Models,Type,True
-ASS_WARRANTY_PERIOD_TXT,Lighting Fixtures,Type,True
-ASS_WARRANTY_PERIOD_TXT,Mechanical Equipment,Type,True
-ASS_WARRANTY_PERIOD_TXT,Plumbing Equipment,Type,True
-ASS_WARRANTY_PERIOD_TXT,Plumbing Fixtures,Type,True
-ASS_WARRANTY_PERIOD_TXT,Specialty Equipment,Type,True
-ASS_WARRANTY_PERIOD_TXT,Sprinklers,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Air Terminals,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Cable Trays,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Casework,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Conduits,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Electrical Equipment,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Electrical Fixtures,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Furniture,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Generic Models,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Lighting Fixtures,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Mechanical Equipment,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Plumbing Equipment,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Plumbing Fixtures,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Specialty Equipment,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Sprinklers,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Air Terminals,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Cable Trays,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Casework,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Conduits,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Electrical Equipment,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Electrical Fixtures,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Furniture,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Generic Models,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Lighting Fixtures,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Mechanical Equipment,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Plumbing Equipment,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Plumbing Fixtures,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Specialty Equipment,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Sprinklers,Type,True
 ASS_ZONE_TXT,Air Terminals,Type,True
 ASS_ZONE_TXT,Cable Trays,Type,True
 ASS_ZONE_TXT,Casework,Type,True
@@ -720,8 +720,6 @@ BLE_DOOR_ACOUSTIC_RATING_DB,Doors,Type,True
 BLE_DOOR_ACOUSTIC_RATING_DB,Generic Models,Type,True
 BLE_DOOR_CLOSER_REQUIRED_BOOL,Doors,Type,True
 BLE_DOOR_CLOSER_REQUIRED_BOOL,Generic Models,Type,True
-BLE_DOOR_GLAZING_PCT,Doors,Type,True
-BLE_DOOR_GLAZING_PCT,Generic Models,Type,True
 BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Doors,Type,True
 BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Generic Models,Type,True
 BLE_DOOR_HEIGHT_MM,Doors,Type,True
@@ -861,7 +859,7 @@ BLE_MAT_L2_FUNC_TXT,Materials,Instance,True
 BLE_MAT_L2_MAT_TXT,Materials,Instance,True
 BLE_MAT_L2_THK_MM,Materials,Instance,True
 BLE_MAT_LAYER_CNT_INT,Materials,Instance,True
-BLE_MAT_MANUFACTURER_TXT,Materials,Instance,True
+ASS_MANUFACTURER_TXT,Materials,Instance,True
 BLE_MAT_NAME_TXT,Materials,Instance,True
 BLE_MAT_SPEC_TXT,Materials,Instance,True
 BLE_MAT_STANDARD_TXT,Materials,Instance,True
@@ -1227,35 +1225,35 @@ CST_CALC_CEMENT_PLASTER_BAGS,Sprinklers,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Stairs,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Walls,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Windows,Type,True
-CST_CALC_CONCRETE_M3,Air Terminals,Type,True
-CST_CALC_CONCRETE_M3,Cable Trays,Type,True
-CST_CALC_CONCRETE_M3,Casework,Type,True
-CST_CALC_CONCRETE_M3,Ceilings,Type,True
-CST_CALC_CONCRETE_M3,Conduits,Type,True
-CST_CALC_CONCRETE_M3,Curtain Panels,Type,True
-CST_CALC_CONCRETE_M3,Curtain Wall Mullions,Type,True
-CST_CALC_CONCRETE_M3,Doors,Type,True
-CST_CALC_CONCRETE_M3,Ducts,Type,True
-CST_CALC_CONCRETE_M3,Electrical Equipment,Type,True
-CST_CALC_CONCRETE_M3,Electrical Fixtures,Type,True
-CST_CALC_CONCRETE_M3,Floors,Type,True
-CST_CALC_CONCRETE_M3,Furniture,Type,True
-CST_CALC_CONCRETE_M3,Generic Models,Type,True
-CST_CALC_CONCRETE_M3,Lighting Fixtures,Type,True
-CST_CALC_CONCRETE_M3,Mechanical Equipment,Type,True
-CST_CALC_CONCRETE_M3,Pipe Accessories,Type,True
-CST_CALC_CONCRETE_M3,Pipe Fittings,Type,True
-CST_CALC_CONCRETE_M3,Pipes,Type,True
-CST_CALC_CONCRETE_M3,Plumbing Equipment,Type,True
-CST_CALC_CONCRETE_M3,Plumbing Fixtures,Type,True
-CST_CALC_CONCRETE_M3,Ramps,Type,True
-CST_CALC_CONCRETE_M3,Roofs,Type,True
-CST_CALC_CONCRETE_M3,Rooms,Type,True
-CST_CALC_CONCRETE_M3,Specialty Equipment,Type,True
-CST_CALC_CONCRETE_M3,Sprinklers,Type,True
-CST_CALC_CONCRETE_M3,Stairs,Type,True
-CST_CALC_CONCRETE_M3,Walls,Type,True
-CST_CALC_CONCRETE_M3,Windows,Type,True
+CST_S_CON_VOLUME_CU_M,Air Terminals,Type,True
+CST_S_CON_VOLUME_CU_M,Cable Trays,Type,True
+CST_S_CON_VOLUME_CU_M,Casework,Type,True
+CST_S_CON_VOLUME_CU_M,Ceilings,Type,True
+CST_S_CON_VOLUME_CU_M,Conduits,Type,True
+CST_S_CON_VOLUME_CU_M,Curtain Panels,Type,True
+CST_S_CON_VOLUME_CU_M,Curtain Wall Mullions,Type,True
+CST_S_CON_VOLUME_CU_M,Doors,Type,True
+CST_S_CON_VOLUME_CU_M,Ducts,Type,True
+CST_S_CON_VOLUME_CU_M,Electrical Equipment,Type,True
+CST_S_CON_VOLUME_CU_M,Electrical Fixtures,Type,True
+CST_S_CON_VOLUME_CU_M,Floors,Type,True
+CST_S_CON_VOLUME_CU_M,Furniture,Type,True
+CST_S_CON_VOLUME_CU_M,Generic Models,Type,True
+CST_S_CON_VOLUME_CU_M,Lighting Fixtures,Type,True
+CST_S_CON_VOLUME_CU_M,Mechanical Equipment,Type,True
+CST_S_CON_VOLUME_CU_M,Pipe Accessories,Type,True
+CST_S_CON_VOLUME_CU_M,Pipe Fittings,Type,True
+CST_S_CON_VOLUME_CU_M,Pipes,Type,True
+CST_S_CON_VOLUME_CU_M,Plumbing Equipment,Type,True
+CST_S_CON_VOLUME_CU_M,Plumbing Fixtures,Type,True
+CST_S_CON_VOLUME_CU_M,Ramps,Type,True
+CST_S_CON_VOLUME_CU_M,Roofs,Type,True
+CST_S_CON_VOLUME_CU_M,Rooms,Type,True
+CST_S_CON_VOLUME_CU_M,Specialty Equipment,Type,True
+CST_S_CON_VOLUME_CU_M,Sprinklers,Type,True
+CST_S_CON_VOLUME_CU_M,Stairs,Type,True
+CST_S_CON_VOLUME_CU_M,Walls,Type,True
+CST_S_CON_VOLUME_CU_M,Windows,Type,True
 CST_CALC_FASTENERS_NR,Air Terminals,Type,True
 CST_CALC_FASTENERS_NR,Cable Trays,Type,True
 CST_CALC_FASTENERS_NR,Casework,Type,True
@@ -5590,35 +5588,35 @@ PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Sprinklers,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Stairs,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Walls,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Windows,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Air Terminals,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Cable Trays,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Casework,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Ceilings,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Conduits,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Curtain Panels,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Curtain Wall Mullions,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Doors,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Ducts,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Electrical Equipment,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Electrical Fixtures,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Floors,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Furniture,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Generic Models,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Lighting Fixtures,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Mechanical Equipment,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Pipe Accessories,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Pipe Fittings,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Pipes,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Plumbing Equipment,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Plumbing Fixtures,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Ramps,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Roofs,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Rooms,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Specialty Equipment,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Sprinklers,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Stairs,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Walls,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Windows,Type,True
+PER_THERM_U_VALUE_W_M2K,Air Terminals,Type,True
+PER_THERM_U_VALUE_W_M2K,Cable Trays,Type,True
+PER_THERM_U_VALUE_W_M2K,Casework,Type,True
+PER_THERM_U_VALUE_W_M2K,Ceilings,Type,True
+PER_THERM_U_VALUE_W_M2K,Conduits,Type,True
+PER_THERM_U_VALUE_W_M2K,Curtain Panels,Type,True
+PER_THERM_U_VALUE_W_M2K,Curtain Wall Mullions,Type,True
+PER_THERM_U_VALUE_W_M2K,Doors,Type,True
+PER_THERM_U_VALUE_W_M2K,Ducts,Type,True
+PER_THERM_U_VALUE_W_M2K,Electrical Equipment,Type,True
+PER_THERM_U_VALUE_W_M2K,Electrical Fixtures,Type,True
+PER_THERM_U_VALUE_W_M2K,Floors,Type,True
+PER_THERM_U_VALUE_W_M2K,Furniture,Type,True
+PER_THERM_U_VALUE_W_M2K,Generic Models,Type,True
+PER_THERM_U_VALUE_W_M2K,Lighting Fixtures,Type,True
+PER_THERM_U_VALUE_W_M2K,Mechanical Equipment,Type,True
+PER_THERM_U_VALUE_W_M2K,Pipe Accessories,Type,True
+PER_THERM_U_VALUE_W_M2K,Pipe Fittings,Type,True
+PER_THERM_U_VALUE_W_M2K,Pipes,Type,True
+PER_THERM_U_VALUE_W_M2K,Plumbing Equipment,Type,True
+PER_THERM_U_VALUE_W_M2K,Plumbing Fixtures,Type,True
+PER_THERM_U_VALUE_W_M2K,Ramps,Type,True
+PER_THERM_U_VALUE_W_M2K,Roofs,Type,True
+PER_THERM_U_VALUE_W_M2K,Rooms,Type,True
+PER_THERM_U_VALUE_W_M2K,Specialty Equipment,Type,True
+PER_THERM_U_VALUE_W_M2K,Sprinklers,Type,True
+PER_THERM_U_VALUE_W_M2K,Stairs,Type,True
+PER_THERM_U_VALUE_W_M2K,Walls,Type,True
+PER_THERM_U_VALUE_W_M2K,Windows,Type,True
 PH_DESCRIPTION_TXT,Generic Models,Type,True
 PH_END_DATE_TXT,Generic Models,Type,True
 PH_NAME_TXT,Generic Models,Type,True
@@ -7383,7 +7381,7 @@ ASS_SEQ_NUM_TXT,Plumbing Fixtures,Type,True
 ASS_SEQ_NUM_TXT,Specialty Equipment,Type,True
 ASS_SEQ_NUM_TXT,Sprinklers,Type,True
 ASS_SEQ_NUM_TXT,Conduits,Type,True
-ASS_STATUS_COD_TXT,Generic Models,Type,True
+ASS_STATUS_TXT,Generic Models,Type,True
 ASS_TAG_4_TXT,Air Terminals,Type,True
 ASS_TAG_4_TXT,Cable Trays,Type,True
 ASS_TAG_4_TXT,Casework,Type,True
@@ -8140,7 +8138,7 @@ BLE_STAIR_MAT_TXT,Duct Fittings,Type,True
 BLE_FINISH_TILE_AREA_SQ_M,Windows,Type,True
 BLE_CEILING_SYSTEM_TXT,Windows,Type,True
 PER_ENVIRONMENTAL_CLIMATE_ZONE_TXT,Structural Columns,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Structural Columns,Type,True
+PER_THERM_U_VALUE_W_M2K,Structural Columns,Type,True
 CBL_TYPE_TXT,Data Devices,Type,True
 LTG_EFFICACY_LM_W,Lighting Devices,Type,True
 ELC_PNL_DESIGNATION_NAME_TXT,Conduits,Type,True
@@ -8273,7 +8271,6 @@ HVC_DCT_EQUIVALENT_DIAMETER_IN,Duct Fittings,Type,True
 BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,Windows,Type,True
 PER_SUST_WTR_RATING_NR,Structural Framing,Type,True
 ASS_PMT_PRO_PO_NR_TXT,Furniture,Type,True
-BLE_DOOR_GLAZING_PCT,Windows,Type,True
 BLE_FLR_THICKNESS_MM,Doors,Type,True
 ELC_SPARE_WAYS_NR,Conduit Fittings,Type,True
 ASS_PMT_PRO_DELIVERY_DATE_TXT,Furniture,Type,True
@@ -8317,7 +8314,7 @@ BLE_WALL_TYPE_CLASSIFICATION_TXT,Windows,Type,True
 BLE_FINISH_PAINT_VOLUME_L,Windows,Type,True
 PER_ENVIRONMENTAL_CLIMATE_ZONE_TXT,Structural Framing,Type,True
 ELC_CBL_NR_TXT,Conduit Fittings,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Structural Framing,Type,True
+PER_THERM_U_VALUE_W_M2K,Structural Framing,Type,True
 ASS_PMT_QTY_ORDERED_NR,Casework,Type,True
 COM_C_DEV_TYPE_TXT,Nurse Call Devices,Type,True
 ASS_PMT_CST_TOTAL_CST_UGX_NR,Specialty Equipment,Type,True
@@ -8708,8 +8705,8 @@ ASS_TAG_3_TXT,Communication Devices,Type,True
 ASS_TAG_4_TXT,Communication Devices,Type,True
 ASS_TAG_5_TXT,Communication Devices,Type,True
 ASS_TAG_6_TXT,Communication Devices,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Communication Devices,Type,True
-ASS_WARRANTY_PERIOD_TXT,Communication Devices,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Communication Devices,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Communication Devices,Type,True
 ASS_ZONE_TXT,Communication Devices,Type,True
 ELC_CBL_AMPACITY_A,Communication Devices,Type,True
 ELC_CBL_COND_SZ_SQ_MM,Communication Devices,Type,True
@@ -8816,8 +8813,8 @@ ASS_TAG_3_TXT,Telephone Devices,Type,True
 ASS_TAG_4_TXT,Telephone Devices,Type,True
 ASS_TAG_5_TXT,Telephone Devices,Type,True
 ASS_TAG_6_TXT,Telephone Devices,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Telephone Devices,Type,True
-ASS_WARRANTY_PERIOD_TXT,Telephone Devices,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Telephone Devices,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Telephone Devices,Type,True
 ASS_ZONE_TXT,Telephone Devices,Type,True
 ELC_CBL_AMPACITY_A,Telephone Devices,Type,True
 ELC_CBL_COND_SZ_SQ_MM,Telephone Devices,Type,True
@@ -8923,8 +8920,8 @@ ASS_TAG_3_TXT,Data Devices,Type,True
 ASS_TAG_4_TXT,Data Devices,Type,True
 ASS_TAG_5_TXT,Data Devices,Type,True
 ASS_TAG_6_TXT,Data Devices,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Data Devices,Type,True
-ASS_WARRANTY_PERIOD_TXT,Data Devices,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Data Devices,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Data Devices,Type,True
 ASS_ZONE_TXT,Data Devices,Type,True
 ELC_CBL_AMPACITY_A,Data Devices,Type,True
 ELC_CBL_COND_SZ_SQ_MM,Data Devices,Type,True
@@ -9028,8 +9025,8 @@ ASS_TAG_3_TXT,Security Devices,Type,True
 ASS_TAG_4_TXT,Security Devices,Type,True
 ASS_TAG_5_TXT,Security Devices,Type,True
 ASS_TAG_6_TXT,Security Devices,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Security Devices,Type,True
-ASS_WARRANTY_PERIOD_TXT,Security Devices,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Security Devices,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Security Devices,Type,True
 ASS_ZONE_TXT,Security Devices,Type,True
 ELC_CBL_AMPACITY_A,Security Devices,Type,True
 ELC_CBL_COND_SZ_SQ_MM,Security Devices,Type,True
@@ -9133,8 +9130,8 @@ ASS_TAG_3_TXT,Nurse Call Devices,Type,True
 ASS_TAG_4_TXT,Nurse Call Devices,Type,True
 ASS_TAG_5_TXT,Nurse Call Devices,Type,True
 ASS_TAG_6_TXT,Nurse Call Devices,Type,True
-ASS_WARRANTY_EXPIRATION_DATE_TXT,Nurse Call Devices,Type,True
-ASS_WARRANTY_PERIOD_TXT,Nurse Call Devices,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Nurse Call Devices,Type,True
+ASS_WARRANTY_DURATION_PARTS_YRS,Nurse Call Devices,Type,True
 ASS_ZONE_TXT,Nurse Call Devices,Type,True
 ELC_CBL_AMPACITY_A,Nurse Call Devices,Type,True
 ELC_CBL_COND_SZ_SQ_MM,Nurse Call Devices,Type,True
@@ -9196,7 +9193,7 @@ CST_CALC_AREA_M2,Flex Ducts,Type,True
 CST_CALC_BLOCKS_NR,Flex Ducts,Type,True
 CST_CALC_CEMENT_BAGS_NR,Flex Ducts,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Flex Ducts,Type,True
-CST_CALC_CONCRETE_M3,Flex Ducts,Type,True
+CST_S_CON_VOLUME_CU_M,Flex Ducts,Type,True
 CST_CALC_FASTENERS_NR,Flex Ducts,Type,True
 CST_CALC_GROUT_KG,Flex Ducts,Type,True
 CST_CALC_LENGTH_M,Flex Ducts,Type,True
@@ -9332,7 +9329,7 @@ PER_THERM_R_VALUE_M2K_W,Flex Ducts,Type,True
 PER_THERM_SHADING_DEVICE_TXT,Flex Ducts,Type,True
 PER_THERM_SOLAR_ABSORPTANCE_NR,Flex Ducts,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Flex Ducts,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Flex Ducts,Type,True
+PER_THERM_U_VALUE_W_M2K,Flex Ducts,Type,True
 PRJ_COMMENTS_TXT,Flex Ducts,Type,True
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Flex Ducts,Type,True
 RGL_ACCESS_CLEAR_WIDTH_MM,Flex Ducts,Type,True
@@ -9389,7 +9386,7 @@ CST_CALC_AREA_M2,Duct Accessories,Type,True
 CST_CALC_BLOCKS_NR,Duct Accessories,Type,True
 CST_CALC_CEMENT_BAGS_NR,Duct Accessories,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Duct Accessories,Type,True
-CST_CALC_CONCRETE_M3,Duct Accessories,Type,True
+CST_S_CON_VOLUME_CU_M,Duct Accessories,Type,True
 CST_CALC_FASTENERS_NR,Duct Accessories,Type,True
 CST_CALC_GROUT_KG,Duct Accessories,Type,True
 CST_CALC_LENGTH_M,Duct Accessories,Type,True
@@ -9508,7 +9505,7 @@ PER_THERM_R_VALUE_M2K_W,Duct Accessories,Type,True
 PER_THERM_SHADING_DEVICE_TXT,Duct Accessories,Type,True
 PER_THERM_SOLAR_ABSORPTANCE_NR,Duct Accessories,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Duct Accessories,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Duct Accessories,Type,True
+PER_THERM_U_VALUE_W_M2K,Duct Accessories,Type,True
 PRJ_COMMENTS_TXT,Duct Accessories,Type,True
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Duct Accessories,Type,True
 RGL_ACCESS_CLEAR_WIDTH_MM,Duct Accessories,Type,True
@@ -9569,7 +9566,7 @@ CST_CALC_AREA_M2,Duct Fittings,Type,True
 CST_CALC_BLOCKS_NR,Duct Fittings,Type,True
 CST_CALC_CEMENT_BAGS_NR,Duct Fittings,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Duct Fittings,Type,True
-CST_CALC_CONCRETE_M3,Duct Fittings,Type,True
+CST_S_CON_VOLUME_CU_M,Duct Fittings,Type,True
 CST_CALC_FASTENERS_NR,Duct Fittings,Type,True
 CST_CALC_GROUT_KG,Duct Fittings,Type,True
 CST_CALC_LENGTH_M,Duct Fittings,Type,True
@@ -9688,7 +9685,7 @@ PER_THERM_R_VALUE_M2K_W,Duct Fittings,Type,True
 PER_THERM_SHADING_DEVICE_TXT,Duct Fittings,Type,True
 PER_THERM_SOLAR_ABSORPTANCE_NR,Duct Fittings,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Duct Fittings,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Duct Fittings,Type,True
+PER_THERM_U_VALUE_W_M2K,Duct Fittings,Type,True
 PRJ_COMMENTS_TXT,Duct Fittings,Type,True
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Duct Fittings,Type,True
 RGL_ACCESS_CLEAR_WIDTH_MM,Duct Fittings,Type,True
@@ -10725,7 +10722,6 @@ ASS_TAG_2_TXT,Columns,Type,True
 ASS_TAG_3_TXT,Columns,Type,True
 BLE_DOOR_ACOUSTIC_RATING_DB,Columns,Type,True
 BLE_DOOR_CLOSER_REQUIRED_BOOL,Columns,Type,True
-BLE_DOOR_GLAZING_PCT,Columns,Type,True
 BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Columns,Type,True
 BLE_DOOR_HEIGHT_MM,Columns,Type,True
 BLE_DOOR_MAT_TXT,Columns,Type,True
@@ -10739,7 +10735,7 @@ CST_CALC_AREA_M2,Columns,Type,True
 CST_CALC_BLOCKS_NR,Columns,Type,True
 CST_CALC_CEMENT_BAGS_NR,Columns,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Columns,Type,True
-CST_CALC_CONCRETE_M3,Columns,Type,True
+CST_S_CON_VOLUME_CU_M,Columns,Type,True
 CST_CALC_FASTENERS_NR,Columns,Type,True
 CST_CALC_GROUT_KG,Columns,Type,True
 CST_CALC_LENGTH_M,Columns,Type,True
@@ -10850,7 +10846,7 @@ PER_THERM_R_VALUE_M2K_W,Columns,Type,True
 PER_THERM_SHADING_DEVICE_TXT,Columns,Type,True
 PER_THERM_SOLAR_ABSORPTANCE_NR,Columns,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Columns,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Columns,Type,True
+PER_THERM_U_VALUE_W_M2K,Columns,Type,True
 PRJ_COMMENTS_TXT,Columns,Type,True
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Columns,Type,True
 RGL_ACCESS_CLEAR_WIDTH_MM,Columns,Type,True
@@ -11019,7 +11015,6 @@ ASS_TAG_2_TXT,Curtain Systems,Type,True
 ASS_TAG_3_TXT,Curtain Systems,Type,True
 BLE_DOOR_ACOUSTIC_RATING_DB,Curtain Systems,Type,True
 BLE_DOOR_CLOSER_REQUIRED_BOOL,Curtain Systems,Type,True
-BLE_DOOR_GLAZING_PCT,Curtain Systems,Type,True
 BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Curtain Systems,Type,True
 BLE_DOOR_HEIGHT_MM,Curtain Systems,Type,True
 BLE_DOOR_MAT_TXT,Curtain Systems,Type,True
@@ -11033,7 +11028,7 @@ CST_CALC_AREA_M2,Curtain Systems,Type,True
 CST_CALC_BLOCKS_NR,Curtain Systems,Type,True
 CST_CALC_CEMENT_BAGS_NR,Curtain Systems,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Curtain Systems,Type,True
-CST_CALC_CONCRETE_M3,Curtain Systems,Type,True
+CST_S_CON_VOLUME_CU_M,Curtain Systems,Type,True
 CST_CALC_FASTENERS_NR,Curtain Systems,Type,True
 CST_CALC_GROUT_KG,Curtain Systems,Type,True
 CST_CALC_LENGTH_M,Curtain Systems,Type,True
@@ -11144,7 +11139,7 @@ PER_THERM_R_VALUE_M2K_W,Curtain Systems,Type,True
 PER_THERM_SHADING_DEVICE_TXT,Curtain Systems,Type,True
 PER_THERM_SOLAR_ABSORPTANCE_NR,Curtain Systems,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Curtain Systems,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Curtain Systems,Type,True
+PER_THERM_U_VALUE_W_M2K,Curtain Systems,Type,True
 PRJ_COMMENTS_TXT,Curtain Systems,Type,True
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Curtain Systems,Type,True
 RGL_ACCESS_CLEAR_WIDTH_MM,Curtain Systems,Type,True
@@ -11313,7 +11308,6 @@ ASS_TAG_2_TXT,Flex Pipes,Type,True
 ASS_TAG_3_TXT,Flex Pipes,Type,True
 BLE_DOOR_ACOUSTIC_RATING_DB,Flex Pipes,Type,True
 BLE_DOOR_CLOSER_REQUIRED_BOOL,Flex Pipes,Type,True
-BLE_DOOR_GLAZING_PCT,Flex Pipes,Type,True
 BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Flex Pipes,Type,True
 BLE_DOOR_HEIGHT_MM,Flex Pipes,Type,True
 BLE_DOOR_MAT_TXT,Flex Pipes,Type,True
@@ -11327,7 +11321,7 @@ CST_CALC_AREA_M2,Flex Pipes,Type,True
 CST_CALC_BLOCKS_NR,Flex Pipes,Type,True
 CST_CALC_CEMENT_BAGS_NR,Flex Pipes,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Flex Pipes,Type,True
-CST_CALC_CONCRETE_M3,Flex Pipes,Type,True
+CST_S_CON_VOLUME_CU_M,Flex Pipes,Type,True
 CST_CALC_FASTENERS_NR,Flex Pipes,Type,True
 CST_CALC_GROUT_KG,Flex Pipes,Type,True
 CST_CALC_LENGTH_M,Flex Pipes,Type,True
@@ -11438,7 +11432,7 @@ PER_THERM_R_VALUE_M2K_W,Flex Pipes,Type,True
 PER_THERM_SHADING_DEVICE_TXT,Flex Pipes,Type,True
 PER_THERM_SOLAR_ABSORPTANCE_NR,Flex Pipes,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Flex Pipes,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Flex Pipes,Type,True
+PER_THERM_U_VALUE_W_M2K,Flex Pipes,Type,True
 PRJ_COMMENTS_TXT,Flex Pipes,Type,True
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Flex Pipes,Type,True
 RGL_ACCESS_CLEAR_WIDTH_MM,Flex Pipes,Type,True
@@ -11607,7 +11601,6 @@ ASS_TAG_2_TXT,Furniture Systems,Type,True
 ASS_TAG_3_TXT,Furniture Systems,Type,True
 BLE_DOOR_ACOUSTIC_RATING_DB,Furniture Systems,Type,True
 BLE_DOOR_CLOSER_REQUIRED_BOOL,Furniture Systems,Type,True
-BLE_DOOR_GLAZING_PCT,Furniture Systems,Type,True
 BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Furniture Systems,Type,True
 BLE_DOOR_HEIGHT_MM,Furniture Systems,Type,True
 BLE_DOOR_MAT_TXT,Furniture Systems,Type,True
@@ -11621,7 +11614,7 @@ CST_CALC_AREA_M2,Furniture Systems,Type,True
 CST_CALC_BLOCKS_NR,Furniture Systems,Type,True
 CST_CALC_CEMENT_BAGS_NR,Furniture Systems,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Furniture Systems,Type,True
-CST_CALC_CONCRETE_M3,Furniture Systems,Type,True
+CST_S_CON_VOLUME_CU_M,Furniture Systems,Type,True
 CST_CALC_FASTENERS_NR,Furniture Systems,Type,True
 CST_CALC_GROUT_KG,Furniture Systems,Type,True
 CST_CALC_LENGTH_M,Furniture Systems,Type,True
@@ -11732,7 +11725,7 @@ PER_THERM_R_VALUE_M2K_W,Furniture Systems,Type,True
 PER_THERM_SHADING_DEVICE_TXT,Furniture Systems,Type,True
 PER_THERM_SOLAR_ABSORPTANCE_NR,Furniture Systems,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Furniture Systems,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Furniture Systems,Type,True
+PER_THERM_U_VALUE_W_M2K,Furniture Systems,Type,True
 PRJ_COMMENTS_TXT,Furniture Systems,Type,True
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Furniture Systems,Type,True
 RGL_ACCESS_CLEAR_WIDTH_MM,Furniture Systems,Type,True
@@ -11901,7 +11894,6 @@ ASS_TAG_2_TXT,Medical Equipment,Type,True
 ASS_TAG_3_TXT,Medical Equipment,Type,True
 BLE_DOOR_ACOUSTIC_RATING_DB,Medical Equipment,Type,True
 BLE_DOOR_CLOSER_REQUIRED_BOOL,Medical Equipment,Type,True
-BLE_DOOR_GLAZING_PCT,Medical Equipment,Type,True
 BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Medical Equipment,Type,True
 BLE_DOOR_HEIGHT_MM,Medical Equipment,Type,True
 BLE_DOOR_MAT_TXT,Medical Equipment,Type,True
@@ -11915,7 +11907,7 @@ CST_CALC_AREA_M2,Medical Equipment,Type,True
 CST_CALC_BLOCKS_NR,Medical Equipment,Type,True
 CST_CALC_CEMENT_BAGS_NR,Medical Equipment,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Medical Equipment,Type,True
-CST_CALC_CONCRETE_M3,Medical Equipment,Type,True
+CST_S_CON_VOLUME_CU_M,Medical Equipment,Type,True
 CST_CALC_FASTENERS_NR,Medical Equipment,Type,True
 CST_CALC_GROUT_KG,Medical Equipment,Type,True
 CST_CALC_LENGTH_M,Medical Equipment,Type,True
@@ -12026,7 +12018,7 @@ PER_THERM_R_VALUE_M2K_W,Medical Equipment,Type,True
 PER_THERM_SHADING_DEVICE_TXT,Medical Equipment,Type,True
 PER_THERM_SOLAR_ABSORPTANCE_NR,Medical Equipment,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Medical Equipment,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Medical Equipment,Type,True
+PER_THERM_U_VALUE_W_M2K,Medical Equipment,Type,True
 PRJ_COMMENTS_TXT,Medical Equipment,Type,True
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Medical Equipment,Type,True
 RGL_ACCESS_CLEAR_WIDTH_MM,Medical Equipment,Type,True
@@ -12195,7 +12187,6 @@ ASS_TAG_2_TXT,Plumbing Equipment,Type,True
 ASS_TAG_3_TXT,Plumbing Equipment,Type,True
 BLE_DOOR_ACOUSTIC_RATING_DB,Plumbing Equipment,Type,True
 BLE_DOOR_CLOSER_REQUIRED_BOOL,Plumbing Equipment,Type,True
-BLE_DOOR_GLAZING_PCT,Plumbing Equipment,Type,True
 BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Plumbing Equipment,Type,True
 BLE_DOOR_HEIGHT_MM,Plumbing Equipment,Type,True
 BLE_DOOR_MAT_TXT,Plumbing Equipment,Type,True
@@ -12209,7 +12200,7 @@ CST_CALC_AREA_M2,Plumbing Equipment,Type,True
 CST_CALC_BLOCKS_NR,Plumbing Equipment,Type,True
 CST_CALC_CEMENT_BAGS_NR,Plumbing Equipment,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Plumbing Equipment,Type,True
-CST_CALC_CONCRETE_M3,Plumbing Equipment,Type,True
+CST_S_CON_VOLUME_CU_M,Plumbing Equipment,Type,True
 CST_CALC_FASTENERS_NR,Plumbing Equipment,Type,True
 CST_CALC_GROUT_KG,Plumbing Equipment,Type,True
 CST_CALC_LENGTH_M,Plumbing Equipment,Type,True
@@ -12320,7 +12311,7 @@ PER_THERM_R_VALUE_M2K_W,Plumbing Equipment,Type,True
 PER_THERM_SHADING_DEVICE_TXT,Plumbing Equipment,Type,True
 PER_THERM_SOLAR_ABSORPTANCE_NR,Plumbing Equipment,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Plumbing Equipment,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Plumbing Equipment,Type,True
+PER_THERM_U_VALUE_W_M2K,Plumbing Equipment,Type,True
 PRJ_COMMENTS_TXT,Plumbing Equipment,Type,True
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Plumbing Equipment,Type,True
 RGL_ACCESS_CLEAR_WIDTH_MM,Plumbing Equipment,Type,True
@@ -12489,7 +12480,6 @@ ASS_TAG_2_TXT,Railings,Type,True
 ASS_TAG_3_TXT,Railings,Type,True
 BLE_DOOR_ACOUSTIC_RATING_DB,Railings,Type,True
 BLE_DOOR_CLOSER_REQUIRED_BOOL,Railings,Type,True
-BLE_DOOR_GLAZING_PCT,Railings,Type,True
 BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Railings,Type,True
 BLE_DOOR_HEIGHT_MM,Railings,Type,True
 BLE_DOOR_MAT_TXT,Railings,Type,True
@@ -12503,7 +12493,7 @@ CST_CALC_AREA_M2,Railings,Type,True
 CST_CALC_BLOCKS_NR,Railings,Type,True
 CST_CALC_CEMENT_BAGS_NR,Railings,Type,True
 CST_CALC_CEMENT_PLASTER_BAGS,Railings,Type,True
-CST_CALC_CONCRETE_M3,Railings,Type,True
+CST_S_CON_VOLUME_CU_M,Railings,Type,True
 CST_CALC_FASTENERS_NR,Railings,Type,True
 CST_CALC_GROUT_KG,Railings,Type,True
 CST_CALC_LENGTH_M,Railings,Type,True
@@ -12614,7 +12604,7 @@ PER_THERM_R_VALUE_M2K_W,Railings,Type,True
 PER_THERM_SHADING_DEVICE_TXT,Railings,Type,True
 PER_THERM_SOLAR_ABSORPTANCE_NR,Railings,Type,True
 PER_THERM_THERMAL_MASS_KJ_M2K_KJ,Railings,Type,True
-PER_THERM_U_VALUE_W_M2K_NR,Railings,Type,True
+PER_THERM_U_VALUE_W_M2K,Railings,Type,True
 PRJ_COMMENTS_TXT,Railings,Type,True
 RGL_ACCESS_BRAILLE_SIGNAGE_BOOL,Railings,Type,True
 RGL_ACCESS_CLEAR_WIDTH_MM,Railings,Type,True

@@ -28,6 +28,32 @@ namespace StingTools.Tags
         /// <summary>
         /// All 16 named position types: Ring 1 (cardinal 1x offset) + Ring 2 (far 1.5x offset).
         /// </summary>
+        /// <summary>
+        /// STING shared-parameter prefixes. Used by PurgeFirst to identify which family
+        /// parameters belong to STING and should be removed before a fresh injection.
+        /// </summary>
+        private static readonly string[] StingParamPrefixes = {
+            "ASS_", "BLE_", "CST_", "ELC_", "ELE_", "FLS_", "HVC_", "ICT_",
+            "LTG_", "MAT_", "MEP_", "MNT_", "NCL_", "PER_", "PLM_", "RGL_",
+            "SEC_", "SHT_", "SLV_", "STING_", "STR_", "TAG_", "VIEW_", "WARN_"
+        };
+
+        /// <summary>
+        /// Returns true if the given parameter name starts with any STING prefix.
+        /// Case-insensitive. Used by PurgeFirst to scope deletions to STING params only,
+        /// leaving Revit built-ins and third-party params untouched.
+        /// </summary>
+        public static bool IsStingPrefix(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName)) return false;
+            foreach (string p in StingParamPrefixes)
+            {
+                if (paramName.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
         private static readonly (string Name, int Pos)[] AllPositionTypes = {
             // Ring 1 — cardinal 1x offset
             ("1x-N",  1), ("1x-E",  2), ("1x-S",  3),  ("1x-W",  4),
@@ -48,8 +74,12 @@ namespace StingTools.Tags
             public bool InjectFormulas { get; set; } = true;
             public bool PlaceAnchor { get; set; } = false;
             public bool CreatePositionTypes { get; set; } = true;
-            /// <summary>FIX-9.1: When true, remove all ASS_*/STING_* family params before injecting.</summary>
-            public bool PurgeFirst { get; set; } = false;
+            /// <summary>FIX-9.1: When true, remove ALL pre-existing shared parameters from the family
+            /// (any STING prefix — ASS_, BLE_, CST_, ELC_, ELE_, FLS_, HVC_, ICT_, LTG_, MAT_,
+            /// MEP_, NCL_, PER_, PLM_, RGL_, SEC_, SLV_, STING_, STR_, TAG_, WARN_) before injecting
+            /// a fresh set. Default true so families cannot accumulate stale/duplicate bindings
+            /// across successive runs.</summary>
+            public bool PurgeFirst { get; set; } = true;
             public List<string> ParamNames { get; set; } = new List<string>();
         }
 
@@ -371,6 +401,32 @@ namespace StingTools.Tags
                         StingLog.Warn($"InjectPositionTypes '{typeName}': {ex.Message}");
                     }
                 }
+
+                // Default position = 2.5mm - 1x-N (Ring 1, North, 1x offset). This is the
+                // type that becomes active when the family loads into a project, so placed
+                // tags start at the North cardinal position and the SwitchTagPositionCommand
+                // can then move them by swapping to other types (1x-E, 1x-S, 1x-W, etc.).
+                try
+                {
+                    FamilyType defaultType = null;
+                    foreach (FamilyType ft in fm.Types)
+                    {
+                        if (ft != null && string.Equals(ft.Name, DefaultPositionTypeName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            defaultType = ft;
+                            break;
+                        }
+                    }
+                    if (defaultType != null)
+                    {
+                        fm.CurrentType = defaultType;
+                        StingLog.Info($"InjectPositionTypes: default type set to '{DefaultPositionTypeName}'");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"InjectPositionTypes default-type: {ex.Message}");
+                }
             }
             catch (Exception ex)
             {
@@ -379,6 +435,13 @@ namespace StingTools.Tags
 
             return created;
         }
+
+        /// <summary>
+        /// Default position type name used as the active type when a family loads into a project.
+        /// "1x-N" = Ring 1 (1x offset) from the cardinal North direction. SwitchTagPositionCommand
+        /// rotates placed tags by swapping to other named types (1x-E, 1x-S, 1x-W, 1x-NE, etc.).
+        /// </summary>
+        public const string DefaultPositionTypeName = "2.5mm - 1x-N";
 
         /// <summary>
         /// Seed default DISC, PROD, SYS, FUNC, TAG_POS type parameters into the family.
@@ -665,15 +728,16 @@ namespace StingTools.Tags
                 {
                     tx.Start();
 
-                    // FIX-9.2: Purge existing ASS_*/STING_* params before injection if requested
+                    // FIX-9.2: Purge all pre-existing STING shared parameters before injection.
+                    // Default: true. Scope covers all STING prefixes so families cannot carry
+                    // duplicates or stale bindings from earlier runs / prior schema versions.
                     if (opts.PurgeFirst)
                     {
                         try
                         {
                             FamilyManager fmPurge = famDoc.FamilyManager;
                             var toRemove = fmPurge.GetParameters()
-                                .Where(p => p.Definition.Name.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase)
-                                         || p.Definition.Name.StartsWith("STING_", StringComparison.OrdinalIgnoreCase))
+                                .Where(p => p.IsShared && IsStingPrefix(p.Definition.Name))
                                 .ToList();
                             foreach (var fp in toRemove)
                             {
@@ -681,7 +745,7 @@ namespace StingTools.Tags
                                 catch (Exception rpEx) { StingLog.Warn($"PurgeFirst '{fp.Definition.Name}': {rpEx.Message}"); }
                             }
                             if (toRemove.Count > 0)
-                                StingLog.Info($"PurgeFirst: removed {toRemove.Count} params from '{Path.GetFileName(rfaPath)}'");
+                                StingLog.Info($"PurgeFirst: removed {toRemove.Count} shared params from '{Path.GetFileName(rfaPath)}'");
                         }
                         catch (Exception purgeEx) { StingLog.Warn($"PurgeFirst: {purgeEx.Message}"); }
                     }
@@ -984,17 +1048,19 @@ namespace StingTools.Tags
 
             var app = ctx.App.Application;
 
-            // Mode selection using StingListPicker for polished UI
+            // Mode selection using StingListPicker for polished UI.
+            // Default workflow is Purge + Inject — families accumulate stale/duplicate
+            // bindings otherwise. "Add without purging" remains for edge cases.
             var modeItems = new List<StingListPicker.ListItem>
             {
                 new StingListPicker.ListItem
-                    { Label = "Single Family — Add Params", Detail = "Pick one .rfa file", Tag = "single" },
+                    { Label = "Single Family — Purge + Inject (recommended)", Detail = "Remove all existing STING shared params, then inject a fresh set", Tag = "purge_single" },
                 new StingListPicker.ListItem
-                    { Label = "Batch Folder — Add Params", Detail = "Process all .rfa in folder", Tag = "batch" },
+                    { Label = "Batch Folder — Purge + Inject (recommended)", Detail = "Purge + re-inject every .rfa in the target folder", Tag = "purge_batch" },
                 new StingListPicker.ListItem
-                    { Label = "Single Family — Purge + Inject", Detail = "Remove old STING params, re-inject", Tag = "purge_single" },
+                    { Label = "Single Family — Add Only (no purge)", Detail = "Append missing params without removing existing ones", Tag = "single" },
                 new StingListPicker.ListItem
-                    { Label = "Batch Folder — Purge + Inject", Detail = "Purge + re-inject entire folder", Tag = "purge_batch" },
+                    { Label = "Batch Folder — Add Only (no purge)", Detail = "Append missing params across folder without removing existing", Tag = "batch" },
             };
             var selected = StingListPicker.Show(
                 "STING — Family Param Creator",

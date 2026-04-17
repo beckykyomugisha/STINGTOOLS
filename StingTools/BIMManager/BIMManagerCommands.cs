@@ -1447,7 +1447,7 @@ namespace StingTools.BIMManager
                 ["fire_safety"] = new JObject
                 {
                     ["building_safety_act_2022"] = "Golden Thread of building information maintained via STING tags",
-                    ["fire_rating_data"] = "BLE_FIRE_RATING_TXT parameter on all fire-rated elements",
+                    ["fire_rating_data"] = "PER_FIRE_RATING_HR parameter on all fire-rated elements",
                     ["fire_compartmentation"] = "Fire zones tracked via STING ZONE parameter",
                     ["evacuation_modelling"] = "Room and corridor data exported via STING COBie Space worksheet"
                 },

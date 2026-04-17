@@ -83,7 +83,7 @@ public class DocumentsController : ControllerBase
         var total = await query.CountAsync();
         var docs = await query.OrderByDescending(d => d.UploadedAt)
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-        return Ok(new { docs, total, page, pageSize });
+        return Ok(new { items = docs, total, page, pageSize });
     }
 
     [HttpPost]

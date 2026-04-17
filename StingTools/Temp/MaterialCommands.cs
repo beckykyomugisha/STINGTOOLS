@@ -185,7 +185,7 @@ namespace StingTools.Temp
             (ColCategory,           "BLE_MAT_CATEGORY_TXT"),
             (ColElementType,        "BLE_MAT_ELEM_TYPE_TXT"),
             (ColApplication,        "BLE_MAT_APPLICATION_TXT"),
-            (ColManufacturer,       "BLE_MAT_MANUFACTURER_TXT"),
+            (ColManufacturer,       "ASS_MANUFACTURER_TXT"),
             (ColThicknessMm,        "BLE_MAT_THICK_MM"),
             (ColDurability,         "BLE_MAT_DURABILITY_TXT"),
             (ColSpecifications,     "BLE_MAT_SPEC_TXT"),

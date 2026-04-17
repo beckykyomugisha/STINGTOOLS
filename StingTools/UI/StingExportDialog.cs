@@ -174,7 +174,7 @@ namespace StingTools.UI
         {
             ParamRegistry.TAG1, "ASS_DESCRIPTION_TXT", "ASS_MANUFACTURER_TXT",
             "ASS_MODEL_TXT", "ASS_SERIAL_NO_TXT", "ASS_INSTALL_DATE_TXT",
-            "ASS_WARRANTY_START_TXT", "ASS_WARRANTY_DUR_TXT", "ASS_BARCODE_TXT",
+            "COM_WARRANTY_START_TXT", "ASS_WARRANTY_DUR_TXT", "ASS_BARCODE_TXT",
             "MNT_INTERVAL_TXT", "MNT_RESPONSIBILITY_TXT", "MNT_TASK_TXT"
         };
 
@@ -417,7 +417,7 @@ namespace StingTools.UI
             Add("Model-Wide", "Discipline Summary", "Element counts and tags by discipline.",
                 TagConfig.DiscMap.Keys.ToList(), new List<string> { ParamRegistry.DISC, ParamRegistry.TAG1, ParamRegistry.STATUS });
             Add("Model-Wide", "BOQ / Quantities", "Bill of Quantities with dimensions and materials.",
-                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, DimensionParams, new List<string> { "ASS_MATERIAL_TXT", "ASS_UNIT_COST_TXT" }), "Excel");
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, DimensionParams, new List<string> { "ASS_MATERIAL_TXT", "ASS_CST_UNIT_PRICE_UGX_NR" }), "Excel");
             Add("Model-Wide", "Element ID Register", "Element IDs with tags for cross-referencing.",
                 TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, IdentityParams));
 

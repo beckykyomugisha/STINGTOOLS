@@ -18,5 +18,26 @@ packages/
 .DS_Store
 Thumbs.db
 
-# Build logs
+# Backup / editor temp files
+*.bak
+*.orig
+*.old
+*~
+~$*
+
+# Runtime logs (Revit + plugin file loggers)
+*.log
 build_output.txt
+
+# STING runtime project-side sidecars — generated in each user project, not templates
+CompiledPlugin/Data/STING_BIM_MANAGER/
+
+# STING runtime sidecars at project level (written alongside .rvt)
+.sting_seq.json
+.sting_warnings_baseline.json
+.sting_dwg_conversion.json
+.sting_compliance_trend.json
+.sting_deferred_elements.json
+.sting_data_hash.json
+.sting_layout_presets.json
+STING_WORKFLOW_LOG.json
