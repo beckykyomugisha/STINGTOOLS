@@ -551,6 +551,18 @@ namespace StingTools.Temp
             ("STING - Presentation Monochrome", "PRES_MONO", ViewDetailLevel.Fine, ViewType.FloorPlan),
             ("STING - Presentation Dark", "PRES_DARK", ViewDetailLevel.Fine, ViewType.FloorPlan),
             ("STING - Presentation Landscape", "PRES_LAND", ViewDetailLevel.Fine, ViewType.FloorPlan),
+            // Reference-palette 3D presentation templates (duplicate the
+            // pink/teal, sage/maroon, monochrome blue, grey-sketch, and
+            // black-inverse reference renders — each with a focus category
+            // accent: Roof for exterior, Rooms for cut-away interior).
+            ("STING - Presentation Candy Exterior",  "PRES_CANDY_EXT", ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - Presentation Candy Cutaway",   "PRES_CANDY_INT", ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - Presentation Earth Exterior",  "PRES_EARTH_EXT", ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - Presentation Earth Cutaway",   "PRES_EARTH_INT", ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - Presentation Blue Exterior",   "PRES_BLUE_EXT",  ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - Presentation Blue Cutaway",    "PRES_BLUE_INT",  ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - Presentation Sketch",          "PRES_SKETCH",    ViewDetailLevel.Fine, ViewType.ThreeD),
+            ("STING - Presentation Black",           "PRES_BLACK",     ViewDetailLevel.Fine, ViewType.ThreeD),
             // Section templates
             ("STING - Working Section", "SEC_W", ViewDetailLevel.Medium, ViewType.Section),
             ("STING - Presentation Section", "SEC_P", ViewDetailLevel.Fine, ViewType.Section),
@@ -924,6 +936,8 @@ namespace StingTools.Temp
                 // set Revit view discipline so the Project Browser organises
                 // templates correctly, hide DWG/import on presentation templates,
                 // and control crop-box visibility (hidden on presentation).
+                // All PRES_* and 3D_* codes are presentation. Sections/elevations
+                // in "P" variant also get presentation treatment.
                 bool isPresentation = discipline.StartsWith("PRES_") || discipline.StartsWith("3D_")
                                       || discipline == "PRES_3D" || discipline == "SEC_P"
                                       || discipline == "ELEV_P";
@@ -1114,6 +1128,47 @@ namespace StingTools.Temp
                             PresentationStyleHelper.AddOrSet(template, kv.Value,
                                 PresentationStyleHelper.DisciplineAccent(c, 2, solidFill, 30, true));
                     }
+                    return;
+                }
+
+                // ─────────────────────────────────────────────────────────────
+                // REFERENCE-PALETTE 3D PRESENTATION TEMPLATES
+                // Each of these duplicates a specific architectural render style
+                // from the reference screenshots: Candy (pink/teal gradient),
+                // Earth (sage/maroon), Blue (monochrome blue line-art), Sketch
+                // (grey gradient), Black (inverse dark mode). Each has exterior
+                // (roof-accented) and cutaway (room-accented) variants.
+                //
+                // The palette helper sets:
+                //   • 3D view background (solid or gradient via reflection —
+                //     silent skip on pre-Revit-2022 APIs)
+                //   • DisplayStyle.HLR for line-art look
+                //   • Base line-colour on every model category
+                //   • Accent colour+fill on the focus category (Roofs or Rooms)
+                //   • Topography base-slab colour (the tinted block in the
+                //     reference renders)
+                // ─────────────────────────────────────────────────────────────
+                var paletteLookup = PresentationStyleHelper.PaletteFor(discipline);
+                if (paletteLookup.HasValue)
+                {
+                    template.DetailLevel = ViewDetailLevel.Fine;
+                    var (palette, accent) = paletteLookup.Value;
+                    PresentationStyleHelper.ApplyPalette(template, palette, accent, solidFill);
+
+                    // Discipline filters still apply — they just use the palette's
+                    // base line colour so everything reads monochromatic with the
+                    // accent category standing out.
+                    foreach (var kv in DisciplineFilters())
+                    {
+                        var ogs = new OverrideGraphicSettings();
+                        ogs.SetProjectionLineColor(palette.BaseLineColor);
+                        ogs.SetProjectionLineWeight(2);
+                        ogs.SetCutLineColor(palette.LineColor);
+                        ogs.SetCutLineWeight(3);
+                        PresentationStyleHelper.AddOrSet(template, kv.Value, ogs);
+                    }
+                    // Cutaway variants: nudge camera/scope expectation by leaving
+                    // crop inactive — user sets the section box manually per view.
                     return;
                 }
 
