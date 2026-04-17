@@ -14,6 +14,7 @@ using StingTools.Core;
 using WpfColor    = System.Windows.Media.Color;
 using WpfBrushes  = System.Windows.Media.Brushes;
 using WpfComboBox = System.Windows.Controls.ComboBox;
+using WpfGrid     = System.Windows.Controls.Grid;
 
 namespace StingTools.Temp
 {
@@ -762,7 +763,7 @@ namespace StingTools.Temp
             root.Children.Add(btnRow);
 
             // ── Body: 2-column grid (fields left, placeholder help right) ─
-            var grid = new Grid();
+            var grid = new WpfGrid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
@@ -790,7 +791,7 @@ namespace StingTools.Temp
                        "The engine prefers the most specific template at export. Matches are case-insensitive substring.",
                 FontSize = 10, Foreground = WpfBrushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6)
             });
-            var variantGrid = new Grid();
+            var variantGrid = new WpfGrid();
             variantGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             variantGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             for (int i = 0; i < 4; i++) variantGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -799,7 +800,7 @@ namespace StingTools.Temp
                 var p = new StackPanel { Margin = new Thickness(0, 0, 4, 4) };
                 p.Children.Add(new TextBlock { Text = label, FontSize = 10, FontWeight = FontWeights.SemiBold });
                 p.Children.Add(tb);
-                Grid.SetRow(p, row); Grid.SetColumn(p, col);
+                WpfGrid.SetRow(p, row); WpfGrid.SetColumn(p, col);
                 variantGrid.Children.Add(p);
             }
             _familyBox = new TextBox { Height = 24, FontSize = 11, Text = _seed?.FamilyContains ?? "" };
@@ -857,7 +858,7 @@ namespace StingTools.Temp
             targetPanel.Children.Add(_targetProject);
             left.Children.Add(targetPanel);
 
-            Grid.SetColumn(left, 0);
+            WpfGrid.SetColumn(left, 0);
             grid.Children.Add(left);
 
             // Right column — placeholder helper
@@ -883,7 +884,7 @@ namespace StingTools.Temp
                 Text = "Tokens resolve from element parameters and Revit geometry at export. Unknown tokens are stripped; cost/qty tokens are blocked.",
                 TextWrapping = TextWrapping.Wrap, FontSize = 10, Foreground = WpfBrushes.Gray
             });
-            Grid.SetColumn(right, 1);
+            WpfGrid.SetColumn(right, 1);
             grid.Children.Add(right);
 
             var scroll = new ScrollViewer { Content = grid, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
