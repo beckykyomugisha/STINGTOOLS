@@ -100,3 +100,98 @@ Three rules make the three-standard library usable in practice:
 2. **Standard as a visibility switch, not a family count.** A single `.rfa` carries all three symbol variants; the Yes/No type parameters `SYMBOL_SHOW_IEC`, `SYMBOL_SHOW_BS`, `SYMBOL_SHOW_ANSI` swap which variant is visible. Typical projects set one per project-wide type catalogue.
 3. **Category binding per Revit's native categories.** Fire alarm devices, lighting fixtures, duct accessories, etc. — the host category stays native so Revit schedules, system browser, and filters work unchanged.
 
+
+---
+
+## 2. Subcategory scheme and line styles
+
+Every symbol drawn in a Revit family must live on a named **subcategory** of one of Revit's built-in annotation or model categories. Subcategories are what let a project-wide `Visibility/Graphics` filter toggle "show IEC symbols, hide BS/ANSI" without touching any family. They are also what let each standard carry its own line weight, line pattern, and colour.
+
+### 2.1 Naming convention
+
+All MEP library subcategories follow a single pattern:
+
+```
+ISO_Symbols_<DISC>_<STANDARD>
+```
+
+| Token | Values |
+|---|---|
+| `<DISC>` | `G`, `C`, `L`, `PH`, `LV`, `FP`, `P`, `E`, `M` (the 9 discipline codes in §1) |
+| `<STANDARD>` | `IEC`, `BS`, `ANSI` |
+
+This yields 27 subcategories total (9 × 3). Every row in `mep_symbols.csv` already names the three that apply to that symbol in the `subcategory_iec`, `subcategory_bs`, `subcategory_us` columns. When drafters create a seed family they must select one of these three for every symbolic line, filled region, and text note drawn.
+
+Consistent naming matters because `Visibility/Graphics` in the host project lets users filter by **subcategory**, not by family. Toggle `ISO_Symbols_M_IEC` off and every HVAC IEC symbol in every family disappears. Toggle `ISO_Symbols_M_BS` on and BS 1553-1 symbols become visible. One checkbox, one standard, everywhere.
+
+### 2.2 Line weights
+
+Line weights align with the sixth column of the CSV (`line_weight`), which is itself aligned to Revit line-weight numbers 1-16. The defaults assume a 1:50 annotation scale:
+
+| Weight | Printed width @ 1:50 | Typical use |
+|---:|---|---|
+| 1 | 0.10 mm | Reference/construction lines, gutter outlines, hatching |
+| 2 | 0.18 mm | Most symbol geometry: circles, triangles, lines |
+| 3 | 0.35 mm | Bold symbols (emergency, fire safety, critical isolation) |
+| 4+ | 0.50 mm+ | Reserved for schedule borders and title block (not symbols) |
+
+Fire, emergency, medical-IT, and critical-power devices use weight 3 as a deliberate on-drawing emphasis. All other symbols use weight 2. Reference lines and internal construction geometry use weight 1.
+
+### 2.3 Line pattern
+
+Most symbol geometry is `Solid`. Three exceptions:
+
+| Use | Line pattern |
+|---|---|
+| Hidden/concealed (sprinkler concealed, dashed door contact line) | `Dashed` |
+| Fieldbus routes (BACnet, Modbus, KNX in §1.2) | `Dashed 3mm` |
+| Flex duct, flexible conduit | `Zigzag` or `Wavy` (user-defined line pattern in project) |
+
+### 2.4 Colour strategy
+
+Colour is a project-wide overlay, not a symbol property. Revit line colour is set **on the subcategory**, not in the family. This means the three standards can share identical geometry and differ only in colour — useful for side-by-side drawings that compare standards.
+
+Recommended defaults:
+
+| Subcategory family | Colour | Rationale |
+|---|---|---|
+| `ISO_Symbols_*_IEC` | `Black` | Default printable |
+| `ISO_Symbols_*_BS` | `Black` | Default UK |
+| `ISO_Symbols_*_ANSI` | `Black` | Default US |
+| `ISO_Symbols_FP_*` | `255,0,0` (red) | BS 5499 / NFPA 170 convention |
+| `ISO_Symbols_G_*` | `230,180,0` (yellow-ochre) | BS 1710 yellow |
+| `ISO_Symbols_L_*` (emergency only) | `0,128,0` (green) | BS 5266 emergency |
+| Medical IT / critical power | `255,0,0` (red) | HTM 06-01 / NFPA 99 |
+| Data / comms | `0,0,255` (blue) | TIA-606 convention |
+| Plumbing hot water | `255,0,0` (red) | BS 1710 |
+| Plumbing cold water | `0,120,255` (blue) | BS 1710 |
+| HVAC chilled water | `0,0,150` (dark blue) | BS 1710 |
+| Controls sensors | `128,0,128` (purple) | Visual separation from MEP |
+
+Colour is overridden per-view with `Override Graphics in View` if a deliverable requires mono print. The STINGTOOLS `ColorCommands` palette can generate all of the above as saved presets — see §6.3.
+
+### 2.5 Setting up subcategories in a family
+
+Manual, per-family (Revit API does not create subcategories programmatically in family documents):
+
+1. Open the `.rfa` in the Family Editor.
+2. `Manage → Object Styles → Annotation Objects` tab.
+3. `New` → type the subcategory name (e.g. `ISO_Symbols_E_IEC`).
+4. Set `Line Weight: Projection = 2`, `Line Color = Black`, `Line Pattern = Solid`.
+5. Repeat for the other two standards.
+6. Draw your symbol. Select each element, set `Subcategory` in the Properties palette.
+
+The STINGTOOLS `FamilyParamCreator` engine already iterates `.rfa` files and injects shared parameters; extending it to auto-create the 27 subcategories on open is one of the recommended integration hooks in §6.2.
+
+### 2.6 Project-level deployment
+
+Once a seed family has subcategories, the host project sees them under `Object Styles → Annotation Objects` after the family is loaded. No project template changes are needed. The project controls:
+
+- `Visibility/Graphics` per view: toggle each `ISO_Symbols_*` subcategory on/off.
+- `Object Styles` per project: set the three standards' default colours and weights once; cascades to every loaded family.
+- `View Template`: save a named template per standard (e.g. "IEC Plan", "BS Plan", "ANSI Plan") that toggles the correct 9 subcategories visible and the other 18 hidden.
+
+### 2.7 View filter alternative (advanced)
+
+For projects mixing multiple standards in one view, use a `Parameter Filter` on the `SYMBOL_SHOW_IEC` / `SYMBOL_SHOW_BS` / `SYMBOL_SHOW_ANSI` Yes/No parameters. This toggles the host family's visibility, not the subcategory's, so it applies per-instance rather than per-subcategory. Slower to configure but useful for presentation drawings that deliberately show two standards side by side on the same sheet.
+
