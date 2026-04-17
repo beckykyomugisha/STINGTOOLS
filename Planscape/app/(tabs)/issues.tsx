@@ -19,6 +19,7 @@ import type { BimIssue, Project, ProjectMember } from '@/types/api';
 import { imageService, CapturedImage } from '@/services/imageService';
 import { locationService } from '@/services/locationService';
 import { MemberPicker } from '@/components/MemberPicker';
+import { AttachmentStrip } from '@/components/AttachmentStrip';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import { crashReporter } from '@/services/crashReporter';
@@ -190,9 +191,19 @@ export default function IssuesScreen() {
       resetCreateForm();
       loadData(activeProject.id);
     } catch (err) {
+      // NEW-INFO-14 — Explicit handling for the geofence 403 so the user sees
+      // "Outside project boundary" rather than a raw HTTP error.
       const msg = err instanceof Error ? err.message : 'Failed to create issue';
-      setError(msg);
-      // Stay on form so user can retry
+      if (msg.includes('HTTP 403') || msg.toLowerCase().includes('geofence')
+          || msg.toLowerCase().includes('outside the project')) {
+        setError('Outside project geofence — move on site or ask your BIM manager to widen the boundary.');
+      } else if (msg.includes('HTTP 400') && msg.toLowerCase().includes('latitude')) {
+        setError('Invalid GPS reading — try again in a moment.');
+      } else if (msg.includes('HTTP 400') && msg.toLowerCase().includes('assignee')) {
+        setError('Chosen assignee is not a member of this project.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setCreating(false);
       setCreationStatus(null);
@@ -480,6 +491,9 @@ export default function IssuesScreen() {
                     <Text style={styles.detailElementValue}>{selectedIssue.elementIds}</Text>
                   </View>
                 ) : null}
+
+                {/* NEW-INFO-01 — Attachment gallery */}
+                <AttachmentStrip projectId={selectedIssue.projectId} issueId={selectedIssue.id} />
               </ScrollView>
 
               <TouchableOpacity style={styles.detailClose} onPress={() => setSelectedIssue(null)}>
@@ -510,7 +524,12 @@ function SummaryChip({ label, count, color, active, onPress }: {
 
 function IssueCard({ issue, onPress }: { issue: BimIssue; onPress: () => void }) {
   const priorityColor = getPriorityColor(issue.priority);
-  const isOverdue = issue.status === 'OPEN' && daysSince(issue.createdAt) > 7;
+  // NEW-INFO-02 — Prefer the server's IsOverdue flag when present, fall back
+  // to the local 7-day heuristic for legacy responses.
+  const isOverdue = issue.isOverdue ?? (
+    issue.status === 'OPEN' && !!issue.dueDate && new Date(issue.dueDate) < new Date()
+  ) ?? (issue.status === 'OPEN' && daysSince(issue.createdAt) > 7);
+  const hasPhotos = (issue.attachmentCount ?? 0) > 0;
 
   return (
     <TouchableOpacity style={styles.issueCard} onPress={onPress} activeOpacity={0.7}>
@@ -522,6 +541,11 @@ function IssueCard({ issue, onPress }: { issue: BimIssue; onPress: () => void })
             <View style={[styles.typeBadge]}>
               <Text style={styles.typeBadgeText}>{issue.type}</Text>
             </View>
+            {hasPhotos ? (
+              <View style={[styles.typeBadge, { backgroundColor: '#fff3e0' }]}>
+                <Text style={[styles.typeBadgeText, { color: '#E8912D' }]}>📷 {issue.attachmentCount}</Text>
+              </View>
+            ) : null}
             <StatusBadge status={issue.status} small />
           </View>
         </View>
@@ -532,8 +556,10 @@ function IssueCard({ issue, onPress }: { issue: BimIssue; onPress: () => void })
           ) : (
             <Text style={[styles.issueCardAssignee, { fontStyle: 'italic' }]}>Unassigned</Text>
           )}
-          <Text style={styles.issueCardDate}>
-            {isOverdue ? 'OVERDUE · ' : ''}{formatDate(issue.createdAt)}
+          <Text style={[styles.issueCardDate, isOverdue && { color: '#D32F2F', fontWeight: '700' }]}>
+            {isOverdue ? 'OVERDUE · ' : ''}
+            {issue.dueDate ? `due ${formatDate(issue.dueDate)}` : formatDate(issue.createdAt)}
+            {typeof issue.daysOpen === 'number' ? ` · ${issue.daysOpen}d` : ''}
           </Text>
         </View>
       </View>

@@ -67,11 +67,27 @@ export interface BimIssue {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  dueDate?: string;
+  resolvedAt?: string;
+  isOverdue?: boolean;
+  daysOpen?: number;
   latitude?: number;
   longitude?: number;
   locationAccuracy?: number;
   deviceId?: string;
+  source?: 'mobile' | 'plugin' | 'web' | 'mobile-bridge';
   attachmentCount?: number;
+}
+
+/** NEW-INFO-06/07 — Activity timeline entries surfaced from AuditLog. */
+export interface IssueActivityEntry {
+  id: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | string;
+  entityType: string;
+  entityId: string;
+  userName?: string;
+  timestamp: string;
+  details?: Record<string, unknown>;
 }
 
 export interface ProjectMember {

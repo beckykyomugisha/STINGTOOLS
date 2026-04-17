@@ -1,4 +1,6 @@
 import { apiFetch, getBaseUrl, getToken } from './client';
+// Re-export for components that need a raw base URL for thumbnails/downloads.
+export { getBaseUrl as _getBaseUrl } from './client';
 import type {
   LoginRequest,
   LoginResponse,
@@ -114,6 +116,17 @@ export function listIssueAttachments(
   issueId: string
 ): Promise<IssueAttachment[]> {
   return apiFetch(`/api/projects/${projectId}/issues/${issueId}/attachments`);
+}
+
+/** NEW-INFO-01 — Server exposes JPEG thumbnails at {150, 300, 600}px. */
+export async function getAttachmentThumbnailUrl(
+  projectId: string,
+  issueId: string,
+  attachmentId: string,
+  size: 150 | 300 | 600 = 300,
+): Promise<string> {
+  const base = await getBaseUrl();
+  return `${base}/api/projects/${projectId}/issues/${issueId}/attachments/${attachmentId}/thumbnail?size=${size}`;
 }
 
 export interface UploadAttachmentArgs {
