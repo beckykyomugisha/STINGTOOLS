@@ -33,6 +33,7 @@ public class DatabaseBackupJob
         _storage = storage;
     }
 
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 7200)]
     public async Task ExecuteAsync(CancellationToken ct = default)
     {
         if (!bool.TryParse(_config["Backup:Enabled"], out var enabled) || !enabled)

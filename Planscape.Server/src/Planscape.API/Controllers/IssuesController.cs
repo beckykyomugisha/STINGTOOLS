@@ -88,26 +88,42 @@ public class IssuesController : ControllerBase
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
 
-        // S12 — geofence boundary check for mobile issue creation
+        // NEW-LOGIC-02 — Sanitise Type. Only 2-6 uppercase letters allowed to prevent
+        // injection of "-" that would break IssueCode parsing elsewhere.
+        if (string.IsNullOrWhiteSpace(req.Type) ||
+            !System.Text.RegularExpressions.Regex.IsMatch(req.Type, @"^[A-Z]{2,6}$"))
+        {
+            return BadRequest(new { error = "Type must be 2-6 uppercase letters (e.g. RFI, NCR, SI, TQ, CLASH, DEFECT)" });
+        }
+
+        // NEW-LOGIC-08 — Validate lat/lng ranges before geofence check.
+        // MobileContextMiddleware parses headers but never range-checks them.
         if (HttpContext.Items.TryGetValue("Latitude", out var latObj) &&
             HttpContext.Items.TryGetValue("Longitude", out var lngObj) &&
             latObj is double lat && lngObj is double lng)
         {
+            if (double.IsNaN(lat) || double.IsNaN(lng) || Math.Abs(lat) > 90 || Math.Abs(lng) > 180)
+                return BadRequest(new { error = "Invalid latitude/longitude range" });
             if (!_geofence.IsInsideBoundary(project.BoundaryPolygon, lat, lng))
                 return StatusCode(403, new { error = "Device location is outside the project geofence boundary" });
         }
 
-        // Auto-generate issue code
+        // NEW-LOGIC-01/02 — Issue code is generated inside a retry loop so that
+        // concurrent CreateIssue requests for the same Type cannot both write
+        // the same code. A unique DB index on (ProjectId, IssueCode) is the
+        // ultimate guard (see migration 20250407 line 189) — this loop handles
+        // the expected contention case gracefully.
+        int nextNum = 1;
         var lastIssue = await _db.Issues
             .Where(i => i.ProjectId == projectId && i.Type == req.Type)
             .OrderByDescending(i => i.IssueCode)
             .FirstOrDefaultAsync();
-
-        int nextNum = 1;
         if (lastIssue != null)
         {
-            var parts = lastIssue.IssueCode.Split('-');
-            if (parts.Length == 2 && int.TryParse(parts[1], out int n)) nextNum = n + 1;
+            // Use LastIndexOf so a Type accidentally containing "-" (impossible after
+            // the regex gate above, but belt-and-braces) splits sensibly.
+            var idx = lastIssue.IssueCode.LastIndexOf('-');
+            if (idx > 0 && int.TryParse(lastIssue.IssueCode.AsSpan(idx + 1), out int n)) nextNum = n + 1;
         }
 
         // NEW-SRV-23 + NEW-MOB-17: resolve and validate assignee against project membership.
@@ -169,8 +185,26 @@ public class IssuesController : ControllerBase
             Source = source,
         };
 
+        // NEW-LOGIC-01/02 — Save with retry on UNIQUE(ProjectId, IssueCode) collision.
+        // A concurrent CreateIssue for the same Type could also have computed nextNum;
+        // Postgres raises 23505 (DbUpdateException) — bump and retry up to 5 times.
         _db.Issues.Add(issue);
-        await _db.SaveChangesAsync();
+        int attempts = 0;
+        while (true)
+        {
+            try
+            {
+                await _db.SaveChangesAsync();
+                break;
+            }
+            catch (DbUpdateException) when (attempts++ < 5)
+            {
+                _db.Entry(issue).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+                nextNum++;
+                issue.IssueCode = $"{req.Type}-{nextNum:D4}";
+                _db.Issues.Add(issue);
+            }
+        }
         await _audit.LogAsync("CREATE", "Issue", issue.Id.ToString());
 
         // Push notification for new issue
@@ -196,7 +230,7 @@ public class IssuesController : ControllerBase
             }
             if (assignee != null)
             {
-                _ = _push.SendToUserAsync(assignee.Id, new Planscape.Core.Entities.PushPayload
+                _ = _push.SendToUserAsync(assignee.Id, new Planscape.Core.Interfaces.PushPayload
                 {
                     Title = $"Assigned: {issue.IssueCode} [{issue.Priority}]",
                     Body = issue.Title,
@@ -266,9 +300,25 @@ public class IssuesController : ControllerBase
         await file.CopyToAsync(memStream);
         var contentHash = Convert.ToHexString(SHA256.HashData(memStream.ToArray())).ToLowerInvariant();
 
+        // NEW-LOGIC-06 — If the client declared an image Content-Type, verify with
+        // magic-byte sniffing so a renamed executable can't impersonate a photo.
+        memStream.Position = 0;
+        if (!string.IsNullOrEmpty(file.ContentType)
+            && file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!Planscape.Infrastructure.Security.FileContentValidator.IsImage(memStream, out _))
+            {
+                return BadRequest(new { error = "File content does not match declared image MIME type" });
+            }
+        }
+
+        // NEW-LOGIC-07 — Sanitise filename before handing to the storage layer.
+        var safeName = Planscape.Infrastructure.Security.FileContentValidator.SanitiseFileName(
+            file.FileName, fallback: $"attachment-{DateTime.UtcNow:yyyyMMddHHmmss}");
+
         memStream.Position = 0;
         var subPath = $"{project.Code}/issues/{issue.IssueCode}";
-        var relativePath = await _storage.SaveAsync(tenantSlug, subPath, file.FileName, memStream);
+        var relativePath = await _storage.SaveAsync(tenantSlug, subPath, safeName, memStream);
 
         // Create a DocumentRecord for the file
         var doc = new DocumentRecord

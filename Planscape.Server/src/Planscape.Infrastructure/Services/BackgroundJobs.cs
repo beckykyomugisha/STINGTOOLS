@@ -48,6 +48,7 @@ public class ComplianceCheckJob
         _logger = logger;
     }
 
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
         _logger.LogInformation("ComplianceCheckJob started");
@@ -122,6 +123,7 @@ public class SlaEscalationJob
         _logger = logger;
     }
 
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
         _logger.LogInformation("SlaEscalationJob started");
@@ -224,6 +226,7 @@ public class StaleWarningCleanupJob
         _logger = logger;
     }
 
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
         _logger.LogInformation("StaleWarningCleanupJob started");
@@ -266,6 +269,7 @@ public class PlatformSyncJob
         _logger = logger;
     }
 
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
         _logger.LogInformation("PlatformSyncJob started");
