@@ -21,6 +21,9 @@
     <PackageReference Include="ClosedXML" Version="0.104.2" />
     <PackageReference Include="MailKit" Version="4.8.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <!-- STORAGE-01 — S3-compatible object storage (AWS S3, MinIO, R2, Spaces) -->
+    <PackageReference Include="AWSSDK.S3" Version="3.7.412" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.301" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Planscape.Core\Planscape.Core.csproj" />

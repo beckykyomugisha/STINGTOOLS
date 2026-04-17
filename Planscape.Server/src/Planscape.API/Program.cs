@@ -57,7 +57,16 @@ builder.Services.AddAuthorization();
 // ── Services ──
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
-builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
+// STORAGE-01 — Storage:Provider = "S3" | "Local" (default). S3 covers AWS, MinIO, R2, Spaces.
+var storageProvider = builder.Configuration["Storage:Provider"];
+if (string.Equals(storageProvider, "S3", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.S3FileStorageService>();
+}
+else
+{
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
+}
 builder.Services.AddScoped<Planscape.Core.Interfaces.IGeofenceValidationService, Planscape.Infrastructure.Services.GeofenceValidationService>();
 builder.Services.AddScoped<Planscape.API.Services.IThumbnailService, Planscape.API.Services.ImageSharpThumbnailService>();
 builder.Services.AddScoped<Planscape.API.Services.IAuditService, Planscape.API.Services.AuditService>();
@@ -123,6 +132,7 @@ builder.Services.AddHangfireServer(options =>
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ComplianceCheckJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaEscalationJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.StaleWarningCleanupJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.DatabaseBackupJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 
 builder.Services.AddControllers();
@@ -267,6 +277,27 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 // ── Health check ── (NEW-SRV-22)
 // Returns sub-check results so mobile can detect partial degradation.
 // Status codes: 200 healthy, 503 degraded (any sub-check failed).
+// HEALTH-01 — Separate probes for orchestrator/mobile consumption.
+// /health/live  → process is running (K8s liveness, mobile ping)
+// /health/ready → process is accepting traffic (K8s readiness, probes)
+// /health       → legacy full diagnostic (returned below)
+app.MapGet("/health/live", () => Results.Ok(new { status = "alive", timestamp = DateTime.UtcNow }))
+    .AllowAnonymous();
+
+app.MapGet("/health/ready", async (PlanscapeDbContext db) =>
+{
+    try
+    {
+        return await db.Database.CanConnectAsync()
+            ? Results.Ok(new { status = "ready" })
+            : Results.Json(new { status = "not-ready", reason = "db-unreachable" }, statusCode: 503);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { status = "not-ready", reason = ex.Message }, statusCode: 503);
+    }
+}).AllowAnonymous();
+
 app.MapGet("/health", async (PlanscapeDbContext db, IConnectionMultiplexer? redis, Planscape.Core.Interfaces.IPushNotificationService push) =>
 {
     var checks = new Dictionary<string, object>();
@@ -368,5 +399,9 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.StaleWarningCleanupJo
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
     "platform-sync", j => j.ExecuteAsync(CancellationToken.None),
     "*/30 * * * *", new RecurringJobOptions { QueueName = "platform-sync" });
+// BACKUP-01 — nightly 02:15 UTC Postgres dump. Runs only when Backup:Enabled=true.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
+    "database-backup", j => j.ExecuteAsync(CancellationToken.None),
+    "15 2 * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
