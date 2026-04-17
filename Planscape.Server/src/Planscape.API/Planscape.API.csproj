@@ -19,6 +19,13 @@
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <!-- Optional structured-log sinks. Activated via Serilog:WriteTo config entries.
+         Seq:       docker run -p 5341:80 datalust/seq:latest  (free single-user)
+         Elastic:   ingest JSON directly to Elasticsearch 8.x / OpenSearch 2.x
+    -->
+    <PackageReference Include="Serilog.Sinks.Seq" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.Elasticsearch" Version="10.0.0" />
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.17" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
     <PackageReference Include="ZXing.Net" Version="0.16.9" />
@@ -29,5 +36,15 @@
     <ProjectReference Include="..\Planscape.Infrastructure\Planscape.Infrastructure.csproj" />
     <ProjectReference Include="..\Planscape.MIM\Planscape.MIM.csproj" />
     <ProjectReference Include="..\Planscape.Shared\Planscape.Shared.csproj" />
+  </ItemGroup>
+
+  <!-- FLEX-03/07 — email templates ship next to the DLL so the renderer can find them. -->
+  <ItemGroup>
+    <None Update="EmailTemplates\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="I18n\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

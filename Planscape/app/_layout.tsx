@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { getToken, onSessionExpired } from '@/api/client';
 import { crashReporter } from '@/services/crashReporter';
 import { notificationTapRouter } from '@/services/notificationTapRouter';
+import { initI18n } from '@/i18n';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -38,6 +39,9 @@ export default function RootLayout() {
   }, [isAuthenticated, segments, isReady]);
 
   async function checkAuth() {
+    // FLEX-15 — load the user's preferred language before we render any screen.
+    // initI18n is cheap (no network) and safe to call on every app start.
+    try { await initI18n(); } catch { /* non-fatal */ }
     const token = await getToken();
     setIsAuthenticated(!!token);
     setIsReady(true);

@@ -38,6 +38,7 @@ public class PlanscapeDbContext : DbContext
     }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<TenantBranding> TenantBrandings => Set<TenantBranding>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<TaggedElement> TaggedElements => Set<TaggedElement>();
@@ -55,6 +56,8 @@ public class PlanscapeDbContext : DbContext
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
     public DbSet<UserNotificationPreferences> UserNotificationPreferences => Set<UserNotificationPreferences>();
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
+    public DbSet<IssueCustomFieldSchema> IssueCustomFieldSchemas => Set<IssueCustomFieldSchema>();
+    public DbSet<ProjectModel> ProjectModels => Set<ProjectModel>();
     public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
@@ -76,6 +79,75 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(t => t.Slug).IsUnique();
             e.Property(t => t.Name).HasMaxLength(200);
             e.Property(t => t.Slug).HasMaxLength(50);
+        });
+
+        // ── IssueCustomFieldSchema (FLEX-13) ──
+        modelBuilder.Entity<IssueCustomFieldSchema>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Key }).IsUnique();
+            e.HasIndex(x => x.ProjectId);
+            e.Property(x => x.Key).HasMaxLength(80);
+            e.Property(x => x.Label).HasMaxLength(200);
+            e.Property(x => x.HelpText).HasMaxLength(500);
+            e.Property(x => x.DefaultValueJson).HasColumnType("jsonb");
+            e.Property(x => x.OptionsJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── ProjectModel (MODEL-VIEWER) ──
+        modelBuilder.Entity<ProjectModel>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.ContentHash);
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.FileName).HasMaxLength(260);
+            e.Property(x => x.StoragePath).HasMaxLength(600);
+            e.Property(x => x.ContentHash).HasMaxLength(64);
+            e.Property(x => x.ThumbnailPath).HasMaxLength(600);
+            e.Property(x => x.ElementMapPath).HasMaxLength(600);
+            e.Property(x => x.Units).HasMaxLength(8);
+            e.Property(x => x.Revision).HasMaxLength(30);
+            e.Property(x => x.UploadedBy).HasMaxLength(200);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.UploadedByUser).WithMany().HasForeignKey(x => x.UploadedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Issue → ProjectModel anchor (MODEL-VIEWER)
+        modelBuilder.Entity<BimIssue>(e =>
+        {
+            e.HasIndex(x => x.ModelId);
+            e.Property(x => x.ModelElementGuid).HasMaxLength(80);
+        });
+
+        // ── BimIssue.CustomFields JSONB (FLEX-13) ──
+        // Decision 4.5 = (c) — JSONB column with GIN index. The GIN index is
+        // created by the migration (raw SQL) rather than through HasIndex, to
+        // avoid the model snapshot trying to re-create/re-drop it on later
+        // unrelated migrations.
+        modelBuilder.Entity<BimIssue>(e =>
+        {
+            e.Property(x => x.CustomFields).HasColumnType("jsonb");
+        });
+
+        // ── TenantBranding (FLEX-03) ──
+        modelBuilder.Entity<TenantBranding>(e =>
+        {
+            e.HasKey(b => b.Id);
+            e.HasIndex(b => b.TenantId).IsUnique();
+            e.HasOne(b => b.Tenant).WithMany().HasForeignKey(b => b.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(b => b.ProductName).HasMaxLength(100);
+            e.Property(b => b.AccentColor).HasMaxLength(20);
+            e.Property(b => b.HeaderColor).HasMaxLength(20);
+            e.Property(b => b.LogoUrl).HasMaxLength(500);
+            e.Property(b => b.SupportEmail).HasMaxLength(200);
+            e.Property(b => b.EmailFromName).HasMaxLength(100);
+            e.Property(b => b.EmailFromAddress).HasMaxLength(200);
+            e.Property(b => b.EmailSignature).HasMaxLength(2000);
+            e.Property(b => b.DefaultLanguage).HasMaxLength(8);
         });
 
         // ── AppUser ──

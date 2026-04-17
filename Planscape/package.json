@@ -20,6 +20,7 @@
     "@react-navigation/native": "^7.0.0",
     "expo": "~52.0.0",
     "expo-application": "^55.0.14",
+    "expo-asset": "~11.0.0",
     "expo-camera": "~16.0.0",
     "expo-device": "~7.0.0",
     "expo-file-system": "^55.0.16",
@@ -38,6 +39,7 @@
     "react-native-reanimated": "~3.16.0",
     "react-native-safe-area-context": "4.14.0",
     "react-native-screens": "~4.4.0",
+    "react-native-webview": "13.12.5",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

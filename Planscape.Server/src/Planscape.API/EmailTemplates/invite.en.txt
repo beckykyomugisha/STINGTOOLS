@@ -1,0 +1,13 @@
+Welcome to {{ProductName}}
+
+Hi {{DisplayName}},
+
+{{InviterName}} has invited you to collaborate on {{ProjectName}}.
+
+To get started, set your password and open the project:
+{{AcceptUrl}}
+
+If you did not expect this invitation you can safely ignore this email.
+
+--
+{{ProductName}} — {{SupportEmail}}

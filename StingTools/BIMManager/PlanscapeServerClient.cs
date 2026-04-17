@@ -441,6 +441,114 @@ public sealed class PlanscapeServerClient : IDisposable
         _http?.Dispose();
         _http = null;
     }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    //  Models (MODEL-VIEWER)
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Upload a 3D model (glTF / GLB / IFC) plus an optional element-map sidecar
+    /// to <c>POST /api/projects/{id}/models</c>. Returns the created model id on
+    /// success or an error message on failure.
+    /// </summary>
+    public async Task<(bool ok, Guid modelId, string? error)> UploadModelAsync(
+        Guid projectId,
+        string modelFilePath,
+        string? elementMapPath = null,
+        string? name = null,
+        string? description = null,
+        string? discipline = null,
+        string? revision = null,
+        string units = "mm",
+        int? elementCount = null,
+        double[]? bounds = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return (false, Guid.Empty, LastError);
+        if (!File.Exists(modelFilePath))       return (false, Guid.Empty, $"Model file not found: {modelFilePath}");
+
+        try
+        {
+            using var content = new System.Net.Http.MultipartFormDataContent();
+
+            // Primary geometry — streaming to avoid loading huge files into memory.
+            var modelStream = File.OpenRead(modelFilePath);
+            var modelContent = new System.Net.Http.StreamContent(modelStream);
+            modelContent.Headers.ContentType = new MediaTypeWithQualityHeaderValue(GuessMime(modelFilePath));
+            content.Add(modelContent, "File", Path.GetFileName(modelFilePath));
+
+            // Optional element map.
+            System.Net.Http.StreamContent? mapContent = null;
+            FileStream? mapStream = null;
+            if (!string.IsNullOrEmpty(elementMapPath) && File.Exists(elementMapPath))
+            {
+                mapStream = File.OpenRead(elementMapPath!);
+                mapContent = new System.Net.Http.StreamContent(mapStream);
+                mapContent.Headers.ContentType = new MediaTypeWithQualityHeaderValue("application/json");
+                content.Add(mapContent, "ElementMap", Path.GetFileName(elementMapPath!));
+            }
+
+            // Metadata fields (PascalCase to match the server's UploadModelRequest).
+            void AddField(string key, string? value)
+            {
+                if (value != null) content.Add(new System.Net.Http.StringContent(value, Encoding.UTF8), key);
+            }
+            AddField("Name", name);
+            AddField("Description", description);
+            AddField("Discipline", discipline);
+            AddField("Revision", revision);
+            AddField("Units", units);
+            if (elementCount.HasValue) AddField("ElementCount", elementCount.Value.ToString());
+            if (bounds != null && bounds.Length == 6)
+            {
+                AddField("BoundsMinX", bounds[0].ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AddField("BoundsMinY", bounds[1].ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AddField("BoundsMinZ", bounds[2].ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AddField("BoundsMaxX", bounds[3].ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AddField("BoundsMaxY", bounds[4].ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AddField("BoundsMaxZ", bounds[5].ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            try
+            {
+                using var resp = await _http!.PostAsync($"/api/projects/{projectId}/models", content).ConfigureAwait(false);
+                var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    return (false, Guid.Empty, $"HTTP {(int)resp.StatusCode}: {body}");
+                }
+                var json = JObject.Parse(body);
+                var id = json["id"]?.Value<string>() ?? "";
+                return (true, Guid.TryParse(id, out var g) ? g : Guid.Empty, null);
+            }
+            finally
+            {
+                modelStream.Dispose();
+                mapContent?.Dispose();
+                mapStream?.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            StingLog.Error("Planscape: UploadModelAsync failed", ex);
+            return (false, Guid.Empty, ex.Message);
+        }
+    }
+
+    /// <summary>Guess MIME type from the file extension for multipart uploads.</summary>
+    private static string GuessMime(string path)
+    {
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        return ext switch
+        {
+            ".glb"  => "model/gltf-binary",
+            ".gltf" => "model/gltf+json",
+            ".ifc"  => "application/x-step",
+            ".obj"  => "model/obj",
+            ".fbx"  => "application/octet-stream",
+            _ => "application/octet-stream",
+        };
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────────────────

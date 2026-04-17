@@ -8,17 +8,54 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.RateLimiting;
 using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.Elasticsearch;
 using Hangfire;
+using Prometheus;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Serilog ──
-builder.Host.UseSerilog((ctx, lc) => lc
-    .ReadFrom.Configuration(ctx.Configuration)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.File("logs/planscape-.log", rollingInterval: RollingInterval.Day));
+// ── Serilog (MON-01: Seq / Elastic observability) ──
+// Console + rolling file is always-on. Optional structured-log sinks are
+// activated by config so this still works in sandboxed dev environments.
+//
+//   Serilog:Seq:ServerUrl          → e.g. http://seq:5341
+//   Serilog:Seq:ApiKey             → optional, for shared Seq instances
+//   Serilog:Elastic:NodeUris       → comma-separated https://host:9200
+//   Serilog:Elastic:IndexFormat    → planscape-{0:yyyy.MM}
+//   Serilog:Elastic:ApiKey         → ES API key (optional)
+builder.Host.UseSerilog((ctx, sp, lc) =>
+{
+    lc.ReadFrom.Configuration(ctx.Configuration)
+      .Enrich.FromLogContext()
+      .Enrich.WithProperty("app", "planscape-api")
+      .Enrich.WithProperty("env", ctx.HostingEnvironment.EnvironmentName)
+      .WriteTo.Console()
+      .WriteTo.File("logs/planscape-.log", rollingInterval: RollingInterval.Day);
+
+    var seqUrl = ctx.Configuration["Serilog:Seq:ServerUrl"];
+    if (!string.IsNullOrWhiteSpace(seqUrl))
+    {
+        lc.WriteTo.Seq(seqUrl, apiKey: ctx.Configuration["Serilog:Seq:ApiKey"]);
+    }
+
+    var elasticUris = ctx.Configuration["Serilog:Elastic:NodeUris"];
+    if (!string.IsNullOrWhiteSpace(elasticUris))
+    {
+        var nodes = elasticUris.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                               .Select(u => new Uri(u)).ToArray();
+        var sinkOpts = new ElasticsearchSinkOptions(nodes)
+        {
+            AutoRegisterTemplate = true,
+            AutoRegisterTemplateVersion = AutoRegisterTemplateVersion.ESv8,
+            IndexFormat = ctx.Configuration["Serilog:Elastic:IndexFormat"] ?? "planscape-{0:yyyy.MM}",
+            MinimumLogEventLevel = LogEventLevel.Information,
+            EmitEventFailure = EmitEventFailureHandling.WriteToSelfLog,
+        };
+        lc.WriteTo.Elasticsearch(sinkOpts);
+    }
+});
 
 // ── Database ──
 builder.Services.AddDbContext<PlanscapeDbContext>(options =>
@@ -78,8 +115,21 @@ builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Plan
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.TrimbleConnector>();
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnectorFactory, Planscape.Infrastructure.Services.PlatformConnectorFactory>();
 
-// ── Email ──
-if (!string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
+// ── Email & Tenant branding (FLEX-03, FLEX-07) ──
+builder.Services.AddSingleton<Planscape.Core.Interfaces.ITenantBrandingService, Planscape.Infrastructure.Services.TenantBrandingService>();
+// Renderer is Singleton so its file-read cache survives across requests.
+// Deps are all Singleton-safe (IHostEnvironment, IConfiguration, ILogger).
+builder.Services.AddSingleton<Planscape.Infrastructure.Services.IEmailTemplateRenderer, Planscape.Infrastructure.Services.FileEmailTemplateRenderer>();
+
+// ── i18n (FLEX-15) — load resource files once at startup; mobile pulls via /api/i18n. ──
+builder.Services.AddSingleton<Planscape.Core.Interfaces.II18nService, Planscape.Infrastructure.Services.I18nService>();
+
+// ── NLP (NLP-AUTO-LINK) — rule-based + LLM fallback. Swap NullLlmResolver for
+//    a real provider (OpenAI / Azure OpenAI / Anthropic) when credentials land.
+builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpLlmResolver, Planscape.Infrastructure.Services.NullLlmResolver>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpResolver, Planscape.Infrastructure.Services.NlpResolver>();
+if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
+    || !string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.SmtpEmailService>();
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.NullEmailService>();
@@ -134,6 +184,7 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaEscalationJob>()
 builder.Services.AddScoped<Planscape.Infrastructure.Services.StaleWarningCleanupJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DatabaseBackupJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -261,18 +312,31 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseSerilogRequestLogging();
+// MON-02: request/response metrics (latency histogram, status codes, in-flight).
+// Exposed at /metrics in Prometheus exposition format. Scrape once per 15-30s.
+app.UseHttpMetrics();
 app.UseRateLimiter();
 app.UseCors("Dashboard");
 app.UseCors("Mobile");
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // Must run AFTER auth so JWT claims are available
 app.UseMiddleware<MobileContextMiddleware>();
+app.UseMiddleware<LocaleMiddleware>();           // FLEX-15 — resolves language after tenant is known
 app.UseAuthorization();
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
     Authorization = new[] { new Planscape.Infrastructure.Services.HangfireAuthorizationFilter() }
 });
+
+// MON-03: /metrics endpoint for Prometheus / Grafana Agent / Datadog / NewRelic.
+// Unauthenticated so scrapers can collect without a JWT, but restrict network-side
+// (bind nginx /metrics to internal IP only). Disable with Monitoring:ExposeMetrics=false.
+var exposeMetrics = builder.Configuration.GetValue<bool>("Monitoring:ExposeMetrics", true);
+if (exposeMetrics)
+{
+    app.MapMetrics("/metrics").AllowAnonymous();
+}
 
 // ── Health check ── (NEW-SRV-22)
 // Returns sub-check results so mobile can detect partial degradation.
@@ -403,5 +467,9 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
     "database-backup", j => j.ExecuteAsync(CancellationToken.None),
     "15 2 * * *", new RecurringJobOptions { QueueName = "default" });
+// FLEX-13 — nightly 03:15 UTC purge of custom fields past the 30-day grace period.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
+    "custom-fields-purge", j => j.ExecuteAsync(CancellationToken.None),
+    "15 3 * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();
