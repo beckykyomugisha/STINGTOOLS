@@ -76,8 +76,16 @@ else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.NullEmailService>();
 
 // ── Push Notifications ──
+// Supports both raw FCM tokens (via Firebase Project) and ExponentPushToken[…]
+// tokens issued by the Expo/EAS runtime. ExpoPushService is always registered —
+// FirebasePushService delegates to it for Expo-shaped tokens, and the service
+// also lets us deliver to Expo Go + TestFlight dev builds without Firebase creds.
 builder.Services.AddHttpClient("FCM");
-if (!string.IsNullOrEmpty(builder.Configuration["Firebase:ProjectId"]))
+builder.Services.AddHttpClient("Expo");
+builder.Services.AddSingleton<Planscape.Infrastructure.Services.ExpoPushService>();
+if (!string.IsNullOrEmpty(builder.Configuration["Firebase:ProjectId"])
+    || !string.IsNullOrEmpty(builder.Configuration["Expo:AccessToken"])
+    || true) // always prefer the real service — when neither is configured it silently no-ops
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IPushNotificationService, Planscape.Infrastructure.Services.FirebasePushService>();
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IPushNotificationService, Planscape.Infrastructure.Services.NullPushNotificationService>();

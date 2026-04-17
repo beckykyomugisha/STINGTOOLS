@@ -22,18 +22,32 @@ public class FirebasePushService : IPushNotificationService
     private readonly string? _fcmProjectId;
     private readonly string? _fcmServiceAccountJson;
     private readonly HttpClient _httpClient;
+    private readonly ExpoPushService _expo;
 
     public FirebasePushService(
         IServiceScopeFactory scopeFactory,
         ILogger<FirebasePushService> logger,
         IConfiguration config,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        ExpoPushService expo)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _fcmProjectId = config["Firebase:ProjectId"];
         _fcmServiceAccountJson = config["Firebase:ServiceAccountJson"];
         _httpClient = httpClientFactory.CreateClient("FCM");
+        _expo = expo;
+    }
+
+    /// <summary>
+    /// Dispatch a single push to the correct provider based on the token shape.
+    /// Expo-prefixed tokens go through Expo's relay; native FCM tokens go direct.
+    /// </summary>
+    private Task<bool> SendOneAsync(string token, PushPayload payload, CancellationToken ct)
+    {
+        return ExpoPushService.IsExpoToken(token)
+            ? _expo.SendAsync(token, payload, ct)
+            : SendFcmMessageAsync(token, payload, ct);
     }
 
     public async Task SendToUserAsync(Guid userId, PushPayload payload, CancellationToken ct = default)
@@ -55,7 +69,7 @@ public class FirebasePushService : IPushNotificationService
         var invalidTokens = new List<string>();
         foreach (var t in tokens)
         {
-            var success = await SendFcmMessageAsync(t.Token, payload, ct);
+            var success = await SendOneAsync(t.Token, payload, ct);
             if (!success)
                 invalidTokens.Add(t.Token);
         }
@@ -82,7 +96,7 @@ public class FirebasePushService : IPushNotificationService
         var invalidTokens = new List<string>();
         foreach (var t in tokens)
         {
-            var success = await SendFcmMessageAsync(t.Token, payload, ct);
+            var success = await SendOneAsync(t.Token, payload, ct);
             if (!success)
                 invalidTokens.Add(t.Token);
         }

@@ -34,6 +34,10 @@ export const notificationService = {
     }
     if (finalStatus !== 'granted') return null;
 
+    // PUSH-02: getExpoPushTokenAsync returns ExponentPushToken[…] (works in Expo
+    // Go + EAS dev builds). For production standalone builds that want direct
+    // FCM, swap to getDevicePushTokenAsync() below. The server's FirebasePushService
+    // auto-detects the token shape and routes via Expo or native FCM accordingly.
     const tokenData = await Notifications.getExpoPushTokenAsync();
     const token = tokenData.data;
 
@@ -44,11 +48,18 @@ export const notificationService = {
       });
     }
 
+    // Map to the server's PushPlatform enum (FCM / APNs / Web). The server
+    // inspects the token shape for routing, but the stored Platform column is
+    // primarily for observability and must parse as one of the enum names.
+    const serverPlatform = Platform.OS === 'ios' ? 'APNs'
+      : Platform.OS === 'web' ? 'Web'
+      : 'FCM';
+
     try {
       // NEW-MOB-18: include deviceId, appVersion, model so server can dedup and target.
       await subscribePushToken({
         token,
-        platform: Platform.OS,
+        platform: serverPlatform,
         deviceId: (await deviceIdentifier()) ?? undefined,
         appVersion: Application.nativeApplicationVersion ?? undefined,
         model: Device.modelName ?? undefined,
