@@ -1887,51 +1887,6 @@ namespace StingTools.BIMManager
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) { TaskDialog.Show("Planscape", "No document open."); return; }
 
-            // Collect all elements that have a Tag1 parameter
-            var elements = new List<TagElementPayload>();
-            using var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-            foreach (Element el in collector)
-            {
-                string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
-                if (string.IsNullOrEmpty(tag1)) continue;
-
-                string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
-                string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
-                string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
-                string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
-                string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
-                string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
-                string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
-                string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
-                string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
-                string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
-                string rev   = ParameterHelpers.GetString(el, "ASS_REV")    ?? "";
-                string cat   = ParameterHelpers.GetCategoryName(el);
-                string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
-
-                bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
-                bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
-
-                elements.Add(new TagElementPayload
-                {
-                    RevitElementId  = el.Id.Value,
-                    UniqueId        = el.UniqueId,
-                    Disc            = disc, Loc = loc, Zone = zone, Lvl = lvl,
-                    Sys = sys, Func = func, Prod = prod, Seq = seq,
-                    Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
-                    CategoryName    = cat, FamilyName = fam,
-                    Status          = string.IsNullOrEmpty(status) ? null : status,
-                    Rev             = string.IsNullOrEmpty(rev) ? null : rev,
-                    IsComplete      = isComplete, IsFullyResolved = isFullyResolved
-                });
-            }
-
-            if (elements.Count == 0)
-            {
-                TaskDialog.Show("Planscape", "No tagged elements found.\n\nRun Tag → Auto Tag or Batch Tag first to populate ASS_TAG_1 parameters.");
-                return;
-            }
-
             // Load project ID from connection config
             string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
             string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
@@ -1943,43 +1898,17 @@ namespace StingTools.BIMManager
                 return;
             }
 
-            string revitVer = app.Application.VersionNumber;
-            string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
+            // Phase 91 — shared payload-build path (also used by PluginSyncTickBridge
+            // on the scheduler's 5-min tick). Reads ASS_* parameters and maps them
+            // onto Planscape.Shared.Models.TagElementSync.
+            var payload = BuildPluginSyncPayload(doc, app, projectId);
+            var tagSync = payload.TagElements ?? new List<Planscape.Shared.Models.TagElementSync>();
 
-            // S03e: Redirected to Planscape.PluginSync.SyncScheduler — central queue +
-            // retry + offline persistence live in the scheduler, no longer in Planscape.
-            // Convert the collected element payloads to the shared TagElementSync shape
-            // and hand off via SyncScheduler.SyncNow (which queues + drains in one go).
-            var tagSync = new List<Planscape.Shared.Models.TagElementSync>(elements.Count);
-            foreach (var p in elements)
+            if (tagSync.Count == 0)
             {
-                tagSync.Add(new Planscape.Shared.Models.TagElementSync
-                {
-                    RevitElementId  = p.RevitElementId,
-                    UniqueId        = p.UniqueId ?? "",
-                    Disc = p.Disc ?? "", Loc = p.Loc ?? "",
-                    Zone = p.Zone ?? "", Lvl = p.Lvl ?? "",
-                    Sys  = p.Sys ?? "",  Func = p.Func ?? "",
-                    Prod = p.Prod ?? "", Seq  = p.Seq ?? "",
-                    Tag1 = p.Tag1 ?? "", Tag7 = p.Tag7,
-                    CategoryName = p.CategoryName ?? "",
-                    FamilyName   = p.FamilyName ?? "",
-                    Status       = p.Status,
-                    Rev          = p.Rev,
-                    IsComplete       = p.IsComplete,
-                    IsFullyResolved  = p.IsFullyResolved
-                });
+                TaskDialog.Show("Planscape", "No tagged elements found.\n\nRun Tag → Auto Tag or Batch Tag first to populate ASS_TAG_1 parameters.");
+                return;
             }
-
-            var payload = new Planscape.Shared.Models.PluginSyncPayload
-            {
-                ProjectId     = projectId,
-                UserName      = client.ConnectedUser ?? Environment.UserName,
-                RevitVersion  = revitVer,
-                PluginVersion = pluginVer,
-                Timestamp     = DateTime.UtcNow,
-                TagElements   = tagSync
-            };
 
             // Lazy-start the scheduler if the plugin connected after OnStartup.
             if (Planscape.PluginSync.SyncScheduler.Instance == null
@@ -1987,6 +1916,8 @@ namespace StingTools.BIMManager
                 && !string.IsNullOrEmpty(client.AuthToken))
             {
                 Planscape.PluginSync.SyncScheduler.Start(client.ServerUrl, client.AuthToken);
+                PluginSyncTickBridge.EnsureWired();
+                StingLog.Info($"Planscape: SyncScheduler lazy-started against {client.ServerUrl} (5-min tick)");
             }
 
             Planscape.Shared.Models.SyncResult sResult;
@@ -2030,7 +1961,103 @@ namespace StingTools.BIMManager
                 $"Compliance metrics will arrive on the ComplianceHub.");
         }
 
-        private static Guid LoadPlanscapeProjectId(string cfgPath)
+        /// <summary>
+        /// Phase 91 — shared payload-build path. Iterates tagged elements in
+        /// <paramref name="doc"/> and returns a <see cref="Planscape.Shared.Models.PluginSyncPayload"/>
+        /// ready for enqueue/drain. Called by <see cref="SyncToPlanscapeServer"/>
+        /// (Sync Now button) and by <see cref="PluginSyncTickBridge"/> on the
+        /// scheduler's 5-min tick. Must run on the Revit API thread.
+        /// </summary>
+        internal static Planscape.Shared.Models.PluginSyncPayload BuildPluginSyncPayload(
+            Document doc, UIApplication app, Guid projectId)
+        {
+            var client = PlanscapeServerClient.Instance;
+
+            var elements = new List<TagElementPayload>();
+            using (var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                foreach (Element el in collector)
+                {
+                    string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
+                    string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
+                    string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
+                    string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
+                    string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
+                    string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
+                    string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
+                    string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
+                    string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
+                    string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
+                    string rev   = ParameterHelpers.GetString(el, "ASS_REV")    ?? "";
+                    string cat   = ParameterHelpers.GetCategoryName(el);
+                    string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
+
+                    bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
+                    bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
+
+                    elements.Add(new TagElementPayload
+                    {
+                        RevitElementId  = el.Id.Value,
+                        UniqueId        = el.UniqueId,
+                        Disc            = disc, Loc = loc, Zone = zone, Lvl = lvl,
+                        Sys = sys, Func = func, Prod = prod, Seq = seq,
+                        Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
+                        CategoryName    = cat, FamilyName = fam,
+                        Status          = string.IsNullOrEmpty(status) ? null : status,
+                        Rev             = string.IsNullOrEmpty(rev) ? null : rev,
+                        IsComplete      = isComplete, IsFullyResolved = isFullyResolved,
+                        // INT-03 (Phase 91): per-element wall-clock timestamp from
+                        // ASS_TAG_MODIFIED_DT audit trail, with DateTime.UtcNow
+                        // fallback. Enables server-side delta detection.
+                        LastModifiedUtc = ResolveElementLastModifiedUtc(el)
+                    });
+                }
+            }
+
+            string revitVer = app?.Application?.VersionNumber ?? "";
+            string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
+
+            // Convert to the shared TagElementSync shape consumed by the scheduler.
+            var tagSync = new List<Planscape.Shared.Models.TagElementSync>(elements.Count);
+            foreach (var p in elements)
+            {
+                tagSync.Add(new Planscape.Shared.Models.TagElementSync
+                {
+                    RevitElementId  = p.RevitElementId,
+                    UniqueId        = p.UniqueId ?? "",
+                    Disc = p.Disc ?? "", Loc = p.Loc ?? "",
+                    Zone = p.Zone ?? "", Lvl = p.Lvl ?? "",
+                    Sys  = p.Sys ?? "",  Func = p.Func ?? "",
+                    Prod = p.Prod ?? "", Seq  = p.Seq ?? "",
+                    Tag1 = p.Tag1 ?? "", Tag7 = p.Tag7,
+                    CategoryName = p.CategoryName ?? "",
+                    FamilyName   = p.FamilyName ?? "",
+                    Status       = p.Status,
+                    Rev          = p.Rev,
+                    IsComplete       = p.IsComplete,
+                    IsFullyResolved  = p.IsFullyResolved,
+                    // INT-03 (Phase 91): forward per-element timestamp into
+                    // the Shared DTO so SyncClient → /api/tagsync/sync
+                    // carries meaningful LastModifiedUtc on every element.
+                    LastModifiedUtc  = p.LastModifiedUtc
+                });
+            }
+
+            return new Planscape.Shared.Models.PluginSyncPayload
+            {
+                ProjectId     = projectId,
+                UserName      = client.ConnectedUser ?? Environment.UserName,
+                RevitVersion  = revitVer,
+                PluginVersion = pluginVer,
+                Timestamp     = DateTime.UtcNow,
+                TagElements   = tagSync
+            };
+        }
+
+        internal static Guid LoadPlanscapeProjectId(string cfgPath)
         {
             try
             {
@@ -2039,7 +2066,198 @@ namespace StingTools.BIMManager
                 string id = json["projectId"]?.Value<string>();
                 return Guid.TryParse(id, out var g) ? g : Guid.Empty;
             }
-            catch { return Guid.Empty; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadPlanscapeProjectId: {ex.Message}");
+                return Guid.Empty;
+            }
+        }
+    }
+
+    #endregion
+
+    // ═══════════════════════════════════════════════════════════════
+    //  Phase 91 — PluginSync Tick Bridge
+    // ═══════════════════════════════════════════════════════════════
+    #region ── PluginSync Tick Bridge ──
+
+    /// <summary>
+    /// Phase 91 (INT-01/INT-02) — bridges the <see cref="Planscape.PluginSync.SyncScheduler"/>
+    /// 5-minute timer tick (which fires on a ThreadPool thread) to the Revit API
+    /// thread via <see cref="ExternalEvent"/>. The scheduler invokes
+    /// <c>SyncScheduler.OnTick</c> before each offline-queue drain; this bridge
+    /// raises an external event so a handler can build a current-document
+    /// payload on the Revit thread and enqueue it for the very next drain.
+    ///
+    /// Activates the previously-dead <c>Planscape.PluginSync</c> project — see
+    /// CLAUDE.md § "DEAD CODE" note under Planscape.PluginSync.
+    /// </summary>
+    internal static class PluginSyncTickBridge
+    {
+        private static readonly object _lock = new object();
+        private static bool _wired;
+        private static ExternalEvent _tickEvent;
+        private static SyncTickExternalEventHandler _tickHandler;
+
+        /// <summary>Idempotent: first call creates the ExternalEvent and wires
+        /// <see cref="Planscape.PluginSync.SyncScheduler.OnTick"/>. Subsequent
+        /// calls are no-ops so the PlanscapeConnect, Sync Now, and OnStartup
+        /// paths can all call this without stepping on each other.</summary>
+        internal static void EnsureWired()
+        {
+            lock (_lock)
+            {
+                if (_wired) return;
+                try
+                {
+                    _tickHandler = new SyncTickExternalEventHandler();
+                    _tickEvent = ExternalEvent.Create(_tickHandler);
+                    Planscape.PluginSync.SyncScheduler.OnTick = RaiseTick;
+                    _wired = true;
+                    StingLog.Info("PluginSyncTickBridge: wired — 5-min scheduler ticks will marshal to Revit API thread");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PluginSyncTickBridge.EnsureWired: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>Fired by SyncScheduler on its Timer thread. MUST NOT touch
+        /// Revit API — just raise the external event so the handler can run
+        /// on the Revit API thread when it next goes idle.</summary>
+        private static void RaiseTick()
+        {
+            try
+            {
+                var ev = _tickEvent;
+                if (ev == null) { StingLog.Warn("PluginSyncTickBridge tick: ExternalEvent not created"); return; }
+                StingLog.Info("PluginSyncTickBridge: 5-min tick — raising ExternalEvent to build payload on Revit thread");
+                ev.Raise();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PluginSyncTickBridge.RaiseTick: {ex.Message}");
+            }
+        }
+
+        /// <summary>Runs on the Revit API thread courtesy of ExternalEvent.
+        /// Guards <c>app.ActiveUIDocument?.Document != null</c> per acceptance
+        /// criteria — if no document is open the tick exits silently with a
+        /// log line only (no TaskDialog, no exception). Builds a payload via
+        /// <see cref="PlatformSyncCommand.BuildPluginSyncPayload"/> and enqueues
+        /// it on the shared <see cref="Planscape.PluginSync.OfflineQueue"/>;
+        /// the scheduler's drain step (already in progress on this tick, or
+        /// the next one) will deliver it to the server.</summary>
+        private sealed class SyncTickExternalEventHandler : IExternalEventHandler
+        {
+            public void Execute(UIApplication app)
+            {
+                try
+                {
+                    // Guard (acceptance criterion 4) — no document, exit silently
+                    var doc = app?.ActiveUIDocument?.Document;
+                    if (doc == null)
+                    {
+                        StingLog.Info("PluginSyncTickBridge tick: no active document, skipping payload build");
+                        return;
+                    }
+
+                    var client = PlanscapeServerClient.Instance;
+                    if (!client.IsConnected)
+                    {
+                        StingLog.Info("PluginSyncTickBridge tick: Planscape client not authenticated, skipping payload build");
+                        return;
+                    }
+
+                    string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+                    string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
+                    Guid projectId = PlatformSyncCommand.LoadPlanscapeProjectId(cfgPath);
+                    if (projectId == Guid.Empty)
+                    {
+                        StingLog.Info($"PluginSyncTickBridge tick: no Planscape project linked for {doc.Title}, skipping payload build");
+                        return;
+                    }
+
+                    // Same payload-build path as SyncToPlanscapeServer (acceptance criterion 3)
+                    var payload = PlatformSyncCommand.BuildPluginSyncPayload(doc, app, projectId);
+                    int count = payload?.TagElements?.Count ?? 0;
+                    if (count == 0)
+                    {
+                        StingLog.Info($"PluginSyncTickBridge tick: 0 tagged elements in {doc.Title}, nothing to enqueue");
+                        return;
+                    }
+
+                    var queue = Planscape.PluginSync.OfflineQueue.Shared;
+                    if (queue == null)
+                    {
+                        StingLog.Info("PluginSyncTickBridge tick: OfflineQueue.Shared is null (scheduler not started), skipping enqueue");
+                        return;
+                    }
+
+                    queue.Enqueue(payload);
+                    StingLog.Info($"PluginSyncTickBridge tick: enqueued payload with {count:N0} tagged elements for {doc.Title} (queue depth: {queue.Count})");
+                }
+                catch (Exception ex)
+                {
+                    // Must never crash — scheduler timer will keep firing and we need
+                    // to keep logging silently per acceptance criterion 4.
+                    StingLog.Warn($"PluginSyncTickBridge.Execute: {ex.Message}");
+                }
+            }
+
+            public string GetName() => "STING PluginSync Tick";
+        }
+
+        /// <summary>
+        /// Resolve the wall-clock UTC last-modified timestamp for a single
+        /// tagged element, for use in the Planscape sync payload (INT-03).
+        ///
+        /// Priority chain:
+        ///   1. <c>ASS_TAG_MODIFIED_DT</c> — the STING audit trail stamp
+        ///      written by <c>TagPipelineHelper.RunFullPipeline</c> after
+        ///      every successful tag update (Phase 77 entry 748). This is
+        ///      the most precise "when did the tokens actually change"
+        ///      signal and is what the server cares about for true-delta
+        ///      detection on <c>GET /api/tagsync/elements/{projectId}</c>.
+        ///   2. <c>DateTime.UtcNow</c> — last-resort fallback so the server
+        ///      still sees a non-null timestamp for legacy elements that
+        ///      predate the audit-trail plumbing (the server's last-write-
+        ///      wins logic is tolerant of this and simply accepts the
+        ///      update with <c>Version += 1</c>).
+        /// </summary>
+        /// <remarks>
+        /// Revit itself does not expose a first-class per-element
+        /// "modified time" BuiltInParameter — the prompt's reference to
+        /// <c>BuiltInParameter.EDITED_TIME</c> is not a real enum value
+        /// (only <c>EDITED_BY</c> exists, and it returns a worksharing
+        /// username, not a timestamp). The STING audit stamp is therefore
+        /// the only reliable per-element signal we have.
+        /// </remarks>
+        private static DateTime ResolveElementLastModifiedUtc(Element el)
+        {
+            if (el == null) return DateTime.UtcNow;
+
+            // 1. STING audit stamp — the canonical "last token edit".
+            try
+            {
+                string stamp = ParameterHelpers.GetString(el, "ASS_TAG_MODIFIED_DT");
+                if (!string.IsNullOrWhiteSpace(stamp)
+                    && DateTime.TryParse(stamp,
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                        out var parsed))
+                {
+                    return parsed;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ResolveElementLastModifiedUtc: ASS_TAG_MODIFIED_DT parse failed on {el.Id.Value}: {ex.Message}");
+            }
+
+            // 2. Fallback — so the server never sees null from current clients.
+            return DateTime.UtcNow;
         }
     }
 
@@ -2238,6 +2456,41 @@ namespace StingTools.BIMManager
                 }
 
                 var client = PlanscapeServerClient.Instance;
+
+                // Phase 91 (INT-01/INT-02) — activate the previously-dead
+                // Planscape.PluginSync.SyncScheduler so periodic background sync
+                // starts running immediately after authentication. Guard per
+                // acceptance criterion 1: only Start if Instance is null
+                // (i.e. scheduler not already running). Start() is internally
+                // idempotent too, so this is belt-and-braces.
+                try
+                {
+                    if (Planscape.PluginSync.SyncScheduler.Instance == null)
+                    {
+                        Planscape.PluginSync.SyncScheduler.Start(client.ServerUrl, client.AuthToken);
+                        StingLog.Info($"Planscape: SyncScheduler started against {client.ServerUrl} (5-min tick, offline queue enabled)");
+                        PluginSyncTickBridge.EnsureWired();
+
+                        // INT-07 — keep the dock-panel sync chip in step with each attempt.
+                        if (Planscape.PluginSync.SyncScheduler.Instance != null)
+                        {
+                            Planscape.PluginSync.SyncScheduler.Instance.OnSyncComplete += _ =>
+                            {
+                                UI.StingDockPanel.LastInstance?.RefreshSyncIndicator();
+                            };
+                        }
+                    }
+                    else
+                    {
+                        StingLog.Info("Planscape: SyncScheduler already running, skipping start (re-auth refresh only)");
+                        PluginSyncTickBridge.EnsureWired();
+                    }
+                }
+                catch (Exception schEx)
+                {
+                    StingLog.Warn($"SyncScheduler start from PlanscapeConnect: {schEx.Message}");
+                }
+
                 TaskDialog.Show("Planscape — Connected",
                     $"✅ Successfully connected to Planscape!\n\n" +
                     $"Server:  {client.ServerUrl}\n" +

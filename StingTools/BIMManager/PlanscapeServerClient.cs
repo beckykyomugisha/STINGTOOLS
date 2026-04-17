@@ -920,6 +920,15 @@ public sealed class TagElementPayload
     [JsonProperty("rev")]            public string? Rev            { get; set; }
     [JsonProperty("isComplete")]     public bool   IsComplete      { get; set; }
     [JsonProperty("isFullyResolved")]public bool   IsFullyResolved { get; set; }
+    /// <summary>
+    /// Wall-clock UTC timestamp of the element's most recent STING token
+    /// modification. Sourced from <c>ASS_TAG_MODIFIED_DT</c> when populated
+    /// by the tagging pipeline, with <c>DateTime.UtcNow</c> as a fallback.
+    /// Sent to the server so <c>/api/tagsync/sync</c> can perform
+    /// last-write-wins conflict detection instead of accepting every sync
+    /// as a full refresh (INT-03).
+    /// </summary>
+    [JsonProperty("lastModifiedUtc")] public DateTime? LastModifiedUtc { get; set; }
 }
 
 /// <summary>Legacy sync result (POST /api/tagsync/sync).</summary>
