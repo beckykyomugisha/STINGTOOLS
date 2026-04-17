@@ -848,14 +848,18 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Configure VG overrides on a view template based on discipline.
-        /// For discipline-specific templates:
-        ///   - That discipline's filter is shown with colour override
-        ///   - All other discipline filters are halftoned/transparent
-        /// For coordination templates:
-        ///   - All MEP disciplines shown with distinct colours
-        /// For presentation templates:
-        ///   - Clean appearance with fine detail level
+        /// Configure VG overrides on a view template.
+        /// Each discipline code produces a UNIQUE combination of:
+        ///   • discipline filter accent (color, projection + cut weight, surface fill)
+        ///   • halftone / hidden treatment of non-focus disciplines
+        ///   • status overlays (Existing, Demolished, Temporary)
+        ///   • category line-weight hierarchy
+        ///   • cut-plane graphics differentiated from projected geometry
+        ///   • presentation-mode polish (DisplayStyle, monochrome line-only,
+        ///     dark mode accent, landscape category hides)
+        ///
+        /// All overrides flow through PresentationStyleHelper so style assets
+        /// (line patterns, fill patterns) are referenced consistently.
         /// </summary>
         internal static void ConfigureTemplateVG(View template, string discipline,
             Dictionary<string, ParameterFilterElement> filterLookup,
@@ -863,432 +867,518 @@ namespace StingTools.Temp
         {
             try
             {
-                // Set detail level
                 template.DetailLevel = detailLevel;
+                Document doc = template.Document;
+                if (solidFill == null) solidFill = PresentationStyleHelper.GetSolidFill(doc);
 
-                // Build halftone override (for non-focus disciplines)
-                var halftone = new OverrideGraphicSettings();
-                halftone.SetHalftone(true);
-                halftone.SetSurfaceTransparency(50);
+                // Local helpers
+                OverrideGraphicSettings Halftone(int t = 50) => PresentationStyleHelper.Halftone(t);
 
-                // Demolition plan: halftone everything, highlight demolished in red
+                bool TryDisc(string key, out Color col) => DisciplineColors.TryGetValue(key, out col);
+
+                // Build a quick filter classifier so we never rely on string.Contains alone
+                bool IsArch(string n) => n.IndexOf("Architectural", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool IsStruct(string n) => n.IndexOf("Structural", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool IsRooms(string n) => n.IndexOf("Rooms", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool IsConduit(string n) => n.IndexOf("Conduit", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool IsLV(string n) => n.IndexOf("Low Voltage", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool IsFire(string n) => n.IndexOf("Fire Protection", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool IsMech(string n) => n.IndexOf("Mechanical", StringComparison.OrdinalIgnoreCase) >= 0
+                                          && !IsConduit(n);
+                bool IsElec(string n) => n.IndexOf("Electrical", StringComparison.OrdinalIgnoreCase) >= 0
+                                          && !IsLV(n);
+                bool IsPlumb(string n) => n.IndexOf("Plumbing", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool IsAnyMEP(string n) => IsMech(n) || IsElec(n) || IsPlumb(n) || IsFire(n) || IsLV(n) || IsConduit(n);
+                bool IsDisciplineFilter(string n) => DisciplineColors.ContainsKey(n);
+
+                // Iterate only the discipline filters (the colored ones).
+                IEnumerable<KeyValuePair<string, ParameterFilterElement>> DisciplineFilters() =>
+                    filterLookup.Where(kv => IsDisciplineFilter(kv.Key));
+
+                // ─────────────────────────────────────────────────────────────
+                // DEMOLITION PLAN — everything halftoned, demolished elements
+                // tinted bright red with cross-hatch cut fill.
+                // ─────────────────────────────────────────────────────────────
                 if (discipline == "DEMO")
                 {
-                    foreach (var kvp in filterLookup)
-                    {
-                        if (!kvp.Key.StartsWith("STING - ")) continue;
-                        try
-                        {
-                            template.AddFilter(kvp.Value.Id);
-                            template.SetFilterOverrides(kvp.Value.Id, halftone);
-                        }
-                        catch (Exception ex) { StingLog.Warn($"Add/override demolition filter '{kvp.Key}': {ex.Message}"); }
-                    }
-                    // If status filter exists, highlight demolished elements in red
-                    if (filterLookup.TryGetValue("STING - Status: Demolished", out var demoFilter))
-                    {
-                        try
-                        {
-                            template.AddFilter(demoFilter.Id);
-                            var redOgs = new OverrideGraphicSettings();
-                            redOgs.SetProjectionLineColor(new Color(255, 0, 0));
-                            redOgs.SetProjectionLineWeight(4);
-                            if (solidFill != null)
-                            {
-                                redOgs.SetSurfaceForegroundPatternId(solidFill.Id);
-                                redOgs.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
-                            }
-                            template.SetFilterOverrides(demoFilter.Id, redOgs);
-                        }
-                        catch (Exception ex) { StingLog.Warn($"Apply demolished status filter override: {ex.Message}"); }
-                    }
+                    foreach (var kv in DisciplineFilters())
+                        PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(60));
+                    PresentationStyleHelper.ApplyStatusOverlays(template, filterLookup, doc, solidFill);
                     return;
                 }
 
-                // As-Built plan: halftone new work, highlight existing
+                // ─────────────────────────────────────────────────────────────
+                // AS-BUILT PLAN — existing dashed grey, new halftoned, demolished hidden.
+                // ─────────────────────────────────────────────────────────────
                 if (discipline == "EXIST")
                 {
-                    foreach (var kvp in filterLookup)
-                    {
-                        if (!kvp.Key.StartsWith("STING - ")) continue;
-                        try { template.AddFilter(kvp.Value.Id); }
-                        catch (Exception ex) { StingLog.Warn($"Add as-built filter '{kvp.Key}': {ex.Message}"); }
-                    }
-                    // Halftone new elements if the status filter exists
-                    if (filterLookup.TryGetValue("STING - Status: New", out var newFilter))
-                    {
-                        try
-                        {
-                            template.AddFilter(newFilter.Id);
-                            template.SetFilterOverrides(newFilter.Id, halftone);
-                        }
-                        catch (Exception ex) { StingLog.Warn($"Apply as-built new-status halftone override: {ex.Message}"); }
-                    }
+                    foreach (var kv in DisciplineFilters())
+                        PresentationStyleHelper.AddOrSet(template, kv.Value, null);
+                    if (filterLookup.TryGetValue("STING - Status: New", out var fNe))
+                        PresentationStyleHelper.AddOrSet(template, fNe, Halftone(70));
+                    if (filterLookup.TryGetValue("STING - Status: Existing", out var fEx))
+                        PresentationStyleHelper.AddOrSet(template, fEx,
+                            PresentationStyleHelper.StatusExisting(doc, solidFill));
+                    if (filterLookup.TryGetValue("STING - Status: Demolished", out var fDe))
+                        PresentationStyleHelper.HideByFilter(template, fDe);
                     return;
                 }
 
-                // Area plan: coarse detail, rooms only focus
+                // ─────────────────────────────────────────────────────────────
+                // AREA PLAN — coarse, rooms accented, everything else hidden.
+                // ─────────────────────────────────────────────────────────────
                 if (discipline == "AREA")
                 {
                     template.DetailLevel = ViewDetailLevel.Coarse;
-                    foreach (var kvp in filterLookup)
+                    foreach (var kv in DisciplineFilters())
                     {
-                        if (!kvp.Key.StartsWith("STING - ")) continue;
-                        bool isRooms = kvp.Key.Contains("Rooms");
-                        try
+                        if (IsRooms(kv.Key))
                         {
-                            template.AddFilter(kvp.Value.Id);
-                            if (!isRooms)
-                                template.SetFilterOverrides(kvp.Value.Id, halftone);
+                            var roomOgs = PresentationStyleHelper.DisciplineAccent(
+                                new Color(120, 180, 220), 3, solidFill, surfaceTransparency: 60, includeFill: true);
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, roomOgs);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Add/override area plan filter '{kvp.Key}': {ex.Message}"); }
+                        else
+                        {
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(80));
+                        }
                     }
                     return;
                 }
 
-                // 3D templates: reuse coordination/presentation logic
+                // ─────────────────────────────────────────────────────────────
+                // RCP — Lighting reflected ceiling: target Lighting Fixtures
+                // specifically, halftone everything else. Ceiling RCP: ceilings
+                // accented, all other categories halftoned/hidden.
+                // ─────────────────────────────────────────────────────────────
+                if (discipline == "RCP_LTG")
+                {
+                    foreach (var kv in DisciplineFilters())
+                    {
+                        // Architectural needed (ceilings) — halftone but show
+                        if (IsArch(kv.Key))
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(40));
+                        else if (IsElec(kv.Key))
+                            // Electrical filter contains Lighting Fixtures — accent in bright yellow
+                            PresentationStyleHelper.AddOrSet(template, kv.Value,
+                                PresentationStyleHelper.DisciplineAccent(
+                                    new Color(255, 200, 0), 3, solidFill, 0, true));
+                        else
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(80));
+                    }
+                    // Hide categories that don't belong in an RCP
+                    PresentationStyleHelper.HideCategory(template, BuiltInCategory.OST_Furniture);
+                    PresentationStyleHelper.HideCategory(template, BuiltInCategory.OST_PlumbingFixtures);
+                    PresentationStyleHelper.HideCategory(template, BuiltInCategory.OST_StructuralFoundation);
+                    return;
+                }
+                if (discipline == "RCP_CLG")
+                {
+                    foreach (var kv in DisciplineFilters())
+                    {
+                        if (IsArch(kv.Key))
+                            PresentationStyleHelper.AddOrSet(template, kv.Value,
+                                PresentationStyleHelper.DisciplineAccentWithCut(
+                                    DisciplineColors[kv.Key], 2, 4, solidFill, 0, false));
+                        else
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(75));
+                    }
+                    // Strengthen the Ceiling category line weight specifically
+                    PresentationStyleHelper.SetCategoryWeights(template, BuiltInCategory.OST_Ceilings, 4, 5);
+                    PresentationStyleHelper.HideCategory(template, BuiltInCategory.OST_Furniture);
+                    PresentationStyleHelper.HideCategory(template, BuiltInCategory.OST_PlumbingFixtures);
+                    return;
+                }
+
+                // ─────────────────────────────────────────────────────────────
+                // 3D MEP COORDINATION — all MEP coloured, arch + struct halftoned.
+                // Display style: ShadingWithEdges so disciplines pop visually.
+                // ─────────────────────────────────────────────────────────────
                 if (discipline == "MEP_3D")
                 {
-                    // Same as MEP coordination but for 3D context
-                    foreach (var kvp in filterLookup)
+                    if (template is View3D)
+                        PresentationStyleHelper.ApplyDisplayStyle(template, DisplayStyle.ShadingWithEdges);
+                    foreach (var kv in DisciplineFilters())
                     {
-                        if (!kvp.Key.StartsWith("STING - ")) continue;
-                        try
-                        {
-                            template.AddFilter(kvp.Value.Id);
-                            if (kvp.Key.Contains("Architectural") || kvp.Key.Contains("Structural"))
-                            {
-                                // Arch/Struct filters shown as halftone in MEP 3D views
-                                template.SetFilterOverrides(kvp.Value.Id, halftone);
-                            }
-                            else if (DisciplineColors.TryGetValue(kvp.Key, out Color col3d))
-                            {
-                                var colorOgs3d = new OverrideGraphicSettings();
-                                colorOgs3d.SetProjectionLineColor(col3d);
-                                if (solidFill != null)
-                                {
-                                    colorOgs3d.SetSurfaceForegroundPatternId(solidFill.Id);
-                                    colorOgs3d.SetSurfaceForegroundPatternColor(col3d);
-                                }
-                                template.SetFilterOverrides(kvp.Value.Id, colorOgs3d);
-                            }
-                        }
-                        catch (Exception ex) { StingLog.Warn($"Add/override MEP 3D filter '{kvp.Key}': {ex.Message}"); }
+                        if (IsArch(kv.Key) || IsStruct(kv.Key))
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(60));
+                        else if (TryDisc(kv.Key, out var c))
+                            PresentationStyleHelper.AddOrSet(template, kv.Value,
+                                PresentationStyleHelper.DisciplineAccent(c, 2, solidFill, 25, true));
                     }
+                    PresentationStyleHelper.ApplyQAOverlays(template, filterLookup, solidFill);
                     return;
                 }
 
+                // ─────────────────────────────────────────────────────────────
+                // 3D PRESENTATION — every discipline coloured + transparency,
+                // shading-with-edges so silhouettes read on rendered output.
+                // ─────────────────────────────────────────────────────────────
                 if (discipline == "PRES_3D")
                 {
                     template.DetailLevel = ViewDetailLevel.Fine;
-                    foreach (var kvp in filterLookup)
+                    if (template is View3D)
+                        PresentationStyleHelper.ApplyDisplayStyle(template, DisplayStyle.Realistic);
+                    foreach (var kv in DisciplineFilters())
                     {
-                        if (!kvp.Key.StartsWith("STING - ")) continue;
-                        try
-                        {
-                            template.AddFilter(kvp.Value.Id);
-                            if (DisciplineColors.TryGetValue(kvp.Key, out Color colP3d))
-                            {
-                                var cOgs = new OverrideGraphicSettings();
-                                cOgs.SetProjectionLineColor(colP3d);
-                                cOgs.SetSurfaceTransparency(30);
-                                template.SetFilterOverrides(kvp.Value.Id, cOgs);
-                            }
-                        }
-                        catch (Exception ex) { StingLog.Warn($"Add/override presentation 3D filter '{kvp.Key}': {ex.Message}"); }
+                        if (TryDisc(kv.Key, out var c))
+                            PresentationStyleHelper.AddOrSet(template, kv.Value,
+                                PresentationStyleHelper.DisciplineAccent(c, 2, solidFill, 30, true));
                     }
                     return;
                 }
 
-                // Elevation & Section templates: working = standard, presentation/detail = fine + colours
+                // ─────────────────────────────────────────────────────────────
+                // ELEVATIONS & SECTIONS — working/presentation/detail variants.
+                // Each variant has differentiated cut weight + cut fill so plans,
+                // presentation sections, and detail callouts read distinctly.
+                // ─────────────────────────────────────────────────────────────
                 if (discipline == "ELEV_W" || discipline == "ELEV_P" ||
-                    discipline == "SEC_D" || discipline == "SEC_W" || discipline == "SEC_P")
+                    discipline == "SEC_D"  || discipline == "SEC_W"  || discipline == "SEC_P")
                 {
                     bool isFineDetail = discipline == "ELEV_P" || discipline == "SEC_D" || discipline == "SEC_P";
-                    bool isWorking = discipline == "ELEV_W" || discipline == "SEC_W";
-                    bool isSection = discipline.StartsWith("SEC");
+                    bool isWorking    = discipline == "ELEV_W" || discipline == "SEC_W";
+                    bool isSection    = discipline.StartsWith("SEC");
+                    bool isDetail     = discipline == "SEC_D";
+                    bool isPres       = discipline == "ELEV_P" || discipline == "SEC_P";
 
-                    if (isFineDetail)
-                        template.DetailLevel = ViewDetailLevel.Fine;
+                    if (isFineDetail) template.DetailLevel = ViewDetailLevel.Fine;
 
-                    foreach (var kvp in filterLookup)
+                    // Cut weight scales with view purpose: working=3, presentation=4, detail=5
+                    int cutWeight = isDetail ? 5 : isPres ? 4 : 3;
+                    int projWeight = isPres ? 2 : isWorking ? 1 : 2;
+
+                    foreach (var kv in DisciplineFilters())
                     {
-                        if (!kvp.Key.StartsWith("STING - ")) continue;
-                        try
+                        if (!TryDisc(kv.Key, out var c)) continue;
+                        OverrideGraphicSettings ogs;
+                        if (isWorking)
                         {
-                            template.AddFilter(kvp.Value.Id);
-
-                            if (!isWorking && DisciplineColors.TryGetValue(kvp.Key, out Color colElev))
+                            // Working: muted lines, strong cut for legibility
+                            ogs = PresentationStyleHelper.DisciplineAccentWithCut(
+                                c, projWeight, cutWeight, solidFill, 0, false);
+                        }
+                        else if (isPres)
+                        {
+                            // Presentation: full colour, tinted cut fill
+                            ogs = PresentationStyleHelper.DisciplineAccentWithCut(
+                                c, projWeight, cutWeight, solidFill, 10, true);
+                        }
+                        else // detail
+                        {
+                            // Detail: heavy black cut line, color projection
+                            ogs = new OverrideGraphicSettings();
+                            ogs.SetProjectionLineColor(c);
+                            ogs.SetProjectionLineWeight(projWeight);
+                            ogs.SetCutLineColor(PresentationStyleHelper.BLACK);
+                            ogs.SetCutLineWeight(cutWeight);
+                            if (solidFill != null)
                             {
-                                var elevOgs = new OverrideGraphicSettings();
-                                elevOgs.SetProjectionLineColor(colElev);
-
-                                // Section templates: also set cut-plane graphics
-                                if (isSection)
-                                {
-                                    elevOgs.SetCutLineColor(colElev);
-                                    elevOgs.SetCutLineWeight(isFineDetail ? 4 : 3);
-                                    if (solidFill != null)
-                                    {
-                                        // Cut fill: lighter tint of discipline colour
-                                        byte tintR = (byte)Math.Min(255, colElev.Red + (255 - colElev.Red) / 2);
-                                        byte tintG = (byte)Math.Min(255, colElev.Green + (255 - colElev.Green) / 2);
-                                        byte tintB = (byte)Math.Min(255, colElev.Blue + (255 - colElev.Blue) / 2);
-                                        elevOgs.SetCutForegroundPatternId(solidFill.Id);
-                                        elevOgs.SetCutForegroundPatternColor(new Color(tintR, tintG, tintB));
-                                    }
-                                }
-
-                                template.SetFilterOverrides(kvp.Value.Id, elevOgs);
-                            }
-                            else if (isWorking && isSection)
-                            {
-                                // Working sections: add cut weight boost for readability
-                                if (DisciplineColors.TryGetValue(kvp.Key, out Color colSW))
-                                {
-                                    var secOgs = new OverrideGraphicSettings();
-                                    secOgs.SetCutLineWeight(3);
-                                    template.SetFilterOverrides(kvp.Value.Id, secOgs);
-                                }
+                                ogs.SetCutForegroundPatternId(solidFill.Id);
+                                ogs.SetCutForegroundPatternColor(PresentationStyleHelper.Lighten(c, 0.4));
                             }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Add/override elevation/section filter '{kvp.Key}': {ex.Message}"); }
+                        PresentationStyleHelper.AddOrSet(template, kv.Value, ogs);
                     }
+                    if (!isWorking)
+                        PresentationStyleHelper.ApplyStatusOverlays(template, filterLookup, doc, solidFill);
                     return;
                 }
 
-                // Presentation templates: set to Fine detail, no filter overrides
-                // MED-04: Removed dead SEC_P check — SEC_P is already handled and returned
-                // in the elevation/section block above, so it never reaches here.
-                if (discipline.StartsWith("PRES"))
+                // ─────────────────────────────────────────────────────────────
+                // PRESENTATION CLASSIC (PRES_C) — Architectural-led print plan.
+                // Heavy arch lines + light material fill on cut walls/floors,
+                // MEP/structural halftoned to the background.
+                // ─────────────────────────────────────────────────────────────
+                if (discipline == "PRES_C")
                 {
                     template.DetailLevel = ViewDetailLevel.Fine;
-                    // Presentation: halftone MEP, show architectural
-                    foreach (var kvp in filterLookup)
+                    foreach (var kv in DisciplineFilters())
                     {
-                        if (!kvp.Key.StartsWith("STING - ")) continue;
-                        try
+                        if (IsArch(kv.Key))
                         {
-                            template.AddFilter(kvp.Value.Id);
-                            bool isArch = kvp.Key.Contains("Architectural");
-                            if (discipline == "PRES_C")
+                            var ogs = new OverrideGraphicSettings();
+                            ogs.SetProjectionLineColor(PresentationStyleHelper.DIM_GREY);
+                            ogs.SetProjectionLineWeight(4);
+                            ogs.SetCutLineColor(PresentationStyleHelper.BLACK);
+                            ogs.SetCutLineWeight(5);
+                            // Light parchment cut fill so wall sections read as solid
+                            if (solidFill != null)
                             {
-                                if (isArch)
-                                {
-                                    // Classic: highlight Architectural with slightly heavier lines
-                                    var archOgs = new OverrideGraphicSettings();
-                                    archOgs.SetProjectionLineWeight(3);
-                                    archOgs.SetProjectionLineColor(new Color(80, 80, 80));
-                                    template.SetFilterOverrides(kvp.Value.Id, archOgs);
-                                }
-                                else
-                                {
-                                    // Classic: halftone non-architectural
-                                    template.SetFilterOverrides(kvp.Value.Id, halftone);
-                                }
+                                ogs.SetCutForegroundPatternId(solidFill.Id);
+                                ogs.SetCutForegroundPatternColor(new Color(225, 220, 205));
                             }
-                            else if (discipline == "PRES_E")
-                            {
-                                // Enhanced presentation: show all with discipline colours
-                                if (DisciplineColors.TryGetValue(kvp.Key, out Color col))
-                                {
-                                    var colorOgs = new OverrideGraphicSettings();
-                                    colorOgs.SetProjectionLineColor(col);
-                                    if (solidFill != null)
-                                    {
-                                        colorOgs.SetSurfaceForegroundPatternId(solidFill.Id);
-                                        colorOgs.SetSurfaceForegroundPatternColor(col);
-                                    }
-                                    colorOgs.SetSurfaceTransparency(30);
-                                    template.SetFilterOverrides(kvp.Value.Id, colorOgs);
-                                }
-                            }
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, ogs);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Add/override presentation filter '{kvp.Key}': {ex.Message}"); }
+                        else if (IsStruct(kv.Key))
+                        {
+                            var ogs = PresentationStyleHelper.DisciplineAccentWithCut(
+                                PresentationStyleHelper.MID_GREY, 2, 3, solidFill, 0, false);
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, ogs);
+                        }
+                        else if (IsRooms(kv.Key))
+                        {
+                            // Rooms: no fill, just keep visible
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, null);
+                        }
+                        else
+                        {
+                            // MEP/LV/Fire/Conduit — muted halftone
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(70));
+                        }
                     }
+                    PresentationStyleHelper.ApplyStatusOverlays(template, filterLookup, doc, solidFill);
                     return;
                 }
 
-                // ── Per-discipline presentation templates ──
-                // Each has a single accent colour with everything else in light grey/white.
-                // Ground plane / topography uses the accent colour. Matching reference renders.
+                // ─────────────────────────────────────────────────────────────
+                // PRESENTATION ENHANCED (PRES_E) — full colour coordination plan
+                // for client review. Every discipline shown in its colour with
+                // line-weight hierarchy (Arch heaviest, MEP lighter).
+                // ─────────────────────────────────────────────────────────────
+                if (discipline == "PRES_E")
+                {
+                    template.DetailLevel = ViewDetailLevel.Fine;
+                    foreach (var kv in DisciplineFilters())
+                    {
+                        if (!TryDisc(kv.Key, out var c)) continue;
+                        int projW = IsArch(kv.Key) ? 3 : IsStruct(kv.Key) ? 3 : 2;
+                        int cutW  = IsArch(kv.Key) ? 5 : IsStruct(kv.Key) ? 4 : 3;
+                        var ogs = PresentationStyleHelper.DisciplineAccentWithCut(
+                            c, projW, cutW, solidFill, 25, true);
+                        PresentationStyleHelper.AddOrSet(template, kv.Value, ogs);
+                    }
+                    PresentationStyleHelper.ApplyStatusOverlays(template, filterLookup, doc, solidFill);
+                    return;
+                }
+
+                // ─────────────────────────────────────────────────────────────
+                // PER-DISCIPLINE PRESENTATION ACCENT (PRES_A/S/E_DISC/P/MEP)
+                // and 3D variants. Focus discipline gets accent colour, all
+                // others get a single muted greyscale.
+                // ─────────────────────────────────────────────────────────────
                 var presentationAccentMap = new Dictionary<string, Color>
                 {
-                    { "PRES_A", new Color(170, 195, 170) },       // Sage green (ss3-4)
-                    { "PRES_S", new Color(180, 50, 50) },         // Deep red (ss7-8)
-                    { "PRES_E_DISC", new Color(240, 200, 0) },    // Bright yellow (ss10-11)
-                    { "PRES_P", new Color(40, 100, 200) },        // Blue (ss20-22)
-                    { "PRES_MEP", new Color(80, 140, 200) },      // Steel blue
-                    { "PRES_MONO", new Color(90, 90, 90) },       // Dark grey (ss16)
-                    { "PRES_DARK", new Color(255, 255, 255) },    // White on black (ss14-15)
-                    { "PRES_LAND", new Color(140, 160, 130) },    // Muted green/brown (ss28)
-                    { "3D_A", new Color(170, 195, 170) },         // Sage green
-                    { "3D_S", new Color(180, 50, 50) },           // Deep red
-                    { "3D_E", new Color(240, 200, 0) },           // Yellow
-                    { "3D_P", new Color(40, 100, 200) },          // Blue
-                    { "3D_MONO", new Color(90, 90, 90) },         // Dark grey
-                    { "3D_DARK", new Color(255, 255, 255) },      // White on black
+                    { "PRES_A",      new Color(170, 195, 170) },
+                    { "PRES_S",      new Color(180,  50,  50) },
+                    { "PRES_E_DISC", new Color(240, 200,   0) },
+                    { "PRES_P",      new Color( 40, 100, 200) },
+                    { "PRES_MEP",    new Color( 80, 140, 200) },
+                    { "PRES_MONO",   new Color( 60,  60,  60) },
+                    { "PRES_DARK",   new Color(255, 255, 255) },
+                    { "PRES_LAND",   new Color(140, 160, 130) },
+                    { "3D_A",        new Color(170, 195, 170) },
+                    { "3D_S",        new Color(180,  50,  50) },
+                    { "3D_E",        new Color(240, 200,   0) },
+                    { "3D_P",        new Color( 40, 100, 200) },
+                    { "3D_MONO",     new Color( 60,  60,  60) },
+                    { "3D_DARK",     new Color(255, 255, 255) },
                 };
+
                 if (presentationAccentMap.TryGetValue(discipline, out Color accent))
                 {
-                    // Accent-tinted presentation: discipline elements in accent colour,
-                    // everything else light grey with transparency
-                    var accentOgs = new OverrideGraphicSettings();
-                    accentOgs.SetProjectionLineColor(accent);
-                    accentOgs.SetProjectionLineWeight(2);
-                    if (solidFill != null)
+                    bool isMono   = discipline == "PRES_MONO" || discipline == "3D_MONO";
+                    bool isDark   = discipline == "PRES_DARK" || discipline == "3D_DARK";
+                    bool isLand   = discipline == "PRES_LAND";
+                    bool is3D     = discipline.StartsWith("3D_");
+
+                    if (is3D && template is View3D)
                     {
-                        accentOgs.SetSurfaceForegroundPatternId(solidFill.Id);
-                        accentOgs.SetSurfaceForegroundPatternColor(accent);
+                        if (isMono)      PresentationStyleHelper.ApplyDisplayStyle(template, DisplayStyle.HLR);
+                        else if (isDark) PresentationStyleHelper.ApplyDisplayStyle(template, DisplayStyle.ShadingWithEdges);
+                        else             PresentationStyleHelper.ApplyDisplayStyle(template, DisplayStyle.ShadingWithEdges);
                     }
-                    accentOgs.SetSurfaceTransparency(15);
 
-                    // Light grey for non-focus elements
-                    var greyOgs = new OverrideGraphicSettings();
-                    Color lightGrey = discipline == "PRES_DARK" || discipline == "3D_DARK"
-                        ? new Color(60, 60, 60) : new Color(200, 200, 200);
-                    greyOgs.SetProjectionLineColor(lightGrey);
-                    greyOgs.SetProjectionLineWeight(1);
-                    if (solidFill != null)
+                    // ── Build the focus filter set ──
+                    // Map every accent template to a SPECIFIC set of focus filter
+                    // names so each template is unique and well-targeted.
+                    var focusSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    switch (discipline)
                     {
-                        greyOgs.SetSurfaceForegroundPatternId(solidFill.Id);
-                        greyOgs.SetSurfaceForegroundPatternColor(
-                            discipline == "PRES_DARK" || discipline == "3D_DARK"
-                            ? new Color(40, 40, 40) : new Color(240, 240, 240));
+                        case "PRES_A":
+                        case "3D_A":
+                            focusSet.Add("STING - Architectural");
+                            focusSet.Add("STING - Rooms & Spaces");
+                            break;
+                        case "PRES_S":
+                        case "3D_S":
+                            focusSet.Add("STING - Structural");
+                            break;
+                        case "PRES_E_DISC":
+                        case "3D_E":
+                            focusSet.Add("STING - Electrical");
+                            focusSet.Add("STING - Conduits & Cable Trays");
+                            focusSet.Add("STING - Low Voltage");
+                            break;
+                        case "PRES_P":
+                        case "3D_P":
+                            focusSet.Add("STING - Plumbing");
+                            focusSet.Add("STING - Fire Protection");
+                            break;
+                        case "PRES_MEP":
+                            focusSet.Add("STING - Mechanical");
+                            focusSet.Add("STING - Electrical");
+                            focusSet.Add("STING - Plumbing");
+                            focusSet.Add("STING - Fire Protection");
+                            focusSet.Add("STING - Low Voltage");
+                            focusSet.Add("STING - Conduits & Cable Trays");
+                            break;
+                        case "PRES_DARK":
+                        case "3D_DARK":
+                            // Dark mode: focus the building shell so it shows in white
+                            focusSet.Add("STING - Architectural");
+                            focusSet.Add("STING - Structural");
+                            break;
+                        case "PRES_MONO":
+                        case "3D_MONO":
+                            // Monochrome has no "focus" — all elements get a line-weight
+                            // hierarchy via the per-name switch below.
+                            break;
+                        case "PRES_LAND":
+                            // Landscape: focus rooms + arch (site, topo). MEP hidden.
+                            focusSet.Add("STING - Architectural");
+                            focusSet.Add("STING - Rooms & Spaces");
+                            break;
                     }
-                    greyOgs.SetSurfaceTransparency(
-                        discipline == "PRES_DARK" || discipline == "3D_DARK" ? 10 : 40);
 
-                    // Map discipline code → focus filter names
-                    string focusDisc = discipline.Replace("PRES_", "").Replace("3D_", "")
-                        .Replace("_DISC", "");
-                    var presAccentFilters = focusDisc switch
-                    {
-                        "A" or "LAND" => new[] { "Architectural" },
-                        "S" => new[] { "Structural" },
-                        "E" => new[] { "Electrical", "Conduits" },
-                        "P" => new[] { "Plumbing" },
-                        "MEP" => new[] { "Mechanical", "Electrical", "Plumbing", "Fire", "Low Voltage" },
-                        _ => Array.Empty<string>(),
-                    };
-                    var focusSet = new HashSet<string>(presAccentFilters);
+                    // Background grey override (used for non-focus or all-mono)
+                    Color nonFocusLine = isDark ? new Color(70, 70, 70) : PresentationStyleHelper.LIGHT_GREY;
+                    Color nonFocusFill = isDark ? new Color(50, 50, 50) : new Color(238, 238, 238);
+                    int nonFocusTrans  = isDark ? 15 : 50;
 
-                    foreach (var kvp in filterLookup)
+                    foreach (var kv in DisciplineFilters())
                     {
-                        if (!kvp.Key.StartsWith("STING - ")) continue;
-                        try
+                        bool isFocus = focusSet.Contains(kv.Key);
+
+                        if (isLand && IsAnyMEP(kv.Key))
                         {
-                            template.AddFilter(kvp.Value.Id);
-                            bool isFocus = focusSet.Any(f => kvp.Key.Contains(f));
-
-                            if (discipline == "PRES_MONO" || discipline == "3D_MONO")
-                            {
-                                // Monochrome: all elements in single grey tone
-                                template.SetFilterOverrides(kvp.Value.Id, greyOgs);
-                            }
-                            else if (discipline == "PRES_DARK" || discipline == "3D_DARK")
-                            {
-                                // Dark mode: white lines on dark background
-                                template.SetFilterOverrides(kvp.Value.Id,
-                                    isFocus ? accentOgs : greyOgs);
-                            }
-                            else if (isFocus)
-                            {
-                                template.SetFilterOverrides(kvp.Value.Id, accentOgs);
-                            }
-                            else
-                            {
-                                template.SetFilterOverrides(kvp.Value.Id, greyOgs);
-                            }
+                            // Hard-hide MEP on landscape templates
+                            PresentationStyleHelper.HideByFilter(template, kv.Value);
+                            continue;
                         }
-                        catch (Exception ex) { StingLog.Warn($"Add/override accent presentation filter '{kvp.Key}': {ex.Message}"); }
+
+                        if (isMono)
+                        {
+                            // True monochrome — line weights only, NO surface fills
+                            int lw = IsArch(kv.Key) ? 4
+                                   : IsStruct(kv.Key) ? 3
+                                   : IsRooms(kv.Key) ? 2
+                                   : 1; // MEP / Fire / LV / Conduit
+                            int cw = IsArch(kv.Key) ? 5
+                                   : IsStruct(kv.Key) ? 4
+                                   : 2;
+                            Color tone = IsArch(kv.Key) ? PresentationStyleHelper.BLACK
+                                       : IsStruct(kv.Key) ? PresentationStyleHelper.DIM_GREY
+                                       : PresentationStyleHelper.MID_GREY;
+                            PresentationStyleHelper.AddOrSet(template, kv.Value,
+                                PresentationStyleHelper.MonochromeLine(tone, lw, cw));
+                            continue;
+                        }
+
+                        if (isFocus)
+                        {
+                            // Focus discipline: accent colour + cut line weight boost
+                            int focusW = IsArch(kv.Key) ? 4 : IsStruct(kv.Key) ? 3 : 2;
+                            int focusCutW = IsArch(kv.Key) ? 5 : IsStruct(kv.Key) ? 4 : 3;
+                            var ogs = PresentationStyleHelper.DisciplineAccentWithCut(
+                                accent, focusW, focusCutW, solidFill,
+                                surfaceTransparency: isDark ? 5 : 15, includeProjFill: true);
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, ogs);
+                        }
+                        else
+                        {
+                            // Non-focus: muted background tone
+                            var ogs = new OverrideGraphicSettings();
+                            ogs.SetProjectionLineColor(nonFocusLine);
+                            ogs.SetProjectionLineWeight(1);
+                            ogs.SetCutLineColor(nonFocusLine);
+                            ogs.SetCutLineWeight(2);
+                            if (solidFill != null)
+                            {
+                                ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                                ogs.SetSurfaceForegroundPatternColor(nonFocusFill);
+                                ogs.SetCutForegroundPatternId(solidFill.Id);
+                                ogs.SetCutForegroundPatternColor(nonFocusFill);
+                            }
+                            ogs.SetSurfaceTransparency(nonFocusTrans);
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, ogs);
+                        }
                     }
+
+                    // Status overlays only on 2D presentation (not 3D, not mono)
+                    if (!is3D && !isMono)
+                        PresentationStyleHelper.ApplyStatusOverlays(template, filterLookup, doc, solidFill);
                     return;
                 }
 
-                // RCP templates
-                if (discipline.StartsWith("RCP"))
+                // ─────────────────────────────────────────────────────────────
+                // COORDINATION PLANS (MEP, ALL) — every MEP discipline coloured
+                // distinctly, arch+struct halftoned (MEP) or shown muted (ALL).
+                // ─────────────────────────────────────────────────────────────
+                if (discipline == "MEP" || discipline == "ALL")
                 {
-                    // Halftone everything except lighting/ceilings
-                    foreach (var kvp in filterLookup)
+                    bool isMEPCoord = discipline == "MEP";
+                    foreach (var kv in DisciplineFilters())
                     {
-                        if (!kvp.Key.StartsWith("STING - ")) continue;
-                        try
+                        if (!TryDisc(kv.Key, out var c)) continue;
+                        bool muteThis = isMEPCoord && (IsArch(kv.Key) || IsStruct(kv.Key));
+                        if (muteThis)
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(60));
+                        else
                         {
-                            template.AddFilter(kvp.Value.Id);
-                            bool isRelevant = (discipline == "RCP_LTG" && kvp.Key.Contains("Electrical")) ||
-                                              (discipline == "RCP_CLG" && kvp.Key.Contains("Architectural"));
-                            if (!isRelevant)
-                                template.SetFilterOverrides(kvp.Value.Id, halftone);
+                            int projW = IsArch(kv.Key) || IsStruct(kv.Key) ? 1 : 2;
+                            int cutW  = IsArch(kv.Key) || IsStruct(kv.Key) ? 2 : 3;
+                            var ogs = PresentationStyleHelper.DisciplineAccentWithCut(
+                                c, projW, cutW, solidFill, 0, false);
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, ogs);
                         }
-                        catch (Exception ex) { StingLog.Warn($"Add/override RCP filter '{kvp.Key}': {ex.Message}"); }
                     }
+                    PresentationStyleHelper.ApplyQAOverlays(template, filterLookup, solidFill);
+                    PresentationStyleHelper.ApplyStatusOverlays(template, filterLookup, doc, solidFill);
                     return;
                 }
 
-                // Discipline-specific or coordination templates
-                bool isCoordination = discipline == "MEP" || discipline == "ALL";
+                // ─────────────────────────────────────────────────────────────
+                // SINGLE-DISCIPLINE WORKING PLANS (M, E, P, A, S, FP, LV)
+                // The focus discipline gets full accent + cut graphics + QA
+                // overlay. All other disciplines are halftoned. Status overlays
+                // applied so phase-coded items remain visible.
+                // ─────────────────────────────────────────────────────────────
                 HashSet<string> focusFilters = null;
-
                 if (DisciplineFilterRules.TryGetValue(discipline, out string[] focusNames))
                     focusFilters = new HashSet<string>(focusNames, StringComparer.OrdinalIgnoreCase);
 
-                foreach (var kvp in filterLookup)
+                if (focusFilters != null)
                 {
-                    if (!kvp.Key.StartsWith("STING - ")) continue;
-
-                    try
+                    foreach (var kv in DisciplineFilters())
                     {
-                        template.AddFilter(kvp.Value.Id);
-
-                        if (isCoordination)
+                        bool isFocus = focusFilters.Contains(kv.Key);
+                        if (isFocus && TryDisc(kv.Key, out var c))
                         {
-                            // Coordination: show all MEP with discipline colours
-                            if (DisciplineColors.TryGetValue(kvp.Key, out Color col))
-                            {
-                                var colorOgs = new OverrideGraphicSettings();
-                                colorOgs.SetProjectionLineColor(col);
-                                if (solidFill != null)
-                                {
-                                    colorOgs.SetSurfaceForegroundPatternId(solidFill.Id);
-                                    colorOgs.SetSurfaceForegroundPatternColor(col);
-                                }
-                                template.SetFilterOverrides(kvp.Value.Id, colorOgs);
-                            }
-
-                            // Halftone architectural + structural in MEP coordination
-                            if (discipline == "MEP" &&
-                                (kvp.Key.Contains("Architectural") || kvp.Key.Contains("Structural")))
-                            {
-                                template.SetFilterOverrides(kvp.Value.Id, halftone);
-                            }
+                            int projW = IsArch(kv.Key) ? 4 : IsStruct(kv.Key) ? 3 : 3;
+                            int cutW  = IsArch(kv.Key) ? 5 : IsStruct(kv.Key) ? 4 : 3;
+                            var ogs = PresentationStyleHelper.DisciplineAccentWithCut(
+                                c, projW, cutW, solidFill, 0, false);
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, ogs);
                         }
-                        else if (focusFilters != null)
+                        else
                         {
-                            // Discipline-specific: highlight focus, halftone others
-                            if (focusFilters.Contains(kvp.Key))
-                            {
-                                // Focus discipline: colour override
-                                if (DisciplineColors.TryGetValue(kvp.Key, out Color col))
-                                {
-                                    var colorOgs = new OverrideGraphicSettings();
-                                    colorOgs.SetProjectionLineColor(col);
-                                    colorOgs.SetProjectionLineWeight(3);
-                                    template.SetFilterOverrides(kvp.Value.Id, colorOgs);
-                                }
-                            }
-                            else
-                            {
-                                // Non-focus: halftone
-                                template.SetFilterOverrides(kvp.Value.Id, halftone);
-                            }
+                            // Non-focus disciplines on a working plan: halftone
+                            // arch heavier (you usually want walls visible) and
+                            // unrelated MEP heavier-halftoned (out of the way).
+                            int t = IsArch(kv.Key) || IsStruct(kv.Key) ? 50 : 75;
+                            PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(t));
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"VG filter config failed '{kvp.Key}' on '{template.Name}': {ex.Message}");
-                    }
+                    PresentationStyleHelper.ApplyQAOverlays(template, filterLookup, solidFill);
+                    PresentationStyleHelper.ApplyStatusOverlays(template, filterLookup, doc, solidFill);
+                    return;
                 }
+
+                // Fallback — unrecognised discipline code: just add filters
+                // unchanged so the template is at least syntactically valid.
+                foreach (var kv in DisciplineFilters())
+                    PresentationStyleHelper.AddOrSet(template, kv.Value, null);
             }
             catch (Exception ex)
             {
