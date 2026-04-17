@@ -53,6 +53,14 @@
     <ProjectReference Include="..\Planscape.Server\src\Planscape.PluginSync\Planscape.PluginSync.csproj" />
   </ItemGroup>
 
+  <!-- Phase 95: BcfEngine physically lives here but is compiled into
+       Planscape.Shared.dll (via <Compile Include="..\..\..\StingTools\..."/>
+       in Planscape.Shared.csproj). Exclude it from the StingTools assembly to
+       avoid a duplicate-type collision with the Planscape.Shared reference. -->
+  <ItemGroup>
+    <Compile Remove="BIMManager\BcfEngine.cs" />
+  </ItemGroup>
+
   <!--
     Prevent .NET runtime/framework assemblies from being copied to the output directory.
     ClosedXML's dependency chain (ClosedXML -> DocumentFormat.OpenXml -> System.IO.Packaging
