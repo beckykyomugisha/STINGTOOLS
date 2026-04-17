@@ -112,6 +112,13 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(i => new { i.ProjectId, i.IssueCode }).IsUnique();
             e.HasIndex(i => new { i.ProjectId, i.Status });
             e.HasIndex(i => i.DueDate).HasFilter("\"Status\" NOT IN ('CLOSED','RESOLVED')");
+            // NEW-SRV-23: nullable FK to AppUser for assignee + creator (SetNull on user delete)
+            e.HasOne(i => i.AssigneeUser).WithMany().HasForeignKey(i => i.AssigneeUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(i => i.CreatedByUser).WithMany().HasForeignKey(i => i.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(i => new { i.ProjectId, i.AssigneeUserId });
+            e.Property(i => i.AssigneeEmail).HasMaxLength(320);
+            e.Property(i => i.DeviceId).HasMaxLength(120);
+            e.Property(i => i.Source).HasMaxLength(20);
         });
 
         // ── IssueAttachment ──

@@ -110,6 +110,42 @@ public class IssuesController : ControllerBase
             if (parts.Length == 2 && int.TryParse(parts[1], out int n)) nextNum = n + 1;
         }
 
+        // NEW-SRV-23 + NEW-MOB-17: resolve and validate assignee against project membership.
+        // Accept any of: AssigneeUserId (preferred), AssigneeEmail, or legacy Assignee display name.
+        AppUser? assigneeUser = null;
+        if (req.AssigneeUserId.HasValue)
+        {
+            assigneeUser = await _db.Users.FirstOrDefaultAsync(u =>
+                u.Id == req.AssigneeUserId.Value && u.TenantId == tenantId);
+        }
+        if (assigneeUser == null && !string.IsNullOrWhiteSpace(req.AssigneeEmail))
+        {
+            assigneeUser = await _db.Users.FirstOrDefaultAsync(u =>
+                u.Email == req.AssigneeEmail && u.TenantId == tenantId);
+        }
+        if (assigneeUser == null && !string.IsNullOrWhiteSpace(req.Assignee))
+        {
+            // Legacy display-name match — kept so older mobile builds still work
+            assigneeUser = await _db.Users.FirstOrDefaultAsync(u =>
+                u.DisplayName == req.Assignee && u.TenantId == tenantId);
+        }
+        if (assigneeUser != null)
+        {
+            var isMember = await _db.ProjectMembers.AnyAsync(m =>
+                m.ProjectId == projectId && m.UserId == assigneeUser.Id && m.IsActive);
+            if (!isMember)
+            {
+                return BadRequest(new { error = "Assignee is not an active member of this project" });
+            }
+        }
+
+        var creatorClaim = User.FindFirst("user_id")?.Value;
+        Guid? creatorId = Guid.TryParse(creatorClaim, out var cid) ? cid : null;
+
+        // Source detection: explicit > X-Device-Id presence > default "web"
+        var source = req.Source
+            ?? (Request.Headers.ContainsKey("X-Device-Id") ? "mobile" : "web");
+
         var issue = new BimIssue
         {
             ProjectId = projectId,
@@ -118,11 +154,19 @@ public class IssuesController : ControllerBase
             Title = req.Title,
             Description = req.Description,
             Priority = req.Priority ?? "MEDIUM",
-            Assignee = req.Assignee,
+            Assignee = assigneeUser?.DisplayName ?? req.Assignee,
+            AssigneeEmail = assigneeUser?.Email ?? req.AssigneeEmail,
+            AssigneeUserId = assigneeUser?.Id,
             Discipline = req.Discipline,
             CreatedBy = User.FindFirst("display_name")?.Value ?? "Unknown",
+            CreatedByUserId = creatorId,
             LinkedElementIds = req.LinkedElementIds,
-            DueDate = ComputeSLADeadline(req.Priority ?? "MEDIUM")
+            DueDate = ComputeSLADeadline(req.Priority ?? "MEDIUM"),
+            Latitude = req.Latitude,
+            Longitude = req.Longitude,
+            LocationAccuracy = req.LocationAccuracy,
+            DeviceId = req.DeviceId ?? Request.Headers["X-Device-Id"].ToString(),
+            Source = source,
         };
 
         _db.Issues.Add(issue);
@@ -135,11 +179,21 @@ public class IssuesController : ControllerBase
             issue.Title,
             new { issue.Id, issue.IssueCode, issue.Type, issue.Priority, projectId });
 
-        // If assigned, send targeted push to assignee
-        if (!string.IsNullOrEmpty(issue.Assignee))
+        // If assigned, send targeted push to assignee.
+        // Prefer the resolved FK (NEW-SRV-23); fall back to legacy DisplayName lookup.
+        if (issue.AssigneeUserId.HasValue || !string.IsNullOrEmpty(issue.Assignee))
         {
-            var assignee = await _db.Users.FirstOrDefaultAsync(u =>
-                u.DisplayName == issue.Assignee && u.TenantId == tenantId);
+            AppUser? assignee = null;
+            if (issue.AssigneeUserId.HasValue)
+            {
+                assignee = await _db.Users.FirstOrDefaultAsync(u =>
+                    u.Id == issue.AssigneeUserId.Value && u.TenantId == tenantId);
+            }
+            if (assignee == null && !string.IsNullOrEmpty(issue.Assignee))
+            {
+                assignee = await _db.Users.FirstOrDefaultAsync(u =>
+                    u.DisplayName == issue.Assignee && u.TenantId == tenantId);
+            }
             if (assignee != null)
             {
                 _ = _push.SendToUserAsync(assignee.Id, new Planscape.Core.Entities.PushPayload
@@ -427,6 +481,20 @@ public class IssuesController : ControllerBase
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 }
 
-public record CreateIssueRequest(string Type, string Title, string? Description, string? Priority, string? Assignee, string? Discipline, string? LinkedElementIds);
+public record CreateIssueRequest(
+    string Type,
+    string Title,
+    string? Description,
+    string? Priority,
+    string? Assignee,
+    string? AssigneeEmail,
+    Guid? AssigneeUserId,
+    string? Discipline,
+    string? LinkedElementIds,
+    double? Latitude,
+    double? Longitude,
+    double? LocationAccuracy,
+    string? DeviceId,
+    string? Source);
 public record UpdateIssueRequest(string? Status, string? Priority, string? Assignee, string? Description);
 public record LinkAttachmentRequest(Guid DocumentId);

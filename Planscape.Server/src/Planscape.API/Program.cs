@@ -195,14 +195,42 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// ── CORS for web dashboard ──
+// ── CORS ──
+// Default origins cover the web dashboard plus common Expo dev surfaces
+// (Metro 19000-19006 and tunnelled exp:// scheme). Override via Cors:Origins in config.
+var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? new[]
+{
+    "http://localhost:3000",
+    "http://localhost:19000",
+    "http://localhost:19001",
+    "http://localhost:19002",
+    "http://localhost:19006",
+    "exp://localhost:19000",
+    "exp://localhost:8081",
+};
 builder.Services.AddCors(options =>
 {
+    // Dashboard policy keeps credentials allowed for the cookie-based web app.
     options.AddPolicy("Dashboard", policy => policy
-        .WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? new[] { "http://localhost:3000" })
+        .WithOrigins(corsOrigins)
         .AllowAnyMethod()
         .AllowAnyHeader()
         .AllowCredentials());
+
+    // NEW-SRV-21: Mobile policy is permissive on origin (Expo Go uses dynamic LAN IPs)
+    // but does not allow credentials, since mobile uses Bearer tokens not cookies.
+    options.AddPolicy("Mobile", policy => policy
+        .SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrEmpty(origin)) return true;
+            return origin.StartsWith("exp://", StringComparison.OrdinalIgnoreCase)
+                || origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase)
+                || origin.StartsWith("http://192.168.", StringComparison.OrdinalIgnoreCase)
+                || origin.StartsWith("http://10.", StringComparison.OrdinalIgnoreCase)
+                || origin.StartsWith("http://172.", StringComparison.OrdinalIgnoreCase);
+        })
+        .AllowAnyMethod()
+        .AllowAnyHeader());
 });
 
 var app = builder.Build();
@@ -217,6 +245,7 @@ if (app.Environment.IsDevelopment())
 app.UseSerilogRequestLogging();
 app.UseRateLimiter();
 app.UseCors("Dashboard");
+app.UseCors("Mobile");
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // Must run AFTER auth so JWT claims are available
 app.UseMiddleware<MobileContextMiddleware>();
@@ -227,8 +256,74 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
     Authorization = new[] { new Planscape.Infrastructure.Services.HangfireAuthorizationFilter() }
 });
 
-// ── Health check ──
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow, version = "1.0.0" }));
+// ── Health check ── (NEW-SRV-22)
+// Returns sub-check results so mobile can detect partial degradation.
+// Status codes: 200 healthy, 503 degraded (any sub-check failed).
+app.MapGet("/health", async (PlanscapeDbContext db, IConnectionMultiplexer? redis, Planscape.Core.Interfaces.IPushNotificationService push) =>
+{
+    var checks = new Dictionary<string, object>();
+    var anyFailure = false;
+
+    // Database
+    try
+    {
+        var canConnect = await db.Database.CanConnectAsync();
+        checks["database"] = new { healthy = canConnect, provider = "postgres" };
+        if (!canConnect) anyFailure = true;
+    }
+    catch (Exception ex)
+    {
+        checks["database"] = new { healthy = false, error = ex.Message };
+        anyFailure = true;
+    }
+
+    // Redis
+    try
+    {
+        if (redis == null) { checks["redis"] = new { healthy = false, error = "not configured" }; anyFailure = true; }
+        else
+        {
+            var pong = await redis.GetDatabase().PingAsync();
+            checks["redis"] = new { healthy = true, pingMs = pong.TotalMilliseconds };
+        }
+    }
+    catch (Exception ex)
+    {
+        checks["redis"] = new { healthy = false, error = ex.Message };
+        anyFailure = true;
+    }
+
+    // Push provider — non-blocking; just report which implementation is wired
+    checks["push"] = new
+    {
+        healthy = true,
+        implementation = push.GetType().Name,
+    };
+
+    var body = new
+    {
+        status = anyFailure ? "degraded" : "healthy",
+        timestamp = DateTime.UtcNow,
+        version = "1.0.0",
+        checks,
+    };
+    return anyFailure ? Results.Json(body, statusCode: 503) : Results.Ok(body);
+});
+
+// ── Mobile crash diagnostics endpoint ── (supports NEW-MOB-16 crash reporter)
+// Accepts JSON crash entries; logs through Serilog and stores nothing else.
+app.MapPost("/api/diagnostics/crash", async (HttpContext ctx, Microsoft.Extensions.Logging.ILoggerFactory lf) =>
+{
+    var logger = lf.CreateLogger("MobileDiagnostics");
+    using var reader = new StreamReader(ctx.Request.Body);
+    var body = await reader.ReadToEndAsync();
+    if (body.Length > 64 * 1024)
+    {
+        return Results.BadRequest(new { error = "payload too large" });
+    }
+    logger.LogWarning("[mobile-crash] {Body}", body);
+    return Results.Accepted();
+}).RequireRateLimiting("mobile");
 
 app.MapControllers();
 app.MapHub<ComplianceHub>("/hubs/compliance");
