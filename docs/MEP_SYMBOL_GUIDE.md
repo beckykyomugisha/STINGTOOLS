@@ -453,3 +453,134 @@ Before committing a seed family to the library:
 
 Skipping the test load is the number-one cause of "it worked in my family editor but not in the project" bugs.
 
+
+---
+
+## 5. Standards sourcing table
+
+Every row in the CSV cites three references. Those references are the authoritative basis for the symbol — the drafter should always draw **from the standard**, not from a shortcut reference. This section lists where to find each standard, whether it is free or paid, and which free alternatives are acceptable when the paid standard is out of reach.
+
+### 5.1 ISO standards
+
+| Standard | Scope | Source | Price | Free alternative |
+|---|---|---|---|---|
+| ISO 4067-1 (1985) | Graphical symbols — pipework | iso.org/standard/9809 | £180 | [Wikipedia: P&ID symbols](https://en.wikipedia.org/wiki/Piping_and_instrumentation_diagram) |
+| ISO 4067-6 (1985) | Piping services identification colour-coding | iso.org | £140 | BS 1710 Annex (UK adoption) |
+| ISO 6183 | Gaseous suppression — CO2 | iso.org/standard/45959 | £180 | NFPA 12 (paid, US free registration) |
+| ISO 6790 | Fire protection — symbols | iso.org/standard/13247 | £180 | NFPA 170 (paid, US registration) |
+| ISO 7010 | Graphical symbols — safety signs | iso.org | £240 | HSE Safety Signs Regulations (free PDF) |
+| ISO 7396-1 | Medical gas pipeline systems | iso.org | £240 | NHS HTM 02-01 (free UK NHS PDF) |
+| ISO 14520-9 | Gaseous extinguishing — FM-200 (HFC-227ea) | iso.org | £180 | NFPA 2001 |
+| ISO 14617 (series, 1-14) | Graphical symbols for diagrams | iso.org | £180 per part | Only part 6 (measurement/control) is partially reproduced free |
+| ISO 16484-5 | Building automation — BACnet | iso.org/standard/71935 | £240 | ASHRAE 135 (paid, but well documented in BACnet Stack docs) |
+| ISO 21542 | Building construction — accessibility | iso.org | £240 | BS 8300-2 (paid) — **use Approved Document M** (free UK PDF) |
+| ISO 22510 | KNX networked communication | iso.org/standard/74633 | £240 | KNX Association basic course materials (free) |
+
+### 5.2 BS / EN standards (UK / EU adoption)
+
+| Standard | Scope | Source | Price | Free alternative |
+|---|---|---|---|---|
+| BS 750 | Fire hydrant — specification | bsigroup.com | £240 | Most manufacturer submittals include the symbol |
+| BS 1363-1 | Plugs and sockets — UK 13A | bsigroup.com | £200 | Wikipedia BS 1363 article (accurate symbols) |
+| BS 1553-1 | Graphical symbols — general engineering | bsigroup.com | £280 | Heavily reproduced in CIBSE guides (free to CIBSE members) |
+| BS 1710 | Identification of pipelines and services | bsigroup.com | £200 | HSE/WRAS guides summarise colour codes |
+| BS 3939 | Graphical symbols for electrotechnical drawings | bsigroup.com | £280 | Superseded by BS EN 60617 |
+| BS 5266 | Emergency lighting — code of practice | bsigroup.com | £280 | ICEL manual (free registration) |
+| BS 5499 | Safety signs | bsigroup.com | £200 | HSE signage regs |
+| BS 5572 | Sanitary pipework — code of practice | bsigroup.com | £280 | IoP Water Bye-laws diagrams |
+| BS 5839 (series) | Fire detection and alarm | bsigroup.com | £280 per part | FIA guides (free registration) |
+| BS 6173 | Gas catering equipment | bsigroup.com | £280 | IGEM UP/19 guidance |
+| BS 6367 | Rainwater drainage | bsigroup.com | £280 | DEFRA / Environment Agency guides |
+| BS 7346 | Smoke and heat control | bsigroup.com | £280 | Smoke Control Association guides |
+| BS 7430 | Earthing — code of practice | bsigroup.com | £280 | NICEIC earthing handbook |
+| BS 7671 | Wiring Regulations (IET 18th Edition) | theiet.org | £112 | IET Wiring Matters magazine (free) |
+| BS 8300 | Accessibility — design | bsigroup.com | £280 | Approved Document M (free UK PDF) |
+| BS 8301 | Building drainage | bsigroup.com | £280 | Superseded parts — use BS EN 752 |
+| BS 8489 | Water mist suppression | bsigroup.com | £280 | FM Global DS 4-2 |
+| BS 8558 | Water supplies — code of practice | bsigroup.com | £280 | WRAS guidance |
+| BS 9990 | Dry/wet risers | bsigroup.com | £280 | BAFE SP203 guidance |
+| BS EN 54 (series, 1-32) | Fire detection devices | bsigroup.com | £200 per part | BRE/LPCB certification data (summary free) |
+| BS EN 60617 (series) | Graphical symbols — electrical | bsigroup.com | £280 per part | IEC 60617 database (paid) or Wikipedia |
+| BS EN 60898 | MCB — circuit breakers | bsigroup.com | £280 | Manufacturer datasheets |
+| BS EN 61009 | RCBO — combined RCD+MCB | bsigroup.com | £280 | Manufacturer datasheets |
+| BS EN 62305 | Lightning protection | bsigroup.com | £280 | BS/IEC guide free PDF summary |
+| BS EN 12845 | Fixed firefighting — sprinklers | bsigroup.com | £280 | LPC rules (BAFE registered) |
+| BS EN ISO 7010 | Safety sign pictograms | bsigroup.com | £200 | HSE free guide |
+
+BSI **Subscribing Societies** and some universities provide their members free access via BSOL. Check if your organisation already has a licence before purchasing.
+
+### 5.3 US standards (ANSI / NFPA / IEEE / ASHRAE / NEMA)
+
+| Standard | Scope | Source | Price | Free alternative |
+|---|---|---|---|---|
+| ANSI Y32.9 | Graphical symbols for electrical wiring | ansi.org | $60 | Superseded by IEEE 315 |
+| ANSI Z358.1 | Emergency eyewash and shower | ansi.org | $120 | Manufacturer compliance guides |
+| ASHRAE Fundamentals | HVAC reference handbook | ashrae.org | $200 (member) $400 | Chapter summaries free |
+| ASHRAE Guideline 4 | Pre-commissioning symbols | ashrae.org | $80 | Limited — purchase |
+| ASME B16.34 | Valves — flanged, threaded, welded | asme.org | $140 | Valve manufacturer catalogues |
+| ASME B31.8 | Gas transmission and distribution | asme.org | $200 | Pipeline Hazardous Materials Safety Admin PDFs (partial) |
+| ASME A112.19.2 | Vitreous china plumbing fixtures | asme.org | $150 | Manufacturer specs (Kohler, American Standard) |
+| IEEE 315 | Graphic symbols for electrical and electronic diagrams | ieee.org | $100 | [IEEE Xplore Guest Access](https://ieeexplore.ieee.org) free guest download (some years) |
+| NEMA WD 6 | Wiring device dimensional standards | nema.org | $140 | Manufacturer datasheets |
+| NEMA VE-1 | Metallic cable tray systems | nema.org | $80 | Manufacturer catalogues |
+| NFPA 10 | Portable fire extinguishers | nfpa.org | $50 (free registration) | NFPA free online access |
+| NFPA 13 | Sprinkler systems | nfpa.org | $80 (free registration) | NFPA free online |
+| NFPA 14 | Standpipe/hose systems | nfpa.org | $80 | NFPA free online |
+| NFPA 20 | Stationary fire pumps | nfpa.org | $80 | NFPA free online |
+| NFPA 70 | National Electrical Code | nfpa.org | $80 (free online) | NFPA free with registration |
+| NFPA 72 | Fire alarm and signaling | nfpa.org | $80 | NFPA free online |
+| NFPA 92A | Smoke control | nfpa.org | $80 | NFPA free online |
+| NFPA 96 | Kitchen ventilation | nfpa.org | $80 | NFPA free online |
+| NFPA 99 | Health care facilities | nfpa.org | $80 | NFPA free online |
+| NFPA 170 | Fire safety symbols | nfpa.org | $80 | NFPA free online (recommended) |
+| NFPA 2001 | Clean agent fire extinguishing | nfpa.org | $80 | NFPA free online |
+| SMACNA HVAC Duct Construction Standards | Duct details | smacna.org | $220 (member) $440 | Limited — purchase |
+| TIA-568 | Commercial building telecommunications cabling | tiaonline.org | $180 | BICSI Technical Information Paper summaries (free) |
+| TIA-606 | Administration for commercial building infrastructure | tiaonline.org | $180 | BICSI TIPs |
+| UL 555 / 555S | Fire/smoke dampers | ul.com | $100 | Manufacturer UL listings (free) |
+
+NFPA offers **free read-only online access** to all codes via nfpa.org/codes with registration. This is the single biggest free resource for US projects — use it before buying any NFPA document.
+
+### 5.4 Free and open-source libraries
+
+If the drafting budget doesn't allow standards purchases, these open sources cover 80% of the library:
+
+| Source | Licence | Scope |
+|---|---|---|
+| [Wikipedia — Electronic symbol](https://en.wikipedia.org/wiki/Electronic_symbol) | CC-BY-SA | Most common electrical, electronic, and simple MEP symbols |
+| [Wikipedia — P&ID](https://en.wikipedia.org/wiki/Piping_and_instrumentation_diagram) | CC-BY-SA | Piping, valves, fittings |
+| [Wikimedia Commons — IEC 60617](https://commons.wikimedia.org/wiki/Category:IEC_60617) | CC-BY-SA | ~200 IEC 60617 symbols as SVG |
+| [Smashicons — IEC electrical](https://www.flaticon.com) | Free with attribution | Electrical device icons (not standards-authoritative) |
+| [Autodesk Seek / BIMobject / NBS Source](https://www.bimobject.com) | Free with registration | Pre-built `.rfa` families (IEC, BS, NFPA — often all three) |
+| [KiCad symbol library](https://gitlab.com/kicad/libraries) | CC-BY-SA | Electrical/electronic schematics (different convention but useful reference) |
+| [RevitCity](https://www.revitcity.com) | Free with registration | User-uploaded Revit families — quality varies |
+| [UK Government Design System](https://design-system.service.gov.uk) | OGL | Safety signage and accessibility icons |
+
+**Important:** always cross-reference a free source against the authoritative standard before publishing deliverables. Free libraries frequently deviate from the official symbology in subtle ways (line weight, proportions, insertion point).
+
+### 5.5 Manufacturer submittals as cross-reference
+
+When drawing a symbol for a physical device (sprinkler, FACP, FCU, AHU), the manufacturer's submittal drawing is **second only to the standard** as an authority. Most manufacturers publish submittals showing their device and the official plan symbol side-by-side. Examples:
+
+- **Sprinklers:** Tyco, Victaulic, Reliable — submittals show NFPA 13 / BS EN 12845 symbols.
+- **Fire detection:** Honeywell Gent, Hochiki, Apollo — BS EN 54 compliance + symbol.
+- **HVAC equipment:** Carrier, Daikin, Trox, Waterloo — ASHRAE/SMACNA symbols.
+- **Electrical:** Schneider, ABB, Hager — BS EN 60617 symbols.
+- **Plumbing:** Grohe, Kohler, Armitage Shanks — BS 8558 symbols.
+
+Download three submittals per device type. If they all agree on the symbol, you can trust the geometry.
+
+### 5.6 Purchasing strategy
+
+If the firm needs authoritative access to standards, priority order is:
+
+1. **NFPA online access (free with registration)** — highest coverage-to-cost ratio.
+2. **BSI Subscribing Societies membership** (varies) — access to BS/EN at discounted rates.
+3. **CIBSE membership** (£240/year) — includes free BS 1553-1 lookup and all CIBSE guides.
+4. **IET membership** (£175/year) — includes BS 7671 (18th Edition Wiring Regulations).
+5. **ASHRAE membership** (£140/year) — includes ASHRAE Fundamentals and Applications.
+6. **IEEE membership** (£220/year) — includes IEEE 315 guest access.
+7. **Individual ISO purchases** (£180 each) — last resort, only for specific symbols not covered elsewhere.
+
+Total annual cost of the priority 1-5 subscriptions: ~£750. This covers ~95% of the library's references and is recoverable on a single medium-sized project.
+
