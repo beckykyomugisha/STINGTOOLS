@@ -333,3 +333,123 @@ The largest discipline. Three working days is realistic. Split by functional zon
 
 **Two working weeks for one drafter** to build the complete seed library. The seed families then feed `FamilyParamCreator` for batched parameter injection (§6.2), and the project-wide subcategory scheme (§2) turns every loaded family into a standard-switchable asset.
 
+
+---
+
+## 4. Revit Family Editor setup
+
+Before a single line of symbol geometry is drawn, every seed family needs a consistent skeleton. Skipping this step is the single biggest source of rework — a family with misaligned reference planes, missing parameters, or a wrong origin will fail every time it's nested into a host MEP family (see §4.6), and the fix usually means re-authoring from scratch.
+
+### 4.1 Choosing the right family template
+
+The `revit_template` column of the CSV names the `.rft` template to start from. The four templates that cover 95% of the library are:
+
+| Template | When to use | Example symbols |
+|---|---|---|
+| `Generic Annotation.rft` | The symbol is standalone and not hosted on a specific Revit element | Pipe valves, sprinklers, fire devices, controls |
+| `Lighting Fixture Ceiling based.rft` | Ceiling-hosted luminaire symbol | Downlight, recessed panel, pendant, cassette |
+| `Lighting Fixture Wall based.rft` | Wall-hosted luminaire or switch | Wall pack, emergency bulkhead, 1-gang switch |
+| `Plumbing Fixture Floor based.rft` / `Wall based.rft` / `Ceiling based.rft` | Sanitary fixture attached to floor, wall, or ceiling | WC, basin, urinal, shower head |
+
+**Generic Annotation** is the default for every non-hosted symbol. It scales with the view, has no host, and can be dropped anywhere. Use it for 80% of the library.
+
+Hosted templates are used only when the symbol MUST attach to a wall, ceiling, or floor — typically lighting fixtures, switches, and sanitaryware. They limit placement but give automatic wall-face alignment.
+
+**Do not use** `Generic Model.rft` for symbols. Generic Models are 3D; they will appear in 3D views and perspective renders where annotation should not. Annotation families are 2D only and hide in 3D views automatically.
+
+### 4.2 Origin and reference planes
+
+Every family needs two reference planes crossing at the origin. This is non-negotiable.
+
+1. Open the `.rft`. Two reference planes are already present (horizontal and vertical).
+2. **Select each plane** and check the Properties palette. Both must have `Defines Origin` = Yes.
+3. The intersection is the family origin. All geometry locks to these planes.
+4. Set both planes to `Is Reference` = `Strong Reference`. This makes them selectable as dimension anchors in the host project.
+5. Do **not** add extra reference planes unless a specific symbol needs adjustable geometry. Simple symbols (sockets, sensors, valves) need exactly two planes.
+
+The `insertion_point` column of the CSV tells you where the origin goes relative to the symbol:
+
+| CSV value | Origin sits at |
+|---|---|
+| `Geometric centre` | Centre of symbol bounding box — most common |
+| `Pipe centreline` | Horizontal plane aligned to pipe axis; vertical plane at branch point |
+| `Wall face` | Vertical plane on wall face; horizontal plane at symbol midheight |
+| `Pan centre` | Centre of WC pan outline |
+| `Outlet end` | End of a bath or sink nearest the waste outlet |
+| `Base centre` | Bottom centre (for vertical symbols like lamp columns, cylinders) |
+| `Branch tee` | Pipe junction point for branching fittings |
+
+Get this wrong and every instance of the family misaligns when placed in a project. The drafter loses 10× the authoring time correcting it.
+
+### 4.3 Parameter scaffolding
+
+Every seed family carries the same four Yes/No type parameters:
+
+| Parameter | Group | Default | Purpose |
+|---|---|---|---|
+| `SYMBOL_SHOW_IEC` | Graphics | Yes | Controls visibility of IEC subcategory geometry |
+| `SYMBOL_SHOW_BS` | Graphics | No | Controls visibility of BS/EN subcategory geometry |
+| `SYMBOL_SHOW_ANSI` | Graphics | No | Controls visibility of ANSI/NFPA subcategory geometry |
+| `EMERGENCY_MODE` | Graphics | No | For fire/emergency symbols — toggles shaded half, 'M' label |
+
+Additionally, most families need text parameters for labelling:
+
+| Parameter | Group | Type | Purpose |
+|---|---|---|---|
+| `DEVICE_TYPE_TXT` | Identity Data | Text | Letter shown on the symbol (T, H, CO2, etc.) |
+| `MOUNTING_HEIGHT_MM` | Dimensions | Length | For wall-hosted fixtures, typed height above FFL |
+| `CIRCUIT_ID_TXT` | Identity Data | Text | Circuit ref for electrical devices |
+
+The STINGTOOLS shared parameter file already contains all the STING-standard parameters (ASS_TAG_1_TXT, STING_STALE_BOOL, etc.). When you add a new parameter, **always add it via "Select existing shared parameter"**, not "Add new family parameter". Family parameters don't transfer to the project and can't be scheduled.
+
+### 4.4 Visibility binding
+
+This is the step that makes the three-standard magic work. With the three subcategories and three Yes/No parameters in place:
+
+1. Select the IEC geometry (circle, triangle, line — whatever you drew on subcategory `ISO_Symbols_*_IEC`).
+2. In the Properties palette, find `Visibility/Graphics Overrides` and click the small box next to `Visible`.
+3. A dialog opens. Set the formula to `SYMBOL_SHOW_IEC`.
+4. Repeat for BS geometry → `SYMBOL_SHOW_BS`, and ANSI geometry → `SYMBOL_SHOW_ANSI`.
+5. Save the family.
+
+Now in the project, each type can have one of the three parameters ticked — and only that standard's geometry renders. This is how one `.rfa` carries three standards.
+
+**Gotcha:** make sure exactly one of the three is ticked per type. Ticking all three produces overlapping symbols; ticking none produces an invisible family instance. Enforce this by making the three parameters **type parameters** (not instance), so the selection is fixed per type.
+
+### 4.5 Scale behaviour
+
+Generic Annotation families scale with the view. If the view is 1:50, the symbol prints at the dimensions in the CSV. If the view is 1:100, the symbol prints at half the plotted size on paper but still at the same physical location.
+
+This is correct behaviour for most MEP schematics. But for presentation drawings that need consistent physical print size, add a `USE_FIXED_SIZE` Yes/No parameter and nest the symbol inside a scale-locked container.
+
+The `typical_scale` column of the CSV names the scales at which each symbol was sized. Most symbols are designed for 1:50 to 1:100. Sprinklers and detectors drop to 1:50 only (too small to read at 1:100). Site drainage and SuDS symbols go up to 1:500.
+
+### 4.6 Nesting into an MEP host family
+
+This is the workflow for attaching a symbol to an MEP family (e.g. nesting an IEC sprinkler into a Revit sprinkler family so it renders on plan views):
+
+1. Open the host MEP family in the Family Editor.
+2. `Insert → Load Family` → pick the IEC symbol `.rfa` you authored.
+3. Open a plan view inside the host family. Click `Annotate → Symbol` and pick the loaded symbol. Click at the origin (or wherever the symbol should render).
+4. Lock the placed symbol to both reference planes.
+5. Open the symbol's Properties. Tick `Visibility/Graphics Overrides → Visible` and bind to `SYMBOL_SHOW_IEC` (the host family's parameter — so the host's Yes/No drives the nested symbol's visibility).
+6. Repeat for BS and ANSI variants if the host family carries all three. Or — more common — nest only the one variant the project uses.
+7. The nested symbol's `Shared` setting controls whether the symbol appears as its own element in project schedules. Leave it **unshared** for MEP-hosted symbols (cleaner schedules); set it **shared** for standalone annotations that need independent scheduling.
+
+### 4.7 Save and QA checklist
+
+Before committing a seed family to the library:
+
+- [ ] Two reference planes at origin, both set `Defines Origin = Yes` and `Is Reference = Strong Reference`.
+- [ ] Three subcategories created under `Annotation Objects`.
+- [ ] Three `SYMBOL_SHOW_*` Yes/No type parameters.
+- [ ] All geometry assigned to one of the three subcategories.
+- [ ] Visibility of each subcategory's geometry bound to its `SYMBOL_SHOW_*` parameter.
+- [ ] `EMERGENCY_MODE` parameter present for fire/emergency symbols.
+- [ ] At least one type created with `SYMBOL_SHOW_IEC = Yes` ticked.
+- [ ] File named per convention: `STING_<DISC>_<symbol_id>.rfa` (e.g. `STING_E_E_SKT_13A_1.rfa`).
+- [ ] File saved to `CompiledPlugin/Data/SymbolLibrary/<Discipline>/`.
+- [ ] Test load into a blank project, place an instance, switch the three types, verify only the matching geometry renders.
+
+Skipping the test load is the number-one cause of "it worked in my family editor but not in the project" bugs.
+
