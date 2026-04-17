@@ -12,17 +12,41 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
+import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { theme, getPriorityColor } from '@/utils/theme';
-import { listProjects, listIssues, createIssue, uploadIssueAttachment } from '@/api/endpoints';
+import { listProjects, listIssues, createIssue, uploadIssueAttachment, _getBaseUrl } from '@/api/endpoints';
 import type { BimIssue, Project, ProjectMember } from '@/types/api';
 import { imageService, CapturedImage } from '@/services/imageService';
 import { locationService } from '@/services/locationService';
 import { MemberPicker } from '@/components/MemberPicker';
-import { AttachmentStrip } from '@/components/AttachmentStrip';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import { crashReporter } from '@/services/crashReporter';
+
+/**
+ * Phase 94 — MOB-01/MOB-06. Open the Planscape xeokit viewer for a project in
+ * an in-app browser. URL shape is {serverUrl}/viewer/index.html?model=<code>.xkt.
+ * The viewer itself lives in wwwroot on the Planscape.Server and reads the
+ * 'model' query parameter to fetch the xkt bundle.
+ */
+async function openViewer(projectCode: string): Promise<void> {
+  try {
+    const base = await _getBaseUrl();
+    const url = `${base}/viewer/index.html?model=${encodeURIComponent(projectCode)}.xkt`;
+    await WebBrowser.openBrowserAsync(url, {
+      // Corporate-themed in-app browser tab — falls back to Safari View
+      // Controller on iOS and Custom Tabs on Android automatically.
+      toolbarColor: theme.colors.primary,
+      controlsColor: theme.colors.accent,
+      dismissButtonStyle: 'close',
+    });
+  } catch (err) {
+    Alert.alert('Viewer unavailable', err instanceof Error ? err.message : String(err));
+  }
+}
 
 type PriorityFilter = 'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 type StatusFilter = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
@@ -49,8 +73,6 @@ export default function IssuesScreen() {
   const [newPhotos, setNewPhotos] = useState<CapturedImage[]>([]);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
   const [creationStatus, setCreationStatus] = useState<string | null>(null);
-
-  const [selectedIssue, setSelectedIssue] = useState<BimIssue | null>(null);
 
   const loadData = useCallback(async (projectId?: string) => {
     try {
@@ -281,7 +303,11 @@ export default function IssuesScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <IssueCard issue={item} onPress={() => setSelectedIssue(item)} />
+          <IssueCard
+            issue={item}
+            onPress={() => router.push(`/issue-detail?id=${item.id}`)}
+            onViewIn3D={() => openViewer(activeProject.code)}
+          />
         )}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.accent} />}
@@ -456,53 +482,7 @@ export default function IssuesScreen() {
         />
       )}
 
-      {/* Issue Detail Modal */}
-      <Modal visible={!!selectedIssue} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          {selectedIssue && (
-            <View style={styles.detailCard}>
-              <ScrollView>
-                <View style={styles.detailHeader}>
-                  <View style={[styles.detailPriorityBadge, { backgroundColor: getPriorityColor(selectedIssue.priority) }]}>
-                    <Text style={styles.detailPriorityText}>{selectedIssue.priority}</Text>
-                  </View>
-                  <StatusBadge status={selectedIssue.status} />
-                </View>
-
-                <Text style={styles.detailCode}>{selectedIssue.issueCode}</Text>
-                <Text style={styles.detailTitle}>{selectedIssue.title}</Text>
-
-                {selectedIssue.description ? (
-                  <Text style={styles.detailDescription}>{selectedIssue.description}</Text>
-                ) : null}
-
-                <View style={styles.detailGrid}>
-                  <DetailField label="Type" value={selectedIssue.type} />
-                  <DetailField label="Discipline" value={selectedIssue.discipline || '—'} />
-                  <DetailField label="Assignee" value={selectedIssue.assignee || 'Unassigned'} />
-                  <DetailField label="Revision" value={selectedIssue.revision || '—'} />
-                  <DetailField label="Created" value={formatDate(selectedIssue.createdAt)} />
-                  <DetailField label="Updated" value={formatDate(selectedIssue.updatedAt)} />
-                </View>
-
-                {selectedIssue.elementIds ? (
-                  <View style={styles.detailElementIds}>
-                    <Text style={styles.detailElementLabel}>Linked Elements</Text>
-                    <Text style={styles.detailElementValue}>{selectedIssue.elementIds}</Text>
-                  </View>
-                ) : null}
-
-                {/* NEW-INFO-01 — Attachment gallery */}
-                <AttachmentStrip projectId={selectedIssue.projectId} issueId={selectedIssue.id} />
-              </ScrollView>
-
-              <TouchableOpacity style={styles.detailClose} onPress={() => setSelectedIssue(null)}>
-                <Text style={styles.detailCloseText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </Modal>
+      {/* Phase 94 — Legacy detail modal replaced by router.push('/issue-detail?id=...'). */}
     </View>
   );
 }
@@ -522,7 +502,15 @@ function SummaryChip({ label, count, color, active, onPress }: {
   );
 }
 
-function IssueCard({ issue, onPress }: { issue: BimIssue; onPress: () => void }) {
+function IssueCard({
+  issue,
+  onPress,
+  onViewIn3D,
+}: {
+  issue: BimIssue;
+  onPress: () => void;
+  onViewIn3D: () => void;
+}) {
   const priorityColor = getPriorityColor(issue.priority);
   // NEW-INFO-02 — Prefer the server's IsOverdue flag when present, fall back
   // to the local 7-day heuristic for legacy responses.
@@ -562,6 +550,15 @@ function IssueCard({ issue, onPress }: { issue: BimIssue; onPress: () => void })
             {typeof issue.daysOpen === 'number' ? ` · ${issue.daysOpen}d` : ''}
           </Text>
         </View>
+        {/* Phase 94 — MOB-06. Jumps into the xeokit viewer in-app browser. */}
+        <TouchableOpacity
+          style={styles.view3DButton}
+          onPress={(e) => { e.stopPropagation(); onViewIn3D(); }}
+          accessibilityRole="button"
+          accessibilityLabel="View this issue in the 3D model viewer"
+        >
+          <Text style={styles.view3DButtonText}>🧊  View in 3D</Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -585,15 +582,6 @@ function StatusBadge({ status, small }: { status: string; small?: boolean }) {
       <Text style={[styles.statusBadgeText, { color: textColor }, small && styles.statusBadgeTextSmall]}>
         {label}
       </Text>
-    </View>
-  );
-}
-
-function DetailField({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.detailField}>
-      <Text style={styles.detailFieldLabel}>{label}</Text>
-      <Text style={styles.detailFieldValue}>{value}</Text>
     </View>
   );
 }
@@ -833,6 +821,23 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
 
+  // Phase 94 — View in 3D button
+  view3DButton: {
+    alignSelf: 'flex-start',
+    marginTop: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accent + '12',
+  },
+  view3DButtonText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '600',
+    color: theme.colors.accent,
+  },
+
   // Status badge
   statusBadge: {
     borderRadius: theme.borderRadius.sm,
@@ -993,95 +998,6 @@ const styles = StyleSheet.create({
     color: theme.colors.surface,
   },
 
-  // Detail modal
-  detailCard: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.borderRadius.xl,
-    borderTopRightRadius: theme.borderRadius.xl,
-    padding: theme.spacing.lg,
-    maxHeight: '90%',
-  },
-  detailHeader: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-  },
-  detailPriorityBadge: {
-    borderRadius: theme.borderRadius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  detailPriorityText: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  detailCode: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.xs,
-  },
-  detailTitle: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: theme.spacing.md,
-  },
-  detailDescription: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
-    lineHeight: 22,
-    marginBottom: theme.spacing.md,
-  },
-  detailGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-  },
-  detailField: {
-    width: '47%',
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.sm,
-  },
-  detailFieldLabel: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginBottom: 2,
-  },
-  detailFieldValue: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '500',
-    color: theme.colors.text,
-  },
-  detailElementIds: {
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-  },
-  detailElementLabel: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginBottom: 4,
-  },
-  detailElementValue: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  detailClose: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: theme.spacing.sm + 4,
-    alignItems: 'center',
-    marginTop: theme.spacing.md,
-  },
-  detailCloseText: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-    color: theme.colors.surface,
-  },
+  // Phase 94 — legacy "detail modal" styles removed. Issue detail now lives
+  // in app/(tabs)/issue-detail.tsx and uses its own stylesheet.
 });

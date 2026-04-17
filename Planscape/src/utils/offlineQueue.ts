@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createIssue, updateIssue, transitionCDE } from '@/api/endpoints';
+import { createIssue, updateIssue, transitionCDE, uploadIssueAttachment } from '@/api/endpoints';
 import type { OfflineAction } from '@/types/api';
 
 const QUEUE_KEY = 'planscape_offline_queue';
@@ -92,6 +92,21 @@ async function replayAction(action: OfflineAction): Promise<void> {
         p.docId as string,
         p.newStatus as string
       );
+      break;
+
+    // Phase 94 — replay a queued photo upload as multipart/form-data.
+    // uploadIssueAttachment wraps the React Native FormData file object
+    // { uri, name, type } and POSTs to the server's /attachments endpoint.
+    case 'ATTACH_PHOTO':
+      await uploadIssueAttachment({
+        projectId: p.projectId as string,
+        issueId: p.issueId as string,
+        uri: p.localUri as string,
+        fileName: (p.fileName as string) ?? `photo-${Date.now()}.jpg`,
+        contentType: (p.mimeType as string) ?? 'image/jpeg',
+        latitude: p.latitude as number | undefined,
+        longitude: p.longitude as number | undefined,
+      });
       break;
   }
 }
