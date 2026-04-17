@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { AppState } from 'react-native';
 import { getToken, onSessionExpired } from '@/api/client';
 import { crashReporter } from '@/services/crashReporter';
 import { notificationTapRouter } from '@/services/notificationTapRouter';
 import { initI18n } from '@/i18n';
+import { markBackgrounded, challengeIfDue } from '@/services/biometricLock';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -22,8 +24,23 @@ export default function RootLayout() {
       setIsAuthenticated(false);
       router.replace('/login');
     });
+    // T3 — biometric/PIN re-auth on app resume. Silently passes when the lock
+    // isn't armed or when the user backgrounded the app only briefly.
+    const appStateSub = AppState.addEventListener('change', async (state) => {
+      if (state === 'background') {
+        try { await markBackgrounded(); } catch { /* ignore */ }
+      } else if (state === 'active') {
+        try {
+          const r = await challengeIfDue();
+          if (!r.passed) {
+            setIsAuthenticated(false);
+            router.replace('/login');
+          }
+        } catch { /* ignore — never lock the user out on an API failure */ }
+      }
+    });
     checkAuth();
-    return () => { unsubNotif(); unsubSession(); };
+    return () => { unsubNotif(); unsubSession(); appStateSub.remove(); };
   }, [router]);
 
   useEffect(() => {

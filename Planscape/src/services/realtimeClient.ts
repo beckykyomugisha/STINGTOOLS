@@ -10,10 +10,12 @@ export type RealtimeEvent =
   | { type: 'NOTIFICATION'; payload: unknown };
 
 type Handler = (ev: RealtimeEvent) => void;
+type NamedHandler = (payload: any) => void;
 
 export class RealtimeClient {
   private connection: signalR.HubConnection | null = null;
   private handlers: Handler[] = [];
+  private namedHandlers: Map<string, Set<NamedHandler>> = new Map();
   private currentProjectId: string | null = null;
 
   async connect(projectId: string): Promise<void> {
@@ -26,10 +28,16 @@ export class RealtimeClient {
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
-    this.connection.on('IssueCreated', p => this.emit({ type: 'ISSUE_CREATED', payload: p }));
-    this.connection.on('IssueUpdated', p => this.emit({ type: 'ISSUE_UPDATED', payload: p }));
-    this.connection.on('ComplianceChanged', p => this.emit({ type: 'COMPLIANCE_CHANGED', payload: p }));
-    this.connection.on('Notification', p => this.emit({ type: 'NOTIFICATION', payload: p }));
+    this.connection.on('IssueCreated', p => { this.emit({ type: 'ISSUE_CREATED', payload: p }); this.fire('IssueCreated', p); });
+    this.connection.on('IssueUpdated', p => { this.emit({ type: 'ISSUE_UPDATED', payload: p }); this.fire('IssueUpdated', p); });
+    this.connection.on('ComplianceChanged', p => { this.emit({ type: 'COMPLIANCE_CHANGED', payload: p }); this.fire('ComplianceChanged', p); });
+    this.connection.on('Notification', p => { this.emit({ type: 'NOTIFICATION', payload: p }); this.fire('Notification', p); });
+    // Generic events forwarded to named handlers — lets screens subscribe to
+    // specific channels (CommentAdded, DocumentUpdated, TransmittalUpdated...)
+    // without bloating the RealtimeEvent union.
+    for (const evName of ['CommentAdded', 'DocumentUpdated', 'TransmittalUpdated', 'RevisionCreated', 'PresenceChanged']) {
+      this.connection.on(evName, (p: unknown) => this.fire(evName, p));
+    }
 
     await this.connection.start();
     await this.connection.invoke('JoinProject', projectId);
@@ -51,8 +59,21 @@ export class RealtimeClient {
     return () => { this.handlers = this.handlers.filter(h => h !== handler); };
   }
 
+  /** Subscribe to a specific server event by name (e.g. "CommentAdded"). */
+  on(eventName: string, handler: NamedHandler): () => void {
+    let set = this.namedHandlers.get(eventName);
+    if (!set) { set = new Set(); this.namedHandlers.set(eventName, set); }
+    set.add(handler);
+    return () => { set!.delete(handler); };
+  }
+
   private emit(ev: RealtimeEvent): void {
     this.handlers.forEach(h => { try { h(ev); } catch {} });
+  }
+  private fire(name: string, payload: any): void {
+    const set = this.namedHandlers.get(name);
+    if (!set) return;
+    set.forEach(h => { try { h(payload); } catch {} });
   }
 }
 

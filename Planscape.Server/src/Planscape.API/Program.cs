@@ -141,9 +141,23 @@ builder.Services.AddSingleton<Planscape.Infrastructure.Services.IEmailTemplateRe
 // ── i18n (FLEX-15) — load resource files once at startup; mobile pulls via /api/i18n. ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.II18nService, Planscape.Infrastructure.Services.I18nService>();
 
-// ── NLP (NLP-AUTO-LINK) — rule-based + LLM fallback. Swap NullLlmResolver for
-//    a real provider (OpenAI / Azure OpenAI / Anthropic) when credentials land.
-builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpLlmResolver, Planscape.Infrastructure.Services.NullLlmResolver>();
+// ── OCR (T3) — server-side cloud fallback for when on-device OCR misses.
+var ocrProvider = builder.Configuration["Ocr:Provider"];
+if (string.Equals(ocrProvider, "azure-vision", StringComparison.OrdinalIgnoreCase)
+    && !string.IsNullOrWhiteSpace(builder.Configuration["Ocr:Azure:ApiKey"]))
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IOcrService, Planscape.Infrastructure.Services.AzureVisionOcrService>();
+else
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IOcrService, Planscape.Infrastructure.Services.NullOcrService>();
+
+// ── NLP (NLP-AUTO-LINK) — rule-based + LLM fallback. Provider auto-selected
+//    from config; defaults to the Null implementation so builds stay
+//    deterministic without credentials.
+var nlpProvider = builder.Configuration["Nlp:Provider"];
+if (string.Equals(nlpProvider, "azure-openai", StringComparison.OrdinalIgnoreCase)
+    && !string.IsNullOrWhiteSpace(builder.Configuration["Nlp:Azure:ApiKey"]))
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpLlmResolver, Planscape.Infrastructure.Services.AzureOpenAiLlmResolver>();
+else
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpLlmResolver, Planscape.Infrastructure.Services.NullLlmResolver>();
 builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpResolver, Planscape.Infrastructure.Services.NlpResolver>();
 if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
     || !string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
@@ -158,6 +172,9 @@ else
 // also lets us deliver to Expo Go + TestFlight dev builds without Firebase creds.
 builder.Services.AddHttpClient("FCM");
 builder.Services.AddHttpClient("Expo");
+builder.Services.AddHttpClient("webhook");
+// T3 — Slack / Teams outbound webhook dispatcher (fire-and-forget).
+builder.Services.AddSingleton<Planscape.Infrastructure.Services.ChatWebhookDispatcher>();
 builder.Services.AddSingleton<Planscape.Infrastructure.Services.ExpoPushService>();
 if (!string.IsNullOrEmpty(builder.Configuration["Firebase:ProjectId"])
     || !string.IsNullOrEmpty(builder.Configuration["Expo:AccessToken"])
@@ -183,6 +200,10 @@ builder.Services.AddSignalR().AddStackExchangeRedis(redisConn, options =>
 {
     options.Configuration.ChannelPrefix = RedisChannel.Literal("Planscape");
 });
+
+// T3 — in-memory SignalR presence tracker (scales per-node; the Redis
+// backplane above handles the fan-out broadcast for horizontal scale).
+builder.Services.AddSingleton<Planscape.Infrastructure.SignalR.PresenceTracker>();
 
 // ── Hangfire background jobs ──
 builder.Services.AddHangfire(config => config
