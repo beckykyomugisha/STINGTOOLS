@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, getBaseUrl, getToken } from './client';
 import type {
   LoginRequest,
   LoginResponse,
@@ -9,6 +9,8 @@ import type {
   DocumentRecord,
   DashboardData,
   TaggedElement,
+  ProjectMember,
+  IssueAttachment,
 } from '../types/api';
 
 // ── Auth ──
@@ -97,4 +99,80 @@ export function lookupElement(
   return apiFetch(
     `/api/tagsync/elements/search?projectId=${projectId}&q=${encodeURIComponent(query)}`
   );
+}
+
+// ── Project Members (NEW-MOB-13) ──
+
+export function listProjectMembers(projectId: string): Promise<ProjectMember[]> {
+  return apiFetch(`/api/projects/${projectId}/members`);
+}
+
+// ── Issue Attachments (NEW-MOB-15) ──
+
+export function listIssueAttachments(
+  projectId: string,
+  issueId: string
+): Promise<IssueAttachment[]> {
+  return apiFetch(`/api/projects/${projectId}/issues/${issueId}/attachments`);
+}
+
+export interface UploadAttachmentArgs {
+  projectId: string;
+  issueId: string;
+  uri: string;
+  fileName: string;
+  contentType: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+/**
+ * Upload an issue attachment using multipart/form-data.
+ * Sends X-Latitude/X-Longitude headers when GPS available so server
+ * geofence + EXIF persistence can pick them up.
+ */
+export async function uploadIssueAttachment(
+  args: UploadAttachmentArgs
+): Promise<IssueAttachment> {
+  const base = await getBaseUrl();
+  const token = await getToken();
+  const form = new FormData();
+  // React Native FormData accepts { uri, name, type } objects
+  form.append('file', {
+    uri: args.uri,
+    name: args.fileName,
+    type: args.contentType,
+  } as unknown as Blob);
+
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (args.latitude !== undefined) headers['X-Latitude'] = String(args.latitude);
+  if (args.longitude !== undefined) headers['X-Longitude'] = String(args.longitude);
+
+  const res = await fetch(
+    `${base}/api/projects/${args.projectId}/issues/${args.issueId}/attachments`,
+    { method: 'POST', headers, body: form }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Upload failed: HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ── Push token registration (NEW-MOB-18) ──
+
+export interface SubscribeArgs {
+  token: string;
+  platform: string;
+  deviceId?: string;
+  appVersion?: string;
+  model?: string;
+}
+
+export function subscribePushToken(args: SubscribeArgs): Promise<void> {
+  return apiFetch('/api/notifications/subscribe', {
+    method: 'POST',
+    body: JSON.stringify(args),
+  });
 }

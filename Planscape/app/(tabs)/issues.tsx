@@ -14,8 +14,13 @@ import {
   Platform,
 } from 'react-native';
 import { theme, getPriorityColor } from '@/utils/theme';
-import { listProjects, listIssues, createIssue } from '@/api/endpoints';
-import type { BimIssue, Project } from '@/types/api';
+import { listProjects, listIssues, createIssue, uploadIssueAttachment } from '@/api/endpoints';
+import type { BimIssue, Project, ProjectMember } from '@/types/api';
+import { imageService, CapturedImage } from '@/services/imageService';
+import { locationService } from '@/services/locationService';
+import { MemberPicker } from '@/components/MemberPicker';
+import * as Application from 'expo-application';
+import * as Device from 'expo-device';
 
 type PriorityFilter = 'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 type StatusFilter = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
@@ -38,6 +43,10 @@ export default function IssuesScreen() {
   const [newDescription, setNewDescription] = useState('');
   const [newType, setNewType] = useState('RFI');
   const [newPriority, setNewPriority] = useState<BimIssue['priority']>('MEDIUM');
+  const [newAssignee, setNewAssignee] = useState<ProjectMember | null>(null);
+  const [newPhotos, setNewPhotos] = useState<CapturedImage[]>([]);
+  const [showMemberPicker, setShowMemberPicker] = useState(false);
+  const [creationStatus, setCreationStatus] = useState<string | null>(null);
 
   const [selectedIssue, setSelectedIssue] = useState<BimIssue | null>(null);
 
@@ -99,27 +108,93 @@ export default function IssuesScreen() {
     closed: issues.filter((i) => i.status === 'CLOSED').length,
   };
 
+  async function handleAddPhoto(source: 'camera' | 'library') {
+    try {
+      const captured = source === 'camera'
+        ? await imageService.captureFromCamera()
+        : await imageService.pickFromLibrary();
+      if (!captured) return;
+      const compressed = await imageService.compress(captured.uri).catch(() => captured);
+      setNewPhotos(prev => [...prev, compressed]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Photo capture failed');
+    }
+  }
+
+  function handleRemovePhoto(index: number) {
+    setNewPhotos(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function resetCreateForm() {
+    setNewTitle('');
+    setNewDescription('');
+    setNewType('RFI');
+    setNewPriority('MEDIUM');
+    setNewAssignee(null);
+    setNewPhotos([]);
+    setCreationStatus(null);
+  }
+
   async function handleCreate() {
     if (!activeProject || !newTitle.trim()) return;
     setCreating(true);
+    setCreationStatus('Capturing site location…');
+    let location: { latitude: number; longitude: number; accuracy: number | null } | null = null;
     try {
-      await createIssue(activeProject.id, {
+      const loc = await locationService.getCurrent();
+      if (loc) location = { latitude: loc.latitude, longitude: loc.longitude, accuracy: loc.accuracy };
+    } catch (err) {
+      // Permission denied or no signal — proceed without coordinates
+      console.warn('[issues.create] location capture failed', err);
+    }
+
+    const deviceId = Application.getAndroidId?.() ?? (await Application.getIosIdForVendorAsync?.()) ?? null;
+
+    try {
+      setCreationStatus('Creating issue…');
+      const created = await createIssue(activeProject.id, {
         title: newTitle.trim(),
         description: newDescription.trim(),
         type: newType,
         priority: newPriority,
         status: 'OPEN',
+        assignee: newAssignee?.displayName ?? '',
+        assigneeEmail: newAssignee?.email,
+        assigneeUserId: newAssignee?.userId,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+        locationAccuracy: location?.accuracy ?? undefined,
+        deviceId: deviceId ?? undefined,
       });
+
+      // Upload attachments after issue exists. Failures don't block the create.
+      for (let i = 0; i < newPhotos.length; i++) {
+        const p = newPhotos[i];
+        setCreationStatus(`Uploading photo ${i + 1} of ${newPhotos.length}…`);
+        try {
+          await uploadIssueAttachment({
+            projectId: activeProject.id,
+            issueId: created.id,
+            uri: p.uri,
+            fileName: p.fileName ?? `site-${Date.now()}-${i}.jpg`,
+            contentType: p.type ?? 'image/jpeg',
+            latitude: location?.latitude,
+            longitude: location?.longitude,
+          });
+        } catch (uploadErr) {
+          console.warn(`[issues.create] photo ${i} upload failed`, uploadErr);
+        }
+      }
       setShowCreate(false);
-      setNewTitle('');
-      setNewDescription('');
-      setNewType('RFI');
-      setNewPriority('MEDIUM');
+      resetCreateForm();
       loadData(activeProject.id);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to create issue';
+      setError(msg);
       // Stay on form so user can retry
     } finally {
       setCreating(false);
+      setCreationStatus(null);
     }
   }
 
@@ -269,8 +344,77 @@ export default function IssuesScreen() {
               ))}
             </View>
 
+            <Text style={styles.inputLabel}>Assignee</Text>
+            <TouchableOpacity
+              style={styles.modalInput}
+              onPress={() => setShowMemberPicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Pick assignee"
+            >
+              <Text style={{
+                fontSize: theme.fontSize.md,
+                color: newAssignee ? theme.colors.text : theme.colors.disabled,
+              }}>
+                {newAssignee
+                  ? `${newAssignee.displayName} (${newAssignee.email})`
+                  : 'Tap to choose a project member'}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.inputLabel}>Photos ({newPhotos.length})</Text>
+            <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginTop: 4 }}>
+              <TouchableOpacity
+                style={[styles.typeChip, { flexDirection: 'row' }]}
+                onPress={() => handleAddPhoto('camera')}
+                accessibilityRole="button"
+                accessibilityLabel="Take a photo with the camera"
+              >
+                <Text style={styles.typeChipText}>📷  Camera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeChip, { flexDirection: 'row' }]}
+                onPress={() => handleAddPhoto('library')}
+                accessibilityRole="button"
+                accessibilityLabel="Pick a photo from library"
+              >
+                <Text style={styles.typeChipText}>🖼  Library</Text>
+              </TouchableOpacity>
+            </View>
+            {newPhotos.length > 0 && (
+              <ScrollView horizontal style={{ marginTop: theme.spacing.sm }}>
+                {newPhotos.map((p, i) => (
+                  <TouchableOpacity
+                    key={`${p.uri}-${i}`}
+                    onPress={() => handleRemovePhoto(i)}
+                    accessibilityLabel={`Remove photo ${i + 1}`}
+                  >
+                    <View style={{
+                      width: 64, height: 64, marginRight: 8,
+                      borderRadius: 6, borderWidth: 1, borderColor: theme.colors.border,
+                      alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: theme.colors.background,
+                    }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 11 }}>{i + 1} ✕</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {creationStatus && (
+              <Text style={{
+                marginTop: theme.spacing.sm,
+                fontSize: theme.fontSize.xs,
+                color: theme.colors.textSecondary,
+                textAlign: 'center',
+              }}>{creationStatus}</Text>
+            )}
+
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowCreate(false)}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => { setShowCreate(false); resetCreateForm(); }}
+              >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -288,6 +432,17 @@ export default function IssuesScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Member picker (NEW-MOB-13) */}
+      {activeProject && (
+        <MemberPicker
+          visible={showMemberPicker}
+          projectId={activeProject.id}
+          selectedEmail={newAssignee?.email}
+          onSelect={setNewAssignee}
+          onClose={() => setShowMemberPicker(false)}
+        />
+      )}
 
       {/* Issue Detail Modal */}
       <Modal visible={!!selectedIssue} animationType="slide" transparent>

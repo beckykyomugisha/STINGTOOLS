@@ -19,6 +19,7 @@
     "@react-navigation/bottom-tabs": "^7.0.0",
     "@react-navigation/native": "^7.0.0",
     "expo": "~52.0.0",
+    "expo-application": "^55.0.14",
     "expo-camera": "~16.0.0",
     "expo-device": "~7.0.0",
     "expo-file-system": "^55.0.16",

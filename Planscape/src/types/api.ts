@@ -59,12 +59,37 @@ export interface BimIssue {
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
   assignee: string;
+  assigneeEmail?: string;
+  assigneeUserId?: string;
   discipline: string;
   revision: string;
   elementIds: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  latitude?: number;
+  longitude?: number;
+  locationAccuracy?: number;
+  deviceId?: string;
+  attachmentCount?: number;
+}
+
+export interface ProjectMember {
+  userId: string;
+  email: string;
+  displayName: string;
+  projectRole: string;
+  iso19650Role: string;
+}
+
+export interface IssueAttachment {
+  id: string;
+  issueId: string;
+  documentId: string;
+  fileName: string;
+  contentType: string;
+  thumbnailUrl?: string;
+  uploadedAt: string;
 }
 
 export interface DocumentRecord {
