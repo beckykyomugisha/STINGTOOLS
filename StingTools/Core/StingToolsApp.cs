@@ -100,6 +100,15 @@ namespace StingTools.Core
                     {
                         SyncScheduler.Start(serverUrl, authToken);
                         StingLog.Info($"SyncScheduler started against {serverUrl}");
+
+                        // INT-07 — keep the dock-panel sync chip in step with each sync attempt.
+                        if (SyncScheduler.Instance != null)
+                        {
+                            SyncScheduler.Instance.OnSyncComplete += _ =>
+                            {
+                                StingDockPanel.LastInstance?.RefreshSyncIndicator();
+                            };
+                        }
                     }
                     else
                     {
