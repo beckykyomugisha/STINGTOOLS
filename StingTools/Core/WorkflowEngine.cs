@@ -1510,6 +1510,11 @@ namespace StingTools.Core
                 // ExportModelHealth instead. Added here so both dispatch paths hit the
                 // real role/folder CSV exporter.
                 case "ExportPermissionMatrix": return new BIMManager.ExportPermissionMatrixCommand();
+
+                // Phase 96: Code Legend button dispatched from BCC Overview + Document Manager
+                // share bar. Same double-path issue as QR — only wired in StingCommandHandler
+                // so BCC's ExternalEvent path produced "Action 'CodeLegend' is not handled."
+                case "CodeLegend":             return new Tags.CodeLegendCommand();
                 // WF-02: EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand.
                 // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
                 // which is handled by the plugin hook fallback + error logging in RunCommandByTag.
