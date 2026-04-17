@@ -19,6 +19,10 @@ namespace StingTools.Core
     /// SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW.
     /// The ribbon tab contains only a single toggle button to show/hide the panel.
     /// </summary>
+    // Revit hosts this plugin on Windows only; the whole class uses Windows-only
+    // APIs from Planscape.PluginSync (SyncScheduler / OfflineQueue) so declare the
+    // platform guarantee up front to satisfy CA1416.
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public class StingToolsApp : IExternalApplication
     {
         public static string AssemblyPath { get; private set; }

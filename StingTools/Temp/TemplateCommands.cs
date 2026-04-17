@@ -1152,8 +1152,8 @@ namespace StingTools.Temp
                 if (paletteLookup.HasValue)
                 {
                     template.DetailLevel = ViewDetailLevel.Fine;
-                    var (palette, accent) = paletteLookup.Value;
-                    PresentationStyleHelper.ApplyPalette(template, palette, accent, solidFill);
+                    var (palette, paletteAccent) = paletteLookup.Value;
+                    PresentationStyleHelper.ApplyPalette(template, palette, paletteAccent, solidFill);
 
                     // Discipline filters still apply — they just use the palette's
                     // base line colour so everything reads monochromatic with the
