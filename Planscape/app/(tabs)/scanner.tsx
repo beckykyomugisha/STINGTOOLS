@@ -11,10 +11,13 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { theme, getRAGColor } from '@/utils/theme';
 import { listProjects, lookupElement } from '@/api/endpoints';
 import type { Project, TaggedElement } from '@/types/api';
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
+import { parseQr } from '@/services/qrParser';
 
 interface ScanHistoryEntry {
   query: string;
@@ -43,10 +46,59 @@ export default function ScannerScreen() {
   const [searching, setSearching] = useState(false);
   const [history, setHistory] = useState<ScanHistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
 
   useEffect(() => {
     loadProjects();
   }, []);
+
+  async function openScanner() {
+    if (!permission?.granted) {
+      const res = await requestPermission();
+      if (!res.granted) {
+        Alert.alert(
+          'Camera permission required',
+          'Enable camera access in Settings to scan QR codes on site.',
+        );
+        return;
+      }
+    }
+    setScanning(true);
+  }
+
+  async function onBarcodeScanned(result: BarcodeScanningResult) {
+    if (!scanning) return;
+    setScanning(false);
+    const parsed = parseQr(result.data);
+    if (parsed.type === 'unknown' || !parsed.id) {
+      // Drop the raw payload into the search box so users can refine
+      setQuery(result.data);
+      Alert.alert('Unrecognised code', `Scanned: ${result.data}`);
+      return;
+    }
+    // Treat element/issue/document QR payloads as element tag lookup
+    setQuery(parsed.id);
+    if (activeProject) {
+      setSearching(true);
+      setError(null);
+      try {
+        const elements = await lookupElement(activeProject.id, parsed.id);
+        setResults(elements);
+        setHistory(prev => [
+          { query: parsed.id!, resultCount: elements.length, timestamp: new Date().toISOString() },
+          ...prev.slice(0, 19),
+        ]);
+        if (elements.length === 0) {
+          Alert.alert('No match', `Scanned ${parsed.id} — no element in this project.`);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Lookup failed');
+      } finally {
+        setSearching(false);
+      }
+    }
+  }
 
   async function loadProjects() {
     setLoading(true);
@@ -174,21 +226,49 @@ export default function ScannerScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* QR scan button (mock - real camera would use expo-camera) */}
+        {/* QR scan button (MOB-01: live expo-camera) */}
         <TouchableOpacity
           style={styles.qrButton}
-          onPress={() =>
-            Alert.alert(
-              'QR Scanner',
-              'Camera-based QR scanning requires a physical device with expo-camera.\n\nUse the text input above to look up assets by tag code.',
-              [{ text: 'OK' }]
-            )
-          }
+          onPress={openScanner}
+          accessibilityRole="button"
+          accessibilityLabel="Open QR code scanner"
         >
           <Text style={styles.qrIcon}>[ ]</Text>
           <Text style={styles.qrButtonText}>Scan QR Code</Text>
-          <Text style={styles.qrHint}>Requires device camera</Text>
+          <Text style={styles.qrHint}>
+            {permission?.granted ? 'Tap to open camera' : 'Camera access required'}
+          </Text>
         </TouchableOpacity>
+
+        {/* Live camera scanner modal */}
+        <Modal visible={scanning} animationType="slide" onRequestClose={() => setScanning(false)}>
+          <View style={{ flex: 1, backgroundColor: '#000' }}>
+            <CameraView
+              style={{ flex: 1 }}
+              barcodeScannerSettings={{ barcodeTypes: ['qr', 'pdf417', 'code128', 'code39', 'ean13'] }}
+              onBarcodeScanned={onBarcodeScanned}
+            />
+            <View style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              padding: 24, alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)',
+            }}>
+              <Text style={{ color: '#fff', marginBottom: 12, fontSize: 14 }}>
+                Point at an asset QR or barcode
+              </Text>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: theme.colors.accent,
+                  paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8,
+                }}
+                onPress={() => setScanning(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel scanning"
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {error && (
           <View style={styles.errorBanner}>
