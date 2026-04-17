@@ -610,22 +610,39 @@ namespace StingTools.UI
             FontFamily = new FontFamily("Segoe UI");
             ResizeMode = ResizeMode.CanResizeWithGrip;
 
-            // Fix window z-order: set Revit as owner and bring BCC to front after load
-            this.Loaded += (_, _) =>
+            // Phase 101: fix BCC z-order (BCC was dropping behind Revit when the
+            // Revit main window was clicked).
+            //
+            // WindowInteropHelper.Owner MUST be set BEFORE the window's HWND is
+            // realised — i.e. during SourceInitialized, not Loaded. Setting it
+            // in Loaded (Phase 98) was too late: by then the HWND was already
+            // parented to the desktop root, so Windows did not keep it z-ordered
+            // above the Revit main window. Moving the owner assignment to
+            // SourceInitialized means BCC behaves as a true child of Revit and
+            // stays above it for the life of the window.
+            this.SourceInitialized += (_, _) =>
             {
                 try
                 {
-                    // Try Revit-specific window class first, fall back to main process window
                     var revitHwnd = NativeMethods.FindWindow("Rvt_MainWindow", null);
-                    var handle = revitHwnd != IntPtr.Zero ? revitHwnd
+                    var handle = revitHwnd != IntPtr.Zero
+                        ? revitHwnd
                         : System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
                     if (handle != IntPtr.Zero)
                         new System.Windows.Interop.WindowInteropHelper(this).Owner = handle;
                 }
-                catch (Exception exOwner) { StingLog.Warn($"BIMCoordCenter window owner: {exOwner.Message}"); }
-                // Ensure BCC comes to front after Revit takes focus back
-                Dispatcher.BeginInvoke(new Action(() => { Topmost = true; Activate(); Focus(); Topmost = false; }),
-                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+                catch (Exception exOwner) { StingLog.Warn($"BIMCoordCenter SourceInitialized owner: {exOwner.Message}"); }
+            };
+            this.Loaded += (_, _) =>
+            {
+                // Pulse Topmost briefly so the BCC is brought to the front after
+                // Revit re-activates during startup. Leaving Topmost=true would
+                // force BCC above every Windows app (including browsers), which
+                // the user doesn't want — so we flip it back off on the next tick.
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    Topmost = true; Activate(); Focus(); Topmost = false;
+                }), System.Windows.Threading.DispatcherPriority.ContextIdle);
             };
 
             var root = new Grid();
@@ -690,10 +707,11 @@ namespace StingTools.UI
                 }
                 if (e.Key == Key.F5)
                 {
-                    // Refresh current tab
-                    if (_currentTab != null && _tabCache.ContainsKey(_currentTab))
-                        _tabCache.Remove(_currentTab);
-                    if (_currentTab != null) NavigateTo(_currentTab);
+                    // Phase 101: F5 now triggers a full reload (rebuild CoordData
+                    // on the API thread, re-render the current tab) — same as
+                    // the Refresh button on the header. Previously F5 only
+                    // re-rendered the cached tab without refreshing model data.
+                    ReloadAll();
                     e.Handled = true;
                 }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.E)
@@ -764,9 +782,32 @@ namespace StingTools.UI
             });
             hGrid.Children.Add(leftStack);
 
-            // Right: RAG indicator + compliance + date
+            // Right: Refresh + RAG indicator + compliance + date
             var rightStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(rightStack, 1);
+
+            // Phase 101: Refresh button FIRST in the right stack so it sits to
+            // the LEFT of the compliance % per user feedback. Rebuilds
+            // CoordData on the Revit API thread via ExternalEvent, wipes the
+            // tab cache so EVERY tab (not just the current one) re-renders on
+            // next visit, and shows the current tab with fresh data
+            // immediately. Same behaviour as F5.
+            var refreshBtn = new Button
+            {
+                Content = "\u21BB  Refresh",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Background = Br(Color.FromRgb(0x1E, 0x88, 0xE5)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(10, 3, 10, 3),
+                Margin = new Thickness(0, 0, 14, 0),
+                Cursor = Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Reload every BCC tab from the current model state (F5 also works). Rebuilds compliance, warnings, issues, revisions, workflows, QA, 4D/5D, deliverables, meetings, team, and coord log."
+            };
+            refreshBtn.Click += (s, e) => ReloadAll();
+            rightStack.Children.Add(refreshBtn);
 
             // RAG circle
             var ragColor = _data.RAGStatus == "GREEN" ? CGreen : _data.RAGStatus == "AMBER" ? CAmber : CRed;
@@ -784,6 +825,7 @@ namespace StingTools.UI
                 Foreground = Br(Color.FromRgb(0x90, 0xCA, 0xF9)), FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center
             });
+
             hGrid.Children.Add(rightStack);
 
             header.Child = hGrid;
@@ -2695,7 +2737,20 @@ namespace StingTools.UI
             };
             stack.Children.Add(createFormHeader);
 
-            var codeDropdown = new ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0), MinWidth = 280, ToolTip = "Select ISO 19650 revision code (9 series: Tender, Preliminary, Contract, Construction, Revision, Building, Digital, Approved, As-Built + status stamps)" };
+            // Phase 101: IsEditable=true so coordinators can type a bespoke
+            // revision code directly into the combo (e.g. internal codes like
+            // "PQ-01" or stage-gate ids like "G3-A"). Typed values are taken
+            // as the Code verbatim; preset items still populate the Tag on
+            // selection. Helper below reads the right value depending on mode.
+            var codeDropdown = new ComboBox
+            {
+                Height = 28, FontSize = 11, Margin = new Thickness(0, 0, 8, 0),
+                MinWidth = 280,
+                IsEditable = true,
+                IsTextSearchEnabled = true,
+                StaysOpenOnEdit = true,
+                ToolTip = "Select a preset ISO 19650 revision code, or type a custom code (9 series: Tender, Preliminary, Contract, Construction, Revision, Building, Digital, Approved, As-Built + status stamps)"
+            };
             // Phase 99: all 9 series now rendered. Each series gets a coloured
             // non-selectable header so BIM coordinators can see the section divisions.
             void AddSeriesHeader(string label, Color headerColour)
@@ -2760,9 +2815,17 @@ namespace StingTools.UI
             };
             createBtn.Click += (s, e) =>
             {
-                string selCode = (codeDropdown.SelectedItem as ComboBoxItem)?.Tag as string ?? "P01";
+                // Phase 101: dropdown is now IsEditable — fall back to typed Text
+                // (with | stripped so it can't break the pipe-delimited dispatch)
+                // when the user enters a custom code that isn't in the preset list.
+                string selCode = (codeDropdown.SelectedItem as ComboBoxItem)?.Tag as string;
+                if (string.IsNullOrWhiteSpace(selCode))
+                {
+                    selCode = codeDropdown.Text?.Trim()?.Replace("|", "/");
+                    if (string.IsNullOrWhiteSpace(selCode)) selCode = "P01";
+                }
                 string selDisc = (discDropdown.SelectedItem as ComboBoxItem)?.Tag as string ?? "ALL";
-                string selDesc = descBox.Text?.Trim();
+                string selDesc = descBox.Text?.Trim()?.Replace("|", "/");
                 if (string.IsNullOrEmpty(selDesc)) selDesc = "Revision";
                 DispatchAction($"CreateRevision|{selCode}|{selDisc}|{selDesc}");
             };
@@ -8472,6 +8535,56 @@ namespace StingTools.UI
         public List<string> GetTeamMemberNames()
             => _data?.TeamMembers?.Select(m => m.Name).Where(n => !string.IsNullOrEmpty(n)).ToList()
                ?? new List<string>();
+
+        /// <summary>Phase 101: dispatch action to rebuild CoordData on the Revit API
+        /// thread and refresh the whole BCC surface (replaces close + reopen).
+        /// Runs through the ActionDispatcher / ExternalEvent pipeline so the data
+        /// rebuild (FilteredElementCollector work) happens on the Revit API
+        /// thread; <see cref="ApplyReloadedData"/> is then called on the WPF
+        /// thread to swap <see cref="_data"/> and re-render.</summary>
+        public void ReloadAll()
+        {
+            try
+            {
+                // Show a brief visual cue so the user sees something happened.
+                if (_statusBar != null) _statusBar.Text = "Refreshing…";
+                ActionDispatcher?.Invoke("BCCReload");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BCC.ReloadAll: {ex.Message}");
+                if (_statusBar != null) _statusBar.Text = $"Refresh failed: {ex.Message}";
+            }
+        }
+
+        /// <summary>Phase 101: invoked from the Revit API thread (via BCCReload
+        /// action) after CoordData has been rebuilt. Swaps the data, clears the
+        /// tab cache, refreshes badges, and re-renders the current tab.</summary>
+        public void ApplyReloadedData(CoordData fresh)
+        {
+            if (fresh == null) return;
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    _data = fresh;
+                    _tabCache.Clear();
+                    _4dPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _revPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _workflowPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _modelHealthActionArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _issueContextArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    RefreshBadges();
+                    if (!string.IsNullOrEmpty(_currentTab)) NavigateTo(_currentTab);
+                    if (_statusBar != null) _statusBar.Text = $"Refreshed \u2713  {DateTime.Now:HH:mm:ss}";
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BCC.ApplyReloadedData: {ex.Message}");
+                    if (_statusBar != null) _statusBar.Text = $"Refresh failed: {ex.Message}";
+                }
+            });
+        }
 
         /// <summary>Phase 77 Item 11C: Refresh nav panel badge counts from live data.</summary>
         public void RefreshBadges()

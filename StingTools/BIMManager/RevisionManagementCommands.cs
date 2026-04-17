@@ -572,31 +572,30 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception pEx) { StingLog.Warn($"CreateRevision param parse: {pEx.Message}"); }
 
-                // If no params from BCC, fall back to TaskDialog picker
+                // Phase 101: the stepped TaskDialog picker that used to live here
+                // has been removed — the BCC Revisions tab is now the only entry
+                // point for creating revisions, and it passes ISO code +
+                // discipline + description via the pipe-delimited parser above.
+                // If an external caller invokes this command with no inline
+                // form (e.g. ribbon button) we still pick sensible defaults so
+                // the command never crashes: series = P (Preliminary),
+                // discipline = ALL, description = "New Revision". Users who
+                // need a different code can open the BCC Revisions tab.
                 if (string.IsNullOrEmpty(userDesc))
                 {
-                    var td = new TaskDialog("StingTools Create Revision")
-                    {
-                        MainInstruction = $"Create Revision #{nextSeq}",
-                        MainContent = "Select the ISO 19650 revision series.\n\n" +
-                            "Tip: use the BCC Revisions tab for the full ISO code dropdown and discipline selector.",
-                        CommonButtons = TaskDialogCommonButtons.Cancel
-                    };
-                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Preliminary Issue  (P{nextSeq:D2})");
-                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"Construction Issue (C{nextSeq:D2})");
-                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, nextSeq <= 26
-                        ? $"As-Built Issue ({(char)('A' + nextSeq - 1)})"
-                        : $"As-Built Issue (Z{nextSeq - 26})");
-                    var tdResult = td.Show();
-                    if (tdResult == TaskDialogResult.Cancel) return Result.Cancelled;
-                    isoCode = tdResult == TaskDialogResult.CommandLink1 ? $"P{nextSeq:D2}"
-                            : tdResult == TaskDialogResult.CommandLink2 ? $"C{nextSeq:D2}"
-                            : nextSeq <= 26 ? ((char)('A' + nextSeq - 1)).ToString() : $"Z{nextSeq - 26}";
+                    userDesc = $"New Revision {nextSeq}";
+                    StingLog.Info($"CreateRevision called with no BCC params — defaulting to {isoCode} / ALL / '{userDesc}'. Use BCC Revisions tab for the full form.");
                 }
 
                 string prefix = isoCode;
-                string seriesName = isoCode.StartsWith("P") ? "Preliminary"
-                    : isoCode.StartsWith("C") ? "Construction" : "As-Built";
+                // Phase 101: infer the series label for the revision name. The
+                // BCC dropdown now supports 9 series plus custom free-text, so
+                // expand the naive "P → Preliminary / C → Construction / else
+                // → As-Built" heuristic to cover every series prefix. Custom
+                // codes that don't match any prefix default to "Custom" — the
+                // full code still appears verbatim in the description so no
+                // information is lost.
+                string seriesName = InferSeriesName(isoCode);
 
                 string description = string.IsNullOrEmpty(userDesc)
                     ? RevisionEngine.BuildRevisionName(doc, nextSeq, seriesName)
@@ -713,6 +712,37 @@ namespace StingTools.BIMManager
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>Phase 101: map a revision ISO code to its series label for
+        /// the human-readable revision name. Covers all 9 series in the BCC
+        /// dropdown (Tender, Preliminary, Contract, Construction, Revision,
+        /// Building, Digital, Approved, As-Built) plus status stamps. Custom
+        /// codes that don't match any known prefix fall back to "Custom" so
+        /// bespoke project series (e.g. "PQ-01", "G3-A") still get a sensible
+        /// label — the full code still appears verbatim in the description.</summary>
+        private static string InferSeriesName(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return "Custom";
+            string c = code.Trim().ToUpperInvariant();
+            // Multi-character prefixes first (must match before single-letter checks).
+            if (c.StartsWith("CO")) return "Contract";
+            if (c.StartsWith("AB")) return "As-Built";
+            if (c.StartsWith("IF") || c == "WD" || c == "SS" || c == "OB") return "Status Stamp";
+            // Single-letter series.
+            switch (c[0])
+            {
+                case 'T': return "Tender";
+                case 'P': return "Preliminary";
+                case 'C': return "Construction";
+                case 'R': return "Revision";
+                case 'B': return "Building";
+                case 'D': return "Digital";
+                case 'A': return "Approved";
+            }
+            // Plain single-letter as-built codes (A–Z without suffix).
+            if (c.Length == 1 && c[0] >= 'A' && c[0] <= 'Z') return "As-Built";
+            return "Custom";
         }
     }
 

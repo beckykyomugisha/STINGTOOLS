@@ -4152,6 +4152,37 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { StingLog.Warn($"Cross-system correlation: {ex.Message}"); }
 
+                // Phase 101: populate CoordData.Warnings with real WarningRow
+                // data so the Warnings tab Browse / Select tree shows live
+                // warnings with real element IDs. Previously the tree was
+                // hardcoded to a sample string catalogue — double-clicking a
+                // row produced no selection because the element IDs were
+                // placeholders. Now the double-click dispatches
+                // ZoomToWarning_<desc> which resolves real IDs against
+                // doc.GetWarnings() and uses these rows for the element list.
+                try
+                {
+                    coordData.Warnings = new List<UI.BIMCoordinationCenter.WarningRow>();
+                    int rowIdx = 0;
+                    foreach (var cw in warningReport.Warnings.Take(500))
+                    {
+                        var ids = cw.FailingElements?.Select(id => id.Value).ToList()
+                                  ?? new List<long>();
+                        coordData.Warnings.Add(new UI.BIMCoordinationCenter.WarningRow
+                        {
+                            Id          = $"W{rowIdx++:D4}",
+                            Description = cw.Description ?? "(unknown warning)",
+                            Category    = cw.Category.ToString(),
+                            Severity    = cw.Severity.ToString(),
+                            ElementCount= ids.Count,
+                            AutoFixable = cw.CanAutoFix,
+                            FixStrategy = cw.FixStrategy ?? "",
+                            ElementIds  = ids
+                        });
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Warnings list populate: {ex.Message}"); }
+
                 // SLA violation detail
                 try
                 {
@@ -4475,6 +4506,21 @@ namespace StingTools.Core
                     case "EscalateActions":
                         EscalateOverdueActions(doc);
                         return;
+                    // Phase 101: BCC Refresh button (header) and F5 shortcut both
+                    // dispatch "BCCReload". Rebuild CoordData on the Revit API
+                    // thread (this method is called by BCCActionEventHandler
+                    // which is on the API thread) then push the fresh data back
+                    // to the WPF instance via ApplyReloadedData.
+                    case "BCCReload":
+                    {
+                        try
+                        {
+                            var fresh = BuildCoordData(doc);
+                            UI.BIMCoordinationCenter.CurrentInstance?.ApplyReloadedData(fresh);
+                        }
+                        catch (Exception ex) { StingLog.Error("BCCReload failed", ex); }
+                        return;
+                    }
                     case "BCCSnapshot":
                         BCCSnapshotInline(doc);
                         return;
