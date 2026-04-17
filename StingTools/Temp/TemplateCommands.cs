@@ -778,16 +778,64 @@ namespace StingTools.Temp
                     else if (csvDetail.Equals("Coarse", StringComparison.OrdinalIgnoreCase))
                         csvDl = ViewDetailLevel.Coarse;
 
-                    // Map discipline string to code
+                    // Map CSV discipline descriptor to internal discipline code.
+                    // Check CSV name first for presentation/3D/section-specific
+                    // variants so a row like "Presentation Monochrome" routes to
+                    // PRES_MONO rather than the generic PRES_C.
                     string discCode = "A";
-                    if (csvDisc.Contains("Mech")) discCode = "M";
-                    else if (csvDisc.Contains("Elec")) discCode = "E";
-                    else if (csvDisc.Contains("Plumb")) discCode = "P";
-                    else if (csvDisc.Contains("Struct")) discCode = "S";
-                    else if (csvDisc.Contains("Fire")) discCode = "FP";
-                    else if (csvDisc.Contains("Coord")) discCode = "MEP";
-                    else if (csvDisc.Contains("Pres")) discCode = "PRES_C";
-                    else if (csvDisc.Contains("Work")) discCode = "ALL";
+                    string combined = (csvName + " " + csvDisc);
+                    if      (combined.Contains("Monochrome") || combined.Contains("Mono"))
+                        discCode = combined.Contains("3D") ? "3D_MONO" : "PRES_MONO";
+                    else if (combined.Contains("Dark"))
+                        discCode = combined.Contains("3D") ? "3D_DARK" : "PRES_DARK";
+                    else if (combined.Contains("Landscape"))
+                        discCode = "PRES_LAND";
+                    else if (combined.Contains("Presentation 3D") || combined.Contains("Pres 3D"))
+                        discCode = "PRES_3D";
+                    else if (combined.Contains("3D Arch"))                    discCode = "3D_A";
+                    else if (combined.Contains("3D Struct"))                  discCode = "3D_S";
+                    else if (combined.Contains("3D Elec"))                    discCode = "3D_E";
+                    else if (combined.Contains("3D Plumb"))                   discCode = "3D_P";
+                    else if (combined.Contains("MEP 3D") || combined.Contains("Coord 3D"))
+                        discCode = "MEP_3D";
+                    else if (combined.Contains("Presentation Arch") || combined.Contains("Pres Arch"))
+                        discCode = "PRES_A";
+                    else if (combined.Contains("Presentation Struct") || combined.Contains("Pres Struct"))
+                        discCode = "PRES_S";
+                    else if (combined.Contains("Presentation Elec") || combined.Contains("Pres Elec"))
+                        discCode = "PRES_E_DISC";
+                    else if (combined.Contains("Presentation Plumb") || combined.Contains("Pres Plumb"))
+                        discCode = "PRES_P";
+                    else if (combined.Contains("Presentation MEP") || combined.Contains("Pres MEP"))
+                        discCode = "PRES_MEP";
+                    else if (combined.Contains("Presentation Enhanced") || combined.Contains("Pres Enh"))
+                        discCode = "PRES_E";
+                    else if (combined.Contains("Presentation") || combined.Contains("Pres"))
+                        discCode = "PRES_C";
+                    else if (combined.Contains("Demolition") || combined.Contains("Demo"))
+                        discCode = "DEMO";
+                    else if (combined.Contains("As-Built") || combined.Contains("Existing"))
+                        discCode = "EXIST";
+                    else if (combined.Contains("Area"))                       discCode = "AREA";
+                    else if (combined.Contains("Lighting RCP"))               discCode = "RCP_LTG";
+                    else if (combined.Contains("Ceiling") && combined.Contains("RCP"))
+                        discCode = "RCP_CLG";
+                    else if (combined.Contains("Detail Section"))             discCode = "SEC_D";
+                    else if (combined.Contains("Presentation Section") || combined.Contains("Pres Section"))
+                        discCode = "SEC_P";
+                    else if (combined.Contains("Section"))                    discCode = "SEC_W";
+                    else if (combined.Contains("Presentation Elev") || combined.Contains("Pres Elev"))
+                        discCode = "ELEV_P";
+                    else if (combined.Contains("Elev"))                       discCode = "ELEV_W";
+                    else if (csvDisc.Contains("Mech"))                        discCode = "M";
+                    else if (csvDisc.Contains("Elec"))                        discCode = "E";
+                    else if (csvDisc.Contains("Plumb"))                       discCode = "P";
+                    else if (csvDisc.Contains("Struct"))                      discCode = "S";
+                    else if (csvDisc.Contains("Fire"))                        discCode = "FP";
+                    else if (csvDisc.Contains("Low Volt") || csvDisc.Contains("LV"))
+                        discCode = "LV";
+                    else if (csvDisc.Contains("Coord"))                       discCode = "MEP";
+                    else if (csvDisc.Contains("Work"))                        discCode = "ALL";
 
                     try
                     {
@@ -890,6 +938,21 @@ namespace StingTools.Temp
                 bool IsPlumb(string n) => n.IndexOf("Plumbing", StringComparison.OrdinalIgnoreCase) >= 0;
                 bool IsAnyMEP(string n) => IsMech(n) || IsElec(n) || IsPlumb(n) || IsFire(n) || IsLV(n) || IsConduit(n);
                 bool IsDisciplineFilter(string n) => DisciplineColors.ContainsKey(n);
+
+                // Map a discipline code (M/E/P/A/S/FP/LV) to the canonical
+                // multi-category filter name used in DisciplineColors. Returns
+                // null for coordination/special codes.
+                string MapDiscToFilterName(string code) => code switch
+                {
+                    "M"  => "STING - Mechanical",
+                    "E"  => "STING - Electrical",
+                    "P"  => "STING - Plumbing",
+                    "A"  => "STING - Architectural",
+                    "S"  => "STING - Structural",
+                    "FP" => "STING - Fire Protection",
+                    "LV" => "STING - Low Voltage",
+                    _    => null,
+                };
 
                 // Iterate only the discipline filters (the colored ones).
                 IEnumerable<KeyValuePair<string, ParameterFilterElement>> DisciplineFilters() =>
@@ -1006,6 +1069,9 @@ namespace StingTools.Temp
                             PresentationStyleHelper.AddOrSet(template, kv.Value,
                                 PresentationStyleHelper.DisciplineAccent(c, 2, solidFill, 25, true));
                     }
+                    // Coordination 3D needs toggleable subsystem isolators + QA on top
+                    if (PresentationStyleHelper.DisciplineSystemFilters.TryGetValue("MEP", out var coordSys))
+                        PresentationStyleHelper.AttachSystemFilters(template, filterLookup, coordSys);
                     PresentationStyleHelper.ApplyQAOverlays(template, filterLookup, solidFill);
                     return;
                 }
@@ -1305,7 +1371,27 @@ namespace StingTools.Temp
                         }
                     }
 
-                    // Status overlays only on 2D presentation (not 3D, not mono)
+                    // Per-discipline presentation refinement: on 2D plans, layer
+                    // the Disc: parameter filter for the focus discipline so
+                    // elements tagged with DISC=<code> are precisely highlighted
+                    // regardless of their Revit category.
+                    if (!is3D && !isMono && !isLand)
+                    {
+                        string discCode = discipline switch
+                        {
+                            "PRES_A"      => "A",
+                            "PRES_S"      => "S",
+                            "PRES_E_DISC" => "E",
+                            "PRES_P"      => "P",
+                            _             => null,
+                        };
+                        if (discCode != null)
+                            PresentationStyleHelper.AttachDiscParameterFilters(template, filterLookup,
+                                discCode, accent, solidFill);
+                    }
+
+                    // Filter layering order — status then QA, so QA stays on top.
+                    // (No QA on mono/dark — they're for client output, not QA.)
                     if (!is3D && !isMono)
                         PresentationStyleHelper.ApplyStatusOverlays(template, filterLookup, doc, solidFill);
                     return;
@@ -1333,8 +1419,15 @@ namespace StingTools.Temp
                             PresentationStyleHelper.AddOrSet(template, kv.Value, ogs);
                         }
                     }
-                    PresentationStyleHelper.ApplyQAOverlays(template, filterLookup, solidFill);
+                    // Filter application order — each subsequent call layers on top:
+                    //   1. Discipline filters (above)
+                    //   2. System filters (toggleable isolators, no override)
+                    //   3. Status overlays (phase tint)
+                    //   4. QA overlays (highest priority — must override everything)
+                    if (PresentationStyleHelper.DisciplineSystemFilters.TryGetValue(discipline, out var mepSys))
+                        PresentationStyleHelper.AttachSystemFilters(template, filterLookup, mepSys);
                     PresentationStyleHelper.ApplyStatusOverlays(template, filterLookup, doc, solidFill);
+                    PresentationStyleHelper.ApplyQAOverlays(template, filterLookup, solidFill);
                     return;
                 }
 
@@ -1370,8 +1463,17 @@ namespace StingTools.Temp
                             PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(t));
                         }
                     }
-                    PresentationStyleHelper.ApplyQAOverlays(template, filterLookup, solidFill);
+                    // Filter application order: discipline → system → Disc param refinement → status → QA (top)
+                    if (PresentationStyleHelper.DisciplineSystemFilters.TryGetValue(discipline, out var sysFilters))
+                        PresentationStyleHelper.AttachSystemFilters(template, filterLookup, sysFilters);
+                    // Attach Disc: param filters for ISO 19650 precision — focus disc gets subtle accent,
+                    // others attached without override so users can toggle them off.
+                    string discFilterName = MapDiscToFilterName(discipline);
+                    if (discFilterName != null && TryDisc(discFilterName, out var discColorParam))
+                        PresentationStyleHelper.AttachDiscParameterFilters(template, filterLookup,
+                            discipline, discColorParam, solidFill);
                     PresentationStyleHelper.ApplyStatusOverlays(template, filterLookup, doc, solidFill);
+                    PresentationStyleHelper.ApplyQAOverlays(template, filterLookup, solidFill);
                     return;
                 }
 

@@ -397,37 +397,205 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Wire QA highlight filters: Untagged → bright red, Incomplete → orange.
-        /// Used on coordination/working templates so QA gaps are visible while
-        /// drafting.
+        /// <summary>
+        /// Wire the full QA filter stack with tiered severity.
+        ///   • CRITICAL (red heavy fill):  Untagged, Missing Discipline
+        ///   • HIGH    (orange):           Incomplete Tags, Missing Sequence, Missing System
+        ///   • MEDIUM  (amber):            Missing Location, No Level
+        ///   • LOW     (yellow):           Missing Zone, Missing Function, Missing Product
+        ///
+        /// Applied LAST so QA alerts visually override discipline and status
+        /// overrides — the point of QA filters is that gaps are unmistakable.
         /// </summary>
         public static void ApplyQAOverlays(View tmpl,
             Dictionary<string, ParameterFilterElement> filterLookup,
             FillPatternElement solidFill)
         {
-            if (filterLookup.TryGetValue("STING - Untagged Elements", out var fUn))
+            // ── CRITICAL tier ── red, thick projection line, red surface fill
+            ApplyQaTier(tmpl, filterLookup, solidFill,
+                "STING - Untagged Elements",
+                lineColor: new Color(220, 0, 0), fillColor: new Color(255, 200, 200),
+                lineWeight: 4, applyFill: true);
+            ApplyQaTier(tmpl, filterLookup, solidFill,
+                "STING - QA: Missing Discipline",
+                lineColor: new Color(220, 0, 0), fillColor: new Color(255, 210, 210),
+                lineWeight: 4, applyFill: true);
+
+            // ── HIGH tier ── orange, medium fill
+            ApplyQaTier(tmpl, filterLookup, solidFill,
+                "STING - Incomplete Tags",
+                lineColor: new Color(255, 130, 0), fillColor: new Color(255, 220, 180),
+                lineWeight: 3, applyFill: true);
+            ApplyQaTier(tmpl, filterLookup, solidFill,
+                "STING - QA: Missing Sequence",
+                lineColor: new Color(255, 130, 0), fillColor: new Color(255, 225, 195),
+                lineWeight: 3, applyFill: true);
+            ApplyQaTier(tmpl, filterLookup, solidFill,
+                "STING - QA: Missing System",
+                lineColor: new Color(255, 130, 0), fillColor: new Color(255, 225, 195),
+                lineWeight: 3, applyFill: true);
+
+            // ── MEDIUM tier ── amber, no fill (less disruptive)
+            ApplyQaTier(tmpl, filterLookup, solidFill,
+                "STING - QA: Missing Location",
+                lineColor: new Color(230, 180, 0), fillColor: new Color(255, 240, 200),
+                lineWeight: 3, applyFill: false);
+            ApplyQaTier(tmpl, filterLookup, solidFill,
+                "STING - QA: No Level",
+                lineColor: new Color(230, 180, 0), fillColor: new Color(255, 240, 200),
+                lineWeight: 3, applyFill: false);
+
+            // ── LOW tier ── yellow, dot-line pattern (optional token missing)
+            ApplyQaTier(tmpl, filterLookup, solidFill,
+                "STING - QA: Missing Zone",
+                lineColor: new Color(220, 210, 0), fillColor: new Color(255, 255, 200),
+                lineWeight: 2, applyFill: false);
+            ApplyQaTier(tmpl, filterLookup, solidFill,
+                "STING - QA: Missing Function",
+                lineColor: new Color(220, 210, 0), fillColor: new Color(255, 255, 200),
+                lineWeight: 2, applyFill: false);
+            ApplyQaTier(tmpl, filterLookup, solidFill,
+                "STING - QA: Missing Product",
+                lineColor: new Color(220, 210, 0), fillColor: new Color(255, 255, 200),
+                lineWeight: 2, applyFill: false);
+        }
+
+        private static void ApplyQaTier(View tmpl,
+            Dictionary<string, ParameterFilterElement> filterLookup,
+            FillPatternElement solidFill,
+            string filterName, Color lineColor, Color fillColor,
+            int lineWeight, bool applyFill)
+        {
+            if (!filterLookup.TryGetValue(filterName, out var pfe)) return;
+            var ogs = new OverrideGraphicSettings();
+            ogs.SetProjectionLineColor(lineColor);
+            ogs.SetProjectionLineWeight(Math.Max(1, Math.Min(16, lineWeight)));
+            ogs.SetCutLineColor(lineColor);
+            ogs.SetCutLineWeight(Math.Max(1, Math.Min(16, lineWeight + 1)));
+            if (applyFill && solidFill != null)
             {
-                var ogs = new OverrideGraphicSettings();
-                ogs.SetProjectionLineColor(new Color(220, 0, 0));
-                ogs.SetProjectionLineWeight(4);
-                if (solidFill != null)
-                {
-                    ogs.SetSurfaceForegroundPatternId(solidFill.Id);
-                    ogs.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
-                }
-                AddOrSet(tmpl, fUn, ogs);
+                ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                ogs.SetSurfaceForegroundPatternColor(fillColor);
+                ogs.SetCutForegroundPatternId(solidFill.Id);
+                ogs.SetCutForegroundPatternColor(fillColor);
             }
-            if (filterLookup.TryGetValue("STING - Incomplete Tags", out var fIn))
+            AddOrSet(tmpl, pfe, ogs);
+        }
+
+        /// <summary>
+        /// Attach system-level filters (Sys: HVAC, Sys: SAN, etc.) to a template
+        /// WITHOUT a graphic override. The filters become toggleable via V|G so
+        /// users can isolate a subsystem on demand without altering the default
+        /// view appearance.
+        /// </summary>
+        public static void AttachSystemFilters(View tmpl,
+            Dictionary<string, ParameterFilterElement> filterLookup,
+            IEnumerable<string> sysFilterNames)
+        {
+            if (sysFilterNames == null) return;
+            foreach (string name in sysFilterNames)
             {
-                var ogs = new OverrideGraphicSettings();
-                ogs.SetProjectionLineColor(new Color(255, 130, 0));
-                ogs.SetProjectionLineWeight(3);
-                if (solidFill != null)
+                if (!filterLookup.TryGetValue(name, out var pfe)) continue;
+                try
                 {
-                    ogs.SetSurfaceForegroundPatternId(solidFill.Id);
-                    ogs.SetSurfaceForegroundPatternColor(new Color(255, 220, 180));
+                    var existing = tmpl.GetFilters();
+                    if (!existing.Contains(pfe.Id))
+                    {
+                        tmpl.AddFilter(pfe.Id);
+                        // Visible toggle stays true; no override applied so the
+                        // filter is a pure "isolator" the coordinator can flip.
+                        tmpl.SetFilterVisibility(pfe.Id, true);
+                    }
                 }
-                AddOrSet(tmpl, fIn, ogs);
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"AttachSystemFilter '{name}' on '{tmpl.Name}': {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Canonical Sys: filter sets per discipline. Attached as toggleable
+        /// isolators on working/coordination templates.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string[]> DisciplineSystemFilters { get; } =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["M"]   = new[] { "STING - Sys: HVAC" },
+                ["E"]   = new[] { "STING - Sys: LV" },
+                ["P"]   = new[] { "STING - Sys: DCW", "STING - Sys: HWS", "STING - Sys: SAN",
+                                  "STING - Sys: RWD", "STING - Sys: GAS" },
+                ["FP"]  = new[] { "STING - Sys: FP", "STING - Sys: FLS" },
+                ["LV"]  = new[] { "STING - Sys: COM", "STING - Sys: SEC",
+                                  "STING - Sys: ICT", "STING - Sys: NCL" },
+                ["MEP"] = new[] { "STING - Sys: HVAC", "STING - Sys: DCW", "STING - Sys: HWS",
+                                  "STING - Sys: SAN", "STING - Sys: RWD", "STING - Sys: GAS",
+                                  "STING - Sys: FP",  "STING - Sys: FLS",
+                                  "STING - Sys: LV",  "STING - Sys: COM", "STING - Sys: SEC",
+                                  "STING - Sys: ICT", "STING - Sys: NCL" },
+                ["ALL"] = new[] { "STING - Sys: HVAC", "STING - Sys: DCW", "STING - Sys: HWS",
+                                  "STING - Sys: SAN", "STING - Sys: RWD", "STING - Sys: GAS",
+                                  "STING - Sys: FP",  "STING - Sys: FLS",
+                                  "STING - Sys: LV",  "STING - Sys: COM", "STING - Sys: SEC",
+                                  "STING - Sys: ICT", "STING - Sys: NCL" },
+            };
+
+        /// <summary>
+        /// Attach parameter-based Disc: filters for precision ISO 19650 isolation.
+        /// On presentation templates these refine the multi-category discipline
+        /// filter by matching on the ASS_DISCIPLINE_COD_TXT parameter — catching
+        /// cross-discipline tags (e.g. a mechanical damper placed in the
+        /// Architectural family category).
+        /// </summary>
+        public static void AttachDiscParameterFilters(View tmpl,
+            Dictionary<string, ParameterFilterElement> filterLookup,
+            string focusDiscCode, Color focusColor, FillPatternElement solidFill)
+        {
+            string[] discKeys = {
+                "STING - Disc: Mechanical", "STING - Disc: Electrical",
+                "STING - Disc: Plumbing",   "STING - Disc: Architectural",
+                "STING - Disc: Structural", "STING - Disc: Fire Protection",
+                "STING - Disc: Low Voltage",
+            };
+            string focusKey = focusDiscCode switch
+            {
+                "M"   => "STING - Disc: Mechanical",
+                "E"   => "STING - Disc: Electrical",
+                "P"   => "STING - Disc: Plumbing",
+                "A"   => "STING - Disc: Architectural",
+                "S"   => "STING - Disc: Structural",
+                "FP"  => "STING - Disc: Fire Protection",
+                "LV"  => "STING - Disc: Low Voltage",
+                _     => null,
+            };
+
+            foreach (string key in discKeys)
+            {
+                if (!filterLookup.TryGetValue(key, out var pfe)) continue;
+                try
+                {
+                    var existing = tmpl.GetFilters();
+                    if (!existing.Contains(pfe.Id))
+                    {
+                        tmpl.AddFilter(pfe.Id);
+                        tmpl.SetFilterVisibility(pfe.Id, true);
+                    }
+                    if (focusKey != null && string.Equals(key, focusKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Subtle refinement: brighter edge + slight line weight boost
+                        var ogs = new OverrideGraphicSettings();
+                        ogs.SetProjectionLineColor(focusColor);
+                        ogs.SetProjectionLineWeight(3);
+                        ogs.SetCutLineColor(Darken(focusColor, 0.2));
+                        ogs.SetCutLineWeight(4);
+                        tmpl.SetFilterOverrides(pfe.Id, ogs);
+                    }
+                    // else: attached without override — users can toggle off
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"AttachDiscParamFilter '{key}' on '{tmpl.Name}': {ex.Message}");
+                }
             }
         }
     }
