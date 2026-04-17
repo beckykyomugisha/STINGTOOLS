@@ -162,7 +162,7 @@ namespace StingTools.Temp
         /// are clearly differentiated from projected geometry.
         /// </summary>
         public static OverrideGraphicSettings CutAccent(Color c, int cutWeight,
-            FillPatternElement solidFill, Color? cutFillColor = null)
+            FillPatternElement solidFill, Color cutFillColor = null)
         {
             var ogs = new OverrideGraphicSettings();
             ogs.SetCutLineColor(c);
@@ -384,7 +384,7 @@ namespace StingTools.Temp
         public static void ApplyStatusOverlays(View tmpl,
             Dictionary<string, ParameterFilterElement> filterLookup,
             Document doc, FillPatternElement solidFill,
-            bool includeNewOverlay = false, Color? newColor = null)
+            bool includeNewOverlay = false, Color newColor = null)
         {
             if (filterLookup.TryGetValue("STING - Status: Existing", out var fEx))
                 AddOrSet(tmpl, fEx, StatusExisting(doc, solidFill));
@@ -635,8 +635,8 @@ namespace StingTools.Temp
             BuiltInCategory.OST_Sections,             // Section markers
             BuiltInCategory.OST_Elev,                 // Elevation markers
             BuiltInCategory.OST_Callouts,
-            BuiltInCategory.OST_ScopeBoxes,
-            BuiltInCategory.OST_MatchlineAxis,
+            BuiltInCategory.OST_VolumeOfInterest,   // Scope boxes
+            BuiltInCategory.OST_Matchline,
             BuiltInCategory.OST_ReferencePoints,
         };
 
