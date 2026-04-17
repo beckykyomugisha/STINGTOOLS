@@ -4453,6 +4453,25 @@ namespace StingTools.Core
                     case "TakeSnapshot":
                         TakeModelSnapshot(doc);
                         return;
+
+                    // Phase 99: inline handlers for the Raise Issue form buttons.
+                    // The StingCommandHandler versions just flag ExtraParams so the
+                    // issue creator knows extra data is attached — we do the same
+                    // here so they work from the BCC ExternalEvent path too.
+                    case "CaptureIssueSnapshot":
+                    {
+                        StingLog.Info("View snapshot captured for issue (from BCC)");
+                        UI.StingCommandHandler.SetExtraParam("IssueSnapshot", "captured");
+                        return;
+                    }
+                    case "AttachIssueLocation":
+                    {
+                        var uidoc = app?.ActiveUIDocument;
+                        string viewName = uidoc?.ActiveView?.Name ?? "Unknown";
+                        UI.StingCommandHandler.SetExtraParam("IssueLocation", $"View: {viewName}");
+                        StingLog.Info($"Issue location attached from BCC: {viewName}");
+                        return;
+                    }
                     case "EscalateActions":
                         EscalateOverdueActions(doc);
                         return;
@@ -5049,6 +5068,21 @@ namespace StingTools.Core
         /// </summary>
         private static void DispatchCoordAction(string action, ExternalCommandData commandData)
         {
+            // Phase 99: handle pipe-delimited parametric actions before anything else.
+            // BCC forms send "CreateRevision|P04|A|Coordination update" so the
+            // inline Revisions form can pass user-selected ISO code, discipline,
+            // and description straight through to CreateRevisionCommand without
+            // reopening a TaskDialog picker. CreateRevisionCommand reads the full
+            // string from CoordinationCenterCommands.BccPendingAction and parses
+            // its own params, so we set that property and re-dispatch the bare
+            // command tag.
+            if (!string.IsNullOrEmpty(action) && action.Contains("|"))
+            {
+                string head = action.Substring(0, action.IndexOf('|'));
+                BIMManager.CoordinationCenterCommands.BccPendingAction = action;
+                action = head;
+            }
+
             // Map action tags to command tags used by StingCommandHandler / WorkflowEngine
             var actionToCommandTag = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {

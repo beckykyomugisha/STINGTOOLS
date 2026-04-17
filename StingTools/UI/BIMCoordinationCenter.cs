@@ -2395,7 +2395,7 @@ namespace StingTools.UI
                            "Issue types: RFI (Request for Information), NCR (Non-Conformance Report),\n" +
                            "SI (Site Instruction), Clash, Snagging, Design, Change Order\n\n" +
                            "Issues are stored in _bim_manager/issues.json alongside the project.\n" +
-                           "BCF 2.1 export/import supported for ACC, Navisworks, BIMcollab, Solibri.",
+                           "BCF 2.1 export/import supported for Planscape (native), ACC, Navisworks, BIMcollab, Solibri, Trimble Connect, BIM Track, Revizto, Bentley iTwin, Procore.",
                     FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.Gray
                 };
                 root.Children.Add(infoCard);
@@ -2429,34 +2429,93 @@ namespace StingTools.UI
         // ════════════════════════════════════════════════════════════════
 
         // ── ISO 19650 revision code catalogue ─────────────────────────────
+        // Phase 99: comprehensive revision series per ISO 19650 / BS 1192 / UK NA 2021.
+        // Groups: Tender (T) → Preliminary (P) → Contract (Co) → Construction (C)
+        // → Revision (R) → Building (B) → Digital (D) → Approved (A) → As-Built (Z/AB).
+        // Dropdown is grouped by Series, tooltips explain when each is used.
         private static readonly (string Code, string Label, string Series, string Tooltip)[] IsoRevisionCodes =
+            BuildIsoRevisionCodes();
+
+        private static (string Code, string Label, string Series, string Tooltip)[] BuildIsoRevisionCodes()
         {
-            ("P01","P01 — Preliminary Issue 1",       "Preliminary","First preliminary issue — brief/feasibility stage"),
-            ("P02","P02 — Preliminary Issue 2",       "Preliminary","Second preliminary stage submission"),
-            ("P03","P03 — Preliminary Issue 3",       "Preliminary","Third preliminary stage submission"),
-            ("P04","P04 — Preliminary Issue 4",       "Preliminary","Fourth preliminary stage submission"),
-            ("P05","P05 — Preliminary Issue 5",       "Preliminary","Fifth preliminary stage submission"),
-            ("P06","P06 — Preliminary Issue 6",       "Preliminary","Sixth preliminary stage submission"),
-            ("P07","P07 — Preliminary Issue 7",       "Preliminary","Seventh preliminary stage submission"),
-            ("P08","P08 — Preliminary Issue 8",       "Preliminary","Eighth preliminary stage submission"),
-            ("P09","P09 — Preliminary Issue 9",       "Preliminary","Ninth preliminary stage submission"),
-            ("P10","P10 — Preliminary Issue 10",      "Preliminary","Tenth preliminary stage submission"),
-            ("C01","C01 — Construction Issue 1",      "Construction","First construction issue — tender/build"),
-            ("C02","C02 — Construction Issue 2",      "Construction","Second construction issue"),
-            ("C03","C03 — Construction Issue 3",      "Construction","Third construction issue"),
-            ("C04","C04 — Construction Issue 4",      "Construction","Fourth construction issue"),
-            ("C05","C05 — Construction Issue 5",      "Construction","Fifth construction issue"),
-            ("C06","C06 — Construction Issue 6",      "Construction","Sixth construction issue"),
-            ("C07","C07 — Construction Issue 7",      "Construction","Seventh construction issue"),
-            ("C08","C08 — Construction Issue 8",      "Construction","Eighth construction issue"),
-            ("C09","C09 — Construction Issue 9",      "Construction","Ninth construction issue"),
-            ("C10","C10 — Construction Issue 10",     "Construction","Tenth construction issue"),
-            ("A",  "A   — As-Built Revision A",       "As-Built",   "First as-built revision — post-construction record"),
-            ("B",  "B   — As-Built Revision B",       "As-Built",   "Second as-built revision"),
-            ("C",  "C   — As-Built Revision C",       "As-Built",   "Third as-built revision"),
-            ("D",  "D   — As-Built Revision D",       "As-Built",   "Fourth as-built revision"),
-            ("E",  "E   — As-Built Revision E",       "As-Built",   "Fifth as-built revision"),
-        };
+            var list = new List<(string, string, string, string)>();
+
+            // ── Tender (T-series) — used during tender / bid phase ─────────
+            for (int i = 1; i <= 10; i++)
+                list.Add(($"T{i:D2}", $"T{i:D2} — Tender Issue {i}",
+                    "Tender", $"Tender package issue {i} — pre-contract pricing / bid submission"));
+
+            // ── Preliminary (P-series) — PAS 1192-2 / ISO 19650-2 pre-contract ──
+            for (int i = 1; i <= 20; i++)
+                list.Add(($"P{i:D2}", $"P{i:D2} — Preliminary Issue {i}",
+                    "Preliminary", $"Preliminary issue {i} — design development / coordination before construction contract"));
+
+            // ── Contract (Co-series) — contract documentation (post-award) ──
+            for (int i = 1; i <= 10; i++)
+                list.Add(($"Co{i:D2}", $"Co{i:D2} — Contract Issue {i}",
+                    "Contract", $"Contract issue {i} — formally contracted documentation, pre-construction"));
+
+            // ── Construction (C-series) — construction-phase issue ────────
+            for (int i = 1; i <= 20; i++)
+                list.Add(($"C{i:D2}", $"C{i:D2} — Construction Issue {i}",
+                    "Construction", $"Construction issue {i} — authorised for building / manufacture"));
+
+            // ── Revision (R-series) — client-driven post-issue revisions ──
+            for (int i = 1; i <= 10; i++)
+                list.Add(($"R{i:D2}", $"R{i:D2} — Revision {i}",
+                    "Revision", $"Client-driven revision {i} after initial issue"));
+
+            // ── Building (B-series) — used on projects with partial sign-off (BS 1192 NA) ──
+            for (int i = 1; i <= 5; i++)
+                list.Add(($"B{i:D2}", $"B{i:D2} — Partial Sign-off {i}",
+                    "Building", $"Partial building sign-off stage {i} — occupation / phased handover"));
+
+            // ── Digital (D-series) — digital-only revisions / modelling updates ──
+            for (int i = 1; i <= 10; i++)
+                list.Add(($"D{i:D2}", $"D{i:D2} — Digital Revision {i}",
+                    "Digital", $"Digital-only revision {i} — model update without drawing reissue"));
+
+            // ── Approved (A1, A2) — client formal approval per ISO 19650-2 §5.6 ──
+            list.Add(("A1", "A1  — Approved",
+                "Approved", "Client-approved construction issue (ISO 19650-2 §5.6 unconditional approval)"));
+            list.Add(("A2", "A2  — Approved with Comments",
+                "Approved", "Client-approved with tracked comments — rework required before next revision"));
+
+            // ── As-Built (alphabetic A–Z series) — post-construction record ──
+            // Skip letters easily confused with series codes (C, D, P, R, T, B) to
+            // avoid accidental collisions with the numbered series above.
+            foreach (char ch in "AEFGHIJKLMNOQSUVWXYZ")
+                list.Add((ch.ToString(), $"{ch}   — As-Built Revision {ch}",
+                    "As-Built", $"As-built / record drawing revision {ch} — final post-construction record"));
+            // Allow AB suffix for projects that explicitly distinguish AB01+
+            for (int i = 1; i <= 10; i++)
+                list.Add(($"AB{i:D2}", $"AB{i:D2} — As-Built Record {i}",
+                    "As-Built", $"As-built record {i} — standardised AB-series used by some operators"));
+
+            // ── Special non-numeric codes commonly seen on UK projects ────
+            list.Add(("IFC", "IFC  — Issued for Coordination", "Special",
+                "Status stamp — document is being shared for clash / design coordination"));
+            list.Add(("IFA", "IFA  — Issued for Approval", "Special",
+                "Status stamp — document is issued for formal client / stage approval"));
+            list.Add(("IFR", "IFR  — Issued for Record", "Special",
+                "Status stamp — document is issued as the formal archival record"));
+            list.Add(("IFT", "IFT  — Issued for Tender", "Special",
+                "Status stamp — document is issued as part of the tender package"));
+            list.Add(("IFP", "IFP  — Issued for Planning", "Special",
+                "Status stamp — document is issued for planning permission submission"));
+            list.Add(("IFI", "IFI  — Issued for Information", "Special",
+                "Status stamp — document is issued for information only, not for design decisions"));
+            list.Add(("IFPT", "IFPT — Issued for Pre-Tender", "Special",
+                "Status stamp — document is issued ahead of formal tender for early supplier engagement"));
+            list.Add(("WD", "WD   — Withdrawn", "Special",
+                "Document has been withdrawn from the CDE — no longer valid, cannot be restored"));
+            list.Add(("SS", "SS   — Superseded", "Special",
+                "Document has been replaced by a newer revision — retained for traceability"));
+            list.Add(("OB", "OB   — Obsolete", "Special",
+                "Document is historically retained but not for use — terminal state"));
+
+            return list.ToArray();
+        }
 
         // ── ISO discipline codes for revisions / deliverables ─────────────
         private static readonly (string Code, string Label, Color Colour)[] IsoDisciplineCodes =
@@ -2636,30 +2695,47 @@ namespace StingTools.UI
             };
             stack.Children.Add(createFormHeader);
 
-            var codeDropdown = new ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0), MinWidth = 280, ToolTip = "Select ISO 19650 revision code" };
-            // Group: Preliminary
-            var prelimGroup = new ComboBoxItem { Content = "\u2500\u2500 PRELIMINARY (P-series) \u2500\u2500", IsEnabled = false, FontWeight = FontWeights.Bold, Foreground = Br(Color.FromRgb(0x15,0x65,0xC0)) };
-            codeDropdown.Items.Add(prelimGroup);
-            foreach (var rc in IsoRevisionCodes.Where(r => r.Series == "Preliminary"))
+            var codeDropdown = new ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0), MinWidth = 280, ToolTip = "Select ISO 19650 revision code (9 series: Tender, Preliminary, Contract, Construction, Revision, Building, Digital, Approved, As-Built + status stamps)" };
+            // Phase 99: all 9 series now rendered. Each series gets a coloured
+            // non-selectable header so BIM coordinators can see the section divisions.
+            void AddSeriesHeader(string label, Color headerColour)
             {
-                var item = new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip };
-                codeDropdown.Items.Add(item);
+                codeDropdown.Items.Add(new ComboBoxItem
+                {
+                    Content = $"\u2500\u2500 {label} \u2500\u2500",
+                    IsEnabled = false,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Br(headerColour)
+                });
             }
-            var constGroup = new ComboBoxItem { Content = "\u2500\u2500 CONSTRUCTION (C-series) \u2500\u2500", IsEnabled = false, FontWeight = FontWeights.Bold, Foreground = Br(Color.FromRgb(0x2E,0x7D,0x32)) };
-            codeDropdown.Items.Add(constGroup);
-            foreach (var rc in IsoRevisionCodes.Where(r => r.Series == "Construction"))
+            void AddSeries(string seriesKey, string header, Color headerColour)
             {
-                var item = new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip };
-                codeDropdown.Items.Add(item);
+                var entries = IsoRevisionCodes.Where(r => r.Series == seriesKey).ToList();
+                if (entries.Count == 0) return;
+                AddSeriesHeader(header, headerColour);
+                foreach (var rc in entries)
+                    codeDropdown.Items.Add(new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip });
             }
-            var asbuiltGroup = new ComboBoxItem { Content = "\u2500\u2500 AS-BUILT (Letter series) \u2500\u2500", IsEnabled = false, FontWeight = FontWeights.Bold, Foreground = Br(Color.FromRgb(0x6A,0x1B,0x9A)) };
-            codeDropdown.Items.Add(asbuiltGroup);
-            foreach (var rc in IsoRevisionCodes.Where(r => r.Series == "As-Built"))
+            AddSeries("Tender",       "TENDER (T-series)",              Color.FromRgb(0x45, 0x50, 0x6E));
+            AddSeries("Preliminary",  "PRELIMINARY (P-series)",         Color.FromRgb(0x15, 0x65, 0xC0));
+            AddSeries("Contract",     "CONTRACT (Co-series)",           Color.FromRgb(0x00, 0x69, 0x7C));
+            AddSeries("Construction", "CONSTRUCTION (C-series)",        Color.FromRgb(0x2E, 0x7D, 0x32));
+            AddSeries("Revision",     "REVISION (R-series)",            Color.FromRgb(0xE8, 0x91, 0x2D));
+            AddSeries("Building",     "BUILDING / PARTIAL (B-series)",  Color.FromRgb(0x4E, 0x34, 0x2E));
+            AddSeries("Digital",      "DIGITAL (D-series)",             Color.FromRgb(0x6A, 0x1B, 0x9A));
+            AddSeries("Approved",     "APPROVED (A1/A2)",               Color.FromRgb(0x2E, 0x7D, 0x32));
+            AddSeries("As-Built",     "AS-BUILT (letter + AB-series)",  Color.FromRgb(0x6A, 0x1B, 0x9A));
+            AddSeries("Special",      "STATUS STAMPS (IFC / IFA / IFR / IFT / WD / SS / OB)",
+                Color.FromRgb(0xC6, 0x28, 0x28));
+            // Default: P01 — second item (first is the Tender header)
+            for (int i = 0; i < codeDropdown.Items.Count; i++)
             {
-                var item = new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip };
-                codeDropdown.Items.Add(item);
+                if (codeDropdown.Items[i] is ComboBoxItem ci && (ci.Tag as string) == "P01")
+                {
+                    codeDropdown.SelectedIndex = i;
+                    break;
+                }
             }
-            codeDropdown.SelectedIndex = 1; // Default: P01
 
             var discDropdown = new ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0), MinWidth = 220, ToolTip = "ISO originating discipline" };
             foreach (var dc in IsoDisciplineCodes)
@@ -4858,8 +4934,24 @@ namespace StingTools.UI
                     var sp = new StackPanel();
                     sp.Children.Add(new TextBlock { Text = "BCF 2.1 Export", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
                     var platformRow = MakeCtxRow("Target Platform:");
-                    var platCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    foreach (var p in new[] { "Generic BCF 2.1", "Autodesk Construction Cloud (ACC)", "Navisworks", "BIMcollab", "Solibri", "Trimble Connect" }) platCb.Items.Add(p);
+                    var platCb = new System.Windows.Controls.ComboBox { Width = 220 };
+                    // Phase 99: Planscape listed first — BCF 2.1 round-trips through
+                    // the native Planscape server (plugin + mobile) as the primary
+                    // coordination channel; the external platforms remain available
+                    // for exchanges with third parties.
+                    foreach (var p in new[] {
+                        "Planscape (native)",
+                        "Generic BCF 2.1",
+                        "Autodesk Construction Cloud (ACC)",
+                        "Navisworks",
+                        "BIMcollab",
+                        "Solibri",
+                        "Trimble Connect",
+                        "BIM Track",
+                        "Revizto",
+                        "Bentley iTwin",
+                        "Procore"
+                    }) platCb.Items.Add(p);
                     platCb.SelectedIndex = 0;
                     platformRow.Children.Add(platCb);
                     sp.Children.Add(platformRow);

@@ -1,5 +1,5 @@
 {
-  "version": "2.0",
+  "version": "2.1",
   "generated": "2026-04-17",
   "title": "STING Tools — Complete Abbreviations and Acronyms Reference",
   "subtitle": "Every abbreviation you will encounter in the BCC, StingTools dockable panel, workflow presets, and the ISO 19650 documentation chain.",
@@ -3270,17 +3270,17 @@
       ]
     },
     {
-      "section": "Transmittal & CDE Workflow",
+      "section": "Transmittal & CDE Workflow States",
       "entries": [
         {
           "code": "DRAFT",
           "label": "Draft Transmittal",
-          "description": "Transmittal record created but not yet sent."
+          "description": "Record created but not yet sent to recipients."
         },
         {
           "code": "ISSUED",
           "label": "Issued Transmittal",
-          "description": "Transmittal sent to recipients."
+          "description": "Transmittal sent — recipients notified."
         },
         {
           "code": "ACKNOWLEDGED",
@@ -3288,9 +3288,19 @@
           "description": "Recipient has confirmed receipt."
         },
         {
+          "code": "UNDER REVIEW",
+          "label": "Under Review",
+          "description": "Recipient is actively reviewing the information."
+        },
+        {
+          "code": "COMMENTED",
+          "label": "Commented / Returned",
+          "description": "Recipient has returned comments against the submission."
+        },
+        {
           "code": "CLOSED",
           "label": "Closed Transmittal",
-          "description": "No further action required."
+          "description": "No further action required; thread closed."
         },
         {
           "code": "REJECTED",
@@ -3298,29 +3308,659 @@
           "description": "Recipient rejected the exchange — re-issue required."
         },
         {
-          "code": "REV",
-          "label": "Revision Code",
-          "description": "Revision stamp on documents (P01, C01 series)."
+          "code": "SUPERSEDED",
+          "label": "Superseded Transmittal",
+          "description": "Replaced by a later transmittal of the same documents."
+        },
+        {
+          "code": "WITHDRAWN",
+          "label": "Withdrawn Transmittal",
+          "description": "Pulled back by originator before closure."
+        }
+      ]
+    },
+    {
+      "section": "Revision Codes (ISO 19650 / BS 1192 — 9 series)",
+      "entries": [
+        {
+          "code": "T01",
+          "label": "Tender Issue 1",
+          "description": "Tender package issue 1 — pre-contract pricing / bid submission."
+        },
+        {
+          "code": "T02",
+          "label": "Tender Issue 2",
+          "description": "Tender package issue 2 — pre-contract pricing / bid submission."
+        },
+        {
+          "code": "T03",
+          "label": "Tender Issue 3",
+          "description": "Tender package issue 3 — pre-contract pricing / bid submission."
+        },
+        {
+          "code": "T04",
+          "label": "Tender Issue 4",
+          "description": "Tender package issue 4 — pre-contract pricing / bid submission."
+        },
+        {
+          "code": "T05",
+          "label": "Tender Issue 5",
+          "description": "Tender package issue 5 — pre-contract pricing / bid submission."
+        },
+        {
+          "code": "T06",
+          "label": "Tender Issue 6",
+          "description": "Tender package issue 6 — pre-contract pricing / bid submission."
+        },
+        {
+          "code": "T07",
+          "label": "Tender Issue 7",
+          "description": "Tender package issue 7 — pre-contract pricing / bid submission."
+        },
+        {
+          "code": "T08",
+          "label": "Tender Issue 8",
+          "description": "Tender package issue 8 — pre-contract pricing / bid submission."
+        },
+        {
+          "code": "T09",
+          "label": "Tender Issue 9",
+          "description": "Tender package issue 9 — pre-contract pricing / bid submission."
+        },
+        {
+          "code": "T10",
+          "label": "Tender Issue 10",
+          "description": "Tender package issue 10 — pre-contract pricing / bid submission."
         },
         {
           "code": "P01",
-          "label": "Preliminary Revision 01",
-          "description": "Pre-construction revision series (P01…Pn)."
+          "label": "Preliminary Issue 1",
+          "description": "Preliminary issue 1 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P02",
+          "label": "Preliminary Issue 2",
+          "description": "Preliminary issue 2 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P03",
+          "label": "Preliminary Issue 3",
+          "description": "Preliminary issue 3 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P04",
+          "label": "Preliminary Issue 4",
+          "description": "Preliminary issue 4 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P05",
+          "label": "Preliminary Issue 5",
+          "description": "Preliminary issue 5 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P06",
+          "label": "Preliminary Issue 6",
+          "description": "Preliminary issue 6 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P07",
+          "label": "Preliminary Issue 7",
+          "description": "Preliminary issue 7 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P08",
+          "label": "Preliminary Issue 8",
+          "description": "Preliminary issue 8 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P09",
+          "label": "Preliminary Issue 9",
+          "description": "Preliminary issue 9 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P10",
+          "label": "Preliminary Issue 10",
+          "description": "Preliminary issue 10 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P11",
+          "label": "Preliminary Issue 11",
+          "description": "Preliminary issue 11 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P12",
+          "label": "Preliminary Issue 12",
+          "description": "Preliminary issue 12 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P13",
+          "label": "Preliminary Issue 13",
+          "description": "Preliminary issue 13 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P14",
+          "label": "Preliminary Issue 14",
+          "description": "Preliminary issue 14 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P15",
+          "label": "Preliminary Issue 15",
+          "description": "Preliminary issue 15 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P16",
+          "label": "Preliminary Issue 16",
+          "description": "Preliminary issue 16 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P17",
+          "label": "Preliminary Issue 17",
+          "description": "Preliminary issue 17 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P18",
+          "label": "Preliminary Issue 18",
+          "description": "Preliminary issue 18 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P19",
+          "label": "Preliminary Issue 19",
+          "description": "Preliminary issue 19 — design development / coordination before construction contract."
+        },
+        {
+          "code": "P20",
+          "label": "Preliminary Issue 20",
+          "description": "Preliminary issue 20 — design development / coordination before construction contract."
+        },
+        {
+          "code": "Co01",
+          "label": "Contract Issue 1",
+          "description": "Contract issue 1 — formally contracted documentation, pre-construction."
+        },
+        {
+          "code": "Co02",
+          "label": "Contract Issue 2",
+          "description": "Contract issue 2 — formally contracted documentation, pre-construction."
+        },
+        {
+          "code": "Co03",
+          "label": "Contract Issue 3",
+          "description": "Contract issue 3 — formally contracted documentation, pre-construction."
+        },
+        {
+          "code": "Co04",
+          "label": "Contract Issue 4",
+          "description": "Contract issue 4 — formally contracted documentation, pre-construction."
+        },
+        {
+          "code": "Co05",
+          "label": "Contract Issue 5",
+          "description": "Contract issue 5 — formally contracted documentation, pre-construction."
+        },
+        {
+          "code": "Co06",
+          "label": "Contract Issue 6",
+          "description": "Contract issue 6 — formally contracted documentation, pre-construction."
+        },
+        {
+          "code": "Co07",
+          "label": "Contract Issue 7",
+          "description": "Contract issue 7 — formally contracted documentation, pre-construction."
+        },
+        {
+          "code": "Co08",
+          "label": "Contract Issue 8",
+          "description": "Contract issue 8 — formally contracted documentation, pre-construction."
+        },
+        {
+          "code": "Co09",
+          "label": "Contract Issue 9",
+          "description": "Contract issue 9 — formally contracted documentation, pre-construction."
+        },
+        {
+          "code": "Co10",
+          "label": "Contract Issue 10",
+          "description": "Contract issue 10 — formally contracted documentation, pre-construction."
         },
         {
           "code": "C01",
-          "label": "Construction Revision 01",
-          "description": "Construction revision series (C01…Cn)."
+          "label": "Construction Issue 1",
+          "description": "Construction issue 1 — authorised for building / manufacture."
         },
         {
-          "code": "A01",
-          "label": "As-Built Revision 01",
-          "description": "As-built record revision series."
+          "code": "C02",
+          "label": "Construction Issue 2",
+          "description": "Construction issue 2 — authorised for building / manufacture."
         },
         {
-          "code": "T01",
-          "label": "Tender Revision 01",
-          "description": "Tender submission revision."
+          "code": "C03",
+          "label": "Construction Issue 3",
+          "description": "Construction issue 3 — authorised for building / manufacture."
+        },
+        {
+          "code": "C04",
+          "label": "Construction Issue 4",
+          "description": "Construction issue 4 — authorised for building / manufacture."
+        },
+        {
+          "code": "C05",
+          "label": "Construction Issue 5",
+          "description": "Construction issue 5 — authorised for building / manufacture."
+        },
+        {
+          "code": "C06",
+          "label": "Construction Issue 6",
+          "description": "Construction issue 6 — authorised for building / manufacture."
+        },
+        {
+          "code": "C07",
+          "label": "Construction Issue 7",
+          "description": "Construction issue 7 — authorised for building / manufacture."
+        },
+        {
+          "code": "C08",
+          "label": "Construction Issue 8",
+          "description": "Construction issue 8 — authorised for building / manufacture."
+        },
+        {
+          "code": "C09",
+          "label": "Construction Issue 9",
+          "description": "Construction issue 9 — authorised for building / manufacture."
+        },
+        {
+          "code": "C10",
+          "label": "Construction Issue 10",
+          "description": "Construction issue 10 — authorised for building / manufacture."
+        },
+        {
+          "code": "C11",
+          "label": "Construction Issue 11",
+          "description": "Construction issue 11 — authorised for building / manufacture."
+        },
+        {
+          "code": "C12",
+          "label": "Construction Issue 12",
+          "description": "Construction issue 12 — authorised for building / manufacture."
+        },
+        {
+          "code": "C13",
+          "label": "Construction Issue 13",
+          "description": "Construction issue 13 — authorised for building / manufacture."
+        },
+        {
+          "code": "C14",
+          "label": "Construction Issue 14",
+          "description": "Construction issue 14 — authorised for building / manufacture."
+        },
+        {
+          "code": "C15",
+          "label": "Construction Issue 15",
+          "description": "Construction issue 15 — authorised for building / manufacture."
+        },
+        {
+          "code": "C16",
+          "label": "Construction Issue 16",
+          "description": "Construction issue 16 — authorised for building / manufacture."
+        },
+        {
+          "code": "C17",
+          "label": "Construction Issue 17",
+          "description": "Construction issue 17 — authorised for building / manufacture."
+        },
+        {
+          "code": "C18",
+          "label": "Construction Issue 18",
+          "description": "Construction issue 18 — authorised for building / manufacture."
+        },
+        {
+          "code": "C19",
+          "label": "Construction Issue 19",
+          "description": "Construction issue 19 — authorised for building / manufacture."
+        },
+        {
+          "code": "C20",
+          "label": "Construction Issue 20",
+          "description": "Construction issue 20 — authorised for building / manufacture."
+        },
+        {
+          "code": "R01",
+          "label": "Revision 1",
+          "description": "Client-driven revision 1 after initial issue."
+        },
+        {
+          "code": "R02",
+          "label": "Revision 2",
+          "description": "Client-driven revision 2 after initial issue."
+        },
+        {
+          "code": "R03",
+          "label": "Revision 3",
+          "description": "Client-driven revision 3 after initial issue."
+        },
+        {
+          "code": "R04",
+          "label": "Revision 4",
+          "description": "Client-driven revision 4 after initial issue."
+        },
+        {
+          "code": "R05",
+          "label": "Revision 5",
+          "description": "Client-driven revision 5 after initial issue."
+        },
+        {
+          "code": "R06",
+          "label": "Revision 6",
+          "description": "Client-driven revision 6 after initial issue."
+        },
+        {
+          "code": "R07",
+          "label": "Revision 7",
+          "description": "Client-driven revision 7 after initial issue."
+        },
+        {
+          "code": "R08",
+          "label": "Revision 8",
+          "description": "Client-driven revision 8 after initial issue."
+        },
+        {
+          "code": "R09",
+          "label": "Revision 9",
+          "description": "Client-driven revision 9 after initial issue."
+        },
+        {
+          "code": "R10",
+          "label": "Revision 10",
+          "description": "Client-driven revision 10 after initial issue."
+        },
+        {
+          "code": "B01",
+          "label": "Partial Sign-off 1",
+          "description": "Partial building sign-off stage 1 — occupation / phased handover."
+        },
+        {
+          "code": "B02",
+          "label": "Partial Sign-off 2",
+          "description": "Partial building sign-off stage 2 — occupation / phased handover."
+        },
+        {
+          "code": "B03",
+          "label": "Partial Sign-off 3",
+          "description": "Partial building sign-off stage 3 — occupation / phased handover."
+        },
+        {
+          "code": "B04",
+          "label": "Partial Sign-off 4",
+          "description": "Partial building sign-off stage 4 — occupation / phased handover."
+        },
+        {
+          "code": "B05",
+          "label": "Partial Sign-off 5",
+          "description": "Partial building sign-off stage 5 — occupation / phased handover."
+        },
+        {
+          "code": "D01",
+          "label": "Digital Revision 1",
+          "description": "Digital-only revision 1 — model update without drawing reissue."
+        },
+        {
+          "code": "D02",
+          "label": "Digital Revision 2",
+          "description": "Digital-only revision 2 — model update without drawing reissue."
+        },
+        {
+          "code": "D03",
+          "label": "Digital Revision 3",
+          "description": "Digital-only revision 3 — model update without drawing reissue."
+        },
+        {
+          "code": "D04",
+          "label": "Digital Revision 4",
+          "description": "Digital-only revision 4 — model update without drawing reissue."
+        },
+        {
+          "code": "D05",
+          "label": "Digital Revision 5",
+          "description": "Digital-only revision 5 — model update without drawing reissue."
+        },
+        {
+          "code": "D06",
+          "label": "Digital Revision 6",
+          "description": "Digital-only revision 6 — model update without drawing reissue."
+        },
+        {
+          "code": "D07",
+          "label": "Digital Revision 7",
+          "description": "Digital-only revision 7 — model update without drawing reissue."
+        },
+        {
+          "code": "D08",
+          "label": "Digital Revision 8",
+          "description": "Digital-only revision 8 — model update without drawing reissue."
+        },
+        {
+          "code": "D09",
+          "label": "Digital Revision 9",
+          "description": "Digital-only revision 9 — model update without drawing reissue."
+        },
+        {
+          "code": "D10",
+          "label": "Digital Revision 10",
+          "description": "Digital-only revision 10 — model update without drawing reissue."
+        },
+        {
+          "code": "A1",
+          "label": "Approved",
+          "description": "Client-approved construction issue (ISO 19650-2 §5.6 unconditional approval)."
+        },
+        {
+          "code": "A2",
+          "label": "Approved with Comments",
+          "description": "Approved subject to tracked comments — rework required before next revision."
+        },
+        {
+          "code": "A",
+          "label": "As-Built Revision A",
+          "description": "As-built / record drawing revision A — final post-construction record."
+        },
+        {
+          "code": "E",
+          "label": "As-Built Revision E",
+          "description": "As-built / record drawing revision E — final post-construction record."
+        },
+        {
+          "code": "F",
+          "label": "As-Built Revision F",
+          "description": "As-built / record drawing revision F — final post-construction record."
+        },
+        {
+          "code": "G",
+          "label": "As-Built Revision G",
+          "description": "As-built / record drawing revision G — final post-construction record."
+        },
+        {
+          "code": "H",
+          "label": "As-Built Revision H",
+          "description": "As-built / record drawing revision H — final post-construction record."
+        },
+        {
+          "code": "I",
+          "label": "As-Built Revision I",
+          "description": "As-built / record drawing revision I — final post-construction record."
+        },
+        {
+          "code": "J",
+          "label": "As-Built Revision J",
+          "description": "As-built / record drawing revision J — final post-construction record."
+        },
+        {
+          "code": "K",
+          "label": "As-Built Revision K",
+          "description": "As-built / record drawing revision K — final post-construction record."
+        },
+        {
+          "code": "L",
+          "label": "As-Built Revision L",
+          "description": "As-built / record drawing revision L — final post-construction record."
+        },
+        {
+          "code": "M",
+          "label": "As-Built Revision M",
+          "description": "As-built / record drawing revision M — final post-construction record."
+        },
+        {
+          "code": "N",
+          "label": "As-Built Revision N",
+          "description": "As-built / record drawing revision N — final post-construction record."
+        },
+        {
+          "code": "O",
+          "label": "As-Built Revision O",
+          "description": "As-built / record drawing revision O — final post-construction record."
+        },
+        {
+          "code": "Q",
+          "label": "As-Built Revision Q",
+          "description": "As-built / record drawing revision Q — final post-construction record."
+        },
+        {
+          "code": "S",
+          "label": "As-Built Revision S",
+          "description": "As-built / record drawing revision S — final post-construction record."
+        },
+        {
+          "code": "U",
+          "label": "As-Built Revision U",
+          "description": "As-built / record drawing revision U — final post-construction record."
+        },
+        {
+          "code": "V",
+          "label": "As-Built Revision V",
+          "description": "As-built / record drawing revision V — final post-construction record."
+        },
+        {
+          "code": "W",
+          "label": "As-Built Revision W",
+          "description": "As-built / record drawing revision W — final post-construction record."
+        },
+        {
+          "code": "X",
+          "label": "As-Built Revision X",
+          "description": "As-built / record drawing revision X — final post-construction record."
+        },
+        {
+          "code": "Y",
+          "label": "As-Built Revision Y",
+          "description": "As-built / record drawing revision Y — final post-construction record."
+        },
+        {
+          "code": "Z",
+          "label": "As-Built Revision Z",
+          "description": "As-built / record drawing revision Z — final post-construction record."
+        },
+        {
+          "code": "AB01",
+          "label": "As-Built Record 1",
+          "description": "As-built record 1 — standardised AB-series used by some operators."
+        },
+        {
+          "code": "AB02",
+          "label": "As-Built Record 2",
+          "description": "As-built record 2 — standardised AB-series used by some operators."
+        },
+        {
+          "code": "AB03",
+          "label": "As-Built Record 3",
+          "description": "As-built record 3 — standardised AB-series used by some operators."
+        },
+        {
+          "code": "AB04",
+          "label": "As-Built Record 4",
+          "description": "As-built record 4 — standardised AB-series used by some operators."
+        },
+        {
+          "code": "AB05",
+          "label": "As-Built Record 5",
+          "description": "As-built record 5 — standardised AB-series used by some operators."
+        },
+        {
+          "code": "AB06",
+          "label": "As-Built Record 6",
+          "description": "As-built record 6 — standardised AB-series used by some operators."
+        },
+        {
+          "code": "AB07",
+          "label": "As-Built Record 7",
+          "description": "As-built record 7 — standardised AB-series used by some operators."
+        },
+        {
+          "code": "AB08",
+          "label": "As-Built Record 8",
+          "description": "As-built record 8 — standardised AB-series used by some operators."
+        },
+        {
+          "code": "AB09",
+          "label": "As-Built Record 9",
+          "description": "As-built record 9 — standardised AB-series used by some operators."
+        },
+        {
+          "code": "AB10",
+          "label": "As-Built Record 10",
+          "description": "As-built record 10 — standardised AB-series used by some operators."
+        }
+      ]
+    },
+    {
+      "section": "Revision Status Stamps",
+      "entries": [
+        {
+          "code": "IFC",
+          "label": "Issued for Coordination",
+          "description": "Status stamp — document is being shared for clash / design coordination."
+        },
+        {
+          "code": "IFA",
+          "label": "Issued for Approval",
+          "description": "Status stamp — document is issued for formal client / stage approval."
+        },
+        {
+          "code": "IFR",
+          "label": "Issued for Record",
+          "description": "Status stamp — document is issued as the formal archival record."
+        },
+        {
+          "code": "IFT",
+          "label": "Issued for Tender",
+          "description": "Status stamp — document is issued as part of the tender package."
+        },
+        {
+          "code": "IFP",
+          "label": "Issued for Planning",
+          "description": "Status stamp — document is issued for planning permission submission."
+        },
+        {
+          "code": "IFI",
+          "label": "Issued for Information",
+          "description": "Status stamp — document is issued for information only, not for design decisions."
+        },
+        {
+          "code": "IFPT",
+          "label": "Issued for Pre-Tender",
+          "description": "Status stamp — document is issued ahead of formal tender for early supplier engagement."
+        },
+        {
+          "code": "WD",
+          "label": "Withdrawn",
+          "description": "Document has been withdrawn from the CDE — no longer valid, cannot be restored."
+        },
+        {
+          "code": "SS",
+          "label": "Superseded",
+          "description": "Document has been replaced by a newer revision — retained for traceability."
+        },
+        {
+          "code": "OB",
+          "label": "Obsolete",
+          "description": "Document is historically retained but not for use — terminal state."
         }
       ]
     },
