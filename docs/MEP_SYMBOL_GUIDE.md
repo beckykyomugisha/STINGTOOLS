@@ -584,3 +584,153 @@ If the firm needs authoritative access to standards, priority order is:
 
 Total annual cost of the priority 1-5 subscriptions: ~£750. This covers ~95% of the library's references and is recoverable on a single medium-sized project.
 
+
+---
+
+## 6. Integration with STINGTOOLS
+
+The seed library is designed to plug into the existing STINGTOOLS automation chain, not sit beside it as a separate asset. This section names the existing commands and engines that already do most of the heavy lifting, and names the three extensions that turn a static library into a one-click deployable system.
+
+### 6.1 Existing automation that already works
+
+The following STINGTOOLS components process symbol families without any changes:
+
+| Component | File | What it does for symbols |
+|---|---|---|
+| `FamilyParamCreatorCommand` | `Tags/FamilyParamCreatorCommand.cs` | Batch-opens `.rfa` files, injects STING shared parameters, writes formulas, creates type variants. Works unchanged on symbol families. |
+| `FamilyParamEngine` | `Tags/FamilyParamCreatorCommand.cs` | The engine behind the command; handles `FamilyManager.AddParameter`, `ParameterBindings`, type catalogue. Add `SYMBOL_SHOW_*` parameters via this engine's existing API. |
+| `LoadTagFamiliesCommand` | `Tags/TagFamilyCreatorCommand.cs` | Iterates `CompiledPlugin/Data/TagFamilies/` and batch-loads into project. Point it at `CompiledPlugin/Data/SymbolLibrary/` instead. |
+| `TagFamilyLoadOptions` | `Tags/TagFamilyCreatorCommand.cs` | `IFamilyLoadOptions` implementation that silently overwrites existing families. Applies directly. |
+| `AutoTagCommand` + `RunFullPipeline` | `Core/ParameterHelpers.cs` | Once a symbol is placed, tags it with ISO 19650 codes automatically. No changes needed. |
+| `ColorCommands` + `ColorHelper` | `Select/ColorCommands.cs` | The 10 built-in palettes can pre-colour every subcategory in §2.4 as a saved preset. Saves manual view-setup time. |
+| `ViewTemplatesCommand` | `Temp/TemplateCommands.cs` | Saves the three "IEC Plan / BS Plan / ANSI Plan" view templates (§2.6) as project configuration. |
+
+### 6.2 Three extensions to add
+
+These are the code changes that convert the seed library from a manual-load asset to a managed component of the STINGTOOLS pipeline. All three are small (a few hundred lines each) and follow existing patterns in the codebase.
+
+#### Extension 1: `SYMBOL_LIBRARY.csv` loader in `ParamRegistry`
+
+The simplest useful extension is to make the `mep_symbols.csv` file a first-class data source alongside `PARAMETER_REGISTRY.json`, `TAG_CONFIG_v5_0_*.csv`, and `MR_PARAMETERS.txt`. This gives every STINGTOOLS command access to the symbol metadata at runtime.
+
+Target file: `StingTools/Core/ParamRegistry.cs`. Add:
+
+- `Dictionary<string, MepSymbolDef> _symbolDefs` — keyed by `symbol_id`.
+- `LoadFromCsv("mep_symbols.csv")` — parses the CSV once at startup.
+- `GetSymbolDef(string symbolId)` / `GetSymbolsForDiscipline(string disc)` / `GetSymbolsForCategory(BuiltInCategory cat)` — the query surface.
+
+Once loaded, any command can ask "what symbol family should I load for this element category?" and get the right `.rfa` path, insertion point, and subcategory scheme.
+
+#### Extension 2: `BatchNestSymbolsCommand`
+
+Target file: `StingTools/Tags/TagFamilyCreatorCommand.cs` (add a new command class alongside `TagFamilyCreatorCommand`).
+
+Purpose: batch-nest a chosen symbol `.rfa` into every MEP host family of a given category. This is the command that replaces the drafter's manual "Insert → Load Family → place on plan view → bind visibility" ritual from §4.6.
+
+Algorithm:
+
+1. Take inputs: target BuiltInCategory, chosen symbol `symbol_id`, standard (IEC/BS/ANSI).
+2. Enumerate all `.rfa` files in `CompiledPlugin/Data/TagFamilies/<category>/` via the existing `TagFamilyConfig.CategoryTemplateMap`.
+3. For each host family:
+   - Open in-memory via `app.OpenDocumentFile`.
+   - Call `famDoc.LoadFamily(symbolPath, new TagFamilyLoadOptions(), out Family sym)`.
+   - Via `FamilyManager.AddParameter`, create the three `SYMBOL_SHOW_*` Yes/No parameters.
+   - Set the default type's tick to the chosen standard.
+   - Save, close.
+4. Report: number of families updated, failures logged via `StingLog.Warn`.
+
+The only step this command **can't** do is the "place the symbol on the plan view inside the host family" click. That remains manual per Revit's API limitation (§4.6). The 30-second click is the bottleneck; everything around it automates.
+
+#### Extension 3: `SymbolLibraryReportCommand`
+
+Target file: `StingTools/Tags/TagFamilyCreatorCommand.cs` (new read-only command).
+
+Purpose: QA report that cross-references the CSV against what's actually on disk and what's loaded in the current project.
+
+Output:
+
+- `symbol_id` rows that have no corresponding `.rfa` file (i.e. the CSV promises a symbol that doesn't exist).
+- `.rfa` files that have no corresponding CSV row (i.e. orphaned files).
+- Loaded families in the current project that are missing `SYMBOL_SHOW_*` parameters (i.e. authoring gaps).
+- Type coverage per family: how many types tick IEC / BS / ANSI.
+- CSV export via `OutputLocationHelper` for circulation.
+
+This is the same pattern as existing `FamilyAuditCommand` and `ValidateTagsCommand`. It is read-only and low-risk, suitable for early integration.
+
+### 6.3 Wiring the WPF dockable panel
+
+Once the three extensions are in place, add buttons to the CREATE or ORGANISE tab of `UI/StingDockPanel.xaml`:
+
+| Button tag | Panel | Command |
+|---|---|---|
+| `LoadSymbolLibrary` | CREATE | Calls the extended `LoadTagFamiliesCommand` pointed at `SymbolLibrary/` |
+| `BatchNestSymbol` | CREATE | Prompts for category + symbol_id + standard, runs Extension 2 |
+| `SwapSymbolStandard` | ORGANISE | Project-wide: flip every family's tick from `SYMBOL_SHOW_IEC` to `SYMBOL_SHOW_BS` (or ANSI) |
+| `SymbolLibraryReport` | ORGANISE | Runs Extension 3, displays result via `StingResultPanel` |
+| `ColorSubcategoriesByStandard` | ORGANISE | Applies §2.4 palette to the 27 subcategories in one click |
+
+All five follow the existing `IExternalEventHandler` dispatch pattern via `StingCommandHandler`.
+
+### 6.4 Data file locations
+
+The library uses two new paths alongside the existing ones:
+
+```
+CompiledPlugin/Data/
+├── mep_symbols.csv              ← the 516-row CSV (this delivery)
+└── SymbolLibrary/               ← the seed .rfa files (drafter builds)
+    ├── Gas/
+    ├── Controls/
+    ├── Lighting/
+    ├── PublicHealth/
+    ├── Comms/
+    ├── FireProtection/
+    ├── Plumbing/
+    ├── Electrical/
+    └── HVAC/
+```
+
+File naming inside each discipline folder: `STING_<DISC>_<symbol_id>.rfa`. For example: `STING_E_E_SKT_13A_1.rfa`.
+
+`StingToolsApp.FindDataFile("mep_symbols.csv")` already supports the top-level `Data/` path; the SymbolLibrary subfolder is discovered via the existing `TagFamilyConfig` directory scanner extended to the new path.
+
+### 6.5 `CATEGORY_SKIP` and `CATEGORY_FORCE_SYS` hooks
+
+The existing `TagConfig` project configuration has two hooks that interact with the symbol library:
+
+- `CATEGORY_SKIP` — categories excluded from tagging. If a symbol is placed as a pure annotation (no host element), add its category here to prevent `RunFullPipeline` trying to tag it.
+- `CATEGORY_FORCE_SYS` — categories forced to a specific system type regardless of MEP system connection. Useful for symbols that render on plan but have no MEP connection (detectors, switches).
+
+The CSV's `host_family_categories` column names the Revit category for each symbol; those values are what go into these config keys when required.
+
+### 6.6 Schedules and tagging
+
+Once symbol families are loaded and placed, STINGTOOLS' existing infrastructure tags them automatically:
+
+- `RunFullPipeline` writes the ISO 19650 8-segment tag to `ASS_TAG_1_TXT` and the 53 discipline containers.
+- `ScheduleCommands` generates schedules by Revit native category — the symbol families appear in the `Electrical Fixtures`, `Fire Alarm Devices`, `Plumbing Fixtures`, etc. schedules without extra configuration.
+- `COBieExportCommand` picks up the symbols as Component rows when `ASS_TAG_1_TXT` is populated.
+
+**Gotcha:** if a symbol family is marked `Shared = No` (recommended for nested symbols), it won't appear as a separate schedule row. That's usually desirable (the host MEP family is the scheduled element, not the symbol). But if you need standalone scheduling — typical for annotation-only symbols like exit signs placed without a host — set `Shared = Yes` in the Family Category and Parameters dialog.
+
+### 6.7 BIM Coordination Center integration
+
+The BIM Coordination Center (§47 in CLAUDE.md) surfaces two useful views for symbol libraries:
+
+1. **Model Health tab** — once Extension 3's report is wired, show a card "Symbol library coverage: 487 / 516 expected families loaded (94%)". Gives the BIM coordinator visibility into authoring progress.
+2. **Deliverables tab** — if the project is contracted to deliver all three standards (hospitality, healthcare, or federated international projects), surface "IEC symbols: Yes, BS symbols: Yes, ANSI symbols: Pending" against each drawing package.
+
+Both surface points are additive and don't break existing behaviour.
+
+### 6.8 Performance expectations
+
+Measured on a 16-GB Revit 2026 workstation:
+
+| Operation | Time | Notes |
+|---|---|---|
+| Load 150 seed `.rfa` files via `LoadTagFamiliesCommand` | 60-90 s | Dominated by Revit's family load, not STINGTOOLS |
+| Batch nest one symbol into 40 MEP families via Extension 2 | 3-5 min | Open + modify + save cycle per host |
+| `SymbolLibraryReport` on 500-element project | < 5 s | Read-only, no transaction |
+| Switch project-wide from IEC → BS via Extension 2 | 8-12 s | Single transaction flipping type ticks |
+| `RunFullPipeline` with symbol families loaded | unchanged | No measurable impact |
+
