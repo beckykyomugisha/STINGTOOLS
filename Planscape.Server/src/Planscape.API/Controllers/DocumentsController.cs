@@ -165,8 +165,22 @@ public class DocumentsController : ControllerBase
         await file.CopyToAsync(memStream);
         var contentHash = Convert.ToHexString(SHA256.HashData(memStream.ToArray())).ToLowerInvariant();
 
+        // NEW-LOGIC-06 — If an image MIME type was declared, confirm the bytes match.
         memStream.Position = 0;
-        var relativePath = await _storage.SaveAsync(tenantSlug, project.Code, file.FileName, memStream);
+        if (!string.IsNullOrEmpty(file.ContentType)
+            && file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!Planscape.Infrastructure.Security.FileContentValidator.IsImage(memStream, out _))
+                return BadRequest(new { error = "File content does not match declared image MIME type" });
+        }
+
+        // NEW-LOGIC-07 — Strip directory/suspect characters from the uploaded filename
+        // before it reaches the storage layer.
+        var safeName = Planscape.Infrastructure.Security.FileContentValidator.SanitiseFileName(
+            file.FileName, fallback: $"document-{DateTime.UtcNow:yyyyMMddHHmmss}");
+
+        memStream.Position = 0;
+        var relativePath = await _storage.SaveAsync(tenantSlug, project.Code, safeName, memStream);
 
         // S04 — generate JPEG thumbnails (150/300/600 px) and extract EXIF GPS for image uploads.
         // Applies to both first uploads and new-version uploads since each gets its own relativePath.

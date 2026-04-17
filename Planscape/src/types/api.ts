@@ -59,12 +59,53 @@ export interface BimIssue {
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
   assignee: string;
+  assigneeEmail?: string;
+  assigneeUserId?: string;
   discipline: string;
   revision: string;
   elementIds: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  dueDate?: string;
+  resolvedAt?: string;
+  isOverdue?: boolean;
+  daysOpen?: number;
+  latitude?: number;
+  longitude?: number;
+  locationAccuracy?: number;
+  deviceId?: string;
+  source?: 'mobile' | 'plugin' | 'web' | 'mobile-bridge';
+  attachmentCount?: number;
+}
+
+/** NEW-INFO-06/07 — Activity timeline entries surfaced from AuditLog. */
+export interface IssueActivityEntry {
+  id: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | string;
+  entityType: string;
+  entityId: string;
+  userName?: string;
+  timestamp: string;
+  details?: Record<string, unknown>;
+}
+
+export interface ProjectMember {
+  userId: string;
+  email: string;
+  displayName: string;
+  projectRole: string;
+  iso19650Role: string;
+}
+
+export interface IssueAttachment {
+  id: string;
+  issueId: string;
+  documentId: string;
+  fileName: string;
+  contentType: string;
+  thumbnailUrl?: string;
+  uploadedAt: string;
 }
 
 export interface DocumentRecord {
@@ -121,4 +162,81 @@ export interface OfflineAction {
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;
+}
+
+// ── NEW-INT-01 — entities the mobile app can now list/read ────────────
+
+export interface Transmittal {
+  id: string;
+  projectId: string;
+  transmittalNumber: string;
+  subject: string;
+  issuedBy: string;
+  issuedTo: string;
+  status: 'DRAFT' | 'SENT' | 'ACKNOWLEDGED';
+  createdAt: string;
+  sentAt?: string;
+  documentCount?: number;
+}
+
+export interface Meeting {
+  id: string;
+  projectId: string;
+  title: string;
+  type: string;
+  scheduledAt: string;
+  status: string;
+  organiser: string;
+  actionItemCount?: number;
+}
+
+export interface WorkflowRun {
+  id: string;
+  projectId: string;
+  presetName: string;
+  userName: string;
+  stepsPassed: number;
+  stepsFailed: number;
+  stepsSkipped: number;
+  durationMs: number;
+  complianceBefore: number;
+  complianceAfter: number;
+  executedAt: string;
+}
+
+export interface WarningRecord {
+  id: string;
+  projectId: string;
+  category: string;
+  severity: string;
+  description: string;
+  elementId?: string;
+  createdAt: string;
+}
+
+export interface ProjectSettings {
+  issueTypes: string[];
+  priorities: string[];
+  disciplines: string[];
+  cdeStates: string[];
+  suitabilityCodes: string[];
+  limits: { maxAttachmentMB: number; maxDocumentMB: number; maxPhotosPerIssue: number };
+  slaHours: { critical: number; high: number; medium: number; low: number };
+  geofence: { hasBoundary: boolean; requireBoundary: boolean };
+}
+
+export interface NotificationPreferences {
+  id: string;
+  userId: string;
+  tenantId: string;
+  issuesEnabled: boolean;
+  complianceEnabled: boolean;
+  revisionsEnabled: boolean;
+  meetingsEnabled: boolean;
+  slaBreachesEnabled: boolean;
+  channel: 'push' | 'email' | 'signalr' | 'all';
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  timeZone?: string;
+  updatedAt: string;
 }

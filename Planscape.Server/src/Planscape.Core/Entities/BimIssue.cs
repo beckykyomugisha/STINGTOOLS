@@ -13,8 +13,11 @@ public class BimIssue
     public string? Description { get; set; }
     public string Priority { get; set; } = "MEDIUM"; // CRITICAL, HIGH, MEDIUM, LOW
     public string Status { get; set; } = "OPEN"; // OPEN, IN_PROGRESS, RESOLVED, CLOSED
-    public string? Assignee { get; set; }
+    public string? Assignee { get; set; } // Display name (legacy / human-readable)
+    public string? AssigneeEmail { get; set; } // NEW-MOB-17: stable identifier for routing
+    public Guid? AssigneeUserId { get; set; } // NEW-SRV-23: FK for project member enforcement
     public string CreatedBy { get; set; } = "";
+    public Guid? CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? DueDate { get; set; }
     public DateTime? ResolvedAt { get; set; }
@@ -23,7 +26,16 @@ public class BimIssue
     public string? LinkedElementIds { get; set; } // JSON array of Revit element IDs
     public string? BcfGuid { get; set; } // BCF 2.1 topic GUID
 
+    // SRV-03 — site location captured at the moment of issue creation
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public double? LocationAccuracy { get; set; }
+    public string? DeviceId { get; set; } // device that raised the issue (mobile audit)
+    public string? Source { get; set; } // "mobile" | "plugin" | "web"
+
     // Navigation
     public Project? Project { get; set; }
+    public AppUser? AssigneeUser { get; set; }
+    public AppUser? CreatedByUser { get; set; }
     public List<IssueAttachment> Attachments { get; set; } = new();
 }

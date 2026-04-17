@@ -3,6 +3,18 @@ import { createIssue, updateIssue, transitionCDE } from '@/api/endpoints';
 import type { OfflineAction } from '@/types/api';
 
 const QUEUE_KEY = 'planscape_offline_queue';
+const LAST_SYNC_KEY = 'planscape_last_sync';
+
+/** NEW-INFO-08 — Persist the last successful drain timestamp. */
+export async function getLastSyncAt(): Promise<Date | null> {
+  const raw = await AsyncStorage.getItem(LAST_SYNC_KEY);
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+async function markSyncedNow(): Promise<void> {
+  await AsyncStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+}
 
 /** Load all queued actions from storage. */
 export async function loadQueue(): Promise<OfflineAction[]> {
@@ -115,6 +127,11 @@ export async function syncQueue(): Promise<SyncResult> {
 
   // Persist updated sync flags, drop fully synced actions
   await saveQueue(queue.filter((a) => !a.synced));
+  if (result.succeeded > 0 || result.total === 0) {
+    // Record a successful drain even if there was nothing to do —
+    // "tried, server reachable, nothing to send" is still a successful sync.
+    await markSyncedNow();
+  }
   return result;
 }
 

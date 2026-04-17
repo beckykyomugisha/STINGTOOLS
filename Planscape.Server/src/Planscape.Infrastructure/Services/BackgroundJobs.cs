@@ -48,6 +48,7 @@ public class ComplianceCheckJob
         _logger = logger;
     }
 
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
         _logger.LogInformation("ComplianceCheckJob started");
@@ -122,6 +123,7 @@ public class SlaEscalationJob
         _logger = logger;
     }
 
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
         _logger.LogInformation("SlaEscalationJob started");
@@ -224,6 +226,7 @@ public class StaleWarningCleanupJob
         _logger = logger;
     }
 
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
         _logger.LogInformation("StaleWarningCleanupJob started");
@@ -243,9 +246,22 @@ public class StaleWarningCleanupJob
             await db.SaveChangesAsync(ct);
         }
 
+        // NEW-LOGIC-14 — Prune push tokens that haven't been touched in 90 days.
+        // FirebasePushService.BumpLastUsedAsync refreshes LastUsedAt on every
+        // successful send, so an old timestamp implies the device is gone.
+        var tokenCutoff = DateTime.UtcNow.AddDays(-90);
+        var staleTokens = await db.Set<DevicePushToken>()
+            .Where(t => t.LastUsedAt < tokenCutoff)
+            .ToListAsync(ct);
+        if (staleTokens.Count > 0)
+        {
+            db.Set<DevicePushToken>().RemoveRange(staleTokens);
+            await db.SaveChangesAsync(ct);
+        }
+
         _logger.LogInformation(
-            "StaleWarningCleanupJob completed — {Count} warning snapshots older than {Days} days archived",
-            staleSnapshots.Count, RetentionDays);
+            "StaleWarningCleanupJob completed — {Snapshots} snapshots + {Tokens} stale push tokens pruned",
+            staleSnapshots.Count, staleTokens.Count);
     }
 }
 
@@ -266,6 +282,7 @@ public class PlatformSyncJob
         _logger = logger;
     }
 
+    [Hangfire.DisableConcurrentExecution(timeoutInSeconds: 3600)]
     public async Task ExecuteAsync(CancellationToken ct)
     {
         _logger.LogInformation("PlatformSyncJob started");

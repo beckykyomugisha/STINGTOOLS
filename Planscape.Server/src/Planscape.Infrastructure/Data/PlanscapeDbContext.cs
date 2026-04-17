@@ -53,6 +53,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
+    public DbSet<UserNotificationPreferences> UserNotificationPreferences => Set<UserNotificationPreferences>();
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
     public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
@@ -112,6 +113,13 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(i => new { i.ProjectId, i.IssueCode }).IsUnique();
             e.HasIndex(i => new { i.ProjectId, i.Status });
             e.HasIndex(i => i.DueDate).HasFilter("\"Status\" NOT IN ('CLOSED','RESOLVED')");
+            // NEW-SRV-23: nullable FK to AppUser for assignee + creator (SetNull on user delete)
+            e.HasOne(i => i.AssigneeUser).WithMany().HasForeignKey(i => i.AssigneeUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(i => i.CreatedByUser).WithMany().HasForeignKey(i => i.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(i => new { i.ProjectId, i.AssigneeUserId });
+            e.Property(i => i.AssigneeEmail).HasMaxLength(320);
+            e.Property(i => i.DeviceId).HasMaxLength(120);
+            e.Property(i => i.Source).HasMaxLength(20);
         });
 
         // ── IssueAttachment ──
@@ -225,6 +233,19 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(d => d.Tenant).WithMany().HasForeignKey(d => d.TenantId).OnDelete(DeleteBehavior.Cascade);
             e.Property(d => d.Token).HasMaxLength(512);
             e.Property(d => d.DeviceName).HasMaxLength(200);
+        });
+
+        // ── UserNotificationPreferences (NEW-FLEX-12) ──
+        modelBuilder.Entity<UserNotificationPreferences>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.UserId).IsUnique();
+            e.HasOne(p => p.User).WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(p => p.Tenant).WithMany().HasForeignKey(p => p.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(p => p.Channel).HasMaxLength(20);
+            e.Property(p => p.QuietHoursStart).HasMaxLength(5);
+            e.Property(p => p.QuietHoursEnd).HasMaxLength(5);
+            e.Property(p => p.TimeZone).HasMaxLength(64);
         });
 
         // ── PlatformConnection ──

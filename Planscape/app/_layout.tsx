@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { getToken } from '@/api/client';
+import { getToken, onSessionExpired } from '@/api/client';
+import { crashReporter } from '@/services/crashReporter';
+import { notificationTapRouter } from '@/services/notificationTapRouter';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -10,8 +12,18 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
+    crashReporter.init();
+    crashReporter.flushPending().catch(() => {});
+    const unsubNotif = notificationTapRouter.attach(router);
+    // NEW-INT-04 — on refresh-token failure, apiFetch emits this event and we
+    // force-navigate to the login screen so the user isn't stuck with silent 401s.
+    const unsubSession = onSessionExpired(() => {
+      setIsAuthenticated(false);
+      router.replace('/login');
+    });
     checkAuth();
-  }, []);
+    return () => { unsubNotif(); unsubSession(); };
+  }, [router]);
 
   useEffect(() => {
     if (!isReady) return;

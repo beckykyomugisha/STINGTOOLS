@@ -1,0 +1,87 @@
+version: '3.9'
+
+# Production overlay — adds nginx TLS termination, MinIO object storage,
+# and a nightly database backup sidecar. Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Prerequisites before first `up`:
+#   1) echo "JWT_KEY=$(openssl rand -base64 48)"     >> .env
+#   2) echo "DB_PASSWORD=$(openssl rand -base64 24)" >> .env
+#   3) echo "MINIO_ROOT_PASSWORD=$(openssl rand -base64 24)" >> .env
+#   4) Put your TLS cert + key at ./nginx/certs/server.crt and server.key
+#      (see ./nginx/generate-selfsigned.sh for dev, or use certbot for prod)
+
+services:
+  api:
+    # API no longer binds 5000 to the host — nginx fronts it.
+    ports: []
+    expose:
+      - "8080"
+    environment:
+      - Storage__Provider=S3
+      - Storage__S3__ServiceUrl=http://minio:9000
+      - Storage__S3__BucketName=planscape-attachments
+      - Storage__S3__Region=us-east-1
+      - Storage__S3__AccessKey=planscape
+      - Storage__S3__SecretKey=${MINIO_ROOT_PASSWORD:-PlanscapeMinio2026!}
+      - Storage__S3__ForcePathStyle=true
+      - Cors__Origins__0=https://${PUBLIC_HOST:-planscape.local}
+      - Cors__Origins__1=https://${PUBLIC_HOST:-planscape.local}:443
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: planscape
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-PlanscapeMinio2026!}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "9001:9001"   # management console (bind to 127.0.0.1 in real prod)
+    expose:
+      - "9000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Nightly pg_dump to a dedicated backup volume. Retention = 14 dumps.
+  pgbackup:
+    image: postgres:16-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-Planscape2026!}
+    volumes:
+      - pgbackups:/backups
+      - ./backup/backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: ["/bin/sh", "-c", "crond -f -d 8"]
+    command: []
+    # Cron registered on image: 15 02 * * * /usr/local/bin/backup.sh
+    restart: unless-stopped
+
+volumes:
+  miniodata:
+  pgbackups:

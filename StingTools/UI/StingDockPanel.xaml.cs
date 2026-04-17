@@ -27,6 +27,13 @@ namespace StingTools.UI
         private static StingCommandHandler _handler;
         private static StingDockPanel _instance;
 
+        /// <summary>
+        /// INT-07 — Most-recently constructed dock panel instance, used by the
+        /// SyncScheduler hook in StingToolsApp to refresh the sync status chip.
+        /// May be null until the dock is first opened.
+        /// </summary>
+        public static StingDockPanel LastInstance => _instance;
+
         // Phase 74c: Removed dead SelectionMemory field — actual memory logic uses
         // StingCommandHandler._memorySlots (Dictionary<string, List<ElementId>>)
 
@@ -387,6 +394,52 @@ namespace StingTools.UI
         private void BtnPin_Click(object sender, RoutedEventArgs e)
         {
             // Pin toggle is handled by Revit docking framework
+        }
+
+        // INT-07 — Sync status indicator click handler.
+        // Triggers an immediate sync via SyncScheduler if it's running, otherwise
+        // surfaces a hint that the user needs to log in / configure Planscape.
+        private async void SyncIndicator_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            try
+            {
+                var inst = Planscape.PluginSync.SyncScheduler.Instance;
+                if (inst == null)
+                {
+                    if (txtSync != null) txtSync.Text = "Sync: not configured";
+                    return;
+                }
+                if (txtSync != null) txtSync.Text = "Sync: working…";
+                var result = await Planscape.PluginSync.SyncScheduler.SyncNow();
+                RefreshSyncIndicator();
+            }
+            catch (System.Exception ex)
+            {
+                Core.StingLog.Warn($"SyncIndicator_Click failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Push the latest sync status into the header chip. Safe to call from any thread.
+        /// </summary>
+        public void RefreshSyncIndicator()
+        {
+            void Apply()
+            {
+                try
+                {
+                    var inst = Planscape.PluginSync.SyncScheduler.Instance;
+                    if (txtSync == null) return;
+                    if (inst == null) { txtSync.Text = "Sync: off"; return; }
+                    txtSync.Text = inst.Status.ShortLabel;
+                }
+                catch (System.Exception ex)
+                {
+                    Core.StingLog.Warn($"RefreshSyncIndicator failed: {ex.Message}");
+                }
+            }
+            if (Dispatcher.CheckAccess()) Apply();
+            else Dispatcher.BeginInvoke(new System.Action(Apply));
         }
 
         private void TabMain_SelectionChanged(object sender, SelectionChangedEventArgs e)

@@ -35,22 +35,48 @@ export async function clearTokens(): Promise<void> {
   cachedBaseUrl = null;
 }
 
+// ── NEW-INT-04 — session-expired event bus ──────────────────────────────
+// Root layout subscribes and pushes the user to /login when emitted.
+type Listener = () => void;
+const sessionExpiredListeners = new Set<Listener>();
+export function onSessionExpired(listener: Listener): () => void {
+  sessionExpiredListeners.add(listener);
+  return () => sessionExpiredListeners.delete(listener);
+}
+function emitSessionExpired() {
+  sessionExpiredListeners.forEach(l => { try { l(); } catch { /* never throw from listener */ } });
+}
+
+// ── Refresh-token single-flight ─────────────────────────────────────────
+// Multiple concurrent 401 responses would otherwise all try to refresh.
+// Collapse into one in-flight call and share the result.
+let refreshInFlight: Promise<string | null> | null = null;
 async function refreshAccessToken(): Promise<string | null> {
-  const refresh = await SecureStore.getItemAsync(REFRESH_KEY);
-  if (!refresh) return null;
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const refresh = await SecureStore.getItemAsync(REFRESH_KEY);
+      if (!refresh) return null;
 
-  const base = await getBaseUrl();
-  const res = await fetch(`${base}/api/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: refresh }),
-  });
+      const base = await getBaseUrl();
+      const res = await fetch(`${base}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refresh }),
+      });
 
-  if (!res.ok) return null;
+      if (!res.ok) return null;
 
-  const data = await res.json();
-  await setTokens(data.token, data.refreshToken);
-  return data.token;
+      const data = await res.json();
+      await setTokens(data.token, data.refreshToken);
+      return data.token;
+    } finally {
+      // Drop the cached promise once complete so the next 401 can trigger a
+      // fresh refresh later.
+      setTimeout(() => { refreshInFlight = null; }, 0);
+    }
+  })();
+  return refreshInFlight;
 }
 
 export class ApiError extends Error {
@@ -78,12 +104,19 @@ export async function apiFetch<T>(
 
   let res = await fetch(`${base}${path}`, { ...options, headers });
 
-  // Auto-refresh on 401
-  if (res.status === 401 && token) {
+  // Auto-refresh on 401 — except for the login/refresh endpoints themselves,
+  // which must fail cleanly without triggering another refresh attempt.
+  const isAuthEndpoint = path.startsWith('/api/auth/login') || path.startsWith('/api/auth/refresh');
+  if (res.status === 401 && token && !isAuthEndpoint) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       headers['Authorization'] = `Bearer ${newToken}`;
       res = await fetch(`${base}${path}`, { ...options, headers });
+    } else {
+      // NEW-INT-04 — refresh-token path itself rejected us (revoked / expired).
+      // Wipe local credentials and notify the app to navigate to /login.
+      await clearTokens();
+      emitSessionExpired();
     }
   }
 

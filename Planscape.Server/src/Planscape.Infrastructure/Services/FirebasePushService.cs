@@ -22,18 +22,32 @@ public class FirebasePushService : IPushNotificationService
     private readonly string? _fcmProjectId;
     private readonly string? _fcmServiceAccountJson;
     private readonly HttpClient _httpClient;
+    private readonly ExpoPushService _expo;
 
     public FirebasePushService(
         IServiceScopeFactory scopeFactory,
         ILogger<FirebasePushService> logger,
         IConfiguration config,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        ExpoPushService expo)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _fcmProjectId = config["Firebase:ProjectId"];
         _fcmServiceAccountJson = config["Firebase:ServiceAccountJson"];
         _httpClient = httpClientFactory.CreateClient("FCM");
+        _expo = expo;
+    }
+
+    /// <summary>
+    /// Dispatch a single push to the correct provider based on the token shape.
+    /// Expo-prefixed tokens go through Expo's relay; native FCM tokens go direct.
+    /// </summary>
+    private Task<bool> SendOneAsync(string token, PushPayload payload, CancellationToken ct)
+    {
+        return ExpoPushService.IsExpoToken(token)
+            ? _expo.SendAsync(token, payload, ct)
+            : SendFcmMessageAsync(token, payload, ct);
     }
 
     public async Task SendToUserAsync(Guid userId, PushPayload payload, CancellationToken ct = default)
@@ -55,7 +69,7 @@ public class FirebasePushService : IPushNotificationService
         var invalidTokens = new List<string>();
         foreach (var t in tokens)
         {
-            var success = await SendFcmMessageAsync(t.Token, payload, ct);
+            var success = await SendOneAsync(t.Token, payload, ct);
             if (!success)
                 invalidTokens.Add(t.Token);
         }
@@ -82,7 +96,7 @@ public class FirebasePushService : IPushNotificationService
         var invalidTokens = new List<string>();
         foreach (var t in tokens)
         {
-            var success = await SendFcmMessageAsync(t.Token, payload, ct);
+            var success = await SendOneAsync(t.Token, payload, ct);
             if (!success)
                 invalidTokens.Add(t.Token);
         }
@@ -193,28 +207,43 @@ public class FirebasePushService : IPushNotificationService
             };
 
             var json = JsonSerializer.Serialize(message);
-            var request = new HttpRequestMessage(HttpMethod.Post, url)
-            {
-                Content = new StringContent(json, Encoding.UTF8, "application/json")
-            };
 
-            // In production, use Google OAuth2 access token from service account
-            // For now, use the API key if provided
+            // In production, use Google OAuth2 access token from service account.
+            // For now, use the raw API key if provided.
             var apiKey = _fcmServiceAccountJson;
-            if (!string.IsNullOrEmpty(apiKey))
-            {
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-            }
 
-            var response = await _httpClient.SendAsync(request, ct);
+            // NEW-LOGIC-14 — Retry transient 5xx / 429 with exponential backoff.
+            HttpResponseMessage response;
+            string body = string.Empty;
+            int attempt = 0;
+            while (true)
+            {
+                // Each retry needs a new HttpRequestMessage since the previous
+                // request's content has been consumed.
+                using var attemptRequest = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
+                if (!string.IsNullOrEmpty(apiKey))
+                    attemptRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+                response = await _httpClient.SendAsync(attemptRequest, ct);
+                body = await response.Content.ReadAsStringAsync(ct);
+
+                bool transient = (int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.TooManyRequests;
+                if (!transient || attempt >= 2) break;
+                var delayMs = 500 * (1 << attempt);
+                attempt++;
+                _logger.LogDebug("FCM transient {Status} — retrying in {Delay}ms (attempt {Attempt})", (int)response.StatusCode, delayMs, attempt);
+                await Task.Delay(delayMs, ct);
+            }
 
             if (response.IsSuccessStatusCode)
             {
                 _logger.LogDebug("FCM push sent successfully to {Token}", deviceToken[..Math.Min(10, deviceToken.Length)]);
+                await BumpLastUsedAsync(deviceToken, ct);
                 return true;
             }
-
-            var body = await response.Content.ReadAsStringAsync(ct);
 
             // 404 or specific error codes indicate invalid/expired token
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound ||
@@ -224,14 +253,31 @@ public class FirebasePushService : IPushNotificationService
                 return false;
             }
 
-            _logger.LogWarning("FCM push failed ({Status}): {Body}", response.StatusCode, body);
-            return true; // Don't remove token on transient errors
+            _logger.LogWarning("FCM push failed after {Attempts} attempts ({Status}): {Body}",
+                attempt + 1, response.StatusCode, body);
+            return true; // Transient — keep the token, surface the error upstream
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "FCM push dispatch error");
             return true; // Don't remove token on exception
         }
+    }
+
+    private async Task BumpLastUsedAsync(string token, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+            var existing = await db.Set<DevicePushToken>().FirstOrDefaultAsync(t => t.Token == token, ct);
+            if (existing != null)
+            {
+                existing.LastUsedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync(ct);
+            }
+        }
+        catch { /* best effort — don't fail the push because we couldn't touch LastUsedAt */ }
     }
 
     private static async Task RemoveInvalidTokensAsync(PlanscapeDbContext db, List<string> tokens, CancellationToken ct)

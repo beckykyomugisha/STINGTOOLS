@@ -21,6 +21,26 @@ public class SyncScheduler : IDisposable
     public int QueuedCount => _queue.Count;
 
     /// <summary>
+    /// INT-08 — Discipline allow-list. When non-empty, only payloads whose
+    /// element disciplines intersect this set are pushed; everything else stays
+    /// in the offline queue. Empty/null means "sync everything" (legacy behaviour).
+    /// </summary>
+    public HashSet<string>? DisciplineFilter { get; set; }
+
+    /// <summary>
+    /// INT-07 — Sync status snapshot exposed for the Revit dock indicator.
+    /// </summary>
+    public SyncStatus Status => new()
+    {
+        IsRunning = IsRunning,
+        IsSyncing = _syncing,
+        QueuedCount = QueuedCount,
+        LastSyncAt = LastSyncAt,
+        LastError = LastError,
+        DisciplineFilter = DisciplineFilter?.ToArray(),
+    };
+
+    /// <summary>
     /// Fired after each sync attempt with success/failure info.
     /// </summary>
     public event Action<SyncResult>? OnSyncComplete;
@@ -154,8 +174,8 @@ public class SyncScheduler : IDisposable
                 return result;
             }
 
-            // Drain offline queue
-            int drained = await _queue.DrainAsync(_client);
+            // Drain offline queue, honouring discipline filter (INT-08)
+            int drained = await _queue.DrainAsync(_client, DisciplineFilter);
             result.Success = true;
             result.TagsCreated = drained; // Simplified — actual counts are per-payload
             LastSyncAt = DateTime.UtcNow;
@@ -179,5 +199,32 @@ public class SyncScheduler : IDisposable
     {
         Stop();
         _client.Dispose();
+    }
+}
+
+/// <summary>
+/// Snapshot of scheduler state for the dock-panel sync indicator (INT-07).
+/// </summary>
+public class SyncStatus
+{
+    public bool IsRunning { get; set; }
+    public bool IsSyncing { get; set; }
+    public int QueuedCount { get; set; }
+    public DateTime? LastSyncAt { get; set; }
+    public string? LastError { get; set; }
+    public string[]? DisciplineFilter { get; set; }
+
+    public string ShortLabel
+    {
+        get
+        {
+            if (!IsRunning) return "Sync: off";
+            if (IsSyncing) return "Sync: working…";
+            if (!string.IsNullOrEmpty(LastError)) return $"Sync: error ({LastError})";
+            if (QueuedCount > 0) return $"Sync: {QueuedCount} queued";
+            return LastSyncAt.HasValue
+                ? $"Sync: ok ({(DateTime.UtcNow - LastSyncAt.Value).TotalMinutes:F0}m ago)"
+                : "Sync: ready";
+        }
     }
 }
