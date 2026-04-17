@@ -415,7 +415,7 @@ All estimates assume a single experienced full-stack developer familiar with Rea
 | Phase 2: High Priority | 3–4 | £12,600 | £25,200 |
 | Phase 3: Medium Priority | 2–3 | £7,800 | £33,000 |
 | Phase 4: Polish & Scale | 2 | £6,000 | £39,000 |
-| **Total** | **12–16 weeks** | **£33,000–£39,000** | |
+| **Total** | **11–14 weeks** | **£33,000–£39,000** | |
 
 > **Note:** Costs assume a single developer. Parallelising Phase 1 server + mobile work across 2 developers could compress the timeline to 8–10 weeks but would increase coordination overhead.
 
@@ -425,59 +425,59 @@ All estimates assume a single experienced full-stack developer familiar with Rea
 
 ### Week 1–2: Foundation
 ```
-[x] Wire Planscape.PluginSync into StingToolsApp.OnStartup()
-[x] Add LastModified/Version fields to TaggedElement entity
-[x] Add Latitude/Longitude/Accuracy to BimIssue entity
-[x] EF Core migration for new fields
-[x] Install expo-image-picker, expo-location, expo-notifications
-[x] Set up Zustand state management with offline-first pattern
-[x] Implement mobile push notification handler
+[ ] Wire Planscape.PluginSync into StingToolsApp.OnStartup()
+[ ] Add LastModified/Version fields to TaggedElement entity
+[ ] Add Latitude/Longitude/Accuracy to BimIssue entity
+[ ] EF Core migration for new fields
+[ ] Install expo-image-picker, expo-location, expo-notifications
+[ ] Set up Zustand state management with offline-first pattern
+[ ] Implement mobile push notification handler
 ```
 
 ### Week 3–4: Core On-Site Features
 ```
-[x] Complete QR scanner: parse → lookup → display → create issue
-[x] Camera capture: photo → compress → attach to issue
-[x] GPS tagging: capture coordinates on issue/document creation
-[x] Server image thumbnailing pipeline (150px, 300px, 600px)
-[x] TagSync conflict resolution (timestamp + version vector)
-[x] Mobile offline queue drain with exponential retry
+[ ] Complete QR scanner: parse → lookup → display → create issue
+[ ] Camera capture: photo → compress → attach to issue
+[ ] GPS tagging: capture coordinates on issue/document creation
+[ ] Server image thumbnailing pipeline (150px, 300px, 600px)
+[ ] TagSync conflict resolution (timestamp + version vector)
+[ ] Mobile offline queue drain with exponential retry
 ```
 
 ### Week 5–6: Document Access
 ```
-[x] PDF viewer with download + offline cache
-[x] Image viewer with pinch-zoom
-[x] Server delta sync with SyncWatermark
-[x] Server batch operations for issues/documents
-[x] HTTPS/TLS with Let's Encrypt
+[ ] PDF viewer with download + offline cache
+[ ] Image viewer with pinch-zoom
+[ ] Server delta sync with SyncWatermark
+[ ] Server batch operations for issues/documents
+[ ] HTTPS/TLS with Let's Encrypt
 ```
 
 ### Week 7–8: Real-Time Collaboration
 ```
-[x] SignalR mobile client with JWT auth
-[x] Compliance dashboard with RAG bars and charts
-[x] Meetings UI with agenda and action items
-[x] Server file versioning
-[x] Production deployment with MinIO/S3
+[ ] SignalR mobile client with JWT auth
+[ ] Compliance dashboard with RAG bars and charts
+[ ] Meetings UI with agenda and action items
+[ ] Server file versioning
+[ ] Production deployment with MinIO/S3
 ```
 
 ### Week 9–10: Enhanced Features
 ```
-[x] Document annotation (draw on photo)
-[x] Server QR code generation for asset labels
-[x] Geofence validation
-[x] Secure token storage + biometric auth
-[x] Per-device rate limiting
+[ ] Document annotation (draw on photo)
+[ ] Server QR code generation for asset labels
+[ ] Geofence validation
+[ ] Secure token storage + biometric auth
+[ ] Per-device rate limiting
 ```
 
 ### Week 11–12: Production Hardening
 ```
-[x] CI/CD pipeline (GitHub Actions + Expo EAS)
-[x] Load testing for 50 concurrent users
-[x] Monitoring (Serilog + health checks)
-[x] Security audit (OWASP mobile checklist)
-[x] Documentation and deployment runbook
+[ ] CI/CD pipeline (GitHub Actions + Expo EAS)
+[ ] Load testing for 50 concurrent users
+[ ] Monitoring (Serilog + health checks)
+[ ] Security audit (OWASP mobile checklist)
+[ ] Documentation and deployment runbook
 ```
 
 ---
