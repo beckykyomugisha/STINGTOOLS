@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 
 namespace StingTools.BIMManager
@@ -257,6 +259,121 @@ namespace StingTools.BIMManager
         private static bool TokenEquals(string a, string b)
         {
             return string.Equals(a ?? string.Empty, b ?? string.Empty, StringComparison.Ordinal);
+        }
+    }
+
+    #endregion
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Speckle Commands (Phase 6b) — thin IExternalCommand wrappers around
+    //  SpeckleLinkEngine. Config is loaded from STING_BIM_MANAGER/speckle_config.json
+    //  following the same pattern as planscape_connection.json.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    #region ── Speckle Send ──
+
+    /// <summary>
+    /// Push tagged elements to a Speckle stream. Reads streamUrl/token from
+    /// STING_BIM_MANAGER/speckle_config.json (created out-of-band by the user).
+    /// Missing config is tolerated — the engine writes the local snapshot and
+    /// leaves HTTP push as a no-op pending Speckle SDK v2 integration.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SpeckleSendCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null || ctx.Doc == null) { message = "No document open."; return Result.Failed; }
+
+                // Config: read streamUrl/token from STING_BIM_MANAGER/speckle_config.json
+                // (same pattern as planscape_connection.json in PlanscapeConnectCommand).
+                string cfgPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(ctx.Doc), "speckle_config.json");
+                string streamUrl = "", token = "";
+                if (File.Exists(cfgPath))
+                {
+                    var cfg = JObject.Parse(File.ReadAllText(cfgPath));
+                    streamUrl = cfg["streamUrl"]?.Value<string>() ?? "";
+                    token     = cfg["token"]?.Value<string>()     ?? "";
+                }
+
+                SpeckleLinkEngine.SendToSpeckle(ctx.Doc, streamUrl, token);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("SpeckleSendCommand", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    #endregion
+
+    #region ── Speckle Receive ──
+
+    /// <summary>
+    /// Load the Speckle snapshot from disk and report the element count.
+    /// HTTP pull from the Speckle stream is deferred until the SDK is added.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SpeckleReceiveCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null || ctx.Doc == null) { message = "No document open."; return Result.Failed; }
+
+                var elements2 = SpeckleLinkEngine.ReceiveFromSpeckle(ctx.Doc, "", "");
+                TaskDialog.Show("Speckle Receive", $"Snapshot contains {elements2.Count} elements.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("SpeckleReceiveCommand", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    #endregion
+
+    #region ── Speckle Diff ──
+
+    /// <summary>
+    /// Compare the local Speckle snapshot against the current model's tagged
+    /// elements and report Added/Removed/Changed counts.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SpeckleDiffCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null || ctx.Doc == null) { message = "No document open."; return Result.Failed; }
+
+                var (added, removed, changed) = SpeckleLinkEngine.DiffSnapshot(ctx.Doc);
+                TaskDialog.Show("Speckle Diff",
+                    $"vs last snapshot:\n  Added:   {added}\n  Removed: {removed}\n  Changed: {changed}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("SpeckleDiffCommand", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
         }
     }
 

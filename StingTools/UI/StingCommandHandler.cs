@@ -2494,6 +2494,11 @@ namespace StingTools.UI
                     case "LANChangeLog": RunCommand<BIMManager.LANChangeLogCommand>(app); break;
                     case "LANAutoSyncToggle": RunCommand<BIMManager.LANAutoSyncToggleCommand>(app); break;
 
+                    // ── Phase 6b: Speckle Commands ──
+                    case "SpeckleSend":    RunCommand<BIMManager.SpeckleSendCommand>(app);    break;
+                    case "SpeckleReceive": RunCommand<BIMManager.SpeckleReceiveCommand>(app); break;
+                    case "SpeckleDiff":    RunCommand<BIMManager.SpeckleDiffCommand>(app);    break;
+
                     // ── Phase 42: Coordination Center Commands ──
                     case "CoordinationCenter": RunCommand<BIMManager.CoordinationCenterCommand>(app); break;
                     case "GenerateDashboard": RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
