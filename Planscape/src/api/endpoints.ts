@@ -228,6 +228,30 @@ export function listWarnings(projectId: string): Promise<WarningRecord[]> {
   return apiFetch(`/api/projects/${projectId}/warnings`);
 }
 
+// Issue comments (P2)
+export interface IssueComment {
+  id: string;
+  body: string;
+  authorName: string;
+  authorUserId?: string | null;
+  source?: string | null;
+  mentionedUserId?: string | null;
+  createdAt: string;
+  editedAt?: string | null;
+}
+export function listIssueComments(projectId: string, issueId: string): Promise<IssueComment[]> {
+  return apiFetch(`/api/projects/${projectId}/issues/${issueId}/comments`);
+}
+export function addIssueComment(
+  projectId: string, issueId: string,
+  body: string, mentionedUserId?: string,
+): Promise<IssueComment> {
+  return apiFetch(`/api/projects/${projectId}/issues/${issueId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body, source: 'mobile', mentionedUserId }),
+  });
+}
+
 // Global search (NEW-INT-12)
 export interface SearchResults {
   tags: unknown[]; issues: unknown[]; documents: unknown[]; meetings: unknown[];

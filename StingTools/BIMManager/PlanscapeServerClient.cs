@@ -58,6 +58,11 @@ public sealed class PlanscapeServerClient : IDisposable
     public bool   MimEnabled    { get; private set; }
     public string? LastError    { get; private set; }
 
+    /// <summary>C2 — tenant + user IDs parsed from the login response's JWT payload
+    /// so the real-time client can join the right SignalR groups.</summary>
+    public Guid TenantId { get; private set; }
+    public Guid UserId   { get; private set; }
+
     private PlanscapeServerClient() { }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -78,6 +83,17 @@ public sealed class PlanscapeServerClient : IDisposable
             ParseAuthResponse(JObject.Parse(resp.body), email);
             LastError = null;
             StingLog.Info($"Planscape: Authenticated as {ConnectedUser} @ {_serverUrl} (tier: {TierName})");
+
+            // C2 — fire-and-forget SignalR start so real-time updates flow without
+            // blocking the login UX. Failures are logged but not fatal.
+            if (TenantId != Guid.Empty && UserId != Guid.Empty)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try { await PlanscapeRealtimeClient.Instance.StartAsync(_serverUrl, _accessToken, TenantId, UserId); }
+                    catch (Exception ex) { StingLog.Warn($"Planscape: realtime start failed — {ex.Message}"); }
+                });
+            }
             return true;
         }
         catch (Exception ex) { LastError = ex.Message; StingLog.Error("Planscape: Login failed", ex); return false; }
@@ -123,7 +139,13 @@ public sealed class PlanscapeServerClient : IDisposable
         _refreshToken = "";
         _tokenExpiry  = DateTime.MinValue;
         ConnectedUser = "";
+        TenantId      = Guid.Empty;
+        UserId        = Guid.Empty;
         _http?.DefaultRequestHeaders.Authorization = null;
+
+        // C2 — stop the real-time listener (fire-and-forget; we don't await in a sync method).
+        _ = Task.Run(async () => { try { await PlanscapeRealtimeClient.Instance.StopAsync(); } catch { } });
+
         StingLog.Info("Planscape: Disconnected.");
     }
 
@@ -381,6 +403,239 @@ public sealed class PlanscapeServerClient : IDisposable
     }
 
     // ────────────────────────────────────────────────────────────────────────────
+    //  C4 — Full domain coverage for Documents / Meetings / Transmittals /
+    //  Workflows / Warnings / MIM. Each method follows the same pattern:
+    //    1. EnsureAuthenticatedAsync (refreshes the token if within 10 minutes of expiry)
+    //    2. GET / POST / PATCH through the existing helper
+    //    3. Return JArray / JObject / bool / string as appropriate
+    //  Callers in the BCC + Platform Sync UI can walk these without knowing the
+    //  wire protocol.
+    // ────────────────────────────────────────────────────────────────────────────
+
+    // ── Documents ──────────────────────────────────────────────────────────────
+
+    /// <summary>List documents for a project, optionally filtering by CDE status.</summary>
+    public async Task<JArray?> GetDocumentsAsync(Guid projectId, string? cdeStatus = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var path = $"/api/projects/{projectId}/documents";
+            if (!string.IsNullOrEmpty(cdeStatus)) path += $"?cdeStatus={Uri.EscapeDataString(cdeStatus)}";
+            var resp = await GetAsync(path);
+            return resp.ok ? (JObject.Parse(resp.body)["items"] as JArray) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    /// <summary>Transition a document through the ISO 19650 CDE state machine.</summary>
+    public async Task<bool> TransitionDocumentAsync(Guid projectId, Guid documentId, string newStatus, string? revision = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/documents/{documentId}/transition",
+                new { newStatus, revision });
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── Meetings ───────────────────────────────────────────────────────────────
+
+    public async Task<JArray?> GetMeetingsAsync(Guid projectId, bool upcomingOnly = true)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var path = $"/api/projects/{projectId}/meetings{(upcomingOnly ? "?upcoming=true" : "")}";
+            var resp = await GetAsync(path);
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<string?> CreateMeetingAsync(Guid projectId, string title, string type,
+        DateTime scheduledAt, int durationMinutes = 60, string? agenda = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/meetings",
+                new { title, type, scheduledAt, durationMinutes, agenda });
+            if (!resp.ok) { LastError = resp.body; return null; }
+            return JObject.Parse(resp.body)["id"]?.Value<string>();
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    // ── Transmittals ───────────────────────────────────────────────────────────
+
+    public async Task<JArray?> GetTransmittalsAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/transmittals");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<string?> CreateTransmittalAsync(Guid projectId, string title,
+        IEnumerable<Guid> documentIds, string recipients, string? purpose = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/transmittals",
+                new { title, documentIds, recipients, purpose });
+            if (!resp.ok) { LastError = resp.body; return null; }
+            return JObject.Parse(resp.body)["id"]?.Value<string>();
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<bool> SendTransmittalAsync(Guid projectId, Guid transmittalId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/transmittals/{transmittalId}/send", new { });
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── Workflows ──────────────────────────────────────────────────────────────
+
+    public async Task<JArray?> GetWorkflowRunsAsync(Guid projectId, int limit = 50)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/workflows?limit={limit}");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<bool> LogWorkflowRunAsync(Guid projectId, string preset,
+        int steps, int passed, int failed, int skipped, double durationSec,
+        double? complianceBefore = null, double? complianceAfter = null)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/workflows",
+                new { preset, steps, passed, failed, skipped, durationSec, complianceBefore, complianceAfter });
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── Warnings ───────────────────────────────────────────────────────────────
+
+    public async Task<JArray?> GetWarningsAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/warnings");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<bool> PushWarningsAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ── MIM (Model Information Management) ────────────────────────────────────
+
+    public async Task<JArray?> GetMimAssetsAsync(Guid projectId, int page = 1, int pageSize = 100)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/mim/assets?page={page}&pageSize={pageSize}");
+            return resp.ok ? (JObject.Parse(resp.body)["items"] as JArray) ?? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<JObject?> GetMimDashboardAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/mim/dashboard");
+            return resp.ok ? JObject.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    // ── Platform connections ──────────────────────────────────────────────────
+
+    public async Task<JArray?> GetPlatformConnectionsAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/platform");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    // ── Models (listing — UploadModelAsync already exists below) ──────────────
+
+    public async Task<JArray?> GetModelsAsync(Guid projectId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/models");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    // ── Issue comments (P2) ───────────────────────────────────────────────────
+
+    public async Task<JArray?> GetIssueCommentsAsync(Guid projectId, Guid issueId)
+    {
+        if (!await EnsureAuthenticatedAsync()) return null;
+        try
+        {
+            var resp = await GetAsync($"/api/projects/{projectId}/issues/{issueId}/comments");
+            return resp.ok ? JArray.Parse(resp.body) : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<bool> AddIssueCommentAsync(Guid projectId, Guid issueId, string body)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync(
+                $"/api/projects/{projectId}/issues/{issueId}/comments", new { body });
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
     //  Private helpers
     // ────────────────────────────────────────────────────────────────────────────
 
@@ -434,6 +689,38 @@ public sealed class PlanscapeServerClient : IDisposable
         TierName      = json["tier"]?.Value<string>()         ?? json["Tier"]?.Value<string>()         ?? "Professional";
         MimEnabled    = json["mimEnabled"]?.Value<bool>()     ?? json["MimEnabled"]?.Value<bool>()     ?? false;
         _http!.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+
+        // C2 — decode tenant_id + sub from the JWT payload so the SignalR
+        // client can register the right groups. JWT format is three base64url
+        // segments separated by dots; we decode the middle one as JSON.
+        (TenantId, UserId) = ParseTenantAndUser(_accessToken);
+    }
+
+    private static (Guid tenantId, Guid userId) ParseTenantAndUser(string jwt)
+    {
+        try
+        {
+            var parts = jwt.Split('.');
+            if (parts.Length < 2) return (Guid.Empty, Guid.Empty);
+            var json = System.Text.Encoding.UTF8.GetString(
+                Base64UrlDecode(parts[1]));
+            var payload = JObject.Parse(json);
+            var tenant = Guid.TryParse(payload["tenant_id"]?.Value<string>(), out var t) ? t : Guid.Empty;
+            var sub    = Guid.TryParse(payload["sub"]?.Value<string>(), out var u) ? u : Guid.Empty;
+            return (tenant, sub);
+        }
+        catch (Exception ex) { StingLog.Warn($"Planscape: Could not parse JWT — {ex.Message}"); return (Guid.Empty, Guid.Empty); }
+    }
+
+    private static byte[] Base64UrlDecode(string input)
+    {
+        var s = input.Replace('-', '+').Replace('_', '/');
+        switch (s.Length % 4)
+        {
+            case 2: s += "=="; break;
+            case 3: s += "="; break;
+        }
+        return Convert.FromBase64String(s);
     }
 
     public void Dispose()

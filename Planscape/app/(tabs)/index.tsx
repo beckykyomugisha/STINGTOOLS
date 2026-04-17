@@ -12,11 +12,18 @@ import { useRouter } from 'expo-router';
 import { theme, getRAGColor, getPriorityColor } from '@/utils/theme';
 import { listProjects, getProjectDashboard } from '@/api/endpoints';
 import type { DashboardData, Project, BimIssue } from '@/types/api';
+import { useProjectStore } from '@/stores/projectStore';
 
 export default function DashboardScreen() {
   const router = useRouter();
+
+  // P9 — promote activeProject out of local state into the shared Zustand store so
+  // /models, /issues, and any future screen pick up the same selection without
+  // prop-drilling. `setActive(null)` clears it cleanly on logout.
+  const activeProject = useProjectStore((s) => s.active) as Project | null;
+  const setActiveInStore = useProjectStore((s) => s.setActive);
+
   const [projects, setProjects] = useState<Project[]>([]);
-  const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -29,15 +36,21 @@ export default function DashboardScreen() {
       setProjects(projectList);
 
       if (projectList.length === 0) {
+        setActiveInStore(null);
         setLoading(false);
         return;
       }
 
       const target = projectId
         ? projectList.find((p) => p.id === projectId) ?? projectList[0]
-        : projectList[0];
+        : (activeProject && projectList.find((p) => p.id === activeProject.id)) ?? projectList[0];
 
-      setActiveProject(target);
+      setActiveInStore({
+        id: target.id,
+        name: target.name,
+        code: target.code,
+        tenantId: (target as any).tenantId,
+      });
       const data = await getProjectDashboard(target.id);
       setDashboard(data);
     } catch (err: unknown) {
@@ -47,7 +60,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [activeProject?.id, setActiveInStore]);
 
   useEffect(() => {
     loadData();

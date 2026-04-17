@@ -233,6 +233,65 @@ public class AuthController : ControllerBase
         });
     }
 
+    // ── Accept invitation (P10) ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Exchange an invitation token for a fully-activated account + JWT.
+    ///
+    /// Flow:
+    ///   1. Admin calls POST /api/projects/{id}/members/invite → creates a
+    ///      pending AppUser (IsActive=false) with an INV: token in
+    ///      RefreshToken (expires in 14 days).
+    ///   2. User receives an email with /accept-invitation?token=…&amp;email=…
+    ///   3. Mobile/web POSTs here with token + email + password.
+    ///   4. Server sets password, IsActive=true, clears token, returns JWT.
+    /// </summary>
+    /// <response code="200">Account activated — access + refresh tokens returned.</response>
+    /// <response code="400">Invalid / expired token.</response>
+    [EnableRateLimiting("auth")]
+    [HttpPost("accept-invitation")]
+    [ProducesResponseType(typeof(AuthLoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AuthLoginResponse>> AcceptInvitation([FromBody] AcceptInvitationRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.Email))
+            return BadRequest(new { message = "Token and email are required." });
+        if (req.Password == null || req.Password.Length < 8)
+            return BadRequest(new { message = "Password must be at least 8 characters." });
+
+        var email = req.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u =>
+                u.Email == email &&
+                u.RefreshToken == $"INV:{req.Token}" &&
+                u.RefreshTokenExpiresAt > DateTime.UtcNow);
+
+        if (user == null)
+            return BadRequest(new { message = "Invalid or expired invitation." });
+
+        user.PasswordHash = HashPassword(req.Password);
+        user.IsActive = true;
+
+        // Issue a fresh access + refresh token.
+        var refresh = Guid.NewGuid().ToString("N");
+        user.RefreshToken = refresh;
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new AuthLoginResponse
+        {
+            AccessToken  = GenerateJwt(user),
+            RefreshToken = refresh,
+            ExpiresAt    = DateTime.UtcNow.AddHours(8),
+            UserName     = user.DisplayName,
+            Role         = user.Role.ToString(),
+            Tier         = user.Tenant?.Tier.ToString() ?? "Starter",
+            MimEnabled   = user.Tenant?.MimEnabled ?? false,
+        });
+    }
+
     // ── Tenant switcher (TENANT-SWITCH) ────────────────────────────────────────
 
     /// <summary>List all tenants the authenticated user's email is a member of.</summary>
@@ -425,8 +484,11 @@ public class AuthController : ControllerBase
 
     private string GenerateJwt(Core.Entities.AppUser user)
     {
+        // P1 — tag newly issued tokens with kid=current so future rotations can
+        // tell our tokens apart. KeyId matches the SecurityKey registered in
+        // Program.cs ("current" vs "previous").
         var jwtKey = _config["Jwt:Key"] ?? "Planscape-Dev-Secret-Key-Min32Chars!!";
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)) { KeyId = "current" };
         var creds = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -461,3 +523,4 @@ public class AuthController : ControllerBase
 }
 
 public record SwitchTenantRequest(Guid TenantId);
+public record AcceptInvitationRequest(string Token, string Email, string Password);

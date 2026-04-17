@@ -41,6 +41,8 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="ClosedXML" Version="0.104.2" />
     <PackageReference Include="ZXing.Net" Version="0.16.9" />
+    <!-- C2 — Real-time updates from Planscape Server (issues / compliance / revisions). -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.11" />
   </ItemGroup>
 
   <!-- S03: bring in the Planscape plugin-sync client (SyncScheduler / SyncClient /

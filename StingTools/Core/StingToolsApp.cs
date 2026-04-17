@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -579,6 +580,13 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentSaved compliance scan: {compEx.Message}");
                 }
 
+                // C3 — also populate TagElements so SyncNow has something to push
+                // besides the compliance summary. Capped at 5000 elements to keep
+                // the save → queue latency in the sub-second range.
+                List<Planscape.Shared.Models.TagElementSync> tagElements = null;
+                try { tagElements = CollectTagElements(doc, max: 5000); }
+                catch (Exception tagEx) { StingLog.Warn($"DocumentSaved tag collect: {tagEx.Message}"); }
+
                 // Build the sync payload and hand it to the offline queue.
                 // If SyncScheduler hasn't been started yet (user isn't logged in),
                 // OfflineQueue.Shared is null and we log+skip.
@@ -593,6 +601,7 @@ namespace StingTools.Core
                                           .GetName().Version?.ToString() ?? "",
                         PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
                         Timestamp     = DateTime.UtcNow,
+                        TagElements   = tagElements,
                         Compliance    = new Planscape.Shared.Models.ComplianceSync
                         {
                             TotalElements     = totalElements,
@@ -612,7 +621,19 @@ namespace StingTools.Core
                     {
                         queue.Enqueue(payload);
                         StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
-                            $"({taggedCount}/{totalElements}) enqueued (queue depth: {queue.Count})");
+                            $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} tag elements enqueued " +
+                            $"(queue depth: {queue.Count})");
+
+                        // C3 — drain immediately instead of waiting for the 5-min timer.
+                        // Fire-and-forget; the scheduler handles retry on failure.
+                        if (SyncScheduler.Instance != null)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                try { await SyncScheduler.Instance.SyncNowAsync(); }
+                                catch (Exception dEx) { StingLog.Warn($"DocumentSaved immediate drain: {dEx.Message}"); }
+                            });
+                        }
                     }
                     else
                     {
@@ -632,6 +653,50 @@ namespace StingTools.Core
             {
                 _isSyncing = false;
             }
+        }
+
+        /// <summary>
+        /// C3 — Collect lightweight tag element records for the sync payload.
+        /// Includes only elements with ASS_TAG_1_TXT populated (tagged elements)
+        /// and caps at <paramref name="max"/> to keep the save path fast.
+        /// </summary>
+        private static List<Planscape.Shared.Models.TagElementSync> CollectTagElements(
+            Autodesk.Revit.DB.Document doc, int max = 5000)
+        {
+            var results = new List<Planscape.Shared.Models.TagElementSync>();
+            if (doc == null) return results;
+
+            var collector = new Autodesk.Revit.DB.FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WhereElementIsViewIndependent();
+
+            foreach (var el in collector)
+            {
+                if (results.Count >= max) break;
+
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag1)) continue;
+
+                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch { return ""; } }
+
+                results.Add(new Planscape.Shared.Models.TagElementSync
+                {
+                    RevitElementId = el.Id.Value,
+                    UniqueId       = el.UniqueId,
+                    Disc           = FromReg(ParamRegistry.DISC),
+                    Loc            = FromReg(ParamRegistry.LOC),
+                    Zone           = FromReg(ParamRegistry.ZONE),
+                    Lvl            = FromReg(ParamRegistry.LVL),
+                    Sys            = FromReg(ParamRegistry.SYS),
+                    Func           = FromReg(ParamRegistry.FUNC),
+                    Prod           = FromReg(ParamRegistry.PROD),
+                    Seq            = FromReg(ParamRegistry.SEQ),
+                    Tag1           = tag1,
+                    CategoryName   = el.Category?.Name ?? "",
+                    FamilyName     = ParameterHelpers.GetFamilyName(el) ?? "",
+                });
+            }
+            return results;
         }
 
         public Result OnShutdown(UIControlledApplication application)

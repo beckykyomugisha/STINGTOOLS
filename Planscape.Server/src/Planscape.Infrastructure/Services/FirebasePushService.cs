@@ -212,10 +212,13 @@ public class FirebasePushService : IPushNotificationService
             // For now, use the raw API key if provided.
             var apiKey = _fcmServiceAccountJson;
 
-            // NEW-LOGIC-14 — Retry transient 5xx / 429 with exponential backoff.
+            // P6 — Retry transient 5xx / 429 with exponential backoff + jitter.
+            // Honours Retry-After when the server includes one (RFC 7231 §7.1.3).
+            // Backoff: 500ms, 1.5s, 3.5s (±20% jitter). 3 retries max.
             HttpResponseMessage response;
             string body = string.Empty;
             int attempt = 0;
+            const int maxRetries = 3;
             while (true)
             {
                 // Each retry needs a new HttpRequestMessage since the previous
@@ -231,11 +234,18 @@ public class FirebasePushService : IPushNotificationService
                 body = await response.Content.ReadAsStringAsync(ct);
 
                 bool transient = (int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.TooManyRequests;
-                if (!transient || attempt >= 2) break;
-                var delayMs = 500 * (1 << attempt);
+                if (!transient || attempt >= maxRetries) break;
+
+                // Honour Retry-After header if set; otherwise exponential + jitter.
+                var delayMs = response.Headers.RetryAfter?.Delta?.TotalMilliseconds
+                              ?? (500 * (1 << attempt));
+                var jitterMs = Random.Shared.Next(-(int)(delayMs * 0.2), (int)(delayMs * 0.2) + 1);
+                var finalDelay = Math.Max(100, (int)delayMs + jitterMs);
+
                 attempt++;
-                _logger.LogDebug("FCM transient {Status} — retrying in {Delay}ms (attempt {Attempt})", (int)response.StatusCode, delayMs, attempt);
-                await Task.Delay(delayMs, ct);
+                _logger.LogDebug("FCM transient {Status} — retrying in {Delay}ms (attempt {Attempt}/{Max})",
+                    (int)response.StatusCode, finalDelay, attempt, maxRetries);
+                await Task.Delay(finalDelay, ct);
             }
 
             if (response.IsSuccessStatusCode)

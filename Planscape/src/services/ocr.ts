@@ -146,6 +146,58 @@ export async function detectAndExtract(imageUri: string): Promise<OcrExtraction>
   return extract(raw);
 }
 
+/**
+ * T3 — Run device OCR first; if it's unavailable or low-confidence, POST
+ * the image to the server's /api/ocr/recognize endpoint for the cloud
+ * fallback (Azure AI Vision when configured, null otherwise).
+ *
+ * Dynamic imports keep the optional deps out of the cold-start path.
+ */
+export async function detectAndExtractWithFallback(imageUri: string): Promise<OcrExtraction> {
+  const local = await detectAndExtract(imageUri);
+  const needsFallback = local.raw.source === "unavailable" ||
+    local.extractionConfidence < 0.7;
+  if (!needsFallback) return local;
+
+  try {
+    const { getBaseUrl, getToken } = await import("../api/client");
+    const base  = await getBaseUrl();
+    const token = await getToken();
+    const form  = new FormData();
+    // React Native FormData file shape.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    form.append("file", { uri: imageUri, name: "image.jpg", type: "image/jpeg" } as any);
+    const res = await fetch(`${base}/api/ocr/recognize`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      body: form as any,
+    });
+    if (!res.ok) return local;
+    const body = await res.json() as { success: boolean; text?: string; confidence?: number; providerName?: string };
+    if (!body.success || !body.text) return local;
+
+    // Wrap the server response in our OcrResult shape and re-extract fields.
+    const serverResult: OcrResult = {
+      text: body.text,
+      confidence: clamp01(body.confidence ?? 0.8),
+      blocks: [],
+      processedAt: Date.now(),
+      source: "unavailable", // distinguish from on-device hits
+    };
+    const extraction = extract(serverResult);
+    // Cloud results get a 0.9 floor so the "did you mean?" modal doesn't pop
+    // on clear plate photos when the server has high confidence in every word.
+    if (body.confidence && body.confidence >= 0.9) {
+      return { ...extraction, extractionConfidence: Math.max(extraction.extractionConfidence, 0.9) };
+    }
+    return extraction;
+  } catch {
+    return local; // server unreachable → keep device result
+  }
+}
+
+
 // ── Regex / heuristic helpers ───────────────────────────────────────────
 
 /**
