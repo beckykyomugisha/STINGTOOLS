@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -58,15 +59,25 @@ public class DocumentsController : ControllerBase
 
     private readonly IFileStorageService _storage;
     private readonly IGeofenceValidationService _geofence;
+    private readonly IThumbnailService _thumbnails;
+    private readonly ILogger<DocumentsController> _logger;
 
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
 
-    public DocumentsController(PlanscapeDbContext db, IFileStorageService storage, IGeofenceValidationService geofence)
+    private static readonly string[] ImageContentTypes = { "image/jpeg", "image/png", "image/webp" };
+
+    public DocumentsController(PlanscapeDbContext db,
+        IFileStorageService storage,
+        IGeofenceValidationService geofence,
+        IThumbnailService thumbnails,
+        ILogger<DocumentsController> logger)
     {
         _db = db;
         _storage = storage;
         _geofence = geofence;
+        _thumbnails = thumbnails;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -152,6 +163,39 @@ public class DocumentsController : ControllerBase
 
         memStream.Position = 0;
         var relativePath = await _storage.SaveAsync(tenantSlug, project.Code, file.FileName, memStream);
+
+        // S04 — generate JPEG thumbnails (150/300/600 px) and extract EXIF GPS for image uploads.
+        // Applies to both first uploads and new-version uploads since each gets its own relativePath.
+        if (!string.IsNullOrEmpty(file.ContentType)
+            && ImageContentTypes.Contains(file.ContentType.ToLowerInvariant()))
+        {
+            try
+            {
+                memStream.Position = 0;
+                var thumbnails = await _thumbnails.GenerateThumbnailsAsync(memStream);
+                var baseName = Path.GetFileNameWithoutExtension(relativePath);
+                var thumbSubPath = $"{project.Code}/thumbnails";
+                foreach (var (size, bytes) in thumbnails)
+                {
+                    using var ms = new MemoryStream(bytes);
+                    await _storage.SaveAsync(tenantSlug, thumbSubPath, $"{baseName}_{size}.jpg", ms);
+                }
+
+                memStream.Position = 0;
+                var (lat, lng) = _thumbnails.ExtractGpsFromExif(memStream);
+                // DocumentRecord has no GPS columns; surface via logs until a migration adds them.
+                if (lat.HasValue && lng.HasValue)
+                {
+                    _logger.LogInformation("EXIF GPS extracted for {File}: {Lat},{Lng}",
+                        file.FileName, lat.Value, lng.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Thumbnail / EXIF failure must never break the upload.
+                _logger.LogWarning(ex, "Thumbnail/EXIF generation failed for {File}", file.FileName);
+            }
+        }
 
         // Check for existing document with same project + filename
         var existingDoc = await _db.Documents

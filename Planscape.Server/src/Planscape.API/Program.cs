@@ -59,6 +59,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Planscape.Core.Interfaces.ITenantContext, Planscape.Infrastructure.Services.TenantContext>();
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 builder.Services.AddScoped<Planscape.Core.Interfaces.IGeofenceValidationService, Planscape.Infrastructure.Services.GeofenceValidationService>();
+builder.Services.AddScoped<Planscape.API.Services.IThumbnailService, Planscape.API.Services.ImageSharpThumbnailService>();
 
 // ── Platform Connectors ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.IPlatformConnector, Planscape.Infrastructure.Services.AccConnector>();
