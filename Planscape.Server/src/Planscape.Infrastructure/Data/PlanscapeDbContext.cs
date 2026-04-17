@@ -56,6 +56,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
     public DbSet<UserNotificationPreferences> UserNotificationPreferences => Set<UserNotificationPreferences>();
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
+    public DbSet<IssueCustomFieldSchema> IssueCustomFieldSchemas => Set<IssueCustomFieldSchema>();
     public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
@@ -77,6 +78,30 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(t => t.Slug).IsUnique();
             e.Property(t => t.Name).HasMaxLength(200);
             e.Property(t => t.Slug).HasMaxLength(50);
+        });
+
+        // ── IssueCustomFieldSchema (FLEX-13) ──
+        modelBuilder.Entity<IssueCustomFieldSchema>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Key }).IsUnique();
+            e.HasIndex(x => x.ProjectId);
+            e.Property(x => x.Key).HasMaxLength(80);
+            e.Property(x => x.Label).HasMaxLength(200);
+            e.Property(x => x.HelpText).HasMaxLength(500);
+            e.Property(x => x.DefaultValueJson).HasColumnType("jsonb");
+            e.Property(x => x.OptionsJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── BimIssue.CustomFields JSONB (FLEX-13) ──
+        // Decision 4.5 = (c) — JSONB column with GIN index. The GIN index is
+        // created by the migration (raw SQL) rather than through HasIndex, to
+        // avoid the model snapshot trying to re-create/re-drop it on later
+        // unrelated migrations.
+        modelBuilder.Entity<BimIssue>(e =>
+        {
+            e.Property(x => x.CustomFields).HasColumnType("jsonb");
         });
 
         // ── TenantBranding (FLEX-03) ──

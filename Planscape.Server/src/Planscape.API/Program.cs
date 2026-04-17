@@ -123,6 +123,11 @@ builder.Services.AddSingleton<Planscape.Infrastructure.Services.IEmailTemplateRe
 
 // ── i18n (FLEX-15) — load resource files once at startup; mobile pulls via /api/i18n. ──
 builder.Services.AddSingleton<Planscape.Core.Interfaces.II18nService, Planscape.Infrastructure.Services.I18nService>();
+
+// ── NLP (NLP-AUTO-LINK) — rule-based + LLM fallback. Swap NullLlmResolver for
+//    a real provider (OpenAI / Azure OpenAI / Anthropic) when credentials land.
+builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpLlmResolver, Planscape.Infrastructure.Services.NullLlmResolver>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.INlpResolver, Planscape.Infrastructure.Services.NlpResolver>();
 if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
     || !string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.SmtpEmailService>();
@@ -179,6 +184,7 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.SlaEscalationJob>()
 builder.Services.AddScoped<Planscape.Infrastructure.Services.StaleWarningCleanupJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DatabaseBackupJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -461,5 +467,9 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.PlatformSyncJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
     "database-backup", j => j.ExecuteAsync(CancellationToken.None),
     "15 2 * * *", new RecurringJobOptions { QueueName = "default" });
+// FLEX-13 — nightly 03:15 UTC purge of custom fields past the 30-day grace period.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
+    "custom-fields-purge", j => j.ExecuteAsync(CancellationToken.None),
+    "15 3 * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();

@@ -233,6 +233,98 @@ public class AuthController : ControllerBase
         });
     }
 
+    // ── Tenant switcher (TENANT-SWITCH) ────────────────────────────────────────
+
+    /// <summary>List all tenants the authenticated user's email is a member of.</summary>
+    /// <remarks>
+    /// Used by the mobile header badge + picker. An email can have multiple <see cref="AppUser"/>
+    /// rows (one per tenant) — this endpoint surfaces all of them so the UI can let the
+    /// consultant switch organisations without logging out.
+    /// </remarks>
+    [HttpGet("tenants")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult> GetMemberships()
+    {
+        var subClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        var activeUserId = Guid.TryParse(subClaim, out var id) ? id : Guid.Empty;
+
+        var active = await _db.Users.AsNoTracking()
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u => u.Id == activeUserId);
+        if (active == null) return NotFound();
+
+        // Same email across tenants — common when consultants are invited to
+        // multiple client orgs.
+        var memberships = await _db.Users.AsNoTracking()
+            .Include(u => u.Tenant)
+            .Where(u => u.Email == active.Email && u.IsActive)
+            .OrderBy(u => u.Tenant!.Name)
+            .Select(u => new
+            {
+                userId = u.Id,
+                tenantId = u.TenantId,
+                tenantName = u.Tenant!.Name,
+                tenantSlug = u.Tenant.Slug,
+                tenantTier = u.Tenant.Tier.ToString(),
+                mimEnabled = u.Tenant.MimEnabled,
+                role = u.Role.ToString(),
+                isActiveTenant = u.Id == activeUserId,
+            })
+            .ToListAsync();
+
+        return Ok(memberships);
+    }
+
+    /// <summary>Re-issue a JWT for a different tenant the user belongs to.</summary>
+    /// <response code="200">New JWT + refresh token — apply in SecureStore under a per-tenant key.</response>
+    /// <response code="403">User is not a member of the requested tenant.</response>
+    [HttpPost("switch-tenant")]
+    [Authorize]
+    [ProducesResponseType(typeof(AuthLoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<AuthLoginResponse>> SwitchTenant([FromBody] SwitchTenantRequest req)
+    {
+        var subClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        var activeUserId = Guid.TryParse(subClaim, out var id) ? id : Guid.Empty;
+
+        var active = await _db.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == activeUserId);
+        if (active == null) return Unauthorized();
+
+        var target = await _db.Users
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u =>
+                u.Email == active.Email &&
+                u.TenantId == req.TenantId &&
+                u.IsActive);
+        if (target == null)
+        {
+            // Do not reveal whether the tenant exists — return 403.
+            return Forbid();
+        }
+
+        var token = GenerateJwt(target);
+        var refreshToken = Guid.NewGuid().ToString("N");
+        target.RefreshToken = refreshToken;
+        target.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+        target.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new AuthLoginResponse
+        {
+            AccessToken = token,
+            RefreshToken = refreshToken,
+            ExpiresAt = DateTime.UtcNow.AddHours(8),
+            UserName = target.DisplayName,
+            Role = target.Role.ToString(),
+            Tier = target.Tenant?.Tier.ToString() ?? "Starter",
+            MimEnabled = target.Tenant?.MimEnabled ?? false
+        });
+    }
+
     // ── Licence activation ─────────────────────────────────────────────────────
 
     /// <summary>Activate a licence key to unlock a tier (Professional / Premium / Enterprise).</summary>
@@ -367,3 +459,5 @@ public class AuthController : ControllerBase
     public static string HashPassword(string password)
         => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
 }
+
+public record SwitchTenantRequest(Guid TenantId);

@@ -33,6 +33,12 @@ public class BimIssue
     public string? DeviceId { get; set; } // device that raised the issue (mobile audit)
     public string? Source { get; set; } // "mobile" | "plugin" | "web"
 
+    // CUSTOM-FIELDS (FLEX-13) — tenant/project-defined schema values live here
+    // as a JSON object ({ "field_key": any }). Schema definitions are stored
+    // separately in <see cref="IssueCustomFieldSchema"/>. Storage is JSONB on
+    // Postgres (with a GIN index for searched keys); empty object when unset.
+    public string? CustomFields { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
     public AppUser? AssigneeUser { get; set; }
