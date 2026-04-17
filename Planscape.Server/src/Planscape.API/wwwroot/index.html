@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Planscape — office dashboard</title>
+<link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body>
+<nav class="topbar">
+  <div class="brand">Planscape</div>
+  <div class="spacer"></div>
+  <select id="projectPicker" class="project-picker"></select>
+  <div id="userChip" class="user-chip">Signing in…</div>
+  <button id="signOutBtn" class="ghost">Sign out</button>
+</nav>
+
+<aside class="sidebar">
+  <a href="#overview"      class="nav-link active" data-view="overview">Overview</a>
+  <a href="#issues"        class="nav-link"        data-view="issues">Issues</a>
+  <a href="#documents"     class="nav-link"        data-view="documents">Documents</a>
+  <a href="#transmittals"  class="nav-link"        data-view="transmittals">Transmittals</a>
+  <a href="#meetings"      class="nav-link"        data-view="meetings">Meetings</a>
+  <a href="#workflows"     class="nav-link"        data-view="workflows">Workflows</a>
+  <a href="#warnings"      class="nav-link"        data-view="warnings">Warnings</a>
+  <a href="#models"        class="nav-link"        data-view="models">3D models</a>
+  <a href="#schedule"      class="nav-link"        data-view="schedule">Schedule</a>
+  <a href="#cost"          class="nav-link"        data-view="cost">Cost</a>
+</aside>
+
+<main id="main" class="main">
+  <!-- populated by js/dashboard.js based on active view -->
+</main>
+
+<!-- Login overlay (shown until we have a token) -->
+<div id="loginOverlay" class="overlay hidden">
+  <form id="loginForm" class="card">
+    <h2>Sign in</h2>
+    <input id="loginEmail" type="email" placeholder="you@company.com" required />
+    <input id="loginPassword" type="password" placeholder="password" required />
+    <button type="submit">Sign in</button>
+    <p id="loginError" class="error"></p>
+    <p class="hint">Use the same credentials as the mobile app. Passwords are never stored in the browser.</p>
+  </form>
+</div>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

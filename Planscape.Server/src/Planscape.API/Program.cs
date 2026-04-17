@@ -62,7 +62,22 @@ builder.Services.AddDbContext<PlanscapeDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 // ── Authentication ──
+// P1 — JWT key rotation with grace period.
+// Primary signing key is `Jwt:Key`. During rotation, put the old key into
+// `Jwt:PreviousKey` for the overlap window (default 7d). Tokens issued
+// under either key validate during that window. After the window ends,
+// clear `Jwt:PreviousKey`. This prevents mass sign-outs on key rotation.
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "Planscape-Dev-Secret-Key-Min32Chars!!";
+var jwtPrevKey = builder.Configuration["Jwt:PreviousKey"];
+var signingKeys = new List<SecurityKey>
+{
+    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)) { KeyId = "current" },
+};
+if (!string.IsNullOrWhiteSpace(jwtPrevKey))
+{
+    signingKeys.Add(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtPrevKey)) { KeyId = "previous" });
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -74,7 +89,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Planscape",
             ValidAudience = builder.Configuration["Jwt:Audience"] ?? "Planscape.Client",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            // IssuerSigningKeys (plural) lets us validate tokens signed with
+            // either the current or the previous key during rotation.
+            IssuerSigningKeys = signingKeys,
         };
         // SignalR JWT support — read token from query string for WebSocket
         options.Events = new JwtBearerEvents
@@ -185,6 +202,19 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.StaleWarningCleanup
 builder.Services.AddScoped<Planscape.Infrastructure.Services.DatabaseBackupJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ModelDerivativeJob>();
+
+// P7 + P8 — IFC→glTF converter + thumbnail generator. Null defaults keep the
+// system running without a converter installed; swap the registration to
+// IfcConvertConverter / ApsModelDerivativeConverter / real thumbnail
+// service when infra is ready.
+var converterProvider = builder.Configuration["ModelConverter:Provider"];
+if (string.Equals(converterProvider, "ifcconvert", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelConverter, Planscape.Infrastructure.Services.IfcConvertConverter>();
+else
+    builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelConverter, Planscape.Infrastructure.Services.NullModelConverter>();
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator,
+    Planscape.Infrastructure.Services.NullThumbnailGenerator>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -310,6 +340,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// C1 — serve the wwwroot office dashboard (index.html + viewer.html + js/css).
+// Placed before auth so assets load without a token; the JS handles login
+// against /api/auth/login via fetch.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.UseSerilogRequestLogging();
 // MON-02: request/response metrics (latency histogram, status codes, in-flight).
@@ -471,5 +507,10 @@ RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
 RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
     "custom-fields-purge", j => j.ExecuteAsync(CancellationToken.None),
     "15 3 * * *", new RecurringJobOptions { QueueName = "default" });
+// P7 + P8 — every 10 minutes, produce glTF + thumbnail derivatives for
+// freshly-uploaded IFC/RVT models so the mobile viewer can render them.
+RecurringJob.AddOrUpdate<Planscape.Infrastructure.Services.ModelDerivativeJob>(
+    "model-derivatives", j => j.ExecuteAsync(CancellationToken.None),
+    "*/10 * * * *", new RecurringJobOptions { QueueName = "default" });
 
 await app.RunAsync();

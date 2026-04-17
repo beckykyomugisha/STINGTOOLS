@@ -425,8 +425,11 @@ public class AuthController : ControllerBase
 
     private string GenerateJwt(Core.Entities.AppUser user)
     {
+        // P1 — tag newly issued tokens with kid=current so future rotations can
+        // tell our tokens apart. KeyId matches the SecurityKey registered in
+        // Program.cs ("current" vs "previous").
         var jwtKey = _config["Jwt:Key"] ?? "Planscape-Dev-Secret-Key-Min32Chars!!";
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)) { KeyId = "current" };
         var creds = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]

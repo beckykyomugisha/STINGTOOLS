@@ -58,6 +58,10 @@ public class PlanscapeDbContext : DbContext
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
     public DbSet<IssueCustomFieldSchema> IssueCustomFieldSchemas => Set<IssueCustomFieldSchema>();
     public DbSet<ProjectModel> ProjectModels => Set<ProjectModel>();
+    public DbSet<IssueComment> IssueComments => Set<IssueComment>();
+    public DbSet<DocumentMarkup> DocumentMarkups => Set<DocumentMarkup>();
+    public DbSet<ScheduleTask> ScheduleTasks => Set<ScheduleTask>();
+    public DbSet<CostItem> CostItems => Set<CostItem>();
     public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
@@ -121,6 +125,64 @@ public class PlanscapeDbContext : DbContext
         {
             e.HasIndex(x => x.ModelId);
             e.Property(x => x.ModelElementGuid).HasMaxLength(80);
+        });
+
+        // ── IssueComment (P2) ──
+        modelBuilder.Entity<IssueComment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.IssueId);
+            e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.Body).HasMaxLength(4000);
+            e.Property(x => x.AuthorName).HasMaxLength(200);
+            e.Property(x => x.Source).HasMaxLength(20);
+            e.HasOne(x => x.Issue).WithMany().HasForeignKey(x => x.IssueId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── DocumentMarkup (P3) ──
+        modelBuilder.Entity<DocumentMarkup>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.DocumentId);
+            e.Property(x => x.ShapesJson).HasColumnType("jsonb");
+            e.Property(x => x.Summary).HasMaxLength(2000);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── ScheduleTask (P4) ──
+        modelBuilder.Entity<ScheduleTask>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.Code }).IsUnique();
+            e.Property(x => x.Code).HasMaxLength(80);
+            e.Property(x => x.Name).HasMaxLength(400);
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.LinkedMetric).HasMaxLength(200);
+            e.Property(x => x.PredecessorIds).HasMaxLength(2000);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── CostItem (P5) ──
+        modelBuilder.Entity<CostItem>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.Code });
+            e.Property(x => x.Code).HasMaxLength(80);
+            e.Property(x => x.Description).HasMaxLength(400);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.TradeBucket).HasMaxLength(100);
+            e.Property(x => x.Unit).HasMaxLength(16);
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.UnitRate).HasPrecision(18, 4);
+            e.Property(x => x.LineTotal).HasPrecision(18, 2);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.ScheduleTask).WithMany().HasForeignKey(x => x.ScheduleTaskId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── BimIssue.CustomFields JSONB (FLEX-13) ──

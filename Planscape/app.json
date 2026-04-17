@@ -16,6 +16,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.planscape.app",
+      "_universalLinksNote": "P11 — replace `planscape.example` with your real production host. Requires apple-app-site-association file hosted at /.well-known/apple-app-site-association on that domain.",
+      "associatedDomains": [
+        "applinks:planscape.example"
+      ],
       "infoPlist": {
         "NSCameraUsageDescription": "Planscape uses the camera to scan QR codes on BIM assets and capture site photos for issues.",
         "NSPhotoLibraryUsageDescription": "Planscape attaches photos from your library to construction issues.",
@@ -37,6 +41,19 @@
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "RECORD_AUDIO"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "planscape.example", "pathPrefix": "/accept-invitation" },
+            { "scheme": "https", "host": "planscape.example", "pathPrefix": "/reset-password" },
+            { "scheme": "https", "host": "planscape.example", "pathPrefix": "/issues" },
+            { "scheme": "https", "host": "planscape.example", "pathPrefix": "/documents" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "plugins": [

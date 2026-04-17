@@ -2,12 +2,14 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 
 namespace Planscape.API.Controllers;
 
@@ -62,6 +64,7 @@ public class DocumentsController : ControllerBase
     private readonly IThumbnailService _thumbnails;
     private readonly ILogger<DocumentsController> _logger;
     private readonly IAuditService _audit;
+    private readonly IHubContext<NotificationHub> _hub;
 
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
@@ -73,7 +76,8 @@ public class DocumentsController : ControllerBase
         IGeofenceValidationService geofence,
         IThumbnailService thumbnails,
         ILogger<DocumentsController> logger,
-        IAuditService audit)
+        IAuditService audit,
+        IHubContext<NotificationHub> hub)
     {
         _db = db;
         _storage = storage;
@@ -81,6 +85,7 @@ public class DocumentsController : ControllerBase
         _thumbnails = thumbnails;
         _logger = logger;
         _audit = audit;
+        _hub = hub;
     }
 
     [HttpGet]
@@ -458,6 +463,18 @@ public class DocumentsController : ControllerBase
         await _db.SaveChangesAsync();
         await _audit.LogAsync("TRANSITION", "Document", doc.Id.ToString(),
             $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewState}\"}}");
+
+        // C2 — real-time push so coordinators in Revit + mobile viewers refresh.
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("DocumentUpdated", new
+        {
+            projectId, documentId = docId,
+            fileName = doc.FileName, cdeStatus = doc.CdeStatus,
+            oldState, suitability = doc.SuitabilityCode,
+            revision = doc.Revision,
+            updatedAt = doc.UpdatedAt,
+            kind = "cde_transition"
+        });
+
         return Ok(doc);
     }
 
