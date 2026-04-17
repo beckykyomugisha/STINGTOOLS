@@ -1494,6 +1494,27 @@ namespace StingTools.Core
                 case "SpeckleDiff":             return new BIMManager.SpeckleDiffCommand();
                 case "ComplianceSnapshot":      return new Tags.CompletenessDashboardCommand();
                 case "WarningsSummary":         return new WarningsDashboardCommand();
+
+                // Phase 96: QR code tags dispatched from BCC Overview "QR CODES" section
+                // and the Planscape-native-hub → "Generate QR Link" quick share button.
+                // All four aliases land on the same ReadOnly QRCodeCommand.
+                case "QRCode":
+                case "GenerateQRCode":
+                case "GenerateQRSheet":
+                case "PrintQRTags":
+                case "PlanscapeQR":              return new Tags.QRCodeCommand();
+
+                // Phase 96: BCC-Perm-01 fix — ExportPermissionMatrix was resolvable from the
+                // dock panel (StingCommandHandler) but not from the BCC action path, so the
+                // Permission Groups "Export Matrix" button was silently running
+                // ExportModelHealth instead. Added here so both dispatch paths hit the
+                // real role/folder CSV exporter.
+                case "ExportPermissionMatrix": return new BIMManager.ExportPermissionMatrixCommand();
+
+                // Phase 96: Code Legend button dispatched from BCC Overview + Document Manager
+                // share bar. Same double-path issue as QR — only wired in StingCommandHandler
+                // so BCC's ExternalEvent path produced "Action 'CodeLegend' is not handled."
+                case "CodeLegend":             return new Tags.CodeLegendCommand();
                 // WF-02: EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand.
                 // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
                 // which is handled by the plugin hook fallback + error logging in RunCommandByTag.

@@ -578,6 +578,147 @@ public class IssuesController : ControllerBase
         return Ok(new { attachment.Id, attachment.IssueId, attachment.DocumentId, attachment.AttachedAt });
     }
 
+    // ── BCF 2.1 round-trip (Phase 95) ────────────────────────────────────────
+    // These endpoints sit on IssuesController (not BcfController) because the
+    // round-trip operates against the BimIssue collection under this project.
+    // Both call into Planscape.Shared.BCF.BcfEngine — the exact same pure-C#
+    // serialiser the Revit plugin uses, so Navisworks/Solibri round-trips
+    // produce byte-for-byte identical wire format regardless of whether the
+    // ZIP was written by the plugin or the server.
+
+    /// <summary>
+    /// Stream a BCF 2.1 .bcfzip built from this project's issues. Optional
+    /// status filter narrows to OPEN/IN_PROGRESS for clash-review workflows.
+    /// </summary>
+    [HttpGet("bcf-export")]
+    public async Task<IActionResult> BcfExport(Guid projectId, [FromQuery] string? status, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId, ct);
+        if (project == null) return NotFound("Project not found");
+
+        var query = _db.Issues.AsNoTracking().Where(i => i.ProjectId == projectId);
+        if (!string.IsNullOrEmpty(status)) query = query.Where(i => i.Status == status);
+        var issues = await query.ToListAsync(ct);
+
+        try
+        {
+            var coord = issues.Select(ToCoordIssue).ToList();
+            var bytes = Planscape.Shared.BCF.BcfEngine.ExportToBytes(coord);
+            await _audit.LogAsync("BCF_EXPORT", "Project", projectId.ToString(),
+                System.Text.Json.JsonSerializer.Serialize(new { count = coord.Count, status }));
+            var fileName = $"planscape-{project.Code}-{DateTime.UtcNow:yyyyMMdd_HHmmss}.bcfzip";
+            return File(bytes, "application/octet-stream", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "BCF export failed for project {ProjectId}", projectId);
+            return Problem(title: "BCF export failed", detail: ex.Message, statusCode: 500);
+        }
+    }
+
+    /// <summary>
+    /// Accept a multipart BCF 2.1 .bcfzip upload, parse it via the shared
+    /// BcfEngine, and upsert matching issues by BCF GUID. New topics become
+    /// new BimIssues with IssueCode "BCF-xxxxxxxx" (first 8 chars of topic GUID).
+    /// </summary>
+    [HttpPost("bcf-import")]
+    [RequestSizeLimit(100 * 1024 * 1024)]
+    [Authorize(Roles = "Admin,Owner,Coordinator,Manager")]
+    public async Task<ActionResult> BcfImport(Guid projectId, IFormFile? file, CancellationToken ct)
+    {
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId, ct);
+        if (project == null) return NotFound("Project not found");
+        if (file == null || file.Length == 0) return BadRequest(new { error = "file_required" });
+
+        List<Planscape.Shared.BCF.CoordIssue> parsed;
+        try
+        {
+            using var stream = file.OpenReadStream();
+            parsed = Planscape.Shared.BCF.BcfEngine.ImportFromStream(stream);
+        }
+        catch (Exception ex)
+        {
+            // BcfEngine.ImportFromStream swallows most failures and returns an
+            // empty list; we still guard here in case the underlying IFormFile
+            // stream throws before BcfEngine gets it (closed client, read quota).
+            _logger.LogError(ex, "BCF import parse failed for project {ProjectId}", projectId);
+            return Problem(title: "BCF import failed", detail: ex.Message, statusCode: 500);
+        }
+
+        if (parsed.Count == 0)
+            return BadRequest(new { error = "no_topics_found", detail = "The uploaded file contained no valid BCF 2.1 topics." });
+
+        int added = 0, updated = 0, skipped = 0;
+        foreach (var ci in parsed)
+        {
+            if (string.IsNullOrEmpty(ci.Guid)) { skipped++; continue; }
+
+            var existing = await _db.Issues.FirstOrDefaultAsync(
+                i => i.BcfGuid == ci.Guid && i.ProjectId == projectId, ct);
+
+            if (existing != null)
+            {
+                existing.Title       = Trim(ci.Title, 240);
+                existing.Description = ci.Description ?? existing.Description;
+                existing.Type        = UpperOr(ci.Type, existing.Type);
+                existing.Priority    = UpperOr(ci.Priority, existing.Priority);
+                existing.Status      = UpperOr(ci.Status, existing.Status);
+                existing.Assignee    = ci.Assignee ?? existing.Assignee;
+                updated++;
+            }
+            else
+            {
+                _db.Issues.Add(new BimIssue
+                {
+                    ProjectId   = projectId,
+                    IssueCode   = $"BCF-{ci.Guid.Substring(0, Math.Min(8, ci.Guid.Length))}",
+                    Title       = Trim(ci.Title, 240),
+                    Description = ci.Description,
+                    Type        = UpperOr(ci.Type, "RFI"),
+                    Priority    = UpperOr(ci.Priority, "MEDIUM"),
+                    Status      = UpperOr(ci.Status, "OPEN"),
+                    Assignee    = ci.Assignee,
+                    BcfGuid     = ci.Guid,
+                    CreatedBy   = User.FindFirst("display_name")?.Value ?? "bcf-import",
+                    Source      = "bcf",
+                    CreatedAt   = ci.CreationDate == default ? DateTime.UtcNow : ci.CreationDate.ToUniversalTime(),
+                });
+                added++;
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("BCF_IMPORT", "Project", projectId.ToString(),
+            System.Text.Json.JsonSerializer.Serialize(new { added, updated, skipped, total = parsed.Count }));
+
+        return Ok(new { added, updated, skipped, total = parsed.Count });
+    }
+
+    // Entity-side mapping (server) — kept inline here rather than in Planscape.Shared
+    // because BimIssue is an EF Core entity that Planscape.Shared must not take a
+    // dependency on. The shared engine only speaks CoordIssue.
+    private static Planscape.Shared.BCF.CoordIssue ToCoordIssue(BimIssue i) => new()
+    {
+        Guid          = string.IsNullOrEmpty(i.BcfGuid) ? i.Id.ToString() : i.BcfGuid!,
+        Title         = i.Title ?? "",
+        Description   = i.Description,
+        Priority      = (i.Priority ?? "MEDIUM").ToUpperInvariant(),
+        Type          = (i.Type ?? "RFI").ToUpperInvariant(),
+        Status        = (i.Status ?? "OPEN").ToUpperInvariant(),
+        Assignee      = i.Assignee,
+        Author        = i.CreatedBy,
+        CreationDate  = i.CreatedAt,
+        ReferenceLink = i.IssueCode,
+    };
+
+    private static string Trim(string? s, int max) =>
+        string.IsNullOrEmpty(s) ? "(untitled)" : (s.Length > max ? s[..max] : s);
+
+    private static string UpperOr(string? s, string fallback) =>
+        string.IsNullOrWhiteSpace(s) ? fallback : s.Trim().ToUpperInvariant();
+
     [HttpGet("sla")]
     public async Task<ActionResult> GetSLAReport(Guid projectId)
     {

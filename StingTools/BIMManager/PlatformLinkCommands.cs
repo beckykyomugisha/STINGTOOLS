@@ -12,6 +12,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Planscape.Shared.BCF;
 using StingTools.Core;
 using StingTools.Select;
 using StingTools.UI;
@@ -213,6 +214,112 @@ namespace StingTools.BIMManager
             sb.AppendLine("═══════════════════════════════════════════════════════════════");
 
             return sb.ToString();
+        }
+
+        // ── STING issue JObject ⇌ Planscape.Shared.BCF.CoordIssue adapters ──
+        // Phase 95: convert the STING issues.json JObject shape into the pure-C#
+        // CoordIssue model that BcfEngine understands. Kept as an adapter (not
+        // baked into CoordIssue itself) so CoordIssue stays Newtonsoft-free and
+        // usable from Planscape.Shared.
+        internal static CoordIssue StingIssueToCoord(JToken issue)
+        {
+            if (issue == null) return new CoordIssue();
+
+            // Preserve BCF GUID across round-trips — critical for dedup on re-import.
+            string guid = issue["bcf_guid"]?.ToString();
+            if (string.IsNullOrWhiteSpace(guid)) guid = Guid.NewGuid().ToString();
+
+            var ci = new CoordIssue
+            {
+                Guid          = guid,
+                Title         = issue["title"]?.ToString() ?? "Untitled",
+                Description   = issue["description"]?.ToString(),
+                Priority      = (issue["priority"]?.ToString() ?? "MEDIUM").ToUpperInvariant(),
+                Type          = (issue["type"]?.ToString() ?? "COMMENT").ToUpperInvariant(),
+                Status        = (issue["status"]?.ToString() ?? "OPEN").ToUpperInvariant(),
+                Assignee      = issue["assigned_to"]?.ToString(),
+                Author        = issue["raised_by"]?.ToString(),
+                ReferenceLink = issue["issue_id"]?.ToString(),
+                CreationDate  = ParseStingDate(issue["date_raised"]?.ToString()),
+            };
+
+            if (issue["comments"] is JArray comments)
+            {
+                foreach (var c in comments)
+                {
+                    string text = c["text"]?.ToString() ?? "";
+                    if (string.IsNullOrWhiteSpace(text)) continue;
+                    ci.Comments.Add(new CoordComment
+                    {
+                        Author = c["author"]?.ToString() ?? "",
+                        Text   = text,
+                        Date   = ParseStingDate(c["date"]?.ToString()),
+                    });
+                }
+            }
+            return ci;
+        }
+
+        /// <summary>Convert an imported <see cref="CoordIssue"/> back into a STING issue JObject.</summary>
+        internal static JObject CoordToStingIssue(CoordIssue ci, string nextId)
+        {
+            if (ci == null) return null;
+
+            string stingType = ci.Type ?? "COMMENT";
+            string stingPriority = ci.Priority ?? "MEDIUM";
+            string stingStatus = ci.Status ?? "OPEN";
+            string created = ci.CreationDate == default
+                ? DateTime.Now.ToString("yyyy-MM-dd HH:mm")
+                : ci.CreationDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+            var issue = new JObject
+            {
+                ["issue_id"]         = nextId,
+                ["type"]             = stingType,
+                ["type_description"] = BIMManagerEngine.IssueTypes.TryGetValue(stingType, out var itDesc) ? itDesc : stingType,
+                ["priority"]         = stingPriority,
+                ["title"]            = ci.Title ?? "(untitled)",
+                ["description"]      = ci.Description ?? "",
+                ["status"]           = stingStatus,
+                ["assigned_to"]      = ci.Assignee ?? "",
+                ["discipline"]       = "",
+                ["raised_by"]        = string.IsNullOrEmpty(ci.Author) ? Environment.UserName : ci.Author,
+                ["date_raised"]      = created,
+                ["date_due"]         = stingPriority == "CRITICAL" ? DateTime.Now.AddDays(1).ToString("yyyy-MM-dd") :
+                                       stingPriority == "HIGH"     ? DateTime.Now.AddDays(3).ToString("yyyy-MM-dd") :
+                                       stingPriority == "MEDIUM"   ? DateTime.Now.AddDays(7).ToString("yyyy-MM-dd") :
+                                                                     DateTime.Now.AddDays(14).ToString("yyyy-MM-dd"),
+                ["date_closed"]      = stingStatus == "CLOSED" ? DateTime.Now.ToString("yyyy-MM-dd HH:mm") : "",
+                ["response"]         = "",
+                ["element_ids"]      = new JArray(),
+                ["view_name"]        = "",
+                ["bcf_guid"]         = ci.Guid ?? "",
+                ["import_source"]    = "BCF 2.1",
+                ["comments"]         = new JArray(),
+            };
+
+            foreach (var c in ci.Comments ?? new List<CoordComment>())
+            {
+                if (c == null || string.IsNullOrEmpty(c.Text)) continue;
+                ((JArray)issue["comments"]).Add(new JObject
+                {
+                    ["text"]   = c.Text,
+                    ["author"] = c.Author ?? "",
+                    ["date"]   = c.Date == default
+                        ? DateTime.Now.ToString("yyyy-MM-dd HH:mm")
+                        : c.Date.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
+                });
+            }
+            return issue;
+        }
+
+        private static DateTime ParseStingDate(string dateStr)
+        {
+            if (string.IsNullOrWhiteSpace(dateStr)) return DateTime.UtcNow;
+            if (DateTime.TryParse(dateStr, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out var dt))
+                return dt;
+            return DateTime.UtcNow;
         }
 
         // ── Create BCF markup.bcf XML for a single issue ──
@@ -1370,111 +1477,52 @@ namespace StingTools.BIMManager
                     return Result.Cancelled;
                 }
 
-                // Create BCF ZIP
+                // Phase 95: delegate the BCF 2.1 ZIP assembly to BcfEngine, the
+                // shared pure-C# serialiser that also runs server-side. No more
+                // temp-directory shuffling — BcfEngine writes directly to disk
+                // via ZipArchive. Snapshots are omitted from the shared engine
+                // (the spec permits topics without snapshot.png); if a future
+                // phase needs visual previews, the Revit-side ImageExport call
+                // can be layered on top as an optional post-write step.
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string bcfPath = Path.Combine(bimDir, $"STING_Issues_{timestamp}.bcfzip");
 
-                // Build BCF in a temp directory, then zip
-                string tempDir = Path.Combine(Path.GetTempPath(), $"STING_BCF_{timestamp}");
+                int exported;
                 try
                 {
-                    Directory.CreateDirectory(tempDir);
-
-                    // Write bcf.version
-                    var versionDoc = PlatformLinkEngine.CreateBcfVersion();
-                    versionDoc.Save(Path.Combine(tempDir, "bcf.version"));
-
-                    // Write project.bcfp
-                    var projectDoc = PlatformLinkEngine.CreateBcfProject(doc);
-                    projectDoc.Save(Path.Combine(tempDir, "project.bcfp"));
-
-                    // Write each issue as a topic folder
-                    int exported = 0;
-                    byte[] placeholderPng = PlatformLinkEngine.CreatePlaceholderPng();
-
-                    foreach (var issue in exportIssues)
-                    {
-                        string topicGuid = Guid.NewGuid().ToString();
-                        string topicDir = Path.Combine(tempDir, topicGuid);
-                        Directory.CreateDirectory(topicDir);
-
-                        // markup.bcf
-                        var markupDoc = PlatformLinkEngine.CreateBcfMarkup(issue, topicGuid);
-                        markupDoc.Save(Path.Combine(topicDir, "markup.bcf"));
-
-                        // viewpoint.bcfv
-                        string vpGuid = Guid.NewGuid().ToString();
-                        var vpDoc = PlatformLinkEngine.CreateBcfViewpoint(vpGuid);
-                        vpDoc.Save(Path.Combine(topicDir, "viewpoint.bcfv"));
-
-                        // snapshot.png — attempt active view export, fallback to placeholder
-                        // Note: Revit ExportImage requires active view context and is not
-                        // reliable in all scenarios (e.g., API-only context, family editor).
-                        bool snapshotCaptured = false;
-                        try
-                        {
-                            var activeView = doc.ActiveView;
-                            if (activeView != null)
-                            {
-                                string snapPath = Path.Combine(topicDir, "snapshot");
-                                var imgOpts = new ImageExportOptions
-                                {
-                                    FilePath = snapPath,
-                                    HLRandWFViewsFileType = ImageFileType.PNG,
-                                    ImageResolution = ImageResolution.DPI_150,
-                                    ZoomType = ZoomFitType.FitToPage,
-                                    PixelSize = 640,
-                                    ExportRange = ExportRange.CurrentView
-                                };
-                                doc.ExportImage(imgOpts);
-                                // ExportImage appends view name — find the generated file
-                                string snapDir = Path.GetDirectoryName(snapPath) ?? topicDir;
-                                var pngFiles = Directory.GetFiles(snapDir, "snapshot*.png");
-                                if (pngFiles.Length > 0)
-                                {
-                                    string target = Path.Combine(topicDir, "snapshot.png");
-                                    if (pngFiles[0] != target)
-                                    {
-                                        if (File.Exists(target)) File.Delete(target);
-                                        File.Move(pngFiles[0], target);
-                                    }
-                                    snapshotCaptured = true;
-                                }
-                            }
-                        }
-                        catch (Exception snapEx) { StingLog.Warn($"BCF snapshot capture: {snapEx.Message}"); }
-                        if (!snapshotCaptured)
-                            File.WriteAllBytes(Path.Combine(topicDir, "snapshot.png"), placeholderPng);
-
-                        exported++;
-                    }
-
-                    // Create ZIP
-                    if (File.Exists(bcfPath)) File.Delete(bcfPath);
-                    ZipFile.CreateFromDirectory(tempDir, bcfPath, CompressionLevel.Optimal, false);
+                    var coordIssues = exportIssues
+                        .Select(PlatformLinkEngine.StingIssueToCoord)
+                        .Where(ci => ci != null)
+                        .ToList();
+                    exported = BcfEngine.Export(coordIssues, bcfPath);
                 }
-                finally
+                catch (Exception zipEx)
                 {
-                    // Clean up temp directory
-                    try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
-                    catch (Exception cleanEx) { StingLog.Warn($"BCF temp cleanup: {cleanEx.Message}"); }
+                    StingLog.Error("BcfEngine.Export failed", zipEx);
+                    TaskDialog.Show("STING Error", $"BCF export failed: {zipEx.Message}");
+                    return Result.Failed;
                 }
 
                 // Auto-register
                 BIMManagerEngine.AutoRegisterExport(doc, bcfPath, "RP",
-                    $"BCF 2.1 export — {exportIssues.Count} issues");
+                    $"BCF 2.1 export — {exported} issues");
 
                 long fileSize = new FileInfo(bcfPath).Length;
                 string sizeStr = fileSize < 1024 * 1024
                     ? $"{fileSize / 1024.0:F1} KB"
                     : $"{fileSize / (1024.0 * 1024.0):F1} MB";
 
-                StingLog.Info($"PlatformLink: BCF export complete — {exportIssues.Count} issues, {sizeStr}");
+                StingLog.Info($"PlatformLink: BCF export complete — {exported} issues, {sizeStr}");
+
+                // Reveal the containing folder so the coordinator can grab the .bcfzip
+                // without leaving the dialog — mirrors Windows "Show in folder" UX.
+                try { Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{bcfPath}\"") { UseShellExecute = true }); }
+                catch (Exception openEx) { StingLog.Warn($"Open BCF folder: {openEx.Message}"); }
 
                 var resultDlg = new TaskDialog("STING BCF Export — Complete");
-                resultDlg.MainInstruction = $"BCF 2.1 export: {exportIssues.Count} issues";
+                resultDlg.MainInstruction = $"BCF 2.1 export: {exported} issues";
                 resultDlg.MainContent =
-                    $"Issues exported: {exportIssues.Count}\n" +
+                    $"Issues exported: {exported}\n" +
                     $"File: {Path.GetFileName(bcfPath)}\n" +
                     $"Size: {sizeStr}\n\n" +
                     "Compatible with: Navisworks, Solibri, BIMcollab, BIM Track,\n" +
@@ -1561,73 +1609,101 @@ namespace StingTools.BIMManager
                 // Load existing issues
                 string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
                 var existingIssues = BIMManagerEngine.LoadJsonArray(issuesPath);
+                var existingGuids = new HashSet<string>(
+                    existingIssues.Select(i => i["bcf_guid"]?.ToString() ?? "")
+                                  .Where(g => !string.IsNullOrEmpty(g)),
+                    StringComparer.OrdinalIgnoreCase);
 
-                // Extract and process BCF
-                string extractDir = Path.Combine(Path.GetTempPath(), $"STING_BCF_IMPORT_{Guid.NewGuid():N}");
+                // Phase 95: delegate parsing to the shared BcfEngine. It never
+                // throws, returns an empty list on malformed ZIPs, and ignores
+                // viewpoints (stub camera data is not round-trippable).
+                List<CoordIssue> parsed = BcfEngine.Import(selectedBcf);
+                if (parsed.Count == 0)
+                {
+                    TaskDialog.Show("STING BCF Import",
+                        $"No topics found in:\n{Path.GetFileName(selectedBcf)}\n\n" +
+                        "The file may be malformed, empty, or not a valid BCF 2.1 archive.");
+                    return Result.Cancelled;
+                }
+
+                // Build a review picker: users tick which topics to merge. Topics
+                // already present in issues.json (matched by BCF GUID) are
+                // pre-unselected with a "[duplicate]" detail tag so the coordinator
+                // sees them but doesn't re-import by default.
+                int duplicateCount = 0;
+                var pickerItems = new List<StingListPicker.ListItem>();
+                foreach (var ci in parsed)
+                {
+                    bool isDup = !string.IsNullOrEmpty(ci.Guid) && existingGuids.Contains(ci.Guid);
+                    if (isDup) duplicateCount++;
+
+                    string labelPrefix = isDup ? "[duplicate] " : "";
+                    string label = $"{labelPrefix}{ci.Type} — {ci.Title ?? "(untitled)"}";
+                    string detail = $"Priority: {ci.Priority}  |  Status: {ci.Status}  |  " +
+                                    $"Author: {ci.Author ?? "?"}  |  GUID: {ci.Guid?.Substring(0, Math.Min(8, ci.Guid?.Length ?? 0))}";
+
+                    pickerItems.Add(new StingListPicker.ListItem
+                    {
+                        Label      = label,
+                        Detail     = detail,
+                        Tag        = ci,
+                        IsSelected = !isDup,   // default: import everything except duplicates
+                    });
+                }
+
+                var selected = StingListPicker.Show(
+                    "BCF Import — Review Topics",
+                    $"{parsed.Count} topic(s) found in {Path.GetFileName(selectedBcf)}" +
+                        (duplicateCount > 0 ? $"  ({duplicateCount} duplicate by GUID)" : "") +
+                        "\nTick the topics you want to merge into this project's issues.json.",
+                    pickerItems,
+                    allowMultiSelect: true);
+
+                if (selected == null || selected.Count == 0)
+                {
+                    StingLog.Info("PlatformLink: BCF import cancelled by user (no topics selected)");
+                    return Result.Cancelled;
+                }
+
                 int imported = 0;
-                int skipped = 0;
+                int skipped = parsed.Count - selected.Count;
 
-                try
+                foreach (var picked in selected)
                 {
-                    ZipFile.ExtractToDirectory(selectedBcf, extractDir);
+                    var ci = picked?.Tag as CoordIssue;
+                    if (ci == null) continue;
 
-                    // Each subdirectory with a markup.bcf is a topic
-                    foreach (string topicDir in Directory.GetDirectories(extractDir))
+                    // Skip duplicate GUIDs even if the coordinator accidentally
+                    // re-ticked them — dedup is the non-negotiable half of BCF
+                    // round-trip integrity.
+                    if (!string.IsNullOrEmpty(ci.Guid) && existingGuids.Contains(ci.Guid))
                     {
-                        string markupPath = Path.Combine(topicDir, "markup.bcf");
-                        if (!File.Exists(markupPath)) continue;
-
-                        try
-                        {
-                            var markupDoc = XDocument.Load(markupPath);
-                            var topic = markupDoc.Root?.Element("Topic");
-                            if (topic == null) continue;
-
-                            string bcfGuid = topic.Attribute("Guid")?.Value ?? "";
-
-                            // Skip if already imported (check by BCF GUID)
-                            if (!string.IsNullOrEmpty(bcfGuid) &&
-                                existingIssues.Any(i => i["bcf_guid"]?.ToString() == bcfGuid))
-                            {
-                                skipped++;
-                                continue;
-                            }
-
-                            string nextId = BIMManagerEngine.GetNextIssueId(existingIssues, "BCF");
-                            var issue = PlatformLinkEngine.ParseBcfTopicToIssue(markupDoc, nextId, doc);
-                            if (issue != null)
-                            {
-                                existingIssues.Add(issue);
-                                imported++;
-                            }
-                        }
-                        catch (Exception topicEx)
-                        {
-                            StingLog.Warn($"BCF Import: failed to parse topic {Path.GetFileName(topicDir)}: {topicEx.Message}");
-                            skipped++;
-                        }
+                        skipped++;
+                        continue;
                     }
 
-                    // Save updated issues
-                    if (imported > 0)
+                    string nextId = BIMManagerEngine.GetNextIssueId(existingIssues, "BCF");
+                    var jo = PlatformLinkEngine.CoordToStingIssue(ci, nextId);
+                    if (jo != null)
                     {
-                        BIMManagerEngine.SaveJsonFile(issuesPath, existingIssues);
+                        existingIssues.Add(jo);
+                        if (!string.IsNullOrEmpty(ci.Guid)) existingGuids.Add(ci.Guid);
+                        imported++;
                     }
                 }
-                finally
-                {
-                    try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); }
-                    catch (Exception cleanEx) { StingLog.Warn($"BCF extract cleanup: {cleanEx.Message}"); }
-                }
 
-                StingLog.Info($"PlatformLink: BCF import complete — {imported} imported, {skipped} skipped");
+                if (imported > 0)
+                    BIMManagerEngine.SaveJsonFile(issuesPath, existingIssues);
+
+                StingLog.Info($"PlatformLink: BCF import complete — {imported} imported, {skipped} skipped (from {parsed.Count} topics in ZIP)");
 
                 var resultDlg = new TaskDialog("STING BCF Import — Complete");
                 resultDlg.MainInstruction = $"BCF import: {imported} issues imported";
                 resultDlg.MainContent =
                     $"Source: {Path.GetFileName(selectedBcf)}\n" +
+                    $"Topics in file: {parsed.Count}\n" +
                     $"Imported: {imported}\n" +
-                    $"Skipped (duplicate/invalid): {skipped}\n" +
+                    $"Skipped (duplicate/unselected): {skipped}\n" +
                     $"Total issues now: {existingIssues.Count}\n\n" +
                     "View imported issues with 'Issue Dashboard' in the BIM tab.";
                 resultDlg.Show();

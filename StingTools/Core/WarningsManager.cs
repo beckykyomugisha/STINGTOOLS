@@ -4415,6 +4415,41 @@ namespace StingTools.Core
                     case "SavePermissions":
                         SavePermissionsInline(doc);
                         return;
+
+                    // Phase 96: Project Members tab actions. Previously these only worked via
+                    // the StingCommandHandler path — when BCC dispatched them through its own
+                    // ExternalEvent they fell through DispatchCoordAction and the user saw
+                    // "Action 'SaveProjectMembers' is not handled." Route directly to the BCC
+                    // WPF instance (same target StingCommandHandler uses) so both paths reach
+                    // HandleProjectMembersAction.
+                    case "SaveProjectMembers":
+                    case "AddTeamMember":
+                    case "EditTeamMember":
+                    case "EditMember":
+                    case "RemoveTeamMember":
+                    case "RemoveMember":
+                    case "AddRole":
+                    case "EditRole":
+                    case "DeleteRole":
+                    case "ImportTeamCSV":
+                    {
+                        var bcc = UI.BIMCoordinationCenter.CurrentInstance;
+                        if (bcc != null)
+                        {
+                            // HandleProjectMembersAction expects the canonical action name.
+                            // Normalise EditTeamMember→EditMember / RemoveTeamMember→RemoveMember
+                            // so the switch inside HandleProjectMembersAction only needs one case.
+                            string normalised = action;
+                            if (action == "EditTeamMember") normalised = "EditMember";
+                            else if (action == "RemoveTeamMember") normalised = "RemoveMember";
+                            bcc.HandleProjectMembersAction(normalised);
+                        }
+                        else
+                        {
+                            StingLog.Warn($"BCC action '{action}' dispatched but CurrentInstance is null.");
+                        }
+                        return;
+                    }
                     case "TakeSnapshot":
                         TakeModelSnapshot(doc);
                         return;
@@ -5097,7 +5132,10 @@ namespace StingTools.Core
 
                 // Permission actions (SavePermissions handled inline in ProcessAction)
                 { "CreateFolders", "CreateFolders" },
-                { "ExportPermissionMatrix", "ExportModelHealth" },
+                // Phase 96: Fix BCC-Perm-01 — was routed to ExportModelHealth (wrong command).
+                // ExportPermissionMatrixCommand now resolvable via WorkflowEngine.ResolveCommand
+                // so it produces the real role/folder CSV matrix expected by BEP auditors.
+                { "ExportPermissionMatrix", "ExportPermissionMatrix" },
                 { "EditUserRole", "ConfigEditor" },
 
                 // 4D/5D extended scheduling commands (dispatched from BCC 4D/5D tab)

@@ -5,4 +5,12 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Planscape.Shared</RootNamespace>
   </PropertyGroup>
+
+  <!-- Phase 95: BCF 2.1 engine is authored once inside the Revit plugin tree
+       (StingTools/BIMManager/BcfEngine.cs) but lives in the Planscape.Shared.BCF
+       namespace so the server compiles the exact same source. Pure C#; no
+       Revit API references. -->
+  <ItemGroup>
+    <Compile Include="..\..\..\StingTools\BIMManager\BcfEngine.cs" Link="BCF\BcfEngine.cs" />
+  </ItemGroup>
 </Project>
