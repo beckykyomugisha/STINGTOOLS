@@ -919,6 +919,32 @@ namespace StingTools.Temp
                 Document doc = template.Document;
                 if (solidFill == null) solidFill = PresentationStyleHelper.GetSolidFill(doc);
 
+                // ── Template-wide defaults ──
+                // Hide analytical model categories on non-analysis templates,
+                // set Revit view discipline so the Project Browser organises
+                // templates correctly, hide DWG/import on presentation templates,
+                // and control crop-box visibility (hidden on presentation).
+                bool isPresentation = discipline.StartsWith("PRES_") || discipline.StartsWith("3D_")
+                                      || discipline == "PRES_3D" || discipline == "SEC_P"
+                                      || discipline == "ELEV_P";
+                bool isWorking3D    = discipline == "MEP_3D";
+                PresentationStyleHelper.ApplyTemplateDefaults(template,
+                    discipline: PresentationStyleHelper.MapViewDiscipline(discipline),
+                    hideAnalytical: true,
+                    hideImports: isPresentation,
+                    cropBoxVisible: isPresentation ? false : (bool?)null,
+                    cropBoxActive: isPresentation ? true  : (bool?)null);
+
+                // Hide categories that don't belong on this template type.
+                // Runs AFTER detail level is set so visibility-control checks
+                // reflect the active view settings.
+                try
+                {
+                    PresentationStyleHelper.HideCategories(template,
+                        PresentationStyleHelper.GetHideCategoriesForTemplate(discipline));
+                }
+                catch (Exception ex) { StingLog.Warn($"HideCategories on '{template.Name}': {ex.Message}"); }
+
                 // Local helpers
                 OverrideGraphicSettings Halftone(int t = 50) => PresentationStyleHelper.Halftone(t);
 
@@ -1029,10 +1055,8 @@ namespace StingTools.Temp
                         else
                             PresentationStyleHelper.AddOrSet(template, kv.Value, Halftone(80));
                     }
-                    // Hide categories that don't belong in an RCP
-                    PresentationStyleHelper.HideCategory(template, BuiltInCategory.OST_Furniture);
-                    PresentationStyleHelper.HideCategory(template, BuiltInCategory.OST_PlumbingFixtures);
-                    PresentationStyleHelper.HideCategory(template, BuiltInCategory.OST_StructuralFoundation);
+                    // Category hides (Furniture, Floors, PlumbingFixtures, StructuralFoundation)
+                    // already applied by ApplyTemplateDefaults → GetHideCategoriesForTemplate.
                     return;
                 }
                 if (discipline == "RCP_CLG")
@@ -1048,8 +1072,7 @@ namespace StingTools.Temp
                     }
                     // Strengthen the Ceiling category line weight specifically
                     PresentationStyleHelper.SetCategoryWeights(template, BuiltInCategory.OST_Ceilings, 4, 5);
-                    PresentationStyleHelper.HideCategory(template, BuiltInCategory.OST_Furniture);
-                    PresentationStyleHelper.HideCategory(template, BuiltInCategory.OST_PlumbingFixtures);
+                    // Furniture, Floors, PlumbingFixtures already hidden by matrix
                     return;
                 }
 

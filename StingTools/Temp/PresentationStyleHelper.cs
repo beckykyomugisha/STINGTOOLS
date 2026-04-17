@@ -598,5 +598,342 @@ namespace StingTools.Temp
                 }
             }
         }
+
+        // ── Category-hide matrices ─────────────────────────────────────
+        // What belongs on what template: each set represents categories
+        // that DO NOT belong on that template type and should be hidden
+        // via View.SetCategoryHidden. Not every template needs every hide
+        // (e.g. plans need to keep Rooms, sections don't hide Walls).
+
+        /// <summary>
+        /// Site / landscape categories — hidden on interior-focused plans
+        /// (MEP, working plans, most presentation plans).
+        /// </summary>
+        public static readonly BuiltInCategory[] SITE_CATEGORIES = new[]
+        {
+            BuiltInCategory.OST_Topography,
+            BuiltInCategory.OST_Site,
+            BuiltInCategory.OST_SiteProperty,
+            BuiltInCategory.OST_SitePropertyLineSegment,
+            BuiltInCategory.OST_Planting,
+            BuiltInCategory.OST_Entourage,
+            BuiltInCategory.OST_Parking,
+            BuiltInCategory.OST_Roads,
+            BuiltInCategory.OST_Mass,
+        };
+
+        /// <summary>
+        /// View-marker / navigation categories — hidden on presentation
+        /// templates. Construction lines, reference planes, scope boxes,
+        /// section/elevation/callout markers, cameras, matchlines, revision
+        /// clouds. Keep on working templates where coordinators need them.
+        /// </summary>
+        public static readonly BuiltInCategory[] VIEW_MARKER_CATEGORIES = new[]
+        {
+            BuiltInCategory.OST_CLines,               // Centerlines
+            BuiltInCategory.OST_Cameras,
+            BuiltInCategory.OST_Sections,             // Section markers
+            BuiltInCategory.OST_Elev,                 // Elevation markers
+            BuiltInCategory.OST_Callouts,
+            BuiltInCategory.OST_ScopeBoxes,
+            BuiltInCategory.OST_MatchlineAxis,
+            BuiltInCategory.OST_ReferencePoints,
+        };
+
+        /// <summary>
+        /// MEP / plumbing / electrical categories — hidden on structural
+        /// presentation templates and landscape templates.
+        /// </summary>
+        public static readonly BuiltInCategory[] MEP_CATEGORIES = new[]
+        {
+            BuiltInCategory.OST_MechanicalEquipment,
+            BuiltInCategory.OST_DuctCurves,
+            BuiltInCategory.OST_DuctFitting,
+            BuiltInCategory.OST_DuctAccessory,
+            BuiltInCategory.OST_DuctTerminal,
+            BuiltInCategory.OST_FlexDuctCurves,
+            BuiltInCategory.OST_ElectricalEquipment,
+            BuiltInCategory.OST_ElectricalFixtures,
+            BuiltInCategory.OST_LightingFixtures,
+            BuiltInCategory.OST_LightingDevices,
+            BuiltInCategory.OST_PlumbingFixtures,
+            BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_PipeFitting,
+            BuiltInCategory.OST_PipeAccessory,
+            BuiltInCategory.OST_FlexPipeCurves,
+            BuiltInCategory.OST_Sprinklers,
+            BuiltInCategory.OST_FireAlarmDevices,
+            BuiltInCategory.OST_CommunicationDevices,
+            BuiltInCategory.OST_DataDevices,
+            BuiltInCategory.OST_SecurityDevices,
+            BuiltInCategory.OST_NurseCallDevices,
+            BuiltInCategory.OST_TelephoneDevices,
+            BuiltInCategory.OST_Conduit,
+            BuiltInCategory.OST_ConduitFitting,
+            BuiltInCategory.OST_CableTray,
+            BuiltInCategory.OST_CableTrayFitting,
+        };
+
+        /// <summary>
+        /// Furniture / interior fit-out categories — hidden on structural-only
+        /// and landscape-only plans.
+        /// </summary>
+        public static readonly BuiltInCategory[] INTERIOR_FITOUT_CATEGORIES = new[]
+        {
+            BuiltInCategory.OST_Furniture,
+            BuiltInCategory.OST_FurnitureSystems,
+            BuiltInCategory.OST_Casework,
+            BuiltInCategory.OST_SpecialityEquipment,
+        };
+
+        /// <summary>
+        /// Hide a list of categories on a view, silently skipping any that
+        /// don't exist in this Revit version or don't allow visibility control.
+        /// </summary>
+        public static void HideCategories(View v, IEnumerable<BuiltInCategory> cats)
+        {
+            if (v == null || cats == null) return;
+            foreach (var bic in cats)
+            {
+                try
+                {
+                    Category cat = v.Document.Settings.Categories.get_Item(bic);
+                    if (cat == null) continue;
+                    if (cat.get_AllowsVisibilityControl(v))
+                        v.SetCategoryHidden(cat.Id, true);
+                }
+                catch (Exception ex) { StingLog.Warn($"HideCategory {bic}: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Configure cross-cutting view defaults that apply regardless of
+        /// discipline: analytical categories hidden, import categories
+        /// hidden on presentation, crop visibility, view discipline tag.
+        /// </summary>
+        public static void ApplyTemplateDefaults(View v,
+            ViewDiscipline? discipline = null,
+            bool hideAnalytical = true,
+            bool hideImports = false,
+            bool? cropBoxVisible = null,
+            bool? cropBoxActive = null)
+        {
+            if (v == null) return;
+            try
+            {
+                if (hideAnalytical)
+                {
+                    try { v.AreAnalyticalModelCategoriesHidden = true; }
+                    catch (Exception ex) { StingLog.Warn($"AreAnalyticalModelCategoriesHidden on '{v.Name}': {ex.Message}"); }
+                }
+                if (hideImports)
+                {
+                    try { v.AreImportCategoriesHidden = true; }
+                    catch (Exception ex) { StingLog.Warn($"AreImportCategoriesHidden on '{v.Name}': {ex.Message}"); }
+                }
+                if (discipline.HasValue)
+                {
+                    try { v.Discipline = discipline.Value; }
+                    catch (Exception ex) { StingLog.Warn($"Set Discipline on '{v.Name}': {ex.Message}"); }
+                }
+                if (cropBoxVisible.HasValue)
+                {
+                    try { v.CropBoxVisible = cropBoxVisible.Value; }
+                    catch (Exception ex) { StingLog.Warn($"CropBoxVisible on '{v.Name}': {ex.Message}"); }
+                }
+                if (cropBoxActive.HasValue)
+                {
+                    try { v.CropBoxActive = cropBoxActive.Value; }
+                    catch (Exception ex) { StingLog.Warn($"CropBoxActive on '{v.Name}': {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ApplyTemplateDefaults on '{v.Name}': {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Canonical hide matrix by template discipline code. Returns the set
+        /// of categories that should be hidden for this template type. Called
+        /// from ConfigureTemplateVG after the filter stack is laid down so
+        /// irrelevant categories are pruned even when a filter would otherwise
+        /// colour them.
+        /// </summary>
+        public static IEnumerable<BuiltInCategory> GetHideCategoriesForTemplate(string discipline)
+        {
+            switch (discipline)
+            {
+                // ── MEP / working discipline plans ──
+                // Remove site + marker noise; keep interior fit-out (MEP touches it)
+                case "M":
+                case "E":
+                case "P":
+                case "FP":
+                case "LV":
+                case "MEP":
+                case "MEP_3D":
+                    foreach (var c in SITE_CATEGORIES) yield return c;
+                    yield break;
+
+                // ── Architectural working plan ──
+                // Keep site (often part of arch drawings); hide only mass
+                case "A":
+                    yield return BuiltInCategory.OST_Mass;
+                    yield break;
+
+                // ── Structural plan ──
+                // Hide MEP + interior fit-out — structural drawings are skeleton only
+                case "S":
+                    foreach (var c in MEP_CATEGORIES) yield return c;
+                    foreach (var c in INTERIOR_FITOUT_CATEGORIES) yield return c;
+                    foreach (var c in SITE_CATEGORIES) yield return c;
+                    yield break;
+
+                // ── Combined services — keep most, remove mass ──
+                case "ALL":
+                    yield return BuiltInCategory.OST_Mass;
+                    yield break;
+
+                // ── Demolition / as-built / area ──
+                case "DEMO":
+                case "EXIST":
+                    yield return BuiltInCategory.OST_Mass;
+                    foreach (var c in SITE_CATEGORIES.Where(c => c != BuiltInCategory.OST_Mass))
+                        yield return c;
+                    yield break;
+                case "AREA":
+                    // Area plan: hide everything that isn't a room/wall/door/window
+                    foreach (var c in MEP_CATEGORIES) yield return c;
+                    foreach (var c in INTERIOR_FITOUT_CATEGORIES) yield return c;
+                    foreach (var c in SITE_CATEGORIES) yield return c;
+                    yield return BuiltInCategory.OST_Stairs;
+                    yield return BuiltInCategory.OST_Railings;
+                    yield break;
+
+                // ── RCP — reflected ceiling ──
+                case "RCP_LTG":
+                case "RCP_CLG":
+                    foreach (var c in SITE_CATEGORIES) yield return c;
+                    yield return BuiltInCategory.OST_Furniture;
+                    yield return BuiltInCategory.OST_FurnitureSystems;
+                    yield return BuiltInCategory.OST_Casework;
+                    yield return BuiltInCategory.OST_PlumbingFixtures;
+                    yield return BuiltInCategory.OST_StructuralFoundation;
+                    yield return BuiltInCategory.OST_Floors;
+                    yield break;
+
+                // ── Presentation plans (both Classic/Enhanced and per-disc) ──
+                // Hide markers, site mass, analytical
+                case "PRES_C":
+                case "PRES_E":
+                case "PRES_A":
+                case "PRES_S":
+                case "PRES_E_DISC":
+                case "PRES_P":
+                case "PRES_MEP":
+                case "PRES_MONO":
+                case "PRES_DARK":
+                    foreach (var c in VIEW_MARKER_CATEGORIES) yield return c;
+                    yield return BuiltInCategory.OST_Mass;
+                    yield return BuiltInCategory.OST_RvtLinks;
+                    yield break;
+
+                // ── Presentation landscape ──
+                // Hide MEP, interior fit-out, structural, markers, mass
+                case "PRES_LAND":
+                    foreach (var c in MEP_CATEGORIES) yield return c;
+                    foreach (var c in INTERIOR_FITOUT_CATEGORIES) yield return c;
+                    foreach (var c in VIEW_MARKER_CATEGORIES) yield return c;
+                    yield return BuiltInCategory.OST_StructuralColumns;
+                    yield return BuiltInCategory.OST_StructuralFraming;
+                    yield return BuiltInCategory.OST_StructuralFoundation;
+                    yield return BuiltInCategory.OST_Ceilings;
+                    yield return BuiltInCategory.OST_Mass;
+                    yield break;
+
+                // ── Presentation 3D — hide markers ──
+                case "PRES_3D":
+                case "3D_A":
+                case "3D_S":
+                case "3D_E":
+                case "3D_P":
+                case "3D_MONO":
+                case "3D_DARK":
+                    foreach (var c in VIEW_MARKER_CATEGORIES) yield return c;
+                    yield return BuiltInCategory.OST_Mass;
+                    yield break;
+
+                // ── Sections ──
+                case "SEC_W":
+                case "SEC_P":
+                    foreach (var c in SITE_CATEGORIES.Where(c => c != BuiltInCategory.OST_Topography))
+                        yield return c;
+                    if (discipline == "SEC_P")
+                        foreach (var c in VIEW_MARKER_CATEGORIES) yield return c;
+                    yield break;
+                case "SEC_D":
+                    // Detail sections: keep everything that might be in the detail
+                    yield return BuiltInCategory.OST_Mass;
+                    yield break;
+
+                // ── Elevations ──
+                case "ELEV_W":
+                    yield return BuiltInCategory.OST_Mass;
+                    yield break;
+                case "ELEV_P":
+                    foreach (var c in VIEW_MARKER_CATEGORIES) yield return c;
+                    yield return BuiltInCategory.OST_Mass;
+                    yield break;
+
+                default: yield break;
+            }
+        }
+
+        /// <summary>
+        /// Map a STING discipline code to Revit's ViewDiscipline enum so the
+        /// Project Browser organizes templates correctly.
+        /// </summary>
+        public static ViewDiscipline? MapViewDiscipline(string discipline)
+        {
+            switch (discipline)
+            {
+                case "M":   return ViewDiscipline.Mechanical;
+                case "E":   return ViewDiscipline.Electrical;
+                case "P":   return ViewDiscipline.Plumbing;
+                case "A":
+                case "PRES_A":
+                case "PRES_LAND":
+                case "PRES_C":
+                case "PRES_E":
+                case "3D_A":
+                case "ELEV_W":
+                case "ELEV_P":
+                case "AREA":
+                case "EXIST":
+                case "DEMO":
+                case "RCP_LTG":
+                case "RCP_CLG":      return ViewDiscipline.Architectural;
+                case "S":
+                case "PRES_S":
+                case "3D_S":         return ViewDiscipline.Structural;
+                case "FP":
+                case "LV":
+                case "MEP":
+                case "MEP_3D":
+                case "PRES_MEP":
+                case "PRES_E_DISC":
+                case "PRES_P":
+                case "3D_E":
+                case "3D_P":
+                case "ALL":
+                case "PRES_3D":
+                case "PRES_MONO":
+                case "PRES_DARK":
+                case "3D_MONO":
+                case "3D_DARK":
+                case "SEC_W":
+                case "SEC_P":
+                case "SEC_D":        return ViewDiscipline.Coordination;
+                default:             return null;
+            }
+        }
     }
 }
