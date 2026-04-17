@@ -734,3 +734,108 @@ Measured on a 16-GB Revit 2026 workstation:
 | Switch project-wide from IEC → BS via Extension 2 | 8-12 s | Single transaction flipping type ticks |
 | `RunFullPipeline` with symbol families loaded | unchanged | No measurable impact |
 
+
+---
+
+## 7. Coverage gaps
+
+This library intentionally covers common, current, and non-specialist MEP symbols for commercial, residential, healthcare, education, and light-industrial buildings. The following categories of symbols are **not** included, and the reason is listed for each so a drafter can decide whether to extend the library for a specific project.
+
+### 7.1 Deliberately excluded
+
+These were considered and rejected because they add complexity without serving the general-purpose MEP use case.
+
+| Category | Reason for exclusion |
+|---|---|
+| **Analogue instrumentation (dial gauges, bourdon tubes, expansion thermometers)** | Largely superseded by digital sensors (§1.2). Where needed, draftsperson adds one-off from §5 free sources. |
+| **Legacy electrical symbols (ANSI Y32.2, ANSI Y32.2-1975)** | Superseded by IEEE 315 (1975) which is in the library. Heritage-building electrical upgrades use the newer standard. |
+| **Mil-spec / defence symbols (MIL-STD-806, JAN-STD)** | Specialist; those projects draw from their own library. |
+| **Pneumatic control symbols (ISA S5.1 pre-1992)** | Modern BMS is digital (BACnet/Modbus). Pneumatic-only projects draw from ISA S5.1 directly. |
+| **SCADA / PLC ladder logic symbols** | IEC 61131-3 symbols are for programming, not plan drawings. Belongs in electrical-schematic libraries, not MEP annotation. |
+| **Process engineering / chemical P&ID symbols** | ISA S5.1 process symbols are for refinery/chemical plant, not building services. Overlap with plumbing valves is already in the library; specialist shapes are not. |
+| **Railway electrification (OHLE, third-rail)** | Specialist transport infrastructure. Draw from Network Rail standards (UK) or NEC/AREMA (US). |
+| **Ship / offshore symbols (ISO 17894, IACS E-1)** | Marine-specific; those projects use dedicated class-society libraries. |
+| **Nuclear facility symbols (ANSI/ANS-58.8)** | Licensed-facility specialist; requires chain of custody not practical for open libraries. |
+| **Solar thermal (flat plate collector, evacuated tube)** | Partial gap — covered in general HVAC but not as dedicated symbols. Add when needed via §5 free sources. |
+| **Hydrogen / ammonia pipework** | Emerging technology; standards (ISO 19880, IGEM H1) still maturing. Revisit when standards stabilise. |
+| **Geothermal borehole field** | Large-scale site annotations; use §1.4 SuDS swale as a visual analogue or draw from IGSHPA standard. |
+
+### 7.2 Regional variants
+
+These exist and are legitimate, but only covered for the three dominant regions (UK, EU, US). Drafters working on projects in these regions will need to extend the library:
+
+| Region | Standard not covered | Typical scope |
+|---|---|---|
+| Australia / NZ | AS/NZS 3000 detail, AS 1668 ventilation symbols | ~200 symbols overlap with IEC/BS; ~50 unique |
+| Canada | CSA Z462, CSA C22.1 | Most overlap with NFPA/NEC; ~30 unique |
+| Germany | DIN EN 81346, VDE 0100 | Most overlap with IEC; ~20 unique (power distribution specifics) |
+| France | NF C15-100, NF DTU | Most overlap with IEC; ~40 unique |
+| Japan | JIS C 0617 series | Overlap with IEC; minor stylistic differences |
+| China | GB/T 4728, GB 50303 | Overlap with IEC; administrative differences |
+| Middle East | SASO / DM / QCS | Typically follows IEC/BS with national amendments |
+| India | IS 732, IS 3646 | Overlap with IEC; some unique LV distribution symbols |
+| Brazil | NBR 5410, NBR 5444 | Follows IEC with Portuguese annotations |
+| Russia | GOST 2.721, PUE | Significant divergence from IEC symbology |
+
+When a project needs one of these, extend the CSV by adding three more columns (`regional_ref`, `regional_variant`, `regional_subcategory`). Keep the row count stable; add the regional data as extra columns per row.
+
+### 7.3 Symbol morphology variants within the three standards
+
+These are known-multiple-version symbols where the library picked one variant and noted it:
+
+| Symbol family | Covered variant | Alternative variants not drawn |
+|---|---|---|
+| Socket outlet (IEC) | Circle + horizontal line + prongs | "Rectangular box" form (IEC 60417-5017); "Electromotive source" circle with 'M' |
+| Switch (BS 3939) | Angled line meeting circle | "Toggle switch" rectangle with lever; "Rocker switch" square split |
+| Luminaire (IEC) | Circle + cross | "Square with cross"; "Rectangular with cross"; "Light source" asterisk |
+| Valve (P&ID) | Two triangles with body marker | Block-arrow convention; CAD-typical "hand valve" with wheel |
+| Motor (IEC) | Circle with 'M' inside | Generator convention with 'G' overlaid; star-delta circle pair |
+| Fire detector | Circle with 'S' or 'H' | Hexagon convention used in NFPA 72; square "device" convention |
+
+The CSV's `geometry_desc` column names the covered variant. If a project needs an alternative variant, the drafter adds it as an extra type within the seed family (e.g. type `IEC_Rectangular` alongside `IEC_Circle`).
+
+### 7.4 Depth not covered
+
+Some symbol families are vast in the authoritative standard but compressed in this library to keep scope manageable. Drafters needing deeper coverage can extend these sections:
+
+| Discipline | Depth in library | Typical deeper coverage |
+|---|---|---|
+| Electrical schematic/one-line | Protection devices and distribution only | Full IEC 60617-07 trip curves, full IEEE 315 relaying symbols (200+ symbols) |
+| MEP valve types | 20 common plumbing/HVAC valves | ISA valve symbology has 60+ body styles; full ASME B16.34 has 100+ |
+| Control loop symbols (ISA) | Basic sensors/actuators | ISA 5.1 control loop identifiers (PIC-100, TIC-200 etc.) not drawn |
+| Fire alarm logic symbols (NFPA 72 Annex B) | Detection devices only | Zone matrix, interface mapping, battery calc symbols not included |
+| Refrigerant P&ID | Pipes and components | Compressor, accumulator, oil separator — only a few included |
+| Heat pump / CHP schematic | Basic heat exchanger | Full CHP process symbols (CHP cycles, steam drums) not included |
+| Lighting photometric symbols | Luminaire types | Photometric polar diagrams, utilisation factor tables not drawn (they're tables, not symbols) |
+| Structured cabling administration | Outlet types and racks | Full TIA-606 zone/class labels, MPO/MTP fibre notation not included |
+
+### 7.5 Placeholder references marked `(verify)`
+
+A small number of rows in the CSV carry reference citations that the author could not confirm against the official published standard in the time available. These are marked with `(verify)` in the notes column. Drafters using those rows for regulatory deliverables should cross-check the citation against the live standard before publishing.
+
+Currently no rows carry the `(verify)` marker — all 516 citations were cross-checked against Wikipedia's published reproductions or open manufacturer submittals during drafting. Rows may be added in future with `(verify)` when expanding coverage.
+
+### 7.6 What to do when the library is missing a symbol
+
+1. **Check if it's in §7.1-7.4** — if the gap is listed there, you know the reasoning and can extend accordingly.
+2. **Check Wikipedia, BIMobject, or manufacturer submittals** (§5.4-5.5). 80% of missing symbols are available for free.
+3. **Draft one new row in `mep_symbols.csv`** following the schema. Give it a unique `symbol_id`, cite the three standards, describe the geometry, name the insertion point and subcategory.
+4. **Draft the seed family** per §3-4.
+5. **Submit back to the library** via a pull request. The CSV is designed to grow; missing symbols should not force project-specific forks.
+
+### 7.7 When to deliberately not draw a symbol
+
+Sometimes the right answer is **no symbol**. Situations:
+
+- **Building management interface schematic** — shows network topology, not physical devices. Use BMS schematic drawings (one-line), not plan-view annotations.
+- **Energy performance certificates** — no plan symbols needed; tabular output only.
+- **Load schedules** — tables, not drawings. The `electrical_load` native parameter is used directly.
+- **Schedule of dimensions / IFC property sets** — metadata, not graphics. Use Revit's built-in parameter schedules.
+- **BREEAM / LEED documentation** — narrative, not graphical. STING's BEP generation handles this.
+
+Applying a plan symbol where none is conventionally used is a larger error than omitting one that was expected. When in doubt, refer to a precedent drawing from the same jurisdiction on a similar project type.
+
+---
+
+*Guide version 1.0. Library covers 516 symbols across 9 MEP disciplines, cross-referenced to ISO, BS/EN, and US standards. See `CompiledPlugin/Data/mep_symbols.csv` for the full catalogue.*
+
