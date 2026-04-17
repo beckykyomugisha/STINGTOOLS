@@ -342,19 +342,23 @@ namespace StingTools.Tags
 
             dg.ItemsSource = rows;
 
-            // Context menu: Copy Code, Copy Row, Copy Section, Copy All Visible
-            var ctx = new ContextMenu();
-            var miCode = new MenuItem { Header = "Copy _Code (Ctrl+C)" };
+            // Context menu: Copy Code, Copy Row, Copy Section, Copy All Visible.
+            // Phase 99 fix: both ContextMenu and MenuItem exist in WPF
+            // (System.Windows.Controls) AND in Autodesk.Revit.UI, and both
+            // namespaces are imported at the top of this file. Fully qualify
+            // the WPF types to avoid CS0104 ambiguity.
+            var ctx = new System.Windows.Controls.ContextMenu();
+            var miCode = new System.Windows.Controls.MenuItem { Header = "Copy _Code (Ctrl+C)" };
             miCode.Click += (s, e) => CopyField(dg, r => r.Code);
-            var miRow = new MenuItem { Header = "Copy Row (_tab-separated)" };
+            var miRow = new System.Windows.Controls.MenuItem { Header = "Copy Row (_tab-separated)" };
             miRow.Click += (s, e) => CopyField(dg, r => $"{r.Code}\t{r.Label}\t{r.Description}");
-            var miLabel = new MenuItem { Header = "Copy _Label" };
+            var miLabel = new System.Windows.Controls.MenuItem { Header = "Copy _Label" };
             miLabel.Click += (s, e) => CopyField(dg, r => r.Label);
-            var miDesc = new MenuItem { Header = "Copy _Description" };
+            var miDesc = new System.Windows.Controls.MenuItem { Header = "Copy _Description" };
             miDesc.Click += (s, e) => CopyField(dg, r => r.Description);
-            var miSection = new MenuItem { Header = "Copy _Section (CSV)" };
+            var miSection = new System.Windows.Controls.MenuItem { Header = "Copy _Section (CSV)" };
             miSection.Click += (s, e) => CopySectionCsv(rows);
-            var miAll = new MenuItem { Header = "Copy _All Visible (CSV)" };
+            var miAll = new System.Windows.Controls.MenuItem { Header = "Copy _All Visible (CSV)" };
             miAll.Click += (s, e) => CopyAllVisible();
             ctx.Items.Add(miCode);
             ctx.Items.Add(miLabel);
