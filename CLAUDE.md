@@ -3356,3 +3356,14 @@ Closes the INT-01 / INT-02 gap called out in CLAUDE.md's "DEAD CODE" note under 
 - **PlanscapeConnectCommand.Execute** (`StingTools/BIMManager/PlatformLinkCommands.cs`): After a successful `LoginAsync()` and connection-settings persistence, now checks `SyncScheduler.Instance == null` and calls `SyncScheduler.Start(client.ServerUrl, client.AuthToken)` + `PluginSyncTickBridge.EnsureWired()` + subscribes the dock-panel `OnSyncComplete` indicator. If already running (re-auth path), logs `"SyncScheduler already running, skipping start (re-auth refresh only)"`. This is the primary activation path — previously, `SyncScheduler` only started if persisted tokens were present at plugin load, meaning first-time users never hit the background-sync code path until the next Revit restart.
 - **StingToolsApp.OnShutdown**: Tightened to the acceptance-criterion-2 shape — explicit `if (SyncScheduler.Instance != null) { SyncScheduler.StopShared(); StingLog.Info("SyncScheduler stopped (Phase 91)"); }` guard. `StopShared()` is already null-safe internally but the explicit check makes the log line unambiguous (no log emitted when the scheduler never started this session).
 - **Logging coverage (acceptance criterion 5)**: `StingLog.Info` lines now appear at all three lifecycle points — Start ("SyncScheduler started against {url}"), each tick ("PluginSyncTickBridge: 5-min tick — raising ExternalEvent to build payload on Revit thread" on Timer thread + "PluginSyncTickBridge tick: enqueued payload with N tagged elements..." on Revit thread), Stop ("SyncScheduler stopped (Phase 91)"). The tick also logs early-exit reasons (no document, not authenticated, no project linked, 0 tagged elements, queue null) so operators can diagnose missing syncs from the log file alone.
+
+#### Completed (Phase 92 — Speckle Send/Receive/Diff)
+
+- SpeckleLinkEngine in SpeckleLinkCommands.cs: SendToSpeckle, ReceiveFromSpeckle, DiffSnapshot.
+- SpeckleElementDto data class.
+- SpeckleSendCommand, SpeckleReceiveCommand, SpeckleDiffCommand (IExternalCommand).
+- StingCommandHandler dispatch: SpeckleSend, SpeckleReceive, SpeckleDiff.
+- StingDockPanel.xaml: Speckle GroupBox in BIM tab.
+- WorkflowEngine: SpeckleSnapshot preset (Diff→Send→ComplianceSnapshot→WarningsSummary).
+- Config: speckle_config.json (streamUrl, token) in BIMManagerDir.
+- HTTP push/pull to Speckle server marked TODO pending SDK v2 integration.

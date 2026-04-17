@@ -2903,6 +2903,22 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- SPECKLE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SPECKLE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#0277BD">
+                            <StackPanel>
+                                <TextBlock Text="Snapshot-based Speckle integration (HTTP push/pull pending SDK v2)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Diff" Tag="SpeckleDiff" Click="Cmd_Click"
+                                            ToolTip="Compare current model to last Speckle snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Send" Tag="SpeckleSend" Click="Cmd_Click"
+                                            ToolTip="Export tagged elements to Speckle snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Receive" Tag="SpeckleReceive" Click="Cmd_Click"
+                                            ToolTip="Load elements from Speckle snapshot"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- REVISION MANAGEMENT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="REVISION MANAGEMENT"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#C62828">
