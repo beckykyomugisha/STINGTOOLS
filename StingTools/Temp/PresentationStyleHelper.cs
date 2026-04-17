@@ -857,6 +857,14 @@ namespace StingTools.Temp
                 case "3D_P":
                 case "3D_MONO":
                 case "3D_DARK":
+                case "PRES_CANDY_EXT":
+                case "PRES_CANDY_INT":
+                case "PRES_EARTH_EXT":
+                case "PRES_EARTH_INT":
+                case "PRES_BLUE_EXT":
+                case "PRES_BLUE_INT":
+                case "PRES_SKETCH":
+                case "PRES_BLACK":
                     foreach (var c in VIEW_MARKER_CATEGORIES) yield return c;
                     yield return BuiltInCategory.OST_Mass;
                     yield break;
@@ -929,10 +937,307 @@ namespace StingTools.Temp
                 case "PRES_DARK":
                 case "3D_MONO":
                 case "3D_DARK":
+                case "PRES_CANDY_EXT":
+                case "PRES_CANDY_INT":
+                case "PRES_EARTH_EXT":
+                case "PRES_EARTH_INT":
+                case "PRES_BLUE_EXT":
+                case "PRES_BLUE_INT":
+                case "PRES_SKETCH":
+                case "PRES_BLACK":
                 case "SEC_W":
                 case "SEC_P":
                 case "SEC_D":        return ViewDiscipline.Coordination;
                 default:             return null;
+            }
+        }
+
+        // ── Presentation palettes (named reference-duplicating schemes) ─
+        //
+        // Each palette captures the colour vocabulary of a specific
+        // architectural-presentation render style. The accent fields drive
+        // per-category graphic overrides (Accent = focus object, Base = shell,
+        // Site = topography slab, Background = 3D view background).
+        //
+        // All palettes produce clean line-heavy 3D axos with a coloured base
+        // slab — the signature look of the reference renders.
+
+        public sealed class PresentationPalette
+        {
+            public string Name { get; set; }
+            public Color Background { get; set; }         // 3D view background
+            public Color BackgroundTop { get; set; }      // gradient top (optional)
+            public bool UseGradient { get; set; }
+            public Color LineColor { get; set; }          // everything-else line colour
+            public Color AccentColor { get; set; }        // focus-category accent
+            public Color AccentFill { get; set; }         // focus-category surface fill
+            public Color SiteLine { get; set; }           // topography edge
+            public Color SiteFill { get; set; }           // topography base slab
+            public Color BaseLineColor { get; set; }      // walls/shell default
+            public bool UseHiddenLine { get; set; }       // DisplayStyle.HLR for line-art
+        }
+
+        public static readonly PresentationPalette CANDY_PALETTE = new PresentationPalette
+        {
+            Name = "Candy",
+            Background     = new Color( 56, 145, 150),   // teal bottom
+            BackgroundTop  = new Color(245, 210, 220),   // pink top
+            UseGradient    = true,
+            LineColor      = new Color( 20,  90,  95),   // deep teal outlines
+            AccentColor    = new Color(245, 170, 190),   // pink accent
+            AccentFill     = new Color(250, 210, 220),   // pale pink surface
+            SiteLine       = new Color( 20,  90,  95),   // deep teal on site edge
+            SiteFill       = new Color(255, 255, 255),   // white site slab with pattern
+            BaseLineColor  = new Color( 30, 100, 110),   // darker teal shell lines
+            UseHiddenLine  = true,
+        };
+
+        public static readonly PresentationPalette EARTH_PALETTE = new PresentationPalette
+        {
+            Name = "Earth",
+            Background     = new Color(248, 243, 228),   // cream
+            BackgroundTop  = new Color(248, 243, 228),
+            UseGradient    = false,
+            LineColor      = new Color(120,  50,  45),   // maroon outlines
+            AccentColor    = new Color(170, 195, 170),   // sage green
+            AccentFill     = new Color(195, 215, 195),   // light sage
+            SiteLine       = new Color(140,  60,  55),   // deep maroon site edge
+            SiteFill       = new Color(150,  70,  65),   // maroon base slab
+            BaseLineColor  = new Color(150,  70,  60),   // warm brown shell
+            UseHiddenLine  = true,
+        };
+
+        public static readonly PresentationPalette BLUE_PALETTE = new PresentationPalette
+        {
+            Name = "Blue",
+            Background     = new Color(240, 240, 242),   // near-white
+            BackgroundTop  = new Color(240, 240, 242),
+            UseGradient    = false,
+            LineColor      = new Color( 30,  90, 170),   // cobalt blue outlines
+            AccentColor    = new Color( 30, 110, 200),   // royal blue accent
+            AccentFill     = new Color(210, 230, 250),   // pale blue surface
+            SiteLine       = new Color( 10,  70, 150),   // deep blue edge
+            SiteFill       = new Color( 30, 110, 200),   // blue base slab
+            BaseLineColor  = new Color( 60, 120, 200),   // medium blue shell lines
+            UseHiddenLine  = true,
+        };
+
+        public static readonly PresentationPalette SKETCH_PALETTE = new PresentationPalette
+        {
+            Name = "Sketch",
+            Background     = new Color(215, 215, 215),   // warm grey bottom
+            BackgroundTop  = new Color(245, 245, 245),   // near-white top
+            UseGradient    = true,
+            LineColor      = new Color( 80,  80,  80),   // dark grey outlines
+            AccentColor    = new Color(160, 160, 160),   // mid grey accent
+            AccentFill     = new Color(225, 225, 225),   // pale grey surface
+            SiteLine       = new Color( 60,  60,  60),   // darker grey edge
+            SiteFill       = new Color(235, 235, 235),   // light grey slab
+            BaseLineColor  = new Color(100, 100, 100),
+            UseHiddenLine  = true,
+        };
+
+        public static readonly PresentationPalette BLACK_PALETTE = new PresentationPalette
+        {
+            Name = "Black",
+            Background     = new Color( 10,  10,  10),   // near-black
+            BackgroundTop  = new Color(  0,   0,   0),
+            UseGradient    = false,
+            LineColor      = new Color(230, 230, 230),   // near-white strokes
+            AccentColor    = new Color(  0,   0,   0),   // black fills on rooms/ceilings
+            AccentFill     = new Color(  0,   0,   0),
+            SiteLine       = new Color(255, 255, 255),
+            SiteFill       = new Color(255, 255, 255),   // white site slab against black bg
+            BaseLineColor  = new Color(255, 255, 255),
+            UseHiddenLine  = false,
+        };
+
+        /// <summary>
+        /// Attempt to set a 3D view background (solid or gradient). Uses the
+        /// Revit 2022+ View.SetBackground API when available, otherwise silently
+        /// skips — per-project Revit versions that predate the API still get the
+        /// rest of the palette.
+        /// </summary>
+        public static void SetView3DBackground(View3D v, PresentationPalette palette)
+        {
+            if (v == null || palette == null) return;
+            try
+            {
+                // Dynamic access so we degrade gracefully on older Revit APIs
+                var bgType = typeof(Autodesk.Revit.DB.View3D).Assembly
+                    .GetType("Autodesk.Revit.DB.Background");
+                var setBg = typeof(Autodesk.Revit.DB.View3D)
+                    .GetMethod("SetBackground", new[] { bgType });
+                if (bgType == null || setBg == null) return;
+
+                object bg;
+                if (palette.UseGradient)
+                {
+                    var createGradient = bgType.GetMethod("CreateGradient",
+                        new[] { typeof(Color), typeof(Color), typeof(Color) })
+                        ?? bgType.GetMethod("CreateGradient",
+                            new[] { typeof(Color), typeof(Color) });
+                    if (createGradient == null) return;
+                    bg = createGradient.GetParameters().Length == 3
+                        ? createGradient.Invoke(null, new object[] {
+                            palette.BackgroundTop, palette.Background, palette.Background })
+                        : createGradient.Invoke(null, new object[] {
+                            palette.BackgroundTop, palette.Background });
+                }
+                else
+                {
+                    var createSolid = bgType.GetMethod("CreateSolid",
+                        new[] { typeof(Color) });
+                    if (createSolid == null) return;
+                    bg = createSolid.Invoke(null, new object[] { palette.Background });
+                }
+                setBg.Invoke(v, new[] { bg });
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetView3DBackground on '{v.Name}': {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Apply a category-level accent override directly — used for "roof only",
+        /// "rooms only", "topography only" presentation templates where a SINGLE
+        /// Revit category is the focus rather than a whole STING discipline.
+        /// </summary>
+        public static void ApplyCategoryAccent(View v, BuiltInCategory bic,
+            Color lineColor, Color fillColor, int lineWeight,
+            FillPatternElement solidFill, bool includeFill = true)
+        {
+            try
+            {
+                Category cat = v.Document.Settings.Categories.get_Item(bic);
+                if (cat == null) return;
+                var ogs = v.GetCategoryOverrides(cat.Id) ?? new OverrideGraphicSettings();
+                ogs.SetProjectionLineColor(lineColor);
+                if (lineWeight >= 1 && lineWeight <= 16)
+                {
+                    ogs.SetProjectionLineWeight(lineWeight);
+                    ogs.SetCutLineWeight(Math.Min(16, lineWeight + 1));
+                }
+                ogs.SetCutLineColor(lineColor);
+                if (includeFill && solidFill != null)
+                {
+                    ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                    ogs.SetSurfaceForegroundPatternColor(fillColor);
+                    ogs.SetCutForegroundPatternId(solidFill.Id);
+                    ogs.SetCutForegroundPatternColor(fillColor);
+                }
+                v.SetCategoryOverrides(cat.Id, ogs);
+            }
+            catch (Exception ex) { StingLog.Warn($"ApplyCategoryAccent {bic}: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Apply a "line-art palette" to a view: every model category gets the
+        /// palette base line colour, the accent category (roof / rooms / topography)
+        /// gets the AccentColor+Fill, site slab gets SiteLine+SiteFill. Presentation
+        /// templates call this to reproduce the reference renders.
+        ///
+        /// accentCategory = which category carries the primary palette colour
+        ///   (Roofs for exterior views, Rooms for cut-away interior views,
+        ///    Topography for site-focus views).
+        /// </summary>
+        public static void ApplyPalette(View v, PresentationPalette palette,
+            BuiltInCategory? accentCategory, FillPatternElement solidFill)
+        {
+            if (v == null || palette == null) return;
+
+            // 3D-specific: background + display style
+            if (v is View3D v3d)
+            {
+                SetView3DBackground(v3d, palette);
+                if (palette.UseHiddenLine)
+                    ApplyDisplayStyle(v3d, DisplayStyle.HLR);
+            }
+
+            // Base-line colour on every visible model category.
+            // We apply via a small set of core model categories rather than
+            // enumerating every category in the document — keeps the override
+            // list lean and predictable.
+            BuiltInCategory[] baseCategories = new[]
+            {
+                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows,
+                BuiltInCategory.OST_Stairs, BuiltInCategory.OST_Railings,
+                BuiltInCategory.OST_Ramps, BuiltInCategory.OST_Casework,
+                BuiltInCategory.OST_Furniture, BuiltInCategory.OST_FurnitureSystems,
+                BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_StructuralFraming,
+                BuiltInCategory.OST_Columns, BuiltInCategory.OST_PlumbingFixtures,
+                BuiltInCategory.OST_LightingFixtures, BuiltInCategory.OST_SpecialityEquipment,
+            };
+            foreach (var bic in baseCategories)
+            {
+                try
+                {
+                    Category cat = v.Document.Settings.Categories.get_Item(bic);
+                    if (cat == null) continue;
+                    var ogs = v.GetCategoryOverrides(cat.Id) ?? new OverrideGraphicSettings();
+                    ogs.SetProjectionLineColor(palette.BaseLineColor);
+                    ogs.SetProjectionLineWeight(2);
+                    ogs.SetCutLineColor(palette.LineColor);
+                    ogs.SetCutLineWeight(3);
+                    if (solidFill != null)
+                    {
+                        ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                        ogs.SetSurfaceForegroundPatternColor(new Color(255, 255, 255));
+                    }
+                    v.SetCategoryOverrides(cat.Id, ogs);
+                }
+                catch (Exception ex) { StingLog.Warn($"Palette base {bic}: {ex.Message}"); }
+            }
+
+            // Roofs always get a distinct (base) line weight boost even when
+            // not the focus — they read as the "5th facade" in axos.
+            try
+            {
+                Category roofCat = v.Document.Settings.Categories.get_Item(BuiltInCategory.OST_Roofs);
+                if (roofCat != null)
+                {
+                    var ogs = v.GetCategoryOverrides(roofCat.Id) ?? new OverrideGraphicSettings();
+                    ogs.SetProjectionLineColor(palette.BaseLineColor);
+                    ogs.SetProjectionLineWeight(3);
+                    ogs.SetCutLineColor(palette.LineColor);
+                    ogs.SetCutLineWeight(4);
+                    v.SetCategoryOverrides(roofCat.Id, ogs);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Palette roofs: {ex.Message}"); }
+
+            // Accent category — full colour fill.
+            if (accentCategory.HasValue)
+            {
+                ApplyCategoryAccent(v, accentCategory.Value,
+                    palette.AccentColor, palette.AccentFill, 3, solidFill, includeFill: true);
+            }
+
+            // Site / topography — base slab colour (matches the reference renders
+            // where the ground is a tinted block).
+            ApplyCategoryAccent(v, BuiltInCategory.OST_Topography,
+                palette.SiteLine, palette.SiteFill, 3, solidFill, includeFill: true);
+        }
+
+        /// <summary>
+        /// Lookup a palette + accent category by discipline code.
+        /// Returns null if the discipline is not a palette-style template.
+        /// </summary>
+        public static (PresentationPalette Palette, BuiltInCategory? Accent)? PaletteFor(string discipline)
+        {
+            switch (discipline)
+            {
+                case "PRES_CANDY_EXT":  return (CANDY_PALETTE,  BuiltInCategory.OST_Roofs);
+                case "PRES_CANDY_INT":  return (CANDY_PALETTE,  BuiltInCategory.OST_Rooms);
+                case "PRES_EARTH_EXT":  return (EARTH_PALETTE,  BuiltInCategory.OST_Roofs);
+                case "PRES_EARTH_INT":  return (EARTH_PALETTE,  BuiltInCategory.OST_Rooms);
+                case "PRES_BLUE_EXT":   return (BLUE_PALETTE,   BuiltInCategory.OST_Roofs);
+                case "PRES_BLUE_INT":   return (BLUE_PALETTE,   BuiltInCategory.OST_Rooms);
+                case "PRES_SKETCH":     return (SKETCH_PALETTE, null);
+                case "PRES_BLACK":      return (BLACK_PALETTE,  BuiltInCategory.OST_Rooms);
+                default:                return null;
             }
         }
     }
