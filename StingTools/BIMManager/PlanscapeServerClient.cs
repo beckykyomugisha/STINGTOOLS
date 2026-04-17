@@ -307,6 +307,30 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
+    /// <summary>
+    /// INT-03 delta pull — GET /api/tagsync/elements/{projectId}?lastSyncUtc=&lt;watermark&gt;.
+    /// When <paramref name="lastSyncUtc"/> is supplied, the server returns only elements
+    /// whose LastModifiedUtc (or SyncedAt fallback) is newer than the watermark. With
+    /// <c>null</c>, acts as a plain paginated list. Server-side per-device watermark
+    /// is tracked via the X-Device-Id header (defaults to "desktop" when absent).
+    /// </summary>
+    public async Task<JArray?> GetElementsDeltaAsync(Guid projectId, DateTime? lastSyncUtc,
+        int page = 1, int pageSize = 500)
+    {
+        if (!await EnsureAuthenticatedAsync()) { LastError = "Not connected."; return null; }
+        try
+        {
+            var path = $"/api/tagsync/elements/{projectId}?page={page}&pageSize={pageSize}";
+            if (lastSyncUtc.HasValue)
+                path += $"&lastSyncUtc={Uri.EscapeDataString(lastSyncUtc.Value.ToUniversalTime().ToString("o"))}";
+            var resp = await GetAsync(path);
+            if (!resp.ok) { LastError = $"Delta pull failed ({resp.status}): {resp.body}"; return null; }
+            var json = JObject.Parse(resp.body);
+            return json["elements"] as JArray ?? new JArray();
+        }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"GetElementsDeltaAsync: {ex.Message}"); return null; }
+    }
+
     // ────────────────────────────────────────────────────────────────────────────
     //  Issues
     // ────────────────────────────────────────────────────────────────────────────

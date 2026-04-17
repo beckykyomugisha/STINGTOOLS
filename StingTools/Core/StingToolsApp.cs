@@ -259,6 +259,18 @@ namespace StingTools.Core
             }
         }
 
+        // GAP 1-B (INT-02) — debounce state for OnPlanscapeSyncAfterSTC.
+        // STC can fire multiple times in quick succession (user hitting
+        // Sync-to-Central twice, or worksharing-initiated re-syncs); we
+        // throttle to at most one full payload every DebounceSeconds per
+        // document path. The _pendingSyncDoc field tracks the document
+        // whose sync is being held so a subsequent same-doc STC during
+        // the window is a no-op, but a different doc's STC still fires.
+        private static readonly object _planscapeSyncLock = new object();
+        private static Document _pendingSyncDoc;
+        private static DateTime _lastPlanscapeSync = DateTime.MinValue;
+        private const int PlanscapeSyncDebounceSeconds = 60;
+
         /// <summary>INT-03: After a successful STC, trigger a Planscape server sync.
         /// Exits silently if the plugin isn't authenticated; otherwise delegates to the
         /// existing PlatformSyncCommand.SyncToPlanscapeServer() path which collects tags,
@@ -274,6 +286,23 @@ namespace StingTools.Core
 
                 Document doc = e.Document;
                 if (doc == null || !doc.IsValidObject || doc.IsFamilyDocument) return;
+
+                // GAP 1-B — 60s debounce. Multiple STCs in the same window collapse
+                // into a single sync. Doc-scoped so swapping documents still syncs.
+                lock (_planscapeSyncLock)
+                {
+                    var sincePrev = DateTime.UtcNow - _lastPlanscapeSync;
+                    bool sameDocPending = _pendingSyncDoc != null
+                        && _pendingSyncDoc.IsValidObject
+                        && string.Equals(_pendingSyncDoc.PathName, doc.PathName, StringComparison.OrdinalIgnoreCase);
+                    if (sameDocPending && sincePrev.TotalSeconds < PlanscapeSyncDebounceSeconds)
+                    {
+                        StingLog.Info($"Planscape STC sync debounced ({sincePrev.TotalSeconds:F0}s < {PlanscapeSyncDebounceSeconds}s) for {doc.Title}");
+                        return;
+                    }
+                    _pendingSyncDoc = doc;
+                    _lastPlanscapeSync = DateTime.UtcNow;
+                }
 
                 StingLog.Info("Planscape: auto-sync triggered by STC");
 
@@ -364,6 +393,69 @@ namespace StingTools.Core
                     });
                 }
                 catch (Exception pwEx) { StingLog.Warn($"FUT-19 pre-warm launch: {pwEx.Message}"); }
+
+                // GAP 1-C (INT-01) — Lazy-start SyncScheduler on document open.
+                // OnStartup only succeeds if credentials were in memory before any
+                // document was loaded. When the user connects AFTER plugin start and
+                // THEN opens the project document, OnStartup's check already missed.
+                // This hook retries: if the client is authenticated, the project is
+                // linked (planscape_connection.json present with a projectId), and
+                // the scheduler is still idle, start it now.
+                try
+                {
+                    if (Planscape.PluginSync.SyncScheduler.Instance == null)
+                    {
+                        var pClient = PlanscapeServerClient.Instance;
+                        bool connected = pClient != null && pClient.IsConnected
+                            && !string.IsNullOrEmpty(pClient.ServerUrl)
+                            && !string.IsNullOrEmpty(pClient.AuthToken);
+                        if (connected)
+                        {
+                            string docPath = e.Document?.PathName;
+                            string projectDir = !string.IsNullOrEmpty(docPath)
+                                ? System.IO.Path.GetDirectoryName(docPath)
+                                : null;
+                            string cfgPath = null;
+                            if (!string.IsNullOrEmpty(projectDir))
+                            {
+                                // Preferred: _bim_manager/planscape_connection.json
+                                string bimDir = System.IO.Path.Combine(projectDir, "_bim_manager");
+                                cfgPath = System.IO.Path.Combine(bimDir, "planscape_connection.json");
+                                if (!System.IO.File.Exists(cfgPath)) cfgPath = null;
+                            }
+                            bool hasProjectLink = false;
+                            if (cfgPath != null)
+                            {
+                                try
+                                {
+                                    var jc = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(cfgPath));
+                                    string pid = jc["projectId"]?.Value<string>();
+                                    hasProjectLink = !string.IsNullOrWhiteSpace(pid)
+                                        && Guid.TryParse(pid, out var _g) && _g != Guid.Empty;
+                                }
+                                catch (Exception cfgReadEx) { StingLog.Warn($"GAP 1-C cfg read: {cfgReadEx.Message}"); }
+                            }
+                            if (hasProjectLink)
+                            {
+                                Planscape.PluginSync.SyncScheduler.Start(pClient.ServerUrl, pClient.AuthToken);
+                                StingTools.BIMManager.PluginSyncTickBridge.EnsureWired();
+                                StingLog.Info($"GAP 1-C: SyncScheduler lazy-started on DocumentOpened against {pClient.ServerUrl}");
+                                try
+                                {
+                                    if (Planscape.PluginSync.SyncScheduler.Instance != null)
+                                    {
+                                        Planscape.PluginSync.SyncScheduler.Instance.OnSyncComplete += _ =>
+                                        {
+                                            StingTools.UI.StingDockPanel.LastInstance?.RefreshSyncIndicator();
+                                        };
+                                    }
+                                }
+                                catch (Exception icEx) { StingLog.Warn($"GAP 1-C OnSyncComplete wire: {icEx.Message}"); }
+                            }
+                        }
+                    }
+                }
+                catch (Exception lzEx) { StingLog.Warn($"GAP 1-C SyncScheduler lazy-start: {lzEx.Message}"); }
 
                 // FIX-B10: Restore auto-tagger state from persisted config
                 try
