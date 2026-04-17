@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -582,7 +583,7 @@ namespace StingTools.Core
                 // C3 — also populate TagElements so SyncNow has something to push
                 // besides the compliance summary. Capped at 5000 elements to keep
                 // the save → queue latency in the sub-second range.
-                List<Planscape.Shared.Models.TagElementSync>? tagElements = null;
+                List<Planscape.Shared.Models.TagElementSync> tagElements = null;
                 try { tagElements = CollectTagElements(doc, max: 5000); }
                 catch (Exception tagEx) { StingLog.Warn($"DocumentSaved tag collect: {tagEx.Message}"); }
 
