@@ -375,7 +375,10 @@ namespace StingTools.Core
             "DataDropReadiness", "WeeklyCoordinatorReport", "ExportSchedulesToExcel", "COBieImport",
             "UserProductivityReport", "FederatedCompliance", "ApprovalWorkflow", "RevisionSchedule",
             "AssignNumbers", "SetSeqScheme", "ExportTagMap", "ImportTagMap", "BatchPlaceTags",
-            "TagSelector", "ExportTagPositions"
+            "TagSelector", "ExportTagPositions",
+            // Phase 92: Speckle workflow tags + SpeckleSnapshot preset aliases
+            "SpeckleSend", "SpeckleReceive", "SpeckleDiff",
+            "ComplianceSnapshot", "WarningsSummary"
         };
 
         /// <summary>Invalidate the built-in presets cache (e.g. after JSON file changes).</summary>
@@ -1481,6 +1484,16 @@ namespace StingTools.Core
                 case "RoomSpaceAudit":          return new Temp.RoomAuditCommand();
                 case "HandoverManual":          return new Docs.HandoverManualCommand();
                 case "MEPSizingCheck":          return new Temp.MEPSizingCheckCommand();
+
+                // Phase 92: Speckle workflow steps + semantic aliases used by SpeckleSnapshot preset.
+                // "ComplianceSnapshot" and "WarningsSummary" are user-facing names — there are no
+                // dedicated commands, so they alias onto the existing dashboards (matches CLAUDE.md
+                // note: "steps = [SpeckleDiff, SpeckleSend, ComplianceSnapshot, WarningsSummary]").
+                case "SpeckleSend":             return new BIMManager.SpeckleSendCommand();
+                case "SpeckleReceive":          return new BIMManager.SpeckleReceiveCommand();
+                case "SpeckleDiff":             return new BIMManager.SpeckleDiffCommand();
+                case "ComplianceSnapshot":      return new Tags.CompletenessDashboardCommand();
+                case "WarningsSummary":         return new WarningsDashboardCommand();
                 // WF-02: EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand.
                 // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
                 // which is handled by the plugin hook fallback + error logging in RunCommandByTag.
@@ -1691,6 +1704,9 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("COBieReadiness"));
             presets.Add(GetBuiltInPreset("DrawingIssue"));
             presets.Add(GetBuiltInPreset("SpatialQA"));
+
+            // Phase 92: Speckle snapshot round-trip preset
+            presets.Add(GetBuiltInPreset("SpeckleSnapshot"));
 
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
@@ -2325,6 +2341,22 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "FamilyStagePopulate", Label = "4. Re-populate spatial tokens" },
                             new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate updated tags" },
                             new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "6. Show compliance dashboard" },
+                        }
+                    };
+
+                // Phase 92: Speckle snapshot round-trip preset
+                case "SpeckleSnapshot":
+                    return new WorkflowPreset
+                    {
+                        Name = "SpeckleSnapshot",
+                        Description = "Diff model against last snapshot, push to Speckle, capture compliance and warnings.",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "SpeckleDiff",         Label = "1. Diff against last Speckle snapshot" },
+                            new WorkflowStep { CommandTag = "SpeckleSend",         Label = "2. Export tagged elements to snapshot" },
+                            new WorkflowStep { CommandTag = "ComplianceSnapshot",  Label = "3. Capture compliance snapshot" },
+                            new WorkflowStep { CommandTag = "WarningsSummary",     Label = "4. Capture warnings summary" },
                         }
                     };
 

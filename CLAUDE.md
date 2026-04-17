@@ -3357,6 +3357,17 @@ Closes the INT-01 / INT-02 gap called out in CLAUDE.md's "DEAD CODE" note under 
 - **StingToolsApp.OnShutdown**: Tightened to the acceptance-criterion-2 shape — explicit `if (SyncScheduler.Instance != null) { SyncScheduler.StopShared(); StingLog.Info("SyncScheduler stopped (Phase 91)"); }` guard. `StopShared()` is already null-safe internally but the explicit check makes the log line unambiguous (no log emitted when the scheduler never started this session).
 - **Logging coverage (acceptance criterion 5)**: `StingLog.Info` lines now appear at all three lifecycle points — Start ("SyncScheduler started against {url}"), each tick ("PluginSyncTickBridge: 5-min tick — raising ExternalEvent to build payload on Revit thread" on Timer thread + "PluginSyncTickBridge tick: enqueued payload with N tagged elements..." on Revit thread), Stop ("SyncScheduler stopped (Phase 91)"). The tick also logs early-exit reasons (no document, not authenticated, no project linked, 0 tagged elements, queue null) so operators can diagnose missing syncs from the log file alone.
 
+#### Completed (Phase 93 — Speckle Send/Receive/Diff)
+
+- SpeckleLinkEngine in SpeckleLinkCommands.cs: SendToSpeckle, ReceiveFromSpeckle, DiffSnapshot.
+- SpeckleElementDto data class.
+- SpeckleSendCommand, SpeckleReceiveCommand, SpeckleDiffCommand (IExternalCommand).
+- StingCommandHandler dispatch: SpeckleSend, SpeckleReceive, SpeckleDiff.
+- StingDockPanel.xaml: Speckle GroupBox in BIM tab.
+- WorkflowEngine: SpeckleSnapshot preset (Diff→Send→ComplianceSnapshot→WarningsSummary).
+- Config: speckle_config.json (streamUrl, token) in BIMManagerDir.
+- HTTP push/pull to Speckle server marked TODO pending SDK v2 integration.
+
 #### Completed (Phase 94 — Mobile Issue 3D Context & Photo Attachments: MOB-01 + MOB-06)
 
 Closes the MOB-01 (photo attachment support) and MOB-06 (document viewer / markup) gaps called out in CLAUDE.md's "Mobile Gap Summary" section of `PLANSCAPE_GAPS.md`. The mobile `issues.tsx` screen has always been able to list issues, but BIM coordinators on site could not (a) see the issue in its 3D model context, and (b) drill into the issue to attach new photos after creation. This phase adds both without introducing a new native module, using Expo SDK 52's `expo-web-browser` for the in-app viewer and the existing `expo-image-picker`/`imageService` stack for the photo capture pipeline.
@@ -3378,4 +3389,3 @@ Closes the MOB-01 (photo attachment support) and MOB-06 (document viewer / marku
 - **`Planscape/app/(tabs)/_layout.tsx`**: Registered `issue-detail` as a `Tabs.Screen` with `href: null` so the file is routable via `router.push('/issue-detail?id=...')` but does NOT appear in the bottom tab bar. Keeps the SELECT / DASHBOARD / ISSUES / DOCUMENTS / SCANNER / SETTINGS layout intact per acceptance criterion 5.
 - **Server**: No server-side changes. `Planscape.Server/src/Planscape.API/Controllers/IssuesController.cs` already exposes all required endpoints: `POST /api/projects/{pid}/issues/{iid}/attachments` (line 361, multipart/form-data, 50MB limit), `GET /attachments` (line 476), `GET /attachments/{aid}/thumbnail` (line 521). No stub needed — the acceptance-criterion 2 fallback ("if missing, add a stub POST that returns 202") was not triggered.
 - **Patterns reused**: OfflineQueue action type pattern (identical `case '...':` structure with `p.<field> as <type>` payload destructuring). Scanner camera permission pattern (delegated to `imageService.requestCameraPermission()` which wraps `ImagePicker.requestCameraPermissionsAsync()`).
-
