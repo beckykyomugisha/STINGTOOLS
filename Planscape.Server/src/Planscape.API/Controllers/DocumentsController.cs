@@ -61,6 +61,7 @@ public class DocumentsController : ControllerBase
     private readonly IGeofenceValidationService _geofence;
     private readonly IThumbnailService _thumbnails;
     private readonly ILogger<DocumentsController> _logger;
+    private readonly IAuditService _audit;
 
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
@@ -71,13 +72,15 @@ public class DocumentsController : ControllerBase
         IFileStorageService storage,
         IGeofenceValidationService geofence,
         IThumbnailService thumbnails,
-        ILogger<DocumentsController> logger)
+        ILogger<DocumentsController> logger,
+        IAuditService audit)
     {
         _db = db;
         _storage = storage;
         _geofence = geofence;
         _thumbnails = thumbnails;
         _logger = logger;
+        _audit = audit;
     }
 
     [HttpGet]
@@ -125,6 +128,7 @@ public class DocumentsController : ControllerBase
 
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("CREATE", "Document", doc.Id.ToString());
         return CreatedAtAction(nameof(GetDocuments), new { projectId }, doc);
     }
 
@@ -246,6 +250,8 @@ public class DocumentsController : ControllerBase
             if (description != null) existingDoc.Description = description;
 
             await _db.SaveChangesAsync();
+            await _audit.LogAsync("UPDATE", "Document", existingDoc.Id.ToString(),
+                $"{{\"versionNumber\":{nextVersion}}}");
 
             return Ok(new
             {
@@ -283,6 +289,7 @@ public class DocumentsController : ControllerBase
 
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("CREATE", "Document", doc.Id.ToString(), "{\"versionNumber\":1}");
 
         // Create version 1 row
         _db.DocumentVersions.Add(new DocumentVersion
@@ -435,6 +442,8 @@ public class DocumentsController : ControllerBase
         doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("TRANSITION", "Document", doc.Id.ToString(),
+            $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewState}\"}}");
         return Ok(doc);
     }
 
@@ -481,6 +490,8 @@ public class DocumentsController : ControllerBase
         doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("TRANSITION", "Document", doc.Id.ToString(),
+            $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewStatus}\"}}");
         return Ok(doc);
     }
 
@@ -541,6 +552,7 @@ public class DocumentsController : ControllerBase
 
         _db.DocumentApprovals.Add(approval);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("CREATE", "DocumentApproval", approval.Id.ToString());
         return CreatedAtAction(nameof(GetApprovalStatus), new { projectId, docId }, approval);
     }
 
@@ -577,6 +589,8 @@ public class DocumentsController : ControllerBase
         approval.Comments = req.Comments ?? approval.Comments;
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("UPDATE", "DocumentApproval", approval.Id.ToString(),
+            $"{{\"decision\":\"{req.Decision}\"}}");
         return Ok(approval);
     }
 

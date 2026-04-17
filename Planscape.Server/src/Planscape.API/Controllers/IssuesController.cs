@@ -23,6 +23,7 @@ public class IssuesController : ControllerBase
     private readonly IGeofenceValidationService _geofence;
     private readonly IThumbnailService _thumbnails;
     private readonly ILogger<IssuesController> _logger;
+    private readonly IAuditService _audit;
 
     private static readonly Dictionary<string, int> SLAHours = new()
     {
@@ -40,7 +41,8 @@ public class IssuesController : ControllerBase
         IFileStorageService storage,
         IGeofenceValidationService geofence,
         IThumbnailService thumbnails,
-        ILogger<IssuesController> logger)
+        ILogger<IssuesController> logger,
+        IAuditService audit)
     {
         _db = db;
         _notifications = notifications;
@@ -49,6 +51,7 @@ public class IssuesController : ControllerBase
         _geofence = geofence;
         _thumbnails = thumbnails;
         _logger = logger;
+        _audit = audit;
     }
 
     [HttpGet]
@@ -124,6 +127,7 @@ public class IssuesController : ControllerBase
 
         _db.Issues.Add(issue);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("CREATE", "Issue", issue.Id.ToString());
 
         // Push notification for new issue
         _ = _notifications.NotifyAsync(tenantId, "issues",
@@ -177,6 +181,7 @@ public class IssuesController : ControllerBase
         if (req.Description != null) issue.Description = req.Description;
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("UPDATE", "Issue", issue.Id.ToString());
         return Ok(issue);
     }
 
@@ -236,6 +241,7 @@ public class IssuesController : ControllerBase
         };
         _db.IssueAttachments.Add(attachment);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("CREATE", "IssueAttachment", attachment.Id.ToString());
 
         // S04 — generate JPEG thumbnails (150/300/600 px) and extract EXIF GPS for image uploads.
         // Thumbnails are persisted via the same storage abstraction, using a sibling "thumbnails"
@@ -319,6 +325,7 @@ public class IssuesController : ControllerBase
 
         _db.IssueAttachments.Remove(attachment);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("DELETE", "IssueAttachment", attachmentId.ToString());
         return NoContent();
     }
 
@@ -382,6 +389,7 @@ public class IssuesController : ControllerBase
         };
         _db.IssueAttachments.Add(attachment);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("LINK", "IssueAttachment", attachment.Id.ToString());
 
         return Ok(new { attachment.Id, attachment.IssueId, attachment.DocumentId, attachment.AttachedAt });
     }
