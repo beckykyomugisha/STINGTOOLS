@@ -2,11 +2,13 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 
 namespace Planscape.API.Controllers;
 
@@ -24,6 +26,7 @@ public class IssuesController : ControllerBase
     private readonly IThumbnailService _thumbnails;
     private readonly ILogger<IssuesController> _logger;
     private readonly IAuditService _audit;
+    private readonly IHubContext<NotificationHub> _notifHub;
 
     private static readonly Dictionary<string, int> SLAHours = new()
     {
@@ -42,7 +45,8 @@ public class IssuesController : ControllerBase
         IGeofenceValidationService geofence,
         IThumbnailService thumbnails,
         ILogger<IssuesController> logger,
-        IAuditService audit)
+        IAuditService audit,
+        IHubContext<NotificationHub> notifHub)
     {
         _db = db;
         _notifications = notifications;
@@ -52,6 +56,7 @@ public class IssuesController : ControllerBase
         _thumbnails = thumbnails;
         _logger = logger;
         _audit = audit;
+        _notifHub = notifHub;
     }
 
     [HttpGet]
@@ -207,6 +212,15 @@ public class IssuesController : ControllerBase
         }
         await _audit.LogAsync("CREATE", "Issue", issue.Id.ToString());
 
+        // NEW-INT-05 — Broadcast IssueCreated to mobile + web clients subscribed to the project.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("IssueCreated", new
+        {
+            issue.Id, issue.IssueCode, issue.Type, issue.Title, issue.Priority,
+            issue.Status, issue.Assignee, issue.AssigneeUserId, issue.Discipline,
+            issue.CreatedBy, issue.CreatedAt, issue.DueDate,
+            projectId
+        });
+
         // Push notification for new issue
         _ = _notifications.NotifyAsync(tenantId, "issues",
             $"New {issue.Type}: {issue.IssueCode}",
@@ -258,18 +272,49 @@ public class IssuesController : ControllerBase
             .FirstOrDefaultAsync(i => i.Id == issueId && i.ProjectId == projectId && i.Project!.TenantId == tenantId);
         if (issue == null) return NotFound();
 
-        if (req.Status != null)
+        // NEW-INFO-07 — Capture before/after for the audit log so the activity
+        // timeline can show who changed what.
+        var diff = new Dictionary<string, object?>();
+        if (req.Status != null && req.Status != issue.Status)
         {
+            diff["Status"] = new { from = issue.Status, to = req.Status };
             issue.Status = req.Status;
             if (req.Status is "RESOLVED" or "CLOSED")
                 issue.ResolvedAt = DateTime.UtcNow;
         }
-        if (req.Priority != null) issue.Priority = req.Priority;
-        if (req.Assignee != null) issue.Assignee = req.Assignee;
-        if (req.Description != null) issue.Description = req.Description;
+        if (req.Priority != null && req.Priority != issue.Priority)
+        {
+            diff["Priority"] = new { from = issue.Priority, to = req.Priority };
+            issue.Priority = req.Priority;
+        }
+        if (req.Assignee != null && req.Assignee != issue.Assignee)
+        {
+            diff["Assignee"] = new { from = issue.Assignee, to = req.Assignee };
+            issue.Assignee = req.Assignee;
+        }
+        if (req.Description != null && req.Description != issue.Description)
+        {
+            diff["Description"] = new { changed = true };
+            issue.Description = req.Description;
+        }
 
         await _db.SaveChangesAsync();
-        await _audit.LogAsync("UPDATE", "Issue", issue.Id.ToString());
+
+        var detailsJson = diff.Count > 0
+            ? System.Text.Json.JsonSerializer.Serialize(diff)
+            : null;
+        await _audit.LogAsync("UPDATE", "Issue", issue.Id.ToString(), detailsJson);
+
+        // NEW-INT-05 — Broadcast IssueUpdated with the diff so all subscribed
+        // mobile clients refresh.
+        _ = _notifHub.Clients.Group($"project-{projectId}").SendAsync("IssueUpdated", new
+        {
+            issue.Id, issue.IssueCode, issue.Status, issue.Priority,
+            issue.Assignee, issue.AssigneeUserId, issue.ResolvedAt,
+            updatedAt = DateTime.UtcNow,
+            diff, projectId
+        });
+
         return Ok(issue);
     }
 
