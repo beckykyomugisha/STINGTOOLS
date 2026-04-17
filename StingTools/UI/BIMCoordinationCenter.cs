@@ -6307,15 +6307,24 @@ namespace StingTools.UI
             var delTypes = new List<string> { "Drawing", "Specification", "Report", "Model", "Schedule", "COBie" };
             var delDiscs = new List<string> { "A", "S", "M", "E", "P", "FP", "LV", "C", "G", "All" };
             var delStatuses = new List<string> { "WIP", "FOR REVIEW", "FOR APPROVAL", "APPROVED", "SUPERSEDED" };
-            editDg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("Code"), Width = 80 });
-            editDg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type", ItemsSource = delTypes, SelectedItemBinding = new Binding("Type"), Width = 95 });
-            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Disc", ItemsSource = delDiscs, SelectedItemBinding = new Binding("Suitability"), Width = 55 });
-            editDg.Columns.Add(new DataGridTextColumn { Header = "Rev", Binding = new Binding("DataDrop"), Width = 45 });
-            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status", ItemsSource = delStatuses, SelectedItemBinding = new Binding("Status"), Width = 100 });
-            editDg.Columns.Add(new DataGridTextColumn { Header = "Due Date", Binding = new Binding("DueDate"), Width = 75 });
-            editDg.Columns.Add(new DataGridTextColumn { Header = "Assigned To", Binding = new Binding("Owner"), Width = 90 });
-            editDg.Columns.Add(new DataGridTextColumn { Header = "CDE State", Binding = new Binding("CDE"), Width = 70 });
+            // Phase 96: BCC-Del-01 fix — previously "Disc" was bound to DeliverableRow.Suitability,
+            // so picking a discipline silently overwrote the S0–S7 suitability code.
+            // "Rev" was bound to DataDrop (DD1-DD4) — a separate field.
+            // Re-binding to the correct properties + adding explicit Suitability (S0-S7),
+            // DataDrop (DD1-DD4), and CDE State dropdowns from the canonical ISO 19650 lists.
+            var delSuitabilities = new List<string> { "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7" };
+            var delDataDrops = new List<string> { "DD1", "DD2", "DD3", "DD4", "—" };
+            var delCDEStates = new List<string> { "WIP", "SHARED", "PUBLISHED", "ARCHIVE", "SUPERSEDED", "WITHDRAWN", "OBSOLETE" };
+            editDg.Columns.Add(new DataGridTextColumn     { Header = "ID",          Binding = new Binding("Code"),                                                 Width = 80 });
+            editDg.Columns.Add(new DataGridTextColumn     { Header = "Title",       Binding = new Binding("Name"),                                                 Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type",        ItemsSource = delTypes,          SelectedItemBinding = new Binding("Type"),         Width = 95 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Disc",        ItemsSource = delDiscs,          SelectedItemBinding = new Binding("Discipline"),   Width = 55 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Suit.",       ItemsSource = delSuitabilities,  SelectedItemBinding = new Binding("Suitability"),  Width = 55 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Data Drop",   ItemsSource = delDataDrops,      SelectedItemBinding = new Binding("DataDrop"),     Width = 70 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status",      ItemsSource = delStatuses,       SelectedItemBinding = new Binding("Status"),       Width = 110 });
+            editDg.Columns.Add(new DataGridTextColumn     { Header = "Due Date",    Binding = new Binding("DueDate"),                                               Width = 80 });
+            editDg.Columns.Add(new DataGridTextColumn     { Header = "Assigned To", Binding = new Binding("Owner"),                                                 Width = 90 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "CDE State",   ItemsSource = delCDEStates,      SelectedItemBinding = new Binding("CDE"),          Width = 90 });
             var editDelSource = new System.Collections.ObjectModel.ObservableCollection<DeliverableRow>(_data.Deliverables);
             editDg.ItemsSource = editDelSource;
 
@@ -6618,14 +6627,38 @@ namespace StingTools.UI
             roleToolbar.Children.Add(expMatBtn); roleToolbar.Children.Add(savePermBtn);
             tabBStack.Children.Add(roleToolbar);
 
+            // Phase 96: strict dropdowns on typo-prone fields
+            // Role codes from the canonical ISO 19650 role catalog (GetDefaultRoles) so the Role Code
+            // column stays in lock-step with the CDE Access Matrix role references (A,M,E,S,K,F,…).
+            var roleCodeList = GetDefaultRoles().Select(r => r.Code).Distinct().OrderBy(c => c).ToList();
+            var roleDisciplineList = new List<string>
+            {
+                "—", "Architecture", "Structural", "Mechanical", "Electrical", "Plumbing",
+                "Fire", "Civil", "Landscape", "Interior Design", "Construction", "Cost",
+                "FM", "Health & Safety", "Acoustic", "Fabrication", "Other"
+            };
+            // Comma-separated CDE state combos — covers 95% of real projects; editable for the rest.
+            var cdeAccessPresets = new List<string>
+            {
+                "WIP", "WIP,SHARED", "WIP,SHARED,PUBLISHED", "WIP,SHARED,PUBLISHED,ARCHIVE",
+                "SHARED", "SHARED,PUBLISHED", "SHARED,PUBLISHED,ARCHIVE",
+                "PUBLISHED", "PUBLISHED,ARCHIVE", "ARCHIVE", "None"
+            };
+            var yesNoList = new List<string> { "Yes", "No" };
+            var slaHoursList = new List<string> { "0", "4", "8", "12", "24", "48", "72", "168", "336" };
+
+            // EditingElementStyle lets the comma-separated combos accept custom values too.
+            var editableStyle = new Style(typeof(ComboBox));
+            editableStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+
             var roleDg = MakeExcelDataGrid(180);
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "Role Code",   Binding = new System.Windows.Data.Binding("Code"),       Width = 80 });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "Name",        Binding = new System.Windows.Data.Binding("Name"),       Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "Discipline",  Binding = new System.Windows.Data.Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "CDE Access",  Binding = new System.Windows.Data.Binding("CDEAccess"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "Can Approve", Binding = new System.Windows.Data.Binding("CanApprove"), Width = 85 });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "Can Issue",   Binding = new System.Windows.Data.Binding("CanIssue"),   Width = 75 });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "SLA Hours",   Binding = new System.Windows.Data.Binding("SLAHours"),   Width = 70 });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "Role Code",   ItemsSource = roleCodeList,      SelectedItemBinding = new System.Windows.Data.Binding("Code"),       Width = 80 });
+            roleDg.Columns.Add(new DataGridTextColumn     { Header = "Name",        Binding = new System.Windows.Data.Binding("Name"),                                                 Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "Discipline",  ItemsSource = roleDisciplineList, SelectedItemBinding = new System.Windows.Data.Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "CDE Access",  ItemsSource = cdeAccessPresets,  SelectedItemBinding = new System.Windows.Data.Binding("CDEAccess"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star), EditingElementStyle = editableStyle });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "Can Approve", ItemsSource = yesNoList,         SelectedItemBinding = new System.Windows.Data.Binding("CanApprove"), Width = 85 });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "Can Issue",   ItemsSource = yesNoList,         SelectedItemBinding = new System.Windows.Data.Binding("CanIssue"),   Width = 75 });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "SLA Hours",   ItemsSource = slaHoursList,      SelectedItemBinding = new System.Windows.Data.Binding("SLAHours"),   Width = 80, EditingElementStyle = editableStyle });
             var roleSrc = new System.Collections.ObjectModel.ObservableCollection<RoleDefinition>(_data.Roles);
             roleDg.ItemsSource = roleSrc;
             addRoleBtn.Click  += (s, e) => roleSrc.Add(new RoleDefinition());
@@ -6646,14 +6679,45 @@ namespace StingTools.UI
             cdeToolbar.Children.Add(addCdeBtn); cdeToolbar.Children.Add(delCdeBtn); cdeToolbar.Children.Add(expCdeBtn);
             tabCStack.Children.Add(cdeToolbar);
 
+            // Phase 96: strict dropdowns on typo-prone fields for the CDE matrix.
+            // Folder list seeded from the 12 default ISO 19650 folders but kept editable so
+            // projects can add sub-folders (e.g. "05_MODELS/COORDINATION") without leaving the combo.
+            var cdeFolderList = GetDefaultFolderPermissions().Select(f => f.Folder).Distinct().ToList();
+            // CDE states: strict — WIP/SHARED/PUBLISHED/ARCHIVE + 3 ISO 19650-2 terminal states
+            // (SUPERSEDED/WITHDRAWN/OBSOLETE). Matches BIMManagerEngine.CDEStates exactly.
+            var cdeStateList = new List<string>
+            {
+                "WIP", "SHARED", "PUBLISHED", "ARCHIVE",
+                "SUPERSEDED", "WITHDRAWN", "OBSOLETE"
+            };
+            // Role-list presets — match the strings produced by GetDefaultFolderPermissions()
+            // so the matrix renders without diff on first open. Custom entries remain possible
+            // because EditingElementStyle enables ComboBox.IsEditable for these columns.
+            var readRolesPresets = new List<string>
+            {
+                "All team", "All team + Client", "All team + FM", "All team + FM + Client",
+                "BIM Manager only", "Coordinator + BIM Manager", "Originator only", "None"
+            };
+            var writeRolesPresets = new List<string>
+            {
+                "A,M,E,S", "A,M,E,S,H,P,C", "A,M,E,S,H,P,C,I,Q,L",
+                "A,M,E,S (originators)", "All team", "BIM Manager", "BIM Manager only",
+                "Coordinator", "Client only", "None"
+            };
+            var approveRolesPresets = new List<string>
+            {
+                "", "A", "K", "A,K", "K,A", "K,F", "K,F,A", "BIM Manager only", "Client only"
+            };
+
+            var cdeEditableStyle = new Style(typeof(ComboBox));
+            cdeEditableStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+
             var cdeDg = MakeExcelDataGrid(180);
-            // Folder ComboBox column
-            var folderCol = new DataGridTextColumn { Header = "Folder",        Binding = new System.Windows.Data.Binding("Folder"),       Width = new DataGridLength(1.2, DataGridLengthUnitType.Star) };
-            cdeDg.Columns.Add(folderCol);
-            cdeDg.Columns.Add(new DataGridTextColumn { Header = "CDE State",   Binding = new System.Windows.Data.Binding("CDEState"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            cdeDg.Columns.Add(new DataGridTextColumn { Header = "Read Roles",  Binding = new System.Windows.Data.Binding("ReadRoles"),    Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-            cdeDg.Columns.Add(new DataGridTextColumn { Header = "Write Roles", Binding = new System.Windows.Data.Binding("WriteRoles"),   Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-            cdeDg.Columns.Add(new DataGridTextColumn { Header = "Approve Roles",Binding = new System.Windows.Data.Binding("ApproveRoles"),Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            cdeDg.Columns.Add(new DataGridComboBoxColumn { Header = "Folder",        ItemsSource = cdeFolderList,       SelectedItemBinding = new System.Windows.Data.Binding("Folder"),       Width = new DataGridLength(1.2, DataGridLengthUnitType.Star), EditingElementStyle = cdeEditableStyle });
+            cdeDg.Columns.Add(new DataGridComboBoxColumn { Header = "CDE State",     ItemsSource = cdeStateList,        SelectedItemBinding = new System.Windows.Data.Binding("CDEState"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            cdeDg.Columns.Add(new DataGridComboBoxColumn { Header = "Read Roles",    ItemsSource = readRolesPresets,    SelectedItemBinding = new System.Windows.Data.Binding("ReadRoles"),    Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), EditingElementStyle = cdeEditableStyle });
+            cdeDg.Columns.Add(new DataGridComboBoxColumn { Header = "Write Roles",   ItemsSource = writeRolesPresets,   SelectedItemBinding = new System.Windows.Data.Binding("WriteRoles"),   Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), EditingElementStyle = cdeEditableStyle });
+            cdeDg.Columns.Add(new DataGridComboBoxColumn { Header = "Approve Roles", ItemsSource = approveRolesPresets, SelectedItemBinding = new System.Windows.Data.Binding("ApproveRoles"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), EditingElementStyle = cdeEditableStyle });
             var cdeSrc = new System.Collections.ObjectModel.ObservableCollection<FolderPermission>(_data.FolderPermissions.Count > 0 ? _data.FolderPermissions : GetDefaultFolderPermissions());
             cdeDg.ItemsSource = cdeSrc;
             addCdeBtn.Click += (s, e) => cdeSrc.Add(new FolderPermission());
@@ -7464,13 +7528,20 @@ namespace StingTools.UI
             actDg.IsReadOnly = false;
             var actPriorities = new List<string> { "CRITICAL", "HIGH", "MEDIUM", "LOW" };
             var actStatuses = new List<string> { "OPEN", "IN PROGRESS", "PENDING INFO", "CLOSED" };
-            actDg.Columns.Add(new DataGridTextColumn { Header = "Action ID", Binding = new Binding("ActionId"), Width = 80, IsReadOnly = true });
-            actDg.Columns.Add(new DataGridTextColumn { Header = "Description", Binding = new Binding("Description"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            actDg.Columns.Add(new DataGridTextColumn { Header = "Owner", Binding = new Binding("Owner"), Width = 90 });
-            actDg.Columns.Add(new DataGridTextColumn { Header = "Due Date", Binding = new Binding("DueDate"), Width = 75 });
-            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Priority", ItemsSource = actPriorities, SelectedItemBinding = new Binding("Priority"), Width = 80 });
-            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status", ItemsSource = actStatuses, SelectedItemBinding = new Binding("Status"), Width = 95 });
-            actDg.Columns.Add(new DataGridTextColumn { Header = "Mtg Ref", Binding = new Binding("MeetingRef"), Width = 70 });
+            // Phase 96: Owner dropdown seeded from team directory so action items can't be assigned
+            // to a mistyped name. Editable fallback keeps ad-hoc owners possible (e.g. "Client TBC").
+            var actOwnerList = _data.TeamMembers.Select(m => m.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().OrderBy(n => n).ToList();
+            if (actOwnerList.Count == 0)
+                actOwnerList.AddRange(new[] { "BIM Manager", "Project Manager", "Lead Architect", "Lead Engineer", "Client", "Contractor", "TBC" });
+            var actOwnerStyle = new Style(typeof(ComboBox));
+            actOwnerStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+            actDg.Columns.Add(new DataGridTextColumn     { Header = "Action ID",   Binding = new Binding("ActionId"),                                           Width = 80, IsReadOnly = true });
+            actDg.Columns.Add(new DataGridTextColumn     { Header = "Description", Binding = new Binding("Description"),                                         Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Owner",       ItemsSource = actOwnerList,  SelectedItemBinding = new Binding("Owner"),        Width = 110, EditingElementStyle = actOwnerStyle });
+            actDg.Columns.Add(new DataGridTextColumn     { Header = "Due Date",    Binding = new Binding("DueDate"),                                              Width = 85 });
+            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Priority",    ItemsSource = actPriorities, SelectedItemBinding = new Binding("Priority"),    Width = 80 });
+            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status",      ItemsSource = actStatuses,   SelectedItemBinding = new Binding("Status"),      Width = 110 });
+            actDg.Columns.Add(new DataGridTextColumn     { Header = "Mtg Ref",     Binding = new Binding("MeetingRef"),                                           Width = 70 });
             actDg.ItemsSource = actSource;
             var actRowStyle = new Style(typeof(DataGridRow));
             var actOverdueT = new DataTrigger { Binding = new Binding("IsOverdue"), Value = true };
