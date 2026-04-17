@@ -19,6 +19,8 @@
     "expo": "~52.0.0",
     "expo-camera": "~16.0.0",
     "expo-device": "~7.0.0",
+    "expo-image-manipulator": "^55.0.15",
+    "expo-image-picker": "^55.0.18",
     "expo-location": "^55.1.8",
     "expo-notifications": "~0.29.0",
     "expo-router": "~4.0.0",
