@@ -20,10 +20,12 @@ public class NotificationHub : Hub
 {
     private static readonly ConcurrentDictionary<string, (string DeviceId, string ProjectId)> _connections = new();
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly PresenceTracker _presence;
 
-    public NotificationHub(IServiceScopeFactory scopeFactory)
+    public NotificationHub(IServiceScopeFactory scopeFactory, PresenceTracker presence)
     {
         _scopeFactory = scopeFactory;
+        _presence = presence;
     }
 
     private Guid? GetCallerUserId()
@@ -59,12 +61,34 @@ public class NotificationHub : Hub
             throw new HubException("Not a member of this project");
 
         await Groups.AddToGroupAsync(Context.ConnectionId, $"project-{projectId}");
+
+        // T3 — presence: record the user + broadcast the delta.
+        var displayName = Context.User?.FindFirst("display_name")?.Value
+                       ?? Context.User?.Identity?.Name
+                       ?? "Unknown";
+        _presence.Join(pid, Context.ConnectionId,
+            new PresentUser(userId.Value, displayName, "web"));
         await Clients.Caller.SendAsync("JoinedProject", projectId);
+        await Clients.Group($"project-{projectId}").SendAsync("PresenceChanged", new
+        {
+            projectId,
+            users = _presence.ProjectUsers(pid),
+        });
     }
 
     public async Task LeaveProject(string projectId)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"project-{projectId}");
+        // T3 — drop from the presence tracker + fire a delta.
+        var affected = _presence.Leave(Context.ConnectionId);
+        foreach (var pid in affected)
+        {
+            await Clients.Group($"project-{pid}").SendAsync("PresenceChanged", new
+            {
+                projectId = pid,
+                users = _presence.ProjectUsers(pid),
+            });
+        }
     }
 
     /// <summary>
@@ -124,6 +148,20 @@ public class NotificationHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         _connections.TryRemove(Context.ConnectionId, out _);
+        // T3 — broadcast PresenceChanged on hard disconnect.
+        var affected = _presence.Leave(Context.ConnectionId);
+        foreach (var pid in affected)
+        {
+            try
+            {
+                await Clients.Group($"project-{pid}").SendAsync("PresenceChanged", new
+                {
+                    projectId = pid,
+                    users = _presence.ProjectUsers(pid),
+                });
+            }
+            catch { /* ignore — client already gone */ }
+        }
         await base.OnDisconnectedAsync(exception);
     }
 }
