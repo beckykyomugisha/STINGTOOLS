@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "scheme": "planscape",
     "splash": {
       "image": "./assets/splash.png",
@@ -17,7 +17,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.planscape.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Planscape uses the camera to scan QR codes on BIM assets."
+        "NSCameraUsageDescription": "Planscape uses the camera to scan QR codes on BIM assets and capture site photos for issues.",
+        "NSPhotoLibraryUsageDescription": "Planscape attaches photos from your library to construction issues.",
+        "NSPhotoLibraryAddUsageDescription": "Planscape may save annotated site photos to your library.",
+        "NSLocationWhenInUseUsageDescription": "Planscape tags your construction issues with site location and validates project geofences.",
+        "NSMicrophoneUsageDescription": "Planscape may capture short voice notes attached to issues."
       }
     },
     "android": {
@@ -26,19 +30,45 @@
         "backgroundColor": "#1A237E"
       },
       "package": "com.planscape.app",
-      "permissions": ["CAMERA"]
+      "permissions": [
+        "CAMERA",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
       [
         "expo-camera",
-        { "cameraPermission": "Planscape uses the camera to scan QR codes on BIM assets." }
+        { "cameraPermission": "Planscape uses the camera to scan QR codes on BIM assets and capture site photos." }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Planscape attaches photos from your library to construction issues.",
+          "cameraPermission": "Planscape captures site photos for construction issues."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Planscape tags your construction issues with site location.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
       ],
       [
         "expo-notifications",
         { "icon": "./assets/notification-icon.png", "color": "#E8912D" }
       ]
-    ]
+    ],
+    "extra": {
+      "apiBase": "https://planscape.example/api",
+      "hubUrl": "https://planscape.example/hubs/notifications"
+    }
   }
 }
