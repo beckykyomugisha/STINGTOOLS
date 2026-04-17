@@ -3289,13 +3289,86 @@ namespace StingTools.UI
 
                 // Access management
                 detailStack.Children.Add(new TextBlock { Text = "ACCESS MANAGEMENT", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 4, 0, 4) });
-                var accessGrid = MakeExcelDataGrid(120);
+
+                // Phase 102 — comprehensive role dropdown.
+                // Previously only 4 generic platform roles (Admin/Coordinator/
+                // Viewer/External). Now seeded from the canonical GetDefaultRoles
+                // ISO 19650 catalogue (Client, Project Manager, BIM Manager,
+                // Architect, Structural/MEP Engineers, Fire Engineer, Civil,
+                // Contractor, Clerk of Works, FM, etc.) — same list used by
+                // the Permission Groups sub-tab so both views stay in lock-step.
+                var accessRoleList = new List<string>();
+                accessRoleList.Add("Admin");           // Platform-level
+                accessRoleList.Add("Coordinator");
+                accessRoleList.Add("Viewer");
+                accessRoleList.Add("External");
+                accessRoleList.Add("— ISO 19650 Roles —");
+                foreach (var r in GetDefaultRoles())
+                    accessRoleList.Add($"{r.Code} — {r.Name}");
+                var accessRoleStyle = new Style(typeof(ComboBox));
+                accessRoleStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+
+                // Phase 102 — separate Name and Email columns (user feedback).
+                // Previously both were merged into a single "Name / Email"
+                // column bound only to Name, so the email field on each
+                // TeamMemberRow was invisible on this grid.
+                var accessGrid = MakeExcelDataGrid(130);
                 accessGrid.IsReadOnly = false;
-                accessGrid.Columns.Add(new DataGridTextColumn { Header = "Name / Email", Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), Binding = new System.Windows.Data.Binding("Name") });
-                accessGrid.Columns.Add(new DataGridComboBoxColumn { Header = "Role", Width = 100, ItemsSource = new[] { "Admin", "Coordinator", "Viewer", "External" }, SelectedItemBinding = new System.Windows.Data.Binding("Role") });
-                accessGrid.Columns.Add(new DataGridCheckBoxColumn { Header = "Active", Width = 55, Binding = new System.Windows.Data.Binding("Active") });
+                accessGrid.Columns.Add(new DataGridTextColumn     { Header = "Name",    Binding = new System.Windows.Data.Binding("Name"),    Width = new DataGridLength(1.4, DataGridLengthUnitType.Star) });
+                accessGrid.Columns.Add(new DataGridTextColumn     { Header = "Email",   Binding = new System.Windows.Data.Binding("Email"),   Width = new DataGridLength(1.8, DataGridLengthUnitType.Star) });
+                accessGrid.Columns.Add(new DataGridTextColumn     { Header = "Company", Binding = new System.Windows.Data.Binding("Company"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                accessGrid.Columns.Add(new DataGridComboBoxColumn { Header = "Role",    ItemsSource = accessRoleList, SelectedItemBinding = new System.Windows.Data.Binding("Role"), Width = 160, EditingElementStyle = accessRoleStyle });
+                accessGrid.Columns.Add(new DataGridCheckBoxColumn { Header = "Active",  Binding = new System.Windows.Data.Binding("Active"),  Width = 55 });
                 accessGrid.ItemsSource = _data.TeamMembers;
                 detailStack.Children.Add(accessGrid);
+
+                // Phase 102 — quick actions on the access grid
+                var accessToolbar = new WrapPanel { Margin = new Thickness(0, 4, 0, 10) };
+                var addMemberBtnP = new Button
+                {
+                    Content = "\u2795 Add Member", Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0),
+                    Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                    ToolTip = "Add a new team member. Name + Email are editable inline after insertion."
+                };
+                addMemberBtnP.Click += (s, e) =>
+                {
+                    _data.TeamMembers.Add(new TeamMemberRow { Active = true, Role = "Viewer" });
+                    accessGrid.Items.Refresh();
+                };
+                accessToolbar.Children.Add(addMemberBtnP);
+
+                var inviteBtn = new Button
+                {
+                    Content = "\ud83d\udce7 Invite Selected", Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0),
+                    Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                    ToolTip = "Copy an invite email body (link + role) for the highlighted row to the clipboard."
+                };
+                inviteBtn.Click += (s, e) =>
+                {
+                    if (accessGrid.SelectedItem is TeamMemberRow tm && !string.IsNullOrWhiteSpace(tm.Email))
+                    {
+                        string invite =
+                            $"Subject: Planscape invitation — {_data.ProjectName}\n\n" +
+                            $"Hi {tm.Name},\n\n" +
+                            $"You've been added to the Planscape project '{_data.ProjectName}' as {tm.Role}.\n" +
+                            $"Sign in at {BIMManager.PlanscapeServerClient.Instance.ServerUrl}\n\n" +
+                            "\u2014 Sent from STING BIM Coordination Center";
+                        try { System.Windows.Clipboard.SetText(invite); } catch { }
+                        ShowStatus($"Invite copied for {tm.Name}");
+                    }
+                    else ShowStatus("Select a row with an email first.");
+                };
+                accessToolbar.Children.Add(inviteBtn);
+
+                var savePlBtn = new Button
+                {
+                    Content = "\ud83d\udcbe Save Access", Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0),
+                    Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                    ToolTip = "Persist the access roster to _bim_manager/team_members.json"
+                };
+                savePlBtn.Click += (s, e) => DispatchAction("SaveProjectMembers");
+                accessToolbar.Children.Add(savePlBtn);
+                detailStack.Children.Add(accessToolbar);
 
                 // ── Server Connection ────────────────────────────────────────
                 bool sbConnected = BIMManager.PlanscapeServerClient.Instance.IsConnected;
@@ -3380,12 +3453,78 @@ namespace StingTools.UI
                         System.Windows.Threading.DispatcherPriority.Background);
                 };
                 sbConnBtnRow.Children.Add(sbConnBtn); sbConnBtnRow.Children.Add(sbDiscoBtn);
+
+                // Phase 102: when connected, add a third button to open the
+                // web dashboard so coordinators can jump from BCC straight
+                // into the browser viewer / mobile hand-off.
+                if (sbConnected)
+                {
+                    var openWebBtn = new Button
+                    {
+                        Content = "\ud83c\udf10 Open Web Dashboard", Height = 28, Padding = new Thickness(12, 0, 12, 0),
+                        Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 6, 0),
+                        ToolTip = "Open the Planscape web dashboard in your default browser (mobile app also uses this URL)"
+                    };
+                    openWebBtn.Click += (s, e) => DispatchAction("PlanscapeOpenWebDashboard");
+                    sbConnBtnRow.Children.Add(openWebBtn);
+                }
                 detailStack.Children.Add(sbConnBtnRow);
+
+                // ── Phase 102: Project & server info card (visible when connected) ──
+                if (sbConnected)
+                {
+                    detailStack.Children.Add(new TextBlock
+                    {
+                        Text = "SERVER STATUS", FontWeight = FontWeights.Bold, FontSize = 11,
+                        Foreground = Br(CAccent), Margin = new Thickness(0, 6, 0, 4)
+                    });
+                    var client = BIMManager.PlanscapeServerClient.Instance;
+                    string mimFlag = client.MimEnabled ? "enabled" : "disabled";
+                    string lastError = !string.IsNullOrEmpty(client.LastError)
+                        ? $"\n\u26A0  Last error: {client.LastError}"
+                        : "";
+                    var infoBorder = new Border
+                    {
+                        Background = Br(Color.FromRgb(0xE8, 0xF4, 0xFF)),
+                        BorderBrush = Br(Color.FromRgb(0xBB, 0xDE, 0xFB)),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(10, 8, 10, 8),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    };
+                    var infoStack = new StackPanel();
+                    infoStack.Children.Add(new TextBlock
+                    {
+                        Text = $"\ud83d\udc64  User: {client.ConnectedUser}",
+                        FontSize = 11, Margin = new Thickness(0, 0, 0, 2)
+                    });
+                    infoStack.Children.Add(new TextBlock
+                    {
+                        Text = $"\ud83d\udce6  Tier: {client.TierName}   \u2022   MIM add-on: {mimFlag}",
+                        FontSize = 11, Margin = new Thickness(0, 0, 0, 2)
+                    });
+                    infoStack.Children.Add(new TextBlock
+                    {
+                        Text = $"\ud83c\udfe2  Tenant: {client.TenantId}",
+                        FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                        Margin = new Thickness(0, 0, 0, 2)
+                    });
+                    infoStack.Children.Add(new TextBlock
+                    {
+                        Text = $"\ud83d\udd17  Server: {client.ServerUrl}{lastError}",
+                        FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                        TextWrapping = TextWrapping.Wrap
+                    });
+                    infoBorder.Child = infoStack;
+                    detailStack.Children.Add(infoBorder);
+                }
 
                 // ── Sync settings ────────────────────────────────────────────
                 detailStack.Children.Add(new TextBlock { Text = "SYNC OPTIONS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 4, 0, 4) });
                 var syncOptsPlanscape = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-                foreach (var opt in new[] { "Auto-sync on model save", "Include model snapshots", "Notify on new issues", "Send weekly digest" })
+                foreach (var opt in new[] { "Auto-sync on model save", "Include model snapshots", "Notify on new issues", "Send weekly digest", "Compliance snapshot on revision", "Real-time (SignalR) updates" })
                     syncOptsPlanscape.Children.Add(new CheckBox { Content = opt, Margin = new Thickness(0, 0, 14, 4), FontSize = 11 });
                 detailStack.Children.Add(syncOptsPlanscape);
 
