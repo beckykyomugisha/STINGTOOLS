@@ -77,6 +77,13 @@ export interface BimIssue {
   deviceId?: string;
   source?: 'mobile' | 'plugin' | 'web' | 'mobile-bridge';
   attachmentCount?: number;
+  // MODEL-VIEWER — 3D anchor. Populated when the issue was raised from the
+  // viewer's "create issue here" action.
+  modelId?: string | null;
+  modelElementGuid?: string | null;
+  modelX?: number | null;
+  modelY?: number | null;
+  modelZ?: number | null;
 }
 
 /** NEW-INFO-06/07 — Activity timeline entries surfaced from AuditLog. */

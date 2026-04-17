@@ -57,6 +57,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<UserNotificationPreferences> UserNotificationPreferences => Set<UserNotificationPreferences>();
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
     public DbSet<IssueCustomFieldSchema> IssueCustomFieldSchemas => Set<IssueCustomFieldSchema>();
+    public DbSet<ProjectModel> ProjectModels => Set<ProjectModel>();
     public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
@@ -92,6 +93,34 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.DefaultValueJson).HasColumnType("jsonb");
             e.Property(x => x.OptionsJson).HasColumnType("jsonb");
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── ProjectModel (MODEL-VIEWER) ──
+        modelBuilder.Entity<ProjectModel>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.ContentHash);
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.FileName).HasMaxLength(260);
+            e.Property(x => x.StoragePath).HasMaxLength(600);
+            e.Property(x => x.ContentHash).HasMaxLength(64);
+            e.Property(x => x.ThumbnailPath).HasMaxLength(600);
+            e.Property(x => x.ElementMapPath).HasMaxLength(600);
+            e.Property(x => x.Units).HasMaxLength(8);
+            e.Property(x => x.Revision).HasMaxLength(30);
+            e.Property(x => x.UploadedBy).HasMaxLength(200);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.UploadedByUser).WithMany().HasForeignKey(x => x.UploadedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Issue → ProjectModel anchor (MODEL-VIEWER)
+        modelBuilder.Entity<BimIssue>(e =>
+        {
+            e.HasIndex(x => x.ModelId);
+            e.Property(x => x.ModelElementGuid).HasMaxLength(80);
         });
 
         // ── BimIssue.CustomFields JSONB (FLEX-13) ──

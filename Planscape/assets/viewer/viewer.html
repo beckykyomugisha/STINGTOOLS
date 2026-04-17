@@ -1,0 +1,477 @@
+<!--
+  MODEL-VIEWER — Self-contained three.js glTF viewer hosted in a WebView.
+
+  This page is loaded from the app bundle via `Asset.fromModule(...).uri`
+  and receives commands from React Native via window.addEventListener('message').
+  Two-way bridge — the page posts selection / measure / pin events back to RN
+  via window.ReactNativeWebView.postMessage(JSON.stringify(...)).
+
+  Features implemented inline (no build step):
+    - OrbitControls (touch: 1-finger rotate, 2-finger pan+zoom)
+    - GLB / glTF loading from a URL or data URI
+    - Element pick (raycast) — emits "pick" to RN
+    - Section plane (horizontal clip, slider-driven)
+    - Measure tool (two-tap distance in model units)
+    - Issue pins (billboards at XYZ, tap → emits "pinTap")
+    - Long-press → emits "placeIssue" with element GUID + XYZ
+    - Layer toggle (discipline → mesh visibility)
+
+  Dependencies are loaded from `./three.min.js`, `./GLTFLoader.js`, and
+  `./OrbitControls.js` next to this HTML. The build pipeline is responsible
+  for populating those files — the fetch script at the bottom of this file
+  tries each asset and logs a friendly error if any are missing.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Planscape 3D viewer</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #1a1a1a; overflow: hidden; }
+  canvas { display: block; touch-action: none; }
+
+  .hud {
+    position: absolute; top: 12px; left: 12px; right: 12px;
+    display: flex; justify-content: space-between; pointer-events: none;
+    font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
+  .hud .chip {
+    padding: 6px 10px; border-radius: 14px; background: rgba(0,0,0,0.55);
+    pointer-events: auto;
+  }
+  .status { font-size: 11px; opacity: .85; }
+
+  .toolbar {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 6px; padding: 6px;
+    background: rgba(0,0,0,0.55); border-radius: 28px;
+  }
+  .toolbar button {
+    width: 44px; height: 44px; border: 0; border-radius: 50%;
+    background: transparent; color: #fff; font-size: 18px;
+  }
+  .toolbar button.active { background: #E8912D; }
+  .toolbar button:active { opacity: .6; }
+
+  .section-slider {
+    position: absolute; right: 12px; top: 60px; bottom: 100px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    pointer-events: auto;
+  }
+  .section-slider input { -webkit-appearance: slider-vertical; writing-mode: bt-lr;
+    width: 24px; height: 100%; }
+  .section-slider.hidden { display: none; }
+
+  .loading, .error {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    color: #fff; background: rgba(0,0,0,.8); padding: 40px; text-align: center;
+  }
+  .error code { background: rgba(255,255,255,.1); padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading">
+  <div><div style="font-weight:600">Loading model…</div>
+  <div id="loadingProgress" class="status">0%</div></div>
+</div>
+
+<div class="hud">
+  <div class="chip" id="elementChip" style="display:none"></div>
+  <div class="chip status" id="statusChip">ready</div>
+</div>
+
+<div class="section-slider hidden" id="sectionSlider">
+  <div style="color:#fff;font-size:11px">cut</div>
+  <input type="range" min="0" max="100" value="100" id="sectionRange" />
+</div>
+
+<div class="toolbar">
+  <button id="toolHome"    title="Fit view">⌂</button>
+  <button id="toolPick"    title="Pick element" class="active">⊙</button>
+  <button id="toolMeasure" title="Measure">↔</button>
+  <button id="toolSection" title="Section">⊟</button>
+  <button id="toolPin"     title="Drop pin">📍</button>
+</div>
+
+<!--
+  Three.js + loaders live next to this HTML. See assets/viewer/README.md for
+  how to populate these files. The viewer falls back gracefully when any are
+  missing so the rest of the app keeps working.
+-->
+<script src="./three.min.js"></script>
+<script src="./GLTFLoader.js"></script>
+<script src="./OrbitControls.js"></script>
+
+<script>
+(() => {
+  'use strict';
+
+  // ── RN bridge ───────────────────────────────────────────────────────
+  const bridge = {
+    send(type, payload) {
+      const msg = JSON.stringify({ type, payload });
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
+      else console.log('[viewer→rn]', msg);
+    }
+  };
+  window.addEventListener('message', (ev) => {
+    try { handleCommand(JSON.parse(ev.data)); }
+    catch (err) { console.warn('[viewer] bad command:', ev.data, err); }
+  });
+  // Android delivers WebView→page messages on document.
+  document.addEventListener('message', (ev) => {
+    try { handleCommand(JSON.parse(ev.data)); }
+    catch (err) {}
+  });
+
+  if (typeof THREE === 'undefined') {
+    showError('three.js is missing from <code>assets/viewer/</code>. See the README alongside this file.');
+    return;
+  }
+
+  // ── Scene setup ─────────────────────────────────────────────────────
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x1a1a1a);
+
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x404060, 0.9);
+  scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+  dir.position.set(5, 10, 3);
+  scene.add(dir);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+
+  const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 10000);
+  camera.position.set(10, 10, 10);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.localClippingEnabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+
+  // Clip plane for section mode (disabled by default).
+  const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+  renderer.clippingPlanes = [];
+
+  // Pin group — always rendered on top.
+  const pinGroup = new THREE.Group();
+  pinGroup.renderOrder = 999;
+  scene.add(pinGroup);
+
+  const measureGroup = new THREE.Group();
+  scene.add(measureGroup);
+
+  let modelRoot = null;
+  let modelBounds = new THREE.Box3();
+  let elementMap = null;                // guid → { tag, name, category, discipline }
+  let pinMeta = new Map();               // mesh.uuid → { issueId, priority }
+  let measurePoints = [];
+  let activeTool = 'pick';               // 'pick' | 'measure' | 'section' | 'pin'
+  let lastPickEl = null;
+  let pressTimer = null;
+
+  // ── Loading ─────────────────────────────────────────────────────────
+  function loadModel(url) {
+    const loader = new THREE.GLTFLoader();
+    setStatus('loading');
+    document.getElementById('loading').style.display = 'flex';
+
+    loader.load(
+      url,
+      (gltf) => {
+        if (modelRoot) scene.remove(modelRoot);
+        modelRoot = gltf.scene;
+        assignElementIds(modelRoot);
+        scene.add(modelRoot);
+        modelBounds.setFromObject(modelRoot);
+        fitCamera();
+        document.getElementById('loading').style.display = 'none';
+        setStatus('loaded ' + countMeshes(modelRoot) + ' meshes');
+        bridge.send('loaded', { elementCount: countMeshes(modelRoot),
+                                bounds: bbToArray(modelBounds) });
+      },
+      (progress) => {
+        if (progress.total > 0) {
+          const pct = Math.round(progress.loaded / progress.total * 100);
+          document.getElementById('loadingProgress').textContent = pct + '%';
+        }
+      },
+      (err) => {
+        document.getElementById('loading').style.display = 'none';
+        showError('Failed to load model: ' + (err && err.message ? err.message : err));
+      }
+    );
+  }
+
+  function assignElementIds(root) {
+    // glTF exporters typically store the Revit GUID under userData.extras.guid
+    // or userData.name. Walk the tree and fall back to Object.uuid so every
+    // mesh has *some* stable id we can emit to RN.
+    root.traverse(obj => {
+      if (!obj.isMesh) return;
+      const g = obj.userData && (obj.userData.guid || (obj.userData.extras && obj.userData.extras.guid));
+      obj.userData.elementGuid = g || obj.uuid;
+    });
+  }
+
+  function fitCamera() {
+    if (modelBounds.isEmpty()) return;
+    const size = modelBounds.getSize(new THREE.Vector3());
+    const centre = modelBounds.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const dist = maxDim * 1.8;
+    camera.position.copy(centre).add(new THREE.Vector3(dist, dist * 0.8, dist));
+    controls.target.copy(centre);
+    controls.update();
+  }
+
+  // ── Interactions ────────────────────────────────────────────────────
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  let pointerDown = { x: 0, y: 0, t: 0 };
+
+  renderer.domElement.addEventListener('pointerdown', (e) => {
+    pointerDown = { x: e.clientX, y: e.clientY, t: Date.now() };
+    pressTimer = setTimeout(() => pressTimer = 'fired', 600);
+  });
+  renderer.domElement.addEventListener('pointerup', (e) => {
+    const moved = Math.hypot(e.clientX - pointerDown.x, e.clientY - pointerDown.y);
+    const duration = Date.now() - pointerDown.t;
+    const longPress = pressTimer === 'fired';
+    if (pressTimer) clearTimeout(pressTimer);
+    if (moved > 6) return;               // treat as an orbit / pan drag
+
+    setPointer(e);
+    const hits = raycast();
+    if (hits.length === 0) return;
+    const hit = hits[0];
+
+    if (longPress) {
+      emitPlaceIssue(hit);
+      return;
+    }
+    if (activeTool === 'pick')     emitPick(hit);
+    else if (activeTool === 'measure') addMeasurePoint(hit);
+    else if (activeTool === 'pin') emitPlaceIssue(hit);
+    else emitPick(hit);
+  });
+
+  function setPointer(ev) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+  }
+  function raycast() {
+    raycaster.setFromCamera(pointer, camera);
+    const targets = modelRoot ? [modelRoot, pinGroup] : [];
+    return raycaster.intersectObjects(targets, true);
+  }
+
+  function emitPick(hit) {
+    if (pinMeta.has(hit.object.uuid)) {
+      bridge.send('pinTap', pinMeta.get(hit.object.uuid));
+      return;
+    }
+    const guid = hit.object.userData.elementGuid;
+    lastPickEl = guid;
+    const meta = elementMap && elementMap[guid] ? elementMap[guid] : null;
+    bridge.send('pick', { guid, point: hit.point.toArray(), name: hit.object.name, meta });
+    const chip = document.getElementById('elementChip');
+    chip.textContent = meta && meta.tag ? meta.tag : (hit.object.name || guid.slice(0, 8));
+    chip.style.display = 'inline-block';
+    highlight(hit.object);
+  }
+
+  function emitPlaceIssue(hit) {
+    const guid = hit.object.userData.elementGuid;
+    const meta = elementMap && elementMap[guid] ? elementMap[guid] : null;
+    bridge.send('placeIssue', {
+      guid, meta, point: hit.point.toArray()
+    });
+  }
+
+  // ── Highlight ───────────────────────────────────────────────────────
+  let highlightedMesh = null, originalMat = null;
+  function highlight(mesh) {
+    if (highlightedMesh === mesh) return;
+    clearHighlight();
+    highlightedMesh = mesh;
+    originalMat = mesh.material;
+    mesh.material = new THREE.MeshStandardMaterial({
+      color: 0xE8912D, emissive: 0xE8912D, emissiveIntensity: 0.35,
+      transparent: false
+    });
+  }
+  function clearHighlight() {
+    if (highlightedMesh && originalMat) {
+      highlightedMesh.material = originalMat;
+    }
+    highlightedMesh = null; originalMat = null;
+    document.getElementById('elementChip').style.display = 'none';
+  }
+
+  // ── Measure tool ────────────────────────────────────────────────────
+  function addMeasurePoint(hit) {
+    const p = hit.point.clone();
+    measurePoints.push(p);
+    addMeasureMarker(p);
+    if (measurePoints.length === 2) {
+      const d = measurePoints[0].distanceTo(measurePoints[1]);
+      drawMeasureLine(measurePoints[0], measurePoints[1]);
+      bridge.send('measure', { distance: d, points: measurePoints.map(v => v.toArray()) });
+      setStatus('distance = ' + d.toFixed(3) + ' model-units');
+      measurePoints = [];
+    }
+  }
+  function addMeasureMarker(p) {
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1, 12, 12),
+      new THREE.MeshBasicMaterial({ color: 0xffcc00 })
+    );
+    sphere.position.copy(p);
+    measureGroup.add(sphere);
+  }
+  function drawMeasureLine(a, b) {
+    const g = new THREE.BufferGeometry().setFromPoints([a, b]);
+    const m = new THREE.LineBasicMaterial({ color: 0xffcc00, linewidth: 2 });
+    measureGroup.add(new THREE.Line(g, m));
+  }
+  function clearMeasure() {
+    while (measureGroup.children.length) measureGroup.remove(measureGroup.children[0]);
+    measurePoints = [];
+  }
+
+  // ── Section plane ───────────────────────────────────────────────────
+  function enableSection(enabled) {
+    if (enabled) {
+      const size = modelBounds.getSize(new THREE.Vector3());
+      const top = modelBounds.max.y;
+      clipPlane.constant = top;
+      renderer.clippingPlanes = [clipPlane];
+      const slider = document.getElementById('sectionRange');
+      slider.value = 100;
+      document.getElementById('sectionSlider').classList.remove('hidden');
+      slider.oninput = () => {
+        const frac = slider.value / 100;
+        const min = modelBounds.min.y, max = modelBounds.max.y;
+        clipPlane.constant = min + (max - min) * frac;
+      };
+    } else {
+      renderer.clippingPlanes = [];
+      document.getElementById('sectionSlider').classList.add('hidden');
+    }
+  }
+
+  // ── Pins ────────────────────────────────────────────────────────────
+  function addPin({ id, x, y, z, priority = 'MEDIUM' }) {
+    const color = priorityColor(priority);
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({ color, depthTest: false })
+    );
+    const scale = modelBounds.isEmpty() ? 1
+      : modelBounds.getSize(new THREE.Vector3()).length() * 0.015;
+    sprite.scale.set(scale, scale, scale);
+    sprite.position.set(x, y, z);
+    pinGroup.add(sprite);
+    pinMeta.set(sprite.uuid, { issueId: id, priority });
+  }
+  function clearPins() {
+    while (pinGroup.children.length) pinGroup.remove(pinGroup.children[0]);
+    pinMeta.clear();
+  }
+  function priorityColor(p) {
+    switch (p) {
+      case 'CRITICAL': return 0xD32F2F;
+      case 'HIGH':     return 0xF57C00;
+      case 'MEDIUM':   return 0xFBC02D;
+      case 'LOW':      return 0x7CB342;
+      default:         return 0x2196F3;
+    }
+  }
+
+  // ── Layers (discipline filter) ──────────────────────────────────────
+  function setDisciplineVisible(discipline, visible) {
+    if (!modelRoot || !elementMap) return;
+    modelRoot.traverse(obj => {
+      if (!obj.isMesh) return;
+      const guid = obj.userData.elementGuid;
+      const meta = elementMap[guid];
+      if (meta && meta.discipline === discipline) obj.visible = visible;
+    });
+  }
+
+  // ── Commands from RN ────────────────────────────────────────────────
+  function handleCommand(cmd) {
+    switch (cmd.type) {
+      case 'load':            loadModel(cmd.payload.url); break;
+      case 'elementMap':      elementMap = cmd.payload.map; break;
+      case 'setTool':         setTool(cmd.payload.tool); break;
+      case 'fit':             fitCamera(); break;
+      case 'clearMeasure':    clearMeasure(); break;
+      case 'clearHighlight':  clearHighlight(); break;
+      case 'addPin':          addPin(cmd.payload); break;
+      case 'setPins':         clearPins(); (cmd.payload || []).forEach(addPin); break;
+      case 'clearPins':       clearPins(); break;
+      case 'setDiscipline':   setDisciplineVisible(cmd.payload.discipline, cmd.payload.visible); break;
+      case 'setBackground':   scene.background = new THREE.Color(cmd.payload.color || 0x1a1a1a); break;
+    }
+  }
+
+  function setTool(t) {
+    activeTool = t;
+    for (const id of ['toolPick', 'toolMeasure', 'toolSection', 'toolPin']) {
+      document.getElementById(id).classList.remove('active');
+    }
+    const btn = { pick: 'toolPick', measure: 'toolMeasure',
+                  section: 'toolSection', pin: 'toolPin' }[t];
+    if (btn) document.getElementById(btn).classList.add('active');
+    enableSection(t === 'section');
+    if (t !== 'measure') clearMeasure();
+    bridge.send('toolChanged', { tool: t });
+  }
+
+  // Toolbar buttons.
+  document.getElementById('toolHome').addEventListener('click', () => { fitCamera(); clearHighlight(); });
+  document.getElementById('toolPick').addEventListener('click', () => setTool('pick'));
+  document.getElementById('toolMeasure').addEventListener('click', () => setTool('measure'));
+  document.getElementById('toolSection').addEventListener('click', () =>
+    setTool(activeTool === 'section' ? 'pick' : 'section'));
+  document.getElementById('toolPin').addEventListener('click', () => setTool('pin'));
+
+  // ── Resize + render loop ────────────────────────────────────────────
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+  (function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  })();
+
+  // ── Utils ───────────────────────────────────────────────────────────
+  function setStatus(text) { document.getElementById('statusChip').textContent = text; }
+  function countMeshes(obj) { let n = 0; obj.traverse(o => { if (o.isMesh) n++; }); return n; }
+  function bbToArray(b) { return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]; }
+  function showError(html) {
+    const el = document.createElement('div');
+    el.className = 'error';
+    el.innerHTML = html;
+    document.body.appendChild(el);
+  }
+
+  // Tell RN we're ready to receive a `load` command.
+  bridge.send('ready', { platform: 'webview' });
+})();
+</script>
+</body>
+</html>

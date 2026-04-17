@@ -33,6 +33,16 @@ public class BimIssue
     public string? DeviceId { get; set; } // device that raised the issue (mobile audit)
     public string? Source { get; set; } // "mobile" | "plugin" | "web"
 
+    // MODEL-VIEWER — 3D model anchor. When an issue is created from the 3D
+    // viewer ("create issue here"), we record which model, which element
+    // inside it, and the exact XYZ the user tapped. Viewer then renders pins
+    // in-model. All nullable so non-viewer flows are untouched.
+    public Guid? ModelId { get; set; }
+    public string? ModelElementGuid { get; set; }
+    public double? ModelX { get; set; }
+    public double? ModelY { get; set; }
+    public double? ModelZ { get; set; }
+
     // CUSTOM-FIELDS (FLEX-13) — tenant/project-defined schema values live here
     // as a JSON object ({ "field_key": any }). Schema definitions are stored
     // separately in <see cref="IssueCustomFieldSchema"/>. Storage is JSONB on
