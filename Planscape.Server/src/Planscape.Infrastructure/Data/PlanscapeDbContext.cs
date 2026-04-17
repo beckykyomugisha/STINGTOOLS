@@ -38,6 +38,7 @@ public class PlanscapeDbContext : DbContext
     }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<TenantBranding> TenantBrandings => Set<TenantBranding>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<TaggedElement> TaggedElements => Set<TaggedElement>();
@@ -76,6 +77,23 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(t => t.Slug).IsUnique();
             e.Property(t => t.Name).HasMaxLength(200);
             e.Property(t => t.Slug).HasMaxLength(50);
+        });
+
+        // ── TenantBranding (FLEX-03) ──
+        modelBuilder.Entity<TenantBranding>(e =>
+        {
+            e.HasKey(b => b.Id);
+            e.HasIndex(b => b.TenantId).IsUnique();
+            e.HasOne(b => b.Tenant).WithMany().HasForeignKey(b => b.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(b => b.ProductName).HasMaxLength(100);
+            e.Property(b => b.AccentColor).HasMaxLength(20);
+            e.Property(b => b.HeaderColor).HasMaxLength(20);
+            e.Property(b => b.LogoUrl).HasMaxLength(500);
+            e.Property(b => b.SupportEmail).HasMaxLength(200);
+            e.Property(b => b.EmailFromName).HasMaxLength(100);
+            e.Property(b => b.EmailFromAddress).HasMaxLength(200);
+            e.Property(b => b.EmailSignature).HasMaxLength(2000);
+            e.Property(b => b.DefaultLanguage).HasMaxLength(8);
         });
 
         // ── AppUser ──

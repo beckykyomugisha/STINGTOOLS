@@ -1,0 +1,39 @@
+{
+  "_note": "FLEX-15 — English is the canonical source. Keys added here without translations in other locales fall back to this file at render time.",
+
+  "email": {
+    "invite.subject": "You've been invited to {project} on {product}",
+    "password_reset.subject": "{product} — password reset",
+    "issue_assigned.subject": "[{project}] {code} assigned to you"
+  },
+
+  "notification": {
+    "issue_created.title": "New {type}: {code}",
+    "issue_created.body": "{title} on {project}",
+    "issue_assigned.title": "{code} assigned to you",
+    "issue_assigned.body": "{title} — priority {priority}",
+    "sla_breach.title": "SLA breach: {code}",
+    "sla_breach.body": "{title} has been open for {hours} hours",
+    "compliance.title": "Compliance {direction}",
+    "compliance.body": "{project} is now at {percent}% (was {previous}%)"
+  },
+
+  "error": {
+    "unauthorized": "You are not authorised to perform this action.",
+    "tenant_mismatch": "This resource belongs to a different organisation.",
+    "not_found": "The requested resource could not be found.",
+    "validation": "One or more fields are invalid.",
+    "rate_limited": "Too many requests — please try again in a moment."
+  },
+
+  "audit": {
+    "issue.created": "created issue {code}",
+    "issue.updated": "updated issue {code}",
+    "issue.assigned": "assigned {code} to {user}",
+    "document.cde_changed": "moved {name} to {state}",
+    "document.approved": "approved {name}",
+    "document.rejected": "rejected {name}",
+    "revision.created": "created revision {name}",
+    "transmittal.sent": "sent transmittal {code} to {recipients}"
+  }
+}

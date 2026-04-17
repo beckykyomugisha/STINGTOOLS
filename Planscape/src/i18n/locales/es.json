@@ -1,0 +1,72 @@
+{
+  "_note": "Español (es)",
+
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "retry": "Reintentar",
+    "close": "Cerrar",
+    "edit": "Editar",
+    "share": "Compartir",
+    "loading": "Cargando…",
+    "empty": "No hay nada que mostrar",
+    "offline": "Estás sin conexión",
+    "synced": "Sincronizado {when}",
+    "queued": "En cola para sincronizar"
+  },
+
+  "auth": {
+    "sign_in": "Iniciar sesión",
+    "sign_out": "Cerrar sesión",
+    "email": "Correo",
+    "password": "Contraseña",
+    "forgot_password": "¿Olvidaste tu contraseña?",
+    "session_expired": "Tu sesión ha expirado — inicia sesión de nuevo.",
+    "invalid_credentials": "El correo o la contraseña son incorrectos."
+  },
+
+  "tabs": {
+    "home": "Inicio",
+    "issues": "Incidencias",
+    "documents": "Documentos",
+    "scanner": "Escáner",
+    "settings": "Ajustes"
+  },
+
+  "issue": {
+    "create": "Nueva incidencia",
+    "title": "Título",
+    "description": "Descripción",
+    "priority": "Prioridad",
+    "priorities": {
+      "critical": "Crítica",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja"
+    },
+    "status": {
+      "open": "Abierta",
+      "in_progress": "En progreso",
+      "closed": "Cerrada",
+      "overdue": "Vencida"
+    },
+    "assigned_to": "Asignada a {name}",
+    "days_open": "{n} días abierta",
+    "no_location": "Sin ubicación",
+    "outside_geofence": "Estás fuera del perímetro del proyecto — la incidencia se marcará para revisión.",
+    "attach_photo": "Adjuntar foto"
+  },
+
+  "document": {
+    "upload": "Subir",
+    "approve": "Aprobar",
+    "reject": "Rechazar",
+    "cde": {
+      "wip": "WIP",
+      "shared": "Compartido",
+      "published": "Publicado",
+      "archive": "Archivo"
+    }
+  }
+}

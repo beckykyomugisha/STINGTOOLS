@@ -1,0 +1,39 @@
+{
+  "_note": "Español (es). Las claves sin traducir vuelven a en.json.",
+
+  "email": {
+    "invite.subject": "Te han invitado a {project} en {product}",
+    "password_reset.subject": "{product} — restablecer contraseña",
+    "issue_assigned.subject": "[{project}] {code} te ha sido asignada"
+  },
+
+  "notification": {
+    "issue_created.title": "Nueva {type}: {code}",
+    "issue_created.body": "{title} en {project}",
+    "issue_assigned.title": "{code} te ha sido asignada",
+    "issue_assigned.body": "{title} — prioridad {priority}",
+    "sla_breach.title": "SLA incumplido: {code}",
+    "sla_breach.body": "{title} lleva {hours} horas abierta",
+    "compliance.title": "Cumplimiento {direction}",
+    "compliance.body": "{project} ahora está al {percent}% (antes {previous}%)"
+  },
+
+  "error": {
+    "unauthorized": "No tienes permiso para realizar esta acción.",
+    "tenant_mismatch": "Este recurso pertenece a otra organización.",
+    "not_found": "No se encontró el recurso solicitado.",
+    "validation": "Uno o más campos no son válidos.",
+    "rate_limited": "Demasiadas solicitudes — inténtalo de nuevo en un momento."
+  },
+
+  "audit": {
+    "issue.created": "creó la incidencia {code}",
+    "issue.updated": "actualizó la incidencia {code}",
+    "issue.assigned": "asignó {code} a {user}",
+    "document.cde_changed": "movió {name} a {state}",
+    "document.approved": "aprobó {name}",
+    "document.rejected": "rechazó {name}",
+    "revision.created": "creó la revisión {name}",
+    "transmittal.sent": "envió la nota de remisión {code} a {recipients}"
+  }
+}

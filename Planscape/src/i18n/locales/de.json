@@ -1,0 +1,72 @@
+{
+  "_note": "Deutsch (de)",
+
+  "common": {
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "retry": "Erneut versuchen",
+    "close": "Schließen",
+    "edit": "Bearbeiten",
+    "share": "Teilen",
+    "loading": "Lädt…",
+    "empty": "Noch nichts zu zeigen",
+    "offline": "Sie sind offline",
+    "synced": "Synchronisiert {when}",
+    "queued": "In Warteschlange für Synchronisierung"
+  },
+
+  "auth": {
+    "sign_in": "Anmelden",
+    "sign_out": "Abmelden",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "forgot_password": "Passwort vergessen?",
+    "session_expired": "Ihre Sitzung ist abgelaufen — bitte melden Sie sich erneut an.",
+    "invalid_credentials": "E-Mail oder Passwort ist falsch."
+  },
+
+  "tabs": {
+    "home": "Start",
+    "issues": "Vorgänge",
+    "documents": "Dokumente",
+    "scanner": "Scan",
+    "settings": "Einstellungen"
+  },
+
+  "issue": {
+    "create": "Vorgang melden",
+    "title": "Titel",
+    "description": "Beschreibung",
+    "priority": "Priorität",
+    "priorities": {
+      "critical": "Kritisch",
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig"
+    },
+    "status": {
+      "open": "Offen",
+      "in_progress": "In Bearbeitung",
+      "closed": "Geschlossen",
+      "overdue": "Überfällig"
+    },
+    "assigned_to": "Zugewiesen an {name}",
+    "days_open": "{n} Tage offen",
+    "no_location": "Kein Standort erfasst",
+    "outside_geofence": "Sie befinden sich außerhalb der Projektgrenze — der Vorgang wird zur Prüfung markiert.",
+    "attach_photo": "Foto anhängen"
+  },
+
+  "document": {
+    "upload": "Hochladen",
+    "approve": "Freigeben",
+    "reject": "Ablehnen",
+    "cde": {
+      "wip": "WIP",
+      "shared": "Geteilt",
+      "published": "Veröffentlicht",
+      "archive": "Archiv"
+    }
+  }
+}

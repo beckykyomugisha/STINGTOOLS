@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { getLanguage } from '../i18n';
 
 const TOKEN_KEY = 'planscape_token';
 const REFRESH_KEY = 'planscape_refresh';
@@ -95,6 +96,9 @@ export async function apiFetch<T>(
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    // FLEX-15 — let the server pick the right translation for responses
+    // (errors, push payload text, email copy triggered by this request).
+    'X-Language': getLanguage(),
     ...(options.headers as Record<string, string>),
   };
 
