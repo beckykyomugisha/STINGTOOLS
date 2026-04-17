@@ -2072,6 +2072,57 @@ namespace StingTools.BIMManager
                 return Guid.Empty;
             }
         }
+
+        /// <summary>
+        /// Resolve the wall-clock UTC last-modified timestamp for a single
+        /// tagged element, for use in the Planscape sync payload (INT-03).
+        ///
+        /// Priority chain:
+        ///   1. <c>ASS_TAG_MODIFIED_DT</c> — the STING audit trail stamp
+        ///      written by <c>TagPipelineHelper.RunFullPipeline</c> after
+        ///      every successful tag update (Phase 77 entry 748). This is
+        ///      the most precise "when did the tokens actually change"
+        ///      signal and is what the server cares about for true-delta
+        ///      detection on <c>GET /api/tagsync/elements/{projectId}</c>.
+        ///   2. <c>DateTime.UtcNow</c> — last-resort fallback so the server
+        ///      still sees a non-null timestamp for legacy elements that
+        ///      predate the audit-trail plumbing (the server's last-write-
+        ///      wins logic is tolerant of this and simply accepts the
+        ///      update with <c>Version += 1</c>).
+        /// </summary>
+        /// <remarks>
+        /// Revit itself does not expose a first-class per-element
+        /// "modified time" BuiltInParameter — the prompt's reference to
+        /// <c>BuiltInParameter.EDITED_TIME</c> is not a real enum value
+        /// (only <c>EDITED_BY</c> exists, and it returns a worksharing
+        /// username, not a timestamp). The STING audit stamp is therefore
+        /// the only reliable per-element signal we have.
+        /// </remarks>
+        private static DateTime ResolveElementLastModifiedUtc(Element el)
+        {
+            if (el == null) return DateTime.UtcNow;
+
+            // 1. STING audit stamp — the canonical "last token edit".
+            try
+            {
+                string stamp = ParameterHelpers.GetString(el, "ASS_TAG_MODIFIED_DT");
+                if (!string.IsNullOrWhiteSpace(stamp)
+                    && DateTime.TryParse(stamp,
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                        out var parsed))
+                {
+                    return parsed;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ResolveElementLastModifiedUtc: ASS_TAG_MODIFIED_DT parse failed on {el.Id.Value}: {ex.Message}");
+            }
+
+            // 2. Fallback — so the server never sees null from current clients.
+            return DateTime.UtcNow;
+        }
     }
 
     #endregion
@@ -2207,57 +2258,6 @@ namespace StingTools.BIMManager
             }
 
             public string GetName() => "STING PluginSync Tick";
-        }
-
-        /// <summary>
-        /// Resolve the wall-clock UTC last-modified timestamp for a single
-        /// tagged element, for use in the Planscape sync payload (INT-03).
-        ///
-        /// Priority chain:
-        ///   1. <c>ASS_TAG_MODIFIED_DT</c> — the STING audit trail stamp
-        ///      written by <c>TagPipelineHelper.RunFullPipeline</c> after
-        ///      every successful tag update (Phase 77 entry 748). This is
-        ///      the most precise "when did the tokens actually change"
-        ///      signal and is what the server cares about for true-delta
-        ///      detection on <c>GET /api/tagsync/elements/{projectId}</c>.
-        ///   2. <c>DateTime.UtcNow</c> — last-resort fallback so the server
-        ///      still sees a non-null timestamp for legacy elements that
-        ///      predate the audit-trail plumbing (the server's last-write-
-        ///      wins logic is tolerant of this and simply accepts the
-        ///      update with <c>Version += 1</c>).
-        /// </summary>
-        /// <remarks>
-        /// Revit itself does not expose a first-class per-element
-        /// "modified time" BuiltInParameter — the prompt's reference to
-        /// <c>BuiltInParameter.EDITED_TIME</c> is not a real enum value
-        /// (only <c>EDITED_BY</c> exists, and it returns a worksharing
-        /// username, not a timestamp). The STING audit stamp is therefore
-        /// the only reliable per-element signal we have.
-        /// </remarks>
-        private static DateTime ResolveElementLastModifiedUtc(Element el)
-        {
-            if (el == null) return DateTime.UtcNow;
-
-            // 1. STING audit stamp — the canonical "last token edit".
-            try
-            {
-                string stamp = ParameterHelpers.GetString(el, "ASS_TAG_MODIFIED_DT");
-                if (!string.IsNullOrWhiteSpace(stamp)
-                    && DateTime.TryParse(stamp,
-                        CultureInfo.InvariantCulture,
-                        DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                        out var parsed))
-                {
-                    return parsed;
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ResolveElementLastModifiedUtc: ASS_TAG_MODIFIED_DT parse failed on {el.Id.Value}: {ex.Message}");
-            }
-
-            // 2. Fallback — so the server never sees null from current clients.
-            return DateTime.UtcNow;
         }
     }
 
