@@ -19,6 +19,7 @@ import { getBaseUrl, setBaseUrl, clearTokens } from '@/api/client';
 import { getMe } from '@/api/endpoints';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import type { UserProfile } from '@/types/api';
+import { crashReporter } from '@/services/crashReporter';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -54,7 +55,7 @@ export default function SettingsScreen() {
       setServerUrl(url);
       setUrlDraft(url);
       setUser(profile);
-    } catch {
+    } catch (e) { crashReporter.warn('settings.tsx:57', { e: String(e) });
       // Profile load may fail if token expired — that's fine
     } finally {
       setLoadingUser(false);
@@ -356,7 +357,7 @@ function formatTime(iso: string): string {
       hour: '2-digit',
       minute: '2-digit',
     });
-  } catch {
+  } catch (e) { crashReporter.warn('settings.tsx:359', { e: String(e) });
     return iso;
   }
 }

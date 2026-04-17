@@ -1,7 +1,9 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import * as Application from 'expo-application';
 import { Platform } from 'react-native';
-import { secureStorage } from './secureStorage';
+import { subscribePushToken } from '@/api/endpoints';
+import { crashReporter } from './crashReporter';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -11,7 +13,15 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE ?? 'https://planscape.example/api';
+async function deviceIdentifier(): Promise<string | null> {
+  try {
+    if (Platform.OS === 'android') return Application.getAndroidId();
+    if (Platform.OS === 'ios') return await Application.getIosIdForVendorAsync();
+  } catch (err) {
+    crashReporter.warn('notificationService.deviceIdentifier failed', { err: String(err) });
+  }
+  return null;
+}
 
 export const notificationService = {
   async register(): Promise<string | null> {
@@ -35,17 +45,17 @@ export const notificationService = {
     }
 
     try {
-      const authToken = await secureStorage.getToken();
-      await fetch(`${BASE_URL}/notifications/subscribe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        },
-        body: JSON.stringify({ token, platform: Platform.OS }),
+      // NEW-MOB-18: include deviceId, appVersion, model so server can dedup and target.
+      await subscribePushToken({
+        token,
+        platform: Platform.OS,
+        deviceId: (await deviceIdentifier()) ?? undefined,
+        appVersion: Application.nativeApplicationVersion ?? undefined,
+        model: Device.modelName ?? undefined,
       });
-    } catch {
-      // server unreachable — token is still cached by expo and can be re-sent later
+    } catch (err) {
+      // Server unreachable — token is still cached by expo, retry on next session
+      crashReporter.warn('notificationService.subscribe failed', { err: String(err) });
     }
     return token;
   },

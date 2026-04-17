@@ -21,6 +21,7 @@ import { locationService } from '@/services/locationService';
 import { MemberPicker } from '@/components/MemberPicker';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
+import { crashReporter } from '@/services/crashReporter';
 
 type PriorityFilter = 'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 type StatusFilter = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
@@ -576,7 +577,7 @@ function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch {
+  } catch (e) { crashReporter.warn('issues.tsx:579', { e: String(e) });
     return iso;
   }
 }
@@ -584,7 +585,7 @@ function formatDate(iso: string): string {
 function daysSince(iso: string): number {
   try {
     return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
-  } catch {
+  } catch (e) { crashReporter.warn('issues.tsx:587', { e: String(e) });
     return 0;
   }
 }

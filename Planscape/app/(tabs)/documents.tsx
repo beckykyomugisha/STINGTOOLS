@@ -14,6 +14,7 @@ import {
 import { theme, getCDEColor } from '@/utils/theme';
 import { listProjects, listDocuments, transitionCDE } from '@/api/endpoints';
 import type { DocumentRecord, Project, CDEStatus } from '@/types/api';
+import { crashReporter } from '@/services/crashReporter';
 
 const CDE_STATES: CDEStatus[] = ['WIP', 'SHARED', 'PUBLISHED', 'ARCHIVE'];
 
@@ -404,7 +405,7 @@ function formatDate(iso: string | undefined): string {
   try {
     const d = new Date(iso);
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  } catch {
+  } catch (e) { crashReporter.warn('documents.tsx:407', { e: String(e) });
     return iso;
   }
 }

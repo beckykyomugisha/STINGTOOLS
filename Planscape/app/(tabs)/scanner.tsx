@@ -18,6 +18,7 @@ import { listProjects, lookupElement } from '@/api/endpoints';
 import type { Project, TaggedElement } from '@/types/api';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { parseQr } from '@/services/qrParser';
+import { crashReporter } from '@/services/crashReporter';
 
 interface ScanHistoryEntry {
   query: string;
@@ -472,7 +473,7 @@ function formatTime(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch {
+  } catch (e) { crashReporter.warn('scanner.tsx:475', { e: String(e) });
     return '';
   }
 }
@@ -481,7 +482,7 @@ function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch {
+  } catch (e) { crashReporter.warn('scanner.tsx:484', { e: String(e) });
     return iso;
   }
 }

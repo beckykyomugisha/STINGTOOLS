@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { getToken } from '@/api/client';
+import { crashReporter } from '@/services/crashReporter';
+import { notificationTapRouter } from '@/services/notificationTapRouter';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -10,8 +12,12 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
+    crashReporter.init();
+    crashReporter.flushPending().catch(() => {});
+    const unsub = notificationTapRouter.attach(router);
     checkAuth();
-  }, []);
+    return unsub;
+  }, [router]);
 
   useEffect(() => {
     if (!isReady) return;
