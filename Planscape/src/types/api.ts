@@ -112,6 +112,10 @@ export interface IssueAttachment {
   fileName: string;
   contentType: string;
   thumbnailUrl?: string;
+  /** Phase 94 — authenticated URL for the raw attachment binary (preferred) or
+   *  full-size variant when the server exposes it. Consumed by the mobile
+   *  photo gallery in app/(tabs)/issue-detail.tsx. */
+  url?: string;
   uploadedAt: string;
 }
 
@@ -165,7 +169,8 @@ export interface TaggedElement {
 
 export interface OfflineAction {
   id: string;
-  type: 'CREATE_ISSUE' | 'UPDATE_ISSUE' | 'TRANSITION_CDE';
+  /** Phase 94 adds ATTACH_PHOTO for mobile photo uploads queued when offline. */
+  type: 'CREATE_ISSUE' | 'UPDATE_ISSUE' | 'TRANSITION_CDE' | 'ATTACH_PHOTO';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;
