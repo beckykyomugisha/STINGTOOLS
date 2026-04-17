@@ -58,6 +58,7 @@ public class PlanscapeDbContext : DbContext
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
     public DbSet<SyncConflict> SyncConflicts => Set<SyncConflict>();
+    public DbSet<SyncWatermark> SyncWatermarks => Set<SyncWatermark>();
 
     // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
@@ -247,6 +248,16 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(v => v.Id);
             e.HasOne(v => v.Document).WithMany(d => d.Versions).HasForeignKey(v => v.DocumentId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(v => new { v.DocumentId, v.VersionNumber }).IsUnique();
+        });
+
+        // ── SyncWatermark (S06 — per-device delta-sync cursor) ──
+        modelBuilder.Entity<SyncWatermark>(e =>
+        {
+            e.HasKey(w => w.Id);
+            e.Property(w => w.DeviceId).HasMaxLength(128).IsRequired();
+            // One watermark per (project, device) — upserts key on this pair.
+            e.HasIndex(w => new { w.ProjectId, w.DeviceId }).IsUnique();
+            e.HasOne(w => w.Project).WithMany().HasForeignKey(w => w.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── Planscape MIM Entities ──

@@ -169,7 +169,14 @@ public class TagSyncController : ControllerBase
     }
 
     /// <summary>
-    /// Get all tagged elements for a project (paginated).
+    /// Get tagged elements for a project (paginated). When
+    /// <paramref name="lastSyncUtc"/> is supplied, acts as a delta-sync:
+    /// only elements changed after that watermark are returned, and a
+    /// per-device <see cref="SyncWatermark"/> row is upserted so the
+    /// client can pass the updated cursor on its next pull.
+    ///
+    /// Device identity is read from the optional <c>X-Device-Id</c>
+    /// header and defaults to "desktop" when absent.
     /// </summary>
     [HttpGet("elements/{projectId}")]
     public async Task<ActionResult> GetElements(Guid projectId,
@@ -179,11 +186,25 @@ public class TagSyncController : ControllerBase
         var tenantId = GetTenantId();
         pageSize = Math.Clamp(pageSize, 1, 500);
 
+        // Tenant-scope check up front so unauthorised projectIds 404
+        // even when no elements would match the filter.
+        var projectExists = await _db.Projects
+            .AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (!projectExists) return NotFound();
+
         var baseQuery = _db.TaggedElements
             .Where(e => e.ProjectId == projectId && e.Project!.TenantId == tenantId);
 
+        // S06 — filter by LastModifiedUtc (the client-supplied modification
+        // wall-clock) with a SyncedAt fallback for legacy rows that predate
+        // the LastModifiedUtc column. Null-coalesce into a SQL COALESCE so
+        // EF can translate it to a single server-side comparison.
         if (lastSyncUtc.HasValue)
-            baseQuery = baseQuery.Where(e => e.SyncedAt > lastSyncUtc.Value);
+        {
+            var cutoff = lastSyncUtc.Value;
+            baseQuery = baseQuery.Where(e =>
+                (e.LastModifiedUtc ?? e.SyncedAt) > cutoff);
+        }
 
         var total = await baseQuery.CountAsync();
         var elements = await baseQuery
@@ -191,6 +212,42 @@ public class TagSyncController : ControllerBase
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+
+        // S06 — upsert per-device watermark after a successful delta pull.
+        // We only bump the watermark when the caller actually supplied one
+        // (otherwise this is just a paginated list, not a sync).
+        if (lastSyncUtc.HasValue)
+        {
+            var deviceId = Request.Headers.TryGetValue("X-Device-Id", out var hdr)
+                && !string.IsNullOrWhiteSpace(hdr.ToString())
+                    ? hdr.ToString().Trim()
+                    : "desktop";
+
+            // New watermark = max(client cutoff, most recent element returned).
+            // If the page is empty the cutoff itself is the correct new value.
+            var newCutoff = elements.Count > 0
+                ? elements.Max(e => e.LastModifiedUtc ?? e.SyncedAt)
+                : lastSyncUtc.Value;
+
+            var existing = await _db.SyncWatermarks
+                .FirstOrDefaultAsync(w => w.ProjectId == projectId && w.DeviceId == deviceId);
+            if (existing == null)
+            {
+                _db.SyncWatermarks.Add(new SyncWatermark
+                {
+                    ProjectId = projectId,
+                    DeviceId = deviceId,
+                    LastSyncUtc = newCutoff
+                });
+            }
+            else
+            {
+                // Monotonic: never rewind a device's cursor.
+                if (newCutoff > existing.LastSyncUtc) existing.LastSyncUtc = newCutoff;
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+            await _db.SaveChangesAsync();
+        }
 
         return Ok(new { elements, total, page, pageSize });
     }
