@@ -187,12 +187,23 @@ namespace StingTools.Temp
             }
 
             // Discipline prefixes used in STING filter and template names
-            var disciplinePrefixes = new[] { "Mechanical", "Electrical", "Plumbing", "Architectural", "Structural", "Fire", "Low Voltage", "Coordination" };
+            var disciplinePrefixes = new[] { "Mechanical", "Electrical", "Plumbing", "Architectural", "Structural", "Fire", "Low Voltage" };
+            // Template names that grant discipline-neutral status (receive every filter)
+            var multiDiscKeywords = new[] {
+                "Coordination", "Combined", "Presentation", "MEP", "Handover",
+                "Demolition", "Area", "RCP", "Transmittal", "Clash", "Coord"
+            };
 
             // Extract discipline keyword from a STING name (filter or template).
             // Returns null when the name has no discipline — meaning it is discipline-neutral.
-            static string ExtractDiscipline(string name, string[] prefixes)
+            static string ExtractDiscipline(string name, string[] prefixes, string[] multiDisc)
             {
+                // Multi-discipline templates / filters are treated as discipline-neutral so they receive every STING filter.
+                foreach (string m in multiDisc)
+                {
+                    if (name.IndexOf(m, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return null;
+                }
                 foreach (string p in prefixes)
                 {
                     if (name.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0)
@@ -234,13 +245,13 @@ namespace StingTools.Temp
                 tx.Start();
                 foreach (View template in templates)
                 {
-                    string templateDisc = ExtractDiscipline(template.Name, disciplinePrefixes);
+                    string templateDisc = ExtractDiscipline(template.Name, disciplinePrefixes, multiDiscKeywords);
 
                     foreach (var filter in filters)
                     {
                         try
                         {
-                            string filterDisc = ExtractDiscipline(filter.Name, disciplinePrefixes);
+                            string filterDisc = ExtractDiscipline(filter.Name, disciplinePrefixes, multiDiscKeywords);
 
                             // Apply filter if:
                             // 1. Filter is discipline-neutral (no discipline prefix) — applies to all templates
