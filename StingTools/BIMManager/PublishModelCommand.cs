@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -81,7 +82,7 @@ namespace StingTools.BIMManager
                     name: doc.Title,
                     description: $"Published from Revit {doc.Application.VersionName}",
                     discipline: DetectDocDiscipline(doc),
-                    revision: doc.ProjectInformation?.get_Parameter(BuiltInParameter.PROJECT_REVISION)?.AsString(),
+                    revision: PhaseAutoDetect.DetectProjectRevision(doc),
                     units: "mm",
                     elementCount: elementCount,
                     bounds: bounds)).GetAwaiter().GetResult();
