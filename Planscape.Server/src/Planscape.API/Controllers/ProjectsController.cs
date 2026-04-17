@@ -138,11 +138,40 @@ public class ProjectsController : ControllerBase
         if (project == null) return NotFound();
 
         var issueCount = await _db.Issues.CountAsync(i => i.ProjectId == id && i.Status != "CLOSED");
+        var overdueCount = await _db.Issues.CountAsync(i =>
+            i.ProjectId == id && i.DueDate != null && i.DueDate < DateTime.UtcNow
+            && i.Status != "CLOSED" && i.Status != "RESOLVED");
+        var criticalCount = await _db.Issues.CountAsync(i =>
+            i.ProjectId == id && i.Priority == "CRITICAL" && i.Status != "CLOSED");
         var docCount = await _db.Documents.CountAsync(d => d.ProjectId == id);
         var workflowRuns = await _db.WorkflowRuns
             .Where(w => w.ProjectId == id)
             .OrderByDescending(w => w.ExecutedAt)
             .Take(10)
+            .ToListAsync();
+
+        // NEW-INFO-04 — RecentIssues inline so the home screen isn't N+1.
+        var recentIssues = await _db.Issues
+            .Where(i => i.ProjectId == id)
+            .OrderByDescending(i => i.CreatedAt)
+            .Take(5)
+            .Select(i => new
+            {
+                i.Id, i.IssueCode, i.Type, i.Title, i.Priority, i.Status,
+                i.Assignee, i.CreatedAt, i.DueDate,
+                IsOverdue = i.DueDate.HasValue && i.DueDate < DateTime.UtcNow
+                    && i.Status != "CLOSED" && i.Status != "RESOLVED",
+                DaysOpen = (int)(DateTime.UtcNow - i.CreatedAt).TotalDays
+            })
+            .ToListAsync();
+
+        // NEW-INFO-05 — 30-day compliance trend inline (light payload: just
+        // timestamp + overall percent, not the full snapshot).
+        var trendStart = DateTime.UtcNow.AddDays(-30);
+        var complianceTrend = await _db.ComplianceSnapshots
+            .Where(s => s.ProjectId == id && s.CapturedAt >= trendStart)
+            .OrderBy(s => s.CapturedAt)
+            .Select(s => new { s.CapturedAt, s.CompliancePercent, s.ContainerCompliancePercent })
             .ToListAsync();
 
         return Ok(new
@@ -152,8 +181,12 @@ public class ProjectsController : ControllerBase
             project.RagStatus, project.TotalElements, project.TaggedElements,
             project.WarningCount, project.LastSyncAt,
             OpenIssues = issueCount,
+            OverdueIssues = overdueCount,
+            CriticalIssues = criticalCount,
             Documents = docCount,
-            RecentWorkflows = workflowRuns
+            RecentWorkflows = workflowRuns,
+            RecentIssues = recentIssues,
+            ComplianceTrend = complianceTrend,
         });
     }
 
