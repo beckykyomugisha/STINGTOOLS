@@ -45,6 +45,16 @@ public class SyncScheduler : IDisposable
     /// </summary>
     public event Action<SyncResult>? OnSyncComplete;
 
+    /// <summary>
+    /// Phase 91 — fired on each timer tick BEFORE the offline-queue drain.
+    /// Plugin hosts (e.g. Revit) hook this to marshal to their UI/API thread
+    /// via ExternalEvent, build a payload from the currently open document,
+    /// and push it onto <see cref="OfflineQueue.Shared"/>. The drain that
+    /// follows then delivers it to the server. Best-effort — exceptions are
+    /// swallowed so a misbehaving host never kills the scheduler timer.
+    /// </summary>
+    public static Action? OnTick { get; set; }
+
     // ── Static process-wide facade (S03) ──────────────────────────────────
     // The Revit plugin only ever wants ONE scheduler per Revit session, so we
     // expose a static singleton + lifecycle helpers. These coexist with the
@@ -149,15 +159,19 @@ public class SyncScheduler : IDisposable
         if (payload != null)
             _queue.Enqueue(payload);
 
-        return await TrySyncCoreAsync();
+        // Phase 91 — manual sync path: the caller already built the payload it
+        // wants sent, so don't invoke OnTick (would duplicate the payload).
+        return await TrySyncCoreAsync(fromTimer: false);
     }
 
     private async Task TrySyncAsync()
     {
-        await TrySyncCoreAsync();
+        // Phase 91 — timer tick path: invoke OnTick so the host can enqueue a
+        // fresh payload from the current document before we drain.
+        await TrySyncCoreAsync(fromTimer: true);
     }
 
-    private async Task<SyncResult> TrySyncCoreAsync()
+    private async Task<SyncResult> TrySyncCoreAsync(bool fromTimer = false)
     {
         lock (_lock)
         {
@@ -172,6 +186,17 @@ public class SyncScheduler : IDisposable
             {
                 result.ErrorMessage = "Not authenticated";
                 return result;
+            }
+
+            // Phase 91 — on timer-initiated syncs, give the host a chance to
+            // enqueue a fresh payload from the current document before we
+            // drain. Skipped on SyncNowAsync (manual) because the caller
+            // already queued the exact payload it wants sent. Best-effort:
+            // if the host throws we still drain whatever is already queued.
+            if (fromTimer)
+            {
+                try { OnTick?.Invoke(); }
+                catch (Exception tickEx) { LastError = $"OnTick: {tickEx.Message}"; }
             }
 
             // Drain offline queue, honouring discipline filter (INT-08)

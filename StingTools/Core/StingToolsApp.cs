@@ -95,17 +95,28 @@ namespace StingTools.Core
                 // AUTO-SYNC: Queue lightweight compliance sync on document save
                 application.ControlledApplication.DocumentSaved += OnDocumentSaved;
 
-                // S03b: Start the Planscape sync scheduler if the plugin has already
-                // authenticated with the server. Runs on a 5-min timer in-process and
-                // drains the offline queue; safe no-op if not configured.
+                // S03b / Phase 91 — Start the Planscape sync scheduler if the plugin has
+                // already authenticated with the server (persisted from a previous session).
+                // Runs on a 5-min timer in-process: on each tick PluginSyncTickBridge builds
+                // a payload from the active document and enqueues it for drain. Safe no-op
+                // if not configured — in that case PlanscapeConnectCommand will lazy-start
+                // the scheduler after LoginAsync succeeds.
                 try
                 {
+                    // Always wire the tick bridge so whichever path starts the scheduler
+                    // (OnStartup persisted creds, PlanscapeConnect, or SyncToPlanscapeServer
+                    // lazy-start) gets the OnTick callback marshalled to the Revit thread.
+                    StingTools.BIMManager.PluginSyncTickBridge.EnsureWired();
+
                     var serverUrl = PlanscapeServerClient.Instance?.ServerUrl;
                     var authToken = PlanscapeServerClient.Instance?.AuthToken;
                     if (!string.IsNullOrEmpty(serverUrl) && !string.IsNullOrEmpty(authToken))
                     {
-                        SyncScheduler.Start(serverUrl, authToken);
-                        StingLog.Info($"SyncScheduler started against {serverUrl}");
+                        if (SyncScheduler.Instance == null)
+                        {
+                            SyncScheduler.Start(serverUrl, authToken);
+                            StingLog.Info($"SyncScheduler started against {serverUrl} (5-min tick, offline queue enabled)");
+                        }
 
                         // INT-07 — keep the dock-panel sync chip in step with each sync attempt.
                         if (SyncScheduler.Instance != null)
@@ -118,7 +129,7 @@ namespace StingTools.Core
                     }
                     else
                     {
-                        StingLog.Info("SyncScheduler not started — no server URL / auth token yet (will run offline-queue only)");
+                        StingLog.Info("SyncScheduler not started — no server URL / auth token yet; PlanscapeConnect will start it after login");
                     }
                 }
                 catch (Exception syncEx) { StingLog.Warn($"SyncScheduler start failed: {syncEx.Message}"); }
@@ -749,8 +760,18 @@ namespace StingTools.Core
             try { application.ControlledApplication.DocumentSaved -= OnDocumentSaved; }
             catch (Exception ex) { StingLog.Warn($"DocumentSaved unhook: {ex.Message}"); }
 
-            // S03: Tear down the sync scheduler and its background timer.
-            try { SyncScheduler.StopShared(); }
+            // S03 / Phase 91 — Tear down the sync scheduler and its background timer.
+            // Acceptance criterion 2: call SyncScheduler.Stop() if SyncScheduler.Instance != null.
+            // StopShared() is the correct static facade (there's no static Stop()); the explicit
+            // guard is belt-and-braces since StopShared() is already null-safe internally.
+            try
+            {
+                if (SyncScheduler.Instance != null)
+                {
+                    SyncScheduler.StopShared();
+                    StingLog.Info("SyncScheduler stopped (Phase 91)");
+                }
+            }
             catch (Exception ex) { StingLog.Warn($"SyncScheduler stop: {ex.Message}"); }
 
             StingPluginHooks.ClearAll();
