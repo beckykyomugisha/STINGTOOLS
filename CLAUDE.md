@@ -2349,9 +2349,9 @@ Planscape.Server/
 | System | Location | Status | Mechanism |
 |---|---|---|---|
 | `Planscape.PluginSync` | `Planscape.Server/src/Planscape.PluginSync/` | **DEAD CODE** — never referenced by StingTools | Automatic 5-min scheduler, file-backed offline queue |
-| `StingBIMServerClient` | `StingTools/BIMManager/PlatformLinkCommands.cs` | **ACTUALLY USED** | Manual on-demand sync via BIM Coordination Center buttons |
+| `PlanscapeServerClient` | `StingTools/BIMManager/PlatformLinkCommands.cs` | **ACTUALLY USED** | Manual on-demand sync via BIM Coordination Center buttons |
 
-The `StingBIMServerClient` (2,222 lines in `PlatformLinkCommands.cs`) provides:
+The `PlanscapeServerClient` (2,222 lines in `PlatformLinkCommands.cs`) provides:
 - JWT login/token refresh via `/api/auth/login` and `/api/auth/refresh`
 - Tag sync via `/api/tagsync/sync` (bulk POST)
 - Compliance push via `/api/projects/{id}/compliance` (POST snapshot)
@@ -2359,7 +2359,7 @@ The `StingBIMServerClient` (2,222 lines in `PlatformLinkCommands.cs`) provides:
 - Document register via `/api/projects/{id}/documents` (GET/POST)
 - SEQ counter sync via `/api/projects/{id}/seq` (POST max-per-key merge)
 
-Missing from `StingBIMServerClient`: warnings sync, workflow run sync, meeting sync, transmittal sync, MIM asset sync, platform connections. See `PLANSCAPE_GAPS.md` INT-01 through INT-10 for details.
+Missing from `PlanscapeServerClient`: warnings sync, workflow run sync, meeting sync, transmittal sync, MIM asset sync, platform connections. See `PLANSCAPE_GAPS.md` INT-01 through INT-10 for details.
 
 ## Planscape Mobile App
 

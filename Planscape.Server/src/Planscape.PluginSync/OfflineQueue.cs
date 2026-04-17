@@ -12,6 +12,15 @@ public class OfflineQueue
     private readonly string _queueDir;
     private readonly object _lock = new();
 
+    // ── Static facade ─────────────────────────────────────────────────────
+    // The SyncScheduler sets a process-wide shared instance when it starts, so
+    // plugin code (e.g. OnDocumentSaved hooks) can enqueue without holding a
+    // direct reference to the scheduler. Null when the scheduler isn't running
+    // — callers should null-check before enqueueing.
+    private static OfflineQueue? _shared;
+    public static OfflineQueue? Shared => _shared;
+    internal static void SetShared(OfflineQueue? queue) => _shared = queue;
+
     public OfflineQueue(string queueDirectory)
     {
         _queueDir = queueDirectory;

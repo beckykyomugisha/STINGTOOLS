@@ -1,4 +1,4 @@
-/** Matches StingBIM.Core entity shapes */
+/** Matches Planscape.Core entity shapes */
 
 export interface LoginRequest {
   email: string;
