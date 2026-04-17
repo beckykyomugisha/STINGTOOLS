@@ -768,6 +768,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<bool>("IsStale")
                     .HasColumnType("boolean");
 
+                b.Property<DateTime?>("LastModifiedUtc")
+                    .HasColumnType("timestamp with time zone");
+
                 b.Property<string>("Level")
                     .HasColumnType("text");
 
@@ -855,6 +858,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<string>("ValidationErrors")
                     .HasColumnType("text");
 
+                b.Property<int>("Version")
+                    .HasColumnType("integer");
+
                 b.Property<string>("Zone")
                     .IsRequired()
                     .HasColumnType("text");
@@ -869,6 +875,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasIndex("ProjectId", "RevitElementId")
                     .IsUnique();
+
+                b.HasIndex("ProjectId", "LastModifiedUtc");
 
                 b.ToTable("TaggedElements");
             });
