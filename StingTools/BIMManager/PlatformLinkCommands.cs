@@ -1989,7 +1989,7 @@ namespace StingTools.BIMManager
                 Planscape.PluginSync.SyncScheduler.Start(client.ServerUrl, client.AuthToken);
             }
 
-            Planscape.PluginSync.SyncResult sResult;
+            Planscape.Shared.Models.SyncResult sResult;
             try
             {
                 sResult = Planscape.PluginSync.SyncScheduler.SyncNow(payload).GetAwaiter().GetResult();

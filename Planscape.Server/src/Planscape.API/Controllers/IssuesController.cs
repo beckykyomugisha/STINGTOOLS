@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -20,6 +21,9 @@ public class IssuesController : ControllerBase
     private readonly Planscape.Core.Interfaces.IPushNotificationService _push;
     private readonly IFileStorageService _storage;
     private readonly IGeofenceValidationService _geofence;
+    private readonly IThumbnailService _thumbnails;
+    private readonly ILogger<IssuesController> _logger;
+    private readonly IAuditService _audit;
 
     private static readonly Dictionary<string, int> SLAHours = new()
     {
@@ -28,17 +32,26 @@ public class IssuesController : ControllerBase
 
     private const long MaxAttachmentSize = 50 * 1024 * 1024; // 50 MB
 
+    private static readonly string[] ImageContentTypes = { "image/jpeg", "image/png", "image/webp" };
+    private static readonly int[] ValidThumbSizes = { 150, 300, 600 };
+
     public IssuesController(PlanscapeDbContext db,
         Planscape.Core.Interfaces.INotificationService notifications,
         Planscape.Core.Interfaces.IPushNotificationService push,
         IFileStorageService storage,
-        IGeofenceValidationService geofence)
+        IGeofenceValidationService geofence,
+        IThumbnailService thumbnails,
+        ILogger<IssuesController> logger,
+        IAuditService audit)
     {
         _db = db;
         _notifications = notifications;
         _push = push;
         _storage = storage;
         _geofence = geofence;
+        _thumbnails = thumbnails;
+        _logger = logger;
+        _audit = audit;
     }
 
     [HttpGet]
@@ -114,6 +127,7 @@ public class IssuesController : ControllerBase
 
         _db.Issues.Add(issue);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("CREATE", "Issue", issue.Id.ToString());
 
         // Push notification for new issue
         _ = _notifications.NotifyAsync(tenantId, "issues",
@@ -167,6 +181,7 @@ public class IssuesController : ControllerBase
         if (req.Description != null) issue.Description = req.Description;
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("UPDATE", "Issue", issue.Id.ToString());
         return Ok(issue);
     }
 
@@ -226,6 +241,43 @@ public class IssuesController : ControllerBase
         };
         _db.IssueAttachments.Add(attachment);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("CREATE", "IssueAttachment", attachment.Id.ToString());
+
+        // S04 — generate JPEG thumbnails (150/300/600 px) and extract EXIF GPS for image uploads.
+        // Thumbnails are persisted via the same storage abstraction, using a sibling "thumbnails"
+        // subfolder so the GetThumbnail endpoint can derive paths deterministically.
+        if (!string.IsNullOrEmpty(file.ContentType)
+            && ImageContentTypes.Contains(file.ContentType.ToLowerInvariant()))
+        {
+            try
+            {
+                memStream.Position = 0;
+                var thumbnails = await _thumbnails.GenerateThumbnailsAsync(memStream);
+                var baseName = Path.GetFileNameWithoutExtension(relativePath);
+                var thumbSubPath = $"{subPath}/thumbnails";
+                foreach (var (size, bytes) in thumbnails)
+                {
+                    using var ms = new MemoryStream(bytes);
+                    await _storage.SaveAsync(tenantSlug, thumbSubPath, $"{baseName}_{size}.jpg", ms);
+                }
+
+                memStream.Position = 0;
+                var (lat, lng) = _thumbnails.ExtractGpsFromExif(memStream);
+                // If parent issue has no GPS, populate from EXIF. BimIssue has no GPS columns
+                // in the current schema, so we surface the coordinates via logs for now; a
+                // follow-up migration can promote them to first-class fields.
+                if (lat.HasValue && lng.HasValue)
+                {
+                    _logger.LogInformation("EXIF GPS extracted for issue {Code}: {Lat},{Lng}",
+                        issue.IssueCode, lat.Value, lng.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Thumbnail / EXIF failure must never break the upload.
+                _logger.LogWarning(ex, "Thumbnail/EXIF generation failed for {File}", file.FileName);
+            }
+        }
 
         return Ok(new
         {
@@ -273,7 +325,41 @@ public class IssuesController : ControllerBase
 
         _db.IssueAttachments.Remove(attachment);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("DELETE", "IssueAttachment", attachmentId.ToString());
         return NoContent();
+    }
+
+    /// <summary>
+    /// Stream a pre-generated thumbnail for an image attachment.
+    /// Thumbnails live in a sibling "thumbnails" folder with names
+    /// {originalBaseName}_{size}.jpg.
+    /// </summary>
+    [HttpGet("{issueId}/attachments/{attachmentId}/thumbnail")]
+    public async Task<IActionResult> GetThumbnail(Guid projectId, Guid issueId, Guid attachmentId,
+        [FromQuery] int size = 300, CancellationToken ct = default)
+    {
+        if (!ValidThumbSizes.Contains(size)) size = 300;
+
+        var tenantId = GetTenantId();
+        var attachment = await _db.IssueAttachments
+            .Include(a => a.Document)
+            .Include(a => a.Issue)
+            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.IssueId == issueId
+                && a.Issue!.ProjectId == projectId && a.Issue.Project!.TenantId == tenantId, ct);
+        if (attachment?.Document?.FilePath == null) return NotFound();
+
+        // Derive thumbnail path from the original FilePath: replace the final
+        // segment with thumbnails/{baseName}_{size}.jpg.
+        var originalPath = attachment.Document.FilePath!;
+        var dir = Path.GetDirectoryName(originalPath)?.Replace('\\', '/') ?? "";
+        var baseName = Path.GetFileNameWithoutExtension(originalPath);
+        var thumbPath = string.IsNullOrEmpty(dir)
+            ? $"thumbnails/{baseName}_{size}.jpg"
+            : $"{dir}/thumbnails/{baseName}_{size}.jpg";
+
+        var stream = await _storage.GetAsync(thumbPath, ct);
+        if (stream == null) return NotFound();
+        return File(stream, "image/jpeg");
     }
 
     /// <summary>
@@ -303,6 +389,7 @@ public class IssuesController : ControllerBase
         };
         _db.IssueAttachments.Add(attachment);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("LINK", "IssueAttachment", attachment.Id.ToString());
 
         return Ok(new { attachment.Id, attachment.IssueId, attachment.DocumentId, attachment.AttachedAt });
     }

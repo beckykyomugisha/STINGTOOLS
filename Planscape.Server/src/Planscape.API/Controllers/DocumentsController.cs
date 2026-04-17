@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -58,15 +59,28 @@ public class DocumentsController : ControllerBase
 
     private readonly IFileStorageService _storage;
     private readonly IGeofenceValidationService _geofence;
+    private readonly IThumbnailService _thumbnails;
+    private readonly ILogger<DocumentsController> _logger;
+    private readonly IAuditService _audit;
 
     // Max file size: 100 MB
     private const long MaxFileSize = 100 * 1024 * 1024;
 
-    public DocumentsController(PlanscapeDbContext db, IFileStorageService storage, IGeofenceValidationService geofence)
+    private static readonly string[] ImageContentTypes = { "image/jpeg", "image/png", "image/webp" };
+
+    public DocumentsController(PlanscapeDbContext db,
+        IFileStorageService storage,
+        IGeofenceValidationService geofence,
+        IThumbnailService thumbnails,
+        ILogger<DocumentsController> logger,
+        IAuditService audit)
     {
         _db = db;
         _storage = storage;
         _geofence = geofence;
+        _thumbnails = thumbnails;
+        _logger = logger;
+        _audit = audit;
     }
 
     [HttpGet]
@@ -114,6 +128,7 @@ public class DocumentsController : ControllerBase
 
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("CREATE", "Document", doc.Id.ToString());
         return CreatedAtAction(nameof(GetDocuments), new { projectId }, doc);
     }
 
@@ -152,6 +167,39 @@ public class DocumentsController : ControllerBase
 
         memStream.Position = 0;
         var relativePath = await _storage.SaveAsync(tenantSlug, project.Code, file.FileName, memStream);
+
+        // S04 — generate JPEG thumbnails (150/300/600 px) and extract EXIF GPS for image uploads.
+        // Applies to both first uploads and new-version uploads since each gets its own relativePath.
+        if (!string.IsNullOrEmpty(file.ContentType)
+            && ImageContentTypes.Contains(file.ContentType.ToLowerInvariant()))
+        {
+            try
+            {
+                memStream.Position = 0;
+                var thumbnails = await _thumbnails.GenerateThumbnailsAsync(memStream);
+                var baseName = Path.GetFileNameWithoutExtension(relativePath);
+                var thumbSubPath = $"{project.Code}/thumbnails";
+                foreach (var (size, bytes) in thumbnails)
+                {
+                    using var ms = new MemoryStream(bytes);
+                    await _storage.SaveAsync(tenantSlug, thumbSubPath, $"{baseName}_{size}.jpg", ms);
+                }
+
+                memStream.Position = 0;
+                var (lat, lng) = _thumbnails.ExtractGpsFromExif(memStream);
+                // DocumentRecord has no GPS columns; surface via logs until a migration adds them.
+                if (lat.HasValue && lng.HasValue)
+                {
+                    _logger.LogInformation("EXIF GPS extracted for {File}: {Lat},{Lng}",
+                        file.FileName, lat.Value, lng.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Thumbnail / EXIF failure must never break the upload.
+                _logger.LogWarning(ex, "Thumbnail/EXIF generation failed for {File}", file.FileName);
+            }
+        }
 
         // Check for existing document with same project + filename
         var existingDoc = await _db.Documents
@@ -202,6 +250,8 @@ public class DocumentsController : ControllerBase
             if (description != null) existingDoc.Description = description;
 
             await _db.SaveChangesAsync();
+            await _audit.LogAsync("UPDATE", "Document", existingDoc.Id.ToString(),
+                $"{{\"versionNumber\":{nextVersion}}}");
 
             return Ok(new
             {
@@ -239,6 +289,7 @@ public class DocumentsController : ControllerBase
 
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("CREATE", "Document", doc.Id.ToString(), "{\"versionNumber\":1}");
 
         // Create version 1 row
         _db.DocumentVersions.Add(new DocumentVersion
@@ -391,6 +442,8 @@ public class DocumentsController : ControllerBase
         doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("TRANSITION", "Document", doc.Id.ToString(),
+            $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewState}\"}}");
         return Ok(doc);
     }
 
@@ -437,6 +490,8 @@ public class DocumentsController : ControllerBase
         doc.StatusHistoryJson = JsonConvert.SerializeObject(history);
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("TRANSITION", "Document", doc.Id.ToString(),
+            $"{{\"oldState\":\"{oldState}\",\"newState\":\"{req.NewStatus}\"}}");
         return Ok(doc);
     }
 
@@ -497,6 +552,7 @@ public class DocumentsController : ControllerBase
 
         _db.DocumentApprovals.Add(approval);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("CREATE", "DocumentApproval", approval.Id.ToString());
         return CreatedAtAction(nameof(GetApprovalStatus), new { projectId, docId }, approval);
     }
 
@@ -533,6 +589,8 @@ public class DocumentsController : ControllerBase
         approval.Comments = req.Comments ?? approval.Comments;
 
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("UPDATE", "DocumentApproval", approval.Id.ToString(),
+            $"{{\"decision\":\"{req.Decision}\"}}");
         return Ok(approval);
     }
 

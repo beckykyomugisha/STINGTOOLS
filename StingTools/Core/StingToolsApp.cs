@@ -19,6 +19,8 @@ namespace StingTools.Core
     /// SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW.
     /// The ribbon tab contains only a single toggle button to show/hide the panel.
     /// </summary>
+    // Note: CA1416 coverage is provided assembly-wide by
+    // [assembly: SupportedOSPlatform("windows")] in Properties/AssemblyInfo.cs.
     public class StingToolsApp : IExternalApplication
     {
         public static string AssemblyPath { get; private set; }
