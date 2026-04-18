@@ -23,8 +23,16 @@ namespace StingTools.Core.Clash
 
             using var sha = SHA1.Create();
             var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(payload));
-            var sb = new StringBuilder(8);
-            for (int i = 0; i < 4; i++) sb.Append(hash[i].ToString("x2"));
+            // rec-17: Widen from 4 bytes (32 bits) to 8 bytes (64 bits).
+            // Birthday-collision horizon:
+            //   4 bytes → ~65k clashes before ~50% collision probability
+            //   8 bytes → ~4.3B clashes before ~50% collision probability
+            // A medium federated model can produce tens of thousands of raw
+            // hits pre-filter, so 4 bytes was a real risk. 8 bytes is a free
+            // safety margin — still compact (16 hex chars) and non-truncating
+            // for anything short of a building-lifetime coordination archive.
+            var sb = new StringBuilder(16);
+            for (int i = 0; i < 8; i++) sb.Append(hash[i].ToString("x2"));
             return sb.ToString();
         }
 
