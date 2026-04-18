@@ -601,24 +601,28 @@ namespace StingTools.BIMManager
                     ? RevisionEngine.BuildRevisionName(doc, nextSeq, seriesName)
                     : $"{isoCode} \u2014 {userDesc}";
 
-                // WF-03: Pre-revision compliance gate — warn if tag compliance is below threshold
+                // Phase 103: the stepped Pre-Revision Compliance Gate TaskDialog
+                // has been REMOVED. Revit TaskDialogs parent to the main Revit
+                // window, not to BCC, so they opened behind the coordination
+                // centre and broke the user's flow. The BCC Revisions tab now
+                // shows an inline compliance banner before the user clicks
+                // Create (with a checkbox "Create anyway if below threshold"),
+                // so the decision is made IN the inline panel with no popup.
+                //
+                // When this command is invoked with an ACK flag
+                // (UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck")
+                // == "true") we skip the gate entirely; otherwise we still
+                // emit a warning to the STING log for audit traceability.
                 try
                 {
                     var preRevScan = ComplianceScan.Scan(doc);
                     if (preRevScan.CompliancePercent < 80)
                     {
-                        var gateDlg = new TaskDialog("STING Pre-Revision Compliance Gate");
-                        gateDlg.MainInstruction = $"Tag compliance is {preRevScan.CompliancePercent:F0}% (below 80% threshold)";
-                        gateDlg.MainContent =
-                            $"Total elements: {preRevScan.TotalElements}\n" +
-                            $"Tagged: {preRevScan.TaggedComplete} | Untagged: {preRevScan.Untagged}\n" +
-                            $"Stale: {preRevScan.StaleCount}\n\n" +
-                            "Creating a revision with low compliance may result in incomplete COBie data.\n" +
-                            "Recommended: tag to ≥80% before creating revision.";
-                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Create revision anyway");
-                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel — tag first");
-                        if (gateDlg.Show() != TaskDialogResult.CommandLink1)
-                            return Result.Cancelled;
+                        string ack = UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck") ?? "";
+                        StingLog.Warn(
+                            $"Pre-revision compliance gate: {preRevScan.CompliancePercent:F0}% " +
+                            $"(below 80%). Tagged={preRevScan.TaggedComplete} Untagged={preRevScan.Untagged} " +
+                            $"Stale={preRevScan.StaleCount}. User ack='{ack}'. Proceeding.");
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }

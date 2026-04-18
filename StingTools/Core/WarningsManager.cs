@@ -5154,22 +5154,63 @@ namespace StingTools.Core
             try
             {
                 string descPart = ExtractWarningDescription(warningKey);
-                var warnings = doc.GetWarnings();
                 var ids = new List<ElementId>();
-                foreach (var w in warnings)
+
+                // Phase 103 fix: use the live CoordData.Warnings list that
+                // BuildCoordData populated from WarningsEngine.ScanWarnings
+                // FIRST. That list carries real FailingElement ids resolved
+                // against the current document, so match-by-description
+                // succeeds even when doc.GetWarnings() text punctuation
+                // differs slightly from the tree's rendered version.
+                var bccInstance = UI.BIMCoordinationCenter.CurrentInstance;
+                if (bccInstance != null)
                 {
-                    string desc = w.GetDescriptionText() ?? "";
-                    if (desc.IndexOf(descPart, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        descPart.IndexOf(desc, StringComparison.OrdinalIgnoreCase) >= 0)
+                    var rows = UI.BIMCoordinationCenter.GetLastCoordWarnings();
+                    if (rows != null && rows.Count > 0)
                     {
-                        ids.AddRange(w.GetFailingElements());
-                        ids.AddRange(w.GetAdditionalElements());
+                        // Case-insensitive substring match either direction
+                        foreach (var row in rows)
+                        {
+                            if (row?.Description == null) continue;
+                            string rd = row.Description;
+                            if (rd.IndexOf(descPart, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                descPart.IndexOf(rd, StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                if (row.ElementIds != null)
+                                    foreach (long v in row.ElementIds) ids.Add(new ElementId(v));
+                            }
+                        }
                     }
                 }
+
+                // Fallback: doc.GetWarnings() description match (the old path).
+                // Kept so ribbon callers that don't go through BCC still work.
+                if (ids.Count == 0)
+                {
+                    var warnings = doc.GetWarnings();
+                    foreach (var w in warnings)
+                    {
+                        string desc = w.GetDescriptionText() ?? "";
+                        if (desc.IndexOf(descPart, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            descPart.IndexOf(desc, StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            ids.AddRange(w.GetFailingElements());
+                            ids.AddRange(w.GetAdditionalElements());
+                        }
+                    }
+                }
+
+                // Dedupe (same element can appear in FailingElements + AdditionalElements)
+                ids = ids.GroupBy(id => id.Value).Select(g => g.First()).ToList();
+
                 if (ids.Count > 0)
                     ZoomToElementIn3D(doc, app, string.Join(",", ids.Select(id => id.Value)));
                 else
-                    TaskDialog.Show("STING", "No elements found for this warning.");
+                    TaskDialog.Show("STING",
+                        $"No elements found for the warning:\n\n  \u201C{descPart}\u201D\n\n" +
+                        "This warning may have been auto-resolved, or the affected elements " +
+                        "may have been deleted. Click Refresh on the BCC header to rebuild " +
+                        "the warning list from the current model state.");
             }
             catch (Exception ex) { StingLog.Warn($"ZoomToWarningIn3D: {ex.Message}"); }
         }

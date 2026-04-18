@@ -100,6 +100,13 @@ namespace StingTools.UI
         internal static List<RoleDefinition>   GetLastPermissionsRoles()   => _lastPermissionsRoles.Count   > 0 ? _lastPermissionsRoles   : GetDefaultRoles();
         internal static List<FolderPermission> GetLastPermissionsFolders() => _lastPermissionsFolders.Count > 0 ? _lastPermissionsFolders : GetDefaultFolderPermissions();
 
+        /// <summary>Phase 103: return the live WarningRow list from the currently
+        /// open BCC instance (populated by BuildCoordData). Used by the
+        /// ZoomToWarning_ dispatch handler so it matches against real
+        /// FailingElement IDs instead of hitting doc.GetWarnings() twice.</summary>
+        internal static List<WarningRow> GetLastCoordWarnings()
+            => CurrentInstance?._data?.Warnings ?? new List<WarningRow>();
+
         // Phase 76: Singleton for modeless BCC
         public static BIMCoordinationCenter CurrentInstance { get; private set; }
 
@@ -2720,6 +2727,55 @@ namespace StingTools.UI
             // ── Revision Register DataGrid ─────────────────────────────────
             stack.Children.Add(MakeSectionHeader("REVISION REGISTER"));
 
+            // Phase 103: inline pre-revision compliance banner. Replaces the
+            // Revit TaskDialog that used to pop up behind the BCC when tag
+            // compliance was below 80%. The banner reads CoordData.TagPct so
+            // it updates with every Refresh. A checkbox "Create anyway if
+            // below 80%" sets a flag we pass to CreateRevisionCommand via
+            // ExtraParam("RevisionComplianceAck"), replacing the modal
+            // decision with an inline one.
+            bool _revComplianceLow = _data.TagPct < 80;
+            var _revComplianceAckCheck = new CheckBox
+            {
+                Content = $"Create revision anyway below 80% (I accept that COBie data may be incomplete)",
+                IsChecked = !_revComplianceLow,
+                FontSize = 11,
+                Margin = new Thickness(0, 6, 0, 0),
+                ToolTip = "Tick this if you want to create a revision even though tag compliance is below 80%. Keep unchecked to guard the export pipeline."
+            };
+            if (_revComplianceLow)
+            {
+                var gateBorder = new Border
+                {
+                    Background = Br(Color.FromRgb(0xFF, 0xF3, 0xE0)),
+                    BorderBrush = Br(Color.FromRgb(0xE8, 0x91, 0x2D)),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(10, 8, 10, 8),
+                    Margin = new Thickness(0, 0, 0, 6)
+                };
+                var gateStack = new StackPanel();
+                gateStack.Children.Add(new TextBlock
+                {
+                    Text = $"\u26A0  Tag compliance is {_data.TagPct:F0}% (below the 80% revision gate).",
+                    FontWeight = FontWeights.Bold, FontSize = 12,
+                    Foreground = Br(Color.FromRgb(0xBF, 0x36, 0x00)),
+                    TextWrapping = TextWrapping.Wrap
+                });
+                gateStack.Children.Add(new TextBlock
+                {
+                    Text = $"Tagged: {_data.TaggedComplete}   |   Untagged: {_data.Untagged}   |   Stale: {_data.StaleCount}\n" +
+                           "Creating a revision with low compliance may result in incomplete COBie data.\n" +
+                           "Recommended: raise compliance to \u226580% before creating the revision.",
+                    FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                    Foreground = Br(Color.FromRgb(0x55, 0x40, 0x20)),
+                    Margin = new Thickness(0, 4, 0, 0)
+                });
+                gateStack.Children.Add(_revComplianceAckCheck);
+                gateBorder.Child = gateStack;
+                stack.Children.Add(gateBorder);
+            }
+
             // ── Create Revision inline form ────────────────────────────────
             var createFormBorder = new Border
             {
@@ -2815,6 +2871,21 @@ namespace StingTools.UI
             };
             createBtn.Click += (s, e) =>
             {
+                // Phase 103: honour the inline compliance-gate checkbox. If
+                // compliance is below 80% and the user hasn't explicitly
+                // acknowledged, halt here (inline — no popup) so they see the
+                // orange banner above the form. Otherwise set the ExtraParam
+                // that CreateRevisionCommand reads for its audit log and
+                // proceed with the dispatch.
+                bool ack = _revComplianceAckCheck.IsChecked == true;
+                if (_revComplianceLow && !ack)
+                {
+                    if (_statusBar != null)
+                        _statusBar.Text = $"Revision blocked: tag compliance {_data.TagPct:F0}% < 80%. Tick the ack checkbox above to override, or tag to \u226580% first.";
+                    return;
+                }
+                StingCommandHandler.SetExtraParam("RevisionComplianceAck", ack ? "true" : "false");
+
                 // Phase 101: dropdown is now IsEditable — fall back to typed Text
                 // (with | stripped so it can't break the pipe-delimited dispatch)
                 // when the user enters a custom code that isn't in the preset list.
@@ -3472,53 +3543,101 @@ namespace StingTools.UI
                 }
                 detailStack.Children.Add(sbConnBtnRow);
 
-                // ── Phase 102: Project & server info card (visible when connected) ──
-                if (sbConnected)
+                // ── Phase 102/103: Server status card (ALWAYS visible) ──
+                // Even when offline the card tells the user what they'll get
+                // once connected (tier / MIM / tenant / sync capabilities +
+                // server URL they're pointing at). Previously the card only
+                // rendered when sbConnected was true, so the user never saw
+                // it — which they reported as "I can't see the rich connection
+                // info you claimed to have added".
+                detailStack.Children.Add(new TextBlock
                 {
-                    detailStack.Children.Add(new TextBlock
-                    {
-                        Text = "SERVER STATUS", FontWeight = FontWeights.Bold, FontSize = 11,
-                        Foreground = Br(CAccent), Margin = new Thickness(0, 6, 0, 4)
-                    });
+                    Text = "SERVER STATUS", FontWeight = FontWeights.Bold, FontSize = 11,
+                    Foreground = Br(CAccent), Margin = new Thickness(0, 6, 0, 4)
+                });
+                {
                     var client = BIMManager.PlanscapeServerClient.Instance;
-                    string mimFlag = client.MimEnabled ? "enabled" : "disabled";
-                    string lastError = !string.IsNullOrEmpty(client.LastError)
+                    string userLine  = sbConnected
+                        ? $"\ud83d\udc64  User: {client.ConnectedUser}"
+                        : "\ud83d\udc64  User: (not signed in)";
+                    string tierLine  = sbConnected
+                        ? $"\ud83d\udce6  Tier: {client.TierName}   \u2022   MIM add-on: {(client.MimEnabled ? "enabled" : "disabled")}"
+                        : "\ud83d\udce6  Tier: Starter (Free) — sign in to activate Professional / Premium / Enterprise seats";
+                    string tenantLine = sbConnected
+                        ? $"\ud83c\udfe2  Tenant: {client.TenantId}"
+                        : "\ud83c\udfe2  Tenant: (not linked)";
+                    string urlLine   = !string.IsNullOrEmpty(client.ServerUrl)
+                        ? $"\ud83d\udd17  Server: {client.ServerUrl}"
+                        : $"\ud83d\udd17  Server: (no URL set) \u2014 default https://planscape-api.onrender.com";
+                    string errLine   = !string.IsNullOrEmpty(client.LastError)
                         ? $"\n\u26A0  Last error: {client.LastError}"
                         : "";
                     var infoBorder = new Border
                     {
-                        Background = Br(Color.FromRgb(0xE8, 0xF4, 0xFF)),
-                        BorderBrush = Br(Color.FromRgb(0xBB, 0xDE, 0xFB)),
+                        Background = Br(sbConnected ? Color.FromRgb(0xE8, 0xF4, 0xFF) : Color.FromRgb(0xF5, 0xF5, 0xF5)),
+                        BorderBrush = Br(sbConnected ? Color.FromRgb(0xBB, 0xDE, 0xFB) : Color.FromRgb(0xCC, 0xCC, 0xCC)),
                         BorderThickness = new Thickness(1),
                         CornerRadius = new CornerRadius(4),
                         Padding = new Thickness(10, 8, 10, 8),
                         Margin = new Thickness(0, 0, 0, 10)
                     };
                     var infoStack = new StackPanel();
-                    infoStack.Children.Add(new TextBlock
-                    {
-                        Text = $"\ud83d\udc64  User: {client.ConnectedUser}",
-                        FontSize = 11, Margin = new Thickness(0, 0, 0, 2)
-                    });
-                    infoStack.Children.Add(new TextBlock
-                    {
-                        Text = $"\ud83d\udce6  Tier: {client.TierName}   \u2022   MIM add-on: {mimFlag}",
-                        FontSize = 11, Margin = new Thickness(0, 0, 0, 2)
-                    });
-                    infoStack.Children.Add(new TextBlock
-                    {
-                        Text = $"\ud83c\udfe2  Tenant: {client.TenantId}",
-                        FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
-                        Margin = new Thickness(0, 0, 0, 2)
-                    });
-                    infoStack.Children.Add(new TextBlock
-                    {
-                        Text = $"\ud83d\udd17  Server: {client.ServerUrl}{lastError}",
-                        FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
-                        TextWrapping = TextWrapping.Wrap
-                    });
+                    infoStack.Children.Add(new TextBlock { Text = userLine,  FontSize = 11, Margin = new Thickness(0, 0, 0, 2) });
+                    infoStack.Children.Add(new TextBlock { Text = tierLine,  FontSize = 11, Margin = new Thickness(0, 0, 0, 2), TextWrapping = TextWrapping.Wrap });
+                    infoStack.Children.Add(new TextBlock { Text = tenantLine,FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)), Margin = new Thickness(0, 0, 0, 2) });
+                    infoStack.Children.Add(new TextBlock { Text = urlLine + errLine, FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)), TextWrapping = TextWrapping.Wrap });
                     infoBorder.Child = infoStack;
                     detailStack.Children.Add(infoBorder);
+                }
+
+                // ── Phase 103: Feature overview card (what Planscape exposes) ──
+                // Visible to every user regardless of connection state so the
+                // BIM coordinator can see what the platform actually does
+                // before committing to a sign-in.
+                detailStack.Children.Add(new TextBlock
+                {
+                    Text = "PLATFORM FEATURES", FontWeight = FontWeights.Bold, FontSize = 11,
+                    Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4)
+                });
+                {
+                    var featBorder = new Border
+                    {
+                        Background = Br(Color.FromRgb(0xF8, 0xF5, 0xFF)),
+                        BorderBrush = Br(Color.FromRgb(0xD1, 0xC4, 0xE9)),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(10, 8, 10, 8),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    };
+                    var featStack = new StackPanel();
+                    void AddFeat(string emoji, string title, string body)
+                    {
+                        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 3) };
+                        row.Children.Add(new TextBlock { Text = emoji, FontSize = 12, Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Top });
+                        var txt = new StackPanel();
+                        txt.Children.Add(new TextBlock { Text = title, FontSize = 11, FontWeight = FontWeights.SemiBold });
+                        txt.Children.Add(new TextBlock { Text = body,  FontSize = 10, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)) });
+                        row.Children.Add(txt);
+                        featStack.Children.Add(row);
+                    }
+                    AddFeat("\ud83d\udd04", "Bi-directional tag sync",
+                        "Tags, compliance snapshots and audit trails flow between Revit plugin and the web/mobile clients.");
+                    AddFeat("\ud83d\udea8", "Issues + BCF 2.1 round-trip",
+                        "Raise, assign, resolve issues with photo attachments, SLA gates and BCF interoperability for ACC / Navisworks / Solibri.");
+                    AddFeat("\ud83d\udcc4", "CDE document lifecycle",
+                        "WIP \u2192 SHARED \u2192 PUBLISHED \u2192 ARCHIVE transitions with approval chains, suitability codes and file upload.");
+                    AddFeat("\ud83d\udd14", "Push notifications (FCM / APNs)",
+                        "Mobile push for new issues, SLA breaches, revision creation and compliance drops.");
+                    AddFeat("\ud83d\udcf1", "Mobile companion",
+                        "On-site issue capture with photo + GPS, offline queue, 3D viewer, meeting action items.");
+                    AddFeat("\ud83d\udcc8", "Real-time SignalR updates",
+                        "Compliance %, warnings, issues and presence broadcast to the team without refreshing.");
+                    AddFeat("\ud83d\udd0d", "Cross-project global search",
+                        "Search tags, issues, documents, meetings across every project you belong to.");
+                    AddFeat("\ud83d\udd17", "External platform connectors",
+                        "ACC, Procore, Aconex, Trimble, Bentley iTwin, Viewpoint, SharePoint — all via the BCC platform tiles.");
+                    featBorder.Child = featStack;
+                    detailStack.Children.Add(featBorder);
                 }
 
                 // ── Sync settings ────────────────────────────────────────────
