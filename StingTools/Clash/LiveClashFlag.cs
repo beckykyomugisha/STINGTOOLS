@@ -65,7 +65,8 @@ namespace StingTools.Core.Clash
 
         private static void SetParam(Document doc, int elementId, bool value)
         {
-            var el = doc.GetElement(new ElementId(elementId));
+            // Revit 2024+: ElementId(int) ctor obsolete; use the long overload.
+            var el = doc.GetElement(new ElementId((long)elementId));
             if (el == null) return;
             var p = el.LookupParameter(ParamName);
             if (p == null || p.IsReadOnly) return;

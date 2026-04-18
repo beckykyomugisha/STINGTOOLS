@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.IFC;
+// Autodesk.Revit.DB.IFC dropped with the ExporterIFCUtils call site.
 using StingTools.Core;
 
 namespace StingTools.Core.Clash
@@ -108,7 +108,8 @@ namespace StingTools.Core.Clash
             var result = new LiveClashResult();
             try
             {
-                var element = _doc.GetElement(new ElementId(elementId));
+                // Revit 2024+: ElementId(int) ctor obsolete; use ElementId(long).
+                var element = _doc.GetElement(new ElementId((long)elementId));
                 if (element == null) return RemoveElement(elementId);
 
                 var fresh = TryExtractOneElement(element);
@@ -237,14 +238,14 @@ namespace StingTools.Core.Clash
 
                 string docGuid = _doc.ProjectInformation?.UniqueId ?? _doc.PathName ?? "host";
                 string ifc = "";
-                // H9: IFC GUID generation can throw on unsaved / in-flight
-                // elements. Leaving ifc as empty is the correct fallback
-                // (ClashElementKey treats IfcGuid as optional) but log so
-                // persistent failures aren't invisible.
-                try { ifc = ExporterIFCUtils.CreateSubElementGUID(element, 0); }
-                catch (Exception ifcEx) { StingLog.Warn($"TryExtractOneElement IFC guid: {ifcEx.Message}"); }
+                // Revit 2025+ moved ExporterIFCUtils into RevitAPIIFC.dll which
+                // StingTools doesn't reference (see ClashExportContext.TryGetIfcGuid
+                // for rationale). Fall back to UniqueId — the most stable
+                // per-element identifier available without the IFC assembly,
+                // and what BCF export already uses when IfcGuid is empty.
+                ifc = element.UniqueId ?? "";
 
-                var key = new ClashElementKey(docGuid, -1, element.Id.IntegerValue, element.UniqueId, ifc);
+                var key = new ClashElementKey(docGuid, -1, (int)element.Id.Value, element.UniqueId, ifc);
                 // H1.5: Store BuiltInCategory name ("OST_DuctCurves") rather
                 // than the localized display name. Matrix filters use OST_*
                 // syntax — display names never matched before this fix.

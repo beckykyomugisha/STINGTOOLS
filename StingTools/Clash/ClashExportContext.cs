@@ -11,7 +11,8 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.IFC;
+// Autodesk.Revit.DB.IFC dropped — ExporterIFCUtils moved to RevitAPIIFC.dll
+// in Revit 2025+; see TryGetIfcGuid for the UniqueId fallback.
 
 namespace StingTools.Core.Clash
 {
@@ -105,7 +106,12 @@ namespace StingTools.Core.Clash
                 var key = new ClashElementKey(
                     _currentDocGuid,
                     _currentLinkInstanceId,
-                    elementId.IntegerValue,
+                    // Revit 2024+: ElementId.Value is long; cast to int for
+                    // ClashElementKey.ElementId. Values > int.MaxValue don't
+                    // exist in practice for user-authored Revit elements, and
+                    // ClashElementKey.Equals already incorporates DocGuid so
+                    // cross-doc collisions can't happen.
+                    (int)elementId.Value,
                     _currentUniqueId,
                     _currentIfcGuid);
 
@@ -149,7 +155,15 @@ namespace StingTools.Core.Clash
             {
                 var linkDoc = node.GetDocument();
                 guid = linkDoc?.ProjectInformation?.UniqueId ?? linkDoc?.PathName ?? "link";
-                linkInstId = node.GetSymbolId().IntegerValue;
+                // Revit 2025+ removed LinkNode.GetSymbolId(). The link's type
+                // id isn't reachable from LinkNode any more, and the host-side
+                // RevitLinkInstance element isn't available mid-export. Derive
+                // a stable-per-linked-doc synthetic id from the guid so two
+                // ClashElementKeys from different links don't collide when
+                // their internal ElementId values match. Keeps Equals
+                // semantics correct without requiring the IFC assembly or
+                // removed API.
+                linkInstId = guid.GetHashCode();
             }
             // H9: Logs first unloaded/corrupt-link failure so "why are my
             // linked-doc clashes missing?" is diagnosable. Stays non-throwing
@@ -244,9 +258,21 @@ namespace StingTools.Core.Clash
 
         private static string TryGetIfcGuid(Document doc, ElementId id)
         {
+            // Revit 2025+ moved ExporterIFCUtils into a separate RevitAPIIFC.dll
+            // assembly not referenced by StingTools (and the IFC assembly
+            // pinning varies across Revit versions). Since IfcGuid is an
+            // optional field in ClashElementKey (BCF export falls back to
+            // UniqueId / ToString), returning the element's UniqueId — which
+            // is the closest stable per-element identifier always available
+            // without the IFC assembly — keeps clash identity deterministic
+            // without needing an extra reference.
             if (doc == null || id == null) return "";
-            try { return ExporterIFCUtils.CreateSubElementGUID(doc.GetElement(id), 0); }
-            catch { return ""; }
+            try { return doc.GetElement(id)?.UniqueId ?? ""; }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"TryGetIfcGuid({id}): {ex.Message}");
+                return "";
+            }
         }
     }
 }

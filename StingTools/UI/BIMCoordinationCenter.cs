@@ -7024,12 +7024,16 @@ namespace StingTools.UI
             // tab still renders cleanly on first open.
             try
             {
-                var dir = OutputLocationHelper.GetOutputDirectory(_doc);
-                var latest = System.IO.Path.Combine(dir ?? "", "clashes.json");
-                if (!string.IsNullOrEmpty(latest) && System.IO.File.Exists(latest))
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc != null)
                 {
-                    var run = StingTools.Core.Clash.ClashPersistence.Load(latest);
-                    if (run != null) clashTabControl.Populate(run);
+                    var dir = OutputLocationHelper.GetOutputDirectory(doc);
+                    var latest = System.IO.Path.Combine(dir ?? "", "clashes.json");
+                    if (!string.IsNullOrEmpty(latest) && System.IO.File.Exists(latest))
+                    {
+                        var run = StingTools.Core.Clash.ClashPersistence.Load(latest);
+                        if (run != null) clashTabControl.Populate(run);
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"BuildClashTab populate: {ex.Message}"); }
@@ -7041,16 +7045,20 @@ namespace StingTools.UI
             // via Dispatcher — OnRunCompleted fires from the Revit API thread.
             try
             {
-                var session = StingTools.Core.Clash.ClashSession.ForDocument(_doc);
-                session.OnRunCompleted += run =>
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc != null)
                 {
-                    try
+                    var session = StingTools.Core.Clash.ClashSession.ForDocument(doc);
+                    session.OnRunCompleted += run =>
                     {
-                        clashTabControl.Dispatcher.BeginInvoke(
-                            new Action(() => clashTabControl.Populate(run)));
-                    }
-                    catch (Exception ex) { StingLog.Warn($"ClashTab refresh: {ex.Message}"); }
-                };
+                        try
+                        {
+                            clashTabControl.Dispatcher.BeginInvoke(
+                                new Action(() => clashTabControl.Populate(run)));
+                        }
+                        catch (Exception ex) { StingLog.Warn($"ClashTab refresh: {ex.Message}"); }
+                    };
+                }
             }
             catch (Exception ex) { StingLog.Warn($"BuildClashTab OnRunCompleted wire: {ex.Message}"); }
 

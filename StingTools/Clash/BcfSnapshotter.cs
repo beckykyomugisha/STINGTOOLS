@@ -11,7 +11,9 @@ namespace StingTools.Core.Clash
     public sealed class BcfSnapshotter
     {
         private readonly Document _doc;
-        private View3D _tempView;
+        // Prior draft kept a _tempView cache field — never written (temp view
+        // is now a local variable inside RenderSnapshot so it's always fresh).
+        // Removed to silence CS0169.
 
         public BcfSnapshotter(Document doc) { _doc = doc; }
 

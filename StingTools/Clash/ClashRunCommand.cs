@@ -230,7 +230,8 @@ namespace StingTools.Core.Clash
                     // Resolve the element from its owning document (host OR link).
                     if (docByGuid.TryGetValue(key.DocGuid ?? "", out var resolvedDoc))
                         owningDoc = resolvedDoc;
-                    el = owningDoc?.GetElement(new ElementId(key.ElementId));
+                    // Revit 2024+: ElementId(int) ctor obsolete.
+                    el = owningDoc?.GetElement(new ElementId((long)key.ElementId));
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildFactsByKey GetElement({key}): {ex.Message}"); }
 

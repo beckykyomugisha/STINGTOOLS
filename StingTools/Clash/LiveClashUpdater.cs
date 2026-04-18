@@ -28,13 +28,19 @@ namespace StingTools.Core.Clash
             {
                 var doc = data.GetDocument();
                 string docGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
+                // Revit 2024+: ElementId.Value replaces IntegerValue. Cast to
+                // int for DirtyQueue — Revit's actual element ids fit in int
+                // for all practical models; the dirty-queue int is ephemeral
+                // so even a theoretical overflow is self-healing on the next
+                // RefreshElement / RemoveElement cycle.
                 foreach (var id in data.GetModifiedElementIds())
-                    DirtyQueue.Enqueue((docGuid, id.IntegerValue));
+                    DirtyQueue.Enqueue((docGuid, (int)id.Value));
                 foreach (var id in data.GetAddedElementIds())
-                    DirtyQueue.Enqueue((docGuid, id.IntegerValue));
-                // Deleted elements: pushed with -1 sentinel to trigger removal from BVH.
+                    DirtyQueue.Enqueue((docGuid, (int)id.Value));
+                // Deleted elements: pushed with negative sentinel to trigger
+                // removal from BVH.
                 foreach (var id in data.GetDeletedElementIds())
-                    DirtyQueue.Enqueue((docGuid, -id.IntegerValue));
+                    DirtyQueue.Enqueue((docGuid, -(int)id.Value));
             }
             catch (Exception ex)
             {

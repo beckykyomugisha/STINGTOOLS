@@ -26,8 +26,12 @@ namespace StingTools.Core.Clash
             if (c == null) return "";
             try
             {
-                int id = c.Id.IntegerValue;
-                if (Enum.IsDefined(typeof(BuiltInCategory), id))
+                // Revit 2024+: Category.Id.Value (long) replaces IntegerValue.
+                // BuiltInCategory is a 32-bit enum, so narrow to int — values
+                // outside int range can't be BuiltInCategory anyway.
+                long longId = c.Id.Value;
+                int id = (int)longId;
+                if (longId == id && Enum.IsDefined(typeof(BuiltInCategory), id))
                 {
                     var bic = (BuiltInCategory)id;
                     return bic.ToString();   // "OST_DuctCurves"
