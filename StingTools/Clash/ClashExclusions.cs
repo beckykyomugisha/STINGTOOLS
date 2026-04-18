@@ -31,7 +31,14 @@ namespace StingTools.Core.Clash
                     e.Path = path;
                     return e;
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    // H9: Previously a bare catch { } — corrupt exclusions.json
+                    // silently fell back to empty, then the next Save() would
+                    // overwrite the user's approved-clash list with a blank file.
+                    // Log loudly so the corruption is visible + user-diagnosable.
+                    StingTools.Core.StingLog.Warn($"ClashExclusions.Load({path}) failed: {ex.Message}. Treating as empty.");
+                }
             }
             return new ClashExclusions { Path = path };
         }
@@ -66,7 +73,12 @@ namespace StingTools.Core.Clash
                 Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path));
                 File.WriteAllText(Path, JsonConvert.SerializeObject(this, Formatting.Indented));
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // H9: Disk-full / ACL / file-lock — user's approval action
+                // silently vanished before. Log so the failure is visible.
+                StingTools.Core.StingLog.Warn($"ClashExclusions.Save({Path}) failed: {ex.Message}");
+            }
         }
     }
 }

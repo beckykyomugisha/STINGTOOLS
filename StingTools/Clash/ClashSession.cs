@@ -237,7 +237,12 @@ namespace StingTools.Core.Clash
 
                 string docGuid = _doc.ProjectInformation?.UniqueId ?? _doc.PathName ?? "host";
                 string ifc = "";
-                try { ifc = ExporterIFCUtils.CreateSubElementGUID(element, 0); } catch { }
+                // H9: IFC GUID generation can throw on unsaved / in-flight
+                // elements. Leaving ifc as empty is the correct fallback
+                // (ClashElementKey treats IfcGuid as optional) but log so
+                // persistent failures aren't invisible.
+                try { ifc = ExporterIFCUtils.CreateSubElementGUID(element, 0); }
+                catch (Exception ifcEx) { StingLog.Warn($"TryExtractOneElement IFC guid: {ifcEx.Message}"); }
 
                 var key = new ClashElementKey(docGuid, -1, element.Id.IntegerValue, element.UniqueId, ifc);
                 // H1.5: Store BuiltInCategory name ("OST_DuctCurves") rather

@@ -40,7 +40,12 @@ namespace StingTools.Core.Clash
                     });
                 }
             }
-            catch { }
+            // H9: User-edited rules JSON with a syntax error previously reverted
+            // silently to built-ins-only. Log so rule authors see the mistake.
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"ClashRuleLibrary.LoadAugmented({jsonPath}) failed: {ex.Message}. Using built-ins only.");
+            }
             return all;
         }
     }

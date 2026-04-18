@@ -151,7 +151,10 @@ namespace StingTools.Core.Clash
                 guid = linkDoc?.ProjectInformation?.UniqueId ?? linkDoc?.PathName ?? "link";
                 linkInstId = node.GetSymbolId().IntegerValue;
             }
-            catch { }
+            // H9: Logs first unloaded/corrupt-link failure so "why are my
+            // linked-doc clashes missing?" is diagnosable. Stays non-throwing
+            // — we fall back to "link" guid + -1 link instance id.
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"OnLinkBegin link resolution: {ex.Message}"); }
             _docStack.Push(guid);
             _linkInstanceStack.Push(linkInstId);
             return RenderNodeAction.Proceed;

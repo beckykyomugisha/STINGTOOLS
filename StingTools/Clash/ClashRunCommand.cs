@@ -340,7 +340,10 @@ namespace StingTools.Core.Clash
                 };
                 foreach (var c in candidates) if (File.Exists(c)) return c;
             }
-            catch { }
+            // H9: Reflection / Path.Combine failures here shouldn't crash the
+            // whole clash run — the built-in default matrix still fires. Log
+            // so the fallback is visible in StingTools.log.
+            catch (Exception ex) { StingLog.Warn($"ClashRunCommand.FindDataFile({fileName}): {ex.Message}"); }
             return fileName;   // let LoadOrDefault handle missing-file fallback
         }
     }

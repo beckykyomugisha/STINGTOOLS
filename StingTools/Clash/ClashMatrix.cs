@@ -29,7 +29,13 @@ namespace StingTools.Core.Clash
             if (File.Exists(path))
             {
                 try { return JsonConvert.DeserializeObject<ClashMatrix>(File.ReadAllText(path)); }
-                catch { }
+                // H9: Previously bare — corrupt or edited-wrong user matrix
+                // silently reverted to Default, surprising anyone who edited
+                // the JSON. Log so they see "your custom matrix didn't load".
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"ClashMatrix.LoadOrDefault({path}) failed: {ex.Message}. Using built-in default.");
+                }
             }
             return Default();
         }
