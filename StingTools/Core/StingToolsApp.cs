@@ -48,6 +48,13 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // Phase 104: install global WPF class-handler that auto-owns every Window
+                // created inside Revit. Prevents child dialogs from dropping behind BCC
+                // when they forget to call ApplyOwner explicitly. Must run on a UI
+                // thread with dispatcher access — OnStartup qualifies.
+                try { StingTools.UI.StingWindowHelper.InstallGlobalOwnerHandler(); }
+                catch (Exception ex) { StingLog.Warn($"InstallGlobalOwnerHandler: {ex.Message}"); }
+
                 // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
                 // on first command. This ensures:
                 //   1. JSON parsing errors surface at startup where they're diagnosable
