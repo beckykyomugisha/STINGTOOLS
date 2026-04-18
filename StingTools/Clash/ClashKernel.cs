@@ -121,52 +121,63 @@ namespace StingTools.Core.Clash
         }
 
         /// <summary>
-        /// rec-1: Recursive OBB-tree descent. AABB-overlap prune at every node,
+        /// rec-1: OBB-tree descent. AABB-overlap prune at every node,
         /// triangle-triangle SAT only at the leaf × leaf level. Returns on the
         /// first hit — callers only need boolean overlap.
+        ///
+        /// H7: Iterative (explicit Stack) instead of recursive. Eliminates any
+        /// stack-overflow risk from pathologically deep trees and avoids per-
+        /// frame method-call overhead. For typical ObbTree depths (MaxDepth=24
+        /// both sides → max 48 frames) the overflow risk was already low, but
+        /// an iterative version is equally fast, defensively robust, and works
+        /// inside TestPair's Parallel.ForEach workers where stack size is the
+        /// default 1 MiB (not the 4 MiB of the main thread).
         /// </summary>
-        private static bool OverlapDescend(ClashMeshBuffer meshA, ObbNode na, ClashMeshBuffer meshB, ObbNode nb)
+        private static bool OverlapDescend(ClashMeshBuffer meshA, ObbNode rootA, ClashMeshBuffer meshB, ObbNode rootB)
         {
-            if (na == null || nb == null) return false;
-            if (!AabbsOverlap(na.AabbMin, na.AabbMax, nb.AabbMin, nb.AabbMax)) return false;
-
-            if (na.IsLeaf && nb.IsLeaf)
+            if (rootA == null || rootB == null) return false;
+            var stack = new Stack<(ObbNode, ObbNode)>();
+            stack.Push((rootA, rootB));
+            while (stack.Count > 0)
             {
-                // Leaf × leaf: triangle-triangle SAT over the triangle subsets.
-                for (int ia = 0; ia < na.TriCount; ia++)
+                var (na, nb) = stack.Pop();
+                if (na == null || nb == null) continue;
+                if (!AabbsOverlap(na.AabbMin, na.AabbMax, nb.AabbMin, nb.AabbMax)) continue;
+
+                if (na.IsLeaf && nb.IsLeaf)
                 {
-                    int triA = na.Tris[na.TriStart + ia];
-                    var va0 = GetVertex(meshA, triA, 0);
-                    var va1 = GetVertex(meshA, triA, 1);
-                    var va2 = GetVertex(meshA, triA, 2);
-                    for (int ib = 0; ib < nb.TriCount; ib++)
+                    for (int ia = 0; ia < na.TriCount; ia++)
                     {
-                        int triB = nb.Tris[nb.TriStart + ib];
-                        var vb0 = GetVertex(meshB, triB, 0);
-                        var vb1 = GetVertex(meshB, triB, 1);
-                        var vb2 = GetVertex(meshB, triB, 2);
-                        if (MollerSat.TriTriOverlap(va0, va1, va2, vb0, vb1, vb2))
-                            return true;
+                        int triA = na.Tris[na.TriStart + ia];
+                        var va0 = GetVertex(meshA, triA, 0);
+                        var va1 = GetVertex(meshA, triA, 1);
+                        var va2 = GetVertex(meshA, triA, 2);
+                        for (int ib = 0; ib < nb.TriCount; ib++)
+                        {
+                            int triB = nb.Tris[nb.TriStart + ib];
+                            var vb0 = GetVertex(meshB, triB, 0);
+                            var vb1 = GetVertex(meshB, triB, 1);
+                            var vb2 = GetVertex(meshB, triB, 2);
+                            if (MollerSat.TriTriOverlap(va0, va1, va2, vb0, vb1, vb2))
+                                return true;
+                        }
                     }
                 }
-                return false;
+                else if (!na.IsLeaf)
+                {
+                    // Descend A first. Push both children — LIFO so Right
+                    // visited before Left gives a tiny locality win on
+                    // typical left-heavy trees.
+                    stack.Push((na.Right, nb));
+                    stack.Push((na.Left, nb));
+                }
+                else // nb is internal
+                {
+                    stack.Push((na, nb.Right));
+                    stack.Push((na, nb.Left));
+                }
             }
-
-            // Descend the larger volume node first for better pruning (SAH-lite heuristic).
-            // Here we simply alternate: if A is internal, recurse into its children
-            // against B; otherwise recurse into B's children against A.
-            if (!na.IsLeaf)
-            {
-                if (OverlapDescend(meshA, na.Left, meshB, nb)) return true;
-                if (OverlapDescend(meshA, na.Right, meshB, nb)) return true;
-                return false;
-            }
-            else // nb is internal
-            {
-                if (OverlapDescend(meshA, na, meshB, nb.Left)) return true;
-                if (OverlapDescend(meshA, na, meshB, nb.Right)) return true;
-                return false;
-            }
+            return false;
         }
 
         private static bool AabbsOverlap(Vector3 aMin, Vector3 aMax, Vector3 bMin, Vector3 bMax)

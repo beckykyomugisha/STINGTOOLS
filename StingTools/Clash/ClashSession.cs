@@ -347,56 +347,63 @@ namespace StingTools.Core.Clash
             => new ElementFacts { Category = m?.Category ?? "" };
 
         /// <summary>
-        /// rec-1: OBB-tree descent producing a ClashHit on first hit. Mirrors the
-        /// ClashKernel.OverlapDescend algorithm but returns the full ClashHit rather
-        /// than just a bool so the live path can populate centroid + AABB for
-        /// downstream flagging.
+        /// rec-1: OBB-tree descent producing a ClashHit on first hit.
+        ///
+        /// H7: Iterative (explicit Stack) instead of recursive. Same motivation
+        /// as ClashKernel.OverlapDescend — stack safety + ThreadPool-friendly
+        /// (live-clash runs on Revit API thread whose WPF-derived stack can be
+        /// smaller than a typical worker).
         /// </summary>
-        private static ClashHit DescendTest(ClashMeshBuffer meshA, ObbNode na, ClashMeshBuffer meshB, ObbNode nb)
+        private static ClashHit DescendTest(ClashMeshBuffer meshA, ObbNode rootA, ClashMeshBuffer meshB, ObbNode rootB)
         {
-            if (na == null || nb == null) return null;
-            if (na.AabbMax.X < nb.AabbMin.X || na.AabbMin.X > nb.AabbMax.X) return null;
-            if (na.AabbMax.Y < nb.AabbMin.Y || na.AabbMin.Y > nb.AabbMax.Y) return null;
-            if (na.AabbMax.Z < nb.AabbMin.Z || na.AabbMin.Z > nb.AabbMax.Z) return null;
-
-            if (na.IsLeaf && nb.IsLeaf)
+            if (rootA == null || rootB == null) return null;
+            var stack = new Stack<(ObbNode, ObbNode)>();
+            stack.Push((rootA, rootB));
+            while (stack.Count > 0)
             {
-                for (int ia = 0; ia < na.TriCount; ia++)
+                var (na, nb) = stack.Pop();
+                if (na == null || nb == null) continue;
+                if (na.AabbMax.X < nb.AabbMin.X || na.AabbMin.X > nb.AabbMax.X) continue;
+                if (na.AabbMax.Y < nb.AabbMin.Y || na.AabbMin.Y > nb.AabbMax.Y) continue;
+                if (na.AabbMax.Z < nb.AabbMin.Z || na.AabbMin.Z > nb.AabbMax.Z) continue;
+
+                if (na.IsLeaf && nb.IsLeaf)
                 {
-                    int triA = na.Tris[na.TriStart + ia];
-                    var va0 = GetV(meshA, triA, 0); var va1 = GetV(meshA, triA, 1); var va2 = GetV(meshA, triA, 2);
-                    for (int ib = 0; ib < nb.TriCount; ib++)
+                    for (int ia = 0; ia < na.TriCount; ia++)
                     {
-                        int triB = nb.Tris[nb.TriStart + ib];
-                        var vb0 = GetV(meshB, triB, 0); var vb1 = GetV(meshB, triB, 1); var vb2 = GetV(meshB, triB, 2);
-                        if (MollerSat.TriTriOverlap(va0, va1, va2, vb0, vb1, vb2))
+                        int triA = na.Tris[na.TriStart + ia];
+                        var va0 = GetV(meshA, triA, 0); var va1 = GetV(meshA, triA, 1); var va2 = GetV(meshA, triA, 2);
+                        for (int ib = 0; ib < nb.TriCount; ib++)
                         {
-                            var cen = 0.25f * (va0 + va1 + vb0 + vb1);
-                            return new ClashHit
+                            int triB = nb.Tris[nb.TriStart + ib];
+                            var vb0 = GetV(meshB, triB, 0); var vb1 = GetV(meshB, triB, 1); var vb2 = GetV(meshB, triB, 2);
+                            if (MollerSat.TriTriOverlap(va0, va1, va2, vb0, vb1, vb2))
                             {
-                                A = meshA.Key, B = meshB.Key,
-                                Centroid = cen,
-                                AabbMin = new Vector3(Math.Max(meshA.MinX, meshB.MinX), Math.Max(meshA.MinY, meshB.MinY), Math.Max(meshA.MinZ, meshB.MinZ)),
-                                AabbMax = new Vector3(Math.Min(meshA.MaxX, meshB.MaxX), Math.Min(meshA.MaxY, meshB.MaxY), Math.Min(meshA.MaxZ, meshB.MaxZ)),
-                                VolumeMm3 = 100f, Kind = "hard", FailureMode = ""
-                            };
+                                var cen = 0.25f * (va0 + va1 + vb0 + vb1);
+                                return new ClashHit
+                                {
+                                    A = meshA.Key, B = meshB.Key,
+                                    Centroid = cen,
+                                    AabbMin = new Vector3(Math.Max(meshA.MinX, meshB.MinX), Math.Max(meshA.MinY, meshB.MinY), Math.Max(meshA.MinZ, meshB.MinZ)),
+                                    AabbMax = new Vector3(Math.Min(meshA.MaxX, meshB.MaxX), Math.Min(meshA.MaxY, meshB.MaxY), Math.Min(meshA.MaxZ, meshB.MaxZ)),
+                                    VolumeMm3 = 100f, Kind = "hard", FailureMode = ""
+                                };
+                            }
                         }
                     }
                 }
-                return null;
+                else if (!na.IsLeaf)
+                {
+                    stack.Push((na.Right, nb));
+                    stack.Push((na.Left, nb));
+                }
+                else
+                {
+                    stack.Push((na, nb.Right));
+                    stack.Push((na, nb.Left));
+                }
             }
-            if (!na.IsLeaf)
-            {
-                var l = DescendTest(meshA, na.Left, meshB, nb); if (l != null) return l;
-                var r = DescendTest(meshA, na.Right, meshB, nb); if (r != null) return r;
-                return null;
-            }
-            else
-            {
-                var l = DescendTest(meshA, na, meshB, nb.Left); if (l != null) return l;
-                var r = DescendTest(meshA, na, meshB, nb.Right); if (r != null) return r;
-                return null;
-            }
+            return null;
         }
 
         private static ClashHit BruteTest(ClashMeshBuffer a, ClashMeshBuffer b)
