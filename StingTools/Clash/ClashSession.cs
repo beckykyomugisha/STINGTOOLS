@@ -223,7 +223,17 @@ namespace StingTools.Core.Clash
             // rec-1: OBB descent when both sides have a tree; falls back to brute
             //        only when the paired element has no tree yet (first-seen path).
             _obbByEid.TryGetValue(target.Key.ElementId, out var treeTarget);
-            foreach (var other in _meshByEid.Values)
+
+            // G2: Query the sweep index for broad-phase candidates instead of
+            // iterating every mesh in the session. On a 50k-element model this
+            // changes the live per-edit cost from O(n) (50k full-mesh AABB
+            // rejects) to O(log n) average (RBush envelope search + handful of
+            // candidates). The explicit Z-overlap check below compensates for
+            // RBush being an XY-only index.
+            var sweep = ActiveSweep;
+            var candidates = sweep?.QueryCandidatesFor(target) ?? _meshByEid.Values;
+
+            foreach (var other in candidates)
             {
                 if (ReferenceEquals(other, target)) continue;
                 if (other.MaxX < target.MinX - 0.164f || other.MinX > target.MaxX + 0.164f) continue;

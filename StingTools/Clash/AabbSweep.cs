@@ -80,6 +80,27 @@ namespace StingTools.Core.Clash
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"AabbSweep.Delete: {ex.Message}"); }
         }
 
+        /// <summary>
+        /// G2: Query RBush for all element meshes whose XY envelope overlaps
+        /// the target's padded envelope. Used by ClashSession.NarrowPhaseFor so
+        /// per-edit narrow phase touches O(log n) candidates, not O(n).
+        /// Z overlap is NOT verified here — caller must still run an AABB Z
+        /// check (which it does anyway in the outer reject loop).
+        /// </summary>
+        public IEnumerable<ClashMeshBuffer> QueryCandidatesFor(ClashMeshBuffer target)
+        {
+            if (target == null) yield break;
+            // Rebuild the target envelope with the current padding so the
+            // query widens to catch clearance-zone candidates.
+            var env = new Envelope(
+                target.MinX - _padding, target.MinY - _padding,
+                target.MaxX + _padding, target.MaxY + _padding);
+            foreach (var hit in _tree.Search(env))
+            {
+                if (hit?.Mesh != null) yield return hit.Mesh;
+            }
+        }
+
         public IEnumerable<(ClashMeshBuffer A, ClashMeshBuffer B)> CandidatePairs()
         {
             var yielded = new HashSet<long>();
