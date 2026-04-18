@@ -20,10 +20,11 @@ namespace StingTools.Clash.Tests
         [Fact]
         public void Duct_Beam_Suggestion_Mentions_Lowering()
         {
+            // H1.5: Category identifiers are BuiltInCategory (OST_*) everywhere.
             var c = new ClashRecord
             {
-                ElementA = new ClashElementRecord { Category = "Ducts" },
-                ElementB = new ClashElementRecord { Category = "Structural Framing" },
+                ElementA = new ClashElementRecord { Category = "OST_DuctCurves" },
+                ElementB = new ClashElementRecord { Category = "OST_StructuralFraming" },
                 AabbMin = new[] { 0f, 0f, 0f }, AabbMax = new[] { 1f, 1f, 1f },
             };
             var s = ResolutionHeuristics.Suggest(c);
@@ -37,8 +38,8 @@ namespace StingTools.Clash.Tests
         {
             var c = new ClashRecord
             {
-                ElementA = new ClashElementRecord { Category = "Structural Framing" },
-                ElementB = new ClashElementRecord { Category = "Ducts" },
+                ElementA = new ClashElementRecord { Category = "OST_StructuralFraming" },
+                ElementB = new ClashElementRecord { Category = "OST_DuctCurves" },
                 AabbMin = new[] { 0f, 0f, 0f }, AabbMax = new[] { 1f, 1f, 1f },
             };
             var s = ResolutionHeuristics.Suggest(c);
@@ -52,8 +53,8 @@ namespace StingTools.Clash.Tests
             // rec-12 new pattern.
             var c = new ClashRecord
             {
-                ElementA = new ClashElementRecord { Category = "Sprinklers" },
-                ElementB = new ClashElementRecord { Category = "Ducts" },
+                ElementA = new ClashElementRecord { Category = "OST_Sprinklers" },
+                ElementB = new ClashElementRecord { Category = "OST_DuctCurves" },
                 AabbMin = new[] { 0f, 0f, 0f }, AabbMax = new[] { 1f, 0.5f, 1f },
             };
             var s = ResolutionHeuristics.Suggest(c);
@@ -68,19 +69,20 @@ namespace StingTools.Clash.Tests
         [Fact]
         public void G4_Column_Floor_Pattern_Fires_In_Both_Orders()
         {
-            // Both Structural Columns AND Floors are in IsStructural, so the
-            // service-first swap doesn't run. Pre-G4 the rule only fired when
-            // A happened to be the column; post-G4 MatchEither catches both.
+            // Both OST_StructuralColumns AND OST_Floors are in IsStructural,
+            // so the service-first swap doesn't run. Pre-G4 the rule only
+            // fired when A happened to be the column; post-G4 MatchEither
+            // catches both.
             var c1 = new ClashRecord
             {
-                ElementA = new ClashElementRecord { Category = "Structural Columns" },
-                ElementB = new ClashElementRecord { Category = "Floors" },
+                ElementA = new ClashElementRecord { Category = "OST_StructuralColumns" },
+                ElementB = new ClashElementRecord { Category = "OST_Floors" },
                 AabbMin = new[] { 0f, 0f, 0f }, AabbMax = new[] { 1f, 1f, 1f },
             };
             var c2 = new ClashRecord
             {
-                ElementA = new ClashElementRecord { Category = "Floors" },
-                ElementB = new ClashElementRecord { Category = "Structural Columns" },
+                ElementA = new ClashElementRecord { Category = "OST_Floors" },
+                ElementB = new ClashElementRecord { Category = "OST_StructuralColumns" },
                 AabbMin = new[] { 0f, 0f, 0f }, AabbMax = new[] { 1f, 1f, 1f },
             };
             var s1 = ResolutionHeuristics.Suggest(c1);
@@ -94,11 +96,11 @@ namespace StingTools.Clash.Tests
         [Fact]
         public void Rec12_Fire_Rating_Pattern_Returned()
         {
-            // rec-12 new pattern: Pipes-Floors.
+            // rec-12 new pattern: OST_PipeCurves vs OST_Floors.
             var c = new ClashRecord
             {
-                ElementA = new ClashElementRecord { Category = "Pipes" },
-                ElementB = new ClashElementRecord { Category = "Floors" },
+                ElementA = new ClashElementRecord { Category = "OST_PipeCurves" },
+                ElementB = new ClashElementRecord { Category = "OST_Floors" },
                 AabbMin = new[] { 0f, 0f, 0f }, AabbMax = new[] { 1f, 1f, 1f },
             };
             var s = ResolutionHeuristics.Suggest(c);

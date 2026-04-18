@@ -76,7 +76,13 @@ namespace StingTools.Core.Clash
 
                 var doc = _docStack.Count > 0 ? GetDocFromGuid(_docStack.Peek()) : _hostDoc;
                 var element = doc?.GetElement(elementId);
-                _currentCategory = element?.Category?.Name ?? "";
+                // H1.5: Store the BuiltInCategory name ("OST_DuctCurves") rather
+                // than the localized display name ("Ducts"). Matrix filters use
+                // OST_* syntax; before this fix ClashMeshBuffer.Category held
+                // display names and the matrix never matched a single pair
+                // regardless of filter contents — a latent bug in the Stage 1
+                // extractor silently defeated every downstream filter.
+                _currentCategory = CategoryHelper.GetBuiltInCategoryName(element?.Category);
                 _currentUniqueId = element?.UniqueId ?? "";
                 _currentIfcGuid = TryGetIfcGuid(doc, elementId);
                 _currentDocGuid = _docStack.Peek();

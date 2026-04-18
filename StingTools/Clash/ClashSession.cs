@@ -176,7 +176,10 @@ namespace StingTools.Core.Clash
                 try { ifc = ExporterIFCUtils.CreateSubElementGUID(element, 0); } catch { }
 
                 var key = new ClashElementKey(docGuid, -1, element.Id.IntegerValue, element.UniqueId, ifc);
-                return new ClashMeshBuffer(key, element.Category?.Name ?? "", verts.ToArray(), indices.ToArray());
+                // H1.5: Store BuiltInCategory name ("OST_DuctCurves") rather
+                // than the localized display name. Matrix filters use OST_*
+                // syntax — display names never matched before this fix.
+                return new ClashMeshBuffer(key, CategoryHelper.GetBuiltInCategoryName(element.Category), verts.ToArray(), indices.ToArray());
             }
             catch (Exception ex) { StingLog.Warn("TryExtractOneElement: " + ex.Message); return null; }
         }
@@ -228,13 +231,14 @@ namespace StingTools.Core.Clash
             _obbByEid.TryGetValue(target.Key.ElementId, out var treeTarget);
 
             // G2: Query the sweep index for broad-phase candidates instead of
-            // iterating every mesh in the session. On a 50k-element model this
-            // changes the live per-edit cost from O(n) (50k full-mesh AABB
-            // rejects) to O(log n) average (RBush envelope search + handful of
-            // candidates). The explicit Z-overlap check below compensates for
-            // RBush being an XY-only index.
+            // iterating every mesh in the session.
             var sweep = ActiveSweep;
             var candidates = sweep?.QueryCandidatesFor(target) ?? _meshByEid.Values;
+
+            // H1: Pre-build ElementFacts for target once (constant across the
+            //     candidate loop). Matrix matching walks FilterA/FilterB clauses
+            //     so one-sided facts save O(candidates) calls.
+            var targetFacts = FactsFromMesh(target);
 
             foreach (var other in candidates)
             {
@@ -243,15 +247,40 @@ namespace StingTools.Core.Clash
                 if (other.MaxY < target.MinY - 0.164f || other.MinY > target.MaxY + 0.164f) continue;
                 if (other.MaxZ < target.MinZ - 0.164f || other.MinZ > target.MaxZ + 0.164f) continue;
 
-                _obbByEid.TryGetValue(other.Key.ElementId, out var treeOther);
+                // H1: Matrix + rule filter BEFORE the expensive narrow phase.
+                //     Without this, the live path flagged any overlap — including
+                //     "Intentional" pairs (duct insulation vs its own duct, wall-
+                //     floor joins, curtain mullion-panel) that the headless run
+                //     drops via ClashRule. Users saw warning triangles on every
+                //     hosted ceiling fixture and lost trust in the flagging.
+                var otherFacts = FactsFromMesh(other);
+                var cell = _matrix?.Match(targetFacts, otherFacts);
+                if (cell == null) continue;   // not in coordination scope — skip
 
-                var hit = (treeTarget?.Root != null && treeOther?.Root != null)
+                ClashHit hit = (treeTarget?.Root != null && _obbByEid.TryGetValue(other.Key.ElementId, out var treeOther) && treeOther?.Root != null)
                     ? DescendTest(target, treeTarget.Root, other, treeOther.Root)
                     : BruteTest(target, other);
-                if (hit != null) hits.Add(hit);
+                if (hit == null) continue;
+
+                // H1: Run the rule engine (tessellation artifact drop, intentional
+                //     hosted-element exclusions, volume thresholds) on the tentative
+                //     hit. Only "Keep" verdicts surface as live flags.
+                var classified = _ruleEngine?.Classify(hit, targetFacts, otherFacts, cell);
+                if (classified == null || classified.Verdict == ClashVerdict.Keep)
+                    hits.Add(hit);
             }
             return hits;
         }
+
+        /// <summary>
+        /// H1: Lightweight facts-from-mesh projection for live-path matrix/rule
+        /// matching. Only Category is populated (mesh is our only source; we
+        /// don't have the Revit Element in hand here). System/Workset are left
+        /// empty — matrix cells that filter on System will simply not match,
+        /// which is correct for the conservative live-flag semantic.
+        /// </summary>
+        private static ElementFacts FactsFromMesh(ClashMeshBuffer m)
+            => new ElementFacts { Category = m?.Category ?? "" };
 
         /// <summary>
         /// rec-1: OBB-tree descent producing a ClashHit on first hit. Mirrors the
