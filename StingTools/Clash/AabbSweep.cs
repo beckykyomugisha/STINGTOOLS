@@ -103,7 +103,16 @@ namespace StingTools.Core.Clash
 
         public IEnumerable<(ClashMeshBuffer A, ClashMeshBuffer B)> CandidatePairs()
         {
-            var yielded = new HashSet<long>();
+            // H5: HashSet<(ClashElementKey, ClashElementKey)> keyed on actual
+            //     element-key equality rather than on (GetHashCode, GetHashCode).
+            //     Prior long-packed-hash key had two collision vectors:
+            //       (a) two different ElementKeys with the same GetHashCode
+            //           pair-packed into the same 64-bit long → skipped as duplicate.
+            //       (b) on very large models (100k+ elements) 32-bit hash-space
+            //           birthday collisions become statistically real.
+            //     HashSet<ValueTuple> uses ClashElementKey.Equals + GetHashCode
+            //     together — collisions resolved by Equals check, not hash alone.
+            var yielded = new HashSet<(ClashElementKey, ClashElementKey)>();
             foreach (var item in _byKey.Values)
             {
                 var hits = _tree.Search(item.Envelope);
@@ -112,17 +121,25 @@ namespace StingTools.Core.Clash
                     if (ReferenceEquals(h, item)) continue;
                     // Z filter: RBush is 2D, so verify Z overlap explicitly.
                     if (h.Mesh.MinZ > item.Mesh.MaxZ || h.Mesh.MaxZ < item.Mesh.MinZ) continue;
-                    long pair = PairKey(item.Mesh.Key.GetHashCode(), h.Mesh.Key.GetHashCode());
+                    // Canonical ordering: smaller DocGuid+ElementId first so
+                    // (A,B) and (B,A) collapse to the same dedup key.
+                    var pair = CanonicalPair(item.Mesh.Key, h.Mesh.Key);
                     if (!yielded.Add(pair)) continue;
                     yield return (item.Mesh, h.Mesh);
                 }
             }
         }
 
-        private static long PairKey(int a, int b)
+        /// <summary>
+        /// H5: Deterministic pair ordering — the pair (A,B) and (B,A) must map
+        /// to the same HashSet key so we only yield each unordered pair once.
+        /// </summary>
+        private static (ClashElementKey, ClashElementKey) CanonicalPair(ClashElementKey a, ClashElementKey b)
         {
-            if (a > b) { int t = a; a = b; b = t; }
-            return ((long)a << 32) | (uint)b;
+            int cmp = string.CompareOrdinal(a.DocGuid ?? "", b.DocGuid ?? "");
+            if (cmp == 0) cmp = a.LinkInstanceElementId.CompareTo(b.LinkInstanceElementId);
+            if (cmp == 0) cmp = a.ElementId.CompareTo(b.ElementId);
+            return cmp <= 0 ? (a, b) : (b, a);
         }
     }
 }
