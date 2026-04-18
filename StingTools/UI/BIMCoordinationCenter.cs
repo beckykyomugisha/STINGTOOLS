@@ -924,7 +924,12 @@ namespace StingTools.UI
                 _data.DeliverablesOverdue > 0 ? _data.DeliverablesOverdue.ToString() : $"{_data.DeliverablesApproved}/{_data.Deliverables.Count}",
                 "", // MEETINGS
                 memberCount > 0 ? memberCount.ToString() : "", // PROJECT MEMBERS
-                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : ""
+                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : "",
+                "" // CLASH — rec-4 added the tab; this slot plugs the parallel-array bug
+                   // that was throwing IndexOutOfRangeException in the constructor
+                   // and making the whole "Open BIM Coordination Center" button appear
+                   // lifeless (the exception was caught by the outer command handler
+                   // and logged to StingLog, never surfaced to the user).
             };
 
             for (int i = 0; i < tabs.Length; i++)
