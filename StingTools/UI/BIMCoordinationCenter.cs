@@ -73,6 +73,7 @@ namespace StingTools.UI
         private const string TabTeam           = "TEAM";           // legacy alias → PROJECT MEMBERS
         private const string TabProjectMembers = "PROJECT MEMBERS";
         private const string TabCoordLog       = "COORD LOG";
+        private const string TabClash          = "CLASH";
 
         // ── Data ──
         internal CoordData _data;
@@ -909,7 +910,7 @@ namespace StingTools.UI
             var nav = new StackPanel { Background = Br(CNavBg) };
             nav.Children.Add(new Border { Height = 8 }); // top spacer
 
-            string[] tabs = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog };
+            string[] tabs = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog, TabClash };
             int memberCount = _data.Roles.Count + _data.TeamMembers.Count;
             string[] badges = {
                 "", $"{_data.ModelHealthScore}/100",
@@ -1036,6 +1037,7 @@ namespace StingTools.UI
                     TabTeam           => BuildProjectMembersTab(),  // legacy alias
                     TabProjectMembers => BuildProjectMembersTab(),
                     TabCoordLog       => BuildCoordLogTab(),
+                    TabClash          => BuildClashTab(),
                     _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
                 };
                 _tabCache[tabName] = tabContent;
@@ -6976,6 +6978,62 @@ namespace StingTools.UI
                 };
                 root.Children.Add(infoCard);
             }
+            return root;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CLASH TAB  (Clash rec-4)
+        //  Hosts the clash results grid. The underlying engine is reachable
+        //  via the Run Clash button → ClashRunCommand. BCF export via
+        //  Export BCF button → ClashBcfExportCommand.
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildClashTab()
+        {
+            var root = new DockPanel { LastChildFill = true, Margin = new Thickness(16) };
+
+            // ── Toolbar ──
+            var toolbar = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            DockPanel.SetDock(toolbar, Dock.Top);
+
+            var runBtn = MakeActionButton("Run Clash", "ClashRun", Br(CHeaderBg), "Run headless clash detection over the active 3D view");
+            var bcfBtn = MakeActionButton("Export BCF", "ClashBcfExport", Br(CAccent), "Export the latest clash run as a BCF 2.1 ZIP with viewpoints + PNG snapshots");
+            var liveBtn = MakeActionButton("Refresh Live", "ClashSessionRefresh", Br(CGreen), "Force a re-initialisation of the persistent live-clash session (rebuilds mesh cache)");
+            var clearBtn = MakeActionButton("Clear Session", "ClashSessionClear", Br(CRed), "Clear the per-document live-clash session (frees mesh cache memory)");
+            var matrixBtn = MakeActionButton("Edit Matrix", "ClashMatrixEdit", Br(CHeaderBg), "Open data/default_clash_matrix.json for editing pair rules");
+            toolbar.Children.Add(runBtn);
+            toolbar.Children.Add(bcfBtn);
+            toolbar.Children.Add(liveBtn);
+            toolbar.Children.Add(clearBtn);
+            toolbar.Children.Add(matrixBtn);
+            root.Children.Add(toolbar);
+
+            // ── Grid hosted by StingTools.UI.Clash.ClashTab ──
+            // The tab is a WPF UserControl auto-generating columns from
+            // ClashRowViewModel. We defer Populate() until a ClashRunRecord
+            // is loaded so the grid starts empty but responsive.
+            var clashTabControl = new StingTools.UI.Clash.ClashTab();
+            root.Children.Add(clashTabControl);
+
+            // Best-effort: populate from the most recent clashes.json if it
+            // exists alongside the project. Failures are swallowed so the
+            // tab still renders cleanly on first open.
+            try
+            {
+                var dir = OutputLocationHelper.GetOutputDirectory(_doc);
+                var latest = System.IO.Path.Combine(dir ?? "", "clashes.json");
+                if (!string.IsNullOrEmpty(latest) && System.IO.File.Exists(latest))
+                {
+                    var run = StingTools.Core.Clash.ClashPersistence.Load(latest);
+                    if (run != null) clashTabControl.Populate(run);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildClashTab populate: {ex.Message}"); }
+
             return root;
         }
 
