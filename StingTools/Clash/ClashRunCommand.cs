@@ -163,6 +163,16 @@ namespace StingTools.Core.Clash
                 // ── Persist ──
                 ClashPersistence.Save(run, clashesJson);
 
+                // H2: Sync the live ClashSession's flag set with the persisted
+                // run so the BCC Clash tab and the in-authoring warning triangles
+                // agree. Without this, the headless run writes clashes.json but
+                // LiveClashHandler keeps stale _flaggedIds from the last
+                // RefreshElement — user sees different counts in the tab vs.
+                // the flag parameters. Raises ClashSession.OnRunCompleted so
+                // subscribed UI can refresh.
+                try { ClashSession.ForDocument(doc).SeedFromRun(run); }
+                catch (Exception seedEx) { StingLog.Warn($"ClashSession.SeedFromRun: {seedEx.Message}"); }
+
                 StingLog.Info($"ClashRun: raw={run.Stats.Raw} filtered={run.Stats.Tier1Filtered} " +
                     $"excluded={run.Stats.Excluded} kept={run.Clashes.Count} " +
                     $"groups={run.Stats.Groups} new={run.Stats.New} active={run.Stats.Active} " +

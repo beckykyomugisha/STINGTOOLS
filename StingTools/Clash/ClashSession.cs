@@ -47,7 +47,14 @@ namespace StingTools.Core.Clash
         private ClashRuleEngine _ruleEngine;
         public bool Initialised { get; private set; }
 
-        public event Action<int, bool> OnElementFlagChanged;   // (eid, isFlagged)
+        // H6: Fired per element whenever the flag set transitions (id, nowFlagged).
+        //     RefreshElement / RemoveElement / SeedFromRun all raise the event
+        //     so UI subscribers can update warning triangles without polling.
+        public event Action<int, bool> OnElementFlagChanged;
+
+        // H2: Fired after SeedFromRun so the BCC Clash tab can repaint its grid
+        //     without introducing a dependency on the persisted clashes.json.
+        public event Action<ClashRunRecord> OnRunCompleted;
 
         private ClashSession(Document doc)
         {
@@ -131,6 +138,8 @@ namespace StingTools.Core.Clash
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ClashSession.RefreshElement({elementId}): {ex.Message}"); }
+            // H6: Fire outside the lock.
+            RaiseFlagChanges(result);
             return result;
         }
 
@@ -148,7 +157,62 @@ namespace StingTools.Core.Clash
                     if (_flaggedIds.Remove(elementId)) result.NewlyCleared.Add(elementId);
                 }
             }
+            // H6: Fire outside the lock so a slow subscriber doesn't block the
+            //     Revit API thread. Swallow subscriber exceptions — UI bugs
+            //     shouldn't crash the live-clash loop.
+            RaiseFlagChanges(result);
             return result;
+        }
+
+        /// <summary>
+        /// H2: Seed the live session's flag set from a freshly computed
+        /// ClashRunRecord. Called by ClashRunCommand after persistence so the
+        /// in-authoring flag state and the persisted clashes.json agree.
+        /// Also raises OnRunCompleted so subscribed UI can refresh.
+        /// </summary>
+        public void SeedFromRun(ClashRunRecord run)
+        {
+            if (run?.Clashes == null) return;
+            var result = new LiveClashResult();
+            lock (_lock)
+            {
+                var newFlagged = new HashSet<int>();
+                foreach (var c in run.Clashes)
+                {
+                    if (c.State == "Resolved" || c.State == "Void") continue;
+                    if (c.ElementA != null && c.ElementA.LinkInstanceId == -1)
+                        newFlagged.Add(c.ElementA.ElementId);
+                    if (c.ElementB != null && c.ElementB.LinkInstanceId == -1)
+                        newFlagged.Add(c.ElementB.ElementId);
+                }
+                var prev = _flaggedIds;
+                foreach (var id in newFlagged) if (!prev.Contains(id)) result.NewlyFlagged.Add(id);
+                foreach (var id in prev) if (!newFlagged.Contains(id)) result.NewlyCleared.Add(id);
+                _flaggedIds = newFlagged;
+            }
+            RaiseFlagChanges(result);
+            try { OnRunCompleted?.Invoke(run); }
+            catch (Exception ex) { StingLog.Warn($"OnRunCompleted subscriber threw: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// H6: Centralised event dispatcher. Swallow subscriber exceptions so
+        /// a buggy WPF handler never kills the live-clash pipeline.
+        /// </summary>
+        private void RaiseFlagChanges(LiveClashResult r)
+        {
+            var handler = OnElementFlagChanged;
+            if (handler == null || r == null) return;
+            foreach (var id in r.NewlyFlagged)
+            {
+                try { handler(id, true); }
+                catch (Exception ex) { StingLog.Warn($"OnElementFlagChanged(flag) subscriber: {ex.Message}"); }
+            }
+            foreach (var id in r.NewlyCleared)
+            {
+                try { handler(id, false); }
+                catch (Exception ex) { StingLog.Warn($"OnElementFlagChanged(clear) subscriber: {ex.Message}"); }
+            }
         }
 
         private HashSet<int> _flaggedIds = new HashSet<int>();

@@ -7034,6 +7034,26 @@ namespace StingTools.UI
             }
             catch (Exception ex) { StingLog.Warn($"BuildClashTab populate: {ex.Message}"); }
 
+            // H2: Subscribe to ClashSession.OnRunCompleted so a background
+            // ClashScheduler tick or a user clicking "Run Clash" in another
+            // UI surface repaints this grid without the user having to close
+            // and re-open the tab. The handler marshals back to the UI thread
+            // via Dispatcher — OnRunCompleted fires from the Revit API thread.
+            try
+            {
+                var session = StingTools.Core.Clash.ClashSession.ForDocument(_doc);
+                session.OnRunCompleted += run =>
+                {
+                    try
+                    {
+                        clashTabControl.Dispatcher.BeginInvoke(
+                            new Action(() => clashTabControl.Populate(run)));
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ClashTab refresh: {ex.Message}"); }
+                };
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildClashTab OnRunCompleted wire: {ex.Message}"); }
+
             return root;
         }
 
