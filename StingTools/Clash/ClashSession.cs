@@ -36,7 +36,13 @@ namespace StingTools.Core.Clash
         // rec-1: Cache OBB trees by element id so the live narrow-phase can descend
         // rather than brute-force. Rebuilt on RefreshElement, dropped on RemoveElement.
         private readonly Dictionary<int, ObbTree> _obbByEid = new Dictionary<int, ObbTree>();
-        private readonly AabbSweep _sweep = new AabbSweep();
+        // G8: The AabbSweep that the live path actually queries. Replaced
+        // wholesale on InitialiseFromView / rebuilt-but-kept-in-place by
+        // AddOrUpdate/Remove (rec-9). Prior code had two references — _sweep
+        // and _sweepRef — with the former never used after first init. Collapsed
+        // to one field; ActiveSweep property kept for readability at call sites.
+        private AabbSweep _sweep = new AabbSweep();
+        private AabbSweep ActiveSweep => _sweep;
         private ClashMatrix _matrix;
         private ClashRuleEngine _ruleEngine;
         public bool Initialised { get; private set; }
@@ -67,26 +73,23 @@ namespace StingTools.Core.Clash
                         _obbByEid[kv.Key.ElementId] = ObbTree.Build(kv.Value);
                     }
                 }
-                _sweep.GetType();   // keep ref alive
                 _sweep_Rebuild();
                 Initialised = true;
             }
             StingLog.Info($"ClashSession initialised: {_meshByEid.Count} elements");
         }
 
-        // Expose field via helper to avoid reflection
-        private AabbSweep Sweep => _sweep;
+        /// <summary>
+        /// Rebuild the sweep index from scratch. Used on cold init only
+        /// (InitialiseFromView); per-edit updates go through
+        /// ActiveSweep.AddOrUpdate/Remove (rec-9).
+        /// </summary>
         private void _sweep_Rebuild()
         {
-            // Rebuild the sweep index from scratch.
             var fresh = new AabbSweep();
             fresh.Build(_meshByEid.Values);
-            // Replace by swapping contents via reflection-free approach: rebuild-in-place is safer.
-            // Since AabbSweep exposes no clear, we keep a reference via _sweepRef below.
-            _sweepRef = fresh;
+            _sweep = fresh;
         }
-        private AabbSweep _sweepRef;
-        private AabbSweep ActiveSweep => _sweepRef ?? _sweep;
 
         /// <summary>
         /// Called for each dirty element. Extracts fresh geometry, updates the index,
