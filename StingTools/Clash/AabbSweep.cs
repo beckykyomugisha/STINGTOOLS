@@ -1,5 +1,6 @@
 // AabbSweep.cs — global broad-phase via R-tree over element AABBs.
 // Returns candidate element pairs for narrow-phase processing.
+using System;
 using System.Collections.Generic;
 using RBush;
 
@@ -10,13 +11,19 @@ namespace StingTools.Core.Clash
         public sealed class ElementBox : ISpatialData
         {
             public ClashMeshBuffer Mesh;
-            public Envelope Envelope { get; }
+            // RBush 4.0 changed ISpatialData.Envelope to `ref readonly Envelope`.
+            // Back the property with a readonly field so the signature matches.
+            private readonly Envelope _envelope;
+            public ref readonly Envelope Envelope => ref _envelope;
             public ElementBox(ClashMeshBuffer m, double pad)
             {
                 Mesh = m;
-                Envelope = new Envelope(
-                    minX: m.MinX - pad, minY: m.MinY - pad,
-                    maxX: m.MaxX + pad, maxY: m.MaxY + pad);
+                // RBush 4.0: Envelope record ctor uses PascalCase parameter
+                // names (MinX/MinY/MaxX/MaxY). Using positional args keeps the
+                // call resilient to further renames.
+                _envelope = new Envelope(
+                    m.MinX - pad, m.MinY - pad,
+                    m.MaxX + pad, m.MaxY + pad);
             }
         }
 
