@@ -126,18 +126,31 @@ namespace StingTools.Core.Clash
                     });
                 }
 
-                // Assign CLH-N external ids in stable order.
-                int seq = 1;
-                foreach (var c in run.Clashes)
-                    c.Id = ClashIdentity.NewClashId(DateTime.UtcNow, seq++);
-
                 run.Stats.Raw = hits.Count;
                 run.Stats.Tier1Filtered = filtered;
                 run.Stats.Excluded = excluded;
 
-                // ── Stage 2: history diff ──
+                // ── Stage 2: history diff FIRST (preserves Id for matched identity) ──
+                // Intentionally before ID mint so id stability is rooted in
+                // identity hash, not run sequence. (G1 fix — prior code assigned
+                // ids before merge, producing duplicates on same-day re-runs.)
                 var prior = ClashPersistence.Load(clashesJson);
                 ClashHistory.MergeWithPrior(run, prior);
+
+                // Seed the today-sequence AFTER merge so we only skip over ids
+                // already taken in the archive (prior Resolved clashes) or carried
+                // forward by merge onto this run's matching-identity records.
+                // Prevents same-day-re-run duplicate CLH-X-NNNNN.
+                int seq = SeedSequenceForToday(DateTime.UtcNow, run, prior);
+
+                // Now mint ids for any clash that MergeWithPrior left empty
+                // (new-in-this-run). Matching-identity clashes retain their
+                // pre-existing Id from the prior run.
+                foreach (var c in run.Clashes)
+                {
+                    if (string.IsNullOrEmpty(c.Id))
+                        c.Id = ClashIdentity.NewClashId(DateTime.UtcNow, seq++);
+                }
 
                 // ── Stage 4: group + resolution hints ──
                 run.Groups = ClashGrouper.Group(run.Clashes);
@@ -237,6 +250,38 @@ namespace StingTools.Core.Clash
                 return ws?.Name ?? "";
             }
             catch { return ""; }
+        }
+
+        /// <summary>
+        /// G1: Find the next unused CLH sequence for the given day by scanning
+        /// every ClashRecord.Id in the merged current run plus the full prior
+        /// run archive. Returns max(existing CLH-<day>-NNNNN) + 1, or 1 when
+        /// no prior ids exist for that date. Prevents duplicate CLH-<day>-NNNNN
+        /// on same-day re-runs.
+        /// </summary>
+        private static int SeedSequenceForToday(DateTime utcNow, ClashRunRecord current, ClashRunRecord prior)
+        {
+            string prefix = $"CLH-{utcNow:yyyyMMdd}-";
+            int maxSeq = 0;
+
+            void Scan(ClashRunRecord rec)
+            {
+                if (rec?.Clashes == null) return;
+                foreach (var c in rec.Clashes)
+                {
+                    if (string.IsNullOrEmpty(c.Id)) continue;
+                    if (!c.Id.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                    var tail = c.Id.Substring(prefix.Length);
+                    if (int.TryParse(tail, System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture, out int n))
+                    {
+                        if (n > maxSeq) maxSeq = n;
+                    }
+                }
+            }
+            Scan(current);
+            Scan(prior);
+            return maxSeq + 1;
         }
 
         private static ClashElementRecord ToRecord(ClashElementKey key, ElementFacts facts)
