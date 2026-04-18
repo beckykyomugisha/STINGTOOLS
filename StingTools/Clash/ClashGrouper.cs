@@ -128,18 +128,33 @@ namespace StingTools.Core.Clash
 
             var result = new List<PatternGroup>();
             var claimed = new HashSet<string>();   // track identity of claimed records
-            // Prefer the larger bucket when a clash could join either A-anchor or B-anchor group.
+            // G9: Order candidates by size DESCENDING, then by key ASCENDING, so
+            // the output is deterministic regardless of Dictionary enumeration
+            // order (which is non-deterministic across runtime versions and
+            // insertion histories). Prior OrderByDescending(count) alone was
+            // unstable on ties — two buckets of size 5 could swap winner across
+            // runs, producing subtly different GroupIds and audit trails.
+            // Within each element-pattern pass we also compare post-claim
+            // member count instead of raw count — a candidate whose members
+            // were already consumed by an earlier larger group drops out
+            // cleanly rather than falsely appearing as a plausible anchor.
             var candidates = byPairAndA.Select(kv => (kv, side: "A"))
                 .Concat(byPairAndB.Select(kv => (kv, side: "B")))
-                .OrderByDescending(x => x.kv.Value.Count);
+                .OrderByDescending(x => x.kv.Value.Count)
+                .ThenBy(x => x.side, System.StringComparer.Ordinal)
+                .ThenBy(x => x.kv.Key.Item1, System.StringComparer.Ordinal)
+                .ThenBy(x => x.kv.Key.Item2);
 
             foreach (var (kv, side) in candidates)
             {
-                if (kv.Value.Count < 3) continue;
+                if (kv.Value.Count < 3) continue;   // early reject: even pre-claim is too small
                 var members = kv.Value.Where(c => !claimed.Contains(c.Identity ?? "")).ToList();
-                if (members.Count < 3) continue;
+                if (members.Count < 3) continue;    // G9: post-claim count gate — was already here, keep
 
-                var cat = side == "A" ? members.First().ElementA?.Category : members.First().ElementB?.Category;
+                var anchorMember = members
+                    .OrderBy(m => m.Identity ?? "", System.StringComparer.Ordinal)
+                    .First();
+                var cat = side == "A" ? anchorMember.ElementA?.Category : anchorMember.ElementB?.Category;
                 result.Add(new PatternGroup
                 {
                     AnchorDescription = $"{kv.Key.Item1} via {side}={cat}:{kv.Key.Item2}",
