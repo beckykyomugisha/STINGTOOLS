@@ -510,6 +510,23 @@ namespace StingTools.Tags
             BuiltInCategory.OST_TelephoneDevices,
         };
 
+        // Clash rec-3: Categories watched by LiveClashUpdater. CLASH_COORDINATION
+        // group binds only to these so clash parameters don't pollute every
+        // element in the model. Keep this list in sync with
+        // StingTools/Clash/LiveClashUpdater.cs Register() triggers.
+        private static readonly BuiltInCategory[] ClashCategories = new[]
+        {
+            BuiltInCategory.OST_DuctCurves,
+            BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_CableTray,
+            BuiltInCategory.OST_Conduit,
+            BuiltInCategory.OST_Walls,
+            BuiltInCategory.OST_Floors,
+            BuiltInCategory.OST_Ceilings,
+            BuiltInCategory.OST_StructuralFraming,
+            BuiltInCategory.OST_StructuralColumns,
+        };
+
         private static readonly BuiltInCategory[] BleCategories = new[]
         {
             BuiltInCategory.OST_Walls,
@@ -559,6 +576,16 @@ namespace StingTools.Tags
             {
                 overrides["BLE_ELES"] = bleCats;
                 overrides["BLE_STRUCTURE"] = bleCats;
+            }
+
+            // Clash rec-3: CLASH_COORDINATION group binds only to the 9 categories
+            // LiveClashUpdater.Register watches. Keeps CLASH_LIVE_FLAG /
+            // CLASH_LAST_RUN_DT / CLASH_OTHER_ELEMENT_TXT off every element in
+            // the model (which would spam parameter-editor dropdowns).
+            var clashCats = BuildCatSet(doc, ClashCategories);
+            if (clashCats.Size > 0)
+            {
+                overrides["CLASH_COORDINATION"] = clashCats;
             }
 
             // OST_Materials does NOT support AllowsBoundParameters in Revit API,

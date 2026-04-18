@@ -22,6 +22,7 @@ GROUP	16	BLE_STRUCTURE
 GROUP	17	STINGTags_ISO19650
 GROUP	18	WARN_THRESHOLDS
 GROUP	19	SLV_SLEEVE_PARAMS
+GROUP	20	CLASH_COORDINATION
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1
@@ -2417,3 +2418,6 @@ PARAM	b8d5f342-0a93-5e2b-c5b1-4f7029e3ad16	ASS_INHERIT_STATUS_TXT	TEXT		1	1	Toke
 PARAM	a7c4e231-9f82-5d1a-b4a0-3e6f18d29c05	ASS_STALE_TOKENS_TXT	TEXT		18	1	Comma-separated list of stale token names for targeted re-derivation	1
 PARAM	c9e60453-1ba4-5f3c-d6c2-508a3af4be27	STING_DATA_HASH	TEXT		1	1	Hash of data directory for workflow skip-if-unchanged detection	1
 PARAM	daf71564-2cb5-504d-e7d3-619b4b05cf38	STING_SETUP_COMPLETE	TEXT		1	1	Timestamp of last MasterSetup completion for idempotency check	1
+PARAM	3c9a4e2d-5f7b-4a12-9b8f-c1d2e3f4a5b8	CLASH_LIVE_FLAG	YESNO		20	1	Clash live flag set by LiveClashHandler when the element is currently clashing [ISO 19650 coordination]	0
+PARAM	3c9a4e2d-5f7b-4a12-9b8f-c1d2e3f4a5b9	CLASH_LAST_RUN_DT	TEXT		20	1	Timestamp (UTC ISO 8601) of last clash run that touched this element	0
+PARAM	3c9a4e2d-5f7b-4a12-9b8f-c1d2e3f4a5ba	CLASH_OTHER_ELEMENT_TXT	TEXT		20	1	Category + element id of the other element this element clashes with	0
