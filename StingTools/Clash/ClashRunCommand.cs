@@ -194,32 +194,42 @@ namespace StingTools.Core.Clash
         /// rec-6: Hydrate ElementFacts once per mesh so the matrix matcher doesn't
         /// re-read Revit element params per candidate pair. Category + workset are
         /// from the live element; system is from MEP system property when present.
+        ///
+        /// G5: Linked-doc elements now resolve through a docByGuid map so
+        /// System/Workset facts populate for federated models. Prior code
+        /// returned empty System for all linked-doc elements, silently losing
+        /// any matrix cell that filtered on System=... for federated ducts.
         /// </summary>
         private static Dictionary<ClashElementKey, ElementFacts> BuildFactsByKey(Document doc,
             Dictionary<ClashElementKey, ClashMeshBuffer> meshes)
         {
+            // G5: Build doc-guid → Document once so linked-doc lookups are O(1).
+            // Reuses the same derivation MeshExtractor.BuildLinkedDocumentMap uses
+            // so keys match the guids stamped onto ClashElementKey.DocGuid.
+            var docByGuid = MeshExtractor.BuildLinkedDocumentMap(doc);
+
             var map = new Dictionary<ClashElementKey, ElementFacts>();
             foreach (var kv in meshes)
             {
                 var key = kv.Key;
                 var mesh = kv.Value;
                 Element el = null;
+                Document owningDoc = doc;
                 try
                 {
-                    // Host-doc elements only — linked-doc elements don't participate
-                    // in the CustomExporter-sourced Clash flow with a writable Element
-                    // handle. Facts default to the mesh's category + empty system.
-                    if (key.LinkInstanceElementId == -1)
-                        el = doc.GetElement(new ElementId(key.ElementId));
+                    // Resolve the element from its owning document (host OR link).
+                    if (docByGuid.TryGetValue(key.DocGuid ?? "", out var resolvedDoc))
+                        owningDoc = resolvedDoc;
+                    el = owningDoc?.GetElement(new ElementId(key.ElementId));
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"BuildFactsByKey GetElement({key}): {ex.Message}"); }
 
                 var facts = new ElementFacts
                 {
                     Category = mesh.Category ?? "",
                     System = ReadSystem(el),
                     Classification = "",
-                    Workset = ReadWorkset(doc, el),
+                    Workset = ReadWorkset(owningDoc, el),
                 };
                 map[key] = facts;
             }

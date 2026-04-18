@@ -41,13 +41,23 @@ namespace StingTools.Core.Clash
         /// rec-5: Build a dictionary keyed by the same doc-guid string used by
         /// ClashExportContext (ProjectInformation?.UniqueId ?? PathName ?? "host"
         /// / "link"). Host doc first, then every loaded RevitLinkInstance's doc.
+        ///
+        /// G5: Made <c>public</c> so ClashRunCommand can reuse the map for
+        /// linked-doc element resolution (System/Workset facts) rather than
+        /// needing a second FilteredElementCollector.OfClass(RevitLinkInstance)
+        /// pass.
         /// </summary>
-        private static Dictionary<string, Document> BuildLinkedDocumentMap(Document host)
+        public static Dictionary<string, Document> BuildLinkedDocumentMap(Document host)
         {
             var map = new Dictionary<string, Document>(StringComparer.Ordinal);
             string hostKey = host.ProjectInformation?.UniqueId ?? host.PathName ?? "host";
             map[hostKey] = host;
 
+            // G7: Throttled per-session warning counter for BuildLinkedDocumentMap
+            //     failures. Prior code had a bare catch { } that swallowed errors
+            //     silently — made it impossible to diagnose "why are my linked-
+            //     doc clashes missing?" without attaching a debugger.
+            int perLinkFailures = 0;
             try
             {
                 var links = new FilteredElementCollector(host)
@@ -57,11 +67,20 @@ namespace StingTools.Core.Clash
                 {
                     Document linkDoc = null;
                     try { linkDoc = li.GetLinkDocument(); }
-                    catch { /* unloaded link — skip */ }
+                    catch (Exception liEx)
+                    {
+                        perLinkFailures++;
+                        if (perLinkFailures <= 5)
+                            StingLog.Warn($"BuildLinkedDocumentMap: GetLinkDocument failed for link " +
+                                $"{li?.Name ?? "(null)"}: {liEx.Message}");
+                    }
                     if (linkDoc == null) continue;
                     string key = linkDoc.ProjectInformation?.UniqueId ?? linkDoc.PathName ?? "link";
                     if (!map.ContainsKey(key)) map[key] = linkDoc;
                 }
+                if (perLinkFailures > 5)
+                    StingLog.Warn($"BuildLinkedDocumentMap: {perLinkFailures - 5} additional link " +
+                        $"resolution failures suppressed");
             }
             catch (Exception ex) { StingLog.Warn($"BuildLinkedDocumentMap: {ex.Message}"); }
 
