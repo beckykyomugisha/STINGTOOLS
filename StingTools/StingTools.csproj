@@ -91,6 +91,10 @@
   <!-- Copy data files to output directory alongside the DLL -->
   <ItemGroup>
     <None Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="data" />
+    <!-- Clash rec-19: ship seed JSON files under data/clash/ so ClashMatrix.LoadOrDefault
+         + ClashRuleLibrary.LoadAugmented + (future) ResolutionHeuristics.LoadAugmented
+         can find them without any extra install step. -->
+    <None Include="Clash\Data\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="data\clash" />
   </ItemGroup>
 
 </Project>
