@@ -26,7 +26,13 @@ namespace StingTools.Core.Clash
 
     public sealed class ClashKernel
     {
-        public Dictionary<ClashElementKey, ObbTree> ObbTrees { get; } = new Dictionary<ClashElementKey, ObbTree>();
+        // G3: ConcurrentDictionary for parallel read-heavy access. BuildIndexes
+        // writes once (in parallel); Run() reads many times (in parallel).
+        // Prior Dictionary-with-lock serialised every TestPair through a single
+        // mutex — on a 10k-pair run that was 20k lock acquisitions contending
+        // on one mutex, dragging parallel throughput below single-thread.
+        public ConcurrentDictionary<ClashElementKey, ObbTree> ObbTrees { get; } =
+            new ConcurrentDictionary<ClashElementKey, ObbTree>();
         public AabbSweep Sweep { get; } = new AabbSweep();
         public int HardClashCount { get; private set; }
         public long BroadMs { get; private set; }
@@ -38,8 +44,8 @@ namespace StingTools.Core.Clash
             Sweep.Build(list);
             Parallel.ForEach(list, m =>
             {
-                var tree = ObbTree.Build(m);
-                lock (ObbTrees) ObbTrees[m.Key] = tree;
+                // G3: lock-free insert via ConcurrentDictionary.
+                ObbTrees[m.Key] = ObbTree.Build(m);
             });
         }
 
@@ -83,16 +89,11 @@ namespace StingTools.Core.Clash
             var aabbMax = new Vector3(Math.Min(a.MaxX, b.MaxX), Math.Min(a.MaxY, b.MaxY), Math.Min(a.MaxZ, b.MaxZ));
 
             // rec-1: OBB-tree descent. Short-circuits on first triangle-triangle hit.
-            //        Falls back to brute-force only if a mesh has no OBB-tree built
-            //        (shouldn't happen because BuildIndexes runs over every mesh, but
-            //        a defensive fallback keeps correctness if ObbTrees is cleared
-            //        mid-run, e.g. by an invalidation in Stage 5).
-            ObbTree ta = null, tb = null;
-            lock (ObbTrees)
-            {
-                ObbTrees.TryGetValue(a.Key, out ta);
-                ObbTrees.TryGetValue(b.Key, out tb);
-            }
+            //        G3: ConcurrentDictionary reads are lock-free — no need to
+            //        lock(ObbTrees) here, which was serialising every parallel
+            //        worker through a single mutex.
+            ObbTrees.TryGetValue(a.Key, out var ta);
+            ObbTrees.TryGetValue(b.Key, out var tb);
 
             bool overlap = (ta?.Root != null && tb?.Root != null)
                 ? OverlapDescend(a, ta.Root, b, tb.Root)
