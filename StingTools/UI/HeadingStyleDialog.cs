@@ -384,6 +384,7 @@ namespace StingTools.UI
         public static HeadingStyleResult Show(string currentTier2Style, string currentTier3Style)
         {
             var dlg = new HeadingStyleDialog(currentTier2Style, currentTier3Style);
+            StingWindowHelper.ApplyOwner(dlg);
             dlg.ShowDialog();
             return dlg._result ?? new HeadingStyleResult { Cancelled = true };
         }

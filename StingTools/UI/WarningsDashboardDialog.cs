@@ -534,6 +534,29 @@ namespace StingTools.UI
                             capturedSeverity, capturedCategory, capturedCount);
                     };
 
+                    // Phase 101: double-click a warning row now FIRES the
+                    // action immediately instead of only flagging it and
+                    // waiting for the user to click Run. The action resolves
+                    // real element IDs via doc.GetWarnings() description
+                    // matching inside BIMCoordinationCenterCommand.ProcessAction
+                    // (ZoomToWarning_ pattern), so this works even though the
+                    // tree itself is still populated from the sample-warnings
+                    // catalogue — the lookup is against the live document.
+                    warnItem.MouseDoubleClick += (s, e) =>
+                    {
+                        e.Handled = true;
+                        string encoded = (capturedDesc ?? "").Replace("|", "/");
+                        string op = $"ZoomToWarning_{encoded}";
+                        if (state != null)
+                        {
+                            state.SelectedOperation = op;
+                            if (state.StatusText != null)
+                                state.StatusText.Text = $"Zoom to: {capturedDesc}";
+                        }
+                        else _selectedOperation = op;
+                        BIMCoordinationCenter.ActionDispatcher?.Invoke(op);
+                    };
+
                     // Lazy expand: placeholder child replaced with element IDs on expand
                     warnItem.Items.Add(new TreeViewItem { Header = new TextBlock { Text = "Loading elements...", FontSize = 10, FontStyle = FontStyles.Italic, Foreground = BrFgSubtle } });
                     warnItem.Expanded += (s, e) =>
@@ -552,11 +575,31 @@ namespace StingTools.UI
                                     Header = new TextBlock { Text = $"Element #{capturedEid}", FontSize = 10, Foreground = BrFgSubtle },
                                     Cursor = Cursors.Hand, ToolTip = "Double-click: Select & Zoom | Right-click for options"
                                 };
+                                // Phase 101: double-click an element row now
+                                // FIRES a ZoomToWarning action against the
+                                // parent warning's description — the sample
+                                // tree uses placeholder element IDs that
+                                // don't resolve, so dispatching the parent
+                                // description-level action through
+                                // doc.GetWarnings() selects the real matching
+                                // elements in the model instead of silently
+                                // failing on the fake IDs.
                                 eidItem.MouseDoubleClick += (s2, e2) =>
                                 {
                                     e2.Handled = true;
-                                    if (state != null) { state.SelectedOperation = $"SelectElement_{capturedEid}"; state.StatusText?.Dispatcher.Invoke(() => { if (state.StatusText != null) state.StatusText.Text = $"Select element {capturedEid}. Click Run."; }); }
-                                    else { _selectedOperation = $"SelectElement_{capturedEid}"; }
+                                    string parentDesc = (capturedDesc ?? "").Replace("|", "/");
+                                    string op = $"ZoomToWarning_{parentDesc}";
+                                    if (state != null)
+                                    {
+                                        state.SelectedOperation = op;
+                                        state.StatusText?.Dispatcher.Invoke(() =>
+                                        {
+                                            if (state.StatusText != null)
+                                                state.StatusText.Text = $"Zoom to elements affected by: {capturedDesc}";
+                                        });
+                                    }
+                                    else _selectedOperation = op;
+                                    BIMCoordinationCenter.ActionDispatcher?.Invoke(op);
                                 };
                                 var eidCtx = new ContextMenu();
                                 var eidSelect = new MenuItem { Header = "Select & Zoom in Model" };
@@ -574,19 +617,32 @@ namespace StingTools.UI
 
                     // Right-click context menu on warning item
                     var warnCtx = new ContextMenu();
+                    // Phase 101: the context-menu actions now FIRE the action
+                    // straight away (BCC ActionDispatcher -> ExternalEvent) so
+                    // the user sees immediate feedback. Previously they set
+                    // SelectedOperation and required the user to then click
+                    // "Run Selected Action", which was confusing enough for
+                    // coordinators to report double-click / browse as broken.
                     var ctxSelectModel = new MenuItem { Header = "Select in Model" };
                     ctxSelectModel.Click += (s2, e2) =>
                     {
-                        string op = $"WarningsSelectElements";
-                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = $"Select elements for: {capturedDesc}. Click Run."; }
-                        else { _selectedOperation = op; }
+                        string encoded = (capturedDesc ?? "").Replace("|", "/");
+                        string op = $"ZoomToWarning_{encoded}";
+                        if (state != null)
+                        {
+                            state.SelectedOperation = op;
+                            if (state.StatusText != null) state.StatusText.Text = $"Selecting elements for: {capturedDesc}";
+                        }
+                        else _selectedOperation = op;
+                        BIMCoordinationCenter.ActionDispatcher?.Invoke(op);
                     };
                     var ctxAutoFix = new MenuItem { Header = "Auto-Fix This Warning" };
                     ctxAutoFix.Click += (s2, e2) =>
                     {
                         string op = "AutoFixWarnings";
-                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = $"Auto-Fix: {capturedDesc}. Click Run."; }
-                        else { _selectedOperation = op; }
+                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = $"Auto-fixing: {capturedDesc}"; }
+                        else _selectedOperation = op;
+                        BIMCoordinationCenter.ActionDispatcher?.Invoke(op);
                     };
                     var ctxSuppress = new MenuItem { Header = "Ignore / Suppress" };
                     ctxSuppress.Click += (s2, e2) =>

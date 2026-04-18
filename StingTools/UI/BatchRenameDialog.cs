@@ -743,6 +743,8 @@ namespace StingTools.UI
         public static RenameResult Show(string title, List<RenameItem> items)
         {
             var dlg = new BatchRenameDialog(title, items);
+            // Phase 98: owner set so the dialog stacks above BCC / Revit instead of behind.
+            StingWindowHelper.ApplyOwner(dlg);
             dlg.ShowDialog();
             return dlg._result;
         }

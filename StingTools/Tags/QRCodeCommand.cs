@@ -24,8 +24,18 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uiDoc = commandData.Application.ActiveUIDocument;
-            var doc   = uiDoc.Document;
+            // Phase 98: BCC dispatches into WorkflowEngine.ResolveCommand with
+            // commandData = null, so `commandData.Application.ActiveUIDocument`
+            // used to throw NRE. Use the safe fallback that picks up
+            // StingCommandHandler.CurrentApp when dispatched from modeless WPF.
+            var uiApp = ParameterHelpers.GetApp(commandData);
+            var uiDoc = uiApp?.ActiveUIDocument;
+            if (uiDoc == null)
+            {
+                TaskDialog.Show("STING", "No active document — open a project to generate QR codes.");
+                return Result.Failed;
+            }
+            var doc = uiDoc.Document;
 
             // Determine output folder: _bim_manager/qr/ next to .rvt
             string projectDir = string.IsNullOrEmpty(doc.PathName)

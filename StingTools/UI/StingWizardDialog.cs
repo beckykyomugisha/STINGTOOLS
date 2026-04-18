@@ -175,6 +175,9 @@ namespace StingTools.UI
             if (_pages.Count == 0) return false;
             RebuildStepIndicator();
             NavigateTo(0);
+            // Phase 98: wizard stacks above BCC (when open) or above Revit's
+            // main HWND otherwise, so users can't lose it behind other windows.
+            StingWindowHelper.ApplyOwner(this);
             return base.ShowDialog();
         }
 

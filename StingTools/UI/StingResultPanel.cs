@@ -389,6 +389,9 @@ namespace StingTools.UI
 
             win.Content = root;
             win.KeyDown += (s, e) => { if (e.Key == Key.Escape) win.Close(); };
+            // Phase 98: owner set so the result panel stacks above BCC instead
+            // of getting buried when it's dispatched from a BCC action button.
+            StingWindowHelper.ApplyOwner(win);
             win.ShowDialog();
             return clickedAction;
         }

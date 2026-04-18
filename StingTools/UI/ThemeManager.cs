@@ -19,9 +19,14 @@ namespace StingTools.UI
     /// </summary>
     public static class ThemeManager
     {
-        public static string CurrentTheme { get; private set; } = "Light";
+        // Phase 101: default theme is "Corporate" — the StingTools brand
+        // (navy #1A237E header + orange #E8912D accents) matches the BCC and
+        // Document Management Centre, so the dockable panel opens in the same
+        // house theme the user sees everywhere else. Users can still cycle
+        // with the theme toggle button; the order below starts with Corporate.
+        public static string CurrentTheme { get; private set; } = "Corporate";
 
-        private static readonly string[] ThemeOrder = { "Light", "Warm", "Cool", "Corporate" };
+        private static readonly string[] ThemeOrder = { "Corporate", "Light", "Warm", "Cool" };
 
         /// <summary>
         /// Reference to the host Page/FrameworkElement for direct resource setting.

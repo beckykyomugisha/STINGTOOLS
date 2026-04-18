@@ -252,17 +252,8 @@ namespace StingTools.UI
         {
             var catalog = BuildCatalog();
             var dlg = new DialogWindow(catalog);
-
-            try
-            {
-                var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
-                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ModelCreationDialog: could not set owner: {ex.Message}");
-            }
-
+            // Phase 98: owner picks BCC over Revit main HWND when BCC is open.
+            StingWindowHelper.ApplyOwner(dlg);
             dlg.ShowDialog();
             return dlg.Result;
         }

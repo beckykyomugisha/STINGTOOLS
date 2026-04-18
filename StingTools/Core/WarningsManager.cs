@@ -4152,6 +4152,37 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { StingLog.Warn($"Cross-system correlation: {ex.Message}"); }
 
+                // Phase 101: populate CoordData.Warnings with real WarningRow
+                // data so the Warnings tab Browse / Select tree shows live
+                // warnings with real element IDs. Previously the tree was
+                // hardcoded to a sample string catalogue — double-clicking a
+                // row produced no selection because the element IDs were
+                // placeholders. Now the double-click dispatches
+                // ZoomToWarning_<desc> which resolves real IDs against
+                // doc.GetWarnings() and uses these rows for the element list.
+                try
+                {
+                    coordData.Warnings = new List<UI.BIMCoordinationCenter.WarningRow>();
+                    int rowIdx = 0;
+                    foreach (var cw in warningReport.Warnings.Take(500))
+                    {
+                        var ids = cw.FailingElements?.Select(id => id.Value).ToList()
+                                  ?? new List<long>();
+                        coordData.Warnings.Add(new UI.BIMCoordinationCenter.WarningRow
+                        {
+                            Id          = $"W{rowIdx++:D4}",
+                            Description = cw.Description ?? "(unknown warning)",
+                            Category    = cw.Category.ToString(),
+                            Severity    = cw.Severity.ToString(),
+                            ElementCount= ids.Count,
+                            AutoFixable = cw.CanAutoFix,
+                            FixStrategy = cw.FixStrategy ?? "",
+                            ElementIds  = ids
+                        });
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Warnings list populate: {ex.Message}"); }
+
                 // SLA violation detail
                 try
                 {
@@ -4415,12 +4446,182 @@ namespace StingTools.Core
                     case "SavePermissions":
                         SavePermissionsInline(doc);
                         return;
+
+                    // Phase 96: Project Members tab actions. Previously these only worked via
+                    // the StingCommandHandler path — when BCC dispatched them through its own
+                    // ExternalEvent they fell through DispatchCoordAction and the user saw
+                    // "Action 'SaveProjectMembers' is not handled." Route directly to the BCC
+                    // WPF instance (same target StingCommandHandler uses) so both paths reach
+                    // HandleProjectMembersAction.
+                    case "SaveProjectMembers":
+                    case "AddTeamMember":
+                    case "EditTeamMember":
+                    case "EditMember":
+                    case "RemoveTeamMember":
+                    case "RemoveMember":
+                    case "AddRole":
+                    case "EditRole":
+                    case "DeleteRole":
+                    case "ImportTeamCSV":
+                    {
+                        var bcc = UI.BIMCoordinationCenter.CurrentInstance;
+                        if (bcc != null)
+                        {
+                            // HandleProjectMembersAction expects the canonical action name.
+                            // Normalise EditTeamMember→EditMember / RemoveTeamMember→RemoveMember
+                            // so the switch inside HandleProjectMembersAction only needs one case.
+                            string normalised = action;
+                            if (action == "EditTeamMember") normalised = "EditMember";
+                            else if (action == "RemoveTeamMember") normalised = "RemoveMember";
+                            bcc.HandleProjectMembersAction(normalised);
+                        }
+                        else
+                        {
+                            StingLog.Warn($"BCC action '{action}' dispatched but CurrentInstance is null.");
+                        }
+                        return;
+                    }
                     case "TakeSnapshot":
                         TakeModelSnapshot(doc);
                         return;
+
+                    // Phase 99: inline handlers for the Raise Issue form buttons.
+                    // The StingCommandHandler versions just flag ExtraParams so the
+                    // issue creator knows extra data is attached — we do the same
+                    // here so they work from the BCC ExternalEvent path too.
+                    case "CaptureIssueSnapshot":
+                    {
+                        StingLog.Info("View snapshot captured for issue (from BCC)");
+                        UI.StingCommandHandler.SetExtraParam("IssueSnapshot", "captured");
+                        return;
+                    }
+                    case "AttachIssueLocation":
+                    {
+                        var uidoc = app?.ActiveUIDocument;
+                        string viewName = uidoc?.ActiveView?.Name ?? "Unknown";
+                        UI.StingCommandHandler.SetExtraParam("IssueLocation", $"View: {viewName}");
+                        StingLog.Info($"Issue location attached from BCC: {viewName}");
+                        return;
+                    }
+
+                    // Phase 102: Planscape hub share/notification actions — lightweight
+                    // clipboard/TaskDialog operations that don't need full IExternalCommand
+                    // classes. Previously only wired in StingCommandHandler, which isn't
+                    // on the BCC ExternalEvent path. Now handled here so "Copy Dashboard
+                    // Link", "Email Report", "Teams Message", "WhatsApp Update", "Generate
+                    // QR Link" and "Export HTML Dashboard" fire from the Planscape inline
+                    // panel without producing "Action X is not handled" errors.
+                    case "PlanscapeCopyLink":
+                    {
+                        string projectName = doc?.Title ?? "BIMProject";
+                        string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
+                        string link = $"planscape://dashboard/{projectName}/{timestamp}";
+                        try { System.Windows.Clipboard.SetText(link); } catch { }
+                        TaskDialog.Show("STING — Planscape",
+                            $"Dashboard link copied to clipboard:\n{link}\n\nShare with your team or embed in a QR code.");
+                        return;
+                    }
+                    case "PlanscapeEmail":
+                    {
+                        string projectName = doc?.Title ?? "BIMProject";
+                        string body =
+                            $"Subject: {projectName} — BIM Coordination Update\n\n" +
+                            $"Date: {DateTime.Today:dd MMM yyyy}\n\n" +
+                            "Please review the latest coordination status in Planscape:\n" +
+                            "  - Model health and warnings dashboard\n" +
+                            "  - Open issues and action items\n" +
+                            "  - Deliverables and revisions\n\n" +
+                            "Generated by STING BIM Coordination Center.\n" +
+                            "For the full dashboard, request the HTML export from your BIM Manager.";
+                        try { System.Windows.Clipboard.SetText(body); } catch { }
+                        TaskDialog.Show("STING — Email Report",
+                            "Email draft copied to clipboard.\n\n" +
+                            "Paste into your email client (Outlook, Gmail, etc.). Attach the HTML " +
+                            "dashboard export for the full report.\n\n" +
+                            "Tip: configure SMTP in project_config.json to enable one-click sending.");
+                        return;
+                    }
+                    case "PlanscapeTeams":
+                    {
+                        string projectName = doc?.Title ?? "BIM Project";
+                        string msg =
+                            $"\ud83d\udcca **{projectName} — BIM Coordination Update**\n" +
+                            $"\ud83d\uddd3 {DateTime.Today:dd MMM yyyy}\n\n" +
+                            "Please review the latest coordination status in Planscape:\n" +
+                            "\u2022 Model health and warnings dashboard\n" +
+                            "\u2022 Open issues and action items\n" +
+                            "\u2022 Deliverables tracking\n\n" +
+                            "[View Dashboard] \u2014 Use STING > BCC > Platform > Planscape to export HTML dashboard";
+                        try { System.Windows.Clipboard.SetText(msg); } catch { }
+                        TaskDialog.Show("STING — Teams Message",
+                            "Teams message copied to clipboard.\nPaste into your Microsoft Teams or Slack channel.");
+                        return;
+                    }
+                    case "PlanscapeWhatsApp":
+                    {
+                        string projectName = doc?.Title ?? "BIM Project";
+                        string msg =
+                            $"*{projectName} — BIM Update* \ud83d\udcca\n" +
+                            $"{DateTime.Today:dd/MM/yyyy}\n\n" +
+                            "Coordination status updated. Open issues and action items require attention.\n\n" +
+                            "For full dashboard: Request HTML report from BIM Manager.";
+                        try { System.Windows.Clipboard.SetText(msg); } catch { }
+                        TaskDialog.Show("STING — WhatsApp",
+                            "WhatsApp message copied to clipboard.\nPaste into WhatsApp chat.");
+                        return;
+                    }
+                    case "PlanscapeHTML":
+                    case "PlanscapeExportHTML":
+                    {
+                        // Route the HTML dashboard export through the existing
+                        // dispatch map (registered in actionToCommandTag).
+                        DispatchCoordAction("ExportDashboardHTML", commandData: null);
+                        return;
+                    }
+                    case "PlanscapeDisconnect":
+                    {
+                        try
+                        {
+                            BIMManager.PlanscapeServerClient.Instance.Disconnect();
+                            StingLog.Info("Planscape: disconnected from BCC");
+                        }
+                        catch (Exception ex) { StingLog.Warn($"PlanscapeDisconnect: {ex.Message}"); }
+                        return;
+                    }
+                    case "PlanscapeOpenWebDashboard":
+                    {
+                        try
+                        {
+                            string url = BIMManager.PlanscapeServerClient.Instance.ServerUrl;
+                            if (string.IsNullOrEmpty(url))
+                            {
+                                TaskDialog.Show("STING — Planscape", "Connect to the Planscape server first.");
+                                return;
+                            }
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                                { FileName = url, UseShellExecute = true })?.Dispose();
+                        }
+                        catch (Exception ex) { StingLog.Warn($"PlanscapeOpenWebDashboard: {ex.Message}"); }
+                        return;
+                    }
                     case "EscalateActions":
                         EscalateOverdueActions(doc);
                         return;
+                    // Phase 101: BCC Refresh button (header) and F5 shortcut both
+                    // dispatch "BCCReload". Rebuild CoordData on the Revit API
+                    // thread (this method is called by BCCActionEventHandler
+                    // which is on the API thread) then push the fresh data back
+                    // to the WPF instance via ApplyReloadedData.
+                    case "BCCReload":
+                    {
+                        try
+                        {
+                            var fresh = BuildCoordData(doc);
+                            UI.BIMCoordinationCenter.CurrentInstance?.ApplyReloadedData(fresh);
+                        }
+                        catch (Exception ex) { StingLog.Error("BCCReload failed", ex); }
+                        return;
+                    }
                     case "BCCSnapshot":
                         BCCSnapshotInline(doc);
                         return;
@@ -4953,22 +5154,63 @@ namespace StingTools.Core
             try
             {
                 string descPart = ExtractWarningDescription(warningKey);
-                var warnings = doc.GetWarnings();
                 var ids = new List<ElementId>();
-                foreach (var w in warnings)
+
+                // Phase 103 fix: use the live CoordData.Warnings list that
+                // BuildCoordData populated from WarningsEngine.ScanWarnings
+                // FIRST. That list carries real FailingElement ids resolved
+                // against the current document, so match-by-description
+                // succeeds even when doc.GetWarnings() text punctuation
+                // differs slightly from the tree's rendered version.
+                var bccInstance = UI.BIMCoordinationCenter.CurrentInstance;
+                if (bccInstance != null)
                 {
-                    string desc = w.GetDescriptionText() ?? "";
-                    if (desc.IndexOf(descPart, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        descPart.IndexOf(desc, StringComparison.OrdinalIgnoreCase) >= 0)
+                    var rows = UI.BIMCoordinationCenter.GetLastCoordWarnings();
+                    if (rows != null && rows.Count > 0)
                     {
-                        ids.AddRange(w.GetFailingElements());
-                        ids.AddRange(w.GetAdditionalElements());
+                        // Case-insensitive substring match either direction
+                        foreach (var row in rows)
+                        {
+                            if (row?.Description == null) continue;
+                            string rd = row.Description;
+                            if (rd.IndexOf(descPart, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                descPart.IndexOf(rd, StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                if (row.ElementIds != null)
+                                    foreach (long v in row.ElementIds) ids.Add(new ElementId(v));
+                            }
+                        }
                     }
                 }
+
+                // Fallback: doc.GetWarnings() description match (the old path).
+                // Kept so ribbon callers that don't go through BCC still work.
+                if (ids.Count == 0)
+                {
+                    var warnings = doc.GetWarnings();
+                    foreach (var w in warnings)
+                    {
+                        string desc = w.GetDescriptionText() ?? "";
+                        if (desc.IndexOf(descPart, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            descPart.IndexOf(desc, StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            ids.AddRange(w.GetFailingElements());
+                            ids.AddRange(w.GetAdditionalElements());
+                        }
+                    }
+                }
+
+                // Dedupe (same element can appear in FailingElements + AdditionalElements)
+                ids = ids.GroupBy(id => id.Value).Select(g => g.First()).ToList();
+
                 if (ids.Count > 0)
                     ZoomToElementIn3D(doc, app, string.Join(",", ids.Select(id => id.Value)));
                 else
-                    TaskDialog.Show("STING", "No elements found for this warning.");
+                    TaskDialog.Show("STING",
+                        $"No elements found for the warning:\n\n  \u201C{descPart}\u201D\n\n" +
+                        "This warning may have been auto-resolved, or the affected elements " +
+                        "may have been deleted. Click Refresh on the BCC header to rebuild " +
+                        "the warning list from the current model state.");
             }
             catch (Exception ex) { StingLog.Warn($"ZoomToWarningIn3D: {ex.Message}"); }
         }
@@ -5014,6 +5256,21 @@ namespace StingTools.Core
         /// </summary>
         private static void DispatchCoordAction(string action, ExternalCommandData commandData)
         {
+            // Phase 99: handle pipe-delimited parametric actions before anything else.
+            // BCC forms send "CreateRevision|P04|A|Coordination update" so the
+            // inline Revisions form can pass user-selected ISO code, discipline,
+            // and description straight through to CreateRevisionCommand without
+            // reopening a TaskDialog picker. CreateRevisionCommand reads the full
+            // string from CoordinationCenterCommands.BccPendingAction and parses
+            // its own params, so we set that property and re-dispatch the bare
+            // command tag.
+            if (!string.IsNullOrEmpty(action) && action.Contains("|"))
+            {
+                string head = action.Substring(0, action.IndexOf('|'));
+                BIMManager.CoordinationCenterCommands.BccPendingAction = action;
+                action = head;
+            }
+
             // Map action tags to command tags used by StingCommandHandler / WorkflowEngine
             var actionToCommandTag = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -5097,7 +5354,10 @@ namespace StingTools.Core
 
                 // Permission actions (SavePermissions handled inline in ProcessAction)
                 { "CreateFolders", "CreateFolders" },
-                { "ExportPermissionMatrix", "ExportModelHealth" },
+                // Phase 96: Fix BCC-Perm-01 — was routed to ExportModelHealth (wrong command).
+                // ExportPermissionMatrixCommand now resolvable via WorkflowEngine.ResolveCommand
+                // so it produces the real role/folder CSV matrix expected by BEP auditors.
+                { "ExportPermissionMatrix", "ExportPermissionMatrix" },
                 { "EditUserRole", "ConfigEditor" },
 
                 // 4D/5D extended scheduling commands (dispatched from BCC 4D/5D tab)
