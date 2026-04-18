@@ -18,6 +18,10 @@ namespace StingTools.Core.Clash
     internal sealed class ClashExportContext : IExportContext
     {
         private readonly Document _hostDoc;
+        // rec-5: doc-guid → Document map populated up front by MeshExtractor so
+        // OnElementBegin can resolve category / UniqueId / IfcGuid from the
+        // correct linked document rather than silently falling back to the host.
+        private readonly Dictionary<string, Document> _docByGuid;
         private readonly Stack<Transform> _transformStack = new Stack<Transform>();
         private readonly Stack<string> _docStack = new Stack<string>();
         private readonly Stack<int> _linkInstanceStack = new Stack<int>();
@@ -36,10 +40,17 @@ namespace StingTools.Core.Clash
             new Dictionary<ClashElementKey, ClashMeshBuffer>();
 
         public ClashExportContext(Document hostDoc)
+            : this(hostDoc, null) { }
+
+        public ClashExportContext(Document hostDoc, Dictionary<string, Document> docByGuid)
         {
             _hostDoc = hostDoc;
+            _docByGuid = docByGuid ?? new Dictionary<string, Document>(StringComparer.Ordinal);
+            // Always register the host doc so GetDocFromGuid hits the map.
+            string hostKey = hostDoc.ProjectInformation?.UniqueId ?? hostDoc.PathName ?? "host";
+            if (!_docByGuid.ContainsKey(hostKey)) _docByGuid[hostKey] = hostDoc;
             _transformStack.Push(Transform.Identity);
-            _docStack.Push(hostDoc.ProjectInformation?.UniqueId ?? hostDoc.PathName ?? "host");
+            _docStack.Push(hostKey);
         }
 
         public bool Start()
@@ -211,9 +222,12 @@ namespace StingTools.Core.Clash
 
         private Document GetDocFromGuid(string guid)
         {
-            if (guid == (_hostDoc.ProjectInformation?.UniqueId ?? _hostDoc.PathName ?? "host"))
-                return _hostDoc;
-            // Caller responsibility to resolve linked docs; we return host as safe fallback.
+            // rec-5: Proper linked-doc resolution. _docByGuid is pre-populated by
+            // MeshExtractor.BuildLinkedDocumentMap so every loaded link resolves.
+            // Fall back to host doc only when a guid is genuinely unknown (e.g.
+            // a link that was unloaded after export started).
+            if (!string.IsNullOrEmpty(guid) && _docByGuid.TryGetValue(guid, out var d))
+                return d;
             return _hostDoc;
         }
 
