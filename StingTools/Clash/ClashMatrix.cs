@@ -36,18 +36,69 @@ namespace StingTools.Core.Clash
 
         public static ClashMatrix Default()
         {
+            // rec-18: 40-cell default matrix covering MEP, MEP-vs-structure,
+            // MEP-vs-arch, structure-vs-arch, fire protection, comms/IT, and
+            // equipment access. Projects can override via
+            // data/clash/default_clash_matrix.json.
             return new ClashMatrix
             {
                 Cells =
                 {
-                    new ClashCell { PairId = "DUCT:STR_BEAM", FilterA = "Category=OST_DuctCurves", FilterB = "Category=OST_StructuralFraming", Tolerance = "HARD", Severity = "HIGH", OwnerDiscipline = "MEP", StageGate = "DD" },
-                    new ClashCell { PairId = "PIPE:STR_BEAM", FilterA = "Category=OST_PipeCurves", FilterB = "Category=OST_StructuralFraming", Tolerance = "HARD", Severity = "HIGH", OwnerDiscipline = "MEP", StageGate = "DD" },
-                    new ClashCell { PairId = "PIPE:WALL", FilterA = "Category=OST_PipeCurves", FilterB = "Category=OST_Walls", Tolerance = "HARD", Severity = "MED", OwnerDiscipline = "MEP", StageGate = "CD" },
-                    new ClashCell { PairId = "DUCT:WALL", FilterA = "Category=OST_DuctCurves", FilterB = "Category=OST_Walls", Tolerance = "HARD", Severity = "MED", OwnerDiscipline = "MEP", StageGate = "CD" },
-                    new ClashCell { PairId = "TRAY:DUCT", FilterA = "Category=OST_CableTray", FilterB = "Category=OST_DuctCurves", Tolerance = "CLEARANCE_100", Severity = "MED", OwnerDiscipline = "MEP", StageGate = "CD" },
-                    new ClashCell { PairId = "SPRINKLER:CEILING", FilterA = "Category=OST_Sprinklers", FilterB = "Category=OST_Ceilings", Tolerance = "CLEARANCE_50", Severity = "LOW", OwnerDiscipline = "MEP", StageGate = "CD" },
-                    new ClashCell { PairId = "MEP_HANGER:DUCT", FilterA = "Category=OST_MechanicalEquipment", FilterB = "Category=OST_DuctCurves", Tolerance = "HARD", Severity = "MED", OwnerDiscipline = "MEP", StageGate = "CD" },
-                    new ClashCell { PairId = "STR_COLUMN:ARCH_WALL", FilterA = "Category=OST_StructuralColumns", FilterB = "Category=OST_Walls", Tolerance = "HARD", Severity = "HIGH", OwnerDiscipline = "STR", StageGate = "DD" },
+                    // ── MEP ↔ Structural ────────────────────────────────────
+                    new ClashCell { PairId = "DUCT:STR_BEAM",             FilterA = "Category=OST_DuctCurves",             FilterB = "Category=OST_StructuralFraming",     Tolerance = "HARD",           Severity = "HIGH",     OwnerDiscipline = "MEP", StageGate = "DD" },
+                    new ClashCell { PairId = "PIPE:STR_BEAM",             FilterA = "Category=OST_PipeCurves",             FilterB = "Category=OST_StructuralFraming",     Tolerance = "HARD",           Severity = "HIGH",     OwnerDiscipline = "MEP", StageGate = "DD" },
+                    new ClashCell { PairId = "TRAY:STR_BEAM",             FilterA = "Category=OST_CableTray",              FilterB = "Category=OST_StructuralFraming",     Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "ELE", StageGate = "DD" },
+                    new ClashCell { PairId = "CONDUIT:STR_BEAM",          FilterA = "Category=OST_Conduit",                FilterB = "Category=OST_StructuralFraming",     Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "ELE", StageGate = "DD" },
+                    new ClashCell { PairId = "DUCT:STR_COLUMN",           FilterA = "Category=OST_DuctCurves",             FilterB = "Category=OST_StructuralColumns",     Tolerance = "HARD",           Severity = "HIGH",     OwnerDiscipline = "MEP", StageGate = "DD" },
+                    new ClashCell { PairId = "PIPE:STR_COLUMN",           FilterA = "Category=OST_PipeCurves",             FilterB = "Category=OST_StructuralColumns",     Tolerance = "HARD",           Severity = "HIGH",     OwnerDiscipline = "MEP", StageGate = "DD" },
+                    new ClashCell { PairId = "DUCT:STR_FLOOR",            FilterA = "Category=OST_DuctCurves",             FilterB = "Category=OST_Floors",                Tolerance = "HARD",           Severity = "HIGH",     OwnerDiscipline = "MEP", StageGate = "DD" },
+                    new ClashCell { PairId = "PIPE:STR_FLOOR",            FilterA = "Category=OST_PipeCurves",             FilterB = "Category=OST_Floors",                Tolerance = "HARD",           Severity = "HIGH",     OwnerDiscipline = "MEP", StageGate = "DD" },
+                    new ClashCell { PairId = "STR_FOUNDATION:WALL",       FilterA = "Category=OST_StructuralFoundation",   FilterB = "Category=OST_Walls",                 Tolerance = "HARD",           Severity = "HIGH",     OwnerDiscipline = "STR", StageGate = "DD" },
+
+                    // ── MEP ↔ Architectural ────────────────────────────────
+                    new ClashCell { PairId = "PIPE:WALL",                 FilterA = "Category=OST_PipeCurves",             FilterB = "Category=OST_Walls",                 Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "DUCT:WALL",                 FilterA = "Category=OST_DuctCurves",             FilterB = "Category=OST_Walls",                 Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "TRAY:WALL",                 FilterA = "Category=OST_CableTray",              FilterB = "Category=OST_Walls",                 Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "ELE", StageGate = "CD" },
+                    new ClashCell { PairId = "PIPE:FLOOR",                FilterA = "Category=OST_PipeCurves",             FilterB = "Category=OST_Floors",                Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "DUCT:FLOOR",                FilterA = "Category=OST_DuctCurves",             FilterB = "Category=OST_Floors",                Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "DUCT:CEILING",              FilterA = "Category=OST_DuctCurves",             FilterB = "Category=OST_Ceilings",              Tolerance = "HARD",           Severity = "LOW",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "PIPE:CEILING",              FilterA = "Category=OST_PipeCurves",             FilterB = "Category=OST_Ceilings",              Tolerance = "HARD",           Severity = "LOW",      OwnerDiscipline = "MEP", StageGate = "CD" },
+
+                    // ── Service ↔ Service ──────────────────────────────────
+                    new ClashCell { PairId = "PIPE:PIPE",                 FilterA = "Category=OST_PipeCurves",             FilterB = "Category=OST_PipeCurves",            Tolerance = "CLEARANCE_50",   Severity = "MED",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "DUCT:DUCT",                 FilterA = "Category=OST_DuctCurves",             FilterB = "Category=OST_DuctCurves",            Tolerance = "CLEARANCE_100",  Severity = "MED",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "TRAY:DUCT",                 FilterA = "Category=OST_CableTray",              FilterB = "Category=OST_DuctCurves",            Tolerance = "CLEARANCE_100",  Severity = "MED",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "TRAY:TRAY",                 FilterA = "Category=OST_CableTray",              FilterB = "Category=OST_CableTray",             Tolerance = "CLEARANCE_100",  Severity = "MED",      OwnerDiscipline = "ELE", StageGate = "CD" },
+                    new ClashCell { PairId = "CONDUIT:DUCT",              FilterA = "Category=OST_Conduit",                FilterB = "Category=OST_DuctCurves",            Tolerance = "CLEARANCE_50",   Severity = "LOW",      OwnerDiscipline = "ELE", StageGate = "CD" },
+                    new ClashCell { PairId = "CONDUIT:PIPE",              FilterA = "Category=OST_Conduit",                FilterB = "Category=OST_PipeCurves",            Tolerance = "CLEARANCE_50",   Severity = "LOW",      OwnerDiscipline = "ELE", StageGate = "CD" },
+
+                    // ── Fire protection ────────────────────────────────────
+                    new ClashCell { PairId = "SPRINKLER:CEILING",         FilterA = "Category=OST_Sprinklers",             FilterB = "Category=OST_Ceilings",              Tolerance = "CLEARANCE_50",   Severity = "LOW",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "SPRINKLER:DUCT",            FilterA = "Category=OST_Sprinklers",             FilterB = "Category=OST_DuctCurves",            Tolerance = "CLEARANCE_100",  Severity = "HIGH",     OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "FIREDEV:WALL",              FilterA = "Category=OST_FireAlarmDevices",       FilterB = "Category=OST_Walls",                 Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "ELE", StageGate = "CD" },
+
+                    // ── Equipment access & supports ────────────────────────
+                    new ClashCell { PairId = "MEP_EQPT:DUCT",             FilterA = "Category=OST_MechanicalEquipment",    FilterB = "Category=OST_DuctCurves",            Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "MEP_EQPT:STR_BEAM",         FilterA = "Category=OST_MechanicalEquipment",    FilterB = "Category=OST_StructuralFraming",     Tolerance = "HARD",           Severity = "HIGH",     OwnerDiscipline = "MEP", StageGate = "DD" },
+                    new ClashCell { PairId = "ELC_EQPT:STR_BEAM",         FilterA = "Category=OST_ElectricalEquipment",    FilterB = "Category=OST_StructuralFraming",     Tolerance = "HARD",           Severity = "HIGH",     OwnerDiscipline = "ELE", StageGate = "DD" },
+                    new ClashCell { PairId = "ELC_EQPT:WALL",             FilterA = "Category=OST_ElectricalEquipment",    FilterB = "Category=OST_Walls",                 Tolerance = "CLEARANCE_100",  Severity = "MED",      OwnerDiscipline = "ELE", StageGate = "CD" },
+                    new ClashCell { PairId = "PLUMB_FIX:WALL",            FilterA = "Category=OST_PlumbingFixtures",       FilterB = "Category=OST_Walls",                 Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "AIRTERM:CEILING",           FilterA = "Category=OST_DuctTerminal",           FilterB = "Category=OST_Ceilings",              Tolerance = "CLEARANCE_50",   Severity = "LOW",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "LIGHT:CEILING",             FilterA = "Category=OST_LightingFixtures",       FilterB = "Category=OST_Ceilings",              Tolerance = "CLEARANCE_50",   Severity = "LOW",      OwnerDiscipline = "ELE", StageGate = "CD" },
+
+                    // ── Structural ↔ Architectural ─────────────────────────
+                    new ClashCell { PairId = "STR_COLUMN:ARCH_WALL",      FilterA = "Category=OST_StructuralColumns",      FilterB = "Category=OST_Walls",                 Tolerance = "HARD",           Severity = "HIGH",     OwnerDiscipline = "STR", StageGate = "DD" },
+                    new ClashCell { PairId = "STR_BEAM:CEILING",          FilterA = "Category=OST_StructuralFraming",      FilterB = "Category=OST_Ceilings",              Tolerance = "HARD",           Severity = "MED",      OwnerDiscipline = "ARC", StageGate = "CD" },
+                    new ClashCell { PairId = "STAIR:CEILING",             FilterA = "Category=OST_Stairs",                 FilterB = "Category=OST_Ceilings",              Tolerance = "CLEARANCE_100",  Severity = "MED",      OwnerDiscipline = "ARC", StageGate = "CD" },
+
+                    // ── Comms / IT / security ──────────────────────────────
+                    new ClashCell { PairId = "COMM_DEV:CEILING",          FilterA = "Category=OST_CommunicationDevices",   FilterB = "Category=OST_Ceilings",              Tolerance = "CLEARANCE_50",   Severity = "LOW",      OwnerDiscipline = "ELE", StageGate = "CD" },
+                    new ClashCell { PairId = "DATA_DEV:CEILING",          FilterA = "Category=OST_DataDevices",            FilterB = "Category=OST_Ceilings",              Tolerance = "CLEARANCE_50",   Severity = "LOW",      OwnerDiscipline = "ELE", StageGate = "CD" },
+                    new ClashCell { PairId = "SEC_DEV:WALL",              FilterA = "Category=OST_SecurityDevices",        FilterB = "Category=OST_Walls",                 Tolerance = "HARD",           Severity = "LOW",      OwnerDiscipline = "ELE", StageGate = "CD" },
+
+                    // ── Flex services (fire-rating-critical penetrations) ──
+                    new ClashCell { PairId = "FLEXDUCT:CEILING",          FilterA = "Category=OST_FlexDuctCurves",         FilterB = "Category=OST_Ceilings",              Tolerance = "HARD",           Severity = "LOW",      OwnerDiscipline = "MEP", StageGate = "CD" },
+                    new ClashCell { PairId = "FLEXPIPE:WALL",             FilterA = "Category=OST_FlexPipeCurves",         FilterB = "Category=OST_Walls",                 Tolerance = "HARD",           Severity = "LOW",      OwnerDiscipline = "MEP", StageGate = "CD" },
                 }
             };
         }
