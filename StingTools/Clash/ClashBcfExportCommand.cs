@@ -93,7 +93,23 @@ namespace StingTools.Core.Clash
                     }
                 }
 
-                // Snapshot temp dir: retain for audit; user can clean on demand.
+                // G6: Snapshots now embedded in the ZIP; the temp dir on disk is
+                // a redundant per-run artefact. Without cleanup it accumulates
+                // at ~50 clashes × 100 KB = 5 MB/run, indefinitely.
+                // Best-effort: swallow cleanup failures (file locks etc.) so the
+                // export is still reported success.
+                try
+                {
+                    if (Directory.Exists(snapshotDir))
+                    {
+                        Directory.Delete(snapshotDir, recursive: true);
+                    }
+                }
+                catch (Exception cleanupEx)
+                {
+                    StingLog.Warn($"ClashBcfExport snapshot-dir cleanup: {cleanupEx.Message} (dir: {snapshotDir})");
+                }
+
                 StingLog.Info($"ClashBcfExport: {run.Clashes.Count} topics, {wroteViewpoints} viewpoints, " +
                     $"{wroteSnapshots} snapshots → {bcfPath}");
 
