@@ -107,7 +107,13 @@ namespace StingTools.Core.Clash
                     _meshByEid[elementId] = fresh;
                     // rec-1: Rebuild OBB tree for this element so NarrowPhaseFor can descend.
                     _obbByEid[elementId] = fresh != null ? ObbTree.Build(fresh) : null;
-                    _sweep_Rebuild();   // rebuild; for Stage 6 we will do incremental refit
+                    // rec-9: Incremental sweep-index update. Replaces the prior full
+                    // _sweep_Rebuild() which cost ~50 ms per edit on 50k-element
+                    // models. RBush Delete+Insert is O(log n) each.
+                    if (fresh != null) ActiveSweep.AddOrUpdate(fresh);
+                    else ActiveSweep.Remove(new ClashElementKey(
+                            _doc.ProjectInformation?.UniqueId ?? _doc.PathName ?? "host",
+                            -1, elementId, "", ""));
 
                     // Narrow phase against neighbours.
                     var hits = NarrowPhaseFor(fresh);
@@ -130,10 +136,12 @@ namespace StingTools.Core.Clash
             var result = new LiveClashResult();
             lock (_lock)
             {
-                if (_meshByEid.Remove(elementId))
+                if (_meshByEid.TryGetValue(elementId, out var oldMesh))
                 {
+                    _meshByEid.Remove(elementId);
                     _obbByEid.Remove(elementId);   // rec-1: drop paired OBB tree
-                    _sweep_Rebuild();
+                    // rec-9: O(log n) sweep removal instead of full rebuild.
+                    ActiveSweep.Remove(oldMesh.Key);
                     if (_flaggedIds.Remove(elementId)) result.NewlyCleared.Add(elementId);
                 }
             }
