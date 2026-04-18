@@ -11,8 +11,17 @@ namespace StingTools.Core.Clash
         {
             if (c?.ElementA == null || c.ElementB == null) return null;
             string ca = c.ElementA.Category ?? "", cb = c.ElementB.Category ?? "";
-            // Normalise so the "service" element is always A.
+            // Normalise so the "service" element is always A when one side is
+            // structural and the other isn't. Struct-vs-struct and arch-vs-arch
+            // pairs skip this swap — and for those, each rule below must check
+            // both orderings explicitly (G4 fix). Helper MatchEither(a,b,x,y)
+            // handles the common case of "pattern fires when (ca,cb) matches
+            // (x,y) in either direction".
             if (IsStructural(ca) && !IsStructural(cb)) { var t = ca; ca = cb; cb = t; }
+
+            // G4: Helper — returns true when (ca,cb) equals (x,y) in either order.
+            bool MatchEither(string x, string y) =>
+                (ca == x && cb == y) || (ca == y && cb == x);
 
             float dz = c.AabbMax[2] - c.AabbMin[2];
             float dy = c.AabbMax[1] - c.AabbMin[1];
@@ -92,14 +101,17 @@ namespace StingTools.Core.Clash
             if (ca == "Air Terminals" && cb == "Lighting Fixtures")
                 return "Offset diffuser to next ceiling tile to avoid luminaire overlap.";
 
-            // Structural-to-arch
-            if (ca == "Structural Framing" && cb == "Ceilings")
+            // Structural-to-arch — G4: bidirectional. IsStructural() swap above
+            // only fires when exactly ONE side is structural, so struct↔struct
+            // and arch↔struct pairs where both are in IsStructural (e.g. Floors)
+            // stay in original declaration order. MatchEither catches both.
+            if (MatchEither("Structural Framing", "Ceilings"))
                 return "Lower ceiling or box-out around beam soffit (mind ceiling access requirement).";
-            if (ca == "Structural Columns" && cb == "Floors")
+            if (MatchEither("Structural Columns", "Floors"))
                 return "Verify column head stop correctly matches slab thickness; check for slab punching shear detailing (EC2 §6.4).";
-            if (ca == "Stairs" && cb == "Ceilings")
+            if (MatchEither("Stairs", "Ceilings"))
                 return "Check headroom clearance over stair flight (≥ 2.0 m per BS 5395 / Part K).";
-            if (ca == "Structural Foundations" && cb == "Walls")
+            if (MatchEither("Structural Foundations", "Walls"))
                 return "Align wall centerline with foundation centerline; verify foundation width is wall thickness + 150 mm each side.";
 
             return null;

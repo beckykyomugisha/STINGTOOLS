@@ -66,6 +66,32 @@ namespace StingTools.Clash.Tests
         }
 
         [Fact]
+        public void G4_Column_Floor_Pattern_Fires_In_Both_Orders()
+        {
+            // Both Structural Columns AND Floors are in IsStructural, so the
+            // service-first swap doesn't run. Pre-G4 the rule only fired when
+            // A happened to be the column; post-G4 MatchEither catches both.
+            var c1 = new ClashRecord
+            {
+                ElementA = new ClashElementRecord { Category = "Structural Columns" },
+                ElementB = new ClashElementRecord { Category = "Floors" },
+                AabbMin = new[] { 0f, 0f, 0f }, AabbMax = new[] { 1f, 1f, 1f },
+            };
+            var c2 = new ClashRecord
+            {
+                ElementA = new ClashElementRecord { Category = "Floors" },
+                ElementB = new ClashElementRecord { Category = "Structural Columns" },
+                AabbMin = new[] { 0f, 0f, 0f }, AabbMax = new[] { 1f, 1f, 1f },
+            };
+            var s1 = ResolutionHeuristics.Suggest(c1);
+            var s2 = ResolutionHeuristics.Suggest(c2);
+            Assert.NotNull(s1);
+            Assert.NotNull(s2);
+            Assert.Equal(s1, s2);
+            Assert.Contains("punching shear", s1);
+        }
+
+        [Fact]
         public void Rec12_Fire_Rating_Pattern_Returned()
         {
             // rec-12 new pattern: Pipes-Floors.
