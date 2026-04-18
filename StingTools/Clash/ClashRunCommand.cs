@@ -251,13 +251,17 @@ namespace StingTools.Core.Clash
             if (el == null) return "";
             try
             {
-                // MEP curves expose MEPSystem; FamilyInstance exposes MEPModel.ConnectorManager.Owner.
+                // MEP curves expose MEPSystem directly. H4: removed the dead
+                // `el is Space sp → return ""` branch — Space isn't in any
+                // category LiveClashUpdater watches, and the same empty
+                // string is returned anyway by the bottom fall-through.
                 if (el is MEPCurve mc && mc.MEPSystem != null) return mc.MEPSystem.Name ?? "";
-                if (el is Autodesk.Revit.DB.Mechanical.Space sp) return "";
+                // FamilyInstance MEP elements expose the system via the
+                // "System Name" instance parameter.
                 var p = el.LookupParameter("System Name");
                 if (p != null) return p.AsString() ?? "";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"ReadSystem {el?.Id}: {ex.Message}"); }
             return "";
         }
 
