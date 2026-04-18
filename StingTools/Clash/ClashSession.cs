@@ -33,6 +33,9 @@ namespace StingTools.Core.Clash
         private readonly Document _doc;
         private readonly object _lock = new object();
         private readonly Dictionary<int, ClashMeshBuffer> _meshByEid = new Dictionary<int, ClashMeshBuffer>();
+        // rec-1: Cache OBB trees by element id so the live narrow-phase can descend
+        // rather than brute-force. Rebuilt on RefreshElement, dropped on RemoveElement.
+        private readonly Dictionary<int, ObbTree> _obbByEid = new Dictionary<int, ObbTree>();
         private readonly AabbSweep _sweep = new AabbSweep();
         private ClashMatrix _matrix;
         private ClashRuleEngine _ruleEngine;
@@ -53,10 +56,16 @@ namespace StingTools.Core.Clash
             lock (_lock)
             {
                 _meshByEid.Clear();
+                _obbByEid.Clear();
                 foreach (var kv in all)
                 {
                     if (kv.Key.LinkInstanceElementId == -1)
+                    {
                         _meshByEid[kv.Key.ElementId] = kv.Value;
+                        // rec-1: Pre-build OBB trees during cold init so first tick of
+                        // live-clash doesn't pay the cost. Stage-6 can make this lazy.
+                        _obbByEid[kv.Key.ElementId] = ObbTree.Build(kv.Value);
+                    }
                 }
                 _sweep.GetType();   // keep ref alive
                 _sweep_Rebuild();
@@ -96,6 +105,8 @@ namespace StingTools.Core.Clash
                 lock (_lock)
                 {
                     _meshByEid[elementId] = fresh;
+                    // rec-1: Rebuild OBB tree for this element so NarrowPhaseFor can descend.
+                    _obbByEid[elementId] = fresh != null ? ObbTree.Build(fresh) : null;
                     _sweep_Rebuild();   // rebuild; for Stage 6 we will do incremental refit
 
                     // Narrow phase against neighbours.
@@ -121,6 +132,7 @@ namespace StingTools.Core.Clash
             {
                 if (_meshByEid.Remove(elementId))
                 {
+                    _obbByEid.Remove(elementId);   // rec-1: drop paired OBB tree
                     _sweep_Rebuild();
                     if (_flaggedIds.Remove(elementId)) result.NewlyCleared.Add(elementId);
                 }
@@ -200,6 +212,9 @@ namespace StingTools.Core.Clash
         {
             var hits = new List<ClashHit>();
             if (target == null || target.TriangleCount == 0) return hits;
+            // rec-1: OBB descent when both sides have a tree; falls back to brute
+            //        only when the paired element has no tree yet (first-seen path).
+            _obbByEid.TryGetValue(target.Key.ElementId, out var treeTarget);
             foreach (var other in _meshByEid.Values)
             {
                 if (ReferenceEquals(other, target)) continue;
@@ -207,15 +222,73 @@ namespace StingTools.Core.Clash
                 if (other.MaxY < target.MinY - 0.164f || other.MinY > target.MaxY + 0.164f) continue;
                 if (other.MaxZ < target.MinZ - 0.164f || other.MinZ > target.MaxZ + 0.164f) continue;
 
-                var hit = BruteTest(target, other);
+                _obbByEid.TryGetValue(other.Key.ElementId, out var treeOther);
+
+                var hit = (treeTarget?.Root != null && treeOther?.Root != null)
+                    ? DescendTest(target, treeTarget.Root, other, treeOther.Root)
+                    : BruteTest(target, other);
                 if (hit != null) hits.Add(hit);
             }
             return hits;
         }
 
+        /// <summary>
+        /// rec-1: OBB-tree descent producing a ClashHit on first hit. Mirrors the
+        /// ClashKernel.OverlapDescend algorithm but returns the full ClashHit rather
+        /// than just a bool so the live path can populate centroid + AABB for
+        /// downstream flagging.
+        /// </summary>
+        private static ClashHit DescendTest(ClashMeshBuffer meshA, ObbNode na, ClashMeshBuffer meshB, ObbNode nb)
+        {
+            if (na == null || nb == null) return null;
+            if (na.AabbMax.X < nb.AabbMin.X || na.AabbMin.X > nb.AabbMax.X) return null;
+            if (na.AabbMax.Y < nb.AabbMin.Y || na.AabbMin.Y > nb.AabbMax.Y) return null;
+            if (na.AabbMax.Z < nb.AabbMin.Z || na.AabbMin.Z > nb.AabbMax.Z) return null;
+
+            if (na.IsLeaf && nb.IsLeaf)
+            {
+                for (int ia = 0; ia < na.TriCount; ia++)
+                {
+                    int triA = na.Tris[na.TriStart + ia];
+                    var va0 = GetV(meshA, triA, 0); var va1 = GetV(meshA, triA, 1); var va2 = GetV(meshA, triA, 2);
+                    for (int ib = 0; ib < nb.TriCount; ib++)
+                    {
+                        int triB = nb.Tris[nb.TriStart + ib];
+                        var vb0 = GetV(meshB, triB, 0); var vb1 = GetV(meshB, triB, 1); var vb2 = GetV(meshB, triB, 2);
+                        if (MollerSat.TriTriOverlap(va0, va1, va2, vb0, vb1, vb2))
+                        {
+                            var cen = 0.25f * (va0 + va1 + vb0 + vb1);
+                            return new ClashHit
+                            {
+                                A = meshA.Key, B = meshB.Key,
+                                Centroid = cen,
+                                AabbMin = new Vector3(Math.Max(meshA.MinX, meshB.MinX), Math.Max(meshA.MinY, meshB.MinY), Math.Max(meshA.MinZ, meshB.MinZ)),
+                                AabbMax = new Vector3(Math.Min(meshA.MaxX, meshB.MaxX), Math.Min(meshA.MaxY, meshB.MaxY), Math.Min(meshA.MaxZ, meshB.MaxZ)),
+                                VolumeMm3 = 100f, Kind = "hard", FailureMode = ""
+                            };
+                        }
+                    }
+                }
+                return null;
+            }
+            if (!na.IsLeaf)
+            {
+                var l = DescendTest(meshA, na.Left, meshB, nb); if (l != null) return l;
+                var r = DescendTest(meshA, na.Right, meshB, nb); if (r != null) return r;
+                return null;
+            }
+            else
+            {
+                var l = DescendTest(meshA, na, meshB, nb.Left); if (l != null) return l;
+                var r = DescendTest(meshA, na, meshB, nb.Right); if (r != null) return r;
+                return null;
+            }
+        }
+
         private static ClashHit BruteTest(ClashMeshBuffer a, ClashMeshBuffer b)
         {
-            // Simple AABB-overlap brute pass. Stage 6 replaces with BVH descent.
+            // Simple AABB-overlap brute pass. Retained as rec-1 fallback when OBB
+            // trees aren't cached yet (first-seen element mid-run).
             for (int ia = 0; ia < a.TriangleCount; ia++)
             {
                 var va0 = GetV(a, ia, 0); var va1 = GetV(a, ia, 1); var va2 = GetV(a, ia, 2);
