@@ -111,6 +111,66 @@ namespace StingTools.UI
         // Phase 76: Singleton for modeless BCC
         public static BIMCoordinationCenter CurrentInstance { get; private set; }
 
+        /// <summary>
+        /// Fix for "BCC child UI opens behind BCC instead of on top".
+        ///
+        /// When BCC dispatches an action via DispatchCoordAction → cmd.Execute,
+        /// the command constructs its own WPF Window (list picker, progress
+        /// dialog, result panel, etc.) and calls .Show()/.ShowDialog() directly.
+        /// Those call sites don't reach StingWindowHelper.ApplyOwner, so the
+        /// new window has no Owner — Revit's main HWND then beats it to Z-order
+        /// top and the child disappears behind BCC.
+        ///
+        /// Registering a class-level Loaded handler catches every Window the
+        /// moment WPF finishes laying it out, regardless of which command
+        /// opened it. We can't change Owner after Show (WPF throws), but we
+        /// CAN Topmost-dance to force it above BCC, which is what the user
+        /// actually wants to see.
+        /// </summary>
+        private static bool _windowOwnershipHookRegistered;
+
+        internal static void EnsureWindowOwnershipHook()
+        {
+            if (_windowOwnershipHookRegistered) return;
+            _windowOwnershipHookRegistered = true;
+            try
+            {
+                System.Windows.EventManager.RegisterClassHandler(
+                    typeof(System.Windows.Window),
+                    System.Windows.FrameworkElement.LoadedEvent,
+                    new System.Windows.RoutedEventHandler(OnAnyWindowLoaded));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"EnsureWindowOwnershipHook: {ex.Message}");
+            }
+        }
+
+        private static void OnAnyWindowLoaded(object sender, System.Windows.RoutedEventArgs e)
+        {
+            try
+            {
+                if (!(sender is System.Windows.Window w)) return;
+                if (w is BIMCoordinationCenter) return;
+                var bcc = CurrentInstance;
+                if (bcc == null || !bcc.IsLoaded) return;
+                if (ReferenceEquals(w, bcc)) return;
+                // Don't touch windows that already have a real owner — they're
+                // already parented correctly.
+                if (w.Owner != null) return;
+                // Force above BCC. Topmost-dance is the WPF-in-Revit canonical
+                // pattern; setting .Owner post-Show throws.
+                w.Topmost = true;
+                w.Activate();
+                w.Focus();
+                w.Topmost = false;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"OnAnyWindowLoaded: {ex.Message}");
+            }
+        }
+
         // Phase 76: 4D/5D inline panel area
         private ContentControl _4dPanelArea;
 
@@ -1962,6 +2022,30 @@ namespace StingTools.UI
         private UIElement BuildWarningsTab()
         {
             var state = new WarningsDashboardDialog.WarningsPanelState();
+            // Fix for "warnings remain the same across projects": feed the
+            // per-document WarningReport into the panel state so
+            // BuildBrowseSelectTab can populate its TreeView from
+            // state.Report.RootCauseGroups instead of hardcoded samples.
+            // Prefer the 30-second cache if fresh — avoids a second scan
+            // just after BuildCoordData already warmed it.
+            try
+            {
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (doc != null)
+                {
+                    state.Report = WarningsEngine.GetCachedReport() ?? WarningsEngine.ScanWarnings(doc);
+                    // If RootCauseGroups wasn't populated (some code paths skip
+                    // BuildRootCauseGroups), populate it in place so the tree
+                    // has something to group by.
+                    if (state.Report != null &&
+                        (state.Report.RootCauseGroups == null || state.Report.RootCauseGroups.Count == 0) &&
+                        state.Report.Warnings != null && state.Report.Warnings.Count > 0)
+                    {
+                        WarningsEngine.BuildRootCauseGroups(state.Report);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildWarningsTab report hydrate: {ex.Message}"); }
 
             // ── Root DockPanel ────────────────────────────────────────────
             var dock = new DockPanel { LastChildFill = true, Margin = new Thickness(12, 10, 12, 10) };
@@ -8967,6 +9051,11 @@ namespace StingTools.UI
         /// </summary>
         internal static void Show(CoordData data)
         {
+            // Fix for child dialogs opening behind BCC — register a class-level
+            // Loaded handler that forces any new WPF window above BCC's Z-order.
+            // Idempotent (guarded by _windowOwnershipHookRegistered).
+            EnsureWindowOwnershipHook();
+
             if (CurrentInstance != null)
             {
                 CurrentInstance.Dispatcher.Invoke(() =>
@@ -8979,6 +9068,10 @@ namespace StingTools.UI
                 return;
             }
             var dlg = new BIMCoordinationCenter(data);
+            // Parent BCC to the Revit main window so BCC itself is a proper
+            // Revit child, and its own children inherit a correct HWND chain.
+            try { StingWindowHelper.ApplyOwner(dlg); }
+            catch (Exception ex) { StingLog.Warn($"BCC.Show ApplyOwner: {ex.Message}"); }
             dlg.Show();
             // Bring to front after Revit re-activates (common WPF-in-Revit issue)
             dlg.Dispatcher.BeginInvoke(new Action(() =>

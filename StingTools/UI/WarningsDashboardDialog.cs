@@ -83,6 +83,14 @@ namespace StingTools.UI
             public string SelectedOperation { get; set; }
             public TextBlock StatusText { get; set; }
             public List<int> SelectedElementIds { get; } = new();
+            /// <summary>
+            /// Real per-document WarningReport. When set, BuildBrowseSelectTab
+            /// populates its TreeView from Report.RootCauseGroups instead of
+            /// the hardcoded sample data. Fix for "warnings remain the same
+            /// even when projects change" — prior code ignored the per-project
+            /// report entirely.
+            /// </summary>
+            public Core.WarningReport Report { get; set; }
         }
 
         /// <summary>
@@ -418,49 +426,73 @@ namespace StingTools.UI
                 // Store per-group checkbox list
                 var groupChecks = new List<CheckBox>();
 
-                // Sample warning items — these will be populated at runtime by the dispatch handler
-                // which reads actual Revit warnings. Here we create placeholder structure.
+                // BROWSE-SELECT DATA SOURCE:
+                // Prefer per-document real data via state.Report.RootCauseGroups
+                // (each group has Description/Category/Severity/Count). Fall
+                // back to the hardcoded samples ONLY when the state/report
+                // isn't available (dialog launched without a document context,
+                // e.g. Warnings Dashboard invoked before document open).
+                //
+                // This is the fix for the "warnings remain the same even when
+                // projects change" bug — BCC used to ignore state.Report and
+                // always render these samples.
                 string[] sampleWarnings;
-                switch (severity)
+                if (state?.Report?.RootCauseGroups != null && state.Report.RootCauseGroups.Count > 0)
                 {
-                    case "CRITICAL":
-                        sampleWarnings = new[]
-                        {
-                            "Host has been deleted|Data|1",
-                            "Room is not in a properly enclosed region|Spatial|3",
-                            "Highlighted walls overlap|Geometric|2",
-                            "Elements have duplicate instance values|Data|5"
-                        };
-                        break;
-                    case "HIGH":
-                        sampleWarnings = new[]
-                        {
-                            "Room separation line overlaps another|Spatial|4",
-                            "Duplicate mark values|Data|8",
-                            "Elements are joined but do not intersect|Geometric|2",
-                            "Cannot be placed on non-structural host|Geometric|1",
-                            "Minimum clearance not met|Compliance|3"
-                        };
-                        break;
-                    case "MEDIUM":
-                        sampleWarnings = new[]
-                        {
-                            "Wall is slightly off axis|Geometric|6",
-                            "Room tag is outside of its room|Spatial|2",
-                            "Calculated size not available|MEP|4",
-                            "Model Line is too short|Geometric|3",
-                            "Opening cut is not perpendicular|Geometric|1"
-                        };
-                        break;
-                    default: // LOW
-                        sampleWarnings = new[]
-                        {
-                            "Wall join produces an odd result|Geometric|7",
-                            "Wall is attached|Geometric|2",
-                            "Coincident lines or edges|Geometric|3",
-                            "Not properly associated|Data|1"
-                        };
-                        break;
+                    // Map live RootCauseGroup → the "Desc|Category|Count" shape
+                    // the downstream rendering loop expects. Filter by severity
+                    // so each TreeView group shows its own bucket.
+                    var live = state.Report.RootCauseGroups
+                        .Where(g => string.Equals(g.Severity.ToString(), severity, System.StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(g => g.Count)
+                        .Select(g => $"{g.Description}|{g.Category}|{g.Count}")
+                        .ToArray();
+                    sampleWarnings = live.Length > 0 ? live : new string[0];
+                }
+                else
+                {
+                    // Design-time / no-document fallback.
+                    switch (severity)
+                    {
+                        case "CRITICAL":
+                            sampleWarnings = new[]
+                            {
+                                "Host has been deleted|Data|1",
+                                "Room is not in a properly enclosed region|Spatial|3",
+                                "Highlighted walls overlap|Geometric|2",
+                                "Elements have duplicate instance values|Data|5"
+                            };
+                            break;
+                        case "HIGH":
+                            sampleWarnings = new[]
+                            {
+                                "Room separation line overlaps another|Spatial|4",
+                                "Duplicate mark values|Data|8",
+                                "Elements are joined but do not intersect|Geometric|2",
+                                "Cannot be placed on non-structural host|Geometric|1",
+                                "Minimum clearance not met|Compliance|3"
+                            };
+                            break;
+                        case "MEDIUM":
+                            sampleWarnings = new[]
+                            {
+                                "Wall is slightly off axis|Geometric|6",
+                                "Room tag is outside of its room|Spatial|2",
+                                "Calculated size not available|MEP|4",
+                                "Model Line is too short|Geometric|3",
+                                "Opening cut is not perpendicular|Geometric|1"
+                            };
+                            break;
+                        default: // LOW
+                            sampleWarnings = new[]
+                            {
+                                "Wall join produces an odd result|Geometric|7",
+                                "Wall is attached|Geometric|2",
+                                "Coincident lines or edges|Geometric|3",
+                                "Not properly associated|Data|1"
+                            };
+                            break;
+                    }
                 }
 
                 int groupTotal = 0;

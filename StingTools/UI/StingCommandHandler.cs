@@ -1390,50 +1390,16 @@ namespace StingTools.UI
                     case "ExportPermissionMatrix": RunCommand<BIMManager.ExportPermissionMatrixCommand>(app); break;
                     case "ExportCoordLogXlsx":     RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
 
-                    // Clash Detection (rec-4/7/16)
+                    // Clash Detection (rec-4/7/16). Inline dispatch promoted
+                    // to real IExternalCommand classes in ClashSessionCommands.cs
+                    // so BCC's DispatchCoordAction (which uses
+                    // WorkflowEngine.GetCommandInstance) resolves them the same
+                    // way the dockable-panel path does.
                     case "ClashRun":              RunCommand<Core.Clash.ClashRunCommand>(app); break;
                     case "ClashBcfExport":        RunCommand<Core.Clash.ClashBcfExportCommand>(app); break;
-                    case "ClashSessionRefresh":
-                        try
-                        {
-                            var doc = app?.ActiveUIDocument?.Document;
-                            if (doc != null)
-                            {
-                                Core.Clash.ClashSession.Clear(doc);
-                                Autodesk.Revit.UI.TaskDialog.Show("STING Clash",
-                                    "Live-clash session cleared. It will re-initialise from the active 3D view on the next element edit.");
-                            }
-                        }
-                        catch (Exception ex) { Core.StingLog.Warn($"ClashSessionRefresh: {ex.Message}"); }
-                        break;
-                    case "ClashSessionClear":
-                        try
-                        {
-                            var doc = app?.ActiveUIDocument?.Document;
-                            if (doc != null) Core.Clash.ClashSession.Clear(doc);
-                        }
-                        catch (Exception ex) { Core.StingLog.Warn($"ClashSessionClear: {ex.Message}"); }
-                        break;
-                    case "ClashMatrixEdit":
-                        try
-                        {
-                            var doc = app?.ActiveUIDocument?.Document;
-                            string dllDir = System.IO.Path.GetDirectoryName(
-                                System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "";
-                            string path = System.IO.Path.Combine(dllDir, "data", "clash", "default_clash_matrix.json");
-                            if (System.IO.File.Exists(path))
-                            {
-                                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }); }
-                                catch (Exception ex) { Core.StingLog.Warn($"ClashMatrixEdit start: {ex.Message}"); }
-                            }
-                            else
-                            {
-                                Autodesk.Revit.UI.TaskDialog.Show("STING Clash",
-                                    $"default_clash_matrix.json not found.\n\nExpected: {path}");
-                            }
-                        }
-                        catch (Exception ex) { Core.StingLog.Warn($"ClashMatrixEdit: {ex.Message}"); }
-                        break;
+                    case "ClashSessionRefresh":   RunCommand<Core.Clash.ClashSessionRefreshCommand>(app); break;
+                    case "ClashSessionClear":     RunCommand<Core.Clash.ClashSessionClearCommand>(app); break;
+                    case "ClashMatrixEdit":       RunCommand<Core.Clash.ClashMatrixEditCommand>(app); break;
 
                     // Warnings Manager (Phase 46)
                     case "WarningsDashboard": RunCommand<Core.WarningsDashboardCommand>(app); break;
