@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;   // ElementSet — IExternalCommand.Execute signature
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
