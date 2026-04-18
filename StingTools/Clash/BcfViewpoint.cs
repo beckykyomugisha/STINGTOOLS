@@ -36,15 +36,30 @@ namespace StingTools.Core.Clash
         public List<(string IfcGuid, string ColorHex)> Colors = new List<(string, string)>();
         public string SnapshotFileName;    // e.g. "snapshot.png"
 
+        // rec-14: BCF 2.1 / 3.0 viewpoints are SPECIFIED IN METRES
+        // (https://github.com/buildingSMART/BCF-XML/tree/release_2_1/Documentation).
+        // Revit internal coordinates are feet. All ClashRecord coord fields
+        // (AabbMin/AabbMax/Centroid) are also feet because they come from
+        // System.Numerics.Vector3 copied straight out of the Revit geometry
+        // pipeline. Convert once on construction of the builder so every
+        // downstream write (camera, clipping planes, snapshot pad) is in
+        // metres without per-write scaling.
+        private const float FeetToMetres = 0.3048f;
+
         public static BcfViewpointBuilder FromClash(ClashRecord c)
         {
             var b = new BcfViewpointBuilder();
-            var cen = new Vector3(c.Centroid[0], c.Centroid[1], c.Centroid[2]);
+            // feet → metres for all coords.
+            var cen = new Vector3(
+                c.Centroid[0] * FeetToMetres,
+                c.Centroid[1] * FeetToMetres,
+                c.Centroid[2] * FeetToMetres);
             var size = new Vector3(
-                c.AabbMax[0] - c.AabbMin[0],
-                c.AabbMax[1] - c.AabbMin[1],
-                c.AabbMax[2] - c.AabbMin[2]);
+                (c.AabbMax[0] - c.AabbMin[0]) * FeetToMetres,
+                (c.AabbMax[1] - c.AabbMin[1]) * FeetToMetres,
+                (c.AabbMax[2] - c.AabbMin[2]) * FeetToMetres);
             float diag = size.Length();
+            // Offset is in metres now; 2 m fallback when diag is tiny (sub-metre clashes).
             var offset = new Vector3(1, 1, 0.5f) * (diag * 1.3f + 2f);
             b.Camera = new BcfViewpointCamera
             {
@@ -54,10 +69,16 @@ namespace StingTools.Core.Clash
                 FieldOfView = 45f,
                 AspectRatio = 1.33f
             };
-            // Six clipping planes around a 500 mm-padded section box.
-            float pad = 0.5f;   // TODO: feet vs metres — BCF is metres, caller must convert
-            var mn = new Vector3(c.AabbMin[0] - pad, c.AabbMin[1] - pad, c.AabbMin[2] - pad);
-            var mx = new Vector3(c.AabbMax[0] + pad, c.AabbMax[1] + pad, c.AabbMax[2] + pad);
+            // Six clipping planes around a 500 mm-padded section box (all in metres).
+            float pad = 0.5f;   // 0.5 metre pad = 500 mm — correct BCF unit
+            var mn = new Vector3(
+                c.AabbMin[0] * FeetToMetres - pad,
+                c.AabbMin[1] * FeetToMetres - pad,
+                c.AabbMin[2] * FeetToMetres - pad);
+            var mx = new Vector3(
+                c.AabbMax[0] * FeetToMetres + pad,
+                c.AabbMax[1] * FeetToMetres + pad,
+                c.AabbMax[2] * FeetToMetres + pad);
             b.ClippingPlanes.Add(new BcfClippingPlane { Location = mn, Direction = new Vector3(-1, 0, 0) });
             b.ClippingPlanes.Add(new BcfClippingPlane { Location = mx, Direction = new Vector3( 1, 0, 0) });
             b.ClippingPlanes.Add(new BcfClippingPlane { Location = mn, Direction = new Vector3( 0,-1, 0) });
