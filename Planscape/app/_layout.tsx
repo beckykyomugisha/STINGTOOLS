@@ -7,6 +7,7 @@ import { crashReporter } from '@/services/crashReporter';
 import { notificationTapRouter } from '@/services/notificationTapRouter';
 import { initI18n } from '@/i18n';
 import { markBackgrounded, challengeIfDue } from '@/services/biometricLock';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -21,6 +22,11 @@ export default function RootLayout() {
     // NEW-INT-04 — on refresh-token failure, apiFetch emits this event and we
     // force-navigate to the login screen so the user isn't stuck with silent 401s.
     const unsubSession = onSessionExpired(() => {
+      // Phase 96 — drop any cached server data so the next user on the same
+      // device sees fresh tenant-scoped content after re-login.
+      import('@/api/endpoints').then(({ clearProjectsCache }) => clearProjectsCache());
+      import('@/stores/notificationStore').then(({ useNotificationStore }) =>
+        useNotificationStore.getState().clear());
       setIsAuthenticated(false);
       router.replace('/login');
     });
@@ -67,12 +73,12 @@ export default function RootLayout() {
   if (!isReady) return null;
 
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="login" />
         <Stack.Screen name="(tabs)" />
       </Stack>
-    </>
+    </ErrorBoundary>
   );
 }

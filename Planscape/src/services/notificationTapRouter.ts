@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { crashReporter } from './crashReporter';
+import { useNotificationStore } from '@/stores/notificationStore';
 
 interface RouterShape {
   push: (path: string) => void;
@@ -22,9 +23,30 @@ export const notificationTapRouter = {
         const projectId = data.projectId as string | undefined;
         const issueId = data.issueId as string | undefined;
 
-        if (type.startsWith('ISSUE') && projectId) {
-          // Issues tab — list filters/highlight via querystring (issues.tsx can read params later)
-          router.push(`/(tabs)/issues?projectId=${projectId}${issueId ? `&issueId=${issueId}` : ''}`);
+        // Phase 96 — tapping a notification means the user has seen it, so
+        // decrement the unread counter. The foreground receiver
+        // (notificationService) incremented it on delivery.
+        const feature = type.startsWith('ISSUE') ? 'issues'
+          : type.startsWith('COMPLIANCE') ? 'dashboard'
+          : type.startsWith('DOCUMENT') ? 'documents'
+          : 'issues';
+        useNotificationStore.getState().decrement(feature);
+
+        if (type.startsWith('ISSUE')) {
+          // Phase 96 — prefer direct navigation to the detail screen when we
+          // know which issue the notification is about. Falls back to the list
+          // when only projectId is known (e.g. "N new issues on Project X").
+          // issues.tsx also auto-forwards ?issueId=... to the detail screen
+          // so this handles notifications from older server builds too.
+          if (issueId) {
+            // Phase 96 — include projectId so issue-detail can skip the
+            // O(n) probe across every project the user has access to.
+            router.push(`/issue-detail?id=${issueId}${projectId ? `&projectId=${projectId}` : ''}`);
+          } else if (projectId) {
+            router.push(`/(tabs)/issues?projectId=${projectId}`);
+          } else {
+            router.push('/(tabs)/issues');
+          }
           return;
         }
         if (type.startsWith('COMPLIANCE') && projectId) {

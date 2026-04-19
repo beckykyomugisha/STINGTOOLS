@@ -8,7 +8,10 @@ public class BimIssue
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ProjectId { get; set; }
     public string IssueCode { get; set; } = ""; // e.g., RFI-0001, NCR-0003, SI-0012
-    public string Type { get; set; } = "RFI"; // RFI, NCR, SI, TQ, DESIGN, SAFETY, CLASH
+    // Phase 96 — WORKFLOW_REQ added for mobile "Request workflow run" flow.
+    // The Revit plugin's BCC Issues tab filters on this type and surfaces a
+    // "Run Preset" action instead of the normal issue detail panel.
+    public string Type { get; set; } = "RFI"; // RFI, NCR, SI, TQ, DESIGN, SAFETY, CLASH, WORKFLOW_REQ
     public string Title { get; set; } = "";
     public string? Description { get; set; }
     public string Priority { get; set; } = "MEDIUM"; // CRITICAL, HIGH, MEDIUM, LOW

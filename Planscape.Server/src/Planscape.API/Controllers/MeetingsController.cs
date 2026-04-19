@@ -126,6 +126,11 @@ public class MeetingsController : ControllerBase
             .Select(a => new
             {
                 a.Id, a.Description, a.Assignee, a.DueDate, a.Status, a.LinkedIssueId,
+                // Phase 96 — mobile needs MeetingId to call PUT .../actions/{id}
+                // without re-fetching the parent meeting. Previously only
+                // MeetingTitle was projected which meant the mobile tick-off
+                // action silently failed because the route required a meetingId.
+                MeetingId = a.MeetingId,
                 MeetingTitle = a.Meeting!.Title,
                 IsOverdue = a.DueDate.HasValue && a.DueDate < DateTime.UtcNow
             })

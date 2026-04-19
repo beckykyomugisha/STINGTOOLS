@@ -43,14 +43,17 @@ import {
   getAttachmentThumbnailUrl,
   uploadIssueAttachment,
   listProjects,
+  updateIssue,
+  listProjectMembers,
 } from '@/api/endpoints';
 import { apiFetch, getToken } from '@/api/client';
-import type { BimIssue, IssueAttachment, Project } from '@/types/api';
+import type { BimIssue, IssueAttachment, Project, ProjectMember } from '@/types/api';
 import { theme, getPriorityColor } from '@/utils/theme';
-import { imageService, CapturedImage } from '@/services/imageService';
+import { imageService } from '@/services/imageService';
 import { locationService } from '@/services/locationService';
-import { enqueue } from '@/utils/offlineQueue';
+import { enqueue, onSyncComplete } from '@/utils/offlineQueue';
 import { crashReporter } from '@/services/crashReporter';
+import { useAuthStore } from '@/stores/authStore';
 
 interface GalleryEntry {
   id: string;
@@ -60,7 +63,11 @@ interface GalleryEntry {
 }
 
 export default function IssueDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // Phase 96 — accept optional projectId so the notification router (or any
+  // screen that already knows the project) can skip the O(n) probe across
+  // every project the user has access to. Large orgs routinely have 20+
+  // projects; probing each one serially produced a multi-second load time.
+  const { id, projectId: paramProjectId } = useLocalSearchParams<{ id: string; projectId?: string }>();
 
   const [issue, setIssue] = useState<BimIssue | null>(null);
   const [project, setProject] = useState<Project | null>(null);
@@ -70,29 +77,60 @@ export default function IssueDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+
+  const authUserId = useAuthStore((s) => s.userId);
 
   const loadDetail = useCallback(async () => {
     if (!id) return;
     try {
       setError(null);
-      // Two-hop fetch: we don't know the projectId without the issue, and
-      // we need the project object for the 3D viewer URL (code, not id).
-      const allProjects = await listProjects();
-      for (const p of allProjects) {
-        try {
-          const fetched = await apiFetch<BimIssue>(
-            `/api/projects/${p.id}/issues/${id}`
-          );
-          if (fetched) {
-            setIssue(fetched);
-            setProject(p);
-            break;
+
+      // Phase 96 fast-path: caller supplied the projectId, so skip the probe
+      // entirely. notificationTapRouter always has it; scanner deep-links
+      // always have it; only the legacy /issues/[id].tsx route without
+      // projectId falls back to the scan below.
+      if (paramProjectId) {
+        const allProjects = await listProjects();
+        const match = allProjects.find((p) => p.id === paramProjectId);
+        if (match) {
+          try {
+            const fetched = await apiFetch<BimIssue>(`/api/projects/${match.id}/issues/${id}`);
+            if (fetched) {
+              setIssue(fetched);
+              setProject(match);
+              return;
+            }
+          } catch (inner) {
+            // Fall through to the full-scan below if the hint was stale
+            crashReporter.warn('issue-detail.tsx:loadDetail.paramProjectIdMiss', {
+              projectId: paramProjectId, err: String(inner),
+            });
           }
-        } catch (inner) {
-          // 404 on wrong project — continue probing. Any non-404 surfaces below.
-          const msg = inner instanceof Error ? inner.message : String(inner);
-          if (!msg.includes('HTTP 404')) throw inner;
+        }
+      }
+
+      // Fallback — probe each project until we hit (worst case O(n) HTTP calls).
+      // Bounded to 3 concurrent requests via Promise.all so a 20-project user
+      // doesn't wait for serial round-trips.
+      const allProjects = await listProjects();
+      for (let i = 0; i < allProjects.length; i += 3) {
+        const batch = allProjects.slice(i, i + 3);
+        const results = await Promise.all(batch.map(async (p) => {
+          try {
+            const fetched = await apiFetch<BimIssue>(`/api/projects/${p.id}/issues/${id}`);
+            return fetched ? { p, fetched } : null;
+          } catch {
+            return null;
+          }
+        }));
+        const hit = results.find((r) => r !== null);
+        if (hit) {
+          setIssue(hit.fetched);
+          setProject(hit.p);
+          return;
         }
       }
     } catch (err) {
@@ -101,7 +139,7 @@ export default function IssueDetailScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id]);
+  }, [id, paramProjectId]);
 
   const loadAttachments = useCallback(async (projectId: string, issueId: string) => {
     try {
@@ -136,6 +174,39 @@ export default function IssueDetailScreen() {
     }
   }, [issue, project, loadAttachments]);
 
+  /**
+   * Phase 96 — look up the current user's project role so action gating can
+   * hide edit affordances from read-only members. Falls back silently if the
+   * endpoint 403s — treating "unknown role" as "member" (least privilege).
+   */
+  useEffect(() => {
+    (async () => {
+      if (!project || !authUserId) return;
+      try {
+        const members = await listProjectMembers(project.id);
+        const mine = members.find((m) => m.userId === authUserId);
+        if (mine) setCurrentUserRole(mine.projectRole);
+      } catch (err) {
+        crashReporter.warn('issue-detail.tsx:loadRole', { e: String(err) });
+      }
+    })();
+  }, [project, authUserId]);
+
+  /**
+   * Phase 96 — refresh the attachment gallery when the offline queue finishes
+   * a drain. Without this hook the LOCAL-tagged optimistic tiles would remain
+   * stale until the user manually pulled-to-refresh.
+   */
+  useEffect(() => {
+    if (!issue || !project) return;
+    const unsub = onSyncComplete((result) => {
+      if (result.succeeded > 0) {
+        loadAttachments(project.id, issue.id);
+      }
+    });
+    return unsub;
+  }, [issue, project, loadAttachments]);
+
   async function onRefresh() {
     setRefreshing(true);
     await loadDetail();
@@ -146,12 +217,27 @@ export default function IssueDetailScreen() {
    * in-app browser, pointed at this issue's project. Uses expo-web-browser's
    * Chrome Custom Tabs on Android and SFSafariViewController on iOS — no
    * new native module required.
+   *
+   * Phase 96 — when the issue has model anchor fields (modelElementGuid,
+   * modelX/Y/Z), append them as query params so the viewer can zoom to the
+   * element on load. xeokit viewer reads ?element=<guid> to select+frame
+   * a specific entity and ?camera=<x>,<y>,<z> to position the camera.
    */
   async function openIn3D() {
-    if (!project) return;
+    if (!project || !issue) return;
     try {
       const base = await _getBaseUrl();
-      const url = `${base}/viewer/index.html?model=${encodeURIComponent(project.code)}.xkt`;
+      const params = new URLSearchParams();
+      params.set('model', `${project.code}.xkt`);
+      if (issue.modelElementGuid) params.set('element', issue.modelElementGuid);
+      if (typeof issue.modelX === 'number' && typeof issue.modelY === 'number' && typeof issue.modelZ === 'number') {
+        params.set('camera', `${issue.modelX},${issue.modelY},${issue.modelZ}`);
+      }
+      if (issue.elementIds) params.set('highlight', issue.elementIds);
+      // Always fit-zoom so the coordinator isn't dumped at origin when the
+      // viewer opens and the element is off-screen.
+      params.set('zoom', 'fit');
+      const url = `${base}/viewer/index.html?${params.toString()}`;
       await WebBrowser.openBrowserAsync(url, {
         toolbarColor: theme.colors.primary,
         controlsColor: theme.colors.accent,
@@ -159,6 +245,60 @@ export default function IssueDetailScreen() {
       });
     } catch (err) {
       Alert.alert('Viewer unavailable', err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  /**
+   * Phase 96 — role-gated status transition. Any member can advance an issue
+   * they are assigned to; OPEN→CLOSED jumps require coordinator+ roles to
+   * prevent rank-and-file users from silently closing NCRs without resolution.
+   * Returns `true` if the role can perform the transition.
+   */
+  function canTransition(from: string, to: string): boolean {
+    const role = (currentUserRole ?? '').toLowerCase();
+    const isCoordinator = role === 'admin' || role === 'owner'
+      || role === 'coordinator' || role === 'manager' || role === 'bim_manager'
+      || role === 'bim manager';
+    // Anyone can progress through the normal funnel
+    if (from === 'OPEN' && to === 'IN_PROGRESS') return true;
+    if (from === 'IN_PROGRESS' && to === 'RESOLVED') return true;
+    // Re-opening a closed issue is safe — doesn't destroy data
+    if ((from === 'CLOSED' || from === 'RESOLVED') && to === 'OPEN') return true;
+    // Only coordinators can skip steps or close issues
+    return isCoordinator;
+  }
+
+  async function transitionTo(newStatus: BimIssue['status']) {
+    if (!issue || !project || transitioning) return;
+    if (!canTransition(issue.status, newStatus)) {
+      Alert.alert(
+        'Permission denied',
+        `Your project role (${currentUserRole ?? 'unknown'}) cannot make this transition. Ask a BIM Coordinator to close or reassign this issue.`,
+      );
+      return;
+    }
+    setTransitioning(true);
+    try {
+      const net = await NetInfo.fetch();
+      const updates: Partial<BimIssue> = { status: newStatus };
+      if (newStatus === 'RESOLVED') updates.resolvedAt = new Date().toISOString();
+      if (net.isConnected) {
+        const updated = await updateIssue(project.id, issue.id, updates);
+        setIssue(updated);
+      } else {
+        await enqueue('UPDATE_ISSUE', {
+          projectId: project.id,
+          issueId: issue.id,
+          updates,
+        });
+        // Optimistic UI so the user sees the change immediately
+        setIssue({ ...issue, ...updates, updatedAt: new Date().toISOString() } as BimIssue);
+        Alert.alert('Queued', 'Status change saved offline — will sync next time you are online.');
+      }
+    } catch (err) {
+      Alert.alert('Update failed', err instanceof Error ? err.message : String(err));
+    } finally {
+      setTransitioning(false);
     }
   }
 
@@ -210,30 +350,62 @@ export default function IssueDetailScreen() {
       const fileName = compressed.fileName ?? `photo-${Date.now()}.jpg`;
       const mimeType = compressed.type ?? 'image/jpeg';
 
-      if (net.isConnected) {
-        await uploadIssueAttachment({
-          projectId: project.id,
-          issueId: issue.id,
-          uri: compressed.uri,
-          fileName,
-          contentType: mimeType,
-          latitude: loc?.latitude,
-          longitude: loc?.longitude,
-        });
-        await loadAttachments(project.id, issue.id);
-      } else {
-        // Offline — queue for replay. The scheduler will flush ATTACH_PHOTO
-        // actions next time the app detects connectivity.
+      // Phase 96 — Wi-Fi awareness. If the user is on a metered cellular
+      // connection AND the compressed file is over 5MB, give them the choice
+      // of waiting for Wi-Fi (queue) or proceeding anyway.
+      const decision = await imageService.classifyUpload(compressed.fileSize);
+
+      async function queueForLater(): Promise<void> {
         await enqueue('ATTACH_PHOTO', {
-          projectId: project.id,
-          issueId: issue.id,
+          projectId: project!.id,
+          issueId: issue!.id,
           localUri: compressed.uri,
           fileName,
           mimeType,
           latitude: loc?.latitude,
           longitude: loc?.longitude,
         });
+      }
+
+      async function uploadNow(): Promise<void> {
+        await uploadIssueAttachment({
+          projectId: project!.id,
+          issueId: issue!.id,
+          uri: compressed.uri,
+          fileName,
+          contentType: mimeType,
+          latitude: loc?.latitude,
+          longitude: loc?.longitude,
+        });
+        await loadAttachments(project!.id, issue!.id);
+      }
+
+      if (!net.isConnected) {
+        await queueForLater();
         Alert.alert('Queued', 'Photo saved offline — will upload next time you are online.');
+      } else if (decision.reason === 'blocked_cellular') {
+        // Let the coordinator decide — on a £10k-per-minute site that photo
+        // may be urgent enough to warrant the mobile data cost.
+        Alert.alert(
+          'Large photo on cellular',
+          `This photo is ${decision.sizeMB.toFixed(1)} MB and you are on mobile data. Save it to sync on Wi-Fi, or upload now?`,
+          [
+            { text: 'Wait for Wi-Fi', onPress: async () => {
+              await queueForLater();
+              Alert.alert('Queued', 'Will upload automatically when Wi-Fi is available.');
+            } },
+            { text: 'Upload now', onPress: async () => {
+              try { await uploadNow(); }
+              catch (e) { Alert.alert('Upload failed', e instanceof Error ? e.message : String(e)); }
+            } },
+            { text: 'Cancel', style: 'cancel', onPress: () => {
+              // Strip the optimistic tile we added above
+              setGallery((prev) => prev.filter((g) => g.id !== localId));
+            } },
+          ],
+        );
+      } else {
+        await uploadNow();
       }
     } catch (err) {
       Alert.alert('Upload failed', err instanceof Error ? err.message : String(err));
@@ -313,6 +485,33 @@ export default function IssueDetailScreen() {
           <Field label="Revision" value={issue.revision || '—'} />
           <Field label="Created" value={formatDate(issue.createdAt)} />
           <Field label="Updated" value={formatDate(issue.updatedAt)} />
+        </View>
+
+        {/* Phase 96 — status transition bar. Hidden on CLOSED unless the
+            coordinator wants to re-open. Buttons disabled in-flight to
+            prevent double-submit. Wifi-aware: the underlying transitionTo
+            queues offline when disconnected. */}
+        <View style={styles.transitionBar}>
+          <Text style={styles.transitionLabel}>Advance to:</Text>
+          <View style={styles.transitionButtons}>
+            {issue.status === 'OPEN' && (
+              <TransitionButton label="In Progress" color={theme.colors.warning}
+                disabled={transitioning} onPress={() => transitionTo('IN_PROGRESS')} />
+            )}
+            {(issue.status === 'OPEN' || issue.status === 'IN_PROGRESS') && (
+              <TransitionButton label="Resolved" color={theme.colors.success}
+                disabled={transitioning} onPress={() => transitionTo('RESOLVED')} />
+            )}
+            {issue.status === 'RESOLVED' && (
+              <TransitionButton label="Close" color={theme.colors.disabled}
+                disabled={transitioning} onPress={() => transitionTo('CLOSED')} />
+            )}
+            {(issue.status === 'CLOSED' || issue.status === 'RESOLVED') && (
+              <TransitionButton label="Re-open" color={theme.colors.danger}
+                disabled={transitioning} onPress={() => transitionTo('OPEN')} />
+            )}
+            {transitioning && <ActivityIndicator color={theme.colors.accent} size="small" />}
+          </View>
         </View>
 
         {/* Action bar */}
@@ -400,6 +599,22 @@ function Field({ label, value }: { label: string; value: string }) {
       <Text style={styles.fieldLabel}>{label}</Text>
       <Text style={styles.fieldValue}>{value}</Text>
     </View>
+  );
+}
+
+function TransitionButton({
+  label, color, disabled, onPress,
+}: { label: string; color: string; disabled: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      style={[styles.transitionButton, { borderColor: color, backgroundColor: color + '18' }, disabled && { opacity: 0.5 }]}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={`Move issue to ${label}`}
+    >
+      <Text style={[styles.transitionButtonText, { color }]}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -532,6 +747,36 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
 
+  transitionBar: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  transitionLabel: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  transitionButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  transitionButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs + 2,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1.5,
+  },
+  transitionButtonText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
+  },
   actionBar: {
     flexDirection: 'row',
     gap: theme.spacing.sm,

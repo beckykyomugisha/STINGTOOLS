@@ -4,6 +4,31 @@ import type { OfflineAction } from '@/types/api';
 
 const QUEUE_KEY = 'planscape_offline_queue';
 const LAST_SYNC_KEY = 'planscape_last_sync';
+const FAILED_KEY = 'planscape_offline_failed';
+
+/**
+ * Phase 96 — offline queue now stamps every action with an `idempotencyKey`
+ * (UUID-ish) sent as `X-Idempotency-Key` / body `idempotencyKey` so the server
+ * can dedup replays safely. Failed actions move to a side-queue with retry
+ * metadata instead of being dropped or blocking the whole FIFO. Subscribers
+ * can listen for sync-completion broadcasts via `onSyncComplete()` so screens
+ * (issue-detail gallery, documents list) refresh the moment queued work lands.
+ */
+
+type SyncListener = (result: SyncResult) => void;
+const _listeners = new Set<SyncListener>();
+
+/** Subscribe to sync completion events. Returns an unsubscribe function. */
+export function onSyncComplete(listener: SyncListener): () => void {
+  _listeners.add(listener);
+  return () => { _listeners.delete(listener); };
+}
+
+function emitSyncComplete(result: SyncResult): void {
+  for (const l of Array.from(_listeners)) {
+    try { l(result); } catch { /* one bad listener doesn't poison the rest */ }
+  }
+}
 
 /** NEW-INFO-08 — Persist the last successful drain timestamp. */
 export async function getLastSyncAt(): Promise<Date | null> {
@@ -32,6 +57,43 @@ async function saveQueue(queue: OfflineAction[]): Promise<void> {
   await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 }
 
+/** Load the failed-actions side-queue. */
+export async function loadFailedQueue(): Promise<OfflineAction[]> {
+  const raw = await AsyncStorage.getItem(FAILED_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw) as OfflineAction[]; } catch { return []; }
+}
+
+async function saveFailedQueue(queue: OfflineAction[]): Promise<void> {
+  await AsyncStorage.setItem(FAILED_KEY, JSON.stringify(queue));
+}
+
+/** Requeue a failed action for another drain attempt. */
+export async function retryFailedAction(id: string): Promise<void> {
+  const failed = await loadFailedQueue();
+  const target = failed.find(a => a.id === id);
+  if (!target) return;
+  target.synced = false;
+  target.retryCount = 0;
+  target.lastError = undefined;
+  const live = await loadQueue();
+  live.push(target);
+  await saveQueue(live);
+  await saveFailedQueue(failed.filter(a => a.id !== id));
+}
+
+/** Drop a failed action permanently. */
+export async function discardFailedAction(id: string): Promise<void> {
+  const failed = await loadFailedQueue();
+  await saveFailedQueue(failed.filter(a => a.id !== id));
+}
+
+function makeIdempotencyKey(): string {
+  // RFC 4122-ish — not cryptographic, just unique enough to dedup server-side.
+  const rand = () => Math.random().toString(16).slice(2, 10);
+  return `${Date.now().toString(16)}-${rand()}-${rand()}`;
+}
+
 /** Enqueue an offline action. Returns the created action. */
 export async function enqueue(
   type: OfflineAction['type'],
@@ -40,9 +102,10 @@ export async function enqueue(
   const action: OfflineAction = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     type,
-    payload,
+    payload: { ...payload, idempotencyKey: payload.idempotencyKey ?? makeIdempotencyKey() },
     createdAt: new Date().toISOString(),
     synced: false,
+    retryCount: 0,
   };
 
   const queue = await loadQueue();
@@ -63,9 +126,20 @@ export async function pendingCount(): Promise<number> {
   return queue.filter((a) => !a.synced).length;
 }
 
+/** Return count of permanently-failed actions (moved to side-queue). */
+export async function failedCount(): Promise<number> {
+  const failed = await loadFailedQueue();
+  return failed.length;
+}
+
 /**
  * Replay a single action through the live API.
  * Throws on network / server error so the caller can decide retry policy.
+ *
+ * Idempotency: every payload carries an `idempotencyKey` that the server
+ * inspects to dedup replays. When the network drops mid-write (server succeeded
+ * but client never saw the 2xx), the next replay hits the same key and the
+ * server returns the original record instead of double-creating.
  */
 async function replayAction(action: OfflineAction): Promise<void> {
   const p = action.payload;
@@ -74,7 +148,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
     case 'CREATE_ISSUE':
       await createIssue(
         p.projectId as string,
-        p.issue as Record<string, unknown>
+        { ...(p.issue as Record<string, unknown>), idempotencyKey: p.idempotencyKey }
       );
       break;
 
@@ -82,7 +156,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
       await updateIssue(
         p.projectId as string,
         p.issueId as string,
-        p.updates as Record<string, unknown>
+        { ...(p.updates as Record<string, unknown>), idempotencyKey: p.idempotencyKey }
       );
       break;
 
@@ -106,6 +180,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
         contentType: (p.mimeType as string) ?? 'image/jpeg',
         latitude: p.latitude as number | undefined,
         longitude: p.longitude as number | undefined,
+        idempotencyKey: p.idempotencyKey as string | undefined,
       });
       break;
   }
@@ -115,42 +190,79 @@ export interface SyncResult {
   total: number;
   succeeded: number;
   failed: number;
+  moved: number;
+  conflicts: number;
 }
+
+const MAX_RETRIES_PER_ACTION = 3;
 
 /**
  * Attempt to sync all unsynced actions in FIFO order.
- * Successfully synced actions are marked `synced: true`.
- * On first failure the sync stops (preserves ordering guarantees).
+ * Phase 96 — each action gets up to MAX_RETRIES_PER_ACTION shots in the live
+ * queue. On transient failure (network) we stop the drain but keep the action
+ * in the live queue for the next sync. On repeated failure or permanent error
+ * (400/403 — invalid payload, forbidden) we MOVE the action to the failed
+ * side-queue so the next drain isn't blocked forever by a poison-pill item.
+ *
+ * Successfully synced actions are dropped from storage.
+ * Sync broadcasts to `onSyncComplete` subscribers so dependent screens refresh.
  */
 export async function syncQueue(): Promise<SyncResult> {
   const queue = await loadQueue();
-  const result: SyncResult = { total: 0, succeeded: 0, failed: 0 };
+  const failed = await loadFailedQueue();
+  const result: SyncResult = { total: 0, succeeded: 0, failed: 0, moved: 0, conflicts: 0 };
 
   const pending = queue.filter((a) => !a.synced);
   result.total = pending.length;
 
-  for (const action of pending) {
+  for (let i = 0; i < pending.length; i++) {
+    const action = pending[i];
     try {
       await replayAction(action);
       action.synced = true;
       result.succeeded++;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      action.retryCount = (action.retryCount ?? 0) + 1;
+      action.lastError = msg;
+
+      // Permanent errors — move to failed side-queue immediately rather than
+      // retry. 4xx (except 408/429) indicate the client payload is the problem
+      // so retrying will never succeed.
+      const isPermanent = /HTTP 4(0[0-79]|1[013-9]|2[013-9])/.test(msg)
+        || /HTTP 40[0137]/.test(msg); // 400, 401, 403, 407
+      const isConflict = /HTTP 409/.test(msg);
+      if (isConflict) result.conflicts++;
+
+      if (isPermanent || (action.retryCount >= MAX_RETRIES_PER_ACTION)) {
+        failed.push(action);
+        action.synced = true; // tombstone so it gets dropped from live queue
+        result.moved++;
+      }
       result.failed++;
-      break; // stop on first failure to preserve ordering
+      // Stop the drain on the first failure to preserve FIFO ordering within
+      // the live queue. The poison-pill action has already been moved to the
+      // failed side-queue above, so the next drain won't get blocked by it.
+      break;
     }
   }
 
-  // Persist updated sync flags, drop fully synced actions
+  // Persist updated sync flags, drop fully synced actions (including tombstones).
   await saveQueue(queue.filter((a) => !a.synced));
+  await saveFailedQueue(failed);
   if (result.succeeded > 0 || result.total === 0) {
-    // Record a successful drain even if there was nothing to do —
-    // "tried, server reachable, nothing to send" is still a successful sync.
     await markSyncedNow();
   }
+  emitSyncComplete(result);
   return result;
 }
 
 /** Clear all queued actions (synced and unsynced). */
 export async function clearQueue(): Promise<void> {
   await AsyncStorage.removeItem(QUEUE_KEY);
+}
+
+/** Clear the failed side-queue — BIM coordinator should review first. */
+export async function clearFailedQueue(): Promise<void> {
+  await AsyncStorage.removeItem(FAILED_KEY);
 }
