@@ -287,6 +287,19 @@ namespace StingTools.Model
         public HashSet<string> SelectedLayers { get; set; } = new();
 
         /// <summary>
+        /// Phase-78: Active DWG conversion config (set at start of RunFullPipelineWithConfig).
+        /// When non-null, wall/beam detection reads Min/Max thickness, parallel dot tolerance
+        /// and spatial-index flags from this config instead of hardcoded defaults.
+        /// </summary>
+        public DWGConversionConfig CurrentConfig { get; set; }
+
+        /// <summary>
+        /// Phase-78: Running totals for opening detection + rejected-pair counters.
+        /// Populated by detectors and surfaced on StructuralModelResult.
+        /// </summary>
+        public int LastWallsRejectedByThickness { get; set; }
+
+        /// <summary>
         /// Endpoint tolerance in feet. Configurable per DWG scale.
         /// Default 0.016 ft ≈ 5mm (appropriate for 1:100 scale).
         /// </summary>
@@ -1125,11 +1138,21 @@ namespace StingTools.Model
         public List<DetectedWall> DetectStructuralWalls(List<ExtractedLine> allLines)
         {
             var walls = new List<DetectedWall>();
-            const double parallelTol = 0.05; // ~3° tolerance
-            const double minThickFt = 150 * Units.MmToFeet;
-            const double maxThickFt = 500 * Units.MmToFeet;
-            const double minLengthFt = 500 * Units.MmToFeet;
+            // Phase-78: pick up EaseBit-style knobs from CurrentConfig when set,
+            // otherwise fall back to conservative hardcoded defaults.
+            var cfg = CurrentConfig;
+            // parallelTol = 1 - dot threshold → smaller value ⇒ stricter parallelism.
+            double parallelDot = cfg != null
+                ? Math.Max(0.9, Math.Min(1.0, cfg.ParallelDotTolerance))
+                : 0.95;
+            double parallelTol = 1.0 - parallelDot;
+            double minThickFt = (cfg?.MinWallThicknessMm ?? 150) * Units.MmToFeet;
+            double maxThickFt = (cfg?.MaxWallThicknessMm ?? 500) * Units.MmToFeet;
+            double gapCapFt = (cfg?.ParallelLineToleranceMm ?? 500) * Units.MmToFeet;
+            if (maxThickFt > gapCapFt) maxThickFt = gapCapFt; // gap cap always wins
+            double minLengthFt = 500 * Units.MmToFeet;
             const double overlapRatio = 0.4; // 40% longitudinal overlap required
+            int rejectedByThickness = 0;
 
             var wallLines = allLines.Where(l =>
             {
@@ -1197,7 +1220,15 @@ namespace StingTools.Model
                         var diff = lineB.Start - lineA.Start;
                         var proj = diff - dirA * diff.DotProduct(dirA);
                         double perpDist = proj.GetLength();
-                        if (perpDist < minThickFt || perpDist > maxThickFt) continue;
+                        if (perpDist < minThickFt || perpDist > maxThickFt)
+                        {
+                            // Only count as "rejected" when the pair was close enough
+                            // that we would otherwise have investigated it. Very far
+                            // pairs aren't really a rejection — just a non-pair.
+                            if (perpDist > 0.001 && perpDist < gapCapFt * 1.5)
+                                rejectedByThickness++;
+                            continue;
+                        }
 
                         // Longitudinal overlap check
                         double projAS = dirA.DotProduct(lineA.Start);
@@ -1248,6 +1279,8 @@ namespace StingTools.Model
                 }
             }
 
+            // Phase-78: expose rejection counter for the summary / wizard feedback.
+            LastWallsRejectedByThickness = rejectedByThickness;
             return walls;
         }
 
@@ -1736,9 +1769,80 @@ namespace StingTools.Model
 
                 // Apply user layer selection to pipeline
                 SelectedLayers = config.SelectedLayers;
+                // Phase-78: expose the config to detection methods so they can pick up
+                // min/max wall thickness, parallel dot tolerance and spatial-index flags.
+                CurrentConfig = config;
+                LastWallsRejectedByThickness = 0;
+
+                // Phase-78: optionally explode nested DWG block references BEFORE
+                // extraction so geometry hidden inside blocks is surfaced onto its host
+                // layer. Delegates to StructuralDWGEnhancements.ExplodeHelper.
+                if (config.ExplodeOnImport && importInstance != null)
+                {
+                    try
+                    {
+                        int exploded = StructuralDWGEnhancements.ExplodeHelper
+                            .ExplodeInPlace(_doc, importInstance);
+                        StingLog.Info($"  Exploded {exploded} nested blocks before extraction");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Explode-on-import failed: {ex.Message}");
+                        totalResult.Warnings.Add($"Explode-on-import failed: {ex.Message}");
+                    }
+                }
+
                 var extraction = ExtractStructuralGeometry(importInstance);
                 _extraction = extraction;
                 StingLog.Info($"  Extraction: {extraction.Summary}");
+
+                // Phase-78: DRY-RUN gate. Extraction has run, so we know how many
+                // walls/beams/columns/slabs/foundations/grids WOULD be created. Report
+                // those counts, stamp the result as a dry-run, and bail BEFORE any
+                // transaction opens.
+                if (config.DryRun)
+                {
+                    sw.Stop();
+                    totalResult.Duration = sw.Elapsed;
+                    totalResult.WasDryRun = true;
+                    totalResult.WallsRejectedByThickness = LastWallsRejectedByThickness;
+
+                    // Dry-run counters — populate from extraction without creating elements.
+                    totalResult.ColumnsCreated = extraction.Circles.Count + extraction.Rectangles.Count;
+                    totalResult.BeamsCreated = extraction.BeamLines.Count;
+                    totalResult.WallsCreated = extraction.Walls.Count;
+                    totalResult.SlabsCreated = extraction.SlabBoundaries.Count;
+                    totalResult.FootingsCreated = extraction.FoundationBlocks.Count;
+
+                    // Opening candidates from the detected walls (no Revit writes).
+                    if (config.DetectOpenings)
+                    {
+                        try
+                        {
+                            totalResult.OpeningsDetected =
+                                StructuralDWGEnhancements.OpeningDetector
+                                    .CountCandidateOpenings(extraction, config);
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Dry-run opening count failed: {ex.Message}");
+                        }
+                    }
+
+                    totalResult.Summary =
+                        $"DRY RUN — would create " +
+                        $"{totalResult.WallsCreated} walls, " +
+                        $"{totalResult.ColumnsCreated} columns, " +
+                        $"{totalResult.BeamsCreated} beams, " +
+                        $"{totalResult.SlabsCreated} slabs, " +
+                        $"{totalResult.FootingsCreated} foundations" +
+                        (totalResult.OpeningsDetected > 0
+                            ? $" + {totalResult.OpeningsDetected} openings"
+                            : "") +
+                        $"  ({sw.Elapsed.TotalSeconds:F1}s, no elements written)";
+                    StingLog.Info($"StructuralCADPipeline: {totalResult.Summary}");
+                    return totalResult;
+                }
 
                 // Resolve levels
                 var resolver = new ModelFamilyResolver(_doc);
@@ -1920,6 +2024,37 @@ namespace StingTools.Model
                         StingLog.Info($"  Repeated structural layout to {levelsRepeated} additional levels");
                 }
 
+                // Phase-78: Roll up rejection counter from wall detector.
+                totalResult.WallsRejectedByThickness = LastWallsRejectedByThickness;
+
+                // Phase-78: Opening detection — scan created walls for door/window-sized
+                // gaps on the wall layer and cut openings via StructuralDWGEnhancements.
+                if (config.DetectOpenings && totalResult.WallsCreated > 0)
+                {
+                    try
+                    {
+                        var wallIds = totalResult.CreatedIds
+                            .Select(id => _doc.GetElement(id))
+                            .OfType<Wall>()
+                            .Select(w => w.Id)
+                            .ToList();
+                        var openRes = StructuralDWGEnhancements.OpeningDetector.DetectAndCut(
+                            _doc, extraction, wallIds, config);
+                        totalResult.OpeningsDetected = openRes.Detected;
+                        totalResult.OpeningsCreated = openRes.Created;
+                        totalResult.CreatedIds.AddRange(openRes.CreatedIds);
+                        if (openRes.Warnings.Count > 0)
+                            totalResult.Warnings.AddRange(openRes.Warnings);
+                        StingLog.Info(
+                            $"  Openings: {openRes.Detected} detected, {openRes.Created} cut");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Opening detection failed: {ex.Message}");
+                        totalResult.Warnings.Add($"Opening detection failed: {ex.Message}");
+                    }
+                }
+
                 // Post-pipeline connectivity audit
                 if (totalResult.TotalCreated > 0)
                 {
@@ -1963,10 +2098,14 @@ namespace StingTools.Model
                 if (totalResult.WallsCreated > 0) parts.Add($"{totalResult.WallsCreated} walls");
                 if (totalResult.SlabsCreated > 0) parts.Add($"{totalResult.SlabsCreated} slabs");
                 if (totalResult.FootingsCreated > 0) parts.Add($"{totalResult.FootingsCreated} foundations");
+                if (totalResult.OpeningsCreated > 0)
+                    parts.Add($"{totalResult.OpeningsCreated} openings");
 
                 totalResult.Summary = parts.Count > 0
                     ? $"Created {string.Join(", ", parts)} from DWG in {sw.Elapsed.TotalSeconds:F1}s"
                     : "No structural elements created — check layer names and selection";
+                if (totalResult.WallsRejectedByThickness > 0)
+                    totalResult.Summary += $"  ({totalResult.WallsRejectedByThickness} wall pairs rejected — outside min/max thickness)";
 
                 StingLog.Info($"StructuralCADPipeline: {totalResult.Summary}");
             }
@@ -1975,6 +2114,12 @@ namespace StingTools.Model
                 StingLog.Error("StructuralCADPipeline enhanced pipeline failed", ex);
                 totalResult.Success = false;
                 totalResult.Summary = $"Pipeline failed: {ex.Message}";
+            }
+            finally
+            {
+                // Phase-78: Always clear the config reference so it doesn't bleed
+                // between invocations (e.g. two wizard runs in the same session).
+                CurrentConfig = null;
             }
 
             return totalResult;

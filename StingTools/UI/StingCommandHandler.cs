@@ -1187,8 +1187,13 @@ namespace StingTools.UI
                     case "StrCADPreview": RunCommand<Model.StrCADPreviewCommand>(app); break;
                     case "StrRecommendGrid": RunCommand<Model.StrRecommendGridCommand>(app); break;
                     case "StrCADWizard": RunCommand<Model.StrCADWizardCommand>(app); break;
-                    case "StructuralDWGWizard": RunCommand<Model.StructuralDWGWizardCommand>(app); break;
-                    case "QuickStructuralDWG": RunCommand<Model.QuickStructuralDWGCommand>(app); break;
+                    // Phase-78 note: 7-page stepped wizard removed — use StrCADWizard (legacy single-page CAD wizard) instead.
+                    case "DWGDryRunPreview": RunCommand<Model.DWGDryRunPreviewCommand>(app); break;
+                    case "DWGExplodeImports": RunCommand<Model.DWGExplodeImportsCommand>(app); break;
+                    case "DWGDetectOpenings": RunCommand<Model.DWGDetectOpeningsCommand>(app); break;
+                    case "DWGInteractivePickWall": RunCommand<Model.DWGInteractivePickWallCommand>(app); break;
+                    case "DWGInteractivePickColumn": RunCommand<Model.DWGInteractivePickColumnCommand>(app); break;
+                    case "DWGInteractivePickBeam": RunCommand<Model.DWGInteractivePickBeamCommand>(app); break;
                     case "StrCheckPrerequisites": RunCommand<Model.StrCheckPrerequisitesCommand>(app); break;
                     case "StrBrowseTypeCatalog": RunCommand<Model.StrBrowseTypeCatalogCommand>(app); break;
                     case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;

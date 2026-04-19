@@ -537,6 +537,12 @@ namespace StingTools.Model
         private CheckBox _chkBeamsOnWalls, _chkBeamsConnectSlabs;
         private CheckBox _chkColumnsStopAtSoffit, _chkStructuralWall;
 
+        // Phase-78 EaseBit detection controls
+        private CheckBox _chkDryRun, _chkExplodeOnImport, _chkDetectOpenings, _chkUseSpatialIndex;
+        private TextBox _txtMinWallThickness, _txtMaxWallThickness, _txtParallelDot;
+        private TextBox _txtParallelGap, _txtEndpointTol;
+        private TextBox _txtMinOpeningWidth, _txtMaxOpeningWidth;
+
         // Tagging
         private CheckBox _chkAutoTag, _chkAutoSeqNumbers;
         private TextBox _txtTagPrefix;
@@ -671,6 +677,7 @@ namespace StingTools.Model
             content.Children.Add(BuildSection2_ElementLayerMapping());
             content.Children.Add(BuildSection3_LevelsAndProperties());
             content.Children.Add(BuildSection4_ConstructionLogic());
+            content.Children.Add(BuildSectionEaseBitDetection());
             content.Children.Add(BuildSection5_Numbering());
 
             scrollViewer.Content = content;
@@ -1153,6 +1160,118 @@ namespace StingTools.Model
 
             stack.Children.Add(grid);
             return section;
+        }
+
+        // ── Section 4b: EaseBit-style detection knobs ──────────────────
+        // Phase 78. Surfaces the EaseBit-inspired config knobs that were
+        // previously only editable via project_config.json or code. The row
+        // layout mirrors Section 3 so the wizard reads consistently.
+
+        private FrameworkElement BuildSectionEaseBitDetection()
+        {
+            var section = MakeSection("DETECTION — EaseBit-style controls");
+            var stack = (StackPanel)((Border)section).Child;
+
+            // Top row: three toggle checkboxes (Dry-Run, Explode, Detect Openings)
+            var toggleRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 2, 0, 6),
+            };
+            _chkDryRun = new CheckBox
+            {
+                Content = "Dry-run (report only, no elements created)",
+                IsChecked = false, Margin = new Thickness(0, 0, 16, 0), FontSize = 11,
+                ToolTip = "Runs the extraction + detection passes and reports the counts " +
+                    "without creating any Revit elements. Lets you sanity-check layer " +
+                    "mapping before committing to the full run.",
+            };
+            _chkExplodeOnImport = new CheckBox
+            {
+                Content = "Explode DWG blocks before extraction",
+                IsChecked = false, Margin = new Thickness(0, 0, 16, 0), FontSize = 11,
+                ToolTip = "Fully explodes nested DWG block references so geometry " +
+                    "hidden inside blocks surfaces onto its host layer. Useful when " +
+                    "the source DWG nests walls/columns inside xref blocks.",
+            };
+            _chkDetectOpenings = new CheckBox
+            {
+                Content = "Detect door/window openings in walls",
+                IsChecked = false, Margin = new Thickness(0, 0, 16, 0), FontSize = 11,
+                ToolTip = "Scans the DWG for door/window/opening blocks that fall on " +
+                    "created walls and cuts rectangular voids through those walls.",
+            };
+            _chkUseSpatialIndex = new CheckBox
+            {
+                Content = "Use spatial index (faster on >500 lines)",
+                IsChecked = true, FontSize = 11,
+                ToolTip = "Uses a uniform grid spatial index instead of O(n²) nested " +
+                    "loops for parallel-pair detection. Always safe to leave on.",
+            };
+            toggleRow.Children.Add(_chkDryRun);
+            toggleRow.Children.Add(_chkExplodeOnImport);
+            toggleRow.Children.Add(_chkDetectOpenings);
+            toggleRow.Children.Add(_chkUseSpatialIndex);
+            stack.Children.Add(toggleRow);
+
+            // Knob grid — two columns of label/value pairs.
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            for (int i = 0; i < 4; i++)
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int i = 0; i < 4; i++)
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            AddKnobRow(grid, 0, 0, "Min wall thickness (mm):", out _txtMinWallThickness, "50",
+                "Parallel line pairs closer than this are treated as false positives " +
+                "(dimension chains, construction lines). Pairs below this distance " +
+                "are counted in the rejected total on the result.");
+            AddKnobRow(grid, 0, 2, "Max wall thickness (mm):", out _txtMaxWallThickness, "500",
+                "Parallel line pairs farther than this are never treated as a single " +
+                "wall — prevents accidental pairing across a corridor.");
+
+            AddKnobRow(grid, 1, 0, "Parallel dot tolerance:", out _txtParallelDot, "0.98",
+                "Dot-product threshold for the parallel-line check. 0.98 ≈ ±11°, " +
+                "0.995 ≈ ±5.7°. Lower values accept more lines as 'parallel'.");
+            AddKnobRow(grid, 1, 2, "Parallel max gap (mm):", out _txtParallelGap, "500",
+                "Global hard cap on the measured parallel gap. Always wins over " +
+                "Max wall thickness when the two disagree.");
+
+            AddKnobRow(grid, 2, 0, "Endpoint tolerance (mm):", out _txtEndpointTol, "5",
+                "Two line endpoints within this distance are treated as the same " +
+                "vertex for merge/join operations.");
+            AddKnobRow(grid, 2, 2, "Min opening width (mm):", out _txtMinOpeningWidth, "400",
+                "Minimum gap along a wall to count as an opening. Smaller gaps are " +
+                "ignored.");
+
+            AddKnobRow(grid, 3, 0, "Max opening width (mm):", out _txtMaxOpeningWidth, "3000",
+                "Maximum gap along a wall to count as an opening. Larger gaps are " +
+                "assumed to be two separate wall segments rather than one wall with a hole.");
+
+            stack.Children.Add(grid);
+            return section;
+        }
+
+        /// <summary>Inserts a labelled TextBox into the knob grid at (row, col).</summary>
+        private void AddKnobRow(Grid grid, int row, int col, string label,
+            out TextBox tb, string defaultVal, string tooltip)
+        {
+            var lbl = new TextBlock
+            {
+                Text = label, FontSize = 11, Margin = new Thickness(0, 3, 6, 2),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = tooltip,
+            };
+            Grid.SetRow(lbl, row); Grid.SetColumn(lbl, col);
+            grid.Children.Add(lbl);
+
+            tb = new TextBox
+            {
+                Text = defaultVal, Width = 80, HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 2, 0, 2),
+                ToolTip = tooltip,
+            };
+            Grid.SetRow(tb, row); Grid.SetColumn(tb, col + 1);
+            grid.Children.Add(tb);
         }
 
         // ── Section 5: Smart Numbering ──────────────────────────────────
@@ -1674,6 +1793,26 @@ namespace StingTools.Model
             config.ColumnsStopAtSoffit = _chkColumnsStopAtSoffit?.IsChecked == true;
             config.CreateStructuralWalls = _chkStructuralWall?.IsChecked == true;
 
+            // Phase-78 EaseBit detection knobs
+            config.DryRun = _chkDryRun?.IsChecked == true;
+            config.ExplodeOnImport = _chkExplodeOnImport?.IsChecked == true;
+            config.DetectOpenings = _chkDetectOpenings?.IsChecked == true;
+            config.UseSpatialIndex = _chkUseSpatialIndex?.IsChecked != false;
+            if (double.TryParse(_txtMinWallThickness?.Text, out double minWT) && minWT > 0)
+                config.MinWallThicknessMm = minWT;
+            if (double.TryParse(_txtMaxWallThickness?.Text, out double maxWT) && maxWT > 0)
+                config.MaxWallThicknessMm = maxWT;
+            if (double.TryParse(_txtParallelDot?.Text, out double pDot) && pDot > 0)
+                config.ParallelDotTolerance = pDot;
+            if (double.TryParse(_txtParallelGap?.Text, out double pGap) && pGap > 0)
+                config.ParallelLineToleranceMm = pGap;
+            if (double.TryParse(_txtEndpointTol?.Text, out double eTol) && eTol > 0)
+                config.EndpointToleranceMm = eTol;
+            if (double.TryParse(_txtMinOpeningWidth?.Text, out double minOW) && minOW > 0)
+                config.MinOpeningWidthMm = minOW;
+            if (double.TryParse(_txtMaxOpeningWidth?.Text, out double maxOW) && maxOW > 0)
+                config.MaxOpeningWidthMm = maxOW;
+
             // Tagging
             config.AutoTag = _chkAutoTag?.IsChecked == true;
             config.AutoSeqNumbers = _chkAutoSeqNumbers?.IsChecked == true;
@@ -1887,6 +2026,49 @@ namespace StingTools.Model
         public bool ColumnsStopAtSoffit { get; set; } = true;
         public bool CreateStructuralWalls { get; set; } = true;
         public bool AutoJoinWalls { get; set; } = true;
+
+        // ── Phase-78 EaseBit-style detection knobs ──
+        /// <summary>Run detection pipeline only — report counts without creating elements.</summary>
+        public bool DryRun { get; set; } = false;
+
+        /// <summary>Minimum detected wall thickness (mm). Parallel line pairs closer than this
+        /// are treated as false positives (dimension chains, construction lines).</summary>
+        public double MinWallThicknessMm { get; set; } = 50;
+
+        /// <summary>Maximum detected wall thickness (mm). Parallel line pairs farther than this
+        /// are rejected to prevent accidental pairing with walls on the opposite side of a corridor.</summary>
+        public double MaxWallThicknessMm { get; set; } = 500;
+
+        /// <summary>Dot-product threshold for the parallel-line check.
+        /// 0.98 ≈ ±11°, 0.995 ≈ ±5.7°. Lower values accept more lines as "parallel".</summary>
+        public double ParallelDotTolerance { get; set; } = 0.98;
+
+        /// <summary>Parallel-line max gap (mm). Pairs with perpendicular distance greater than
+        /// this are never considered as a wall pair regardless of the min/max wall thickness.</summary>
+        public double ParallelLineToleranceMm { get; set; } = 500;
+
+        /// <summary>Endpoint match tolerance (mm). Two line endpoints within this distance
+        /// are treated as the same vertex for merge/join operations.</summary>
+        public double EndpointToleranceMm { get; set; } = 5;
+
+        /// <summary>Use grid-based spatial index instead of O(n²) nested loops for
+        /// parallel-pair and rectangle detection. Recommended for DWGs with many entities.</summary>
+        public bool UseSpatialIndex { get; set; } = true;
+
+        /// <summary>Detect openings (doors, windows, generic cut-outs) as gaps in collinear
+        /// wall-layer segments after the main wall pipeline completes.</summary>
+        public bool DetectOpenings { get; set; } = false;
+
+        /// <summary>Minimum gap along a wall to count as an opening (mm).</summary>
+        public double MinOpeningWidthMm { get; set; } = 400;
+
+        /// <summary>Maximum gap along a wall to count as an opening (mm). Larger gaps are
+        /// assumed to be two separate wall segments rather than one continuous wall with a hole.</summary>
+        public double MaxOpeningWidthMm { get; set; } = 3000;
+
+        /// <summary>Explode nested DWG block references before layer extraction. Surfaces
+        /// geometry hidden inside blocks onto its host layer.</summary>
+        public bool ExplodeOnImport { get; set; } = false;
 
         // Tagging
         public bool AutoTag { get; set; } = true;
