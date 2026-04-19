@@ -3938,6 +3938,79 @@
                                 </ScrollViewer>
                             </TabItem>
 
+                            <!-- ─── Categories Tab ─── -->
+                            <!-- Per-category include/skip selector. Drives TagConfig.CategorySkipList,
+                                 which RunFullPipeline (ParameterHelpers.cs) consults to skip elements
+                                 from AutoTag, BatchTag, TagAndCombine, and the IUpdater auto-tagger. -->
+                            <TabItem Header="Categories">
+                                <DockPanel Margin="4">
+                                    <TextBlock DockPanel.Dock="Top" Text="CATEGORIES TO TAG" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,2"/>
+                                    <TextBlock DockPanel.Dock="Top" Text="Tick categories to include in batch tagging. Untick to skip them in AutoTag, BatchTag, Tag&amp;Combine, and real-time auto-tagging." FontSize="9" Foreground="#666" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                                    <!-- Search filter -->
+                                    <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="44"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Filter:" FontSize="9" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="txtCategoryFilter" Height="22" FontSize="10" VerticalContentAlignment="Center"
+                                                 ToolTip="Type to filter the category list (case-insensitive substring match)"
+                                                 TextChanged="CategoryFilter_TextChanged"/>
+                                        <Button Grid.Column="2" Content="✕" Width="22" Height="22" Margin="2,0,0,0"
+                                                Click="ClearCategoryFilter_Click" ToolTip="Clear filter"/>
+                                    </Grid>
+
+                                    <!-- Bulk-toggle action buttons -->
+                                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,2">
+                                        <Button Content="Tick All" Padding="6,2" Margin="0,0,2,2" Click="SelectAllCategories_Click"
+                                                ToolTip="Tick every category visible in the current filter"/>
+                                        <Button Content="Untick All" Padding="6,2" Margin="0,0,8,2" Click="SelectNoCategories_Click"
+                                                ToolTip="Untick every category visible in the current filter"/>
+                                        <TextBlock Text="By discipline:" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <Button Content="M" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="M"
+                                                ToolTip="Tick Mechanical, untick the rest"/>
+                                        <Button Content="E" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="E"
+                                                ToolTip="Tick Electrical, untick the rest"/>
+                                        <Button Content="P" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="P"
+                                                ToolTip="Tick Plumbing, untick the rest"/>
+                                        <Button Content="A" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="A"
+                                                ToolTip="Tick Architectural, untick the rest"/>
+                                        <Button Content="S" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="S"
+                                                ToolTip="Tick Structural, untick the rest"/>
+                                        <Button Content="FP" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="FP"
+                                                ToolTip="Tick Fire Protection, untick the rest"/>
+                                        <Button Content="LV" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="LV"
+                                                ToolTip="Tick Low-Voltage / Comms, untick the rest"/>
+                                    </WrapPanel>
+
+                                    <!-- Status + save/reload buttons -->
+                                    <Grid DockPanel.Dock="Bottom" Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" x:Name="txtCategoryCount" Text="0 of 0 enabled" FontSize="9" Foreground="#666" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" x:Name="btnReloadCategorySkip" Content="Reload"
+                                                Padding="8,2" Margin="0,0,4,0" Click="ReloadCategorySkip_Click"
+                                                ToolTip="Discard unsaved changes and reload from project_config.json"/>
+                                        <Button Grid.Column="2" x:Name="btnSaveCategorySkip" Content="Save &amp; Apply"
+                                                Padding="10,2" Click="SaveCategorySkip_Click"
+                                                Background="#E8912D" Foreground="White" FontWeight="Bold"
+                                                ToolTip="Persist to project_config.json (CATEGORY_SKIP) and refresh the tagging caches so the next AutoTag/BatchTag run honours the new selection"/>
+                                    </Grid>
+
+                                    <!-- Scrollable category list with checkboxes -->
+                                    <Border BorderBrush="#CCC" BorderThickness="1" Margin="0,0,0,0">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel x:Name="pnlTagCategories" Margin="2"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </DockPanel>
+                            </TabItem>
+
                         </TabControl>
                 </DockPanel>
             </TabItem>
