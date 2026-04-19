@@ -10,11 +10,15 @@ namespace StingTools.Core.Clash
         public sealed class ElementBox : ISpatialData
         {
             public ClashMeshBuffer Mesh;
-            public Envelope Envelope { get; }
+            // RBush 4.x returns Envelope by ref readonly (avoids struct copy on
+            // every tree lookup), so the implementing property needs a backing
+            // field and a ref-returning getter instead of an auto-property.
+            private readonly Envelope _envelope;
+            public ref readonly Envelope Envelope => ref _envelope;
             public ElementBox(ClashMeshBuffer m, double pad)
             {
                 Mesh = m;
-                Envelope = new Envelope(
+                _envelope = new Envelope(
                     minX: m.MinX - pad, minY: m.MinY - pad,
                     maxX: m.MaxX + pad, maxY: m.MaxY + pad);
             }

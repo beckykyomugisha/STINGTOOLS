@@ -188,7 +188,9 @@ namespace StingTools.Core.Clash
         public void OnMaterial(MaterialNode node) { }
         public void OnLight(LightNode node) { }
         public void OnRPC(RPCNode node) { }
-        public void OnDaylightPortal(DaylightPortalNode node) { }
+        // OnDaylightPortal was removed in Revit 2025 — the DaylightPortalNode
+        // type no longer exists in Autodesk.Revit.DB. The IExportContext
+        // interface surface dropped it alongside the type.
         public RenderNodeAction OnFaceBegin(FaceNode node) => RenderNodeAction.Proceed;
         public void OnFaceEnd(FaceNode node) { }
 
