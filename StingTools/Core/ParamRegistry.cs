@@ -1819,10 +1819,12 @@ namespace StingTools.Core
                 }
             }
 
-            // CRASH FIX: Initialize CategoryEnumMap with all 124 taggable categories.
+            // CRASH FIX: Initialize CategoryEnumMap with all taggable categories
+            // plus the 137 tag-family aliases produced by TagFamilyCreatorCommand.
             // Without this, ResolveUniversalCategoryEnums() returns empty array →
             // AllCategoryEnums = empty → BuildCategorySet = empty → 0 params bound →
             // LoadSharedParamsCommand silently does nothing, leaving project unconfigured.
+            // The Tag Categories sub-tab in the dockable panel reads from this map.
             CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "Air Terminals", "OST_DuctTerminal" },
@@ -1968,14 +1970,84 @@ namespace StingTools.Core
                 { "Windows", "OST_Windows" },
                 { "Wire", "OST_Wire" },
                 { "Zones", "OST_Zones" },
+
+                // ════════════════════════════════════════════════════════════════
+                // TAG-FAMILY-CREATOR ALIGNMENT (Phase 78 follow-up)
+                //
+                // The CreateTagFamilies command in Tags/TagFamilyCreatorCommand.cs
+                // creates 137 .rfa tag families: 121 unique BuiltInCategory bases
+                // plus 16 variants (8 tie-in + 3 sheet + 4 structural + 1 MEP).
+                //
+                // The 13 base entries below cover BICs that the TagFamilyCreator
+                // produces but were missing from the original 124-entry map. Some
+                // are alias enums (Revit ships overlapping enum names for the same
+                // category — e.g. OST_Cornices and OST_WallSweeps both resolve to
+                // "Wall Sweeps"). Adding both keys is safe because BuildCategorySet
+                // uses CategorySet.Insert which dedupes by Category.Id.
+                //
+                // The 16 variant display names share their BIC with an existing
+                // base entry. They surface in the Tag Categories sub-tab so the
+                // checkbox count matches the 137 tag families a coordinator has
+                // just created.
+                //
+                // CATEGORY_SKIP semantic note: skipping a variant entry (e.g.
+                // "Floors (Structural)") via the runtime element-category filter
+                // also skips its base ("Floors") because Revit reports the base
+                // category at element level. Variants are presented for parity
+                // with the tag-family list, not for independent runtime gating.
+                // ════════════════════════════════════════════════════════════════
+
+                // ── Missing base BICs created by TagFamilyCreator ─────────────
+                { "Materials", "OST_Materials" },                       // Material Tag.rft (excluded from UniversalCategories below)
+                { "Sheets", "OST_Sheets" },                             // Generic Tag.rft — base sheet document tag
+                { "Structural Connection Bolts", "OST_StructConnectionBolts" },
+                { "Structural Connection Welds", "OST_StructConnectionWelds" },
+
+                // ── Alias enums (different BIC name, same Revit category) ─────
+                // Both forms compile against current Revit API; exposing both
+                // ensures Tags created with either spelling resolve correctly.
+                { "Mechanical Equipment Set", "OST_MechanicalEquipmentSet" }, // alias of OST_MechanicalEquipmentSets
+                { "Analytical Opening", "OST_AnalyticalOpening" },            // alias of OST_AnalyticalOpenings
+                { "Analytical Panel", "OST_AnalyticalPanel" },                // alias of OST_AnalyticalPanels
+                { "Rigid Links (Analytical)", "OST_RigidLinksAnalytical" },   // alias of OST_AnalyticalLinks
+                { "Hand Rail", "OST_RailingHandRail" },                       // alias of OST_StairsRailingHandRail
+                { "Railings (Std)", "OST_Railings" },                         // alias of OST_StairsRailing
+                { "Rebar Coupler", "OST_Coupler" },                           // alias of OST_RebarCoupler
+                { "Cornices", "OST_Cornices" },                               // alias of OST_WallSweeps
+                { "Toposolid Link", "OST_ToposolidLink" },                    // distinct enum — was previously folded into OST_Toposolid
+
+                // ── Tie-in point variant tag families (ISO 19650-3) ───────────
+                { "Tie-In Point (Pipe)", "OST_PipeCurves" },
+                { "Tie-In Point (Duct)", "OST_DuctCurves" },
+                { "Tie-In Point (Conduit)", "OST_Conduit" },
+                { "Tie-In Point (Cable Tray)", "OST_CableTray" },
+                { "Tie-In Point (Fire Protection)", "OST_Sprinklers" },
+                { "Tie-In Point (Gas)", "OST_GenericModel" },
+                { "Tie-In Point (Fire Protection Pipe)", "OST_PipeCurves" },
+                { "Tie-In Point (Gas Pipe)", "OST_PipeCurves" },
+
+                // ── Discipline-specific sheet tag variants ────────────────────
+                { "Sheets (Architectural)", "OST_Sheets" },
+                { "Sheets (MEP)", "OST_Sheets" },
+                { "Sheets (Structural)", "OST_Sheets" },
+
+                // ── Structural variant tag families ───────────────────────────
+                { "Floors (Structural)", "OST_Floors" },
+                { "Walls (Structural/Load-bearing)", "OST_Walls" },
+                { "Structural Framing (Bracing)", "OST_StructuralFraming" },
+                { "Columns (Architectural)", "OST_Columns" },
+
+                // ── MEP variant tag family ────────────────────────────────────
+                { "MEP Sleeve (Fire-rated penetration)", "OST_GenericModel" },
             };
 
             // Set UniversalCategories to the full category list so
             // ResolveUniversalCategoryEnums returns all categories even without JSON.
-            // CRITICAL: Exclude "Materials" — material-specific params are bound via
-            // BuildGroupCategoryOverrides() in LoadSharedParamsCommand. Including Materials
-            // here would bind ALL 2300+ parameters to OST_Materials, polluting every
-            // material's custom properties panel in Revit.
+            // CRITICAL: Exclude "Materials" and any "Materials"-suffix variant —
+            // material-specific params are bound via BuildGroupCategoryOverrides()
+            // in LoadSharedParamsCommand. Including Materials here would bind
+            // ALL 2300+ parameters to OST_Materials, polluting every material's
+            // custom properties panel in Revit.
             UniversalCategories = CategoryEnumMap.Keys
                 .Where(k => !k.Equals("Materials", StringComparison.OrdinalIgnoreCase))
                 .ToArray();

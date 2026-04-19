@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -521,6 +522,21 @@ namespace StingTools.UI
                         if (_tagOpRunning && tagStudioTabs.SelectedIndex != active)
                             tagStudioTabs.SelectedIndex = active;
                     }));
+                return;
+            }
+
+            // Lazy-build the Categories sub-tab on first activation.
+            // The list contains 120+ checkboxes; deferring creation until the
+            // user actually opens the sub-tab keeps initial Tag Studio render fast.
+            if (!_categoryListBuilt && tagStudioTabs?.SelectedItem is TabItem ti
+                && (ti.Header as string) == "Categories")
+            {
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background,
+                    new Action(() =>
+                    {
+                        try { BuildCategoryList(); }
+                        catch (Exception ex) { StingLog.Warn($"BuildCategoryList failed: {ex.Message}"); }
+                    }));
             }
         }
 
@@ -851,6 +867,232 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }
+        }
+
+        // ── Tag Categories sub-tab (CATEGORY_SKIP editor) ────────────────────
+        //
+        // Drives TagConfig.CategorySkipList which RunFullPipeline consults at
+        // ParameterHelpers.cs to skip elements during AutoTag, BatchTag,
+        // TagAndCombine, and the IUpdater auto-tagger. Persisted to
+        // project_config.json under the CATEGORY_SKIP key (JSON array of
+        // category display names) via TagConfig.SetConfigValue.
+
+        private bool _categoryListBuilt;
+        private readonly Dictionary<string, CheckBox> _categoryCheckboxes =
+            new Dictionary<string, CheckBox>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Populate the scrollable checkbox list from ParamRegistry.CategoryEnumMap.
+        /// A ticked box means "tag this category"; an unticked box means "skip"
+        /// and the category name is added to TagConfig.CategorySkipList on save.
+        /// </summary>
+        private void BuildCategoryList()
+        {
+            if (_categoryListBuilt) return;
+            if (pnlTagCategories == null) return;
+
+            // Pull the master list from the single source of truth — the same
+            // dictionary BuildCategorySet uses to bind shared parameters, so the
+            // UI stays in sync with what the plugin actually considers taggable.
+            var allCats = ParamRegistry.CategoryEnumMap.Keys
+                .Where(k => !string.IsNullOrWhiteSpace(k))
+                .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            pnlTagCategories.Children.Clear();
+            _categoryCheckboxes.Clear();
+
+            foreach (string cat in allCats)
+            {
+                bool isSkipped = TagConfig.CategorySkipList != null
+                    && TagConfig.CategorySkipList.Contains(cat);
+                string disc = (TagConfig.DiscMap != null
+                    && TagConfig.DiscMap.TryGetValue(cat, out string d)) ? d : "";
+
+                var cb = new CheckBox
+                {
+                    Content = string.IsNullOrEmpty(disc) ? cat : $"{cat}  ({disc})",
+                    Tag = cat,                  // raw display name for save lookup
+                    IsChecked = !isSkipped,     // ticked = tag, unticked = skip
+                    FontSize = 10,
+                    Margin = new Thickness(2, 1, 2, 1),
+                    ToolTip = string.IsNullOrEmpty(disc)
+                        ? $"{cat} — included in batch tagging when ticked"
+                        : $"{cat} — discipline {disc} — included in batch tagging when ticked",
+                };
+                cb.Checked += CategoryCheckbox_Changed;
+                cb.Unchecked += CategoryCheckbox_Changed;
+                pnlTagCategories.Children.Add(cb);
+                _categoryCheckboxes[cat] = cb;
+            }
+
+            _categoryListBuilt = true;
+            UpdateCategoryCount();
+            StingLog.Info($"Tag Categories sub-tab built with {_categoryCheckboxes.Count} categories " +
+                $"({TagConfig.CategorySkipList?.Count ?? 0} currently skipped)");
+        }
+
+        /// <summary>Live update of "X of N enabled" label as the user toggles checkboxes.</summary>
+        private void CategoryCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            UpdateCategoryCount();
+        }
+
+        private void UpdateCategoryCount()
+        {
+            if (txtCategoryCount == null) return;
+            int total = _categoryCheckboxes.Count;
+            int enabled = 0;
+            int visible = 0;
+            int visibleEnabled = 0;
+            foreach (var cb in _categoryCheckboxes.Values)
+            {
+                if (cb.IsChecked == true) enabled++;
+                if (cb.Visibility == Visibility.Visible)
+                {
+                    visible++;
+                    if (cb.IsChecked == true) visibleEnabled++;
+                }
+            }
+            // If a filter is active, show both the filtered and overall counts.
+            string filter = txtCategoryFilter?.Text ?? string.Empty;
+            txtCategoryCount.Text = string.IsNullOrEmpty(filter)
+                ? $"{enabled} of {total} enabled"
+                : $"{visibleEnabled} of {visible} enabled in filter ({enabled} of {total} overall)";
+        }
+
+        private void CategoryFilter_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            // Lazy-build if the user starts typing before clicking the tab header.
+            if (!_categoryListBuilt) BuildCategoryList();
+
+            string needle = (txtCategoryFilter?.Text ?? string.Empty).Trim();
+            foreach (var kvp in _categoryCheckboxes)
+            {
+                bool match = string.IsNullOrEmpty(needle)
+                    || kvp.Key.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
+                kvp.Value.Visibility = match ? Visibility.Visible : Visibility.Collapsed;
+            }
+            UpdateCategoryCount();
+        }
+
+        private void ClearCategoryFilter_Click(object sender, RoutedEventArgs e)
+        {
+            if (txtCategoryFilter != null) txtCategoryFilter.Text = string.Empty;
+        }
+
+        private void SelectAllCategories_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_categoryListBuilt) BuildCategoryList();
+            // Only toggle visible items — respects the active filter, matching
+            // the behaviour BIM coordinators expect from spreadsheet bulk-select.
+            foreach (var cb in _categoryCheckboxes.Values)
+                if (cb.Visibility == Visibility.Visible) cb.IsChecked = true;
+            UpdateCategoryCount();
+        }
+
+        private void SelectNoCategories_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_categoryListBuilt) BuildCategoryList();
+            foreach (var cb in _categoryCheckboxes.Values)
+                if (cb.Visibility == Visibility.Visible) cb.IsChecked = false;
+            UpdateCategoryCount();
+        }
+
+        /// <summary>
+        /// Discipline-quick-pick: tick only categories whose TagConfig.DiscMap
+        /// entry equals the button's Tag (e.g. "M" / "E" / "A"). Categories not
+        /// in DiscMap (or with a different discipline) are unticked.
+        /// </summary>
+        private void DiscFilter_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_categoryListBuilt) BuildCategoryList();
+            if (!(sender is Button btn) || !(btn.Tag is string disc) || string.IsNullOrEmpty(disc))
+                return;
+
+            var discMap = TagConfig.DiscMap;
+            int tickedCount = 0;
+            foreach (var kvp in _categoryCheckboxes)
+            {
+                bool match = discMap != null
+                    && discMap.TryGetValue(kvp.Key, out string d)
+                    && string.Equals(d, disc, StringComparison.OrdinalIgnoreCase);
+                kvp.Value.IsChecked = match;
+                if (match) tickedCount++;
+            }
+            UpdateCategoryCount();
+            UpdateStatus($"Categories: ticked {tickedCount} {disc}-discipline categories");
+        }
+
+        /// <summary>
+        /// Persist the current selection to TagConfig.CategorySkipList and write
+        /// CATEGORY_SKIP into project_config.json. Also invalidates the compliance
+        /// scan + auto-tagger context so the next tag run honours the new skip list.
+        /// </summary>
+        private void SaveCategorySkip_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_categoryListBuilt)
+            {
+                UpdateStatus("Categories: nothing to save (list not opened)");
+                return;
+            }
+
+            try
+            {
+                // Build the skip list from unticked checkboxes.
+                var skip = new List<string>();
+                foreach (var kvp in _categoryCheckboxes)
+                    if (kvp.Value.IsChecked != true) skip.Add(kvp.Key);
+
+                // Update the in-memory authoritative set first, so even if disk
+                // persistence fails the current Revit session uses the new list.
+                TagConfig.CategorySkipList = new HashSet<string>(skip, StringComparer.OrdinalIgnoreCase);
+
+                // Persist to project_config.json (atomic tmp + File.Replace).
+                // SetConfigValue is a no-op when ConfigSource is unset (e.g. no
+                // project_config.json on disk yet) — that's fine, the in-memory
+                // change still applies for this session.
+                TagConfig.SetConfigValue("CATEGORY_SKIP", skip);
+
+                // Refresh downstream caches so the dashboard and IUpdater pick
+                // up the change without needing a document reopen.
+                try { Core.ComplianceScan.InvalidateCache(); }
+                catch (Exception ex) { StingLog.Warn($"ComplianceScan.InvalidateCache failed: {ex.Message}"); }
+                try { Core.StingAutoTagger.InvalidateContext(); }
+                catch (Exception ex) { StingLog.Warn($"StingAutoTagger.InvalidateContext failed: {ex.Message}"); }
+
+                int kept = _categoryCheckboxes.Count - skip.Count;
+                StingLog.Info($"CATEGORY_SKIP saved: {kept} included, {skip.Count} skipped " +
+                    $"(of {_categoryCheckboxes.Count} categories)");
+                UpdateStatus($"Categories: saved — {kept} tag, {skip.Count} skip");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("SaveCategorySkip failed", ex);
+                UpdateStatus($"Categories: save failed — {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Discard unsaved checkbox state and re-read TagConfig.CategorySkipList.
+        /// Useful when the user wants to abandon a half-finished selection.
+        /// </summary>
+        private void ReloadCategorySkip_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_categoryListBuilt)
+            {
+                BuildCategoryList();
+                return;
+            }
+
+            // Reset every checkbox from the live in-memory skip list.
+            var skipSet = TagConfig.CategorySkipList
+                ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in _categoryCheckboxes)
+                kvp.Value.IsChecked = !skipSet.Contains(kvp.Key);
+
+            UpdateCategoryCount();
+            UpdateStatus($"Categories: reloaded ({_categoryCheckboxes.Count - skipSet.Count} tag, {skipSet.Count} skip)");
         }
 
         // ── Warning level radio → ToggleWarningVisibilityCommand ─────────────
