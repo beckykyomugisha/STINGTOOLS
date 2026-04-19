@@ -88,7 +88,10 @@ namespace StingTools.Core.Clash
                 var key = new ClashElementKey(
                     _currentDocGuid,
                     _currentLinkInstanceId,
-                    elementId.IntegerValue,
+                    // .Value returns long (Revit 2024+); cast to int to keep the
+                    // existing ClashElementKey signature. Element IDs fit in int
+                    // in practice — the long widening was for future capacity.
+                    (int)elementId.Value,
                     _currentUniqueId,
                     _currentIfcGuid);
 
@@ -132,7 +135,10 @@ namespace StingTools.Core.Clash
             {
                 var linkDoc = node.GetDocument();
                 guid = linkDoc?.ProjectInformation?.UniqueId ?? linkDoc?.PathName ?? "link";
-                linkInstId = node.GetSymbolId().IntegerValue;
+                // Revit 2025 removed LinkNode.GetSymbolId(). Derive a stable
+                // int id from the link document's guid so clash pairs from the
+                // same link are still distinguishable across OnLinkBegin calls.
+                linkInstId = guid.GetHashCode();
             }
             catch { }
             _docStack.Push(guid);
@@ -221,9 +227,11 @@ namespace StingTools.Core.Clash
 
         private static string TryGetIfcGuid(Document doc, ElementId id)
         {
-            if (doc == null || id == null) return "";
-            try { return ExporterIFCUtils.CreateSubElementGUID(doc.GetElement(id), 0); }
-            catch { return ""; }
+            // Revit 2025 moved ExporterIFCUtils out of the core RevitAPI assembly
+            // (into the separately-shipped IFC exporter add-in). The IFC GUID is
+            // an optional secondary key for clash records — element.UniqueId is
+            // already globally unique, so returning empty is safe for our use.
+            return string.Empty;
         }
     }
 }

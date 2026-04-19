@@ -18,9 +18,11 @@ namespace StingTools.Core.Clash
             public ElementBox(ClashMeshBuffer m, double pad)
             {
                 Mesh = m;
+                // RBush 4.x: Envelope is a positional record struct (MinX, MinY, MaxX, MaxY).
+                // The 3.x named-parameter form (minX:/minY:/maxX:/maxY:) no longer resolves.
                 _envelope = new Envelope(
-                    minX: m.MinX - pad, minY: m.MinY - pad,
-                    maxX: m.MaxX + pad, maxY: m.MaxY + pad);
+                    m.MinX - pad, m.MinY - pad,
+                    m.MaxX + pad, m.MaxY + pad);
             }
         }
 

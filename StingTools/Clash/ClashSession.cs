@@ -38,7 +38,11 @@ namespace StingTools.Core.Clash
         private ClashRuleEngine _ruleEngine;
         public bool Initialised { get; private set; }
 
+        // Public observability hook — subscribed by BCC Clash tab when present,
+        // may not be raised from inside ClashSession in the current pipeline.
+#pragma warning disable CS0067
         public event Action<int, bool> OnElementFlagChanged;   // (eid, isFlagged)
+#pragma warning restore CS0067
 
         private ClashSession(Document doc)
         {
@@ -89,7 +93,8 @@ namespace StingTools.Core.Clash
             var result = new LiveClashResult();
             try
             {
-                var element = _doc.GetElement(new ElementId(elementId));
+                // Revit 2024+ obsoleted ElementId(int) — use the Int64 overload.
+                var element = _doc.GetElement(new ElementId((long)elementId));
                 if (element == null) return RemoveElement(elementId);
 
                 var fresh = TryExtractOneElement(element);
@@ -149,10 +154,13 @@ namespace StingTools.Core.Clash
                 if (verts.Count == 0) return null;
 
                 string docGuid = _doc.ProjectInformation?.UniqueId ?? _doc.PathName ?? "host";
-                string ifc = "";
-                try { ifc = ExporterIFCUtils.CreateSubElementGUID(element, 0); } catch { }
+                // IFC GUID dropped — ExporterIFCUtils is no longer in the core
+                // Revit 2025 API. element.UniqueId already provides global
+                // uniqueness for the clash key, so empty IFC is acceptable.
+                string ifc = string.Empty;
 
-                var key = new ClashElementKey(docGuid, -1, element.Id.IntegerValue, element.UniqueId, ifc);
+                // ElementId.IntegerValue obsoleted in Revit 2024; use .Value (long → int).
+                var key = new ClashElementKey(docGuid, -1, (int)element.Id.Value, element.UniqueId, ifc);
                 return new ClashMeshBuffer(key, element.Category?.Name ?? "", verts.ToArray(), indices.ToArray());
             }
             catch (Exception ex) { StingLog.Warn("TryExtractOneElement: " + ex.Message); return null; }

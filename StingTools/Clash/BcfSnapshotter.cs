@@ -11,7 +11,6 @@ namespace StingTools.Core.Clash
     public sealed class BcfSnapshotter
     {
         private readonly Document _doc;
-        private View3D _tempView;
 
         public BcfSnapshotter(Document doc) { _doc = doc; }
 
