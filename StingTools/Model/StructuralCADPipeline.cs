@@ -1822,18 +1822,29 @@ namespace StingTools.Model
                 // Phase-78: optionally explode nested DWG block references BEFORE
                 // extraction so geometry hidden inside blocks is surfaced onto its host
                 // layer. Delegates to StructuralDWGEnhancements.ExplodeHelper.
+                // Silently no-ops on Revit builds where the Explode API isn't exposed.
                 if (config.ExplodeOnImport && importInstance != null)
                 {
-                    try
+                    if (!StructuralDWGEnhancements.ExplodeHelper.IsProgrammaticExplodeSupported)
                     {
-                        int exploded = StructuralDWGEnhancements.ExplodeHelper
-                            .ExplodeInPlace(_doc, importInstance);
-                        StingLog.Info($"  Exploded {exploded} nested blocks before extraction");
+                        totalResult.Warnings.Add(
+                            "Explode-on-import: Revit API does not expose " +
+                            "ImportInstance.Explode on this build. Run 'Modify -> " +
+                            "Explode -> Full Explode' in the UI first, then re-run.");
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        StingLog.Warn($"Explode-on-import failed: {ex.Message}");
-                        totalResult.Warnings.Add($"Explode-on-import failed: {ex.Message}");
+                        try
+                        {
+                            int exploded = StructuralDWGEnhancements.ExplodeHelper
+                                .ExplodeInPlace(_doc, importInstance);
+                            StingLog.Info($"  Exploded {exploded} nested blocks before extraction");
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Explode-on-import failed: {ex.Message}");
+                            totalResult.Warnings.Add($"Explode-on-import failed: {ex.Message}");
+                        }
                     }
                 }
 

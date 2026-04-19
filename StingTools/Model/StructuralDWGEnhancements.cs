@@ -390,36 +390,82 @@ namespace StingTools.Model
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Wraps <see cref="ImportInstance.Explode"/> in a single transaction
-        /// so DWG block references become individual Revit DetailLines /
+        /// Wraps the programmatic Explode path in a single transaction so
+        /// DWG block references become individual Revit DetailLines /
         /// ModelLines / etc. on their host layers. Call BEFORE
         /// ExtractStructuralGeometry so block-hidden geometry is visible
         /// to the pipeline's layer filter.
+        ///
+        /// Important: the public <c>Explode()</c> method on
+        /// <see cref="ImportInstance"/> was removed from the Revit API in
+        /// 2019 and never reinstated — Autodesk deliberately blocks
+        /// programmatic explode to stop plugins silently polluting
+        /// projects with thousands of line elements. This helper therefore
+        /// tries the method reflectively (so any vendor-shim that still
+        /// exposes it keeps working) and falls back to a clear "please
+        /// use Revit's UI Modify -> Explode" message when the API refuses.
         /// </summary>
         public static class ExplodeHelper
         {
+            /// <summary>True when programmatic explode is available on the
+            /// host Revit API. Computed lazily on first call to avoid the
+            /// reflection cost during every pipeline run.</summary>
+            private static bool? _explodeSupported;
+
+            private static System.Reflection.MethodInfo FindExplodeMethod()
+            {
+                try
+                {
+                    return typeof(ImportInstance).GetMethod(
+                        "Explode",
+                        System.Reflection.BindingFlags.Instance
+                            | System.Reflection.BindingFlags.Public,
+                        null, Type.EmptyTypes, null);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ExplodeHelper reflection: {ex.Message}");
+                    return null;
+                }
+            }
+
+            /// <summary>True when the running Revit build exposes
+            /// <c>ImportInstance.Explode()</c>.</summary>
+            public static bool IsProgrammaticExplodeSupported
+                => (_explodeSupported ??= (FindExplodeMethod() != null));
+
             /// <summary>
             /// Explode a single ImportInstance in place and return the count
             /// of direct children created. Returns 0 if the instance is
-            /// non-explodable (linked DWG, exploded already, or protected).
+            /// non-explodable (linked DWG, exploded already, or the host
+            /// Revit build doesn't expose the API).
             /// </summary>
             public static int ExplodeInPlace(Document doc, ImportInstance import)
             {
                 if (doc == null || import == null) return 0;
-                // Revit refuses to explode linked (non-imported) references
-                // and view-specific instances that have been edited in place.
-                // Exploding a view-specific import also destroys the
-                // ImportInstance, which is what we want.
+                var explodeMethod = FindExplodeMethod();
+                if (explodeMethod == null)
+                {
+                    _explodeSupported = false;
+                    StingLog.Info(
+                        "ExplodeInPlace: ImportInstance.Explode is not exposed by " +
+                        "this Revit API build — user must run 'Modify -> Explode' " +
+                        "in the Revit UI before re-running the CAD Wizard.");
+                    return 0;
+                }
                 try
                 {
-                    ICollection<ElementId> children;
+                    int count;
                     using (var tx = new Transaction(doc, "STING: Explode DWG import"))
                     {
                         tx.Start();
-                        children = import.Explode();
+                        var children = explodeMethod.Invoke(import, null)
+                            as ICollection<ElementId>;
+                        count = children?.Count ?? 0;
                         tx.Commit();
                     }
-                    return children?.Count ?? 0;
+                    _explodeSupported = true;
+                    return count;
                 }
                 catch (Exception ex)
                 {
@@ -571,6 +617,20 @@ namespace StingTools.Model
                 if (doc == null)
                 {
                     TaskDialog.Show("STING", "No active document.");
+                    return Result.Cancelled;
+                }
+
+                if (!StructuralDWGEnhancements.ExplodeHelper.IsProgrammaticExplodeSupported)
+                {
+                    TaskDialog.Show("STING DWG Explode",
+                        "This Revit build does not expose ImportInstance.Explode to the API " +
+                        "(Autodesk removed programmatic explode to prevent plugins " +
+                        "silently polluting projects with thousands of line elements).\n\n" +
+                        "To explode DWG imports:\n" +
+                        "  1. Select the imported DWG in the view.\n" +
+                        "  2. Modify tab → Import Instance panel → Explode → Full Explode.\n" +
+                        "  3. Re-run the CAD Wizard — the pipeline will now see the " +
+                        "previously hidden block geometry on its host layer.");
                     return Result.Cancelled;
                 }
 
@@ -736,7 +796,7 @@ namespace StingTools.Model
                 var rel = pB - pA;
                 var perp = rel - dir1 * rel.DotProduct(dir1);
                 double thicknessFt = perp.GetLength();
-                double thicknessMm = thicknessFt * FeetToMm;
+                double thicknessMm = thicknessFt * Units.FeetToMm;
                 if (thicknessMm < 50 || thicknessMm > 1000)
                 {
                     TaskDialog.Show("STING Pick Wall",
@@ -756,7 +816,7 @@ namespace StingTools.Model
                 var end = (line1.GetEndPoint(1) + l2b) * 0.5;
                 start = new XYZ(start.X, start.Y, 0);
                 end = new XYZ(end.X, end.Y, 0);
-                if (start.DistanceTo(end) < (300 * MmToFeet))
+                if (start.DistanceTo(end) < (300 * Units.MmToFeet))
                 {
                     TaskDialog.Show("STING Pick Wall", "Picked lines are too short for a wall.");
                     return Result.Cancelled;
@@ -928,7 +988,7 @@ namespace StingTools.Model
 
                 p1 = new XYZ(p1.X, p1.Y, 0);
                 p2 = new XYZ(p2.X, p2.Y, 0);
-                if (p1.DistanceTo(p2) < (500 * MmToFeet))
+                if (p1.DistanceTo(p2) < (500 * Units.MmToFeet))
                 {
                     TaskDialog.Show("STING Pick Beam",
                         "Picked endpoints are closer than 500mm — too short for a beam.");
