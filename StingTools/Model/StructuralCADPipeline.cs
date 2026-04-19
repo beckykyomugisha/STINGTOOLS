@@ -1490,12 +1490,21 @@ namespace StingTools.Model
                 tx.SetFailureHandlingOptions(opts);
                 tx.Start();
 
+                // Phase-97: per-element size detection + type creation bypass
+                // (circular columns measure a single diameter; DetectSizes_Column=false
+                // forces the config's default square column dimensions).
+                var cfgC = CurrentConfig;
+                bool detectColC = cfgC == null || cfgC.DetectSizes_Column;
+                bool createColTypesC = cfgC == null || cfgC.CreateNewTypes_Column;
+                double fallbackCircleW = cfgC?.ColumnWidthMm ?? 300;
+
                 foreach (var circle in circles)
                 {
                     try
                     {
+                        double dMm = detectColC ? circle.DiameterMm : fallbackCircleW;
                         var typeMatch = _typeFactory.FindOrCreateColumnType(
-                            circle.DiameterMm, circle.DiameterMm);
+                            dMm, dMm, allowDuplicate: createColTypesC);
                         if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
 
                         var symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
@@ -1534,12 +1543,21 @@ namespace StingTools.Model
                 tx.SetFailureHandlingOptions(opts);
                 tx.Start();
 
+                // Phase-97: per-element size detection + type creation bypass
+                var cfgCR = CurrentConfig;
+                bool detectColCR = cfgCR == null || cfgCR.DetectSizes_Column;
+                bool createColTypesCR = cfgCR == null || cfgCR.CreateNewTypes_Column;
+                double fallbackCRW = cfgCR?.ColumnWidthMm ?? 300;
+                double fallbackCRD = cfgCR?.ColumnDepthMm ?? 300;
+
                 foreach (var rect in rects)
                 {
                     try
                     {
+                        double widthMm = detectColCR ? rect.WidthMm : fallbackCRW;
+                        double depthMm = detectColCR ? rect.DepthMm : fallbackCRD;
                         var typeMatch = _typeFactory.FindOrCreateColumnType(
-                            rect.WidthMm, rect.DepthMm);
+                            widthMm, depthMm, allowDuplicate: createColTypesCR);
                         if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
 
                         var symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
@@ -1589,6 +1607,15 @@ namespace StingTools.Model
                 tx.SetFailureHandlingOptions(opts);
                 tx.Start();
 
+                // Phase-97: per-element size detection + type creation bypass
+                // for beams. DetectSizes_Beam=false forces every beam to use
+                // the wizard's BeamDepthMm × BeamWidthMm even if the DWG has
+                // clearly-paired beam lines.
+                var cfgB = CurrentConfig;
+                bool detectBeamSize = cfgB == null || cfgB.DetectSizes_Beam;
+                bool createBeamTypes = cfgB == null || cfgB.CreateNewTypes_Beam;
+                double fallbackBeamW = cfgB?.BeamWidthMm ?? defaultDepthMm * 0.5;
+
                 foreach (var bl in beamLines)
                 {
                     try
@@ -1597,13 +1624,16 @@ namespace StingTools.Model
                         var end = new XYZ(bl.End.X, bl.End.Y, z);
                         if (start.DistanceTo(end) < 0.01) continue;
 
-                        // Use detected width if available, otherwise default
-                        double widthMm = bl.WidthDetected ? bl.WidthMm : defaultDepthMm * 0.5;
+                        double widthMm = detectBeamSize && bl.WidthDetected
+                            ? bl.WidthMm
+                            : fallbackBeamW;
                         string typeKey = $"{defaultDepthMm:F0}x{widthMm:F0}";
 
                         if (!typeCache.TryGetValue(typeKey, out var symbol))
                         {
-                            var typeMatch = _typeFactory.FindOrCreateBeamType(defaultDepthMm, widthMm);
+                            var typeMatch = _typeFactory.FindOrCreateBeamType(
+                                defaultDepthMm, widthMm,
+                                allowDuplicate: createBeamTypes);
                             if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
                             symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
                             if (symbol == null) continue;
@@ -1630,7 +1660,14 @@ namespace StingTools.Model
             Level level, double thickMm, StructuralModelResult result)
         {
             int count = 0;
-            var typeMatch = _typeFactory.FindOrCreateFloorType(thickMm);
+            // Phase-97: slab thickness bypass. Slabs don't have a natural
+            // thickness signal in a flat DWG, so DetectSizes_Slab only
+            // affects whether we duplicate a type (detected=on) or pin to
+            // the single existing type closest to config.SlabThicknessMm.
+            var cfgS = CurrentConfig;
+            bool createSlabTypes = cfgS == null || cfgS.CreateNewTypes_Slab;
+            var typeMatch = _typeFactory.FindOrCreateFloorType(
+                thickMm, allowDuplicate: createSlabTypes);
             if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); return 0; }
 
             using (var tx = new Transaction(_doc, "STING STRUCT: Slabs from DWG"))
@@ -1684,13 +1721,21 @@ namespace StingTools.Model
                 tx.SetFailureHandlingOptions(opts);
                 tx.Start();
 
+                // Phase-97: per-element flag bypass for the legacy pipeline path.
+                var cfgWp = CurrentConfig;
+                bool detectWallWp = cfgWp == null || cfgWp.DetectSizes_Wall;
+                bool createWallTypesWp = cfgWp == null || cfgWp.CreateNewTypes_Wall;
+
                 foreach (var wall in walls)
                 {
                     if (wall.CenterStart.DistanceTo(wall.CenterEnd) < 0.01) continue;
                     try
                     {
-                        double thickMm = wall.ThicknessFt * Units.FeetToMm;
-                        var typeMatch = _typeFactory.FindOrCreateWallType(thickMm, true);
+                        double thickMm = detectWallWp
+                            ? wall.ThicknessFt * Units.FeetToMm
+                            : (cfgWp?.WallThicknessMm ?? 200);
+                        var typeMatch = _typeFactory.FindOrCreateWallType(
+                            thickMm, true, allowDuplicate: createWallTypesWp);
                         if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
 
                         var line = Line.CreateBound(wall.CenterStart, wall.CenterEnd);
@@ -2202,12 +2247,22 @@ namespace StingTools.Model
                 tx.SetFailureHandlingOptions(opts);
                 tx.Start();
 
+                // Phase-97: per-element size detection + type creation bypass.
+                var cfg = CurrentConfig;
+                bool detectCol = cfg == null || cfg.DetectSizes_Column;
+                bool createColTypes = cfg == null || cfg.CreateNewTypes_Column;
+                double fallbackW = cfg?.ColumnWidthMm ?? 300;
+                double fallbackD = cfg?.ColumnDepthMm ?? 300;
+
                 foreach (var rect in rects)
                 {
                     try
                     {
+                        double widthMm = detectCol ? rect.WidthMm : fallbackW;
+                        double depthMm = detectCol ? rect.DepthMm : fallbackD;
                         var typeMatch = _typeFactory.FindOrCreateColumnType(
-                            rect.WidthMm, rect.DepthMm);
+                            widthMm, depthMm,
+                            allowDuplicate: createColTypes);
                         if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
 
                         var symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
@@ -2260,30 +2315,63 @@ namespace StingTools.Model
         {
             int count = 0;
 
-            // Find or create a foundation type
-            var foundationTypes = new FilteredElementCollector(_doc)
-                .OfCategory(BuiltInCategory.OST_StructuralFoundation)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>().ToList();
+            // Phase-97: per-element size detection + type creation bypass.
+            // Pad foundations inherit their plan dimensions from the detected
+            // column cross-section below (circle diameter, rectangle bbox).
+            // When DetectSizes_Foundation is false, the wizard's fixed
+            // FoundationWidthMm is used for every pad.
+            var cfgF = CurrentConfig;
+            bool detectFdn = cfgF == null || cfgF.DetectSizes_Foundation;
+            bool createFdnTypes = cfgF == null || cfgF.CreateNewTypes_Foundation;
+            double fallbackFdnW = cfgF?.FoundationWidthMm ?? 1200;
+            // Pad footing width by a pad-to-column oversize factor when sizing
+            // from a column. EC7 §6.5: pad should exceed the column footprint
+            // by at least 1.5× in each direction for axial-only load cases.
+            const double PadOversizeFactor = 1.5;
 
-            if (foundationTypes.Count == 0)
+            // Cache by rounded (w, d) so we only call FindOrCreate once per
+            // distinct pad footprint.
+            var fdnTypeCache = new Dictionary<string, FamilySymbol>();
+            FamilySymbol ResolveFdnType(double wMm, double dMm)
+            {
+                string key = $"{Math.Round(wMm / 25) * 25:F0}x{Math.Round(dMm / 25) * 25:F0}";
+                if (fdnTypeCache.TryGetValue(key, out var sym)) return sym;
+                var tm = _typeFactory.FindOrCreateFoundationType(
+                    wMm, dMm, allowDuplicate: createFdnTypes);
+                if (!tm.Success) { result.Warnings.Add(tm.Message); return null; }
+                sym = _doc.GetElement(tm.TypeId) as FamilySymbol;
+                if (sym == null) return null;
+                if (!sym.IsActive) { sym.Activate(); _doc.Regenerate(); }
+                fdnTypeCache[key] = sym;
+                return sym;
+            }
+
+            // Pre-flight: verify at least one foundation family is loaded.
+            bool anyFdnFamily = new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_StructuralFoundation)
+                .OfClass(typeof(FamilySymbol)).Any();
+            if (!anyFdnFamily)
             {
                 result.Warnings.Add("No structural foundation families loaded — skipping foundations.");
                 return 0;
             }
 
-            var fdnSymbol = foundationTypes[0];
             using (var tx = new Transaction(_doc, "STING STRUCT: Pad Foundations"))
             {
                 tx.Start();
 
-                if (!fdnSymbol.IsActive) { fdnSymbol.Activate(); _doc.Regenerate(); }
-
-                // Place foundations under column locations
                 foreach (var circle in circles ?? new List<DetectedCircle>())
                 {
                     try
                     {
+                        double colDiaMm = circle.DiameterMm;
+                        double wMm = detectFdn
+                            ? Math.Max(300, colDiaMm * PadOversizeFactor)
+                            : fallbackFdnW;
+                        double dMm = wMm; // square pad for circular columns
+                        var fdnSymbol = ResolveFdnType(wMm, dMm);
+                        if (fdnSymbol == null) continue;
+
                         var pt = new XYZ(circle.Center.X, circle.Center.Y,
                             level?.Elevation ?? 0);
                         var fdn = _doc.Create.NewFamilyInstance(
@@ -2299,10 +2387,28 @@ namespace StingTools.Model
                 {
                     try
                     {
+                        double wMm = detectFdn
+                            ? Math.Max(300, rect.WidthMm * PadOversizeFactor)
+                            : fallbackFdnW;
+                        double dMm = detectFdn
+                            ? Math.Max(300, rect.DepthMm * PadOversizeFactor)
+                            : fallbackFdnW;
+                        var fdnSymbol = ResolveFdnType(wMm, dMm);
+                        if (fdnSymbol == null) continue;
+
                         var pt = new XYZ(rect.Center.X, rect.Center.Y,
                             level?.Elevation ?? 0);
                         var fdn = _doc.Create.NewFamilyInstance(
                             pt, fdnSymbol, level, StructuralType.Footing);
+
+                        // Match the column's rotation so the pad aligns
+                        // with the column it supports.
+                        if (detectFdn && Math.Abs(rect.Rotation) > 0.01)
+                        {
+                            var axis = Line.CreateBound(pt, pt + XYZ.BasisZ);
+                            ElementTransformUtils.RotateElement(_doc, fdn.Id, axis, rect.Rotation);
+                        }
+
                         ModelWorksetAssigner.Assign(_doc, fdn);
                         result.CreatedIds.Add(fdn.Id);
                         count++;
@@ -2318,33 +2424,80 @@ namespace StingTools.Model
         private int CreateFoundationsFromBlocks(List<DetectedBlock> blocks,
             Level level, double depthMm, StructuralModelResult result)
         {
-            // Foundation blocks from DWG are placed as structural foundations
+            // Foundation blocks from DWG are placed as structural foundations.
+            // Phase-97: when DetectSizes_Foundation is true, try to parse the
+            // block name for dimensions ("PAD 1500x1500", "FTG_1800x1200") so
+            // each foundation gets a matching type. When false, fall back to
+            // the wizard's FoundationWidthMm for every block.
             int count = 0;
-            var foundationTypes = new FilteredElementCollector(_doc)
-                .OfCategory(BuiltInCategory.OST_StructuralFoundation)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>().ToList();
 
-            if (foundationTypes.Count == 0)
+            // Pre-flight: verify at least one foundation family is loaded.
+            bool anyFdnFamily = new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_StructuralFoundation)
+                .OfClass(typeof(FamilySymbol)).Any();
+            if (!anyFdnFamily)
             {
                 result.Warnings.Add("No foundation families loaded.");
                 return 0;
             }
 
-            var fdnSymbol = foundationTypes[0];
+            var cfgF = CurrentConfig;
+            bool detectFdn = cfgF == null || cfgF.DetectSizes_Foundation;
+            bool createFdnTypes = cfgF == null || cfgF.CreateNewTypes_Foundation;
+            double fallbackFdnW = cfgF?.FoundationWidthMm ?? 1200;
+
+            // Size cache keyed on parsed dimensions. Most projects have
+            // 3-5 distinct pad sizes across 100+ locations, so caching by
+            // (w, d) means ~5 FindOrCreateFoundationType calls instead of 100.
+            var fdnTypeCache = new Dictionary<string, FamilySymbol>();
+            FamilySymbol ResolveFdnType(double wMm, double dMm)
+            {
+                string key = $"{Math.Round(wMm / 25) * 25:F0}x{Math.Round(dMm / 25) * 25:F0}";
+                if (fdnTypeCache.TryGetValue(key, out var sym)) return sym;
+                var tm = _typeFactory.FindOrCreateFoundationType(
+                    wMm, dMm, allowDuplicate: createFdnTypes);
+                if (!tm.Success) { result.Warnings.Add(tm.Message); return null; }
+                sym = _doc.GetElement(tm.TypeId) as FamilySymbol;
+                if (sym == null) return null;
+                if (!sym.IsActive) { sym.Activate(); _doc.Regenerate(); }
+                fdnTypeCache[key] = sym;
+                return sym;
+            }
+
             using (var tx = new Transaction(_doc, "STING STRUCT: Foundation Blocks"))
             {
                 tx.Start();
-                if (!fdnSymbol.IsActive) { fdnSymbol.Activate(); _doc.Regenerate(); }
 
                 foreach (var block in blocks)
                 {
                     try
                     {
+                        double wMm, dMm;
+                        if (detectFdn && TryParseDimensionsFromBlockName(
+                                block.BlockName, out wMm, out dMm))
+                        {
+                            // parsed successfully — use those dimensions
+                        }
+                        else
+                        {
+                            wMm = fallbackFdnW;
+                            dMm = fallbackFdnW;
+                        }
+
+                        var fdnSymbol = ResolveFdnType(wMm, dMm);
+                        if (fdnSymbol == null) continue;
+
                         var pt = new XYZ(block.InsertionPoint.X, block.InsertionPoint.Y,
                             level?.Elevation ?? 0);
                         var fdn = _doc.Create.NewFamilyInstance(
                             pt, fdnSymbol, level, StructuralType.Footing);
+
+                        if (Math.Abs(block.Rotation) > 0.01)
+                        {
+                            var axis = Line.CreateBound(pt, pt + XYZ.BasisZ);
+                            ElementTransformUtils.RotateElement(_doc, fdn.Id, axis, block.Rotation);
+                        }
+
                         ModelWorksetAssigner.Assign(_doc, fdn);
                         result.CreatedIds.Add(fdn.Id);
                         count++;
@@ -2355,6 +2508,47 @@ namespace StingTools.Model
                 tx.Commit();
             }
             return count;
+        }
+
+        /// <summary>
+        /// Phase-97: parse dimension tokens from a DWG block name. Handles
+        /// common patterns: "PAD 1500x1500", "FTG_1800x1200", "F-1200X1500",
+        /// "FND-2000". Returns (widthMm, depthMm) with depth = width when
+        /// the block name only has one dimension.
+        /// </summary>
+        private static bool TryParseDimensionsFromBlockName(
+            string blockName, out double widthMm, out double depthMm)
+        {
+            widthMm = 0;
+            depthMm = 0;
+            if (string.IsNullOrWhiteSpace(blockName)) return false;
+            try
+            {
+                var clean = new string(blockName.Select(c =>
+                    char.IsDigit(c) || c == 'x' || c == 'X' ? c : ' ').ToArray());
+                var parts = clean.Split(new[] { 'x', 'X', ' ' },
+                    StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2
+                    && int.TryParse(parts[0], out int w)
+                    && int.TryParse(parts[1], out int d)
+                    && w >= 300 && w <= 10000
+                    && d >= 300 && d <= 10000)
+                {
+                    widthMm = w;
+                    depthMm = d;
+                    return true;
+                }
+                if (parts.Length == 1
+                    && int.TryParse(parts[0], out int sq)
+                    && sq >= 300 && sq <= 10000)
+                {
+                    widthMm = sq;
+                    depthMm = sq;
+                    return true;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Fdn name parse: {ex.Message}"); }
+            return false;
         }
 
         // ── Wall creation with structural/architectural flag ─────────────
@@ -2377,9 +2571,15 @@ namespace StingTools.Model
                     if (wall.CenterStart.DistanceTo(wall.CenterEnd) < 0.01) continue;
                     try
                     {
-                        double thickMm = wall.ThicknessFt * Units.FeetToMm;
+                        // Per-element size detection. When DetectSizes_Wall is
+                        // false, ignore the measured parallel-pair gap and use
+                        // the wizard's fixed WallThicknessMm for every wall.
+                        double thickMm = config.DetectSizes_Wall
+                            ? wall.ThicknessFt * Units.FeetToMm
+                            : config.WallThicknessMm;
                         var typeMatch = _typeFactory.FindOrCreateWallType(
-                            thickMm, config.CreateStructuralWalls);
+                            thickMm, config.CreateStructuralWalls,
+                            allowDuplicate: config.CreateNewTypes_Wall);
                         if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
 
                         var line = Line.CreateBound(wall.CenterStart, wall.CenterEnd);
