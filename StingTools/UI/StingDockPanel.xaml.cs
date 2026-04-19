@@ -1000,28 +1000,38 @@ namespace StingTools.UI
         }
 
         /// <summary>
-        /// Discipline-quick-pick: tick only categories whose TagConfig.DiscMap
-        /// entry equals the button's Tag (e.g. "M" / "E" / "A"). Categories not
-        /// in DiscMap (or with a different discipline) are unticked.
+        /// Discipline checkbox handler — additive multi-select. Each discipline
+        /// checkbox (M / E / P / A / S / FP / LV) toggles ONLY the categories
+        /// whose TagConfig.DiscMap entry matches its Tag. Other disciplines'
+        /// categories are left alone, so a coordinator can combine e.g. M + E
+        /// without wiping out Mechanical when they tick Electrical.
         /// </summary>
-        private void DiscFilter_Click(object sender, RoutedEventArgs e)
+        private void DiscCheck_Changed(object sender, RoutedEventArgs e)
         {
             if (!_categoryListBuilt) BuildCategoryList();
-            if (!(sender is Button btn) || !(btn.Tag is string disc) || string.IsNullOrEmpty(disc))
+            if (!(sender is CheckBox cb) || !(cb.Tag is string disc) || string.IsNullOrEmpty(disc))
                 return;
 
+            bool targetState = cb.IsChecked == true;
             var discMap = TagConfig.DiscMap;
-            int tickedCount = 0;
+            if (discMap == null) return;
+
+            int affected = 0;
             foreach (var kvp in _categoryCheckboxes)
             {
-                bool match = discMap != null
-                    && discMap.TryGetValue(kvp.Key, out string d)
-                    && string.Equals(d, disc, StringComparison.OrdinalIgnoreCase);
-                kvp.Value.IsChecked = match;
-                if (match) tickedCount++;
+                if (discMap.TryGetValue(kvp.Key, out string d)
+                    && string.Equals(d, disc, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (kvp.Value.IsChecked != targetState)
+                    {
+                        kvp.Value.IsChecked = targetState;
+                        affected++;
+                    }
+                }
             }
             UpdateCategoryCount();
-            UpdateStatus($"Categories: ticked {tickedCount} {disc}-discipline categories");
+            string verb = targetState ? "ticked" : "unticked";
+            UpdateStatus($"Categories: {verb} {affected} {disc}-discipline categories");
         }
 
         /// <summary>

@@ -3968,21 +3968,29 @@
                                                 ToolTip="Tick every category visible in the current filter"/>
                                         <Button Content="Untick All" Padding="6,2" Margin="0,0,8,2" Click="SelectNoCategories_Click"
                                                 ToolTip="Untick every category visible in the current filter"/>
-                                        <TextBlock Text="By discipline:" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                        <Button Content="M" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="M"
-                                                ToolTip="Tick Mechanical, untick the rest"/>
-                                        <Button Content="E" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="E"
-                                                ToolTip="Tick Electrical, untick the rest"/>
-                                        <Button Content="P" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="P"
-                                                ToolTip="Tick Plumbing, untick the rest"/>
-                                        <Button Content="A" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="A"
-                                                ToolTip="Tick Architectural, untick the rest"/>
-                                        <Button Content="S" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="S"
-                                                ToolTip="Tick Structural, untick the rest"/>
-                                        <Button Content="FP" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="FP"
-                                                ToolTip="Tick Fire Protection, untick the rest"/>
-                                        <Button Content="LV" Padding="6,2" Margin="0,0,2,2" Click="DiscFilter_Click" Tag="LV"
-                                                ToolTip="Tick Low-Voltage / Comms, untick the rest"/>
+                                        <TextBlock Text="By discipline:" FontSize="9" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                   ToolTip="Tick to include that discipline's categories; untick to exclude them. Multiple disciplines can be active — selections are additive."/>
+                                        <CheckBox Content="M"  Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="M"
+                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
+                                                  ToolTip="Tick all Mechanical categories (combine with other disciplines for a multi-discipline selection)"/>
+                                        <CheckBox Content="E"  Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="E"
+                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
+                                                  ToolTip="Tick all Electrical categories"/>
+                                        <CheckBox Content="P"  Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="P"
+                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
+                                                  ToolTip="Tick all Plumbing categories"/>
+                                        <CheckBox Content="A"  Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="A"
+                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
+                                                  ToolTip="Tick all Architectural categories"/>
+                                        <CheckBox Content="S"  Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="S"
+                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
+                                                  ToolTip="Tick all Structural categories"/>
+                                        <CheckBox Content="FP" Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="FP"
+                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
+                                                  ToolTip="Tick all Fire Protection categories"/>
+                                        <CheckBox Content="LV" Padding="2,0" Margin="0,0,6,2" VerticalAlignment="Center" Tag="LV"
+                                                  Checked="DiscCheck_Changed" Unchecked="DiscCheck_Changed"
+                                                  ToolTip="Tick all Low-Voltage / Comms categories"/>
                                     </WrapPanel>
 
                                     <!-- Status + save/reload buttons -->
