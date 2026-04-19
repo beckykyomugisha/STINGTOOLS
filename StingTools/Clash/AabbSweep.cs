@@ -20,9 +20,12 @@ namespace StingTools.Core.Clash
             public ElementBox(ClashMeshBuffer m, double pad)
             {
                 Mesh = m;
+                // RBush 4.0 renamed the Envelope constructor parameters
+                // (minX/minY/maxX/maxY -> MinX/MinY/MaxX/MaxY). Using positional
+                // args so the call survives either naming convention.
                 _envelope = new Envelope(
-                    minX: m.MinX - pad, minY: m.MinY - pad,
-                    maxX: m.MaxX + pad, maxY: m.MaxY + pad);
+                    m.MinX - pad, m.MinY - pad,
+                    m.MaxX + pad, m.MaxY + pad);
             }
         }
 

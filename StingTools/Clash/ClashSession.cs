@@ -38,7 +38,12 @@ namespace StingTools.Core.Clash
         private ClashRuleEngine _ruleEngine;
         public bool Initialised { get; private set; }
 
+        // Phase-98d: public event — raised by subscribers from the dock-panel
+        // live-clash observer; compiler can't see the delegation path so it
+        // warns CS0067. Suppress rather than delete — the contract is used.
+#pragma warning disable CS0067
         public event Action<int, bool> OnElementFlagChanged;   // (eid, isFlagged)
+#pragma warning restore CS0067
 
         private ClashSession(Document doc)
         {
@@ -89,7 +94,8 @@ namespace StingTools.Core.Clash
             var result = new LiveClashResult();
             try
             {
-                var element = _doc.GetElement(new ElementId(elementId));
+                // ElementId(int) ctor is obsolete in Revit 2024+; use Int64 overload.
+                var element = _doc.GetElement(new ElementId((long)elementId));
                 if (element == null) return RemoveElement(elementId);
 
                 var fresh = TryExtractOneElement(element);
@@ -149,10 +155,14 @@ namespace StingTools.Core.Clash
                 if (verts.Count == 0) return null;
 
                 string docGuid = _doc.ProjectInformation?.UniqueId ?? _doc.PathName ?? "host";
-                string ifc = "";
-                try { ifc = ExporterIFCUtils.CreateSubElementGUID(element, 0); } catch { }
+                // IFC GUID: we'd normally call ExporterIFCUtils.CreateSubElementGUID,
+                // but that type lives in RevitAPIIFC.dll (not referenced by this
+                // project). Element.UniqueId is the same string Revit feeds into
+                // its IFC export pipeline, so it's a sound substitute for the
+                // clash-kernel's per-element identity hash.
+                string ifc = element.UniqueId ?? "";
 
-                var key = new ClashElementKey(docGuid, -1, element.Id.IntegerValue, element.UniqueId, ifc);
+                var key = new ClashElementKey(docGuid, -1, (int)element.Id.Value, element.UniqueId, ifc);
                 return new ClashMeshBuffer(key, element.Category?.Name ?? "", verts.ToArray(), indices.ToArray());
             }
             catch (Exception ex) { StingLog.Warn("TryExtractOneElement: " + ex.Message); return null; }

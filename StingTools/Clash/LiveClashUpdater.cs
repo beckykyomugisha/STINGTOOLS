@@ -28,13 +28,14 @@ namespace StingTools.Core.Clash
             {
                 var doc = data.GetDocument();
                 string docGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
+                // ElementId.IntegerValue is obsolete in Revit 2024+; use Value (Int64).
                 foreach (var id in data.GetModifiedElementIds())
-                    DirtyQueue.Enqueue((docGuid, id.IntegerValue));
+                    DirtyQueue.Enqueue((docGuid, (int)id.Value));
                 foreach (var id in data.GetAddedElementIds())
-                    DirtyQueue.Enqueue((docGuid, id.IntegerValue));
+                    DirtyQueue.Enqueue((docGuid, (int)id.Value));
                 // Deleted elements: pushed with -1 sentinel to trigger removal from BVH.
                 foreach (var id in data.GetDeletedElementIds())
-                    DirtyQueue.Enqueue((docGuid, -id.IntegerValue));
+                    DirtyQueue.Enqueue((docGuid, -(int)id.Value));
             }
             catch (Exception ex)
             {

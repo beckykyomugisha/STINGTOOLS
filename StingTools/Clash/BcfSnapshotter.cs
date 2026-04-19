@@ -11,7 +11,14 @@ namespace StingTools.Core.Clash
     public sealed class BcfSnapshotter
     {
         private readonly Document _doc;
+        // Reserved for future use: cached ephemeral 3D view for repeated
+        // snapshots within the same session (avoids creating/destroying a
+        // view per clash). The current implementation creates a fresh view
+        // in RenderSnapshot and disposes it immediately — keep the field
+        // so the lifecycle refactor doesn't need to re-introduce it.
+#pragma warning disable CS0169
         private View3D _tempView;
+#pragma warning restore CS0169
 
         public BcfSnapshotter(Document doc) { _doc = doc; }
 
