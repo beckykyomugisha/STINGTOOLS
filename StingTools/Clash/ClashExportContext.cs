@@ -188,7 +188,11 @@ namespace StingTools.Core.Clash
         public void OnMaterial(MaterialNode node) { }
         public void OnLight(LightNode node) { }
         public void OnRPC(RPCNode node) { }
-        public void OnDaylightPortal(DaylightPortalNode node) { }
+        // Revit 2025 removed the DaylightPortalNode type and the matching
+        // IExportContext.OnDaylightPortal(DaylightPortalNode) interface
+        // member (they were marked obsolete from Revit 2022). The override
+        // used to live here — now dropped so the file builds on the 2025
+        // API reference.
         public RenderNodeAction OnFaceBegin(FaceNode node) => RenderNodeAction.Proceed;
         public void OnFaceEnd(FaceNode node) { }
 
