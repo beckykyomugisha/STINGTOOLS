@@ -4,13 +4,30 @@ import * as Application from 'expo-application';
 import { Platform } from 'react-native';
 import { subscribePushToken } from '@/api/endpoints';
 import { crashReporter } from './crashReporter';
+import { useNotificationStore } from '@/stores/notificationStore';
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
+  handleNotification: async (notification) => {
+    // Phase 96 — foreground arrivals bump the unread badge so the user sees
+    // there's something new even if they dismiss the banner without tapping.
+    // notificationTapRouter decrements when the notification is tapped.
+    try {
+      const data = notification.request.content.data as Record<string, unknown> | undefined;
+      const type = String(data?.type ?? '').toUpperCase();
+      const feature = type.startsWith('ISSUE') ? 'issues'
+        : type.startsWith('COMPLIANCE') ? 'dashboard'
+        : type.startsWith('DOCUMENT') ? 'documents'
+        : 'issues';
+      useNotificationStore.getState().increment(feature);
+    } catch {
+      // Badge update is a best-effort cosmetic — don't block the notification
+    }
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    };
+  },
 });
 
 async function deviceIdentifier(): Promise<string | null> {

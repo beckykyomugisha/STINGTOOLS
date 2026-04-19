@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { theme } from '@/utils/theme';
 import { TenantSwitcher } from '@/components/TenantSwitcher';
 import { useTenantStore } from '@/stores/tenantStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 import { fetchMemberships } from '@/api/tenants';
 
 function TabIcon({ label, focused }: { label: string; focused: boolean }) {
@@ -21,6 +22,14 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
 
 export default function TabLayout() {
   const setMemberships = useTenantStore((s) => s.setMemberships);
+  const hydrateNotifications = useNotificationStore((s) => s.hydrate);
+
+  // Phase 96 — read each feature's unread count directly so the badge numbers
+  // update live when pushes arrive / are tapped. Using separate selectors
+  // keeps re-renders narrow (a dashboard-only push won't re-render issues).
+  const issuesUnread = useNotificationStore((s) => s.byFeature.issues ?? 0);
+  const docsUnread = useNotificationStore((s) => s.byFeature.documents ?? 0);
+  const dashUnread = useNotificationStore((s) => s.byFeature.dashboard ?? 0);
 
   useEffect(() => {
     // TENANT-SWITCH — one call on tab-layout mount populates the store. The
@@ -29,7 +38,10 @@ export default function TabLayout() {
     fetchMemberships()
       .then(setMemberships)
       .catch(() => { /* non-fatal — switcher just stays hidden */ });
-  }, [setMemberships]);
+    // Phase 96 — hydrate persisted notification counts so the badge survives
+    // cold start.
+    hydrateNotifications();
+  }, [setMemberships, hydrateNotifications]);
 
   return (
     <Tabs
@@ -51,6 +63,9 @@ export default function TabLayout() {
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ focused }) => <TabIcon label="📊" focused={focused} />,
+          // Phase 96 — compliance/SLA pushes bump the dashboard badge.
+          tabBarBadge: dashUnread > 0 ? (dashUnread > 99 ? '99+' : dashUnread) : undefined,
+          tabBarBadgeStyle: { backgroundColor: theme.colors.danger, color: '#fff', fontSize: 10 },
         }}
       />
       <Tabs.Screen
@@ -58,6 +73,8 @@ export default function TabLayout() {
         options={{
           title: 'Issues',
           tabBarIcon: ({ focused }) => <TabIcon label="⚠" focused={focused} />,
+          tabBarBadge: issuesUnread > 0 ? (issuesUnread > 99 ? '99+' : issuesUnread) : undefined,
+          tabBarBadgeStyle: { backgroundColor: theme.colors.danger, color: '#fff', fontSize: 10 },
         }}
       />
       <Tabs.Screen
@@ -65,6 +82,8 @@ export default function TabLayout() {
         options={{
           title: 'Documents',
           tabBarIcon: ({ focused }) => <TabIcon label="📄" focused={focused} />,
+          tabBarBadge: docsUnread > 0 ? (docsUnread > 99 ? '99+' : docsUnread) : undefined,
+          tabBarBadgeStyle: { backgroundColor: theme.colors.danger, color: '#fff', fontSize: 10 },
         }}
       />
       <Tabs.Screen

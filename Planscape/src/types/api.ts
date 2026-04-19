@@ -174,6 +174,9 @@ export interface OfflineAction {
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;
+  /** Phase 96 — retry bookkeeping. Actions move to failed side-queue at 3. */
+  retryCount?: number;
+  lastError?: string;
 }
 
 // ── NEW-INT-01 — entities the mobile app can now list/read ────────────

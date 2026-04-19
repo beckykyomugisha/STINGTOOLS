@@ -30,8 +30,26 @@ export function getMe(): Promise<UserProfile> {
 
 // ── Projects ──
 
-export function listProjects(): Promise<Project[]> {
-  return apiFetch('/api/projects');
+/**
+ * Phase 96 — 30-second in-memory cache. Previously every tab called
+ * `listProjects()` on mount, producing 5× the necessary round-trips in a
+ * single session. Cache is invalidated on session-expired via clearCaches().
+ */
+let _projectsCache: { projects: Project[]; fetchedAt: number } | null = null;
+const PROJECTS_CACHE_MS = 30_000;
+
+export async function listProjects(forceRefresh = false): Promise<Project[]> {
+  if (!forceRefresh && _projectsCache && (Date.now() - _projectsCache.fetchedAt) < PROJECTS_CACHE_MS) {
+    return _projectsCache.projects;
+  }
+  const projects = await apiFetch<Project[]>('/api/projects');
+  _projectsCache = { projects, fetchedAt: Date.now() };
+  return projects;
+}
+
+/** Clear the projects cache — call from logout / tenant switch. */
+export function clearProjectsCache(): void {
+  _projectsCache = null;
 }
 
 export function getProjectDashboard(projectId: string): Promise<DashboardData> {
@@ -137,6 +155,8 @@ export interface UploadAttachmentArgs {
   contentType: string;
   latitude?: number;
   longitude?: number;
+  /** Phase 96 — client-supplied idempotency key so replays dedup server-side. */
+  idempotencyKey?: string;
 }
 
 /**
@@ -161,6 +181,10 @@ export async function uploadIssueAttachment(
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (args.latitude !== undefined) headers['X-Latitude'] = String(args.latitude);
   if (args.longitude !== undefined) headers['X-Longitude'] = String(args.longitude);
+  // Phase 96 — idempotency key lets the server dedup replays (e.g. the upload
+  // socket dropped after a successful write). Server: if key matches an
+  // existing attachment, return 200 with that record instead of 201+duplicate.
+  if (args.idempotencyKey) headers['X-Idempotency-Key'] = args.idempotencyKey;
 
   const res = await fetch(
     `${base}/api/projects/${args.projectId}/issues/${args.issueId}/attachments`,
@@ -216,6 +240,48 @@ export function sendTransmittal(projectId: string, id: string): Promise<Transmit
 // Meetings
 export function listMeetings(projectId: string): Promise<Meeting[]> {
   return apiFetch(`/api/projects/${projectId}/meetings`);
+}
+// Phase 96 — create meeting, log minutes, action items
+export function createMeeting(projectId: string, body: {
+  title: string; meetingType?: string; scheduledAt: string;
+  agendaJson?: string; attendeesJson?: string;
+}): Promise<Meeting> {
+  return apiFetch(`/api/projects/${projectId}/meetings`, { method: 'POST', body: JSON.stringify(body) });
+}
+export function logMeetingMinutes(projectId: string, meetingId: string, minutes: string): Promise<Meeting> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/minutes`, {
+    method: 'PUT', body: JSON.stringify({ minutes }),
+  });
+}
+export interface MeetingActionItem {
+  id: string;
+  description: string;
+  assignee?: string | null;
+  dueDate?: string | null;
+  status?: string;
+  linkedIssueId?: string | null;
+  /** Phase 96 — server projection now includes this so mobile can tick
+   *  actions off without a parent-meeting lookup. */
+  meetingId?: string;
+  meetingTitle?: string;
+  isOverdue?: boolean;
+}
+export function addMeetingAction(projectId: string, meetingId: string, body: {
+  description: string; assignee?: string; dueDate?: string;
+}): Promise<MeetingActionItem> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/actions`, {
+    method: 'POST', body: JSON.stringify(body),
+  });
+}
+export function updateMeetingAction(projectId: string, meetingId: string, actionId: string, body: {
+  status?: string; assignee?: string; linkedIssueId?: string;
+}): Promise<MeetingActionItem> {
+  return apiFetch(`/api/projects/${projectId}/meetings/${meetingId}/actions/${actionId}`, {
+    method: 'PUT', body: JSON.stringify(body),
+  });
+}
+export function listOpenMeetingActions(projectId: string): Promise<MeetingActionItem[]> {
+  return apiFetch(`/api/projects/${projectId}/meetings/actions/open`);
 }
 
 // Workflow runs
