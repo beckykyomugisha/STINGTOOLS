@@ -2425,7 +2425,7 @@
         {
           "code": ".dwg",
           "label": "AutoCAD Drawing",
-          "description": "AutoCAD DWG — imported via StructuralDWGWizard."
+          "description": "AutoCAD DWG — imported via the STING CAD Wizard."
         },
         {
           "code": ".dxf",
