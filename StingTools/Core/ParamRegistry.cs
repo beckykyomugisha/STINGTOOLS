@@ -241,6 +241,64 @@ namespace StingTools.Core
         // Phase 79: MEP Sleeve Container
         public const string SLV_TAG = "SLV_TAG";
 
+        // ── Phase 97: Title Block parameters (per STING TB spec v1.0, 2026-04-19) ──
+        // GUIDs are UUIDv5 with fixed namespace; values mirror MR_PARAMETERS.txt entries.
+        // All bound to ViewSheet category; runtime dispatch via TitleBlockCommands.cs.
+        public const string TB_VARIANT             = "PRJ_TB_VARIANT_TXT";
+        public const string TB_VARIANT_GUID        = "e4c060c3-1c31-5860-b0d0-ef9472016895";
+        public const string TB_SCHEMA_VERSION      = "PRJ_TB_SCHEMA_VERSION_TXT";
+        public const string TB_SCHEMA_VERSION_GUID = "9832b76e-07df-509e-b139-d402bc50ba68";
+        public const string TB_LOGO_PATH           = "PRJ_TB_LOGO_PATH_TXT";
+        public const string TB_LOGO_PATH_GUID      = "3bb5edc1-54f9-56ff-92c9-405a8dde646c";
+        public const string TB_LAST_SYNC           = "PRJ_TB_LAST_SYNC_TXT";
+        public const string TB_LAST_SYNC_GUID      = "1817eeb3-4c56-50c2-b386-6b3be3d98fc4";
+        public const string TB_LAST_SYNC_BY        = "PRJ_TB_LAST_SYNC_BY_TXT";
+        public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
+        public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
+        public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
+        public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEYPLAN_BOOL";
+        public const string TB_SHOW_KEYPLAN_GUID   = "8dd6b517-7173-5a8d-b951-a08807fed830";
+        public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALEBAR_BOOL";
+        public const string TB_SHOW_SCALEBAR_GUID  = "fa841ad5-15e1-5ec2-91bc-a69d70cf9c42";
+        public const string TB_SHOW_NORTHARROW     = "PRJ_TB_SHOW_NORTHARROW_BOOL";
+        public const string TB_SHOW_NORTHARROW_GUID= "58c6e51f-6f22-546b-ac02-086ab6f6fbbf";
+        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
+        public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
+        public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
+        public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
+        public const string TB_ISSUE_SUMMARY       = "PRJ_TB_ISSUE_SUMMARY_TXT";
+        public const string TB_ISSUE_SUMMARY_GUID  = "a3408dee-9ced-5ccd-970c-0958bcc713a9";
+        public const string TB_DELIVERABLE_DATADROP      = "PRJ_TB_DELIVERABLE_DATADROP_TXT";
+        public const string TB_DELIVERABLE_DATADROP_GUID = "d63919e8-7cf5-5202-bd59-1dc03554fee4";
+        public const string TB_DELIVERABLE_STATUS        = "PRJ_TB_DELIVERABLE_STATUS_TXT";
+        public const string TB_DELIVERABLE_STATUS_GUID   = "5fea853a-6ed7-505e-a677-50fb83f435b0";
+        public const string TB_DELIVERABLE_DUE           = "PRJ_TB_DELIVERABLE_DUE_TXT";
+        public const string TB_DELIVERABLE_DUE_GUID      = "525f8b24-26eb-52ae-8760-c6aa1621815a";
+        public const string TB_DELIVERABLE_CDE           = "PRJ_TB_DELIVERABLE_CDE_TXT";
+        public const string TB_DELIVERABLE_CDE_GUID      = "0d917e49-c6f6-5951-b2b7-7a00bdb3b0df";
+        public const string TB_LAST_TRANSMITTAL          = "PRJ_TB_LAST_TRANSMITTAL_TXT";
+        public const string TB_LAST_TRANSMITTAL_GUID     = "953d56bb-e854-5817-9fa0-90ed013f276c";
+        public const string TB_LAST_TRANSMITTAL_DATE     = "PRJ_TB_LAST_TRANSMITTAL_DATE_TXT";
+        public const string TB_LAST_TRANSMITTAL_DATE_GUID= "8edb7300-d8a4-5df3-b0ba-b21710da9724";
+        public const string TB_NOTES_LEGEND_REF          = "PRJ_TB_NOTES_LEGEND_REF_TXT";
+        public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
+
+        /// <summary>All 19 PRJ_TB_* parameters added in STING Title Block System v1.0.</summary>
+        public static readonly string[] AllTitleBlockParams = new[]
+        {
+            TB_VARIANT, TB_SCHEMA_VERSION, TB_LOGO_PATH, TB_LAST_SYNC, TB_LAST_SYNC_BY,
+            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
+            TB_SCALE_OVERRIDE, TB_ISSUE_SUMMARY,
+            TB_DELIVERABLE_DATADROP, TB_DELIVERABLE_STATUS, TB_DELIVERABLE_DUE, TB_DELIVERABLE_CDE,
+            TB_LAST_TRANSMITTAL, TB_LAST_TRANSMITTAL_DATE, TB_NOTES_LEGEND_REF
+        };
+
+        /// <summary>Subset of TB params that are YESNO flags (for TitleBlockPopulate type coercion).</summary>
+        public static readonly HashSet<string> TitleBlockBoolParams = new HashSet<string>(StringComparer.Ordinal)
+        {
+            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND
+        };
+
         // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
         // Loaded from extended_params section. Keys map to param_name values.
         private static Dictionary<string, string> _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
