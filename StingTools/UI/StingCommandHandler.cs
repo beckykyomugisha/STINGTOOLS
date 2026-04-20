@@ -429,6 +429,17 @@ namespace StingTools.UI
                     case "ViewOrganizer": RunCommand<Docs.ViewOrganizerCommand>(app); break;
                     case "SheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
                     case "Transmittal": RunCommand<Docs.TransmittalCommand>(app); break;
+
+                    // ── Phase 97 — Title Block System (8 commands per spec v1.0) ──
+                    case "TitleBlockPopulate":     RunCommand<Docs.TitleBlockPopulateCommand>(app); break;
+                    case "TitleBlockValidate":     RunCommand<Docs.TitleBlockValidateCommand>(app); break;
+                    case "TitleBlockSetVariant":   RunCommand<Docs.TitleBlockSetVariantCommand>(app); break;
+                    case "DisciplineLegendBind":   RunCommand<Docs.DisciplineLegendBindCommand>(app); break;
+                    case "SheetCountAutoUpdate":   RunCommand<Docs.SheetCountAutoUpdateCommand>(app); break;
+                    case "RevisionSync":           RunCommand<Docs.RevisionSyncCommand>(app); break;
+                    case "TransmittalAutoIssue":   RunCommand<Docs.TransmittalAutoIssueCommand>(app); break;
+                    case "PreExportValidate":     RunCommand<Docs.PreExportValidateCommand>(app); break;
+
                     case "HandoverManual": RunCommand<Docs.HandoverManualCommand>(app); break;
                     case "DeleteUnusedViews": RunCommand<Docs.DeleteUnusedViewsCommand>(app); break;
                     case "SheetNamingCheck": RunCommand<Docs.SheetNamingCheckCommand>(app); break;

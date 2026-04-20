@@ -5681,6 +5681,38 @@ namespace StingTools.BIMManager
 
             TaskDialog.Show("STING Transmittal", note.ToString());
             StingLog.Info($"Transmittal: {transmittal["transmittal_id"]}, {outgoingIds.Count} docs");
+
+            // Phase 97 — spec §6.2/§7.7: offer to stamp PRJ_TB_LAST_TRANSMITTAL_* on sheets
+            // in this transmittal so title-block Band 6 reflects the new submission.
+            try
+            {
+                var stampDlg = new TaskDialog("STING Title Block — Stamp Sheets");
+                stampDlg.MainInstruction = "Stamp transmittal on sheet title blocks?";
+                stampDlg.MainContent = $"Mirror transmittal {transmittal["transmittal_id"]} onto " +
+                    "PRJ_TB_LAST_TRANSMITTAL_TXT, PRJ_TB_LAST_TRANSMITTAL_DATE_TXT, and the " +
+                    "PRJ_TB_DELIVERABLE_* parameters for the sheets you pick.";
+                stampDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Pick sheets and stamp");
+                stampDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Skip — don't stamp sheets");
+                if (stampDlg.Show() == TaskDialogResult.CommandLink1)
+                {
+                    var allSheets = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet))
+                        .Cast<ViewSheet>().Where(s => !s.IsPlaceholder)
+                        .OrderBy(s => s.SheetNumber).ToList();
+                    var sheetItems = allSheets.Select(s => new Select.StingListPicker.ListItem
+                    { Label = $"{s.SheetNumber} - {s.Name}", Tag = s }).ToList();
+                    var picked = Select.StingListPicker.Show("Stamp Transmittal",
+                        $"Stamp {transmittal["transmittal_id"]} on which sheets?", sheetItems, true);
+                    if (picked != null && picked.Count > 0)
+                    {
+                        var sel = picked.Select(p => p.Tag as ViewSheet).Where(s => s != null).ToList();
+                        int n = Docs.TransmittalStamper.Stamp(doc, sel, transmittal, deliverable: null);
+                        TaskDialog.Show("STING Transmittal Stamp",
+                            $"Stamped {n} sheet(s) with transmittal {transmittal["transmittal_id"]}.");
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TB auto-stamp after CreateTransmittal failed: {ex.Message}"); }
+
             return Result.Succeeded;
         }
     }

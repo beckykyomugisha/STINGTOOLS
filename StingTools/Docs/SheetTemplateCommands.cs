@@ -369,6 +369,8 @@ namespace StingTools.Docs
                     .Where(s => !s.IsPlaceholder)
                     .OrderBy(s => s.SheetNumber)
                     .ToList();
+                // Phase 97 — spec §7.8 PreExportValidate gate
+                if (!PreExportValidateGate.CheckOrAbort(doc, sheets)) return Result.Cancelled;
                 exported = SheetTemplateEngine.ExportSheetsToPDF(doc, sheets, outputDir);
             }
             else if (scope == "DISC")
@@ -391,6 +393,15 @@ namespace StingTools.Docs
 
                 string discPick = StingListPicker.Show("Select Discipline", "Pick discipline to export", disciplines);
                 if (discPick == null) return Result.Cancelled;
+                // Phase 97 — spec §7.8 PreExportValidate gate (discipline-scoped)
+                var discSheets = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .Where(s => !s.IsPlaceholder
+                        && string.Equals(SheetManagerEngine.ExtractDisciplinePrefix(s.SheetNumber),
+                            discPick, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (!PreExportValidateGate.CheckOrAbort(doc, discSheets)) return Result.Cancelled;
                 exported = SheetTemplateEngine.ExportDisciplineToPDF(doc, discPick, outputDir);
             }
             else // SEL
@@ -413,6 +424,8 @@ namespace StingTools.Docs
                 if (picked == null || picked.Count == 0) return Result.Cancelled;
 
                 var selectedSheets = picked.Select(p => p.Tag as ViewSheet).Where(s => s != null).ToList();
+                // Phase 97 — spec §7.8 PreExportValidate gate (selection-scoped)
+                if (!PreExportValidateGate.CheckOrAbort(doc, selectedSheets)) return Result.Cancelled;
                 exported = SheetTemplateEngine.ExportSheetsToPDF(doc, selectedSheets, outputDir);
             }
 
