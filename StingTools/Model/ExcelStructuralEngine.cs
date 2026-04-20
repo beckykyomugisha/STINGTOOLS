@@ -1032,12 +1032,12 @@ namespace StingTools.Model
             // Slab boundaries require closed CurveLoop geometry that cannot be reliably
             // inferred from a 1D schedule row (span × depth). Full implementation
             // requires the user to pre-define boundary curves or a spatial polygon import.
-            // DWG-source slab boundaries should use StructuralDWGEngine instead.
+            // DWG-source slab boundaries should use StructuralCADPipeline instead.
             StingLog.Warn($"ImportSlabs: {rows.Count} rows skipped — slab boundary placement " +
-                "from Excel schedule is not yet implemented. Use StructuralDWGEngine for DWG-sourced slabs.");
+                "from Excel schedule is not yet implemented. Use StructuralCADPipeline for DWG-sourced slabs.");
             throw new NotImplementedException(
                 "ImportSlabs: Slab creation from Excel schedule requires boundary curve geometry. " +
-                "Use StructuralDWGEngine for DWG-sourced slabs, or define boundary polylines " +
+                "Use StructuralCADPipeline for DWG-sourced slabs, or define boundary polylines " +
                 "in the model before importing.");
         }
 

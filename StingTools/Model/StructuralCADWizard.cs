@@ -537,6 +537,19 @@ namespace StingTools.Model
         private CheckBox _chkBeamsOnWalls, _chkBeamsConnectSlabs;
         private CheckBox _chkColumnsStopAtSoffit, _chkStructuralWall;
 
+        // Phase-78 EaseBit detection controls
+        private CheckBox _chkDryRun, _chkExplodeOnImport, _chkDetectOpenings, _chkUseSpatialIndex;
+        private TextBox _txtMinWallThickness, _txtMaxWallThickness, _txtParallelDot;
+        private TextBox _txtParallelGap, _txtEndpointTol;
+        private TextBox _txtMinOpeningWidth, _txtMaxOpeningWidth;
+
+        // Phase-97 per-element size detection + type creation toggles
+        private CheckBox _chkDetectSizes_Wall, _chkDetectSizes_Column, _chkDetectSizes_Beam;
+        private CheckBox _chkDetectSizes_Foundation, _chkDetectSizes_Slab;
+        private CheckBox _chkCreateTypes_Wall, _chkCreateTypes_Column, _chkCreateTypes_Beam;
+        private CheckBox _chkCreateTypes_Foundation, _chkCreateTypes_Slab;
+        private TextBox _txtColWidthFallback, _txtColDepthFallback, _txtFdnWidthFallback;
+
         // Tagging
         private CheckBox _chkAutoTag, _chkAutoSeqNumbers;
         private TextBox _txtTagPrefix;
@@ -671,6 +684,8 @@ namespace StingTools.Model
             content.Children.Add(BuildSection2_ElementLayerMapping());
             content.Children.Add(BuildSection3_LevelsAndProperties());
             content.Children.Add(BuildSection4_ConstructionLogic());
+            content.Children.Add(BuildSectionPerElementSizing());
+            content.Children.Add(BuildSectionEaseBitDetection());
             content.Children.Add(BuildSection5_Numbering());
 
             scrollViewer.Content = content;
@@ -1153,6 +1168,295 @@ namespace StingTools.Model
 
             stack.Children.Add(grid);
             return section;
+        }
+
+        // ── Section 4a: Per-element size detection + type creation ─────
+        // Phase 97. For WALLS, COLUMNS, BEAMS, FOUNDATIONS, SLABS — when
+        // "Detect sizes from DWG" is on, the pipeline reads the actual
+        // measured dimensions out of the DWG (parallel-pair gap for walls
+        // and beams; rectangle / block bounding box for columns and
+        // foundations). When "Create new Revit types to match" is on AND
+        // no existing type matches within tolerance, the closest family
+        // type is duplicated and resized (e.g. "RC Column 325×275") so the
+        // Revit model geometrically matches the DWG. When either flag is
+        // off, the wizard's fixed default dimension is used instead and
+        // the closest existing type is reused as-is.
+
+        private FrameworkElement BuildSectionPerElementSizing()
+        {
+            var section = MakeSection("PER-ELEMENT SIZE DETECTION & TYPE CREATION");
+            var stack = (StackPanel)((Border)section).Child;
+
+            // Legend row
+            stack.Children.Add(new TextBlock
+            {
+                Text = "  ① Detect sizes from DWG   │   ② Create new Revit types to match",
+                FontSize = 10, FontStyle = FontStyles.Italic,
+                Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 6),
+            });
+
+            // 5-row grid: Element | Detect | Create | Fallback dims
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });  // label
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });   // detect chk
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });   // create chk
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // notes
+            for (int i = 0; i < 6; i++)
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Header row
+            AddSizingHeader(grid, 0);
+
+            // Walls
+            AddSizingRow(grid, 1, "Walls",
+                out _chkDetectSizes_Wall, out _chkCreateTypes_Wall,
+                "Thickness from parallel-line gap; duplicates wall type to match compound structure.");
+
+            // Columns
+            AddSizingRow(grid, 2, "Columns",
+                out _chkDetectSizes_Column, out _chkCreateTypes_Column,
+                "Width×Depth from rectangle bbox (rect columns) or diameter (round columns).");
+
+            // Beams
+            AddSizingRow(grid, 3, "Beams",
+                out _chkDetectSizes_Beam, out _chkCreateTypes_Beam,
+                "Width from parallel-pair gap; depth from wizard default (DWG plans rarely show beam depth).");
+
+            // Foundations
+            AddSizingRow(grid, 4, "Foundations",
+                out _chkDetectSizes_Foundation, out _chkCreateTypes_Foundation,
+                "Plan size from column bbox × 1.5× oversize (EC7 §6.5) or parsed from block name (e.g. 'PAD 1500x1500').");
+
+            // Slabs
+            AddSizingRow(grid, 5, "Slabs",
+                out _chkDetectSizes_Slab, out _chkCreateTypes_Slab,
+                "Thickness uses wizard default (flat DWG plans carry no thickness); duplicates floor type to match.");
+
+            stack.Children.Add(grid);
+
+            // Fallback defaults row — only shown for elements where the
+            // "Detect sizes" flag might be off. Columns and Foundations are
+            // the only ones whose fallback isn't already exposed in Section 3.
+            var fallbackLabel = new TextBlock
+            {
+                Text = "Fallback defaults (used when Detect is off):",
+                FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 10, 0, 4),
+            };
+            stack.Children.Add(fallbackLabel);
+
+            var fallbackGrid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            for (int i = 0; i < 6; i++)
+                fallbackGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            AddFallback(fallbackGrid, 0, "Column W (mm):", out _txtColWidthFallback, "300");
+            AddFallback(fallbackGrid, 2, "Column D (mm):", out _txtColDepthFallback, "300");
+            AddFallback(fallbackGrid, 4, "Foundation W (mm):", out _txtFdnWidthFallback, "1200");
+            stack.Children.Add(fallbackGrid);
+
+            return section;
+        }
+
+        private void AddSizingHeader(Grid grid, int row)
+        {
+            var h1 = new TextBlock
+            {
+                Text = "Element", FontWeight = FontWeights.Bold, FontSize = 11,
+                Foreground = DarkBlue, Margin = new Thickness(0, 0, 0, 4),
+            };
+            Grid.SetRow(h1, row); Grid.SetColumn(h1, 0); grid.Children.Add(h1);
+
+            var h2 = new TextBlock
+            {
+                Text = "①", FontWeight = FontWeights.Bold, FontSize = 11,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = DarkBlue, Margin = new Thickness(0, 0, 0, 4),
+                ToolTip = "Detect sizes from DWG",
+            };
+            Grid.SetRow(h2, row); Grid.SetColumn(h2, 1); grid.Children.Add(h2);
+
+            var h3 = new TextBlock
+            {
+                Text = "②", FontWeight = FontWeights.Bold, FontSize = 11,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = DarkBlue, Margin = new Thickness(0, 0, 0, 4),
+                ToolTip = "Create new Revit types to match detected sizes",
+            };
+            Grid.SetRow(h3, row); Grid.SetColumn(h3, 2); grid.Children.Add(h3);
+
+            var h4 = new TextBlock
+            {
+                Text = "Notes", FontWeight = FontWeights.Bold, FontSize = 11,
+                Foreground = DarkBlue, Margin = new Thickness(8, 0, 0, 4),
+            };
+            Grid.SetRow(h4, row); Grid.SetColumn(h4, 3); grid.Children.Add(h4);
+        }
+
+        private void AddSizingRow(Grid grid, int row, string label,
+            out CheckBox chkDetect, out CheckBox chkCreate, string notes)
+        {
+            var lbl = new TextBlock
+            {
+                Text = label, FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 2, 0, 2),
+            };
+            Grid.SetRow(lbl, row); Grid.SetColumn(lbl, 0); grid.Children.Add(lbl);
+
+            chkDetect = new CheckBox
+            {
+                IsChecked = true, HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 2, 0, 2),
+                ToolTip = $"Detect {label.ToLower()} sizes from DWG geometry. When off, use wizard defaults.",
+            };
+            Grid.SetRow(chkDetect, row); Grid.SetColumn(chkDetect, 1); grid.Children.Add(chkDetect);
+
+            chkCreate = new CheckBox
+            {
+                IsChecked = true, HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 2, 0, 2),
+                ToolTip = $"Create new Revit types for detected {label.ToLower()} sizes. When off, reuse the closest existing type.",
+            };
+            Grid.SetRow(chkCreate, row); Grid.SetColumn(chkCreate, 2); grid.Children.Add(chkCreate);
+
+            var notesText = new TextBlock
+            {
+                Text = notes, FontSize = 10, TextWrapping = TextWrapping.Wrap,
+                Foreground = Brushes.DarkSlateGray,
+                Margin = new Thickness(8, 2, 0, 2),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetRow(notesText, row); Grid.SetColumn(notesText, 3); grid.Children.Add(notesText);
+        }
+
+        private void AddFallback(Grid grid, int col, string label, out TextBox tb, string defaultVal)
+        {
+            var lbl = new TextBlock
+            {
+                Text = label, FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 2, 4, 2),
+            };
+            Grid.SetRow(lbl, 0); Grid.SetColumn(lbl, col); grid.Children.Add(lbl);
+
+            tb = new TextBox
+            {
+                Text = defaultVal, Width = 70, HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 2, 0, 2),
+            };
+            Grid.SetRow(tb, 0); Grid.SetColumn(tb, col + 1); grid.Children.Add(tb);
+        }
+
+        // ── Section 4b: EaseBit-style detection knobs ──────────────────
+        // Phase 78. Surfaces the EaseBit-inspired config knobs that were
+        // previously only editable via project_config.json or code. The row
+        // layout mirrors Section 3 so the wizard reads consistently.
+
+        private FrameworkElement BuildSectionEaseBitDetection()
+        {
+            var section = MakeSection("DETECTION — EaseBit-style controls");
+            var stack = (StackPanel)((Border)section).Child;
+
+            // Top row: three toggle checkboxes (Dry-Run, Explode, Detect Openings)
+            var toggleRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 2, 0, 6),
+            };
+            _chkDryRun = new CheckBox
+            {
+                Content = "Dry-run (report only, no elements created)",
+                IsChecked = false, Margin = new Thickness(0, 0, 16, 0), FontSize = 11,
+                ToolTip = "Runs the extraction + detection passes and reports the counts " +
+                    "without creating any Revit elements. Lets you sanity-check layer " +
+                    "mapping before committing to the full run.",
+            };
+            _chkExplodeOnImport = new CheckBox
+            {
+                Content = "Explode DWG blocks before extraction",
+                IsChecked = false, Margin = new Thickness(0, 0, 16, 0), FontSize = 11,
+                ToolTip = "Fully explodes nested DWG block references so geometry " +
+                    "hidden inside blocks surfaces onto its host layer. Useful when " +
+                    "the source DWG nests walls/columns inside xref blocks.",
+            };
+            _chkDetectOpenings = new CheckBox
+            {
+                Content = "Detect door/window openings in walls",
+                IsChecked = false, Margin = new Thickness(0, 0, 16, 0), FontSize = 11,
+                ToolTip = "Scans the DWG for door/window/opening blocks that fall on " +
+                    "created walls and cuts rectangular voids through those walls.",
+            };
+            _chkUseSpatialIndex = new CheckBox
+            {
+                Content = "Use spatial index (faster on >500 lines)",
+                IsChecked = true, FontSize = 11,
+                ToolTip = "Uses a uniform grid spatial index instead of O(n²) nested " +
+                    "loops for parallel-pair detection. Always safe to leave on.",
+            };
+            toggleRow.Children.Add(_chkDryRun);
+            toggleRow.Children.Add(_chkExplodeOnImport);
+            toggleRow.Children.Add(_chkDetectOpenings);
+            toggleRow.Children.Add(_chkUseSpatialIndex);
+            stack.Children.Add(toggleRow);
+
+            // Knob grid — two columns of label/value pairs.
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            for (int i = 0; i < 4; i++)
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int i = 0; i < 4; i++)
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            AddKnobRow(grid, 0, 0, "Min wall thickness (mm):", out _txtMinWallThickness, "50",
+                "Parallel line pairs closer than this are treated as false positives " +
+                "(dimension chains, construction lines). Pairs below this distance " +
+                "are counted in the rejected total on the result.");
+            AddKnobRow(grid, 0, 2, "Max wall thickness (mm):", out _txtMaxWallThickness, "500",
+                "Parallel line pairs farther than this are never treated as a single " +
+                "wall — prevents accidental pairing across a corridor.");
+
+            AddKnobRow(grid, 1, 0, "Parallel dot tolerance:", out _txtParallelDot, "0.98",
+                "Dot-product threshold for the parallel-line check. 0.98 ≈ ±11°, " +
+                "0.995 ≈ ±5.7°. Lower values accept more lines as 'parallel'.");
+            AddKnobRow(grid, 1, 2, "Parallel max gap (mm):", out _txtParallelGap, "500",
+                "Global hard cap on the measured parallel gap. Always wins over " +
+                "Max wall thickness when the two disagree.");
+
+            AddKnobRow(grid, 2, 0, "Endpoint tolerance (mm):", out _txtEndpointTol, "5",
+                "Two line endpoints within this distance are treated as the same " +
+                "vertex for merge/join operations.");
+            AddKnobRow(grid, 2, 2, "Min opening width (mm):", out _txtMinOpeningWidth, "400",
+                "Minimum gap along a wall to count as an opening. Smaller gaps are " +
+                "ignored.");
+
+            AddKnobRow(grid, 3, 0, "Max opening width (mm):", out _txtMaxOpeningWidth, "3000",
+                "Maximum gap along a wall to count as an opening. Larger gaps are " +
+                "assumed to be two separate wall segments rather than one wall with a hole.");
+
+            stack.Children.Add(grid);
+            return section;
+        }
+
+        /// <summary>Inserts a labelled TextBox into the knob grid at (row, col).</summary>
+        private void AddKnobRow(Grid grid, int row, int col, string label,
+            out TextBox tb, string defaultVal, string tooltip)
+        {
+            var lbl = new TextBlock
+            {
+                Text = label, FontSize = 11, Margin = new Thickness(0, 3, 6, 2),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = tooltip,
+            };
+            Grid.SetRow(lbl, row); Grid.SetColumn(lbl, col);
+            grid.Children.Add(lbl);
+
+            tb = new TextBox
+            {
+                Text = defaultVal, Width = 80, HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 2, 0, 2),
+                ToolTip = tooltip,
+            };
+            Grid.SetRow(tb, row); Grid.SetColumn(tb, col + 1);
+            grid.Children.Add(tb);
         }
 
         // ── Section 5: Smart Numbering ──────────────────────────────────
@@ -1674,6 +1978,44 @@ namespace StingTools.Model
             config.ColumnsStopAtSoffit = _chkColumnsStopAtSoffit?.IsChecked == true;
             config.CreateStructuralWalls = _chkStructuralWall?.IsChecked == true;
 
+            // Phase-97 per-element size detection + type creation toggles
+            config.DetectSizes_Wall       = _chkDetectSizes_Wall?.IsChecked != false;
+            config.DetectSizes_Column     = _chkDetectSizes_Column?.IsChecked != false;
+            config.DetectSizes_Beam       = _chkDetectSizes_Beam?.IsChecked != false;
+            config.DetectSizes_Foundation = _chkDetectSizes_Foundation?.IsChecked != false;
+            config.DetectSizes_Slab       = _chkDetectSizes_Slab?.IsChecked != false;
+            config.CreateNewTypes_Wall       = _chkCreateTypes_Wall?.IsChecked != false;
+            config.CreateNewTypes_Column     = _chkCreateTypes_Column?.IsChecked != false;
+            config.CreateNewTypes_Beam       = _chkCreateTypes_Beam?.IsChecked != false;
+            config.CreateNewTypes_Foundation = _chkCreateTypes_Foundation?.IsChecked != false;
+            config.CreateNewTypes_Slab       = _chkCreateTypes_Slab?.IsChecked != false;
+            if (double.TryParse(_txtColWidthFallback?.Text, out double colWFb) && colWFb > 0)
+                config.ColumnWidthMm = colWFb;
+            if (double.TryParse(_txtColDepthFallback?.Text, out double colDFb) && colDFb > 0)
+                config.ColumnDepthMm = colDFb;
+            if (double.TryParse(_txtFdnWidthFallback?.Text, out double fdnWFb) && fdnWFb > 0)
+                config.FoundationWidthMm = fdnWFb;
+
+            // Phase-78 EaseBit detection knobs
+            config.DryRun = _chkDryRun?.IsChecked == true;
+            config.ExplodeOnImport = _chkExplodeOnImport?.IsChecked == true;
+            config.DetectOpenings = _chkDetectOpenings?.IsChecked == true;
+            config.UseSpatialIndex = _chkUseSpatialIndex?.IsChecked != false;
+            if (double.TryParse(_txtMinWallThickness?.Text, out double minWT) && minWT > 0)
+                config.MinWallThicknessMm = minWT;
+            if (double.TryParse(_txtMaxWallThickness?.Text, out double maxWT) && maxWT > 0)
+                config.MaxWallThicknessMm = maxWT;
+            if (double.TryParse(_txtParallelDot?.Text, out double pDot) && pDot > 0)
+                config.ParallelDotTolerance = pDot;
+            if (double.TryParse(_txtParallelGap?.Text, out double pGap) && pGap > 0)
+                config.ParallelLineToleranceMm = pGap;
+            if (double.TryParse(_txtEndpointTol?.Text, out double eTol) && eTol > 0)
+                config.EndpointToleranceMm = eTol;
+            if (double.TryParse(_txtMinOpeningWidth?.Text, out double minOW) && minOW > 0)
+                config.MinOpeningWidthMm = minOW;
+            if (double.TryParse(_txtMaxOpeningWidth?.Text, out double maxOW) && maxOW > 0)
+                config.MaxOpeningWidthMm = maxOW;
+
             // Tagging
             config.AutoTag = _chkAutoTag?.IsChecked == true;
             config.AutoSeqNumbers = _chkAutoSeqNumbers?.IsChecked == true;
@@ -1859,12 +2201,20 @@ namespace StingTools.Model
 
         // Dimensions
         public double ColumnHeightMm { get; set; } = 3000;
+        /// <summary>Fallback column width (mm) used when DetectSizes_Column is false
+        /// OR no rectangle could be paired out of the DWG.</summary>
+        public double ColumnWidthMm { get; set; } = 300;
+        /// <summary>Fallback column depth (mm) used when DetectSizes_Column is false.</summary>
+        public double ColumnDepthMm { get; set; } = 300;
         public double BeamDepthMm { get; set; } = 450;
         public double BeamWidthMm { get; set; } = 250;
         public double WallHeightMm { get; set; } = 3000;
         public double WallThicknessMm { get; set; } = 200;
         public double SlabThicknessMm { get; set; } = 200;
         public double FoundationDepthMm { get; set; } = 600;
+        /// <summary>Fallback foundation pad width (mm) when DetectSizes_Foundation is false
+        /// OR the DWG block/rectangle had no measurable footprint.</summary>
+        public double FoundationWidthMm { get; set; } = 1200;
         // Phase 71: Additional structural element dimensions
         public double RoofThicknessMm { get; set; } = 250;
         public double RoofPitchDegrees { get; set; } = 15;
@@ -1881,12 +2231,80 @@ namespace StingTools.Model
         public double RetainingWallThicknessMm { get; set; } = 300;
         public double BracingAngleDegrees { get; set; } = 45;
 
+        // ── Per-element size detection from DWG ──
+        // When the Detect*Sizes flag is true, the pipeline reads the element's
+        // dimensions directly from the DWG (parallel-line gap for walls/beams,
+        // rectangle bounding box for columns/foundations). When false, it
+        // falls back to the fixed default (*Mm) values above for every element
+        // of that category regardless of what the DWG shows.
+        public bool DetectSizes_Wall { get; set; } = true;
+        public bool DetectSizes_Column { get; set; } = true;
+        public bool DetectSizes_Beam { get; set; } = true;
+        public bool DetectSizes_Foundation { get; set; } = true;
+        public bool DetectSizes_Slab { get; set; } = true;
+
+        // ── Per-element Revit type creation ──
+        // When CreateNewTypes_X is true AND no exact-matching type exists, the
+        // pipeline duplicates the closest-matching family type and resizes it
+        // to the detected dimensions (e.g. "RC Column 325x275"). When false,
+        // the closest existing type is reused as-is even if its size doesn't
+        // match the DWG exactly — useful for office templates that enforce a
+        // fixed size catalogue.
+        public bool CreateNewTypes_Wall { get; set; } = true;
+        public bool CreateNewTypes_Column { get; set; } = true;
+        public bool CreateNewTypes_Beam { get; set; } = true;
+        public bool CreateNewTypes_Foundation { get; set; } = true;
+        public bool CreateNewTypes_Slab { get; set; } = true;
+
         // Construction logic
         public bool BeamsRestOnWalls { get; set; } = true;
         public bool BeamsConnectToSlabs { get; set; } = true;
         public bool ColumnsStopAtSoffit { get; set; } = true;
         public bool CreateStructuralWalls { get; set; } = true;
         public bool AutoJoinWalls { get; set; } = true;
+
+        // ── Phase-78 EaseBit-style detection knobs ──
+        /// <summary>Run detection pipeline only — report counts without creating elements.</summary>
+        public bool DryRun { get; set; } = false;
+
+        /// <summary>Minimum detected wall thickness (mm). Parallel line pairs closer than this
+        /// are treated as false positives (dimension chains, construction lines).</summary>
+        public double MinWallThicknessMm { get; set; } = 50;
+
+        /// <summary>Maximum detected wall thickness (mm). Parallel line pairs farther than this
+        /// are rejected to prevent accidental pairing with walls on the opposite side of a corridor.</summary>
+        public double MaxWallThicknessMm { get; set; } = 500;
+
+        /// <summary>Dot-product threshold for the parallel-line check.
+        /// 0.98 ≈ ±11°, 0.995 ≈ ±5.7°. Lower values accept more lines as "parallel".</summary>
+        public double ParallelDotTolerance { get; set; } = 0.98;
+
+        /// <summary>Parallel-line max gap (mm). Pairs with perpendicular distance greater than
+        /// this are never considered as a wall pair regardless of the min/max wall thickness.</summary>
+        public double ParallelLineToleranceMm { get; set; } = 500;
+
+        /// <summary>Endpoint match tolerance (mm). Two line endpoints within this distance
+        /// are treated as the same vertex for merge/join operations.</summary>
+        public double EndpointToleranceMm { get; set; } = 5;
+
+        /// <summary>Use grid-based spatial index instead of O(n²) nested loops for
+        /// parallel-pair and rectangle detection. Recommended for DWGs with many entities.</summary>
+        public bool UseSpatialIndex { get; set; } = true;
+
+        /// <summary>Detect openings (doors, windows, generic cut-outs) as gaps in collinear
+        /// wall-layer segments after the main wall pipeline completes.</summary>
+        public bool DetectOpenings { get; set; } = false;
+
+        /// <summary>Minimum gap along a wall to count as an opening (mm).</summary>
+        public double MinOpeningWidthMm { get; set; } = 400;
+
+        /// <summary>Maximum gap along a wall to count as an opening (mm). Larger gaps are
+        /// assumed to be two separate wall segments rather than one continuous wall with a hole.</summary>
+        public double MaxOpeningWidthMm { get; set; } = 3000;
+
+        /// <summary>Explode nested DWG block references before layer extraction. Surfaces
+        /// geometry hidden inside blocks onto its host layer.</summary>
+        public bool ExplodeOnImport { get; set; } = false;
 
         // Tagging
         public bool AutoTag { get; set; } = true;

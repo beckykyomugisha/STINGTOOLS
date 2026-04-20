@@ -10,13 +10,22 @@ namespace StingTools.Core.Clash
         public sealed class ElementBox : ISpatialData
         {
             public ClashMeshBuffer Mesh;
-            public Envelope Envelope { get; }
+
+            // RBush 4.0 changed ISpatialData.Envelope to a ref-readonly return.
+            // The backing field is required because ref-readonly property bodies
+            // can only return a ref to a stored location.
+            private readonly Envelope _envelope;
+            public ref readonly Envelope Envelope => ref _envelope;
+
             public ElementBox(ClashMeshBuffer m, double pad)
             {
                 Mesh = m;
-                Envelope = new Envelope(
-                    minX: m.MinX - pad, minY: m.MinY - pad,
-                    maxX: m.MaxX + pad, maxY: m.MaxY + pad);
+                // RBush 4.0 renamed the Envelope constructor parameters
+                // (minX/minY/maxX/maxY -> MinX/MinY/MaxX/MaxY). Using positional
+                // args so the call survives either naming convention.
+                _envelope = new Envelope(
+                    m.MinX - pad, m.MinY - pad,
+                    m.MaxX + pad, m.MaxY + pad);
             }
         }
 

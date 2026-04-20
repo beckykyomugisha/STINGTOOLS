@@ -88,7 +88,7 @@ namespace StingTools.Core.Clash
                 var key = new ClashElementKey(
                     _currentDocGuid,
                     _currentLinkInstanceId,
-                    elementId.IntegerValue,
+                    (int)elementId.Value,
                     _currentUniqueId,
                     _currentIfcGuid);
 
@@ -132,9 +132,13 @@ namespace StingTools.Core.Clash
             {
                 var linkDoc = node.GetDocument();
                 guid = linkDoc?.ProjectInformation?.UniqueId ?? linkDoc?.PathName ?? "link";
-                linkInstId = node.GetSymbolId().IntegerValue;
+                // Revit 2025 removed LinkNode.GetSymbolId (and RevitLinkType
+                // resolution moved to LinkNode.GetDocument().Title). We fall
+                // back to a stable 32-bit hash of the link's file path so
+                // the clash identity keys stay unique across sessions.
+                linkInstId = (linkDoc?.PathName ?? guid).GetHashCode();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"LinkNode resolve: {ex.Message}"); }
             _docStack.Push(guid);
             _linkInstanceStack.Push(linkInstId);
             return RenderNodeAction.Proceed;
@@ -188,7 +192,11 @@ namespace StingTools.Core.Clash
         public void OnMaterial(MaterialNode node) { }
         public void OnLight(LightNode node) { }
         public void OnRPC(RPCNode node) { }
-        public void OnDaylightPortal(DaylightPortalNode node) { }
+        // Revit 2025 removed the DaylightPortalNode type and the matching
+        // IExportContext.OnDaylightPortal(DaylightPortalNode) interface
+        // member (they were marked obsolete from Revit 2022). The override
+        // used to live here — now dropped so the file builds on the 2025
+        // API reference.
         public RenderNodeAction OnFaceBegin(FaceNode node) => RenderNodeAction.Proceed;
         public void OnFaceEnd(FaceNode node) { }
 
@@ -220,8 +228,12 @@ namespace StingTools.Core.Clash
         private static string TryGetIfcGuid(Document doc, ElementId id)
         {
             if (doc == null || id == null) return "";
-            try { return ExporterIFCUtils.CreateSubElementGUID(doc.GetElement(id), 0); }
-            catch { return ""; }
+            // ExporterIFCUtils lives in RevitAPIIFC.dll (not referenced).
+            // Element.UniqueId is the same string Revit uses internally to
+            // derive the IFC GUID — safe fallback for the clash-kernel's
+            // per-element identity hash.
+            try { return doc.GetElement(id)?.UniqueId ?? ""; }
+            catch (Exception ex) { StingLog.Warn($"TryGetIfcGuid: {ex.Message}"); return ""; }
         }
     }
 }

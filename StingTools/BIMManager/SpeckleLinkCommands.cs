@@ -18,7 +18,7 @@ namespace StingTools.BIMManager
     //  server is stubbed out pending Speckle SDK v2 integration.
     //
     //  Pattern: matches PlatformLinkEngine (internal static class + atomic
-    //  temp-file + File.Move write pattern from StructuralDWGEngine, CLAUDE.md
+    //  temp-file + File.Move write pattern from StructuralCADPipeline, CLAUDE.md
     //  §683).
     // ════════════════════════════════════════════════════════════════════════════
 
@@ -71,7 +71,7 @@ namespace StingTools.BIMManager
                     BIMManagerEngine.GetBIMManagerDir(doc), SnapshotFileName);
 
                 // Atomic write: temp file + File.Move (overwrite). Copied from
-                // StructuralDWGEngine sidecar pattern (CLAUDE.md §683) — prevents
+                // StructuralCADPipeline sidecar pattern (CLAUDE.md §683) — prevents
                 // a corrupt snapshot if the process crashes mid-write.
                 string tempPath = snapshotPath + ".tmp";
                 File.WriteAllText(tempPath, json);

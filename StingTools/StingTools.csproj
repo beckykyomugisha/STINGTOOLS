@@ -43,8 +43,9 @@
     <PackageReference Include="ZXing.Net" Version="0.16.9" />
     <!-- C2 — Real-time updates from Planscape Server (issues / compliance / revisions). -->
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.11" />
-    <!-- Clash v1.0 Stage 1 — sweep-and-prune broad-phase R-tree. -->
-    <PackageReference Include="RBush" Version="3.2.0" />
+    <!-- Clash v1.0 Stage 1 — sweep-and-prune broad-phase R-tree. Bumped to 4.0.0
+         to match ClosedXML 0.104.2's transitive dependency and silence NU1605. -->
+    <PackageReference Include="RBush" Version="4.0.0" />
   </ItemGroup>
 
   <!-- S03: bring in the Planscape plugin-sync client (SyncScheduler / SyncClient /
