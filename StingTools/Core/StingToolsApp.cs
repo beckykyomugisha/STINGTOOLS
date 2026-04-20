@@ -55,6 +55,20 @@ namespace StingTools.Core
                 try { StingTools.UI.StingWindowHelper.InstallGlobalOwnerHandler(); }
                 catch (Exception ex) { StingLog.Warn($"InstallGlobalOwnerHandler: {ex.Message}"); }
 
+                // Clash rec-2: Register the live clash IUpdater + DocumentChanged wireup
+                // so element edits feed LiveClashHandler → ClashSession narrow phase →
+                // LiveClashFlag. Both are null-safe + log-swallowed internally.
+                try
+                {
+                    StingTools.Core.Clash.LiveClashUpdater.Register(application, null);
+                    StingTools.Core.Clash.LiveClashWireup.Subscribe(application);
+                    StingLog.Info("LiveClashUpdater registered + DocumentChanged subscribed");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("LiveClash wireup failed", ex);
+                }
+
                 // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
                 // on first command. This ensures:
                 //   1. JSON parsing errors surface at startup where they're diagnosable
@@ -875,6 +889,17 @@ namespace StingTools.Core
 
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
+
+            // Clash rec-2: Unregister the live clash IUpdater. Safe against re-entry
+            // and no-op if never registered.
+            try
+            {
+                Autodesk.Revit.DB.UpdaterRegistry.UnregisterUpdater(
+                    StingTools.Core.Clash.LiveClashUpdater.UpdaterGuid);
+                StingLog.Info("LiveClashUpdater unregistered");
+            }
+            catch (Exception ex) { StingLog.Warn($"LiveClashUpdater unregister: {ex.Message}"); }
+
             UI.ThemeManager.ClearTarget(); // H-02: Prevent memory leak from static WPF reference
             StingLog.Shutdown();
             return Result.Succeeded;

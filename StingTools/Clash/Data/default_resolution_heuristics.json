@@ -1,0 +1,15 @@
+{
+  "_comment": "STING Resolution Heuristics — user-editable overrides to the built-in ResolutionHeuristics.Suggest() patterns. Each entry maps an ordered (CategoryA, CategoryB) pair to a suggestion template. Placeholders available: {dz_mm}, {dy_mm}, {dx_mm}, {systemA}, {systemB}, {productA}, {productB}. Matching is ordered — first hit wins. 'ServiceFirst: true' means the matcher normalises so the MEP/service element is always A (structural moves to B). Unknown placeholders are left untouched.",
+  "Patterns": [
+    { "CategoryA": "Ducts",                 "CategoryB": "Structural Framing",   "ServiceFirst": true, "Suggestion": "Lower duct by {dz_mm} mm to clear beam bottom flange + 50 mm." },
+    { "CategoryA": "Pipes",                 "CategoryB": "Structural Framing",   "ServiceFirst": true, "Suggestion": "Route pipe below or around beam; offset by {dz_mm} mm." },
+    { "CategoryA": "Pipes",                 "CategoryB": "Walls",                "ServiceFirst": true, "Suggestion": "Add IFC opening element + pipe sleeve at wall penetration." },
+    { "CategoryA": "Ducts",                 "CategoryB": "Walls",                "ServiceFirst": true, "Suggestion": "Add IFC opening element and verify fire-rating sleeve type." },
+    { "CategoryA": "Sprinklers",            "CategoryB": "Ceilings",             "ServiceFirst": true, "Suggestion": "Align sprinkler head Z to ceiling grid Z." },
+    { "CategoryA": "Lighting Fixtures",     "CategoryB": "Ceilings",             "ServiceFirst": true, "Suggestion": "Confirm light fixture is hosted by the ceiling family." },
+    { "CategoryA": "Cable Trays",           "CategoryB": "Ducts",                "ServiceFirst": false, "Suggestion": "Offset tray horizontally by {dx_mm} mm to maintain 100 mm clearance." },
+    { "CategoryA": "Conduits",              "CategoryB": "Ducts",                "ServiceFirst": false, "Suggestion": "Route conduit above or below duct bank." },
+    { "CategoryA": "Mechanical Equipment",  "CategoryB": "Structural Framing",   "ServiceFirst": true, "Suggestion": "Verify equipment support and maintenance clearance zones." },
+    { "CategoryA": "Structural Columns",    "CategoryB": "Walls",                "ServiceFirst": false, "Suggestion": "Rebuild wall around column or offset wall centreline." }
+  ]
+}

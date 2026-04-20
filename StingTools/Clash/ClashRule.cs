@@ -75,7 +75,16 @@ namespace StingTools.Core.Clash
                     Description = "Structural column to structural beam at joint — expected connection",
                     FilterA = "Category=OST_StructuralColumns",
                     FilterB = "Category=OST_StructuralFraming",
-                    Predicate = (h, a, b) => h.VolumeMm3 < 100000f ? ClashVerdict.Intentional : ClashVerdict.Keep
+                    // rec-23: Threshold bumped 100,000 mm³ (10×10×10 cm cube) to
+                    //         5e8 mm³ (500 L ≈ 80×80×80 cm). Real beam-column joints
+                    //         routinely run 30-80 cm in each dimension producing
+                    //         volumes 27M – 1B mm³; the old 100k threshold fell
+                    //         through to Keep for essentially every joint, so
+                    //         every joint got flagged as a clash. 500 L catches
+                    //         normal joints as Intentional while still flagging
+                    //         actual overlaps (e.g. column passing through a
+                    //         parallel beam mid-span).
+                    Predicate = (h, a, b) => h.VolumeMm3 < 5e8f ? ClashVerdict.Intentional : ClashVerdict.Keep
                 },
                 new ClashRuleDefinition {
                     Id = "R009_FLOOR_WALL_JOIN",
