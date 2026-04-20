@@ -2893,9 +2893,33 @@ namespace StingTools.Core
                 // display variant immediately (default = PROD-SEQ mode 2)
                 ParameterHelpers.SetIfEmpty(el, "STING_DISPLAY_MODE", ParamRegistry.DisplayModeDefault.ToString());
 
-                // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
-                // Tier 1 content is visible in tag families after tagging)
-                ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
+                // ORPHAN-FIX: honour the Tokens & Depth paragraph-depth slider.
+                // When the user has pushed a ParaDepth value from the sub-tab we
+                // overwrite all 10 PARA_STATE BOOLs so tiers 1..N are enabled and
+                // tiers N+1..10 are disabled. When the slider hasn't been touched
+                // we keep the historic behaviour of only seeding PARA_STATE_1 to
+                // avoid stomping manual tier selections.
+                int paraDepth = 0;
+                try
+                {
+                    string pd = StingTools.UI.StingCommandHandler.GetExtraParam("ParaDepth");
+                    if (!string.IsNullOrEmpty(pd) && int.TryParse(pd, out int v) && v >= 1 && v <= 10)
+                        paraDepth = v;
+                }
+                catch { /* ignore — use default */ }
+
+                if (paraDepth >= 1)
+                {
+                    string[] paraStates = ParamRegistry.AllParaStates;
+                    for (int i = 0; i < paraStates.Length; i++)
+                        ParameterHelpers.SetYesNo(el, paraStates[i], i < paraDepth, overwrite: true);
+                }
+                else
+                {
+                    // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
+                    // Tier 1 content is visible in tag families after tagging)
+                    ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
+                }
 
                 // TAG_WARN_VISIBLE_BOOL = No (default off — prevents expensive per-element
                 // warning evaluation on every WriteTag7All call for large models)
@@ -2971,6 +2995,19 @@ namespace StingTools.Core
             // Mode 0 means unset — use the configurable default from ParamRegistry
             if (mode == 0) mode = ParamRegistry.DisplayModeDefault;
             string display = BuildDisplayTag(el, mode);
+
+            // ORPHAN-FIX: honour the Tokens & Depth TokenMask when the user is in
+            // full 8-segment mode. Other modes already display subsets.
+            try
+            {
+                if (mode == 5 || mode == 0)
+                {
+                    string mask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
+                    if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111")
+                        display = ApplySegmentMask(display, mask);
+                }
+            }
+            catch { /* mask is an optional UX hint — ignore failures */ }
             if (!string.IsNullOrEmpty(display))
             {
                 try

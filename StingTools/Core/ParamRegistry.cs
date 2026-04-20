@@ -2013,14 +2013,101 @@ namespace StingTools.Core
 
         /// <summary>
         /// Read all 8 token values from an element into an array matching AllTokenParams order.
+        /// Sanitises each value so malformed upstream writes (e.g. a PROD token
+        /// accidentally set to "Plumbing FixturesRAINSHOWER Shower Set" or to a
+        /// previously-assembled full tag) cannot propagate into TAG1 / TAG7 /
+        /// discipline containers on subsequent pipeline runs.
+        ///
+        /// Sanitisation rules (applied per-slot, only touching obviously malformed data):
+        ///   1. Strip any content after the configured separator — a token may
+        ///      never contain the separator since that produces a double-join.
+        ///   2. Trim whitespace; reject values that still contain inner whitespace
+        ///      (real ISO 19650 codes are whitespace-free identifiers like DCW,
+        ///      AHU, BLD1) — replaced with empty so BuildAndWriteTag re-derives.
+        ///   3. Cap length at 40 chars (real codes are ≤ 8). Longer values are
+        ///      treated as corruption and cleared.
+        /// The first three occurrences per session are logged; further instances
+        /// are counted but not spammed into the log.
         /// </summary>
         public static string[] ReadTokenValues(Element el)
         {
             EnsureLoaded();
             string[] values = new string[AllTokenParams.Length];
             for (int i = 0; i < AllTokenParams.Length; i++)
-                values[i] = ParameterHelpers.GetString(el, AllTokenParams[i]);
+            {
+                string raw = ParameterHelpers.GetString(el, AllTokenParams[i]);
+                values[i] = SanitiseTokenValue(raw, AllTokenParams[i], el);
+            }
             return values;
+        }
+
+        // PROD-CONCAT-FIX: session-scoped counters so a noisy batch doesn't drown
+        // the log but operators can still see that sanitisation was needed.
+        private static int _tokenSanitiseLogCount = 0;
+        private static int _tokenSanitiseSuppressed = 0;
+        private const int _tokenSanitiseLogCap = 3;
+
+        /// <summary>
+        /// PROD-CONCAT-FIX: Defensive token sanitiser. Returns a clean token value
+        /// (possibly empty) whenever the stored parameter looks like a concatenation
+        /// or a carry-over of an earlier full tag. Callers treat an empty string
+        /// as "re-derive on next tag build", which is the safe behaviour.
+        /// </summary>
+        private static string SanitiseTokenValue(string raw, string paramName, Element el)
+        {
+            if (string.IsNullOrEmpty(raw)) return "";
+            string v = raw;
+            string sep = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+
+            // Rule 1: drop anything after the separator — a well-formed token
+            // can never contain it.
+            int sepIdx = v.IndexOf(sep, StringComparison.Ordinal);
+            if (sepIdx >= 0)
+            {
+                LogTokenSanitise(paramName, raw, "contains separator", el);
+                v = v.Substring(0, sepIdx);
+            }
+
+            // Rule 2: reject values with inner whitespace.
+            string trimmed = v.Trim();
+            if (trimmed.Length != v.Length) v = trimmed;
+            if (!string.IsNullOrEmpty(v))
+            {
+                for (int j = 0; j < v.Length; j++)
+                {
+                    if (char.IsWhiteSpace(v[j]))
+                    {
+                        LogTokenSanitise(paramName, raw, "contains whitespace", el);
+                        return "";
+                    }
+                }
+            }
+
+            // Rule 3: cap length. Real ISO 19650 codes are ≤ 8 chars;
+            // 40 leaves head-room for unusual but legitimate values.
+            if (v.Length > 40)
+            {
+                LogTokenSanitise(paramName, raw, $"length {v.Length} exceeds safe cap", el);
+                return "";
+            }
+
+            return v;
+        }
+
+        private static void LogTokenSanitise(string paramName, string raw, string reason, Element el)
+        {
+            int n = System.Threading.Interlocked.Increment(ref _tokenSanitiseLogCount);
+            if (n <= _tokenSanitiseLogCap)
+            {
+                string elRef = el != null ? $"element {el.Id.Value}" : "(no element)";
+                StingLog.Warn($"Token sanitise: '{paramName}'='{raw}' on {elRef} — {reason}. Cleaning before reuse.");
+            }
+            else
+            {
+                System.Threading.Interlocked.Increment(ref _tokenSanitiseSuppressed);
+                if (n == _tokenSanitiseLogCap + 1)
+                    StingLog.Warn("Token sanitise: further occurrences suppressed this session (counter kept in ParamRegistry._tokenSanitiseSuppressed).");
+            }
         }
 
         /// <summary>
@@ -2066,6 +2153,10 @@ namespace StingTools.Core
             // FUT-20: Get discipline code for selective container writes (60-80% fewer writes)
             string disc = tokenValues.Length > 0 ? tokenValues[0] : null;
 
+            // ORPHAN-FIX: honour the Tokens & Depth sub-tab container checkboxes.
+            // User can disable any group (ARCH / MEP / STR / GEN / discipline / TAG1..7).
+            HashSet<string> allowedGroupCodes = LoadAllowedContainerGroups();
+
             var containers = ContainersForCategory(categoryName);
             foreach (var c in containers)
             {
@@ -2075,6 +2166,10 @@ namespace StingTools.Core
 
                 // FUT-20: Skip containers not relevant for this element's discipline
                 if (!IsContainerRelevantForDisc(c.ParamName, disc)) continue;
+
+                // ORPHAN-FIX: Skip containers whose group the user has de-selected.
+                if (allowedGroupCodes != null && !IsContainerInAllowedGroup(c.ParamName, allowedGroupCodes))
+                    continue;
 
                 string assembled = AssembleContainer(c, tokenValues);
                 if (!string.IsNullOrEmpty(assembled))
@@ -2086,6 +2181,68 @@ namespace StingTools.Core
                 }
             }
             return written;
+        }
+
+        /// <summary>
+        /// ORPHAN-FIX: Parse the TagContainers ExtraParam (set by the Tokens &amp;
+        /// Depth sub-tab) into a HashSet of allowed group codes. Returns null
+        /// when the user hasn't pushed a selection yet — callers treat null as
+        /// "accept everything".
+        /// </summary>
+        private static HashSet<string> LoadAllowedContainerGroups()
+        {
+            try
+            {
+                string csv = StingTools.UI.StingCommandHandler.GetExtraParam("TagContainers");
+                if (string.IsNullOrWhiteSpace(csv)) return null;
+                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (string raw in csv.Split(','))
+                {
+                    string tok = raw?.Trim();
+                    if (!string.IsNullOrEmpty(tok)) set.Add(tok);
+                }
+                return set.Count == 0 ? null : set;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// ORPHAN-FIX: Decide whether a given container parameter name belongs
+        /// to one of the allowed groups. TAG1..TAG6 are treated as a separate
+        /// group code each (matching the sub-tab checkboxes); everything else
+        /// is matched against discipline prefixes so that a user-disabled
+        /// "MEP" group suppresses HVC_* / PLM_* / ELC_* containers.
+        /// </summary>
+        private static bool IsContainerInAllowedGroup(string paramName, HashSet<string> allowed)
+        {
+            if (string.IsNullOrEmpty(paramName) || allowed == null) return true;
+            // Universal TAG1..TAG6
+            for (int i = 1; i <= 6; i++)
+            {
+                string t = "ASS_TAG_" + i;
+                if (paramName.StartsWith(t, StringComparison.OrdinalIgnoreCase))
+                    return allowed.Contains("TAG" + i);
+            }
+            // Discipline-keyed containers
+            bool MEP = paramName.StartsWith("HVC_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("PLM_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("ELC_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("ELE_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("LTG_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("FLS_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("COM_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("SEC_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("NCL_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("ICT_", StringComparison.OrdinalIgnoreCase);
+            if (MEP) return allowed.Contains("MEP") || allowed.Contains("M") || allowed.Contains("E")
+                || allowed.Contains("P") || allowed.Contains("FP") || allowed.Contains("LV");
+            bool ARCH = paramName.StartsWith("ARC_", StringComparison.OrdinalIgnoreCase)
+                     || paramName.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase);
+            if (ARCH) return allowed.Contains("ARCH") || allowed.Contains("A") || allowed.Contains("GEN");
+            bool STR = paramName.StartsWith("STR_", StringComparison.OrdinalIgnoreCase);
+            if (STR) return allowed.Contains("STR") || allowed.Contains("S");
+            // Unknown prefix — allow unless user has fully locked down (no GEN ticked either)
+            return allowed.Contains("GEN") || allowed.Contains("G");
         }
 
         // ════════════════════════════════════════════════════════════════

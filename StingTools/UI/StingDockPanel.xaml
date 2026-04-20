@@ -3599,10 +3599,10 @@
                                                 </WrapPanel>
                                                 <TextBlock Text="Separator" FontSize="9" Margin="0,3,0,1"/>
                                                 <WrapPanel>
-                                                    <RadioButton Content="Hyphen -" GroupName="SepStyle" IsChecked="True" Margin="2" FontSize="9"/>
-                                                    <RadioButton Content="Slash /" GroupName="SepStyle" Margin="2" FontSize="9"/>
-                                                    <RadioButton Content="Dot ." GroupName="SepStyle" Margin="2" FontSize="9"/>
-                                                    <RadioButton Content="Underscore _" GroupName="SepStyle" Margin="2" FontSize="9"/>
+                                                    <RadioButton x:Name="rbSepHyphen" Content="Hyphen -" GroupName="SepStyle" IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton x:Name="rbSepSlash" Content="Slash /" GroupName="SepStyle" Margin="2" FontSize="9"/>
+                                                    <RadioButton x:Name="rbSepDot" Content="Dot ." GroupName="SepStyle" Margin="2" FontSize="9"/>
+                                                    <RadioButton x:Name="rbSepUnderscore" Content="Underscore _" GroupName="SepStyle" Margin="2" FontSize="9"/>
                                                 </WrapPanel>
                                                 <Grid Margin="0,3,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                                     <TextBlock Text="SEQ zero-pad" FontSize="9" VerticalAlignment="Center"/>
@@ -3620,7 +3620,7 @@
                                                         <ComboBoxItem Content="LOC-ZONE-LVL-DISC-SYS-FUNC-PROD-SEQ"/>
                                                     </ComboBox>
                                                 </Grid>
-                                                <TextBlock Text="TAG_SEG_MASK_TXT: add to ParamRegistry + 3-line mask check in TagConfig.BuildAndWriteTag()" FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                <TextBlock Text="Mask, separator, pad and order are read on Combine / Stage populate / Full auto and routed to the tagging pipeline." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
 
@@ -3643,16 +3643,16 @@
                                             <StackPanel>
                                                 <TextBlock Text="FAMILY STAGE" FontSize="8" Foreground="#888" Margin="0,0,0,2"/>
                                                 <WrapPanel>
-                                                    <CheckBox Content="UniclassCode" IsChecked="True" Margin="3,1" FontSize="9"/>
-                                                    <CheckBox Content="SFG20Code" IsChecked="True" Margin="3,1" FontSize="9"/>
-                                                    <CheckBox Content="AssetType" IsChecked="True" Margin="3,1" FontSize="9"/>
-                                                    <CheckBox Content="WarrantyYrs" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCobieUniclass" Content="UniclassCode" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCobieSFG20" Content="SFG20Code" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCobieAssetType" Content="AssetType" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCobieWarranty" Content="WarrantyYrs" IsChecked="True" Margin="3,1" FontSize="9"/>
                                                 </WrapPanel>
                                                 <WrapPanel>
-                                                    <CheckBox Content="ExpectedLife" IsChecked="True" Margin="3,1" FontSize="9"/>
-                                                    <CheckBox Content="MaintFreq" IsChecked="True" Margin="3,1" FontSize="9"/>
-                                                    <CheckBox Content="ReplaceCost" Margin="3,1" FontSize="9"/>
-                                                    <CheckBox Content="Manufacturer" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCobieExpectedLife" Content="ExpectedLife" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCobieMaintFreq" Content="MaintFreq" IsChecked="True" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCobieReplaceCost" Content="ReplaceCost" Margin="3,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCobieManufacturer" Content="Manufacturer" Margin="3,1" FontSize="9"/>
                                                 </WrapPanel>
                                                 <TextBlock Text="Pre-seeded from COBIE_TYPE_MAP.csv at .rfa stage. Reduces post-placement work." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             </StackPanel>
@@ -3663,29 +3663,29 @@
                                         <Border Style="{StaticResource GroupBorder}">
                                             <StackPanel>
                                                 <WrapPanel>
-                                                    <CheckBox Content="ARCH" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="MEP" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="STR" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="GEN" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="M" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="E" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="P" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="FP" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntARCH" Content="ARCH" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntMEP" Content="MEP" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntSTR" Content="STR" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntGEN" Content="GEN" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntM" Content="M" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntE" Content="E" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntP" Content="P" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntFP" Content="FP" IsChecked="True" Margin="2,1" FontSize="9"/>
                                                 </WrapPanel>
                                                 <WrapPanel>
-                                                    <CheckBox Content="LV" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="A" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="S" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="G" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="TAG1" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="TAG2" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="TAG3" IsChecked="True" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="TAG4" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntLV" Content="LV" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntA" Content="A" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntS" Content="S" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntG" Content="G" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntTAG1" Content="TAG1" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntTAG2" Content="TAG2" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntTAG3" Content="TAG3" IsChecked="True" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntTAG4" Content="TAG4" Margin="2,1" FontSize="9"/>
                                                 </WrapPanel>
                                                 <WrapPanel>
-                                                    <CheckBox Content="TAG5" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="TAG6" Margin="2,1" FontSize="9"/>
-                                                    <CheckBox Content="TAG7" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntTAG5" Content="TAG5" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntTAG6" Content="TAG6" Margin="2,1" FontSize="9"/>
+                                                    <CheckBox x:Name="chkCntTAG7" Content="TAG7" Margin="2,1" FontSize="9"/>
                                                 </WrapPanel>
                                                 <TextBlock Text="37 discipline containers. Toggle which get written during Tag &amp; Combine." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             </StackPanel>
@@ -3698,13 +3698,13 @@
                                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                                     <TextBlock Text="Write mode" FontSize="9" VerticalAlignment="Center"/>
                                                     <WrapPanel Grid.Column="1">
-                                                        <RadioButton Content="Fill empty" GroupName="WriteMode" IsChecked="True" Margin="2" FontSize="9"/>
-                                                        <RadioButton Content="Overwrite all" GroupName="WriteMode" Margin="2" FontSize="9"/>
+                                                        <RadioButton x:Name="rbWriteFillEmpty" Content="Fill empty" GroupName="WriteMode" IsChecked="True" Margin="2" FontSize="9"/>
+                                                        <RadioButton x:Name="rbWriteOverwrite" Content="Overwrite all" GroupName="WriteMode" Margin="2" FontSize="9"/>
                                                     </WrapPanel>
                                                 </Grid>
                                                 <Grid Margin="0,3,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                                     <TextBlock Text="Scope" FontSize="9" VerticalAlignment="Center"/>
-                                                    <ComboBox Grid.Column="1" FontSize="9" Height="22">
+                                                    <ComboBox x:Name="cmbTokenScope" Grid.Column="1" FontSize="9" Height="22">
                                                         <ComboBoxItem Content="Entire project" IsSelected="True"/>
                                                         <ComboBoxItem Content="Active view"/>
                                                         <ComboBoxItem Content="Selected elements"/>
@@ -3725,6 +3725,50 @@
                                             <Button Style="{StaticResource ActionBtn}" Content="Pipeline" Tag="TagStudio_Pipeline" Click="Cmd_Click" Width="60" Height="28"/>
                                         </WrapPanel>
 
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+
+                            <!-- ─── Categories Tab ─── -->
+                            <!-- ORPHAN-FIX: re-instated so unticking categories actually filters tagging. -->
+                            <TabItem Header="Categories">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
+
+                                        <TextBlock Text="TAG THESE CATEGORIES" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <TextBox x:Name="txtCatSearch" Height="20" FontSize="9" Margin="0,0,0,3"
+                                                         ToolTip="Filter both lists by typing part of the category name."
+                                                         TextChanged="CatSearch_TextChanged"/>
+                                                <ListBox x:Name="lstTagCategories" Height="160" FontSize="9"
+                                                         SelectionMode="Multiple"
+                                                         SelectionChanged="CatSelection_Changed"
+                                                         ToolTip="Ctrl-click to toggle. Leave unselected to accept the built-in default list."/>
+                                                <WrapPanel Margin="0,3,0,0">
+                                                    <Button Content="All"             Tag="CatAll"   Click="CatQuick_Click" Width="40" Height="22" FontSize="9" Margin="1"/>
+                                                    <Button Content="None"            Tag="CatNone"  Click="CatQuick_Click" Width="44" Height="22" FontSize="9" Margin="1"/>
+                                                    <Button Content="Invert"          Tag="CatInv"   Click="CatQuick_Click" Width="48" Height="22" FontSize="9" Margin="1"/>
+                                                    <Button Content="MEP only"        Tag="CatMEP"   Click="CatQuick_Click" Width="60" Height="22" FontSize="9" Margin="1"/>
+                                                    <Button Content="Arch only"       Tag="CatArch"  Click="CatQuick_Click" Width="60" Height="22" FontSize="9" Margin="1"/>
+                                                    <Button Content="Struct only"     Tag="CatStr"   Click="CatQuick_Click" Width="66" Height="22" FontSize="9" Margin="1"/>
+                                                    <Button Content="Plumbing only"   Tag="CatPlb"   Click="CatQuick_Click" Width="82" Height="22" FontSize="9" Margin="1"/>
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <TextBlock Text="CATEGORY EXCLUSIONS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <ListBox x:Name="lstExcludeCategories" Height="90" FontSize="9"
+                                                         SelectionMode="Multiple"
+                                                         SelectionChanged="CatSelection_Changed"
+                                                         ToolTip="Categories selected here are always skipped, even if selected above."/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <TextBlock x:Name="txtCatStatus" Text="0 categories selected · 0 excluded · defaults in use" FontSize="9" Foreground="#666" Margin="0,6,0,0"/>
+                                        <TextBlock Text="Applied to tagging pipeline on Combine / Tag &amp; Combine / Stage populate / Full auto / Smart place / Batch tag." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                     </StackPanel>
                                 </ScrollViewer>
                             </TabItem>

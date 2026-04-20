@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -154,6 +155,22 @@ namespace StingTools.UI
             "ResolveAllIssues", "PreTagAudit", "ValidateTags",
         };
 
+        /// <summary>
+        /// ORPHAN-FIX: commands that read the Tokens &amp; Depth sub-tab controls
+        /// (TokenMask, separator, SEQ pad, segment order, paragraph depth, write mode,
+        /// scope, COBie fields, tag containers) and the Categories sub-tab filter.
+        /// </summary>
+        private static readonly HashSet<string> _tokenDepthConsumers = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            "CombineParameters", "TagAndCombine", "FamilyStagePopulate",
+            "FullAutoPopulate", "TagStudio_Pipeline",
+            "AutoTag", "BatchTag", "BatchTagAll", "BatchTagView", "AutoTagSelected",
+            "TagNewOnly", "ReTag", "ResolveAllIssues", "RetagStale",
+            "SetParagraphDepth", "PreTagAudit", "ValidateTags",
+            "SmartPlaceTags", "TagStudio_SmartPlace", "BatchPlaceTags",
+        };
+
         private void Cmd_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
@@ -201,6 +218,15 @@ namespace StingTools.UI
                     || cmdTag == "BatchTagTextSize")
                 {
                     SetTagStyleParams();
+                }
+
+                // ORPHAN-FIX: Pass Tokens & Depth controls to commands that honour them.
+                // Covers the Combine / Stage populate / Full auto / tagging pipeline paths
+                // plus the paragraph-depth command and the Categories sub-tab filter.
+                if (_tokenDepthConsumers.Contains(cmdTag))
+                {
+                    SetTokenDepthParams();
+                    SetCategoryFilterParams();
                 }
 
                 // Handle theme cycling directly in WPF thread (no Revit API needed)
@@ -280,6 +306,180 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("TagTextColor", c);
             }
             catch (Exception ex) { StingLog.Warn($"Read tag style params failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// ORPHAN-FIX: Read the Tokens &amp; Depth sub-tab controls and push them
+        /// as ExtraParams so the tagging pipeline can honour them without
+        /// changing command signatures.
+        ///
+        /// ExtraParam keys written:
+        ///   TokenMask       — 8-char bitmask ("11111111") matching DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ
+        ///   TagSeparator    — the active separator char ("-", "/", ".", "_")
+        ///   SeqPad          — 3, 4, or 5 (SEQ zero-pad width)
+        ///   SegOrder        — human-readable segment-order combo selection
+        ///   ParaDepth       — 1..10 (paragraph depth tier from slider)
+        ///   CobieFields     — comma-joined list of enabled COBie pre-seed fields
+        ///   TagContainers   — comma-joined list of enabled tag-container group codes
+        ///   WriteMode       — "FillEmpty" or "Overwrite"
+        ///   TokenScope      — "Project", "View", or "Selection"
+        ///
+        /// All reads are wrapped in try/catch so missing controls (e.g. dialog
+        /// invoked before the sub-tab has been lazy-loaded) never throw.
+        /// </summary>
+        private void SetTokenDepthParams()
+        {
+            try
+            {
+                // Token segment visibility → 8-char bitmask
+                char[] mask = new char[8];
+                mask[0] = (FindName("chkMaskDISC") is System.Windows.Controls.CheckBox cDisc && cDisc.IsChecked != false) ? '1' : '0';
+                mask[1] = (FindName("chkMaskLOC")  is System.Windows.Controls.CheckBox cLoc  && cLoc.IsChecked  != false) ? '1' : '0';
+                mask[2] = (FindName("chkMaskZONE") is System.Windows.Controls.CheckBox cZone && cZone.IsChecked != false) ? '1' : '0';
+                mask[3] = (FindName("chkMaskLVL")  is System.Windows.Controls.CheckBox cLvl  && cLvl.IsChecked  != false) ? '1' : '0';
+                mask[4] = (FindName("chkMaskSYS")  is System.Windows.Controls.CheckBox cSys  && cSys.IsChecked  != false) ? '1' : '0';
+                mask[5] = (FindName("chkMaskFUNC") is System.Windows.Controls.CheckBox cFunc && cFunc.IsChecked != false) ? '1' : '0';
+                mask[6] = (FindName("chkMaskPROD") is System.Windows.Controls.CheckBox cProd && cProd.IsChecked != false) ? '1' : '0';
+                mask[7] = (FindName("chkMaskSEQ")  is System.Windows.Controls.CheckBox cSeq  && cSeq.IsChecked  != false) ? '1' : '0';
+                StingCommandHandler.SetExtraParam("TokenMask", new string(mask));
+
+                // Separator radios
+                string sep = "-";
+                if (FindName("rbSepSlash") is System.Windows.Controls.RadioButton rSl && rSl.IsChecked == true) sep = "/";
+                else if (FindName("rbSepDot") is System.Windows.Controls.RadioButton rDt && rDt.IsChecked == true) sep = ".";
+                else if (FindName("rbSepUnderscore") is System.Windows.Controls.RadioButton rUs && rUs.IsChecked == true) sep = "_";
+                StingCommandHandler.SetExtraParam("TagSeparator", sep);
+
+                // SEQ pad combo (4-digit default)
+                string seqPad = "4";
+                if (FindName("cmbSeqPad") is System.Windows.Controls.ComboBox cSeqPad
+                    && cSeqPad.SelectedItem is System.Windows.Controls.ComboBoxItem cbiSeq
+                    && cbiSeq.Content is string spText)
+                {
+                    if (spText.StartsWith("001 "))      seqPad = "3";
+                    else if (spText.StartsWith("00001")) seqPad = "5";
+                    else                                 seqPad = "4";
+                }
+                StingCommandHandler.SetExtraParam("SeqPad", seqPad);
+
+                // Segment order combo — pass the raw text; consumers parse it
+                if (FindName("cmbSegOrder") is System.Windows.Controls.ComboBox cSegOrder
+                    && cSegOrder.SelectedItem is System.Windows.Controls.ComboBoxItem cbiOrder
+                    && cbiOrder.Content is string orderText)
+                {
+                    StingCommandHandler.SetExtraParam("SegOrder", orderText);
+                }
+
+                // Paragraph depth slider (1..10)
+                int depth = 10;
+                if (FindName("sldParaDepth") is System.Windows.Controls.Slider sd)
+                    depth = (int)Math.Round(sd.Value);
+                if (depth < 1) depth = 1;
+                if (depth > 10) depth = 10;
+                StingCommandHandler.SetExtraParam("ParaDepth", depth.ToString());
+
+                // COBie pre-seed field checkboxes
+                var cobie = new List<string>();
+                void AddIf(string name, string flag)
+                {
+                    if (FindName(name) is System.Windows.Controls.CheckBox cb && cb.IsChecked == true)
+                        cobie.Add(flag);
+                }
+                AddIf("chkCobieUniclass",     "UniclassCode");
+                AddIf("chkCobieSFG20",        "SFG20Code");
+                AddIf("chkCobieAssetType",    "AssetType");
+                AddIf("chkCobieWarranty",     "WarrantyYrs");
+                AddIf("chkCobieExpectedLife", "ExpectedLife");
+                AddIf("chkCobieMaintFreq",    "MaintFreq");
+                AddIf("chkCobieReplaceCost",  "ReplaceCost");
+                AddIf("chkCobieManufacturer", "Manufacturer");
+                StingCommandHandler.SetExtraParam("CobieFields", string.Join(",", cobie));
+
+                // Tag container checkboxes
+                var containers = new List<string>();
+                string[] cntNames =
+                {
+                    "chkCntARCH","chkCntMEP","chkCntSTR","chkCntGEN",
+                    "chkCntM","chkCntE","chkCntP","chkCntFP",
+                    "chkCntLV","chkCntA","chkCntS","chkCntG",
+                    "chkCntTAG1","chkCntTAG2","chkCntTAG3","chkCntTAG4",
+                    "chkCntTAG5","chkCntTAG6","chkCntTAG7"
+                };
+                foreach (string cn in cntNames)
+                {
+                    if (FindName(cn) is System.Windows.Controls.CheckBox cb && cb.IsChecked == true)
+                        containers.Add(cn.Substring("chkCnt".Length));
+                }
+                StingCommandHandler.SetExtraParam("TagContainers", string.Join(",", containers));
+
+                // Write-mode radios
+                string writeMode = "FillEmpty";
+                if (FindName("rbWriteOverwrite") is System.Windows.Controls.RadioButton rOv && rOv.IsChecked == true)
+                    writeMode = "Overwrite";
+                StingCommandHandler.SetExtraParam("WriteMode", writeMode);
+
+                // Scope combo
+                string tokenScope = "Project";
+                if (FindName("cmbTokenScope") is System.Windows.Controls.ComboBox cScope
+                    && cScope.SelectedItem is System.Windows.Controls.ComboBoxItem cbiScope
+                    && cbiScope.Content is string scopeText)
+                {
+                    if (scopeText.IndexOf("Active view", StringComparison.OrdinalIgnoreCase) >= 0) tokenScope = "View";
+                    else if (scopeText.IndexOf("Selected", StringComparison.OrdinalIgnoreCase) >= 0) tokenScope = "Selection";
+                    else tokenScope = "Project";
+                }
+                StingCommandHandler.SetExtraParam("TokenScope", tokenScope);
+            }
+            catch (Exception ex) { StingLog.Warn($"Read Tokens & Depth params failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// ORPHAN-FIX: Read the Categories sub-tab selection and push it as
+        /// ExtraParams so <see cref="Core.StingAutoTagger.CreateMultiCategoryFilterStatic"/>
+        /// can apply the user's include/exclude list.
+        /// Silently no-ops when the Categories sub-tab has not been loaded yet —
+        /// downstream helper treats an empty TagCategoryFilter as "accept all".
+        /// </summary>
+        private void SetCategoryFilterParams()
+        {
+            try
+            {
+                if (!(FindName("lstTagCategories") is System.Windows.Controls.ListBox lstInc))
+                {
+                    // Sub-tab not loaded — clear any stale filter so the default list is used.
+                    StingCommandHandler.ClearExtraParam("TagCategoryFilter");
+                    StingCommandHandler.ClearExtraParam("TagCategoryExclusions");
+                    StingCommandHandler.ClearExtraParam("TagCategoryMode");
+                    return;
+                }
+                var inc = new List<string>();
+                foreach (var item in lstInc.SelectedItems)
+                {
+                    if (item is System.Windows.Controls.ListBoxItem lbi
+                        && lbi.Tag is string bic && !string.IsNullOrEmpty(bic))
+                    {
+                        inc.Add(bic);
+                    }
+                }
+                StingCommandHandler.SetExtraParam("TagCategoryFilter", string.Join(",", inc));
+
+                var exc = new List<string>();
+                if (FindName("lstExcludeCategories") is System.Windows.Controls.ListBox lstExc)
+                {
+                    foreach (var item in lstExc.SelectedItems)
+                    {
+                        if (item is System.Windows.Controls.ListBoxItem lbi
+                            && lbi.Tag is string bic && !string.IsNullOrEmpty(bic))
+                        {
+                            exc.Add(bic);
+                        }
+                    }
+                }
+                StingCommandHandler.SetExtraParam("TagCategoryExclusions", string.Join(",", exc));
+                StingCommandHandler.SetExtraParam("TagCategoryMode",
+                    inc.Count > 0 ? "Include" : (exc.Count > 0 ? "Exclude" : ""));
+            }
+            catch (Exception ex) { StingLog.Warn($"Read Category filter failed: {ex.Message}"); }
         }
 
         /// <summary>UI-05: Read scope radio state and pass to commands.</summary>
@@ -851,6 +1051,173 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }
+        }
+
+        // ── Categories sub-tab (ORPHAN-FIX) ──────────────────────────────────
+
+        /// <summary>
+        /// Build lists of tag-eligible Revit categories. Mirrors the default
+        /// set in <see cref="Core.StingAutoTagger.CreateMultiCategoryFilterStatic"/>
+        /// plus common architectural and structural categories so a BIM
+        /// coordinator can include/exclude them without editing code.
+        /// Items store the BuiltInCategory name (e.g. "OST_PlumbingFixtures")
+        /// in <see cref="System.Windows.Controls.ListBoxItem.Tag"/>.
+        /// </summary>
+        private static readonly (string Label, string Bic, string Group)[] _catRows =
+        {
+            ("Mechanical Equipment",    "OST_MechanicalEquipment",  "MEP"),
+            ("Electrical Equipment",    "OST_ElectricalEquipment",  "MEP"),
+            ("Electrical Fixtures",     "OST_ElectricalFixtures",   "MEP"),
+            ("Lighting Fixtures",       "OST_LightingFixtures",     "MEP"),
+            ("Lighting Devices",        "OST_LightingDevices",      "MEP"),
+            ("Plumbing Fixtures",       "OST_PlumbingFixtures",     "PLUMBING"),
+            ("Sprinklers",              "OST_Sprinklers",           "MEP"),
+            ("Fire Alarm Devices",      "OST_FireAlarmDevices",     "MEP"),
+            ("Data Devices",            "OST_DataDevices",          "MEP"),
+            ("Communication Devices",   "OST_CommunicationDevices", "MEP"),
+            ("Security Devices",        "OST_SecurityDevices",      "MEP"),
+            ("Nurse Call Devices",      "OST_NurseCallDevices",     "MEP"),
+            ("Duct Accessory",          "OST_DuctAccessory",        "MEP"),
+            ("Duct Fitting",            "OST_DuctFitting",          "MEP"),
+            ("Duct Terminal",           "OST_DuctTerminal",         "MEP"),
+            ("Pipe Accessory",          "OST_PipeAccessory",        "PLUMBING"),
+            ("Pipe Fitting",            "OST_PipeFitting",          "PLUMBING"),
+            ("Ducts",                   "OST_DuctCurves",           "MEP"),
+            ("Pipes",                   "OST_PipeCurves",           "PLUMBING"),
+            ("Cable Tray",              "OST_CableTray",            "MEP"),
+            ("Conduit",                 "OST_Conduit",              "MEP"),
+            ("Furniture",               "OST_Furniture",            "ARCH"),
+            ("Doors",                   "OST_Doors",                "ARCH"),
+            ("Windows",                 "OST_Windows",              "ARCH"),
+            ("Walls",                   "OST_Walls",                "ARCH"),
+            ("Floors",                  "OST_Floors",               "ARCH"),
+            ("Ceilings",                "OST_Ceilings",             "ARCH"),
+            ("Roofs",                   "OST_Roofs",                "ARCH"),
+            ("Rooms",                   "OST_Rooms",                "ARCH"),
+            ("Structural Columns",      "OST_StructuralColumns",    "STR"),
+            ("Structural Framing",      "OST_StructuralFraming",    "STR"),
+            ("Structural Foundations",  "OST_StructuralFoundation", "STR"),
+            ("Generic Models",          "OST_GenericModel",         "GEN"),
+        };
+
+        private bool _catListsBuilt;
+
+        /// <summary>
+        /// Populate the include/exclude lists on first access so the sub-tab
+        /// costs nothing when never opened. Called from the quick-select,
+        /// selection-changed and search handlers.
+        /// </summary>
+        private void EnsureCategoryListsBuilt()
+        {
+            if (_catListsBuilt) return;
+            try
+            {
+                var lstInc = FindName("lstTagCategories") as System.Windows.Controls.ListBox;
+                var lstExc = FindName("lstExcludeCategories") as System.Windows.Controls.ListBox;
+                if (lstInc == null && lstExc == null) return;
+
+                foreach (var row in _catRows)
+                {
+                    if (lstInc != null)
+                    {
+                        lstInc.Items.Add(new System.Windows.Controls.ListBoxItem
+                        {
+                            Content = $"{row.Label}  ({row.Group})",
+                            Tag = row.Bic,
+                            ToolTip = row.Bic,
+                        });
+                    }
+                    if (lstExc != null)
+                    {
+                        lstExc.Items.Add(new System.Windows.Controls.ListBoxItem
+                        {
+                            Content = $"{row.Label}  ({row.Group})",
+                            Tag = row.Bic,
+                            ToolTip = row.Bic,
+                        });
+                    }
+                }
+                _catListsBuilt = true;
+            }
+            catch (Exception ex) { StingLog.Warn($"Build Categories sub-tab failed: {ex.Message}"); }
+        }
+
+        private void CatSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            EnsureCategoryListsBuilt();
+            string filter = (sender as System.Windows.Controls.TextBox)?.Text?.Trim().ToLowerInvariant() ?? "";
+            FilterCatList(FindName("lstTagCategories") as System.Windows.Controls.ListBox, filter);
+            FilterCatList(FindName("lstExcludeCategories") as System.Windows.Controls.ListBox, filter);
+        }
+
+        private static void FilterCatList(System.Windows.Controls.ListBox lb, string filter)
+        {
+            if (lb == null) return;
+            foreach (var item in lb.Items)
+            {
+                if (item is System.Windows.Controls.ListBoxItem lbi)
+                {
+                    string label = lbi.Content?.ToString()?.ToLowerInvariant() ?? "";
+                    lbi.Visibility = (string.IsNullOrEmpty(filter) || label.Contains(filter))
+                        ? Visibility.Visible : Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void CatSelection_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            EnsureCategoryListsBuilt();
+            UpdateCatStatus();
+        }
+
+        private void UpdateCatStatus()
+        {
+            try
+            {
+                var lstInc = FindName("lstTagCategories") as System.Windows.Controls.ListBox;
+                var lstExc = FindName("lstExcludeCategories") as System.Windows.Controls.ListBox;
+                int inc = lstInc?.SelectedItems.Count ?? 0;
+                int exc = lstExc?.SelectedItems.Count ?? 0;
+                if (FindName("txtCatStatus") is TextBlock tb)
+                {
+                    string note = (inc == 0 && exc == 0) ? "defaults in use" : "filter active";
+                    tb.Text = $"{inc} categories selected · {exc} excluded · {note}";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Category status update failed: {ex.Message}"); }
+        }
+
+        private void CatQuick_Click(object sender, RoutedEventArgs e)
+        {
+            EnsureCategoryListsBuilt();
+            if (!(FindName("lstTagCategories") is System.Windows.Controls.ListBox lstInc)) return;
+            string tag = (sender as Button)?.Tag as string ?? "";
+
+            bool Match(string bic, string mode) => mode switch
+            {
+                "CatMEP"  => _catRows.Any(r => r.Bic == bic && r.Group == "MEP"),
+                "CatArch" => _catRows.Any(r => r.Bic == bic && r.Group == "ARCH"),
+                "CatStr"  => _catRows.Any(r => r.Bic == bic && r.Group == "STR"),
+                "CatPlb"  => _catRows.Any(r => r.Bic == bic && r.Group == "PLUMBING"),
+                _          => false,
+            };
+
+            lstInc.SelectedItems.Clear();
+            foreach (var item in lstInc.Items)
+            {
+                if (item is System.Windows.Controls.ListBoxItem lbi && lbi.Tag is string bic)
+                {
+                    bool select = tag switch
+                    {
+                        "CatAll"  => true,
+                        "CatNone" => false,
+                        "CatInv"  => !lbi.IsSelected,
+                        _         => Match(bic, tag),
+                    };
+                    if (select) lstInc.SelectedItems.Add(lbi);
+                }
+            }
+            UpdateCatStatus();
         }
 
         // ── Warning level radio → ToggleWarningVisibilityCommand ─────────────
