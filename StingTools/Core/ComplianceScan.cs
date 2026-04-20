@@ -375,9 +375,14 @@ namespace StingTools.Core
                                 var containers = ParamRegistry.ContainersForCategory(cat);
                                 if (containers != null && containers.Length > 0)
                                 {
+                                    // FUT-20: Mirror WriteContainers discipline filtering so only
+                                    // containers that would have been written are checked.
+                                    string elemDisc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                                     int emptyCount = 0;
                                     for (int ci = 0; ci < containers.Length; ci++)
                                     {
+                                        if (!ParamRegistry.IsContainerRelevantForDiscPublic(containers[ci].ParamName, elemDisc))
+                                            continue;
                                         result.TotalContainerChecks++;
                                         if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
                                         {
