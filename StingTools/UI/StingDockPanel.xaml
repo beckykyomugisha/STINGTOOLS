@@ -969,6 +969,7 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Edit CSV…" Tag="TitleBlockEditCsv" Click="Cmd_Click" ToolTip="Open the in-Revit editable DataGrid for TITLE_BLOCK.csv (no external editor needed)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Populate" Tag="TitleBlockPopulate" Click="Cmd_Click" ToolTip="Bulk-write PRJ_TB_* values from TITLE_BLOCK.csv to every sheet's title block (skips locked sheets)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="TitleBlockValidate" Click="Cmd_Click" ToolTip="Audit title block completeness — missing fields, invalid suitability codes, stale syncs (read-only)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Set Variant" Tag="TitleBlockSetVariant" Click="Cmd_Click" ToolTip="Auto-swap STING_TB_* family based on paper size and viewport aspect (A0/A1/A3 × R/B)"/>

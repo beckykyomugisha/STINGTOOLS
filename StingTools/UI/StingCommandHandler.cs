@@ -431,6 +431,7 @@ namespace StingTools.UI
                     case "Transmittal": RunCommand<Docs.TransmittalCommand>(app); break;
 
                     // ── Phase 97 — Title Block System (8 commands per spec v1.0) ──
+                    case "TitleBlockEditCsv":      RunCommand<Docs.TitleBlockEditCsvCommand>(app); break;
                     case "TitleBlockPopulate":     RunCommand<Docs.TitleBlockPopulateCommand>(app); break;
                     case "TitleBlockValidate":     RunCommand<Docs.TitleBlockValidateCommand>(app); break;
                     case "TitleBlockSetVariant":   RunCommand<Docs.TitleBlockSetVariantCommand>(app); break;
