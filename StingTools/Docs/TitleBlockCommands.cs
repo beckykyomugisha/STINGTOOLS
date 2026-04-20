@@ -325,11 +325,25 @@ namespace StingTools.Docs
             var csv = TitleBlockCsv.Load(csvPath);
             if (csv.RowCount == 0)
             {
-                TaskDialog.Show("STING Title Block Populate",
-                    $"No TITLE_BLOCK.csv rows found.\nSearched: {csvPath ?? "<none>"}\n\n" +
-                    "Create the CSV (ParameterName, DefaultValue, per-discipline columns) " +
-                    "and retry. A template is shipped under Data/TITLE_BLOCK.csv.");
-                return Result.Cancelled;
+                var offer = new TaskDialog("STING Title Block Populate");
+                offer.MainInstruction = "No TITLE_BLOCK.csv rows found.";
+                offer.MainContent = $"Searched: {csvPath ?? "<none>"}\n\n" +
+                    "Open the in-Revit editor to create or edit the CSV, or cancel and " +
+                    "author it externally.";
+                offer.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Open Title Block CSV Editor");
+                offer.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Cancel");
+                if (offer.Show() == TaskDialogResult.CommandLink1)
+                {
+                    var outcome = TitleBlockCsvEditor.ShowDialog(doc);
+                    if (!outcome.Saved) return Result.Cancelled;
+                    // Reload from the just-saved path and continue
+                    csvPath = outcome.Path;
+                    csv = TitleBlockCsv.Load(csvPath);
+                    if (csv.RowCount == 0) return Result.Cancelled;
+                }
+                else return Result.Cancelled;
             }
 
             var sheets = new FilteredElementCollector(doc)
