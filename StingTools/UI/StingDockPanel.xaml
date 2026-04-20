@@ -964,6 +964,25 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- TITLE BLOCK (Phase 97 — STING TB System v1.0) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="🧾 TITLE BLOCK"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Populate" Tag="TitleBlockPopulate" Click="Cmd_Click" ToolTip="Bulk-write PRJ_TB_* values from TITLE_BLOCK.csv to every sheet's title block (skips locked sheets)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="TitleBlockValidate" Click="Cmd_Click" ToolTip="Audit title block completeness — missing fields, invalid suitability codes, stale syncs (read-only)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Set Variant" Tag="TitleBlockSetVariant" Click="Cmd_Click" ToolTip="Auto-swap STING_TB_* family based on paper size and viewport aspect (A0/A1/A3 × R/B)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Legend Bind" Tag="DisciplineLegendBind" Click="Cmd_Click" ToolTip="Place LGD-{DISC}-NOTES legend view into notes region of each sheet's title block (Option C)"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Count Sheets" Tag="SheetCountAutoUpdate" Click="Cmd_Click" ToolTip="Refresh PRJ_TB_TOTAL_NO_SHEETS_TXT — counts sheets where 'Appears in Sheet List' is Yes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Revision Sync" Tag="RevisionSync" Click="Cmd_Click" ToolTip="Mirror Revit native revision number/date into PRJ_TB_REVISION_NR_TXT / PRJ_TB_REVISION_DATE_TXT"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stamp TX" Tag="TransmittalAutoIssue" Click="Cmd_Click" ToolTip="Stamp transmittal metadata (PRJ_TB_LAST_TRANSMITTAL_*, PRJ_TB_DELIVERABLE_*) onto selected sheets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pre-Export" Tag="PreExportValidate" Click="Cmd_Click" ToolTip="Run pre-export completeness gate — blocks PDF/DWF when critical fields are empty"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- SHEET MANAGER -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SHEET MANAGER"/>
                         <Border Style="{StaticResource GroupBorder}">

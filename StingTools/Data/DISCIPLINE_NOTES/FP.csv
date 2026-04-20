@@ -1,0 +1,6 @@
+NoteNumber,NoteText,AppliesTo,UgandaNBCRef,ISORef
+1,All dimensions are in millimetres unless otherwise noted. Do not scale drawings.,ALL,,BS 1192
+2,All work shall comply with Uganda National Building Code 2019 and project specifications.,ALL,NBC 2019,ISO 19650-1:2018
+3,Contractor to verify all dimensions on site and report discrepancies to the designer before proceeding.,ALL,,
+4,This drawing must be read in conjunction with all other related discipline drawings.,ALL,,ISO 19650-2:2018
+5,Refer to LGD-FP-SYMBOLS legend for symbology used on this drawing.,ALL,,
