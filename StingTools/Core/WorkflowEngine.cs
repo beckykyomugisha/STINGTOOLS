@@ -1402,6 +1402,7 @@ namespace StingTools.Core
                 case "RaiseIssue":              return new BIMManager.RaiseIssueCommand();
                 case "UpdateIssue":             return new BIMManager.UpdateIssueCommand();
                 case "SelectIssueElements":     return new BIMManager.SelectIssueElementsCommand();
+                case "LinkIssueElements":       return new BIMManager.SelectIssueElementsCommand(); // alias — BCC dispatches this tag
                 case "IssueDashboard":          return new BIMManager.IssueDashboardCommand();
                 case "BCFExport":               return new BIMManager.BCFExportCommand();
                 case "BCFImport":               return new BIMManager.BCFImportCommand();

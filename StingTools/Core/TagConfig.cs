@@ -5364,9 +5364,34 @@ namespace StingTools.Core
             }
 
             // ISO reference always added with connecting language
-            string fullTag = string.Join(Separator, tokenValues);
-            if (!string.IsNullOrEmpty(TagPrefix)) fullTag = TagPrefix + Separator + fullTag;
-            if (!string.IsNullOrEmpty(TagSuffix)) fullTag = fullTag + Separator + TagSuffix;
+            // S02 defensive guards — trap upstream token corruption so the narrative stays readable
+            // even when a PROD/SYS/etc. writer accidentally concatenated multiple descriptors into
+            // one token slot, or when TagPrefix/TagSuffix already appears in the joined string.
+            string[] isoTokens = new string[tokenValues.Length];
+            for (int i = 0; i < tokenValues.Length; i++)
+            {
+                string v = tokenValues[i];
+                if (!string.IsNullOrEmpty(v) && !string.IsNullOrEmpty(Separator) && v.Contains(Separator))
+                {
+                    StingLog.Warn($"BuildTag7Sections: token[{i}]='{v}' contains separator '{Separator}'. " +
+                                  $"ElementId={el?.Id}. Truncating to first segment.");
+                    v = v.Split(new[] { Separator }, 2, StringSplitOptions.None)[0];
+                }
+                isoTokens[i] = v;
+            }
+            string fullTag = string.Join(Separator, isoTokens);
+            if (!string.IsNullOrEmpty(TagPrefix) &&
+                !fullTag.StartsWith(TagPrefix + Separator, StringComparison.Ordinal) &&
+                !fullTag.StartsWith(TagPrefix, StringComparison.Ordinal))
+            {
+                fullTag = TagPrefix + Separator + fullTag;
+            }
+            if (!string.IsNullOrEmpty(TagSuffix) &&
+                !fullTag.EndsWith(Separator + TagSuffix, StringComparison.Ordinal) &&
+                !fullTag.EndsWith(TagSuffix, StringComparison.Ordinal))
+            {
+                fullTag = fullTag + Separator + TagSuffix;
+            }
             if (classPlain.Length > 0) { classPlain.Append(". Assigned "); classMarked.Append(". Assigned "); }
             classPlain.Append($"ISO 19650 tag {fullTag}");
             classMarked.Append($"\u00ABL\u00BBISO 19650 tag\u00AB/L\u00BB \u00ABH\u00BB{fullTag}\u00AB/H\u00BB");

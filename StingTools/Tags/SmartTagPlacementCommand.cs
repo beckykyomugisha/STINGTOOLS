@@ -649,12 +649,34 @@ namespace StingTools.Tags
         // ── Enhanced batch placement ─────────────────────────────────
 
         /// <summary>
+        /// Categorised skip reasons populated by the most recent <see cref="PlaceTagsInView"/> call.
+        /// Lets callers report a precise breakdown instead of "no tag family or invalid".
+        /// </summary>
+        public class SkipBreakdown
+        {
+            public int NoCenter;             // element center at origin / outside view bounds
+            public int NoTagFamily;          // no FamilySymbol (tag) resolved for category
+            public int TagCreationFailed;    // Revit InvalidOperationException during IndependentTag.Create
+            public int OtherException;       // any other exception during placement
+            public int Total => NoCenter + NoTagFamily + TagCreationFailed + OtherException;
+            public string Format()
+                => Total == 0 ? "0"
+                              : $"{Total} (no tag family: {NoTagFamily}, creation failed: {TagCreationFailed}, " +
+                                $"outside bounds: {NoCenter}, other: {OtherException})";
+        }
+
+        /// <summary>Skip breakdown from the most recent PlaceTagsInView invocation.</summary>
+        public static SkipBreakdown LastSkipBreakdown { get; private set; } = new SkipBreakdown();
+
+        /// <summary>
         /// Enhanced tag placement with grid spatial index, 16 candidates, alignment
         /// bonus, view crop boundary awareness, and performance optimization.
         /// </summary>
         public static (int placed, int skipped, int collisions) PlaceTagsInView(
             Document doc, View view, bool addLeaders, bool tagOnlyUntagged)
         {
+            var sb = new SkipBreakdown();
+            LastSkipBreakdown = sb;
             int placed = 0, skipped = 0, collisions = 0;
 
             var existingTags = new FilteredElementCollector(doc, view.Id)
@@ -774,7 +796,8 @@ namespace StingTools.Tags
                 XYZ center = GetElementCenter(elem, view);
                 if (center.IsAlmostEqualTo(XYZ.Zero))
                 {
-                    skipped++;
+                    sb.NoCenter++; skipped++;
+                    StingLog.Info($"SmartPlace skip (no center): element {elem.Id} category='{elem.Category?.Name}'");
                     continue;
                 }
 
@@ -785,7 +808,12 @@ namespace StingTools.Tags
                     tagTypeId = tagType?.Id ?? ElementId.InvalidElementId;
                     tagTypeCache[catId] = tagTypeId;
                 }
-                if (tagTypeId == ElementId.InvalidElementId) { skipped++; continue; }
+                if (tagTypeId == ElementId.InvalidElementId)
+                {
+                    sb.NoTagFamily++; skipped++;
+                    StingLog.Info($"SmartPlace skip (no tag family loaded): element {elem.Id} category='{elem.Category?.Name}'");
+                    continue;
+                }
 
                 string catName = elem.Category?.Name ?? "";
                 // Apply per-category scale multiplier to offset
@@ -886,11 +914,15 @@ namespace StingTools.Tags
                         placed++;
                     }
                 }
-                catch (Autodesk.Revit.Exceptions.InvalidOperationException) { skipped++; }
+                catch (Autodesk.Revit.Exceptions.InvalidOperationException iopEx)
+                {
+                    sb.TagCreationFailed++; skipped++;
+                    StingLog.Info($"SmartPlace skip (tag creation failed): element {elem.Id} - {iopEx.Message}");
+                }
                 catch (Exception ex)
                 {
+                    sb.OtherException++; skipped++;
                     StingLog.Warn($"Tag placement failed for {elem.Id}: {ex.Message}");
-                    skipped++;
                 }
             }
 
@@ -1531,7 +1563,13 @@ namespace StingTools.Tags
             sw.Stop();
             var report = new StringBuilder();
             report.AppendLine($"Placed: {placed} annotation tags");
-            if (skipped > 0) report.AppendLine($"Skipped: {skipped} (no tag family or invalid)");
+            if (skipped > 0)
+            {
+                var bd = TagPlacementEngine.LastSkipBreakdown;
+                report.AppendLine($"Skipped: {bd.Format()}");
+                if (bd.NoTagFamily > 0)
+                    report.AppendLine("  Hint: load STING tag families for the affected categories (Tags → Load Tag Families).");
+            }
             if (collisions > 0) report.AppendLine($"Overlaps: {collisions} (best effort placement)");
             report.AppendLine($"Time: {sw.Elapsed.TotalSeconds:F1}s");
 

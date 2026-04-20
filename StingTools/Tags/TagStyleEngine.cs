@@ -494,11 +494,25 @@ namespace StingTools.Tags
         /// <param name="preset">The style preset to apply.</param>
         /// <param name="elements">Elements to style (null = all element types).</param>
         /// <returns>Number of element types updated.</returns>
+        /// <summary>Diagnostics from the most recent ApplyTagStyle call so callers can show
+        /// a meaningful dialog when <c>updated == 0</c> instead of a dead-end "0 types updated".</summary>
+        public class ApplyStyleDiagnostics
+        {
+            public int Scanned;             // element types inspected
+            public int HadAnyStyleParam;    // types that carry at least one TAG_*_BOOL param
+            public int MissingActiveParam;  // types that carry style params but NOT the selected one
+            public int Updated;             // types actually mutated
+            public string ActiveParam;
+        }
+
+        public static ApplyStyleDiagnostics LastApplyDiagnostics { get; private set; } = new ApplyStyleDiagnostics();
+
         public static int ApplyTagStyle(Document doc, StylePreset preset, ICollection<Element> elements = null)
         {
             string activeParam = preset.ParamName;
             string[] allStyleParams = ParamRegistry.AllTagStyleParams;
             int updated = 0;
+            int scanned = 0, hadAnyStyleParam = 0, missingActiveParam = 0;
 
             var targets = elements ?? new FilteredElementCollector(doc)
                 .WhereElementIsElementType()
@@ -506,11 +520,16 @@ namespace StingTools.Tags
 
             foreach (Element el in targets)
             {
+                scanned++;
                 bool any = false;
+                bool sawAnyStyleParam = false;
+                bool sawActiveParam = false;
                 foreach (string param in allStyleParams)
                 {
                     Parameter p = el.LookupParameter(param);
                     if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer) continue;
+                    sawAnyStyleParam = true;
+                    if (param == activeParam) sawActiveParam = true;
                     bool shouldBeOn = (param == activeParam);
                     int current = p.AsInteger();
                     if (current != (shouldBeOn ? 1 : 0))
@@ -519,10 +538,22 @@ namespace StingTools.Tags
                         any = true;
                     }
                 }
+                if (sawAnyStyleParam) hadAnyStyleParam++;
+                if (sawAnyStyleParam && !sawActiveParam) missingActiveParam++;
                 if (any) updated++;
             }
 
-            StingLog.Info($"TagStyle: Applied {preset.TypeName} to {updated} types");
+            LastApplyDiagnostics = new ApplyStyleDiagnostics
+            {
+                Scanned = scanned,
+                HadAnyStyleParam = hadAnyStyleParam,
+                MissingActiveParam = missingActiveParam,
+                Updated = updated,
+                ActiveParam = activeParam
+            };
+
+            StingLog.Info($"TagStyle: Applied {preset.TypeName} — scanned={scanned}, " +
+                $"hadStyleParams={hadAnyStyleParam}, missingActive={missingActiveParam}, updated={updated}");
             return updated;
         }
 
