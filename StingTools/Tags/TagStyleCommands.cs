@@ -224,10 +224,33 @@ namespace StingTools.Tags
                 int updated = TagStyleEngine.ApplyTagStyle(doc, preset);
                 tx.Commit();
 
-                TaskDialog.Show("Tag Style Applied",
-                    $"Style: {preset.TypeName}\n" +
-                    $"Parameter: {preset.ParamName}\n" +
-                    $"Element types updated: {updated}");
+                var diag = TagStyleEngine.LastApplyDiagnostics;
+                var body = new System.Text.StringBuilder();
+                body.AppendLine($"Style: {preset.TypeName}");
+                body.AppendLine($"Parameter: {preset.ParamName}");
+                body.AppendLine($"Element types updated: {updated}");
+                if (updated == 0 && diag != null)
+                {
+                    body.AppendLine();
+                    body.AppendLine($"Scanned {diag.Scanned} element types.");
+                    if (diag.HadAnyStyleParam == 0)
+                    {
+                        body.AppendLine("None of them carry any TAG_*_BOOL style parameter.");
+                        body.AppendLine("Fix: load STING-compatible tag families, or run");
+                        body.AppendLine("Family Parameter Creator to inject style params into existing families.");
+                    }
+                    else if (diag.MissingActiveParam > 0)
+                    {
+                        body.AppendLine($"{diag.HadAnyStyleParam} types carry style params, but " +
+                                         $"{diag.MissingActiveParam} of them lack '{diag.ActiveParam}'.");
+                        body.AppendLine("Fix: run Family Parameter Creator to inject the missing style parameter.");
+                    }
+                    else
+                    {
+                        body.AppendLine("All style parameters already match the requested style — nothing to change.");
+                    }
+                }
+                TaskDialog.Show("Tag Style Applied", body.ToString());
             }
 
             return Result.Succeeded;
@@ -1212,6 +1235,51 @@ namespace StingTools.Tags
                 default: return Result.Cancelled;
             }
 
+            // Pre-check for the binding BEFORE the write transaction so we can offer
+            // inline remediation instead of a dead-end "Run Load Parameters first" message.
+            bool parameterBound = view.LookupParameter(ParamRegistry.VIEW_TAG_STYLE) != null;
+            if (!parameterBound)
+            {
+                var remediation = new TaskDialog("STING — Parameter not bound");
+                remediation.MainInstruction = "STING_VIEW_TAG_STYLE is not bound to the View category.";
+                remediation.MainContent =
+                    "Per-view tag styles need this parameter bound to OST_Views first. " +
+                    "STING can run the shared-parameter loader now (safe and reversible).";
+                remediation.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Bind parameters now", "Runs Load Shared Parameters, then retries the style change.");
+                remediation.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Cancel");
+                var r = remediation.Show();
+                if (r != TaskDialogResult.CommandLink1)
+                    return Result.Cancelled;
+
+                try
+                {
+                    var loader = new LoadSharedParamsCommand();
+                    string loadMsg = null;
+                    var loadElems = new ElementSet();
+                    loader.Execute(commandData, ref loadMsg, loadElems);
+                }
+                catch (Exception loadEx)
+                {
+                    StingLog.Error("SetViewTagStyle: LoadSharedParams bind failed", loadEx);
+                    TaskDialog.Show("STING",
+                        $"Parameter binding failed: {loadEx.Message}\n\n" +
+                        "Open Manage → Project Parameters and bind STING_VIEW_TAG_STYLE to the Views category manually.");
+                    return Result.Failed;
+                }
+
+                parameterBound = view.LookupParameter(ParamRegistry.VIEW_TAG_STYLE) != null;
+                if (!parameterBound)
+                {
+                    TaskDialog.Show("STING",
+                        "STING_VIEW_TAG_STYLE is still not bound to the View category after running Load Parameters.\n\n" +
+                        "Open Manage → Project Parameters and verify the Views category is ticked when binding " +
+                        "STING_VIEW_TAG_STYLE from the shared-parameter file.");
+                    return Result.Failed;
+                }
+            }
+
             string resultMsg = null;
             using (Transaction tx = new Transaction(doc, "STING Set View Tag Style"))
             {
@@ -1226,8 +1294,8 @@ namespace StingTools.Tags
                     }
                     else
                     {
-                        resultMsg = "STING_VIEW_TAG_STYLE parameter not found on this view.\n" +
-                            "Run 'Load Parameters' first to bind view parameters.";
+                        resultMsg = "STING_VIEW_TAG_STYLE is bound but read-only on this view — " +
+                                    "check that the parameter is not marked read-only in the shared-parameter file.";
                     }
                 }
                 catch (Exception ex)
