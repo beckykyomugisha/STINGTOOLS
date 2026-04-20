@@ -16,6 +16,10 @@ namespace StingTools.UI.Clash
         public DateTime? DueDate { get; set; }
         public string ResolutionHint { get; set; }
 
+        // INotifyPropertyChanged contract — bindings subscribe even when no
+        // property raises the event, so the unused warning is expected.
+#pragma warning disable CS0067
         public event PropertyChangedEventHandler PropertyChanged;
+#pragma warning restore CS0067
     }
 }

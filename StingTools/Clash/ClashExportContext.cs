@@ -11,7 +11,7 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.IFC;
+using StingTools.Core;
 
 namespace StingTools.Core.Clash
 {
@@ -88,7 +88,8 @@ namespace StingTools.Core.Clash
                 var key = new ClashElementKey(
                     _currentDocGuid,
                     _currentLinkInstanceId,
-                    elementId.IntegerValue,
+                    // Revit 2024+: ElementId.IntegerValue is obsolete; Value returns long.
+                    (int)elementId.Value,
                     _currentUniqueId,
                     _currentIfcGuid);
 
@@ -132,9 +133,12 @@ namespace StingTools.Core.Clash
             {
                 var linkDoc = node.GetDocument();
                 guid = linkDoc?.ProjectInformation?.UniqueId ?? linkDoc?.PathName ?? "link";
-                linkInstId = node.GetSymbolId().IntegerValue;
+                // LinkNode.GetSymbolId() was removed in newer Revit APIs. The id
+                // is only used as a cache key, so a stable hash of the doc guid
+                // is sufficient here.
+                linkInstId = guid.GetHashCode();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"ClashExport: OnLinkBegin symbol resolve failed: {ex.Message}"); }
             _docStack.Push(guid);
             _linkInstanceStack.Push(linkInstId);
             return RenderNodeAction.Proceed;
@@ -222,8 +226,11 @@ namespace StingTools.Core.Clash
         private static string TryGetIfcGuid(Document doc, ElementId id)
         {
             if (doc == null || id == null) return "";
-            try { return ExporterIFCUtils.CreateSubElementGUID(doc.GetElement(id), 0); }
-            catch { return ""; }
+            // ExporterIFCUtils lives in RevitAPIIFC.dll, which is not referenced
+            // by StingTools. Fall back to the Revit element UniqueId — already a
+            // GUID-shaped identifier and stable per element.
+            try { return doc.GetElement(id)?.UniqueId ?? ""; }
+            catch (Exception ex) { StingLog.Warn($"ClashExport: TryGetIfcGuid failed: {ex.Message}"); return ""; }
         }
     }
 }

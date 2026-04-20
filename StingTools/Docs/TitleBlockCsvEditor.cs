@@ -14,8 +14,14 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
-// Disambiguate WPF Color (Autodesk.Revit.DB and System.Windows.Media both export a Color type)
+// Disambiguate WPF types from identically-named Revit API types when both
+// namespaces are imported in this file:
+//   Color   — Autodesk.Revit.DB.Color vs System.Windows.Media.Color
+//   Grid    — Autodesk.Revit.DB.Grid (grid line) vs System.Windows.Controls.Grid
+//   Binding — Autodesk.Revit.DB.Binding (parameter binding) vs System.Windows.Data.Binding
 using Color = System.Windows.Media.Color;
+using Grid = System.Windows.Controls.Grid;
+using Binding = System.Windows.Data.Binding;
 
 namespace StingTools.Docs
 {

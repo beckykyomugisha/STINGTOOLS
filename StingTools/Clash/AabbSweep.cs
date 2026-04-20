@@ -18,9 +18,11 @@ namespace StingTools.Core.Clash
             public ElementBox(ClashMeshBuffer m, double pad)
             {
                 Mesh = m;
+                // RBush 4.0 Envelope is a readonly record struct with
+                // PascalCase positional fields (MinX, MinY, MaxX, MaxY).
                 _envelope = new Envelope(
-                    minX: m.MinX - pad, minY: m.MinY - pad,
-                    maxX: m.MaxX + pad, maxY: m.MaxY + pad);
+                    m.MinX - pad, m.MinY - pad,
+                    m.MaxX + pad, m.MaxY + pad);
             }
         }
 

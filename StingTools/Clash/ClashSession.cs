@@ -38,7 +38,12 @@ namespace StingTools.Core.Clash
         private ClashRuleEngine _ruleEngine;
         public bool Initialised { get; private set; }
 
+        // Consumers subscribe to watch per-element flag changes; invocation is
+        // done via reflection from the LiveClashUpdater path, so the compiler
+        // can't see a direct raise here.
+#pragma warning disable CS0067
         public event Action<int, bool> OnElementFlagChanged;   // (eid, isFlagged)
+#pragma warning restore CS0067
 
         private ClashSession(Document doc)
         {
@@ -89,7 +94,8 @@ namespace StingTools.Core.Clash
             var result = new LiveClashResult();
             try
             {
-                var element = _doc.GetElement(new ElementId(elementId));
+                // Revit 2024+: ElementId(int) is obsolete — use the long overload.
+                var element = _doc.GetElement(new ElementId((long)elementId));
                 if (element == null) return RemoveElement(elementId);
 
                 var fresh = TryExtractOneElement(element);
@@ -149,10 +155,12 @@ namespace StingTools.Core.Clash
                 if (verts.Count == 0) return null;
 
                 string docGuid = _doc.ProjectInformation?.UniqueId ?? _doc.PathName ?? "host";
-                string ifc = "";
-                try { ifc = ExporterIFCUtils.CreateSubElementGUID(element, 0); } catch { }
+                // ExporterIFCUtils lives in RevitAPIIFC.dll which isn't referenced.
+                // element.UniqueId is already a stable GUID and good enough for
+                // clash-record identity.
+                string ifc = element.UniqueId ?? "";
 
-                var key = new ClashElementKey(docGuid, -1, element.Id.IntegerValue, element.UniqueId, ifc);
+                var key = new ClashElementKey(docGuid, -1, (int)element.Id.Value, element.UniqueId, ifc);
                 return new ClashMeshBuffer(key, element.Category?.Name ?? "", verts.ToArray(), indices.ToArray());
             }
             catch (Exception ex) { StingLog.Warn("TryExtractOneElement: " + ex.Message); return null; }
