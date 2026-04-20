@@ -2057,6 +2057,10 @@ namespace StingTools.Core
             return false;
         }
 
+        /// <summary>FUT-20 public accessor for ComplianceScan discipline filtering.</summary>
+        public static bool IsContainerRelevantForDiscPublic(string paramName, string disc)
+            => IsContainerRelevantForDisc(paramName, disc);
+
         public static int WriteContainers(Element el, string[] tokenValues, string categoryName,
             bool overwrite = true, string skipParam = null)
         {
