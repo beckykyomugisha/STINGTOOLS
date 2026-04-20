@@ -188,7 +188,9 @@ namespace StingTools.Core.Clash
         public void OnMaterial(MaterialNode node) { }
         public void OnLight(LightNode node) { }
         public void OnRPC(RPCNode node) { }
-        public void OnDaylightPortal(DaylightPortalNode node) { }
+        // DaylightPortalNode was removed from IExportContext in newer Revit
+        // APIs (type no longer resolves — CS0246). The interface method is
+        // also gone in those versions, so the declaration can be dropped.
         public RenderNodeAction OnFaceBegin(FaceNode node) => RenderNodeAction.Proceed;
         public void OnFaceEnd(FaceNode node) { }
 

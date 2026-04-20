@@ -10,11 +10,15 @@ namespace StingTools.Core.Clash
         public sealed class ElementBox : ISpatialData
         {
             public ClashMeshBuffer Mesh;
-            public Envelope Envelope { get; }
+            // RBush 4.0 changed ISpatialData.Envelope to a ref-return property
+            // (ref readonly Envelope Envelope { get; }). Store the value in a
+            // backing field and return it by reference.
+            private readonly Envelope _envelope;
+            public ref readonly Envelope Envelope => ref _envelope;
             public ElementBox(ClashMeshBuffer m, double pad)
             {
                 Mesh = m;
-                Envelope = new Envelope(
+                _envelope = new Envelope(
                     minX: m.MinX - pad, minY: m.MinY - pad,
                     maxX: m.MaxX + pad, maxY: m.MaxY + pad);
             }

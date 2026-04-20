@@ -14,6 +14,8 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+// Disambiguate WPF Color (Autodesk.Revit.DB and System.Windows.Media both export a Color type)
+using Color = System.Windows.Media.Color;
 
 namespace StingTools.Docs
 {
