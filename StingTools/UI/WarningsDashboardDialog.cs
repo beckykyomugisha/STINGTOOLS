@@ -418,49 +418,45 @@ namespace StingTools.UI
                 // Store per-group checkbox list
                 var groupChecks = new List<CheckBox>();
 
-                // Sample warning items — these will be populated at runtime by the dispatch handler
-                // which reads actual Revit warnings. Here we create placeholder structure.
+                // Phase 104 fix: consume real CoordData.Warnings from the
+                // live BCC instance instead of the hardcoded sample arrays
+                // that used to fall through here. Previously the tree
+                // rendered the same 18 warning types for every project
+                // because the dispatch handler was supposed to rewrite them
+                // at runtime but never did. Now we group the real
+                // WarningRow list (populated from WarningsEngine.ScanWarnings
+                // in BuildCoordData) by severity and emit one entry per
+                // unique description within the group, with real FailingElement
+                // IDs already stored on each row for the ZoomToWarning path
+                // to use.
+                var realWarnings = BIMCoordinationCenter.GetLastCoordWarnings() ?? new List<BIMCoordinationCenter.WarningRow>();
+                var groupedWarnings = realWarnings
+                    .Where(w => w != null && string.Equals(w.Severity, severity, StringComparison.OrdinalIgnoreCase))
+                    .GroupBy(w => w.Description ?? "(unknown)")
+                    .Select(g => new {
+                        Desc = g.Key,
+                        Cat  = g.FirstOrDefault()?.Category ?? "Unknown",
+                        Count = g.Sum(w => w.ElementCount),
+                        Ids   = g.SelectMany(w => w.ElementIds ?? new List<long>()).Distinct().ToList()
+                    })
+                    .OrderByDescending(g => g.Count)
+                    .ToList();
+
                 string[] sampleWarnings;
-                switch (severity)
+                if (groupedWarnings.Count > 0)
                 {
-                    case "CRITICAL":
-                        sampleWarnings = new[]
-                        {
-                            "Host has been deleted|Data|1",
-                            "Room is not in a properly enclosed region|Spatial|3",
-                            "Highlighted walls overlap|Geometric|2",
-                            "Elements have duplicate instance values|Data|5"
-                        };
-                        break;
-                    case "HIGH":
-                        sampleWarnings = new[]
-                        {
-                            "Room separation line overlaps another|Spatial|4",
-                            "Duplicate mark values|Data|8",
-                            "Elements are joined but do not intersect|Geometric|2",
-                            "Cannot be placed on non-structural host|Geometric|1",
-                            "Minimum clearance not met|Compliance|3"
-                        };
-                        break;
-                    case "MEDIUM":
-                        sampleWarnings = new[]
-                        {
-                            "Wall is slightly off axis|Geometric|6",
-                            "Room tag is outside of its room|Spatial|2",
-                            "Calculated size not available|MEP|4",
-                            "Model Line is too short|Geometric|3",
-                            "Opening cut is not perpendicular|Geometric|1"
-                        };
-                        break;
-                    default: // LOW
-                        sampleWarnings = new[]
-                        {
-                            "Wall join produces an odd result|Geometric|7",
-                            "Wall is attached|Geometric|2",
-                            "Coincident lines or edges|Geometric|3",
-                            "Not properly associated|Data|1"
-                        };
-                        break;
+                    sampleWarnings = groupedWarnings
+                        .Select(g => $"{g.Desc}|{g.Cat}|{g.Count}")
+                        .ToArray();
+                }
+                else
+                {
+                    // Fallback — model is clean for this severity, or the BCC
+                    // wasn't initialised through BIMCoordinationCenterCommand
+                    // (e.g. the Warnings dashboard was opened standalone).
+                    // Render an explicit "no warnings" placeholder instead of
+                    // the misleading sample list.
+                    sampleWarnings = new[] { $"(no {severity.ToLower()} warnings in this model)|—|0" };
                 }
 
                 int groupTotal = 0;

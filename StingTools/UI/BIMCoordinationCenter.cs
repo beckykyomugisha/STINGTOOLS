@@ -652,6 +652,24 @@ namespace StingTools.UI
                 }), System.Windows.Threading.DispatcherPriority.ContextIdle);
             };
 
+            // Phase 104: when BCC regains activation (e.g. user alt-tabs back
+            // into it, or a child window closes), pulse Topmost briefly so it
+            // jumps over Revit's main window. Without this, closing a child
+            // sometimes leaves Revit's main window on top because the z-order
+            // fell down the chain Revit → BCC during the child's lifetime.
+            this.Activated += (_, _) =>
+            {
+                try
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (!IsActive) return;
+                        Topmost = true; Topmost = false;
+                    }), System.Windows.Threading.DispatcherPriority.ContextIdle);
+                }
+                catch { /* best effort */ }
+            };
+
             var root = new Grid();
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(56) });   // Header
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(34) });   // Share toolbar
@@ -2912,6 +2930,79 @@ namespace StingTools.UI
             createFormBorder.Child = formRow;
             stack.Children.Add(createFormBorder);
 
+            // Phase 104: custom code row — explicit inline input so the
+            // coordinator can add bespoke revision codes (e.g. PQ-01, G3-A,
+            // Co11 when they go past the built-in 10 Contract issues) without
+            // hunting through the IsEditable combo. Typed code is prepended
+            // as a new ComboBoxItem in its own "CUSTOM" group at the top of
+            // the dropdown and immediately selected.
+            var customCodeBorder = new Border
+            {
+                Background = Br(Color.FromRgb(0xFF, 0xF8, 0xE1)),
+                BorderBrush = Br(Color.FromRgb(0xE8, 0x91, 0x2D)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(10, 6, 10, 6),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            var customCodeRow = new WrapPanel();
+            customCodeRow.Children.Add(new TextBlock
+            {
+                Text = "\u2795 Add Custom Code:", FontWeight = FontWeights.SemiBold, FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0),
+                Foreground = Br(Color.FromRgb(0x55, 0x40, 0x20)),
+                ToolTip = "Append a bespoke ISO code to the dropdown (e.g. PQ-01, G3-A, Co11). Useful when >10 revisions in one series."
+            });
+            var customCodeBox = new System.Windows.Controls.TextBox
+            {
+                Width = 100, FontSize = 11, Margin = new Thickness(0, 0, 4, 0),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "Custom revision code"
+            };
+            var customLabelBox = new System.Windows.Controls.TextBox
+            {
+                Width = 180, FontSize = 11, Margin = new Thickness(0, 0, 4, 0),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "Human-readable label (optional)"
+            };
+            var addCustomBtn = new Button
+            {
+                Content = "Add to dropdown", Height = 22, Padding = new Thickness(8, 0, 8, 0),
+                Background = Br(Color.FromRgb(0xE8, 0x91, 0x2D)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                ToolTip = "Prepend the typed code to the ISO Code dropdown and select it"
+            };
+            addCustomBtn.Click += (s, e) =>
+            {
+                string cc = customCodeBox.Text?.Trim()?.Replace("|", "/");
+                if (string.IsNullOrWhiteSpace(cc))
+                {
+                    if (_statusBar != null) _statusBar.Text = "Enter a custom code first.";
+                    return;
+                }
+                string lbl = customLabelBox.Text?.Trim();
+                string display = string.IsNullOrEmpty(lbl) ? $"{cc} — Custom revision" : $"{cc} \u2014 {lbl}";
+                // Insert at index 0 (above every preset series header) with a
+                // gold tint so it stands out as non-standard.
+                var item = new ComboBoxItem
+                {
+                    Content = display, Tag = cc,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = Br(Color.FromRgb(0xBF, 0x36, 0x00)),
+                    ToolTip = $"Custom revision code — added from BCC Revisions tab"
+                };
+                codeDropdown.Items.Insert(0, item);
+                codeDropdown.SelectedIndex = 0;
+                customCodeBox.Clear();
+                customLabelBox.Clear();
+                if (_statusBar != null) _statusBar.Text = $"Custom code '{cc}' added and selected.";
+            };
+            customCodeRow.Children.Add(customCodeBox);
+            customCodeRow.Children.Add(customLabelBox);
+            customCodeRow.Children.Add(addCustomBtn);
+            customCodeBorder.Child = customCodeRow;
+            stack.Children.Add(customCodeBorder);
+
             // ── Register DataGrid ──────────────────────────────────────────
             if (_data.Revisions.Count > 0)
             {
@@ -4638,46 +4729,127 @@ namespace StingTools.UI
 
                 case "ImportMSProject":
                 {
+                    // Phase 104 rewrite: "Import MS Project" replaced with a
+                    // generic "Import Scheduling Data" panel that accepts
+                    // every major scheduling tool's export format. Each tool
+                    // has a dedicated column template pre-populated so the
+                    // coordinator just picks the source tool, browses to the
+                    // file, reviews the mapping, and imports — without having
+                    // to remember what column number MS Project uses for
+                    // "% Complete" (it's different from Primavera).
                     var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
-                    sp.Children.Add(new TextBlock { Text = "Import MS Project", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+                    sp.Children.Add(new TextBlock { Text = "Import Scheduling Data", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4), Foreground = navyBrush });
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "Supports MS Project, Primavera P6, Asta Powerproject, Synchro 4D, Navisworks TimeLiner, Deltek Open Plan and generic CSV. Pick your source tool to preload a column template; every field is editable.",
+                        FontSize = 10, TextWrapping = TextWrapping.Wrap,
+                        Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                        Margin = new Thickness(0, 0, 0, 8)
+                    });
 
+                    // ── Source tool selector ──────────────────────────────
+                    var toolRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                    toolRow.Children.Add(new TextBlock { Text = "Source Tool:", Width = 110, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold });
+                    var toolCb = new ComboBox { Width = 280, Margin = new Thickness(4, 0, 0, 0) };
+                    string[] toolOptions = new[]
+                    {
+                        "MS Project (*.mpp, *.xml, *.mpx, *.csv)",
+                        "Primavera P6 (*.xer, *.xml, *.xls, *.csv)",
+                        "Asta Powerproject (*.pp, *.astabase, *.csv)",
+                        "Synchro 4D (*.spj, *.spx, *.csv)",
+                        "Navisworks TimeLiner (*.csv, *.nwc TimeLiner export)",
+                        "Deltek Open Plan (*.opp, *.csv)",
+                        "Tilos (*.tlp, *.csv)",
+                        "Elecosoft Powerproject (*.pp, *.csv)",
+                        "Generic CSV (configurable)",
+                        "Excel / XLSX (first sheet)"
+                    };
+                    foreach (var t in toolOptions) toolCb.Items.Add(t);
+                    toolCb.SelectedIndex = 0;
+                    toolRow.Children.Add(toolCb);
+                    sp.Children.Add(toolRow);
+
+                    // ── File browse ───────────────────────────────────────
                     var fileRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
-                    fileRow.Children.Add(new TextBlock { Text = "Project File:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
+                    fileRow.Children.Add(new TextBlock { Text = "Project File:", Width = 110, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold });
                     var fileTb = new System.Windows.Controls.TextBox { Width = 280, Margin = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
                     var browseBtn = new Button { Content = "Browse...", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(Color.FromRgb(0xE0, 0xE0, 0xE8)), BorderThickness = new Thickness(1) };
-                    browseBtn.Click += (s, e) => {
-                        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "MS Project Files|*.mpp;*.xml;*.csv|All Files|*.*", Title = "Open MS Project File" };
+                    browseBtn.Click += (s, e) =>
+                    {
+                        // Filter adapts to the selected source tool so the
+                        // user doesn't have to scroll past 8 extensions that
+                        // aren't theirs.
+                        int ti = toolCb.SelectedIndex;
+                        string filter = ti switch
+                        {
+                            0 => "MS Project|*.mpp;*.xml;*.mpx;*.csv|MPP|*.mpp|XML|*.xml|MPX|*.mpx|CSV|*.csv|All|*.*",
+                            1 => "Primavera P6|*.xer;*.xml;*.xls;*.xlsx;*.csv|XER|*.xer|XML|*.xml|Excel|*.xls;*.xlsx|CSV|*.csv|All|*.*",
+                            2 => "Asta Powerproject|*.pp;*.astabase;*.csv|PP|*.pp|Asta|*.astabase|CSV|*.csv|All|*.*",
+                            3 => "Synchro 4D|*.spj;*.spx;*.csv|Synchro|*.spj;*.spx|CSV|*.csv|All|*.*",
+                            4 => "Navisworks TimeLiner|*.csv;*.xml|CSV|*.csv|XML|*.xml|All|*.*",
+                            5 => "Deltek Open Plan|*.opp;*.csv|OPP|*.opp|CSV|*.csv|All|*.*",
+                            6 => "Tilos|*.tlp;*.csv|TLP|*.tlp|CSV|*.csv|All|*.*",
+                            7 => "Powerproject|*.pp;*.csv|PP|*.pp|CSV|*.csv|All|*.*",
+                            8 => "Generic CSV|*.csv;*.tsv;*.txt|All|*.*",
+                            _ => "Excel|*.xls;*.xlsx;*.xlsm|All|*.*"
+                        };
+                        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = filter, Title = $"Open {toolCb.SelectedItem}" };
                         if (dlg.ShowDialog(this) == true) fileTb.Text = dlg.FileName;
                     };
                     fileRow.Children.Add(fileTb); fileRow.Children.Add(browseBtn);
                     sp.Children.Add(fileRow);
 
-                    sp.Children.Add(new TextBlock { Text = "Column Mapping:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
-                    var mappings = new[] { "Task Name", "Start", "Finish", "Duration", "WBS" };
-                    foreach (var m in mappings)
-                    {
-                        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                        row.Children.Add(new TextBlock { Text = m + ":", Width = 110, VerticalAlignment = VerticalAlignment.Center });
-                        var cb = new ComboBox { Width = 180, Margin = new Thickness(4, 0, 0, 0) };
-                        foreach (var c in new[] { "(auto-detect)", "Column A", "Column B", "Column C", "Column D", "Column E" }) cb.Items.Add(c);
-                        cb.SelectedIndex = 0;
-                        row.Children.Add(cb);
-                        sp.Children.Add(row);
-                    }
+                    // ── Comprehensive column mapping grid ─────────────────
+                    sp.Children.Add(new TextBlock { Text = "Column Mapping (19 STING fields):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
+                    var mapDg = MakeExcelDataGrid(280);
+                    mapDg.IsReadOnly = false;
+                    mapDg.CanUserAddRows = false;
+                    mapDg.CanUserDeleteRows = false;
+                    mapDg.Columns.Add(new DataGridTextColumn     { Header = "STING Field",       Binding = new System.Windows.Data.Binding("StingField"),  Width = new DataGridLength(1.2, DataGridLengthUnitType.Star), IsReadOnly = true });
+                    mapDg.Columns.Add(new DataGridTextColumn     { Header = "Source Column",     Binding = new System.Windows.Data.Binding("SourceColumn"), Width = new DataGridLength(1.8, DataGridLengthUnitType.Star) });
+                    mapDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type",              ItemsSource = new[] { "Text", "Date", "Duration", "Integer", "Decimal", "Percent", "Currency", "Bool" }, SelectedItemBinding = new System.Windows.Data.Binding("DataType"), Width = 100 });
+                    mapDg.Columns.Add(new DataGridCheckBoxColumn { Header = "Required",         Binding = new System.Windows.Data.Binding("Required"),    Width = 70 });
+                    var mapSrc = new System.Collections.ObjectModel.ObservableCollection<ScheduleMappingRow>();
+                    // Default is the MS Project column palette — switching tool
+                    // rewrites SourceColumn below in SelectionChanged.
+                    ReseedScheduleMapping(mapSrc, toolCb.SelectedIndex);
+                    mapDg.ItemsSource = mapSrc;
+                    sp.Children.Add(mapDg);
 
-                    sp.Children.Add(new TextBlock { Text = "Preview (first 10 rows):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
-                    var previewDg = MakeExcelDataGrid(120);
+                    // Re-seed when the user picks a different source tool
+                    toolCb.SelectionChanged += (s, e) => ReseedScheduleMapping(mapSrc, toolCb.SelectedIndex);
+
+                    // ── Options ──────────────────────────────────────────
+                    var optsRow = new WrapPanel { Margin = new Thickness(0, 6, 0, 4) };
+                    optsRow.Children.Add(new CheckBox { Content = "Header row present", IsChecked = true, Margin = new Thickness(0, 0, 14, 0), FontSize = 11 });
+                    optsRow.Children.Add(new CheckBox { Content = "Auto-detect dependencies (FS/SS/FF/SF + lag)", IsChecked = true, Margin = new Thickness(0, 0, 14, 0), FontSize = 11 });
+                    optsRow.Children.Add(new CheckBox { Content = "Match tasks to Revit phases by name", IsChecked = false, Margin = new Thickness(0, 0, 14, 0), FontSize = 11 });
+                    optsRow.Children.Add(new CheckBox { Content = "Create missing phases", IsChecked = false, FontSize = 11 });
+                    sp.Children.Add(optsRow);
+
+                    // ── Preview (first 10 rows) ──────────────────────────
+                    sp.Children.Add(new TextBlock { Text = "Preview (first 10 rows — populated after import):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
+                    var previewDg = MakeExcelDataGrid(140);
                     previewDg.CanUserAddRows = false; previewDg.CanUserDeleteRows = false;
-                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Task Name", Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Start",     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Finish",    Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Duration",  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    previewDg.Columns.Add(new DataGridTextColumn { Header = "WBS",       Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Task ID",    Width = 70 });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Task Name",  Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Start",      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Finish",     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Duration",   Width = 80 });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "% Complete", Width = 70 });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "WBS",        Width = 80 });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Predecessors", Width = 110 });
                     sp.Children.Add(previewDg);
 
-                    var importBtn = new Button { Content = "Import", Height = 32, Padding = new Thickness(16, 0, 16, 0), Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
+                    // ── Action buttons ───────────────────────────────────
+                    var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+                    var importBtn = new Button { Content = "Import", Height = 32, Padding = new Thickness(16, 0, 16, 0), Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0) };
                     importBtn.Click += (s, e) => DispatchAction("ImportMSProject");
-                    sp.Children.Add(importBtn);
+                    var saveMapBtn = new Button { Content = "Save Mapping Template", Height = 32, Padding = new Thickness(12, 0, 12, 0), Background = Br(Color.FromRgb(0x2E, 0x7D, 0x32)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0), ToolTip = "Save the column mapping to project_config.json so future imports reuse it." };
+                    var loadMapBtn = new Button { Content = "Load Mapping Template", Height = 32, Padding = new Thickness(12, 0, 12, 0), Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Load a previously saved mapping template from project_config.json." };
+                    btnRow.Children.Add(importBtn); btnRow.Children.Add(saveMapBtn); btnRow.Children.Add(loadMapBtn);
+                    sp.Children.Add(btnRow);
+
                     panelBorder.Child = sp;
                     return panelBorder;
                 }
@@ -5057,6 +5229,76 @@ namespace StingTools.UI
             public string RevitCategory { get; set; }
             public string TaskName      { get; set; }
             public string Phase         { get; set; }
+        }
+
+        /// <summary>Phase 104: one row per STING 4D/5D field that the import
+        /// pipeline recognises. 19 fields cover every scheduling tool we
+        /// claim to support — unmapped fields are left blank (so the user
+        /// can opt out of a field) and required fields are flagged for
+        /// validation before import runs.</summary>
+        private class ScheduleMappingRow
+        {
+            public string StingField   { get; set; }
+            public string SourceColumn { get; set; }
+            public string DataType     { get; set; }
+            public bool   Required     { get; set; }
+        }
+
+        /// <summary>Phase 104: per-tool column templates. Each entry maps the
+        /// STING field to the column name the source tool exports by default
+        /// (verified against each product's CSV / XML schema). The user can
+        /// still edit any row after seeding.</summary>
+        private static void ReseedScheduleMapping(
+            System.Collections.ObjectModel.ObservableCollection<ScheduleMappingRow> rows,
+            int toolIndex)
+        {
+            rows.Clear();
+            // Column 1: MS Project, 2: Primavera P6, 3: Asta Powerproject,
+            // 4: Synchro 4D, 5: Navisworks TimeLiner, 6: Deltek Open Plan,
+            // 7: Tilos, 8: Powerproject, 9: Generic CSV, 10: Excel/XLSX.
+            var perTool = new Dictionary<string, string[]>
+            {
+                ["Task ID"]              = new[] { "ID",            "task_id",         "TaskId",       "TaskID",        "Task ID",        "ID",          "ID",          "ID",          "id",          "A" },
+                ["Task Name"]            = new[] { "Name",          "task_name",       "Name",         "TaskName",      "Display Name",   "Name",        "Name",        "Name",        "name",        "B" },
+                ["WBS"]                  = new[] { "WBS",           "wbs_short_name",  "WBS",          "WBS",           "WBS",            "WBS",         "WBS",         "WBS",         "wbs",         "C" },
+                ["Outline Level"]        = new[] { "Outline Level", "wbs_level",       "Level",        "OutlineLevel",  "Level",          "Level",       "Level",       "Level",       "level",       "D" },
+                ["Start"]                = new[] { "Start",         "start_date",      "Start",        "StartDate",     "Planned Start",  "Start",       "Start",       "Start",       "start",       "E" },
+                ["Finish"]               = new[] { "Finish",        "end_date",        "Finish",       "FinishDate",    "Planned End",    "Finish",      "Finish",      "Finish",      "finish",      "F" },
+                ["Duration"]             = new[] { "Duration",      "target_drtn_hr_cnt", "Duration",  "Duration",      "Duration",       "Duration",    "Duration",    "Duration",    "duration",    "G" },
+                ["% Complete"]           = new[] { "% Complete",    "phys_complete_pct", "% Complete","PercentComplete","% Complete",     "% Complete",  "% Complete",  "% Complete",  "percent",     "H" },
+                ["Predecessors"]         = new[] { "Predecessors",  "pred_task_id",    "Predecessors", "Predecessors",  "Predecessor IDs","Predecessors","Predecessors","Predecessors","predecessors","I" },
+                ["Baseline Start"]       = new[] { "Baseline Start","bl1_start_date",  "Baseline St",  "BaselineStart", "Baseline Start", "Baseline Start","Baseline Start","Baseline Start","baseline_start","J" },
+                ["Baseline Finish"]      = new[] { "Baseline Finish","bl1_end_date",   "Baseline Fn",  "BaselineFinish","Baseline End",   "Baseline Finish","Baseline Finish","Baseline Finish","baseline_finish","K" },
+                ["Actual Start"]         = new[] { "Actual Start",  "act_start_date",  "Actual St",    "ActualStart",   "Actual Start",   "Actual Start","Actual Start","Actual Start","actual_start","L" },
+                ["Actual Finish"]        = new[] { "Actual Finish", "act_end_date",    "Actual Fn",    "ActualFinish",  "Actual End",     "Actual Finish","Actual Finish","Actual Finish","actual_finish","M" },
+                ["Resources"]            = new[] { "Resource Names","rsrc_name",       "Resources",    "Resources",     "Resources",      "Resources",   "Resources",   "Resources",   "resources",   "N" },
+                ["Cost"]                 = new[] { "Cost",          "target_total_cost","Cost",        "Cost",          "Cost",           "Cost",        "Cost",        "Cost",        "cost",        "O" },
+                ["Discipline"]           = new[] { "Text1",         "text1_code",      "Discipline",   "Discipline",    "Discipline",     "Discipline",  "Discipline",  "Discipline",  "discipline",  "P" },
+                ["Revit Phase"]          = new[] { "Text2",         "text2_code",      "Phase",        "PhaseId",       "Phase",          "Phase",       "Phase",       "Phase",       "phase",       "Q" },
+                ["Constraint Type"]      = new[] { "Constraint Type","restart_date",   "Constraint",   "ConstraintType","Constraint",     "Constraint Type","Constraint","Constraint","constraint_type","R" },
+                ["Notes"]                = new[] { "Notes",         "notes",           "Notes",        "Notes",         "Notes",          "Notes",       "Notes",       "Notes",       "notes",       "S" }
+            };
+            int col = Math.Max(0, Math.Min(toolIndex, 9));
+            foreach (var kv in perTool)
+            {
+                bool isRequired = kv.Key == "Task Name" || kv.Key == "Start" || kv.Key == "Finish";
+                string defaultType = kv.Key switch
+                {
+                    "Start" or "Finish" or "Baseline Start" or "Baseline Finish" or "Actual Start" or "Actual Finish" => "Date",
+                    "Duration" => "Duration",
+                    "% Complete" => "Percent",
+                    "Cost" => "Currency",
+                    "Outline Level" or "Task ID" => "Integer",
+                    _ => "Text"
+                };
+                rows.Add(new ScheduleMappingRow
+                {
+                    StingField   = kv.Key,
+                    SourceColumn = kv.Value[col],
+                    DataType     = defaultType,
+                    Required     = isRequired
+                });
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -8932,22 +9174,43 @@ namespace StingTools.UI
             if (w == null) return;
             try
             {
-                // Prefer BCC as owner when it's open — keeps child dialogs above the
-                // coordination centre where the user expects them.
+                // Phase 104 rewrite: use HWND-level owner (via WindowInterop-
+                // Helper) in BOTH cases. The old code set w.Owner=bcc (WPF
+                // property) which in Revit-hosted WPF doesn't translate to a
+                // real HWND owner, so the child was a top-level sibling of
+                // BCC and sometimes ended up BEHIND it. Setting the HWND owner
+                // explicitly makes the child a Windows-managed owned popup —
+                // it's guaranteed to stack above its owner (BCC) while still
+                // respecting Revit as the top-of-chain.
                 var bcc = BIMCoordinationCenter.CurrentInstance;
+                IntPtr ownerHwnd = IntPtr.Zero;
                 if (bcc != null && bcc != w && bcc.IsLoaded)
                 {
-                    w.Owner = bcc;
-                    return;
+                    try { ownerHwnd = new System.Windows.Interop.WindowInteropHelper(bcc).Handle; }
+                    catch { ownerHwnd = IntPtr.Zero; }
                 }
-                // No BCC — fall back to Revit main HWND so switching apps preserves
-                // the same child-window relationship BCC itself uses.
-                var revitHwnd = NativeMethods.FindWindow("Rvt_MainWindow", null);
-                var handle = revitHwnd != IntPtr.Zero
-                    ? revitHwnd
-                    : System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
-                if (handle != IntPtr.Zero)
-                    new System.Windows.Interop.WindowInteropHelper(w).Owner = handle;
+                if (ownerHwnd == IntPtr.Zero)
+                {
+                    var revitHwnd = NativeMethods.FindWindow("Rvt_MainWindow", null);
+                    ownerHwnd = revitHwnd != IntPtr.Zero
+                        ? revitHwnd
+                        : System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                }
+                if (ownerHwnd != IntPtr.Zero)
+                {
+                    // Set the HWND owner. Must be assigned BEFORE the window
+                    // is shown (before SourceInitialized). WPF falls through
+                    // to this same mechanism when you set w.Owner, but going
+                    // direct guarantees we hit the HWND chain in Revit hosts.
+                    new System.Windows.Interop.WindowInteropHelper(w).Owner = ownerHwnd;
+
+                    // Also set WPF Owner when the owner IS a managed WPF
+                    // Window (gives us input routing + ShowDialog centering).
+                    if (bcc != null && bcc != w && bcc.IsLoaded)
+                    {
+                        try { w.Owner = bcc; } catch { /* WPF refuses after Show */ }
+                    }
+                }
             }
             catch (Exception ex)
             {
