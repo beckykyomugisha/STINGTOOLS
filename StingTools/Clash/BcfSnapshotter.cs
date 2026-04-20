@@ -11,14 +11,9 @@ namespace StingTools.Core.Clash
     public sealed class BcfSnapshotter
     {
         private readonly Document _doc;
-        // Reserved for future use: cached ephemeral 3D view for repeated
-        // snapshots within the same session (avoids creating/destroying a
-        // view per clash). The current implementation creates a fresh view
-        // in RenderSnapshot and disposes it immediately — keep the field
-        // so the lifecycle refactor doesn't need to re-introduce it.
-#pragma warning disable CS0169
-        private View3D _tempView;
-#pragma warning restore CS0169
+        // Prior draft kept a _tempView cache field — never written (temp view
+        // is now a local variable inside RenderSnapshot so it's always fresh).
+        // Removed to silence CS0169.
 
         public BcfSnapshotter(Document doc) { _doc = doc; }
 
@@ -61,7 +56,11 @@ namespace StingTools.Core.Clash
                 using (var t = new Transaction(_doc, "STING snapshot cleanup"))
                 {
                     t.Start();
-                    try { _doc.Delete(v.Id); } catch { }
+                    try { _doc.Delete(v.Id); }
+                    // H9: Temp 3D-view cleanup. If the view can't be deleted
+                    // (e.g. another transaction is holding it), log but don't
+                    // fail the overall snapshot — the PNG is already on disk.
+                    catch (Exception delEx) { StingLog.Warn($"BcfSnapshotter cleanup {v.Id}: {delEx.Message}"); }
                     t.Commit();
                 }
 

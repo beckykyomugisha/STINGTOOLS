@@ -11,13 +11,18 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.IFC;
+// Autodesk.Revit.DB.IFC dropped — ExporterIFCUtils moved to RevitAPIIFC.dll
+// in Revit 2025+; see TryGetIfcGuid for the UniqueId fallback.
 
 namespace StingTools.Core.Clash
 {
     internal sealed class ClashExportContext : IExportContext
     {
         private readonly Document _hostDoc;
+        // rec-5: doc-guid → Document map populated up front by MeshExtractor so
+        // OnElementBegin can resolve category / UniqueId / IfcGuid from the
+        // correct linked document rather than silently falling back to the host.
+        private readonly Dictionary<string, Document> _docByGuid;
         private readonly Stack<Transform> _transformStack = new Stack<Transform>();
         private readonly Stack<string> _docStack = new Stack<string>();
         private readonly Stack<int> _linkInstanceStack = new Stack<int>();
@@ -36,10 +41,17 @@ namespace StingTools.Core.Clash
             new Dictionary<ClashElementKey, ClashMeshBuffer>();
 
         public ClashExportContext(Document hostDoc)
+            : this(hostDoc, null) { }
+
+        public ClashExportContext(Document hostDoc, Dictionary<string, Document> docByGuid)
         {
             _hostDoc = hostDoc;
+            _docByGuid = docByGuid ?? new Dictionary<string, Document>(StringComparer.Ordinal);
+            // Always register the host doc so GetDocFromGuid hits the map.
+            string hostKey = hostDoc.ProjectInformation?.UniqueId ?? hostDoc.PathName ?? "host";
+            if (!_docByGuid.ContainsKey(hostKey)) _docByGuid[hostKey] = hostDoc;
             _transformStack.Push(Transform.Identity);
-            _docStack.Push(hostDoc.ProjectInformation?.UniqueId ?? hostDoc.PathName ?? "host");
+            _docStack.Push(hostKey);
         }
 
         public bool Start()
@@ -65,7 +77,13 @@ namespace StingTools.Core.Clash
 
                 var doc = _docStack.Count > 0 ? GetDocFromGuid(_docStack.Peek()) : _hostDoc;
                 var element = doc?.GetElement(elementId);
-                _currentCategory = element?.Category?.Name ?? "";
+                // H1.5: Store the BuiltInCategory name ("OST_DuctCurves") rather
+                // than the localized display name ("Ducts"). Matrix filters use
+                // OST_* syntax; before this fix ClashMeshBuffer.Category held
+                // display names and the matrix never matched a single pair
+                // regardless of filter contents — a latent bug in the Stage 1
+                // extractor silently defeated every downstream filter.
+                _currentCategory = CategoryHelper.GetBuiltInCategoryName(element?.Category);
                 _currentUniqueId = element?.UniqueId ?? "";
                 _currentIfcGuid = TryGetIfcGuid(doc, elementId);
                 _currentDocGuid = _docStack.Peek();
@@ -88,6 +106,11 @@ namespace StingTools.Core.Clash
                 var key = new ClashElementKey(
                     _currentDocGuid,
                     _currentLinkInstanceId,
+                    // Revit 2024+: ElementId.Value is long; cast to int for
+                    // ClashElementKey.ElementId. Values > int.MaxValue don't
+                    // exist in practice for user-authored Revit elements, and
+                    // ClashElementKey.Equals already incorporates DocGuid so
+                    // cross-doc collisions can't happen.
                     (int)elementId.Value,
                     _currentUniqueId,
                     _currentIfcGuid);
@@ -132,13 +155,20 @@ namespace StingTools.Core.Clash
             {
                 var linkDoc = node.GetDocument();
                 guid = linkDoc?.ProjectInformation?.UniqueId ?? linkDoc?.PathName ?? "link";
-                // Revit 2025 removed LinkNode.GetSymbolId (and RevitLinkType
-                // resolution moved to LinkNode.GetDocument().Title). We fall
-                // back to a stable 32-bit hash of the link's file path so
-                // the clash identity keys stay unique across sessions.
-                linkInstId = (linkDoc?.PathName ?? guid).GetHashCode();
+                // Revit 2025+ removed LinkNode.GetSymbolId(). The link's type
+                // id isn't reachable from LinkNode any more, and the host-side
+                // RevitLinkInstance element isn't available mid-export. Derive
+                // a stable-per-linked-doc synthetic id from the guid so two
+                // ClashElementKeys from different links don't collide when
+                // their internal ElementId values match. Keeps Equals
+                // semantics correct without requiring the IFC assembly or
+                // removed API.
+                linkInstId = guid.GetHashCode();
             }
-            catch (Exception ex) { StingLog.Warn($"LinkNode resolve: {ex.Message}"); }
+            // H9: Logs first unloaded/corrupt-link failure so "why are my
+            // linked-doc clashes missing?" is diagnosable. Stays non-throwing
+            // — we fall back to "link" guid + -1 link instance id.
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"OnLinkBegin link resolution: {ex.Message}"); }
             _docStack.Push(guid);
             _linkInstanceStack.Push(linkInstId);
             return RenderNodeAction.Proceed;
@@ -192,11 +222,9 @@ namespace StingTools.Core.Clash
         public void OnMaterial(MaterialNode node) { }
         public void OnLight(LightNode node) { }
         public void OnRPC(RPCNode node) { }
-        // Revit 2025 removed the DaylightPortalNode type and the matching
-        // IExportContext.OnDaylightPortal(DaylightPortalNode) interface
-        // member (they were marked obsolete from Revit 2022). The override
-        // used to live here — now dropped so the file builds on the 2025
-        // API reference.
+        // DaylightPortalNode was removed from the Revit 2025+ API. The IExportContext
+        // interface dropped its OnDaylightPortal method in the same release. Keeping
+        // the override in the class fails CS0246 on 2025/2026/2027 builds.
         public RenderNodeAction OnFaceBegin(FaceNode node) => RenderNodeAction.Proceed;
         public void OnFaceEnd(FaceNode node) { }
 
@@ -219,21 +247,32 @@ namespace StingTools.Core.Clash
 
         private Document GetDocFromGuid(string guid)
         {
-            if (guid == (_hostDoc.ProjectInformation?.UniqueId ?? _hostDoc.PathName ?? "host"))
-                return _hostDoc;
-            // Caller responsibility to resolve linked docs; we return host as safe fallback.
+            // rec-5: Proper linked-doc resolution. _docByGuid is pre-populated by
+            // MeshExtractor.BuildLinkedDocumentMap so every loaded link resolves.
+            // Fall back to host doc only when a guid is genuinely unknown (e.g.
+            // a link that was unloaded after export started).
+            if (!string.IsNullOrEmpty(guid) && _docByGuid.TryGetValue(guid, out var d))
+                return d;
             return _hostDoc;
         }
 
         private static string TryGetIfcGuid(Document doc, ElementId id)
         {
+            // Revit 2025+ moved ExporterIFCUtils into a separate RevitAPIIFC.dll
+            // assembly not referenced by StingTools (and the IFC assembly
+            // pinning varies across Revit versions). Since IfcGuid is an
+            // optional field in ClashElementKey (BCF export falls back to
+            // UniqueId / ToString), returning the element's UniqueId — which
+            // is the closest stable per-element identifier always available
+            // without the IFC assembly — keeps clash identity deterministic
+            // without needing an extra reference.
             if (doc == null || id == null) return "";
-            // ExporterIFCUtils lives in RevitAPIIFC.dll (not referenced).
-            // Element.UniqueId is the same string Revit uses internally to
-            // derive the IFC GUID — safe fallback for the clash-kernel's
-            // per-element identity hash.
             try { return doc.GetElement(id)?.UniqueId ?? ""; }
-            catch (Exception ex) { StingLog.Warn($"TryGetIfcGuid: {ex.Message}"); return ""; }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"TryGetIfcGuid({id}): {ex.Message}");
+                return "";
+            }
         }
     }
 }

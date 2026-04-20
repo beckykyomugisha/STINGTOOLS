@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.IFC;
+// Autodesk.Revit.DB.IFC dropped with the ExporterIFCUtils call site.
 using StingTools.Core;
 
 namespace StingTools.Core.Clash
@@ -33,17 +33,28 @@ namespace StingTools.Core.Clash
         private readonly Document _doc;
         private readonly object _lock = new object();
         private readonly Dictionary<int, ClashMeshBuffer> _meshByEid = new Dictionary<int, ClashMeshBuffer>();
-        private readonly AabbSweep _sweep = new AabbSweep();
+        // rec-1: Cache OBB trees by element id so the live narrow-phase can descend
+        // rather than brute-force. Rebuilt on RefreshElement, dropped on RemoveElement.
+        private readonly Dictionary<int, ObbTree> _obbByEid = new Dictionary<int, ObbTree>();
+        // G8: The AabbSweep that the live path actually queries. Replaced
+        // wholesale on InitialiseFromView / rebuilt-but-kept-in-place by
+        // AddOrUpdate/Remove (rec-9). Prior code had two references — _sweep
+        // and _sweepRef — with the former never used after first init. Collapsed
+        // to one field; ActiveSweep property kept for readability at call sites.
+        private AabbSweep _sweep = new AabbSweep();
+        private AabbSweep ActiveSweep => _sweep;
         private ClashMatrix _matrix;
         private ClashRuleEngine _ruleEngine;
         public bool Initialised { get; private set; }
 
-        // Phase-98d: public event — raised by subscribers from the dock-panel
-        // live-clash observer; compiler can't see the delegation path so it
-        // warns CS0067. Suppress rather than delete — the contract is used.
-#pragma warning disable CS0067
-        public event Action<int, bool> OnElementFlagChanged;   // (eid, isFlagged)
-#pragma warning restore CS0067
+        // H6: Fired per element whenever the flag set transitions (id, nowFlagged).
+        //     RefreshElement / RemoveElement / SeedFromRun all raise the event
+        //     so UI subscribers can update warning triangles without polling.
+        public event Action<int, bool> OnElementFlagChanged;
+
+        // H2: Fired after SeedFromRun so the BCC Clash tab can repaint its grid
+        //     without introducing a dependency on the persisted clashes.json.
+        public event Action<ClashRunRecord> OnRunCompleted;
 
         private ClashSession(Document doc)
         {
@@ -58,31 +69,34 @@ namespace StingTools.Core.Clash
             lock (_lock)
             {
                 _meshByEid.Clear();
+                _obbByEid.Clear();
                 foreach (var kv in all)
                 {
                     if (kv.Key.LinkInstanceElementId == -1)
+                    {
                         _meshByEid[kv.Key.ElementId] = kv.Value;
+                        // rec-1: Pre-build OBB trees during cold init so first tick of
+                        // live-clash doesn't pay the cost. Stage-6 can make this lazy.
+                        _obbByEid[kv.Key.ElementId] = ObbTree.Build(kv.Value);
+                    }
                 }
-                _sweep.GetType();   // keep ref alive
                 _sweep_Rebuild();
                 Initialised = true;
             }
             StingLog.Info($"ClashSession initialised: {_meshByEid.Count} elements");
         }
 
-        // Expose field via helper to avoid reflection
-        private AabbSweep Sweep => _sweep;
+        /// <summary>
+        /// Rebuild the sweep index from scratch. Used on cold init only
+        /// (InitialiseFromView); per-edit updates go through
+        /// ActiveSweep.AddOrUpdate/Remove (rec-9).
+        /// </summary>
         private void _sweep_Rebuild()
         {
-            // Rebuild the sweep index from scratch.
             var fresh = new AabbSweep();
             fresh.Build(_meshByEid.Values);
-            // Replace by swapping contents via reflection-free approach: rebuild-in-place is safer.
-            // Since AabbSweep exposes no clear, we keep a reference via _sweepRef below.
-            _sweepRef = fresh;
+            _sweep = fresh;
         }
-        private AabbSweep _sweepRef;
-        private AabbSweep ActiveSweep => _sweepRef ?? _sweep;
 
         /// <summary>
         /// Called for each dirty element. Extracts fresh geometry, updates the index,
@@ -94,7 +108,7 @@ namespace StingTools.Core.Clash
             var result = new LiveClashResult();
             try
             {
-                // ElementId(int) ctor is obsolete in Revit 2024+; use Int64 overload.
+                // Revit 2024+: ElementId(int) ctor obsolete; use ElementId(long).
                 var element = _doc.GetElement(new ElementId((long)elementId));
                 if (element == null) return RemoveElement(elementId);
 
@@ -102,7 +116,15 @@ namespace StingTools.Core.Clash
                 lock (_lock)
                 {
                     _meshByEid[elementId] = fresh;
-                    _sweep_Rebuild();   // rebuild; for Stage 6 we will do incremental refit
+                    // rec-1: Rebuild OBB tree for this element so NarrowPhaseFor can descend.
+                    _obbByEid[elementId] = fresh != null ? ObbTree.Build(fresh) : null;
+                    // rec-9: Incremental sweep-index update. Replaces the prior full
+                    // _sweep_Rebuild() which cost ~50 ms per edit on 50k-element
+                    // models. RBush Delete+Insert is O(log n) each.
+                    if (fresh != null) ActiveSweep.AddOrUpdate(fresh);
+                    else ActiveSweep.Remove(new ClashElementKey(
+                            _doc.ProjectInformation?.UniqueId ?? _doc.PathName ?? "host",
+                            -1, elementId, "", ""));
 
                     // Narrow phase against neighbours.
                     var hits = NarrowPhaseFor(fresh);
@@ -117,6 +139,8 @@ namespace StingTools.Core.Clash
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ClashSession.RefreshElement({elementId}): {ex.Message}"); }
+            // H6: Fire outside the lock.
+            RaiseFlagChanges(result);
             return result;
         }
 
@@ -125,13 +149,71 @@ namespace StingTools.Core.Clash
             var result = new LiveClashResult();
             lock (_lock)
             {
-                if (_meshByEid.Remove(elementId))
+                if (_meshByEid.TryGetValue(elementId, out var oldMesh))
                 {
-                    _sweep_Rebuild();
+                    _meshByEid.Remove(elementId);
+                    _obbByEid.Remove(elementId);   // rec-1: drop paired OBB tree
+                    // rec-9: O(log n) sweep removal instead of full rebuild.
+                    ActiveSweep.Remove(oldMesh.Key);
                     if (_flaggedIds.Remove(elementId)) result.NewlyCleared.Add(elementId);
                 }
             }
+            // H6: Fire outside the lock so a slow subscriber doesn't block the
+            //     Revit API thread. Swallow subscriber exceptions — UI bugs
+            //     shouldn't crash the live-clash loop.
+            RaiseFlagChanges(result);
             return result;
+        }
+
+        /// <summary>
+        /// H2: Seed the live session's flag set from a freshly computed
+        /// ClashRunRecord. Called by ClashRunCommand after persistence so the
+        /// in-authoring flag state and the persisted clashes.json agree.
+        /// Also raises OnRunCompleted so subscribed UI can refresh.
+        /// </summary>
+        public void SeedFromRun(ClashRunRecord run)
+        {
+            if (run?.Clashes == null) return;
+            var result = new LiveClashResult();
+            lock (_lock)
+            {
+                var newFlagged = new HashSet<int>();
+                foreach (var c in run.Clashes)
+                {
+                    if (c.State == "Resolved" || c.State == "Void") continue;
+                    if (c.ElementA != null && c.ElementA.LinkInstanceId == -1)
+                        newFlagged.Add(c.ElementA.ElementId);
+                    if (c.ElementB != null && c.ElementB.LinkInstanceId == -1)
+                        newFlagged.Add(c.ElementB.ElementId);
+                }
+                var prev = _flaggedIds;
+                foreach (var id in newFlagged) if (!prev.Contains(id)) result.NewlyFlagged.Add(id);
+                foreach (var id in prev) if (!newFlagged.Contains(id)) result.NewlyCleared.Add(id);
+                _flaggedIds = newFlagged;
+            }
+            RaiseFlagChanges(result);
+            try { OnRunCompleted?.Invoke(run); }
+            catch (Exception ex) { StingLog.Warn($"OnRunCompleted subscriber threw: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// H6: Centralised event dispatcher. Swallow subscriber exceptions so
+        /// a buggy WPF handler never kills the live-clash pipeline.
+        /// </summary>
+        private void RaiseFlagChanges(LiveClashResult r)
+        {
+            var handler = OnElementFlagChanged;
+            if (handler == null || r == null) return;
+            foreach (var id in r.NewlyFlagged)
+            {
+                try { handler(id, true); }
+                catch (Exception ex) { StingLog.Warn($"OnElementFlagChanged(flag) subscriber: {ex.Message}"); }
+            }
+            foreach (var id in r.NewlyCleared)
+            {
+                try { handler(id, false); }
+                catch (Exception ex) { StingLog.Warn($"OnElementFlagChanged(clear) subscriber: {ex.Message}"); }
+            }
         }
 
         private HashSet<int> _flaggedIds = new HashSet<int>();
@@ -155,15 +237,19 @@ namespace StingTools.Core.Clash
                 if (verts.Count == 0) return null;
 
                 string docGuid = _doc.ProjectInformation?.UniqueId ?? _doc.PathName ?? "host";
-                // IFC GUID: we'd normally call ExporterIFCUtils.CreateSubElementGUID,
-                // but that type lives in RevitAPIIFC.dll (not referenced by this
-                // project). Element.UniqueId is the same string Revit feeds into
-                // its IFC export pipeline, so it's a sound substitute for the
-                // clash-kernel's per-element identity hash.
-                string ifc = element.UniqueId ?? "";
+                string ifc = "";
+                // Revit 2025+ moved ExporterIFCUtils into RevitAPIIFC.dll which
+                // StingTools doesn't reference (see ClashExportContext.TryGetIfcGuid
+                // for rationale). Fall back to UniqueId — the most stable
+                // per-element identifier available without the IFC assembly,
+                // and what BCF export already uses when IfcGuid is empty.
+                ifc = element.UniqueId ?? "";
 
                 var key = new ClashElementKey(docGuid, -1, (int)element.Id.Value, element.UniqueId, ifc);
-                return new ClashMeshBuffer(key, element.Category?.Name ?? "", verts.ToArray(), indices.ToArray());
+                // H1.5: Store BuiltInCategory name ("OST_DuctCurves") rather
+                // than the localized display name. Matrix filters use OST_*
+                // syntax — display names never matched before this fix.
+                return new ClashMeshBuffer(key, CategoryHelper.GetBuiltInCategoryName(element.Category), verts.ToArray(), indices.ToArray());
             }
             catch (Exception ex) { StingLog.Warn("TryExtractOneElement: " + ex.Message); return null; }
         }
@@ -210,22 +296,126 @@ namespace StingTools.Core.Clash
         {
             var hits = new List<ClashHit>();
             if (target == null || target.TriangleCount == 0) return hits;
-            foreach (var other in _meshByEid.Values)
+            // rec-1: OBB descent when both sides have a tree; falls back to brute
+            //        only when the paired element has no tree yet (first-seen path).
+            _obbByEid.TryGetValue(target.Key.ElementId, out var treeTarget);
+
+            // G2: Query the sweep index for broad-phase candidates instead of
+            // iterating every mesh in the session.
+            var sweep = ActiveSweep;
+            var candidates = sweep?.QueryCandidatesFor(target) ?? _meshByEid.Values;
+
+            // H1: Pre-build ElementFacts for target once (constant across the
+            //     candidate loop). Matrix matching walks FilterA/FilterB clauses
+            //     so one-sided facts save O(candidates) calls.
+            var targetFacts = FactsFromMesh(target);
+
+            foreach (var other in candidates)
             {
                 if (ReferenceEquals(other, target)) continue;
                 if (other.MaxX < target.MinX - 0.164f || other.MinX > target.MaxX + 0.164f) continue;
                 if (other.MaxY < target.MinY - 0.164f || other.MinY > target.MaxY + 0.164f) continue;
                 if (other.MaxZ < target.MinZ - 0.164f || other.MinZ > target.MaxZ + 0.164f) continue;
 
-                var hit = BruteTest(target, other);
-                if (hit != null) hits.Add(hit);
+                // H1: Matrix + rule filter BEFORE the expensive narrow phase.
+                //     Without this, the live path flagged any overlap — including
+                //     "Intentional" pairs (duct insulation vs its own duct, wall-
+                //     floor joins, curtain mullion-panel) that the headless run
+                //     drops via ClashRule. Users saw warning triangles on every
+                //     hosted ceiling fixture and lost trust in the flagging.
+                var otherFacts = FactsFromMesh(other);
+                var cell = _matrix?.Match(targetFacts, otherFacts);
+                if (cell == null) continue;   // not in coordination scope — skip
+
+                ClashHit hit = (treeTarget?.Root != null && _obbByEid.TryGetValue(other.Key.ElementId, out var treeOther) && treeOther?.Root != null)
+                    ? DescendTest(target, treeTarget.Root, other, treeOther.Root)
+                    : BruteTest(target, other);
+                if (hit == null) continue;
+
+                // H1: Run the rule engine (tessellation artifact drop, intentional
+                //     hosted-element exclusions, volume thresholds) on the tentative
+                //     hit. Only "Keep" verdicts surface as live flags.
+                var classified = _ruleEngine?.Classify(hit, targetFacts, otherFacts, cell);
+                if (classified == null || classified.Verdict == ClashVerdict.Keep)
+                    hits.Add(hit);
             }
             return hits;
         }
 
+        /// <summary>
+        /// H1: Lightweight facts-from-mesh projection for live-path matrix/rule
+        /// matching. Only Category is populated (mesh is our only source; we
+        /// don't have the Revit Element in hand here). System/Workset are left
+        /// empty — matrix cells that filter on System will simply not match,
+        /// which is correct for the conservative live-flag semantic.
+        /// </summary>
+        private static ElementFacts FactsFromMesh(ClashMeshBuffer m)
+            => new ElementFacts { Category = m?.Category ?? "" };
+
+        /// <summary>
+        /// rec-1: OBB-tree descent producing a ClashHit on first hit.
+        ///
+        /// H7: Iterative (explicit Stack) instead of recursive. Same motivation
+        /// as ClashKernel.OverlapDescend — stack safety + ThreadPool-friendly
+        /// (live-clash runs on Revit API thread whose WPF-derived stack can be
+        /// smaller than a typical worker).
+        /// </summary>
+        private static ClashHit DescendTest(ClashMeshBuffer meshA, ObbNode rootA, ClashMeshBuffer meshB, ObbNode rootB)
+        {
+            if (rootA == null || rootB == null) return null;
+            var stack = new Stack<(ObbNode, ObbNode)>();
+            stack.Push((rootA, rootB));
+            while (stack.Count > 0)
+            {
+                var (na, nb) = stack.Pop();
+                if (na == null || nb == null) continue;
+                if (na.AabbMax.X < nb.AabbMin.X || na.AabbMin.X > nb.AabbMax.X) continue;
+                if (na.AabbMax.Y < nb.AabbMin.Y || na.AabbMin.Y > nb.AabbMax.Y) continue;
+                if (na.AabbMax.Z < nb.AabbMin.Z || na.AabbMin.Z > nb.AabbMax.Z) continue;
+
+                if (na.IsLeaf && nb.IsLeaf)
+                {
+                    for (int ia = 0; ia < na.TriCount; ia++)
+                    {
+                        int triA = na.Tris[na.TriStart + ia];
+                        var va0 = GetV(meshA, triA, 0); var va1 = GetV(meshA, triA, 1); var va2 = GetV(meshA, triA, 2);
+                        for (int ib = 0; ib < nb.TriCount; ib++)
+                        {
+                            int triB = nb.Tris[nb.TriStart + ib];
+                            var vb0 = GetV(meshB, triB, 0); var vb1 = GetV(meshB, triB, 1); var vb2 = GetV(meshB, triB, 2);
+                            if (MollerSat.TriTriOverlap(va0, va1, va2, vb0, vb1, vb2))
+                            {
+                                var cen = 0.25f * (va0 + va1 + vb0 + vb1);
+                                return new ClashHit
+                                {
+                                    A = meshA.Key, B = meshB.Key,
+                                    Centroid = cen,
+                                    AabbMin = new Vector3(Math.Max(meshA.MinX, meshB.MinX), Math.Max(meshA.MinY, meshB.MinY), Math.Max(meshA.MinZ, meshB.MinZ)),
+                                    AabbMax = new Vector3(Math.Min(meshA.MaxX, meshB.MaxX), Math.Min(meshA.MaxY, meshB.MaxY), Math.Min(meshA.MaxZ, meshB.MaxZ)),
+                                    VolumeMm3 = 100f, Kind = "hard", FailureMode = ""
+                                };
+                            }
+                        }
+                    }
+                }
+                else if (!na.IsLeaf)
+                {
+                    stack.Push((na.Right, nb));
+                    stack.Push((na.Left, nb));
+                }
+                else
+                {
+                    stack.Push((na, nb.Right));
+                    stack.Push((na, nb.Left));
+                }
+            }
+            return null;
+        }
+
         private static ClashHit BruteTest(ClashMeshBuffer a, ClashMeshBuffer b)
         {
-            // Simple AABB-overlap brute pass. Stage 6 replaces with BVH descent.
+            // Simple AABB-overlap brute pass. Retained as rec-1 fallback when OBB
+            // trees aren't cached yet (first-seen element mid-run).
             for (int ia = 0; ia < a.TriangleCount; ia++)
             {
                 var va0 = GetV(a, ia, 0); var va1 = GetV(a, ia, 1); var va2 = GetV(a, ia, 2);

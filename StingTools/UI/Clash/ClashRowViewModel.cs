@@ -16,10 +16,10 @@ namespace StingTools.UI.Clash
         public DateTime? DueDate { get; set; }
         public string ResolutionHint { get; set; }
 
-        // INotifyPropertyChanged contract event. Current DataGrid binding is
-        // one-way (view is rebuilt on every tick) so no property mutations
-        // raise it yet — keep the event so downstream two-way bindings can
-        // subscribe later without breaking the interface.
+        // INotifyPropertyChanged contract. The DataGrid rebinds on
+        // Rows.Clear/Add so per-property change notifications aren't needed
+        // today — kept for forward-compat with inline editing, which will
+        // raise this event. #pragma suppresses CS0067 (unused event).
 #pragma warning disable CS0067
         public event PropertyChangedEventHandler PropertyChanged;
 #pragma warning restore CS0067
