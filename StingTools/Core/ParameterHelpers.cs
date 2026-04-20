@@ -207,6 +207,56 @@ namespace StingTools.Core
 
         /// <summary>Tracks cumulative read-only skip count for batch diagnostics (ERR-002).</summary>
         [ThreadStatic] private static int _readOnlySkipCount;
+
+        // PROD-CONCAT-FIX: counter for malformed source-token writes rejected at SetString.
+        private static int _sourceTokenWriteCleanupCount;
+
+        /// <summary>
+        /// PROD-CONCAT-FIX: returns true for the 8 ISO 19650 source-token
+        /// parameter names. Used by <see cref="SetString"/> to apply write-time
+        /// sanitisation. Kept name-based (not GUID-based) so it cannot drift
+        /// when ParamRegistry re-binds GUIDs.
+        /// </summary>
+        private static bool IsSourceTokenParam(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName)) return false;
+            return paramName == ParamRegistry.DISC || paramName == ParamRegistry.LOC
+                || paramName == ParamRegistry.ZONE || paramName == ParamRegistry.LVL
+                || paramName == ParamRegistry.SYS  || paramName == ParamRegistry.FUNC
+                || paramName == ParamRegistry.PROD || paramName == ParamRegistry.SEQ;
+        }
+
+        /// <summary>
+        /// PROD-CONCAT-FIX: shape-guard for source-token writes. Returns the
+        /// same reference when the value is already well-formed, otherwise
+        /// returns a cleaned copy (or empty when the value is irreparable).
+        /// Rules mirror <see cref="ParamRegistry.ReadTokenValues"/>:
+        ///   - Trim whitespace.
+        ///   - Drop anything after the first separator.
+        ///   - Reject values with inner whitespace (e.g. "Plumbing Fixtures").
+        ///   - Reject values longer than 40 characters.
+        /// </summary>
+        private static string SanitiseSourceTokenWrite(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return raw;
+            string sep = !string.IsNullOrEmpty(ParamRegistry.Separator) ? ParamRegistry.Separator : "-";
+
+            string v = raw;
+            int sepIdx = v.IndexOf(sep, StringComparison.Ordinal);
+            bool touched = false;
+            if (sepIdx >= 0) { v = v.Substring(0, sepIdx); touched = true; }
+
+            string trimmed = v.Trim();
+            if (trimmed.Length != v.Length) { v = trimmed; touched = true; }
+
+            for (int j = 0; j < v.Length; j++)
+            {
+                if (char.IsWhiteSpace(v[j])) return string.Empty;
+            }
+            if (v.Length > 40) return string.Empty;
+
+            return touched ? v : raw;
+        }
         /// <summary>Reset read-only skip counter at start of batch operation.</summary>
         public static void ResetReadOnlySkipCount() => _readOnlySkipCount = 0;
         /// <summary>Get cumulative read-only skip count since last reset.</summary>
@@ -217,6 +267,25 @@ namespace StingTools.Core
             bool overwrite = false)
         {
             if (el == null || string.IsNullOrEmpty(paramName)) return false;
+
+            // PROD-CONCAT-FIX: stop corrupt values ever reaching a source-token
+            // parameter (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ). Upstream code paths
+            // that accidentally pass a family+type concatenation, a previously
+            // built full tag, or a value containing the active separator are
+            // silently sanitised here so subsequent tag/container assembly
+            // never propagates the corruption.
+            if (!string.IsNullOrEmpty(value) && IsSourceTokenParam(paramName))
+            {
+                string sanitised = SanitiseSourceTokenWrite(value);
+                if (!ReferenceEquals(sanitised, value))
+                {
+                    int n = System.Threading.Interlocked.Increment(ref _sourceTokenWriteCleanupCount);
+                    if (n <= 3)
+                        StingLog.Warn($"SetString: rejecting malformed {paramName} value '{value}' on {el.Id} — storing '{sanitised}'. (Occurrence {n})");
+                    value = sanitised;
+                }
+            }
+
             Parameter p = CachedLookup(el, paramName);
             if (p == null) return false;
             if (p.IsReadOnly)
