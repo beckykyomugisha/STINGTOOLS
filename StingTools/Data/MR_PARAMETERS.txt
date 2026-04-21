@@ -2437,3 +2437,33 @@ PARAM	0d917e49-c6f6-5951-b2b7-7a00bdb3b0df	PRJ_TB_DELIVERABLE_CDE_TXT	TEXT		13	1
 PARAM	953d56bb-e854-5817-9fa0-90ed013f276c	PRJ_TB_LAST_TRANSMITTAL_TXT	TEXT		13	1	Prj Tb Last Transmittal Txt [ISO 19650-2:2018]	0
 PARAM	8edb7300-d8a4-5df3-b0ba-b21710da9724	PRJ_TB_LAST_TRANSMITTAL_DATE_TXT	TEXT		13	1	Prj Tb Last Transmittal Date Txt [ISO 19650-2:2018]	0
 PARAM	a083c0ca-5782-59a2-a459-85107690aa6d	PRJ_TB_NOTES_LEGEND_REF_TXT	TEXT		13	1	Prj Tb Notes Legend Ref Txt [ISO 19650-1:2018]	0
+# ──────────────────────────────────────────────────────────────────────────────
+# BOQ & COST MANAGER — Phase 91 additions (Aug 2026)
+# Cost + asset + material + project-level parameters for full NRM2 BOQ workflow.
+# Groups: 2=CST_PROC (cost proc), 1=ASS_MNG (asset), 12=MAT_INFO, 13=PRJ_INFORMATION
+# ──────────────────────────────────────────────────────────────────────────────
+PARAM	d9b66a87-dfcd-474c-9a95-28966c3ea0f5	CST_UNIT_RATE_UGX	TEXT		2	1	Unit rate UGX applied to this element [ISO 19650-3:2020]	1
+PARAM	4a6c27ee-694f-4d99-9c7f-5c1b305aa6aa	CST_UNIT_RATE_USD	TEXT		2	1	Unit rate USD applied to this element [ISO 19650-3:2020]	1
+PARAM	e6dc2ab6-7b17-4c40-865e-2f7610bb5fd0	CST_QTY_MEASURED	TEXT		2	1	Measured quantity for BOQ (area/length/volume/count) [ISO 19650-3:2020]	1
+PARAM	1e00f349-c2db-4983-92d3-e3b2679f7681	CST_MODELED_TOTAL_UGX	NUMBER		2	1	Computed element cost total in UGX [ISO 19650-3:2020]	0
+PARAM	6196f318-c337-4faf-b608-785afba40921	CST_RATE_SOURCE	TEXT		2	1	Rate source: CSV | COBie | Manual | Override | Carbon [ISO 19650-3:2020]	1
+PARAM	e2efb537-c07e-4e2d-b61a-4b186c33abe4	CST_BOQ_SNAPSHOT_REF	TEXT		2	1	Snapshot label when this element was last costed [ISO 19650-3:2020]	0
+PARAM	981c4d13-349b-473c-a4b5-71e0b1f4d878	CST_PROVISIONAL_SUM	YESNO		2	1	True if this element represents a provisional sum [ISO 19650-3:2020]	1
+PARAM	34880114-bc94-4008-a2c5-05a08adcc7d5	CST_PS_DESCRIPTION	TEXT		2	1	Provisional sum scope description [ISO 19650-3:2020]	1
+PARAM	52512f2c-ecdf-4f7b-8128-a8c99222aa0d	CST_EMBODIED_CARBON_KG	NUMBER		2	1	Embodied carbon in kgCO2e for this element [ISO 19650-3:2020]	0
+PARAM	661c0e9a-753f-4f6b-b40a-449995ec081b	CST_LIFECYCLE_COST_UGX	NUMBER		2	1	Whole-life cost estimate in UGX (capital + maintenance NPV 25yr) [ISO 19650-3:2020]	0
+PARAM	9b7bb8b4-173b-47b9-ade4-3d77766f3728	CST_RATE_CONFIDENCE	INTEGER		2	1	Rate confidence score 0-100 (source reliability) [ISO 19650-3:2020]	0
+PARAM	737d0114-a399-4bda-8e4e-7d6132eae440	ASS_NRM2_PARA_TXT	TEXT		1	1	Resolved NRM2 BOQ paragraph, all tokens substituted [ISO 19650-3:2020]	1
+PARAM	eb8aa554-1c95-4d89-9170-0e83e0a3d6d7	ASS_BOQ_LINE_REF	TEXT		1	1	BOQ line reference e.g. 14.3.2 — Excel roundtrip join key [ISO 19650-3:2020]	1
+PARAM	f96d1f95-0bd4-4177-90d1-d3647e48b5ec	ASS_BOQ_SECTION_NAME	TEXT		1	1	BOQ section name this element belongs to [ISO 19650-3:2020]	1
+PARAM	7e0399f3-072b-4c8b-8480-8f62e022e613	ASS_NRM2_PARA_PREV_TXT	TEXT		1	1	Previous NRM2 paragraph (for audit trail) [ISO 19650-3:2020]	0
+PARAM	144b8ebb-0b65-4b70-976e-af2e69f11d47	ASS_NRM2_PARA_DATE_TXT	TEXT		1	1	Date NRM2 paragraph was last updated [ISO 19650-3:2020]	0
+PARAM	a5e36532-e5cf-46f0-8100-00dcf8b3cf9b	ASS_NRM2_PARA_AUTHOR_TXT	TEXT		1	1	Author who last updated the NRM2 paragraph [ISO 19650-3:2020]	0
+PARAM	9d6b4cf1-4edf-4cf7-9571-30f7da504e89	MAT_UNIT_RATE_UGX	TEXT		12	1	Material unit rate in UGX per measured unit [ISO 19650-1:2018]	1
+PARAM	8b5900ed-1c65-4bc1-8b6b-f1f4ebb52e89	MAT_UNIT_RATE_USD	TEXT		12	1	Material unit rate in USD per measured unit [ISO 19650-1:2018]	1
+PARAM	c2a11911-0292-41b1-b9ed-3e0e632f133e	MAT_MEASURED_AREA_M2	NUMBER		12	1	Authoritative measured area m2 — single source for BOQ + COBie [ISO 19650-1:2018]	1
+PARAM	320d2951-41d8-46a4-9765-2a34ed56d407	MAT_CARBON_FACTOR	NUMBER		12	1	Embodied carbon factor kgCO2e per kg for this material [ISO 19650-1:2018]	1
+PARAM	c126b293-0f21-45f6-8433-f0907cd716ef	PROJECT_BUDGET_UGX	NUMBER		13	1	Project budget set by cost consultant in UGX [ISO 19650-3:2020]	1
+PARAM	93644934-597d-43e7-a835-26f9b6613ec7	CST_BUDGET_VARIANCE_UGX	NUMBER		13	1	Budget variance: budget minus grand total UGX [ISO 19650-3:2020]	0
+PARAM	df069f61-b8ce-4dac-98fa-910ea5fcf153	CST_BOQ_COVERAGE_PCT	NUMBER		13	1	Percentage of elements with resolved BOQ line items [ISO 19650-3:2020]	0
+PARAM	91dba108-d8aa-4b40-862b-94fe107b6d43	CST_LAST_COSTED_DATE	TEXT		13	1	Date of last BOQ cost calculation [ISO 19650-3:2020]	1

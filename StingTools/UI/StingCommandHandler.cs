@@ -2527,6 +2527,28 @@ namespace StingTools.UI
                     case "SpeckleReceive": RunCommand<BIMManager.SpeckleReceiveCommand>(app); break;
                     case "SpeckleDiff":    RunCommand<BIMManager.SpeckleDiffCommand>(app);    break;
 
+                    // ── Phase 91: BOQ & Cost Manager dispatch ──
+                    case "BOQCostManager":
+                    {
+                        // Open the standalone BOQ window on the UI thread.
+                        try
+                        {
+                            var doc = app?.ActiveUIDocument?.Document;
+                            if (doc != null) UI.BOQCostManagerWindow.ShowFor(doc);
+                        }
+                        catch (Exception ex) { StingLog.Error("BOQCostManager dispatch", ex); }
+                        break;
+                    }
+                    case "BOQRefresh":              RunCommand<BOQ.BOQRefreshCommand>(app); break;
+                    case "BOQSetBudget":            RunCommand<BOQ.BOQSetBudgetCommand>(app); break;
+                    case "BOQSnapshotSave":         RunCommand<BOQ.BOQSnapshotSaveCommand>(app); break;
+                    case "BOQAddManualRow":         RunCommand<BOQ.BOQAddManualRowCommand>(app); break;
+                    case "SelectInRevit":           RunCommand<BOQ.BOQSelectInRevitCommand>(app); break;
+                    case "BOQExport":               RunCommand<BOQ.BOQExportCommand>(app); break;
+                    case "BOQImport":               RunCommand<BOQ.BOQImportCommand>(app); break;
+                    case "BOQSnapshotCompare":      RunCommand<BOQ.BOQSnapshotCompareCommand>(app); break;
+                    case "ReconcileProvisionals":   RunCommand<BOQ.BOQReconcileProvisionalsCommand>(app); break;
+
                     // ── Phase 42: Coordination Center Commands ──
                     case "CoordinationCenter": RunCommand<BIMManager.CoordinationCenterCommand>(app); break;
                     case "GenerateDashboard": RunCommand<BIMManager.GenerateDashboardCommand>(app); break;

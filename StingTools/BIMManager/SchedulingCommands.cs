@@ -2403,6 +2403,24 @@ namespace StingTools.BIMManager
                         ParameterHelpers.SetString(el, "ASS_COST_SOURCE_TXT",
                             $"cost_rates_5d.csv:{cat}", overwrite: true);
 
+                        // ── Phase 91 gap closures (G1 / G2 / G3 / G9) ──
+                        // Populate the BOQ-aligned parameters that the BOQ panel,
+                        // Excel exporter and live dashboard all read from. Stays
+                        // consistent with BOQCostManager.WriteElementParameters
+                        // so Cost Trace and BOQ Build remain interchangeable.
+                        ParameterHelpers.SetString(el, "CST_UNIT_RATE_UGX",
+                            rate.UnitRate.ToString("F0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
+                        double exRate = Core.TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+                        double rateUsd = exRate > 0 ? System.Math.Round(rate.UnitRate / exRate, 2) : 0;
+                        ParameterHelpers.SetString(el, "CST_UNIT_RATE_USD",
+                            rateUsd.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
+                        ParameterHelpers.SetString(el, "CST_QTY_MEASURED",
+                            $"{qty:F3} {rate.Unit}", overwrite: true);
+                        ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "CSV", overwrite: true);
+                        Parameter totalP = el.LookupParameter("CST_MODELED_TOTAL_UGX");
+                        if (totalP != null && !totalP.IsReadOnly && totalP.StorageType == StorageType.Double)
+                            totalP.Set(subtotal);
+
                         projectTotal += grandTotal;
                         string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "X";
                         costByDisc.TryGetValue(disc, out double cbdVal);

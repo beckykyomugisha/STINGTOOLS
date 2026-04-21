@@ -696,6 +696,29 @@ namespace StingTools.Tags
                 overrides["CLASH_COORDINATION"] = clashCats;
             }
 
+            // BOQ Cost Manager (Phase 91) — project-level parameters bind to ProjectInformation only
+            // so the budget, variance, coverage % and last-costed timestamp sit on the ProjectInfo
+            // element (accessible via doc.ProjectInformation) instead of every modeled element.
+            // Without this override the new group 13 params would be bound to the universal
+            // category set which mostly isn't useful for project-wide metrics.
+            try
+            {
+                var prjSet = new CategorySet();
+                var prjCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_ProjectInformation);
+                if (prjCat != null && prjCat.AllowsBoundParameters)
+                {
+                    prjSet.Insert(prjCat);
+                    // Merge with existing PRJ_INFORMATION override if it already exists —
+                    // some existing PRJ_TB_* params may want both ProjectInfo AND sheets.
+                    if (overrides.TryGetValue("PRJ_INFORMATION", out var existing))
+                    {
+                        foreach (Category c in existing) prjSet.Insert(c);
+                    }
+                    overrides["PRJ_INFORMATION"] = prjSet;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildGroupCategoryOverrides PRJ_INFORMATION: {ex.Message}"); }
+
             // OST_Materials does NOT support AllowsBoundParameters in Revit API,
             // so we bind material-relevant params (MAT_INFO, PROP_PHYSICAL) to
             // BLE element categories (Walls, Floors, Ceilings, Roofs, etc.) —
