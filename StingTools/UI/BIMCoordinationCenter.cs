@@ -73,7 +73,6 @@ namespace StingTools.UI
         private const string TabTeam           = "TEAM";           // legacy alias → PROJECT MEMBERS
         private const string TabProjectMembers = "PROJECT MEMBERS";
         private const string TabCoordLog       = "COORD LOG";
-        private const string TabClash          = "CLASH";
 
         // ── Data ──
         internal CoordData _data;
@@ -110,66 +109,6 @@ namespace StingTools.UI
 
         // Phase 76: Singleton for modeless BCC
         public static BIMCoordinationCenter CurrentInstance { get; private set; }
-
-        /// <summary>
-        /// Fix for "BCC child UI opens behind BCC instead of on top".
-        ///
-        /// When BCC dispatches an action via DispatchCoordAction → cmd.Execute,
-        /// the command constructs its own WPF Window (list picker, progress
-        /// dialog, result panel, etc.) and calls .Show()/.ShowDialog() directly.
-        /// Those call sites don't reach StingWindowHelper.ApplyOwner, so the
-        /// new window has no Owner — Revit's main HWND then beats it to Z-order
-        /// top and the child disappears behind BCC.
-        ///
-        /// Registering a class-level Loaded handler catches every Window the
-        /// moment WPF finishes laying it out, regardless of which command
-        /// opened it. We can't change Owner after Show (WPF throws), but we
-        /// CAN Topmost-dance to force it above BCC, which is what the user
-        /// actually wants to see.
-        /// </summary>
-        private static bool _windowOwnershipHookRegistered;
-
-        internal static void EnsureWindowOwnershipHook()
-        {
-            if (_windowOwnershipHookRegistered) return;
-            _windowOwnershipHookRegistered = true;
-            try
-            {
-                System.Windows.EventManager.RegisterClassHandler(
-                    typeof(System.Windows.Window),
-                    System.Windows.FrameworkElement.LoadedEvent,
-                    new System.Windows.RoutedEventHandler(OnAnyWindowLoaded));
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"EnsureWindowOwnershipHook: {ex.Message}");
-            }
-        }
-
-        private static void OnAnyWindowLoaded(object sender, System.Windows.RoutedEventArgs e)
-        {
-            try
-            {
-                if (!(sender is System.Windows.Window w)) return;
-                if (w is BIMCoordinationCenter) return;
-                var bcc = CurrentInstance;
-                if (bcc == null || !bcc.IsLoaded) return;
-                if (ReferenceEquals(w, bcc)) return;
-                // Don't touch windows that already have a real owner — they're
-                // already parented correctly.
-                if (w.Owner != null) return;
-                // Force above BCC. Topmost-dance is the WPF-in-Revit canonical
-                // pattern; setting .Owner post-Show throws.
-                w.Topmost = true;
-                w.Activate();
-                w.Focus();
-                w.Topmost = false;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"OnAnyWindowLoaded: {ex.Message}");
-            }
-        }
 
         // Phase 76: 4D/5D inline panel area
         private ContentControl _4dPanelArea;
@@ -991,7 +930,7 @@ namespace StingTools.UI
             var nav = new StackPanel { Background = Br(CNavBg) };
             nav.Children.Add(new Border { Height = 8 }); // top spacer
 
-            string[] tabs = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog, TabClash };
+            string[] tabs = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog };
             int memberCount = _data.Roles.Count + _data.TeamMembers.Count;
             string[] badges = {
                 "", $"{_data.ModelHealthScore}/100",
@@ -1005,12 +944,7 @@ namespace StingTools.UI
                 _data.DeliverablesOverdue > 0 ? _data.DeliverablesOverdue.ToString() : $"{_data.DeliverablesApproved}/{_data.Deliverables.Count}",
                 "", // MEETINGS
                 memberCount > 0 ? memberCount.ToString() : "", // PROJECT MEMBERS
-                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : "",
-                "" // CLASH — rec-4 added the tab; this slot plugs the parallel-array bug
-                   // that was throwing IndexOutOfRangeException in the constructor
-                   // and making the whole "Open BIM Coordination Center" button appear
-                   // lifeless (the exception was caught by the outer command handler
-                   // and logged to StingLog, never surfaced to the user).
+                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : ""
             };
 
             for (int i = 0; i < tabs.Length; i++)
@@ -1123,7 +1057,6 @@ namespace StingTools.UI
                     TabTeam           => BuildProjectMembersTab(),  // legacy alias
                     TabProjectMembers => BuildProjectMembersTab(),
                     TabCoordLog       => BuildCoordLogTab(),
-                    TabClash          => BuildClashTab(),
                     _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
                 };
                 _tabCache[tabName] = tabContent;
@@ -2043,30 +1976,6 @@ namespace StingTools.UI
         private UIElement BuildWarningsTab()
         {
             var state = new WarningsDashboardDialog.WarningsPanelState();
-            // Fix for "warnings remain the same across projects": feed the
-            // per-document WarningReport into the panel state so
-            // BuildBrowseSelectTab can populate its TreeView from
-            // state.Report.RootCauseGroups instead of hardcoded samples.
-            // Prefer the 30-second cache if fresh — avoids a second scan
-            // just after BuildCoordData already warmed it.
-            try
-            {
-                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                if (doc != null)
-                {
-                    state.Report = WarningsEngine.GetCachedReport() ?? WarningsEngine.ScanWarnings(doc);
-                    // If RootCauseGroups wasn't populated (some code paths skip
-                    // BuildRootCauseGroups), populate it in place so the tree
-                    // has something to group by.
-                    if (state.Report != null &&
-                        (state.Report.RootCauseGroups == null || state.Report.RootCauseGroups.Count == 0) &&
-                        state.Report.Warnings != null && state.Report.Warnings.Count > 0)
-                    {
-                        WarningsEngine.BuildRootCauseGroups(state.Report);
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"BuildWarningsTab report hydrate: {ex.Message}"); }
 
             // ── Root DockPanel ────────────────────────────────────────────
             var dock = new DockPanel { LastChildFill = true, Margin = new Thickness(12, 10, 12, 10) };
@@ -7451,90 +7360,6 @@ namespace StingTools.UI
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  CLASH TAB  (Clash rec-4)
-        //  Hosts the clash results grid. The underlying engine is reachable
-        //  via the Run Clash button → ClashRunCommand. BCF export via
-        //  Export BCF button → ClashBcfExportCommand.
-        // ════════════════════════════════════════════════════════════════
-
-        private UIElement BuildClashTab()
-        {
-            var root = new DockPanel { LastChildFill = true, Margin = new Thickness(16) };
-
-            // ── Toolbar ──
-            var toolbar = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 0, 0, 8)
-            };
-            DockPanel.SetDock(toolbar, Dock.Top);
-
-            var runBtn = MakeActionButton("Run Clash", "ClashRun", Br(CHeaderBg), "Run headless clash detection over the active 3D view");
-            var bcfBtn = MakeActionButton("Export BCF", "ClashBcfExport", Br(CAccent), "Export the latest clash run as a BCF 2.1 ZIP with viewpoints + PNG snapshots");
-            var liveBtn = MakeActionButton("Refresh Live", "ClashSessionRefresh", Br(CGreen), "Force a re-initialisation of the persistent live-clash session (rebuilds mesh cache)");
-            var clearBtn = MakeActionButton("Clear Session", "ClashSessionClear", Br(CRed), "Clear the per-document live-clash session (frees mesh cache memory)");
-            var matrixBtn = MakeActionButton("Edit Matrix", "ClashMatrixEdit", Br(CHeaderBg), "Open data/default_clash_matrix.json for editing pair rules");
-            toolbar.Children.Add(runBtn);
-            toolbar.Children.Add(bcfBtn);
-            toolbar.Children.Add(liveBtn);
-            toolbar.Children.Add(clearBtn);
-            toolbar.Children.Add(matrixBtn);
-            root.Children.Add(toolbar);
-
-            // ── Grid hosted by StingTools.UI.Clash.ClashTab ──
-            // The tab is a WPF UserControl auto-generating columns from
-            // ClashRowViewModel. We defer Populate() until a ClashRunRecord
-            // is loaded so the grid starts empty but responsive.
-            var clashTabControl = new StingTools.UI.Clash.ClashTab();
-            root.Children.Add(clashTabControl);
-
-            // Best-effort: populate from the most recent clashes.json if it
-            // exists alongside the project. Failures are swallowed so the
-            // tab still renders cleanly on first open.
-            try
-            {
-                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                if (doc != null)
-                {
-                    var dir = OutputLocationHelper.GetOutputDirectory(doc);
-                    var latest = System.IO.Path.Combine(dir ?? "", "clashes.json");
-                    if (!string.IsNullOrEmpty(latest) && System.IO.File.Exists(latest))
-                    {
-                        var run = StingTools.Core.Clash.ClashPersistence.Load(latest);
-                        if (run != null) clashTabControl.Populate(run);
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"BuildClashTab populate: {ex.Message}"); }
-
-            // H2: Subscribe to ClashSession.OnRunCompleted so a background
-            // ClashScheduler tick or a user clicking "Run Clash" in another
-            // UI surface repaints this grid without the user having to close
-            // and re-open the tab. The handler marshals back to the UI thread
-            // via Dispatcher — OnRunCompleted fires from the Revit API thread.
-            try
-            {
-                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                if (doc != null)
-                {
-                    var session = StingTools.Core.Clash.ClashSession.ForDocument(doc);
-                    session.OnRunCompleted += run =>
-                    {
-                        try
-                        {
-                            clashTabControl.Dispatcher.BeginInvoke(
-                                new Action(() => clashTabControl.Populate(run)));
-                        }
-                        catch (Exception ex) { StingLog.Warn($"ClashTab refresh: {ex.Message}"); }
-                    };
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"BuildClashTab OnRunCompleted wire: {ex.Message}"); }
-
-            return root;
-        }
-
-        // ════════════════════════════════════════════════════════════════
         //  PROJECT MEMBERS TAB  (Phase 76 Item 12)
         //  Replaces separate PERMISSIONS + TEAM navigation buttons with
         //  a unified view: Member Directory, Permission Groups,
@@ -9436,11 +9261,6 @@ namespace StingTools.UI
         /// </summary>
         internal static void Show(CoordData data)
         {
-            // Fix for child dialogs opening behind BCC — register a class-level
-            // Loaded handler that forces any new WPF window above BCC's Z-order.
-            // Idempotent (guarded by _windowOwnershipHookRegistered).
-            EnsureWindowOwnershipHook();
-
             if (CurrentInstance != null)
             {
                 CurrentInstance.Dispatcher.Invoke(() =>

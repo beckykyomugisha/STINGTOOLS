@@ -721,21 +721,6 @@ namespace StingTools.UI
                         if (_tagOpRunning && tagStudioTabs.SelectedIndex != active)
                             tagStudioTabs.SelectedIndex = active;
                     }));
-                return;
-            }
-
-            // Lazy-build the Categories sub-tab on first activation.
-            // The list contains 120+ checkboxes; deferring creation until the
-            // user actually opens the sub-tab keeps initial Tag Studio render fast.
-            if (!_categoryListBuilt && tagStudioTabs?.SelectedItem is TabItem ti
-                && (ti.Header as string) == "Categories")
-            {
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background,
-                    new Action(() =>
-                    {
-                        try { BuildCategoryList(); }
-                        catch (Exception ex) { StingLog.Warn($"BuildCategoryList failed: {ex.Message}"); }
-                    }));
             }
         }
 
@@ -1200,6 +1185,193 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Category status update failed: {ex.Message}"); }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Categories sub-tab (tagging-category-selection-XDngT merge) —
+        // checkbox-based CATEGORY_SKIP editor. Handlers wired from StingDockPanel.xaml
+        // ─────────────────────────────────────────────────────────────────────
+
+        private bool _categoryListBuilt;
+        private readonly Dictionary<string, System.Windows.Controls.CheckBox> _categoryCheckboxes =
+            new Dictionary<string, System.Windows.Controls.CheckBox>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Populate the scrollable checkbox list from ParamRegistry.CategoryEnumMap.
+        /// Ticked = "tag this category"; unticked = "skip" (goes into TagConfig.CategorySkipList on save).</summary>
+        private void BuildCategoryList()
+        {
+            if (_categoryListBuilt) return;
+            if (pnlTagCategories == null) return;
+
+            var allCats = StingTools.Core.ParamRegistry.CategoryEnumMap.Keys
+                .Where(k => !string.IsNullOrWhiteSpace(k))
+                .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            pnlTagCategories.Children.Clear();
+            _categoryCheckboxes.Clear();
+
+            foreach (string cat in allCats)
+            {
+                bool isSkipped = StingTools.Core.TagConfig.CategorySkipList != null
+                    && StingTools.Core.TagConfig.CategorySkipList.Contains(cat);
+                string disc = (StingTools.Core.TagConfig.DiscMap != null
+                    && StingTools.Core.TagConfig.DiscMap.TryGetValue(cat, out string d)) ? d : "";
+
+                var cb = new System.Windows.Controls.CheckBox
+                {
+                    Content = string.IsNullOrEmpty(disc) ? cat : $"{cat}  ({disc})",
+                    Tag = cat,
+                    IsChecked = !isSkipped,
+                    FontSize = 10,
+                    Margin = new Thickness(2, 1, 2, 1),
+                    ToolTip = string.IsNullOrEmpty(disc)
+                        ? $"{cat} — included in batch tagging when ticked"
+                        : $"{cat} — discipline {disc} — included in batch tagging when ticked",
+                };
+                cb.Checked += CategoryCheckbox_Changed;
+                cb.Unchecked += CategoryCheckbox_Changed;
+                pnlTagCategories.Children.Add(cb);
+                _categoryCheckboxes[cat] = cb;
+            }
+
+            _categoryListBuilt = true;
+            UpdateCategoryCount();
+            StingLog.Info($"Tag Categories sub-tab built with {_categoryCheckboxes.Count} categories " +
+                $"({StingTools.Core.TagConfig.CategorySkipList?.Count ?? 0} currently skipped)");
+        }
+
+        private void CategoryCheckbox_Changed(object sender, RoutedEventArgs e) => UpdateCategoryCount();
+
+        private void UpdateCategoryCount()
+        {
+            if (txtCategoryCount == null) return;
+            int total = _categoryCheckboxes.Count;
+            int enabled = 0, visible = 0, visibleEnabled = 0;
+            foreach (var cb in _categoryCheckboxes.Values)
+            {
+                if (cb.IsChecked == true) enabled++;
+                if (cb.Visibility == Visibility.Visible)
+                {
+                    visible++;
+                    if (cb.IsChecked == true) visibleEnabled++;
+                }
+            }
+            string filter = txtCategoryFilter?.Text ?? string.Empty;
+            txtCategoryCount.Text = string.IsNullOrEmpty(filter)
+                ? $"{enabled} of {total} enabled"
+                : $"{visibleEnabled} of {visible} enabled in filter ({enabled} of {total} overall)";
+        }
+
+        private void CategoryFilter_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            if (!_categoryListBuilt) BuildCategoryList();
+            string needle = (txtCategoryFilter?.Text ?? string.Empty).Trim();
+            foreach (var kvp in _categoryCheckboxes)
+            {
+                bool match = string.IsNullOrEmpty(needle)
+                    || kvp.Key.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
+                kvp.Value.Visibility = match ? Visibility.Visible : Visibility.Collapsed;
+            }
+            UpdateCategoryCount();
+        }
+
+        private void ClearCategoryFilter_Click(object sender, RoutedEventArgs e)
+        {
+            if (txtCategoryFilter != null) txtCategoryFilter.Text = string.Empty;
+        }
+
+        private void SelectAllCategories_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_categoryListBuilt) BuildCategoryList();
+            foreach (var cb in _categoryCheckboxes.Values)
+                if (cb.Visibility == Visibility.Visible) cb.IsChecked = true;
+            UpdateCategoryCount();
+        }
+
+        private void SelectNoCategories_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_categoryListBuilt) BuildCategoryList();
+            foreach (var cb in _categoryCheckboxes.Values)
+                if (cb.Visibility == Visibility.Visible) cb.IsChecked = false;
+            UpdateCategoryCount();
+        }
+
+        /// <summary>Additive discipline multi-select — toggles only the categories whose
+        /// TagConfig.DiscMap matches this checkbox's Tag; leaves other disciplines alone.</summary>
+        private void DiscCheck_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!_categoryListBuilt) BuildCategoryList();
+            if (!(sender is System.Windows.Controls.CheckBox cb) || !(cb.Tag is string disc) || string.IsNullOrEmpty(disc))
+                return;
+
+            bool targetState = cb.IsChecked == true;
+            var discMap = StingTools.Core.TagConfig.DiscMap;
+            if (discMap == null) return;
+
+            int affected = 0;
+            foreach (var kvp in _categoryCheckboxes)
+            {
+                if (discMap.TryGetValue(kvp.Key, out string d)
+                    && string.Equals(d, disc, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (kvp.Value.IsChecked != targetState)
+                    {
+                        kvp.Value.IsChecked = targetState;
+                        affected++;
+                    }
+                }
+            }
+            UpdateCategoryCount();
+            string verb = targetState ? "ticked" : "unticked";
+            UpdateStatus($"Categories: {verb} {affected} {disc}-discipline categories");
+        }
+
+        private void SaveCategorySkip_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_categoryListBuilt)
+            {
+                UpdateStatus("Categories: nothing to save (list not opened)");
+                return;
+            }
+            try
+            {
+                var skip = new List<string>();
+                foreach (var kvp in _categoryCheckboxes)
+                    if (kvp.Value.IsChecked != true) skip.Add(kvp.Key);
+
+                StingTools.Core.TagConfig.CategorySkipList = new HashSet<string>(skip, StringComparer.OrdinalIgnoreCase);
+                StingTools.Core.TagConfig.SetConfigValue("CATEGORY_SKIP", skip);
+
+                try { StingTools.Core.ComplianceScan.InvalidateCache(); }
+                catch (Exception ex) { StingLog.Warn($"ComplianceScan.InvalidateCache failed: {ex.Message}"); }
+                try { StingTools.Core.StingAutoTagger.InvalidateContext(); }
+                catch (Exception ex) { StingLog.Warn($"StingAutoTagger.InvalidateContext failed: {ex.Message}"); }
+
+                int kept = _categoryCheckboxes.Count - skip.Count;
+                StingLog.Info($"CATEGORY_SKIP saved: {kept} included, {skip.Count} skipped (of {_categoryCheckboxes.Count} categories)");
+                UpdateStatus($"Categories: saved — {kept} tag, {skip.Count} skip");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("SaveCategorySkip failed", ex);
+                UpdateStatus($"Categories: save failed — {ex.Message}");
+            }
+        }
+
+        private void ReloadCategorySkip_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_categoryListBuilt)
+            {
+                BuildCategoryList();
+                return;
+            }
+            var skipSet = StingTools.Core.TagConfig.CategorySkipList
+                ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in _categoryCheckboxes)
+                kvp.Value.IsChecked = !skipSet.Contains(kvp.Key);
+            UpdateCategoryCount();
+            UpdateStatus($"Categories: reloaded ({_categoryCheckboxes.Count - skipSet.Count} tag, {skipSet.Count} skip)");
         }
 
         private void CatQuick_Click(object sender, RoutedEventArgs e)

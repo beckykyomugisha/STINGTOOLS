@@ -1548,9 +1548,8 @@ namespace StingTools.Core
                 case "TagRevisionDiff":        return new BIMManager.TagRevisionDiffCommand();
                 case "AutoScheduleMeetings":   return new BIMManager.AutoScheduleMeetingsCommand();
                 case "COBieExtendedImport":    return new BIMManager.COBieExtendedImportCommand();
-                // "LinkIssueElements" is the BCC-facing alias for SelectIssueElementsCommand — adds
-                // the alias to the existing SelectIssueElements target so the BCC action bar works.
-                case "LinkIssueElements":      return new BIMManager.SelectIssueElementsCommand();
+                // "LinkIssueElements" alias defined above at ~line 1405 — removed the duplicate
+                // case here (CS0152). The alias still resolves via the earlier case.
                 // WF-02: EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand.
                 // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
                 // which is handled by the plugin hook fallback + error logging in RunCommandByTag.
