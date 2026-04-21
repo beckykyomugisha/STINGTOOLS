@@ -437,4 +437,70 @@ namespace StingTools.BOQ
             catch (Exception ex) { StingLog.Error("BOQReconcileProvisionals", ex); return Result.Failed; }
         }
     }
+    // ══════════════════════════════════════════════════════════════════════
+    //  BOQWriteItemParamsCommand — Phase 108b. Writes inline-edited rate,
+    //  NRM2 paragraph, and note back onto a modeled element's shared params.
+    //  Called from BOQCostManagerPanel.OnItemEdited when the edited row's
+    //  source is Model. Manual/PS edits persist via SaveManualRows instead.
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BOQWriteItemParamsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+
+                string idStr = StingCommandHandler.GetExtraParam("BOQEditElementId");
+                if (!long.TryParse(idStr, out long eid) || eid <= 0) return Result.Succeeded;
+
+                string rateUGXStr = StingCommandHandler.GetExtraParam("BOQEditRateUGX");
+                string rateUSDStr = StingCommandHandler.GetExtraParam("BOQEditRateUSD");
+                string para = StingCommandHandler.GetExtraParam("BOQEditNRM2Para");
+                string note = StingCommandHandler.GetExtraParam("BOQEditNote");
+
+                Element el;
+                try { el = ctx.Doc.GetElement(new ElementId(eid)); }
+                catch (Exception ex) { StingLog.Warn($"BOQWriteItemParams: GetElement({eid}) — {ex.Message}"); return Result.Failed; }
+                if (el == null) return Result.Succeeded;
+
+                using (var tx = new Transaction(ctx.Doc, "STING BOQ — update item parameters"))
+                {
+                    tx.Start();
+                    if (double.TryParse(rateUGXStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double ugx))
+                        ParameterHelpers.SetString(el, "CST_UNIT_RATE_UGX",
+                            ugx.ToString("F0", CultureInfo.InvariantCulture), overwrite: true);
+                    if (double.TryParse(rateUSDStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double usd))
+                        ParameterHelpers.SetString(el, "CST_UNIT_RATE_USD",
+                            usd.ToString("F2", CultureInfo.InvariantCulture), overwrite: true);
+                    if (!string.IsNullOrEmpty(para))
+                    {
+                        ParameterHelpers.SetString(el, "ASS_NRM2_PARA_TXT", para, overwrite: true);
+                        ParameterHelpers.SetString(el, "ASS_NRM2_PARA_DATE_TXT",
+                            DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"), overwrite: true);
+                        ParameterHelpers.SetString(el, "ASS_NRM2_PARA_AUTHOR_TXT",
+                            Environment.UserName ?? "unknown", overwrite: true);
+                    }
+                    ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "Override", overwrite: true);
+                    // Note writeback intentionally omitted — no CST_BOQ_NOTE parameter
+                    // is registered; keep the edited note on the manual-store side only.
+                    tx.Commit();
+                }
+
+                StingCommandHandler.ClearExtraParam("BOQEditElementId");
+                StingCommandHandler.ClearExtraParam("BOQEditRateUGX");
+                StingCommandHandler.ClearExtraParam("BOQEditRateUSD");
+                StingCommandHandler.ClearExtraParam("BOQEditNRM2Para");
+                StingCommandHandler.ClearExtraParam("BOQEditNote");
+
+                StingLog.Info($"BOQWriteItemParams: wrote rate / NRM2 / source to element {eid}");
+                _ = note; // suppress unused-variable warning until note param is registered
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("BOQWriteItemParamsCommand", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
 }

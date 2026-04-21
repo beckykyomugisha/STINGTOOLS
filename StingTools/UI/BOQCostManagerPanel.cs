@@ -2,12 +2,16 @@
 //  BOQCostManagerPanel.cs — Phase 5 of the BOQ & Cost Manager.
 //  WPF UserControl hosted inside the BIM Coordination Center 4D/5D tab.
 //  No XAML file — layout built in C# following the StingResultPanel pattern.
+//
+//  Phase 108b (enhancement patch): inline editing, NRM2 row-details panel,
+//  discipline-coloured section headers, per-row source colouring, rate
+//  confidence colouring, Expand/Collapse all, Materials tab, Carbon card,
+//  right-click context menu, per-row snapshot deltas.
 //  Revit API access is routed via the StingBOQActionHandler ExternalEvent so
 //  button clicks on the WPF thread never touch the Revit DB directly.
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
@@ -17,6 +21,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.BOQ;
@@ -46,14 +51,21 @@ namespace StingTools.UI
         private string _searchText = "";
         private readonly HashSet<string> _activeDisciplines = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        // Phase 108b: section state preserved across refreshes + per-section snapshot deltas
+        private readonly HashSet<string> _openSections = new HashSet<string>();
+        private string _activeSnapshotLabel = "";
+        private readonly Dictionary<string, double> _snapshotDeltas = new Dictionary<string, double>();
+
         // WPF controls we need to mutate
         private TextBlock _projectName, _budgetValue, _modeledValue, _provisionalValue,
                          _varianceValue, _coverageValue, _grandTotalValue, _healthValue,
-                         _matchHint, _snapshotDiff, _paragraphCoverage;
+                         _carbonValue, _matchHint, _snapshotDiff, _paragraphCoverage;
         private ProgressBar _budgetBar;
         private System.Windows.Controls.ComboBox _snapshotPicker;
         private System.Windows.Controls.TextBox _searchBox;
         private StackPanel _sectionsPanel;
+        private TabControl _mainTabs;
+        private TabItem _materialsTab;
         private ToggleButton _ugxToggle, _usdToggle;
 
         public BOQCostManagerPanel(Document doc)
@@ -73,22 +85,53 @@ namespace StingTools.UI
         private static readonly Brush PanelBg = new SolidColorBrush(Color.FromRgb(0xF5, 0xF6, 0xFA));
         private static readonly Brush HeaderFg = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
         private static readonly Brush BorderColor = new SolidColorBrush(Color.FromRgb(0xD1, 0xD5, 0xDB));
-        private static readonly Brush ModelRowBg = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
-        private static readonly Brush ManualRowBg = new SolidColorBrush(Color.FromRgb(0xFF, 0xFB, 0xE6));
-        private static readonly Brush PSRowBg = new SolidColorBrush(Color.FromRgb(0xF3, 0xF0, 0xFC));
 
         static BOQCostManagerPanel()
         {
             NavyBrush.Freeze(); OrangeBrush.Freeze(); GreenBrush.Freeze();
             AmberBrush.Freeze(); RedBrush.Freeze(); PanelBg.Freeze();
             HeaderFg.Freeze(); BorderColor.Freeze();
-            ModelRowBg.Freeze(); ManualRowBg.Freeze(); PSRowBg.Freeze();
+        }
+
+        // ── Discipline palette for section headers ─────────────────────────
+        // Background fills: muted pastel so text stays legible on white grids
+        internal static SolidColorBrush SectionHeaderBrush(string disc)
+        {
+            Color c;
+            switch (disc)
+            {
+                case "A":  c = Color.FromRgb(214, 228, 240); break;
+                case "S":  c = Color.FromRgb(235, 228, 250); break;
+                case "M":  c = Color.FromRgb(255, 243, 224); break;
+                case "E":  c = Color.FromRgb(252, 235, 235); break;
+                case "P":  c = Color.FromRgb(225, 245, 238); break;
+                case "FP": c = Color.FromRgb(252, 232, 235); break;
+                case "PS": c = Color.FromRgb(237, 231, 246); break;
+                default:   c = Color.FromRgb(240, 240, 240); break;
+            }
+            var b = new SolidColorBrush(c); b.Freeze(); return b;
+        }
+
+        // Badge foreground pill colour (saturated complement of the header fill)
+        internal static Color DiscBadgeColour(string disc)
+        {
+            switch (disc)
+            {
+                case "A":  return Color.FromRgb(14, 107, 168);
+                case "S":  return Color.FromRgb(83, 74, 183);
+                case "M":  return Color.FromRgb(186, 117, 23);
+                case "E":  return Color.FromRgb(163, 45, 45);
+                case "P":  return Color.FromRgb(15, 110, 86);
+                case "FP": return Color.FromRgb(163, 45, 45);
+                case "PS": return Color.FromRgb(83, 74, 183);
+                default:   return Color.FromRgb(80, 80, 80);
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════
         //  Layout construction
         //  DockPanel root with 4 top-docked rows (header strip, budget strip,
-        //  snapshot row, toolbar) and the sections ScrollViewer filling the
+        //  snapshot row, toolbar) and the sections TabControl filling the
         //  remaining space. Footer docks at the bottom for global actions.
         // ══════════════════════════════════════════════════════════════════
 
@@ -108,15 +151,21 @@ namespace StingTools.UI
             root.Children.Add(BuildFooter());
             DockPanel.SetDock(root.Children[4], Dock.Bottom);
 
-            // Main content — BOQ sections
-            _sectionsPanel = new StackPanel { Margin = new Thickness(12) };
-            var scroll = new ScrollViewer
+            // Main content — TabControl with Bill of Quantities + Materials tabs
+            _sectionsPanel = new StackPanel { Margin = new Thickness(0) };
+            var boqScroll = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Content = _sectionsPanel
+                Content = _sectionsPanel,
+                Padding = new Thickness(12)
             };
-            root.Children.Add(scroll);
+            _mainTabs = new TabControl { Margin = new Thickness(0), BorderThickness = new Thickness(0), Background = PanelBg };
+            _mainTabs.Items.Add(new TabItem { Header = "Bill of Quantities", Content = boqScroll });
+            _materialsTab = new TabItem { Header = "Materials",
+                Content = new TextBlock { Text = "Loading…", Margin = new Thickness(14), Foreground = Brushes.Gray } };
+            _mainTabs.Items.Add(_materialsTab);
+            root.Children.Add(_mainTabs);
 
             Content = root;
         }
@@ -184,13 +233,15 @@ namespace StingTools.UI
                 Padding = new Thickness(12, 10, 12, 10) };
             var sp = new StackPanel();
 
-            var cards = new UniformGrid { Columns = 6 };
-            _budgetValue = MakeMetric(cards, "Project budget", "UGX 0", NavyBrush);
-            _modeledValue = MakeMetric(cards, "Modeled cost", "UGX 0", GreenBrush);
+            // Phase 108b: 7 cards now — carbon added after health
+            var cards = new UniformGrid { Columns = 7 };
+            _budgetValue      = MakeMetric(cards, "Project budget",       "UGX 0", NavyBrush);
+            _modeledValue     = MakeMetric(cards, "Modeled cost",         "UGX 0", GreenBrush);
             _provisionalValue = MakeMetric(cards, "Provisional / manual", "UGX 0", AmberBrush);
-            _varianceValue = MakeMetric(cards, "Variance", "UGX 0", NavyBrush);
-            _coverageValue = MakeMetric(cards, "Coverage", "0%", NavyBrush);
-            _healthValue = MakeMetric(cards, "BOQ Health", "—", GreenBrush);
+            _varianceValue    = MakeMetric(cards, "Variance",             "UGX 0", NavyBrush);
+            _coverageValue    = MakeMetric(cards, "Coverage",             "0%",    NavyBrush);
+            _healthValue      = MakeMetric(cards, "BOQ Health",           "—",     GreenBrush);
+            _carbonValue      = MakeMetric(cards, "Embodied carbon",      "0 kgCO₂e", GreenBrush);
             sp.Children.Add(cards);
 
             _budgetBar = new ProgressBar
@@ -307,12 +358,40 @@ namespace StingTools.UI
                 sp.Children.Add(tb);
             }
 
+            // Expand / collapse all (Part 5A)
+            sp.Children.Add(MakeToolbarButton("⊞ Expand all", () =>
+            {
+                _openSections.Clear();
+                if (_boq != null) foreach (var s2 in _boq.Sections) _openSections.Add(s2.Id);
+                RebuildSectionsView();
+            }));
+            sp.Children.Add(MakeToolbarButton("⊟ Collapse all", () =>
+            {
+                _openSections.Clear();
+                RebuildSectionsView();
+            }));
+
             _matchHint = new TextBlock { Text = "", FontSize = 10, Foreground = Brushes.Gray,
                 Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             sp.Children.Add(_matchHint);
 
             border.Child = sp;
             return border;
+        }
+
+        private Button MakeToolbarButton(string text, Action onClick)
+        {
+            var btn = new Button
+            {
+                Content = text, FontSize = 10, Padding = new Thickness(6, 2, 6, 2),
+                Margin = new Thickness(8, 0, 0, 0),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0.5),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(180, 190, 200)),
+                Cursor = Cursors.Hand
+            };
+            btn.Click += (s, e) => onClick();
+            return btn;
         }
 
         private UIElement BuildFooter()
@@ -331,12 +410,11 @@ namespace StingTools.UI
             grid.Children.Add(left);
 
             var right = new StackPanel { Orientation = Orientation.Horizontal };
-            right.Children.Add(BuildActionBtn("＋ Manual row", NavyBrush)); // placeholder — dialog wired below
+            right.Children.Add(BuildActionBtn("＋ Manual row", NavyBrush));
             right.Children.Add(BuildActionBtn("Reconcile PS", AmberBrush));
             right.Children.Add(BuildActionBtn("Import Excel", NavyBrush));
             right.Children.Add(BuildActionBtn("Export ↗", GreenBrush));
 
-            // Wire buttons after they are in the tree so event handlers can use visual parent
             foreach (UIElement ch in right.Children)
             {
                 if (ch is Button b)
@@ -371,12 +449,16 @@ namespace StingTools.UI
                 _boq = BOQCostManager.BuildBOQDocument(Doc);
                 _health = BOQCostManager.ComputeBOQHealth(_boq);
                 LoadSnapshotDropdown();
+                // On first load open every section; subsequent refreshes preserve state
+                if (_openSections.Count == 0 && _boq != null)
+                    foreach (var s in _boq.Sections) _openSections.Add(s.Id);
                 RefreshDisplay();
             }
             catch (Exception ex)
             {
                 StingLog.Error("BOQCostManagerPanel.RefreshAsync", ex);
-                _paragraphCoverage.Text = $"Refresh failed — see log. {ex.Message}";
+                if (_paragraphCoverage != null)
+                    _paragraphCoverage.Text = $"Refresh failed — see log. {ex.Message}";
             }
         }
 
@@ -415,11 +497,20 @@ namespace StingTools.UI
                 : _health.OverallScore >= 85 ? GreenBrush
                 : _health.OverallScore >= 50 ? AmberBrush : RedBrush;
 
+            // Phase 108b: carbon card
+            double carbonKg = _boq.TotalCarbonKg;
+            _carbonValue.Text = carbonKg >= 1000
+                ? $"{carbonKg / 1000:F1} tCO₂e"
+                : $"{carbonKg:N0} kgCO₂e";
+            _carbonValue.Foreground = carbonKg < 300000 ? GreenBrush
+                : carbonKg < 800000 ? AmberBrush : RedBrush;
+
             _paragraphCoverage.Text = $"Paragraph coverage {_boq.ParagraphCoveragePct:F0}% ({_boq.ResolvedParagraphCount}/{_boq.AllItems.Count}) "
                 + $"| Avg rate confidence {_boq.AverageRateConfidence:F0} "
                 + $"| Embodied carbon {_boq.TotalCarbonKg / 1000.0:F2} tCO₂e";
 
             RebuildSectionsView();
+            RebuildMaterialsTab();
         }
 
         private void RebuildSectionsView()
@@ -433,7 +524,8 @@ namespace StingTools.UI
                 if (_activeDisciplines.Count > 0 && !_activeDisciplines.Contains(sec.Discipline ?? "")) continue;
                 var filtered = sec.Items.Where(MatchesFilter).ToList();
                 if (filtered.Count == 0) continue;
-                _sectionsPanel.Children.Add(BuildSectionCard(sec, filtered));
+                var vms = filtered.Select(i => new BOQItemViewModel(i, _displayCurrency, _boq.ExchangeRateUgxPerUsd)).ToList();
+                _sectionsPanel.Children.Add(BuildSectionCard(sec, vms));
                 visibleSections++;
                 visibleItems += filtered.Count;
             }
@@ -459,78 +551,689 @@ namespace StingTools.UI
                 || it.TotalUGX.ToString("F0", CultureInfo.InvariantCulture).Contains(q);
         }
 
-        private Expander BuildSectionCard(BOQSection sec, List<BOQLineItem> items)
+        // ══════════════════════════════════════════════════════════════════
+        //  BuildSectionCard — discipline-coloured header, NRM2 badge,
+        //  per-section snapshot delta pill, item count, total in active currency
+        // ══════════════════════════════════════════════════════════════════
+
+        private Expander BuildSectionCard(BOQSection sec, List<BOQItemViewModel> vms)
         {
-            double totalShown = items.Sum(i => i.TotalUGX);
-            var header = new StackPanel { Orientation = Orientation.Horizontal };
-            header.Children.Add(new Border
+            bool isExpanded = _openSections.Contains(sec.Id);
+            double totalShownUgx = vms.Sum(v => v.Underlying.TotalUGX);
+            string displayTotal = _displayCurrency == "USD"
+                ? $"$ {vms.Sum(v => v.Underlying.TotalUSD):N2}"
+                : $"UGX {totalShownUgx:N0}";
+
+            var headerGrid = new Grid { Background = SectionHeaderBrush(sec.Discipline) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var badge = new Border
             {
-                Background = NavyBrush, CornerRadius = new CornerRadius(2), Padding = new Thickness(6, 1, 6, 1),
-                Margin = new Thickness(0, 0, 8, 0),
-                Child = new TextBlock { Text = $"§{sec.NRM2Section}", Foreground = Brushes.White, FontSize = 11, FontWeight = FontWeights.Bold }
+                Background = new SolidColorBrush(DiscBadgeColour(sec.Discipline)),
+                CornerRadius = new CornerRadius(3), Padding = new Thickness(7, 2, 7, 2),
+                Margin = new Thickness(6, 2, 8, 2),
+                Child = new TextBlock
+                {
+                    Text = $"§{sec.NRM2Section}",
+                    Foreground = Brushes.White, FontSize = 11, FontWeight = FontWeights.Bold
+                }
+            };
+            Grid.SetColumn(badge, 0); headerGrid.Children.Add(badge);
+
+            var discPillColour = DiscBadgeColour(sec.Discipline);
+            discPillColour.A = 170;
+            var discBadge = new Border
+            {
+                Background = new SolidColorBrush(discPillColour),
+                CornerRadius = new CornerRadius(3), Padding = new Thickness(5, 1, 5, 1),
+                Margin = new Thickness(0, 2, 8, 2),
+                Child = new TextBlock { Text = sec.Discipline, Foreground = Brushes.White, FontSize = 10 }
+            };
+            Grid.SetColumn(discBadge, 1); headerGrid.Children.Add(discBadge);
+
+            var namePanel = new StackPanel { Orientation = Orientation.Horizontal };
+            namePanel.Children.Add(new TextBlock
+            {
+                Text = sec.Name, FontSize = 13, FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
             });
-            header.Children.Add(new TextBlock { Text = sec.Name, FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
-            header.Children.Add(new TextBlock { Text = $"  · {sec.Discipline}", FontSize = 11, Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center });
-            header.Children.Add(new TextBlock { Text = $"  · {items.Count} items", FontSize = 11, Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center });
-            header.Children.Add(new TextBlock { Text = $"  · UGX {totalShown:N0}", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = OrangeBrush,
-                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
+            namePanel.Children.Add(new TextBlock
+            {
+                Text = $"  ·  {vms.Count} items",
+                FontSize = 11, Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center
+            });
+            Grid.SetColumn(namePanel, 2); headerGrid.Children.Add(namePanel);
+
+            // Snapshot delta pill — only when an active snapshot is selected
+            if (!string.IsNullOrEmpty(_activeSnapshotLabel) && _snapshotDeltas.TryGetValue(sec.Id, out double delta))
+            {
+                string deltaStr = (delta >= 0 ? "+" : "") + $"UGX {delta:N0}";
+                var deltaPill = new Border
+                {
+                    Background = delta >= 0
+                        ? new SolidColorBrush(Color.FromRgb(200, 240, 215))
+                        : new SolidColorBrush(Color.FromRgb(252, 210, 210)),
+                    CornerRadius = new CornerRadius(3), Padding = new Thickness(6, 1, 6, 1),
+                    Margin = new Thickness(0, 2, 10, 2),
+                    Child = new TextBlock
+                    {
+                        Text = deltaStr, FontSize = 10,
+                        Foreground = delta >= 0
+                            ? new SolidColorBrush(Color.FromRgb(20, 100, 60))
+                            : new SolidColorBrush(Color.FromRgb(140, 30, 30))
+                    }
+                };
+                Grid.SetColumn(deltaPill, 3); headerGrid.Children.Add(deltaPill);
+            }
+
+            var totalTb = new TextBlock
+            {
+                Text = displayTotal, FontSize = 13, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(26, 58, 92)),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0)
+            };
+            Grid.SetColumn(totalTb, 4); headerGrid.Children.Add(totalTb);
+
+            var itemGrid = BuildItemGrid();
+            itemGrid.ItemsSource = vms;
+            itemGrid.Margin = new Thickness(0);
 
             var expander = new Expander
             {
-                Header = header, IsExpanded = true,
-                Margin = new Thickness(0, 0, 0, 8),
+                Header = headerGrid,
+                Content = itemGrid,
+                IsExpanded = isExpanded,
+                Margin = new Thickness(0, 0, 0, 6),
+                BorderThickness = new Thickness(1),
+                BorderBrush = BorderColor,
                 Background = Brushes.White,
-                BorderBrush = BorderColor, BorderThickness = new Thickness(1)
+                Padding = new Thickness(0)
             };
-            expander.Content = BuildSectionGrid(items);
+            string secId = sec.Id;
+            expander.Expanded  += (s, e) => _openSections.Add(secId);
+            expander.Collapsed += (s, e) => _openSections.Remove(secId);
             return expander;
         }
 
-        private DataGrid BuildSectionGrid(List<BOQLineItem> items)
+        // ══════════════════════════════════════════════════════════════════
+        //  BuildItemGrid — editable DataGrid with RowDetailsTemplate for NRM2.
+        //  Double-click a cell to edit; right-click for context menu.
+        //  Row background and confidence cell background bound to the VM.
+        // ══════════════════════════════════════════════════════════════════
+
+        private DataGrid BuildItemGrid()
         {
             var grid = new DataGrid
             {
-                AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false,
-                CanUserReorderColumns = false, CanUserSortColumns = true, HeadersVisibility = DataGridHeadersVisibility.Column,
-                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal, FontSize = 11,
-                HorizontalGridLinesBrush = BorderColor, RowHeaderWidth = 0,
-                AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(0xFA, 0xFA, 0xFB)),
-                ItemsSource = items.Select(i => new BOQItemViewModel(i, _displayCurrency, _boq.ExchangeRateUgxPerUsd)).ToList(),
+                AutoGenerateColumns = false,
+                CanUserAddRows = false,
+                CanUserDeleteRows = false,
+                CanUserReorderColumns = false,
+                CanUserSortColumns = true,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                SelectionMode = DataGridSelectionMode.Single,
+                SelectionUnit = DataGridSelectionUnit.FullRow,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                HorizontalGridLinesBrush = BorderColor,
+                RowHeaderWidth = 0,
+                FontSize = 11,
+                RowHeight = 24,
+                Background = Brushes.Transparent,
+                RowBackground = Brushes.Transparent,
+                AlternatingRowBackground = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
                 MinHeight = 80
             };
-            grid.Columns.Add(MakeTextCol("Ref", nameof(BOQItemViewModel.LineRef), 70));
-            grid.Columns.Add(MakeTextCol("Item", nameof(BOQItemViewModel.ItemName), 220));
-            grid.Columns.Add(MakeTextCol("Qty", nameof(BOQItemViewModel.QuantityDisplay), 70));
-            grid.Columns.Add(MakeTextCol("Unit", nameof(BOQItemViewModel.Unit), 55));
-            grid.Columns.Add(MakeTextCol("Rate", nameof(BOQItemViewModel.RateDisplay), 100));
-            grid.Columns.Add(MakeTextCol("Total", nameof(BOQItemViewModel.TotalDisplay), 110));
-            grid.Columns.Add(MakeTextCol("Source", nameof(BOQItemViewModel.SourceLabel), 80));
-            grid.Columns.Add(MakeTextCol("Conf.", nameof(BOQItemViewModel.RateConfidenceDisplay), 55));
-            grid.Columns.Add(MakeTextCol("Carbon", nameof(BOQItemViewModel.CarbonDisplay), 85));
-            grid.Columns.Add(MakeTextCol("Note", nameof(BOQItemViewModel.Note), 220));
+
+            // Row style — applies RowBackground from VM (manual=cream / PS=lavender / model=white)
+            var rowStyle = new Style(typeof(DataGridRow));
+            rowStyle.Setters.Add(new Setter(DataGridRow.BackgroundProperty,
+                new Binding(nameof(BOQItemViewModel.RowBackground))));
+            grid.RowStyle = rowStyle;
+
+            grid.Columns.Add(BuildSourceDotColumn());
+            grid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Ref", Binding = new Binding(nameof(BOQItemViewModel.LineRef)),
+                Width = new DataGridLength(70), IsReadOnly = true
+            });
+            grid.Columns.Add(BuildEditableColumn("Item / description", nameof(BOQItemViewModel.ItemName), 220, isNumber: false));
+            grid.Columns.Add(BuildEditableColumn("Qty",  nameof(BOQItemViewModel.QuantityDisplay), 70, isNumber: true));
+            grid.Columns.Add(BuildEditableColumn("Unit", nameof(BOQItemViewModel.Unit),            55, isNumber: false));
+            grid.Columns.Add(BuildEditableColumn("Rate", nameof(BOQItemViewModel.RateDisplay),    105, isNumber: true));
+            grid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Total", Binding = new Binding(nameof(BOQItemViewModel.TotalDisplay)),
+                Width = new DataGridLength(110), IsReadOnly = true
+            });
+            grid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Src", Binding = new Binding(nameof(BOQItemViewModel.SourceLabel)),
+                Width = new DataGridLength(48), IsReadOnly = true
+            });
+            grid.Columns.Add(BuildConfidenceColumn());
+            grid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "CO₂ kg", Binding = new Binding(nameof(BOQItemViewModel.CarbonDisplay)),
+                Width = new DataGridLength(75), IsReadOnly = true
+            });
+            grid.Columns.Add(BuildEditableColumn("Note", nameof(BOQItemViewModel.Note), 200, isNumber: false));
+
+            // NRM2 detail panel — shown below selected row via RowDetailsTemplate
+            grid.RowDetailsTemplate = BuildNrm2DetailTemplate();
+            grid.RowDetailsVisibilityMode = DataGridRowDetailsVisibilityMode.VisibleWhenSelected;
+
+            // Double-click: enter edit mode (single click selects + shows details)
             grid.MouseDoubleClick += (s, e) =>
             {
-                if (grid.SelectedItem is BOQItemViewModel vm && vm.RevitElementId > 0)
+                if (!(e.OriginalSource is DependencyObject src)) return;
+                var cell = FindVisualParent<DataGridCell>(src);
+                if (cell != null && !cell.IsEditing)
                 {
-                    StingCommandHandler.SetExtraParam("SelectElementId", vm.RevitElementId.ToString());
-                    DispatchAction("SelectInRevit");
+                    cell.IsEditing = true;
+                    e.Handled = true;
                 }
             };
+
+            // Persist edits on cell commit
+            grid.CellEditEnding += (s, e) =>
+            {
+                if (e.EditAction == DataGridEditAction.Commit
+                    && grid.SelectedItem is BOQItemViewModel vm)
+                {
+                    Dispatcher.BeginInvoke(new Action(() => OnItemEdited(vm)),
+                        System.Windows.Threading.DispatcherPriority.Background);
+                }
+            };
+
+            // Context menu
+            grid.ContextMenuOpening += (s, e) =>
+            {
+                if (grid.SelectedItem is BOQItemViewModel vm)
+                    grid.ContextMenu = BuildRowContextMenu(vm);
+                else
+                    e.Handled = true;
+            };
+
             return grid;
         }
 
-        private DataGridTextColumn MakeTextCol(string header, string bindingPath, double width)
+        private static T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
         {
-            var col = new DataGridTextColumn
+            var current = System.Windows.Media.VisualTreeHelper.GetParent(child);
+            while (current != null)
             {
-                Header = header, Binding = new Binding(bindingPath), Width = new DataGridLength(width),
-                IsReadOnly = true
+                if (current is T typed) return typed;
+                current = System.Windows.Media.VisualTreeHelper.GetParent(current);
+            }
+            return null;
+        }
+
+        // ── Column factories ────────────────────────────────────────────────
+
+        private DataGridTemplateColumn BuildEditableColumn(string header, string bindingPath, double width, bool isNumber)
+        {
+            var displayTpl = new DataTemplate();
+            var displayFactory = new FrameworkElementFactory(typeof(TextBlock));
+            displayFactory.SetBinding(TextBlock.TextProperty, new Binding(bindingPath));
+            displayFactory.SetValue(TextBlock.MarginProperty, new Thickness(4, 0, 4, 0));
+            displayFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            if (isNumber)
+                displayFactory.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Right);
+            displayTpl.VisualTree = displayFactory;
+
+            var editTpl = new DataTemplate();
+            var editFactory = new FrameworkElementFactory(typeof(TextBox));
+            editFactory.SetBinding(TextBox.TextProperty, new Binding(bindingPath)
+                { UpdateSourceTrigger = UpdateSourceTrigger.LostFocus, Mode = BindingMode.TwoWay });
+            editFactory.SetValue(TextBox.BorderThicknessProperty, new Thickness(0));
+            editFactory.SetValue(TextBox.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(235, 245, 255)));
+            editFactory.SetValue(TextBox.FontSizeProperty, 11.0);
+            editFactory.SetValue(FrameworkElement.MarginProperty, new Thickness(0));
+            editFactory.AddHandler(UIElement.GotFocusEvent,
+                new RoutedEventHandler((s, e) => { if (s is TextBox tb) tb.SelectAll(); }));
+            editTpl.VisualTree = editFactory;
+
+            return new DataGridTemplateColumn
+            {
+                Header = header, Width = new DataGridLength(width),
+                CellTemplate = displayTpl, CellEditingTemplate = editTpl,
+                IsReadOnly = false
             };
-            return col;
+        }
+
+        private DataGridTemplateColumn BuildConfidenceColumn()
+        {
+            var tpl = new DataTemplate();
+            var border = new FrameworkElementFactory(typeof(Border));
+            border.SetBinding(Border.BackgroundProperty,
+                new Binding(nameof(BOQItemViewModel.ConfidenceBrush)));
+            var tb = new FrameworkElementFactory(typeof(TextBlock));
+            tb.SetBinding(TextBlock.TextProperty,
+                new Binding(nameof(BOQItemViewModel.RateConfidenceDisplay)));
+            tb.SetValue(TextBlock.MarginProperty, new Thickness(4, 0, 4, 0));
+            tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
+            tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            border.AppendChild(tb);
+            tpl.VisualTree = border;
+            return new DataGridTemplateColumn
+            {
+                Header = "Conf", Width = new DataGridLength(42),
+                CellTemplate = tpl, IsReadOnly = true
+            };
+        }
+
+        private DataGridTemplateColumn BuildSourceDotColumn()
+        {
+            var tpl = new DataTemplate();
+            var ell = new FrameworkElementFactory(typeof(Ellipse));
+            ell.SetValue(Ellipse.WidthProperty, 8.0);
+            ell.SetValue(Ellipse.HeightProperty, 8.0);
+            ell.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            ell.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            ell.SetBinding(Ellipse.FillProperty, new Binding(nameof(BOQItemViewModel.SourceDotBrush)));
+            tpl.VisualTree = ell;
+            return new DataGridTemplateColumn
+            {
+                Header = "", Width = new DataGridLength(14),
+                CellTemplate = tpl, IsReadOnly = true
+            };
+        }
+
+        // ── NRM2 paragraph detail template (RowDetailsTemplate) ─────────────
+
+        private DataTemplate BuildNrm2DetailTemplate()
+        {
+            var detailTpl = new DataTemplate();
+            var outerBorder = new FrameworkElementFactory(typeof(Border));
+            outerBorder.SetValue(Border.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(245, 248, 252)));
+            outerBorder.SetValue(Border.BorderBrushProperty,
+                new SolidColorBrush(Color.FromRgb(180, 200, 220)));
+            outerBorder.SetValue(Border.BorderThicknessProperty, new Thickness(0, 0, 0, 1));
+            outerBorder.SetValue(Border.PaddingProperty, new Thickness(8, 6, 8, 6));
+
+            var detailSp = new FrameworkElementFactory(typeof(StackPanel));
+
+            var nrm2Label = new FrameworkElementFactory(typeof(TextBlock));
+            nrm2Label.SetValue(TextBlock.TextProperty, "NRM2 paragraph");
+            nrm2Label.SetValue(TextBlock.FontSizeProperty, 10.0);
+            nrm2Label.SetValue(TextBlock.ForegroundProperty,
+                new SolidColorBrush(Color.FromRgb(100, 120, 150)));
+            nrm2Label.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 0, 3));
+            detailSp.AppendChild(nrm2Label);
+
+            var nrm2Box = new FrameworkElementFactory(typeof(TextBox));
+            nrm2Box.SetBinding(TextBox.TextProperty, new Binding(nameof(BOQItemViewModel.NRM2Paragraph))
+                { UpdateSourceTrigger = UpdateSourceTrigger.LostFocus, Mode = BindingMode.TwoWay });
+            nrm2Box.SetValue(TextBox.TextWrappingProperty, TextWrapping.Wrap);
+            nrm2Box.SetValue(TextBox.AcceptsReturnProperty, true);
+            nrm2Box.SetValue(TextBox.FontSizeProperty, 11.0);
+            nrm2Box.SetValue(TextBox.FontStyleProperty, FontStyles.Italic);
+            nrm2Box.SetValue(TextBox.ForegroundProperty,
+                new SolidColorBrush(Color.FromRgb(40, 60, 100)));
+            nrm2Box.SetValue(TextBox.BackgroundProperty, Brushes.Transparent);
+            nrm2Box.SetValue(TextBox.BorderThicknessProperty, new Thickness(0, 0, 0, 1));
+            nrm2Box.SetValue(TextBox.BorderBrushProperty,
+                new SolidColorBrush(Color.FromRgb(200, 215, 230)));
+            detailSp.AppendChild(nrm2Box);
+
+            var editNote = new FrameworkElementFactory(typeof(TextBlock));
+            editNote.SetValue(TextBlock.TextProperty,
+                "Edit inline · click away or press Tab to save · Export and Save Snapshot persist the paragraph");
+            editNote.SetValue(TextBlock.FontSizeProperty, 9.0);
+            editNote.SetValue(TextBlock.ForegroundProperty,
+                new SolidColorBrush(Color.FromRgb(160, 160, 160)));
+            editNote.SetValue(TextBlock.MarginProperty, new Thickness(0, 3, 0, 0));
+            detailSp.AppendChild(editNote);
+
+            outerBorder.AppendChild(detailSp);
+            detailTpl.VisualTree = outerBorder;
+            return detailTpl;
         }
 
         // ══════════════════════════════════════════════════════════════════
-        //  Snapshots — dropdown population + save menu
+        //  Right-click context menu + edit helpers
+        // ══════════════════════════════════════════════════════════════════
+
+        private ContextMenu BuildRowContextMenu(BOQItemViewModel vm)
+        {
+            var ctx = new ContextMenu();
+            void Add(string header, Action onClick, bool enabled = true)
+            {
+                var mi = new MenuItem { Header = header, IsEnabled = enabled };
+                mi.Click += (s, e) => onClick();
+                ctx.Items.Add(mi);
+            }
+
+            Add("Edit item name",       () => BeginEditCell(vm, 2));
+            Add("Edit quantity",        () => BeginEditCell(vm, 3));
+            Add("Edit unit",            () => BeginEditCell(vm, 4));
+            Add("Edit rate",            () => BeginEditCell(vm, 5));
+            Add("Edit note",            () => BeginEditCell(vm, 10));
+            ctx.Items.Add(new Separator());
+            Add("Edit NRM2 paragraph…", () => ShowNRM2EditDialog(vm));
+            ctx.Items.Add(new Separator());
+            Add("Mark as modeled",           () => ChangeSource(vm, BOQRowSource.Model));
+            Add("Mark as manual / unmodeled", () => ChangeSource(vm, BOQRowSource.Manual));
+            Add("Mark as provisional sum",   () => ChangeSource(vm, BOQRowSource.ProvisionalSum));
+            ctx.Items.Add(new Separator());
+            Add("Duplicate row",        () => DuplicateRow(vm));
+            Add("Delete row",           () => DeleteRow(vm),
+                enabled: vm.Underlying.Source != BOQRowSource.Model);
+            ctx.Items.Add(new Separator());
+            Add("Select in Revit",      () =>
+            {
+                StingCommandHandler.SetExtraParam("SelectElementId", vm.RevitElementId.ToString());
+                DispatchAction("SelectInRevit");
+            }, enabled: vm.RevitElementId > 0);
+            return ctx;
+        }
+
+        private void BeginEditCell(BOQItemViewModel vm, int colIndex)
+        {
+            foreach (var grid in FindAllDataGrids(_sectionsPanel))
+            {
+                if (grid.Items.Contains(vm))
+                {
+                    grid.SelectedItem = vm;
+                    if (colIndex < grid.Columns.Count)
+                    {
+                        grid.CurrentColumn = grid.Columns[colIndex];
+                        grid.BeginEdit();
+                    }
+                    return;
+                }
+            }
+        }
+
+        private IEnumerable<DataGrid> FindAllDataGrids(DependencyObject parent)
+        {
+            if (parent == null) yield break;
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is DataGrid dg) yield return dg;
+                foreach (var nested in FindAllDataGrids(child)) yield return nested;
+            }
+        }
+
+        private void ShowNRM2EditDialog(BOQItemViewModel vm)
+        {
+            var w = new Window
+            {
+                Title = $"NRM2 paragraph — {vm.ItemName}",
+                Width = 680, Height = 280,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ResizeMode = ResizeMode.CanResizeWithGrip,
+                Background = Brushes.White,
+                Owner = Window.GetWindow(this)
+            };
+            var sp = new StackPanel { Margin = new Thickness(14) };
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Edit the NRM2 description paragraph for this BOQ item.",
+                FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 8)
+            });
+            var tb = new System.Windows.Controls.TextBox
+            {
+                Text = vm.NRM2Paragraph, TextWrapping = TextWrapping.Wrap,
+                AcceptsReturn = true, MinHeight = 80, MaxHeight = 140,
+                FontSize = 12, Padding = new Thickness(6), Margin = new Thickness(0, 0, 0, 10)
+            };
+            sp.Children.Add(tb);
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Describe what is being supplied and installed. Do not include costs or quantities.",
+                FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 8)
+            });
+            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var ok = new Button { Content = "Save", Width = 80, Height = 26, Margin = new Thickness(0, 0, 8, 0),
+                Background = NavyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), IsDefault = true };
+            var cancel = new Button { Content = "Cancel", Width = 80, Height = 26, IsCancel = true };
+            btnRow.Children.Add(ok); btnRow.Children.Add(cancel);
+            sp.Children.Add(btnRow);
+            w.Content = sp;
+            ok.Click += (s, e) =>
+            {
+                string val = tb.Text?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(val))
+                {
+                    vm.Underlying.ResolvedNRM2Paragraph = val;
+                    OnItemEdited(vm);
+                }
+                w.Close();
+            };
+            tb.Focus(); tb.SelectAll();
+            w.ShowDialog();
+        }
+
+        // ── Source change / duplicate / delete / persistence ────────────────
+
+        private void ChangeSource(BOQItemViewModel vm, BOQRowSource src)
+        {
+            vm.Underlying.Source = src;
+            OnItemEdited(vm);
+            RebuildSectionsView();
+        }
+
+        private void DuplicateRow(BOQItemViewModel vm)
+        {
+            var clone = vm.Underlying.Clone();
+            clone.Id = Guid.NewGuid().ToString("N");
+            clone.ItemName = (clone.ItemName ?? "") + " (copy)";
+            clone.BOQLineRef = "";
+            clone.RevitElementId = -1;
+            // Cloned rows become manual so they can be edited/deleted freely
+            if (clone.Source == BOQRowSource.Model) clone.Source = BOQRowSource.Manual;
+            var sec = _boq?.Sections.FirstOrDefault(s => s.Items.Contains(vm.Underlying));
+            if (sec != null)
+            {
+                int idx = sec.Items.IndexOf(vm.Underlying);
+                sec.Items.Insert(idx + 1, clone);
+                PersistManualRows();
+                RebuildSectionsView();
+            }
+        }
+
+        private void DeleteRow(BOQItemViewModel vm)
+        {
+            if (vm.Underlying.Source == BOQRowSource.Model) return;
+            var sec = _boq?.Sections.FirstOrDefault(s => s.Items.Contains(vm.Underlying));
+            if (sec != null)
+            {
+                sec.Items.Remove(vm.Underlying);
+                PersistManualRows();
+                RebuildSectionsView();
+            }
+        }
+
+        private void OnItemEdited(BOQItemViewModel vm)
+        {
+            if (_boq == null) return;
+            try
+            {
+                if (vm.Underlying.Source != BOQRowSource.Model)
+                {
+                    PersistManualRows();
+                }
+                else
+                {
+                    // Modeled row — dispatch write of CST_* + ASS_NRM2_PARA_TXT via ExternalEvent
+                    StingCommandHandler.SetExtraParam("BOQEditElementId", vm.RevitElementId.ToString());
+                    StingCommandHandler.SetExtraParam("BOQEditRateUGX",   vm.Underlying.RateUGX.ToString(CultureInfo.InvariantCulture));
+                    StingCommandHandler.SetExtraParam("BOQEditRateUSD",   vm.Underlying.RateUSD.ToString(CultureInfo.InvariantCulture));
+                    StingCommandHandler.SetExtraParam("BOQEditNRM2Para",  vm.Underlying.ResolvedNRM2Paragraph ?? "");
+                    StingCommandHandler.SetExtraParam("BOQEditNote",      vm.Underlying.Note ?? "");
+                    DispatchAction("BOQWriteItemParams");
+                }
+                RefreshDisplay();
+            }
+            catch (Exception ex) { StingLog.Error("BOQ OnItemEdited", ex); }
+        }
+
+        private void PersistManualRows()
+        {
+            if (Doc == null || _boq == null) return;
+            try
+            {
+                var manuals = _boq.AllItems.Where(i => i.Source != BOQRowSource.Model).ToList();
+                var store = BOQCostManager.LoadManualStore(Doc);
+                BOQCostManager.SaveManualRows(Doc, manuals, store?.ProjectBudgetUGX ?? _boq.ProjectBudgetUGX);
+            }
+            catch (Exception ex) { StingLog.Error("BOQ PersistManualRows", ex); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Materials tab — groups modeled BOQ items by category, computes
+        //  per-category totals and aggregate embodied carbon.
+        // ══════════════════════════════════════════════════════════════════
+
+        private void RebuildMaterialsTab()
+        {
+            if (_materialsTab == null) return;
+            _materialsTab.Content = BuildMaterialsContent();
+        }
+
+        private FrameworkElement BuildMaterialsContent()
+        {
+            if (_boq == null)
+                return new TextBlock { Text = "No data", Margin = new Thickness(14), Foreground = Brushes.Gray };
+
+            var sp = new StackPanel { Margin = new Thickness(12) };
+            var grouped = _boq.AllItems
+                .Where(i => i.Source == BOQRowSource.Model && i.Quantity > 0)
+                .GroupBy(i => i.Category ?? "(uncategorised)")
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            if (grouped.Count == 0)
+            {
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "No modeled materials yet — add rows via the BOQ tab first.",
+                    Foreground = Brushes.Gray, Margin = new Thickness(6)
+                });
+                return new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            }
+
+            foreach (var grp in grouped)
+            {
+                double totalUGX = grp.Sum(i => i.TotalUGX);
+                double totalCarbon = grp.Sum(i => i.EmbodiedCarbonKg);
+                string disc = grp.First().Discipline ?? "";
+
+                var expander = new Expander
+                {
+                    Header = BuildMaterialSectionHeader(grp.Key, disc, grp.Count(), totalUGX, totalCarbon),
+                    IsExpanded = false,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = BorderColor,
+                    Background = Brushes.White
+                };
+
+                var grid = new DataGrid
+                {
+                    AutoGenerateColumns = false, CanUserAddRows = false,
+                    IsReadOnly = true, FontSize = 11, RowHeight = 22,
+                    Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                    HorizontalGridLinesBrush = BorderColor,
+                    HeadersVisibility = DataGridHeadersVisibility.Column,
+                    RowHeaderWidth = 0
+                };
+                grid.Columns.Add(new DataGridTextColumn { Header = "Ref",    Binding = new Binding(nameof(BOQItemViewModel.LineRef)),          Width = new DataGridLength(70)  });
+                grid.Columns.Add(new DataGridTextColumn { Header = "Item",   Binding = new Binding(nameof(BOQItemViewModel.ItemName)),         Width = new DataGridLength(220) });
+                grid.Columns.Add(new DataGridTextColumn { Header = "Qty",    Binding = new Binding(nameof(BOQItemViewModel.QuantityDisplay)),  Width = new DataGridLength(70)  });
+                grid.Columns.Add(new DataGridTextColumn { Header = "Unit",   Binding = new Binding(nameof(BOQItemViewModel.Unit)),             Width = new DataGridLength(55)  });
+                grid.Columns.Add(new DataGridTextColumn { Header = "Rate",   Binding = new Binding(nameof(BOQItemViewModel.RateDisplay)),      Width = new DataGridLength(105) });
+                grid.Columns.Add(new DataGridTextColumn { Header = "Total",  Binding = new Binding(nameof(BOQItemViewModel.TotalDisplay)),     Width = new DataGridLength(110) });
+                grid.Columns.Add(new DataGridTextColumn { Header = "CO₂ kg", Binding = new Binding(nameof(BOQItemViewModel.CarbonDisplay)),    Width = new DataGridLength(85)  });
+                grid.ItemsSource = grp.Select(i => new BOQItemViewModel(i, _displayCurrency, _boq.ExchangeRateUgxPerUsd)).ToList();
+                expander.Content = grid;
+                sp.Children.Add(expander);
+            }
+
+            double grandMat = _boq.AllItems.Where(i => i.Source == BOQRowSource.Model).Sum(i => i.TotalUGX);
+            double grandCarbon = _boq.TotalCarbonKg;
+            var footer = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(240, 244, 248)),
+                Padding = new Thickness(14, 8, 14, 8),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                BorderBrush = BorderColor, Margin = new Thickness(0, 8, 0, 0)
+            };
+            footer.Child = new TextBlock
+            {
+                Text = $"Modeled material total (excl. markups): UGX {grandMat:N0}   ·   Embodied carbon: {grandCarbon:N0} kgCO₂e",
+                FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(26, 58, 92))
+            };
+            sp.Children.Add(footer);
+
+            return new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        }
+
+        private FrameworkElement BuildMaterialSectionHeader(string cat, string disc, int count, double totalUGX, double carbonKg)
+        {
+            var g = new Grid { Background = SectionHeaderBrush(disc) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var badge = new Border
+            {
+                Background = new SolidColorBrush(DiscBadgeColour(disc)),
+                CornerRadius = new CornerRadius(3), Padding = new Thickness(6, 1, 6, 1),
+                Margin = new Thickness(6, 2, 8, 2),
+                Child = new TextBlock { Text = string.IsNullOrEmpty(disc) ? "—" : disc,
+                    Foreground = Brushes.White, FontSize = 10, FontWeight = FontWeights.Bold }
+            };
+            Grid.SetColumn(badge, 0); g.Children.Add(badge);
+
+            var name = new TextBlock
+            {
+                Text = $"{cat}  ·  {count} items", FontSize = 12, FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(name, 1); g.Children.Add(name);
+
+            if (carbonKg > 0)
+            {
+                var carbonPill = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(225, 245, 238)),
+                    CornerRadius = new CornerRadius(3), Padding = new Thickness(5, 1, 5, 1),
+                    Margin = new Thickness(0, 2, 10, 2),
+                    Child = new TextBlock
+                    {
+                        Text = $"{carbonKg:N0} kgCO₂e", FontSize = 10,
+                        Foreground = new SolidColorBrush(Color.FromRgb(15, 110, 86))
+                    }
+                };
+                Grid.SetColumn(carbonPill, 2); g.Children.Add(carbonPill);
+            }
+
+            var total = new TextBlock
+            {
+                Text = $"UGX {totalUGX:N0}", FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(26, 58, 92)),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 8, 2)
+            };
+            Grid.SetColumn(total, 3); g.Children.Add(total);
+            return g;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Snapshots — dropdown + per-section delta + save menu
         // ══════════════════════════════════════════════════════════════════
 
         private List<BOQSnapshotMeta> _snapshotMetas = new List<BOQSnapshotMeta>();
@@ -549,16 +1252,44 @@ namespace StingTools.UI
 
         private void OnSnapshotPicked(object sender, SelectionChangedEventArgs e)
         {
-            if (_snapshotPicker.SelectedIndex <= 0)
+            _snapshotDeltas.Clear();
+            _activeSnapshotLabel = "";
+
+            if (_snapshotPicker.SelectedIndex <= 0 || _boq == null)
             {
                 _snapshotDiff.Text = "";
+                RebuildSectionsView();
                 return;
             }
+
             var meta = _snapshotMetas[_snapshotPicker.SelectedIndex - 1];
+            _activeSnapshotLabel = meta.Label;
+
             double delta = _boq.GrandTotalUGX - meta.GrandTotalUGX;
             string sign = delta >= 0 ? "+" : "";
             _snapshotDiff.Text = $"{sign}UGX {delta:N0} vs {meta.Label}";
             _snapshotDiff.Foreground = delta >= 0 ? GreenBrush : RedBrush;
+
+            // Per-section deltas: compare the selected snapshot's section totals
+            // against the current live BOQ. Matches by (NRM2Section, Discipline)
+            // so section Ids can differ between runs.
+            try
+            {
+                var snapDoc = BOQCostManager.LoadSnapshot(meta.Path);
+                if (snapDoc != null)
+                {
+                    foreach (var liveSec in _boq.Sections)
+                    {
+                        var snapSec = snapDoc.Sections.FirstOrDefault(s =>
+                            s.NRM2Section == liveSec.NRM2Section && s.Discipline == liveSec.Discipline);
+                        if (snapSec != null)
+                            _snapshotDeltas[liveSec.Id] = liveSec.TotalUGX - snapSec.TotalUGX;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Snapshot delta: {ex.Message}"); }
+
+            RebuildSectionsView();
         }
 
         private void ShowSaveSnapshotMenu(Button anchor)
@@ -623,8 +1354,6 @@ namespace StingTools.UI
 
         private static string PromptString(string prompt, string defaultValue)
         {
-            // Minimal WPF InputDialog substitute — deliberately compact so the
-            // panel stays a single file.
             var w = new Window
             {
                 Title = "STING — BOQ", Width = 420, Height = 170, WindowStartupLocation = WindowStartupLocation.CenterScreen,
@@ -657,7 +1386,6 @@ namespace StingTools.UI
             try
             {
                 StingDockPanel.DispatchCommand(tag);
-                // Schedule a UI refresh after the Revit event chain settles.
                 // 300ms empirically enough for most commands; the refresh is
                 // idempotent so spurious calls are harmless.
                 System.Threading.Tasks.Task.Delay(300)
@@ -668,16 +1396,20 @@ namespace StingTools.UI
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    //  BOQItemViewModel — read-only view over BOQLineItem with currency-aware
-    //  display strings. Editing happens via add-manual-row flow or the
-    //  Excel roundtrip — not inline — so we do not raise PropertyChanged.
+    //  BOQItemViewModel — mutable view over BOQLineItem. Edits flow straight
+    //  into the underlying model; the panel persists via SaveManualRows for
+    //  manual/PS sources and via the BOQWriteItemParams ExternalEvent for
+    //  modeled sources.
     // ══════════════════════════════════════════════════════════════════════
 
-    internal class BOQItemViewModel
+    internal class BOQItemViewModel : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void N(string p) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
+
         private readonly BOQLineItem _item;
-        private readonly string _currency;
-        private readonly double _ugxPerUsd;
+        private string _currency;
+        private double _ugxPerUsd;
 
         public BOQItemViewModel(BOQLineItem item, string currency, double ugxPerUsd)
         {
@@ -686,30 +1418,153 @@ namespace StingTools.UI
             _ugxPerUsd = ugxPerUsd > 0 ? ugxPerUsd : 3700;
         }
 
+        public BOQLineItem Underlying => _item;
+        public long RevitElementId => _item.RevitElementId;
+        public bool IsModelSource => _item.Source == BOQRowSource.Model;
+
         public string LineRef => _item.BOQLineRef ?? "";
-        public string ItemName => string.IsNullOrEmpty(_item.FamilyName) ? _item.ItemName
-            : $"{_item.ItemName}  ({_item.FamilyName})";
-        public string QuantityDisplay => _item.Quantity.ToString("N3", CultureInfo.InvariantCulture);
-        public string Unit => _item.Unit ?? "";
-        public string RateDisplay => _currency == "USD"
-            ? $"$ {_item.RateUSD:N2}"
-            : $"UGX {_item.RateUGX:N0}";
-        public string TotalDisplay => _currency == "USD"
-            ? $"$ {_item.TotalUSD:N2}"
-            : $"UGX {_item.TotalUGX:N0}";
-        public string SourceLabel => _item.Source switch
+
+        public string ItemName
         {
-            BOQRowSource.Model => "Model",
-            BOQRowSource.Manual => "Manual",
-            BOQRowSource.ProvisionalSum => "PS",
-            _ => ""
-        };
+            get => _item.ItemName ?? "";
+            set { if (_item.ItemName != value) { _item.ItemName = value; N(nameof(ItemName)); } }
+        }
+
+        public string QuantityDisplay
+        {
+            get => _item.Quantity.ToString("N3", CultureInfo.InvariantCulture);
+            set
+            {
+                string clean = (value ?? "").Replace(",", "").Trim();
+                if (double.TryParse(clean, NumberStyles.Any, CultureInfo.InvariantCulture, out double d) && d >= 0)
+                {
+                    _item.Quantity = d;
+                    N(nameof(QuantityDisplay)); N(nameof(TotalDisplay));
+                }
+            }
+        }
+
+        public string Unit
+        {
+            get => _item.Unit ?? "";
+            set { var v = string.IsNullOrWhiteSpace(value) ? "each" : value.Trim();
+                  if (_item.Unit != v) { _item.Unit = v; N(nameof(Unit)); } }
+        }
+
+        public string RateDisplay
+        {
+            get => _currency == "USD" ? $"$ {_item.RateUSD:N2}" : $"UGX {_item.RateUGX:N0}";
+            set
+            {
+                string clean = (value ?? "").Replace("UGX", "").Replace("$", "").Replace(",", "").Trim();
+                if (double.TryParse(clean, NumberStyles.Any, CultureInfo.InvariantCulture, out double d) && d >= 0)
+                {
+                    if (_currency == "USD")
+                    {
+                        _item.RateUSD = d;
+                        _item.RateUGX = Math.Round(d * _ugxPerUsd, 0);
+                    }
+                    else
+                    {
+                        _item.RateUGX = d;
+                        _item.RateUSD = _ugxPerUsd > 0 ? Math.Round(d / _ugxPerUsd, 2) : 0;
+                    }
+                    _item.RateSource = "Override";
+                    N(nameof(RateDisplay)); N(nameof(TotalDisplay));
+                }
+            }
+        }
+
+        public string TotalDisplay => _currency == "USD"
+            ? $"$ {_item.TotalUSD:N2}" : $"UGX {_item.TotalUGX:N0}";
+
+        public string Note
+        {
+            get => _item.Note ?? "";
+            set { if (_item.Note != value) { _item.Note = value ?? ""; N(nameof(Note)); } }
+        }
+
+        public string NRM2Paragraph
+        {
+            get => string.IsNullOrEmpty(_item.ResolvedNRM2Paragraph)
+                ? "(no NRM2 description resolved — click to enter one manually)"
+                : _item.ResolvedNRM2Paragraph;
+            set
+            {
+                string v = (value ?? "").Trim();
+                // Reject the placeholder text so clicking in and out doesn't commit it
+                if (v.StartsWith("(no NRM2 description")) v = "";
+                if (_item.ResolvedNRM2Paragraph != v)
+                {
+                    _item.ResolvedNRM2Paragraph = v;
+                    N(nameof(NRM2Paragraph));
+                }
+            }
+        }
+
+        public string SourceLabel
+        {
+            get
+            {
+                switch (_item.Source)
+                {
+                    case BOQRowSource.ProvisionalSum: return "PS";
+                    case BOQRowSource.Manual:         return "Manual";
+                    default:                          return "Model";
+                }
+            }
+        }
+
         public string RateConfidenceDisplay => _item.RateConfidence.ToString(CultureInfo.InvariantCulture);
+
         public string CarbonDisplay => _item.EmbodiedCarbonKg > 0
             ? _item.EmbodiedCarbonKg.ToString("N0", CultureInfo.InvariantCulture) + " kg"
             : "";
-        public string Note => _item.Note ?? "";
-        public long RevitElementId => _item.RevitElementId;
+
+        // ── Binding brushes ─────────────────────────────────────────────────
+        // Row background: manual = cream, PS = lavender, model = transparent
+        public SolidColorBrush RowBackground
+        {
+            get
+            {
+                Color c;
+                switch (_item.Source)
+                {
+                    case BOQRowSource.ProvisionalSum: c = Color.FromRgb(237, 231, 246); break;
+                    case BOQRowSource.Manual:         c = Color.FromRgb(255, 251, 230); break;
+                    default:                          c = Color.FromArgb(0, 255, 255, 255); break;
+                }
+                var b = new SolidColorBrush(c); b.Freeze(); return b;
+            }
+        }
+
+        public SolidColorBrush SourceDotBrush
+        {
+            get
+            {
+                Color c;
+                switch (_item.Source)
+                {
+                    case BOQRowSource.ProvisionalSum: c = Color.FromRgb(138, 120, 190); break;
+                    case BOQRowSource.Manual:         c = Color.FromRgb(230, 160, 40);  break;
+                    default:                          c = Color.FromRgb(60, 130, 90);   break;
+                }
+                var b = new SolidColorBrush(c); b.Freeze(); return b;
+            }
+        }
+
+        // Confidence cell background: ≥75=green, 40-74=amber, <40=red
+        public SolidColorBrush ConfidenceBrush
+        {
+            get
+            {
+                Color c;
+                if (_item.RateConfidence >= 75)      c = Color.FromRgb(200, 240, 220);
+                else if (_item.RateConfidence >= 40) c = Color.FromRgb(255, 243, 205);
+                else                                 c = Color.FromRgb(252, 220, 220);
+                var b = new SolidColorBrush(c); b.Freeze(); return b;
+            }
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════

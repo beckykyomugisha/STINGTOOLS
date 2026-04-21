@@ -2550,6 +2550,7 @@ namespace StingTools.UI
                     case "BOQImport":               RunCommand<BOQ.BOQImportCommand>(app); break;
                     case "BOQSnapshotCompare":      RunCommand<BOQ.BOQSnapshotCompareCommand>(app); break;
                     case "ReconcileProvisionals":   RunCommand<BOQ.BOQReconcileProvisionalsCommand>(app); break;
+                    case "BOQWriteItemParams":      RunCommand<BOQ.BOQWriteItemParamsCommand>(app); break;
 
                     // ── Phase 42: Coordination Center Commands ──
                     case "CoordinationCenter": RunCommand<BIMManager.CoordinationCenterCommand>(app); break;
