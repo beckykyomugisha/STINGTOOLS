@@ -96,13 +96,13 @@ namespace StingTools.Core
                     return Result.Cancelled;
                 }
 
-                var listItems = packs.Select(p => new StingTools.UI.StingListPicker.ListItem
+                var listItems = packs.Select(p => new StingTools.Select.StingListPicker.ListItem
                 {
                     Label = p.Label,
                     Detail = p.Description,
                     Tag = p
                 }).ToList();
-                var picked = StingTools.UI.StingListPicker.Show(
+                var picked = StingTools.Select.StingListPicker.Show(
                     "Choose Sector Starter Pack",
                     "Apply a pre-built bundle: BOQ defaults, tag style, preamble profile, recommended families + presets.",
                     listItems, allowMultiSelect: false);
