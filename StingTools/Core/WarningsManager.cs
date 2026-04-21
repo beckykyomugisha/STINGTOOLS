@@ -5303,30 +5303,9 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"SelectWarningElements: {ex.Message}"); }
         }
 
-        /// <summary>
-        /// Dispatches a BIM Coordination Center action tag to the matching IExternalCommand.
-        /// Maps action tags from dialog buttons to command classes and executes them directly
-        /// (we are already on the Revit API thread inside StingCommandHandler.Execute).
-        /// </summary>
-        private static void DispatchCoordAction(string action, ExternalCommandData commandData)
-        {
-            // Phase 99: handle pipe-delimited parametric actions before anything else.
-            // BCC forms send "CreateRevision|P04|A|Coordination update" so the
-            // inline Revisions form can pass user-selected ISO code, discipline,
-            // and description straight through to CreateRevisionCommand without
-            // reopening a TaskDialog picker. CreateRevisionCommand reads the full
-            // string from CoordinationCenterCommands.BccPendingAction and parses
-            // its own params, so we set that property and re-dispatch the bare
-            // command tag.
-            if (!string.IsNullOrEmpty(action) && action.Contains("|"))
-            {
-                string head = action.Substring(0, action.IndexOf('|'));
-                BIMManager.CoordinationCenterCommands.BccPendingAction = action;
-                action = head;
-            }
-
-            // Map action tags to command tags used by StingCommandHandler / WorkflowEngine
-            var actionToCommandTag = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        // Phase 78 Section 9.4: Moved to static readonly — was being rebuilt on every call.
+        private static readonly Dictionary<string, string> _actionToCommandTag =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 // Overview quick actions
                 { "RunDailyQA", "DailyQA" },
@@ -5499,6 +5478,30 @@ namespace StingTools.Core
                 { "FixContainers", "CombineParameters" },
                 { "ViewDocument", "DocumentManager" },
             };
+
+        /// <summary>
+        /// Dispatches a BIM Coordination Center action tag to the matching IExternalCommand.
+        /// Maps action tags from dialog buttons to command classes and executes them directly
+        /// (we are already on the Revit API thread inside StingCommandHandler.Execute).
+        /// </summary>
+        private static void DispatchCoordAction(string action, ExternalCommandData commandData)
+        {
+            // Phase 99: handle pipe-delimited parametric actions before anything else.
+            // BCC forms send "CreateRevision|P04|A|Coordination update" so the
+            // inline Revisions form can pass user-selected ISO code, discipline,
+            // and description straight through to CreateRevisionCommand without
+            // reopening a TaskDialog picker. CreateRevisionCommand reads the full
+            // string from CoordinationCenterCommands.BccPendingAction and parses
+            // its own params, so we set that property and re-dispatch the bare
+            // command tag.
+            if (!string.IsNullOrEmpty(action) && action.Contains("|"))
+            {
+                string head = action.Substring(0, action.IndexOf('|'));
+                BIMManager.CoordinationCenterCommands.BccPendingAction = action;
+                action = head;
+            }
+
+            var actionToCommandTag = _actionToCommandTag;
 
             // Handle RepeatLastWorkflow by resolving the last workflow name
             if (string.Equals(action, "RepeatLastWorkflow", StringComparison.OrdinalIgnoreCase))
