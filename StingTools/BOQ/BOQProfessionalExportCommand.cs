@@ -92,6 +92,16 @@ namespace StingTools.BOQ
                 // bill descriptions never ship with [tokens] or blanks.
                 EnsureAllParagraphsResolved(boq, doc);
 
+                // Phase 108i — apply all paragraph-automation enhancements
+                // guarded by flags on tcfg: performance clauses, compliance
+                // references, dimensional groupings, auto-inclusion boiler,
+                // "or approved equivalent", conditional design clauses,
+                // smart item naming, specification cross-refs, and the
+                // client vocabulary overlay. Runs before sheet rendering
+                // so bill descriptions already carry the final phrasing.
+                BOQParagraphEnhancer.ResetGroupPositionCache();
+                var enhReport = BOQParagraphEnhancer.EnhanceAll(boq, doc, tcfg);
+
                 // Write cost parameters back to elements so the model + the
                 // workbook agree, then produce the workbook.
                 using (var tx = new Transaction(doc, "STING BOQ — professional export"))
@@ -147,6 +157,15 @@ namespace StingTools.BOQ
                     if (tcfg.IncludeAnnexure)
                         BuildAnnexureSheet(wb.Worksheets.Add("Annexure — PC & Dayworks"), boq, meta, tcfg);
 
+                    // Phase 108i (P3) — Schedule of Sizes annexure when the
+                    // dimensional-grouping enhancement is active. Lists
+                    // every item that shares Category+Unit within a section
+                    // with ≥3 peers, so the bidder can cross-reference the
+                    // "1 of N similar items" markers in the bills to actual
+                    // sizes.
+                    if (tcfg.EnableDimensionalGroupings)
+                        BuildScheduleOfSizesSheet(wb.Worksheets.Add("Schedule of Sizes"), boq, meta);
+
                     // Contents last so we know every sheet name, but insert
                     // near the front so it navigates the rest of the workbook.
                     if (tcfg.IncludeContents)
@@ -181,10 +200,16 @@ namespace StingTools.BOQ
                     wb.SaveAs(outputPath);
                 }
 
+                // Phase 108i (P10) — emit CSV + JSON sidecars alongside the
+                // .xlsx for estimating / analytics tools that can't parse
+                // the workbook directly.
+                if (tcfg.EmitCsvJsonSidecars)
+                    BOQParagraphEnhancer.ExportSidecars(boq, outputPath, tcfg);
+
                 try { Process.Start("explorer.exe", $"/select,\"{outputPath}\""); }
                 catch (Exception ex) { StingLog.Warn($"Explorer open: {ex.Message}"); }
 
-                UI.StingResultPanel.Create("Professional BOQ exported")
+                var resultPanel = UI.StingResultPanel.Create("Professional BOQ exported")
                     .SetSubtitle($"Tender-grade NRM2 bill of quantities — {boq.AllItems.Count} items across {boq.Sections.Count} sections")
                     .AddSection("FILE")
                     .Text(outputPath)
@@ -194,7 +219,18 @@ namespace StingTools.BOQ
                     .Metric("Modeled", $"UGX {boq.ModeledTotalUGX:N0}")
                     .Metric("Provisional", $"UGX {boq.ProvTotalUGX:N0}")
                     .Metric("Grand total", $"UGX {boq.GrandTotalUGX:N0}")
-                    .Show();
+                    .AddSection("PARAGRAPH ENHANCEMENTS")
+                    .Metric("P1 Performance",     enhReport.PerformanceCount.ToString())
+                    .Metric("P2 Compliance",      enhReport.ComplianceCount.ToString())
+                    .Metric("P3 Dim-groups",      enhReport.GroupedCount.ToString())
+                    .Metric("P4 Inclusions",      enhReport.InclusionCount.ToString())
+                    .Metric("P5 Or-equivalent",   enhReport.OrEquivalentCount.ToString())
+                    .Metric("P6 Conditional",     enhReport.ConditionalCount.ToString())
+                    .Metric("P7 Vocab replacements", enhReport.VocabCount.ToString())
+                    .Metric("P8 Smart names",     enhReport.SmartNameCount.ToString())
+                    .Metric("P9 Spec refs",       enhReport.SpecRefCount.ToString())
+                    .Metric("P10 Sidecars",       tcfg.EmitCsvJsonSidecars ? "CSV + JSON emitted" : "disabled");
+                resultPanel.Show();
 
                 StingLog.Info($"Professional BOQ exported: {Path.GetFileName(outputPath)} ({boq.Sections.Count} sections, {boq.AllItems.Count} items)");
                 return Result.Succeeded;
@@ -1232,6 +1268,102 @@ namespace StingTools.BOQ
 
             ws.SheetView.FreezeRows(4);
             return total;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 108i (P3) — Schedule of Sizes annexure
+        //  One line per model item in a group of ≥3 peers, giving the bidder
+        //  the exact quantity + dimensions + level of each instance so the
+        //  grouped "1 of N similar" markers in the bills are interpretable.
+        // ══════════════════════════════════════════════════════════════════
+
+        private void BuildScheduleOfSizesSheet(IXLWorksheet ws, BOQDocument boq, ProjectMeta m)
+        {
+            ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+            ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+            ws.ShowGridLines = false;
+            ws.Column(1).Width = 2;
+            ws.Column(2).Width = 10;   // Section
+            ws.Column(3).Width = 28;   // Category
+            ws.Column(4).Width = 10;   // Unit
+            ws.Column(5).Width = 12;   // Quantity
+            ws.Column(6).Width = 22;   // Item name / size
+            ws.Column(7).Width = 18;   // Level
+            ws.Column(8).Width = 22;   // Location
+            ws.Column(9).Width = 14;   // Revit ID
+
+            SheetBanner(ws, "SCHEDULE OF SIZES", m);
+            int r = 5;
+
+            ws.Cell(r, 2).Value = "This schedule lists every instance of a repeated item type where the bill sheet carries a \"1 of N similar\" marker. "
+                + "Sizes, levels and locations allow the bidder to verify the quantity and price the extended works accurately.";
+            ws.Range(r, 2, r, 9).Merge().Style
+                .Font.SetFontName(BodyFont).Font.SetFontSize(10).Font.SetItalic(true)
+                .Font.SetFontColor(XLColor.FromArgb(90, 90, 90))
+                .Alignment.SetWrapText(true).Alignment.SetIndent(1);
+            ws.Row(r).Height = 36;
+            r += 2;
+
+            string[] headers = { "Section", "Category", "Unit", "Qty", "Item / Size", "Level", "Location", "Revit ID" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var c = ws.Cell(r, 2 + i);
+                c.Value = headers[i];
+                c.Style.Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true)
+                    .Font.SetFontColor(White).Fill.SetBackgroundColor(Navy)
+                    .Border.SetBottomBorder(XLBorderStyleValues.Medium).Border.SetBottomBorderColor(Navy)
+                    .Alignment.SetVertical(XLAlignmentVerticalValues.Center)
+                    .Alignment.SetIndent(1);
+            }
+            ws.Row(r).Height = 22;
+            r++;
+
+            // Compute groups again here — cheap enough, avoids passing state from Execute.
+            var groups = boq.AllItems
+                .Where(i => i.Source == BOQRowSource.Model)
+                .GroupBy(i => BOQParagraphEnhancer.BuildGroupKey(
+                    boq.Sections.FirstOrDefault(s => s.Items.Contains(i)), i))
+                .Where(g => g.Count() >= 3)
+                .OrderBy(g => g.Key);
+
+            bool any = false;
+            foreach (var grp in groups)
+            {
+                foreach (var item in grp.OrderBy(x => x.Level).ThenBy(x => x.Location))
+                {
+                    var sec = boq.Sections.FirstOrDefault(s => s.Items.Contains(item));
+                    ws.Cell(r, 2).Value = sec?.NRM2Section ?? "";
+                    ws.Cell(r, 3).Value = item.Category ?? "";
+                    ws.Cell(r, 4).Value = PrettifyUnit(item.Unit);
+                    ws.Cell(r, 5).Value = item.Quantity;
+                    ws.Cell(r, 5).Style.NumberFormat.SetFormat("#,##0.00");
+                    ws.Cell(r, 6).Value = item.ItemName ?? "";
+                    ws.Cell(r, 7).Value = item.Level ?? "";
+                    ws.Cell(r, 8).Value = item.Location ?? "";
+                    ws.Cell(r, 9).Value = item.RevitElementId > 0 ? item.RevitElementId.ToString() : "";
+                    for (int i = 2; i <= 9; i++)
+                    {
+                        ws.Cell(r, i).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
+                            .Border.SetBottomBorder(XLBorderStyleValues.Hair)
+                            .Border.SetBottomBorderColor(GreyMid)
+                            .Alignment.SetVertical(XLAlignmentVerticalValues.Center)
+                            .Alignment.SetIndent(1);
+                    }
+                    ws.Cell(r, 5).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                    ws.Cell(r, 9).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                    any = true;
+                    r++;
+                }
+                // Blank spacer row between groups
+                r++;
+            }
+
+            if (!any)
+            {
+                ws.Cell(r, 3).Value = "(No groups of ≥3 similar items detected in this project.)";
+                ws.Cell(r, 3).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10).Font.SetItalic(true)
+                    .Font.SetFontColor(XLColor.FromArgb(110, 110, 110));
+            }
         }
 
         private string PrettifyUnit(string raw)

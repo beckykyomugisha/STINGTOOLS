@@ -436,6 +436,31 @@ namespace StingTools.BOQ
             boxPanel.Children.Add(MakeCheckBox("Include Prime Cost / PC Sums schedule", _config.IncludePrimeCostSchedule, v => _config.IncludePrimeCostSchedule = v));
             boxPanel.Children.Add(MakeCheckBox("Include Dayworks framework",          _config.IncludeDayworksSchedule,  v => _config.IncludeDayworksSchedule = v));
 
+            // Phase 108i — Paragraph automation block
+            var enhHeader = new TextBlock
+            {
+                Text = "PARAGRAPH AUTOMATION", FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = Orange, Margin = new Thickness(0, 12, 0, 4)
+            };
+            boxPanel.Children.Add(enhHeader);
+            var enhHint = new TextBlock
+            {
+                Text = "These enhancements augment every BOQ description before the bill sheets are rendered.",
+                FontSize = 10, Foreground = Brushes.Gray, FontStyle = FontStyles.Italic,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            boxPanel.Children.Add(enhHint);
+            boxPanel.Children.Add(MakeCheckBox("P1 · Performance clauses (fire / Rw / U-value / velocity)", _config.EnablePerformanceClauses,   v => _config.EnablePerformanceClauses = v));
+            boxPanel.Children.Add(MakeCheckBox("P2 · Compliance reference (BS / BS EN per category)",        _config.EnableComplianceClauses,    v => _config.EnableComplianceClauses = v));
+            boxPanel.Children.Add(MakeCheckBox("P3 · Dimensional groupings (Schedule of Sizes annexure)",    _config.EnableDimensionalGroupings, v => _config.EnableDimensionalGroupings = v));
+            boxPanel.Children.Add(MakeCheckBox("P4 · Auto-inclusion boilerplate (fixings / supports / commissioning)", _config.EnableAutoInclusionBoiler, v => _config.EnableAutoInclusionBoiler = v));
+            boxPanel.Children.Add(MakeCheckBox("P5 · \"Or approved equivalent\"",                              _config.EnableOrApprovedEquivalent, v => _config.EnableOrApprovedEquivalent = v));
+            boxPanel.Children.Add(MakeCheckBox("P6 · Conditional design clauses (Structural / Services Engineer)", _config.EnableConditionalClauses, v => _config.EnableConditionalClauses = v));
+            boxPanel.Children.Add(MakeCheckBox("P7 · Client vocabulary overlay (BOQ_CLIENT_VOCABULARY.json)", _config.UseClientVocabulary,        v => _config.UseClientVocabulary = v));
+            boxPanel.Children.Add(MakeCheckBox("P8 · Smart item naming (material + thickness + finish)",      _config.EnableSmartItemNaming,      v => _config.EnableSmartItemNaming = v));
+            boxPanel.Children.Add(MakeCheckBox("P9 · Specification-clause cross-references",                  _config.EnableSpecClauseCrossRefs,  v => _config.EnableSpecClauseCrossRefs = v));
+            boxPanel.Children.Add(MakeCheckBox("P10 · Emit CSV + JSON sidecars alongside .xlsx",              _config.EmitCsvJsonSidecars,        v => _config.EmitCsvJsonSidecars = v));
+
             g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             Grid.SetRow(boxPanel, r); Grid.SetColumnSpan(boxPanel, 2);
             g.Children.Add(boxPanel);
@@ -539,6 +564,16 @@ namespace StingTools.BOQ
             c.IncludeSpecificationSchedule    = GetB("INCLUDE_SPEC", false);
             c.IncludePrimeCostSchedule        = GetB("INCLUDE_PC", true);
             c.IncludeDayworksSchedule         = GetB("INCLUDE_DAYWORKS", true);
+            // Phase 108i — paragraph automation
+            c.EnablePerformanceClauses        = GetB("P1_PERFORMANCE", true);
+            c.EnableComplianceClauses         = GetB("P2_COMPLIANCE", true);
+            c.EnableDimensionalGroupings      = GetB("P3_DIM_GROUPS", false);
+            c.EnableAutoInclusionBoiler       = GetB("P4_INCLUSION", true);
+            c.EnableOrApprovedEquivalent      = GetB("P5_OR_EQUIV", true);
+            c.EnableConditionalClauses        = GetB("P6_CONDITIONAL", true);
+            c.EnableSmartItemNaming           = GetB("P8_SMART_NAME", false);
+            c.EnableSpecClauseCrossRefs       = GetB("P9_SPEC_REF", true);
+            c.EmitCsvJsonSidecars             = GetB("P10_SIDECARS", true);
             return c;
         }
 
@@ -581,6 +616,16 @@ namespace StingTools.BOQ
             SetB("USE_CLIENT_VOCAB", c.UseClientVocabulary);
             SetB("INCLUDE_DRAWINGS", c.IncludeDrawingSchedule); SetB("INCLUDE_SPEC", c.IncludeSpecificationSchedule);
             SetB("INCLUDE_PC", c.IncludePrimeCostSchedule); SetB("INCLUDE_DAYWORKS", c.IncludeDayworksSchedule);
+            // Phase 108i — paragraph automation
+            SetB("P1_PERFORMANCE", c.EnablePerformanceClauses);
+            SetB("P2_COMPLIANCE",  c.EnableComplianceClauses);
+            SetB("P3_DIM_GROUPS",  c.EnableDimensionalGroupings);
+            SetB("P4_INCLUSION",   c.EnableAutoInclusionBoiler);
+            SetB("P5_OR_EQUIV",    c.EnableOrApprovedEquivalent);
+            SetB("P6_CONDITIONAL", c.EnableConditionalClauses);
+            SetB("P8_SMART_NAME",  c.EnableSmartItemNaming);
+            SetB("P9_SPEC_REF",    c.EnableSpecClauseCrossRefs);
+            SetB("P10_SIDECARS",   c.EmitCsvJsonSidecars);
         }
 
         private static string ReadBip(Document doc, BuiltInParameter bip)

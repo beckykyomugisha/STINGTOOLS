@@ -1,0 +1,42 @@
+{
+  "_comment": "Phase 108i — BOQ client vocabulary overlay. The _default block applies to every project. Add an employer name as a new key to add client-specific phrasing; those entries override the defaults. Whole-word, case-insensitive replacement. Used by BOQParagraphEnhancer.ApplyClientVocabulary (flag: BOQTenderConfig.UseClientVocabulary).",
+
+  "_default": {
+    "wall construction": "walling",
+    "floor construction": "flooring",
+    "doorset": "door assembly",
+    "windowset": "window assembly",
+    "ceiling construction": "ceiling",
+    "Supply, fix and install": "Supply and install",
+    "Supply, deliver and install": "Supply and install",
+    "to be executed": "executed",
+    "shall comply with": "complying with",
+    "Reinforced concrete": "RC"
+  },
+
+  "Acme Holdings Ltd": {
+    "wall": "wall structure",
+    "each": "no.",
+    "Supply and install": "Furnish, deliver and install"
+  },
+
+  "NHS England": {
+    "wall": "clinical wall",
+    "door assembly": "clinical doorset",
+    "flooring": "clinical flooring",
+    "ceiling": "clinical ceiling",
+    "sanitary": "WC",
+    "including all": "Inclusive of all"
+  },
+
+  "Ministry of Defence (UK)": {
+    "Supply and install": "Provide, deliver, install and commission",
+    "or approved equivalent": "to the MOD Standard or approved equivalent",
+    "commissioning": "commissioning and acceptance testing"
+  },
+
+  "Uganda National Roads Authority": {
+    "UGX": "UGX",
+    "Supply and install": "Supply, deliver, install and make good"
+  }
+}

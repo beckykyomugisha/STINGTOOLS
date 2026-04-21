@@ -96,9 +96,24 @@ namespace StingTools.BOQ
         public bool IncludeCarbonData = false;
         public bool ShowProvisionalSumsSeparately = true;
         public bool ShowDualCurrency = false;    // USD alongside UGX on totals
-        public bool UseClientVocabulary = false; // overlay templates with client phrasing
+        public bool UseClientVocabulary = false; // overlay templates with client phrasing (P7)
         public string Watermark = "";            // "DRAFT" / "TENDER" / "CONFIDENTIAL" / "" for none
         public string PricingNotes = "";         // free-text pricing notes / basis of tender
+
+        // ── Phase 108i — Paragraph automation flags ────────────────────────
+        // Each toggles one of the 10 priority enhancements implemented in
+        // BOQParagraphEnhancer. Defaults are "on for the good ones, opt-in
+        // for the disruptive ones" — P3 restructures bills, P8 rewrites
+        // item names, so both default off until the user enables them.
+        public bool EnablePerformanceClauses   = true;   // P1
+        public bool EnableComplianceClauses    = true;   // P2
+        public bool EnableDimensionalGroupings = false;  // P3
+        public bool EnableAutoInclusionBoiler  = true;   // P4
+        public bool EnableOrApprovedEquivalent = true;   // P5
+        public bool EnableConditionalClauses   = true;   // P6
+        public bool EnableSmartItemNaming      = false;  // P8
+        public bool EnableSpecClauseCrossRefs  = true;   // P9
+        public bool EmitCsvJsonSidecars        = true;   // P10
 
         // ── Schedules to include ───────────────────────────────────────────
         public bool IncludeDrawingSchedule = true;
