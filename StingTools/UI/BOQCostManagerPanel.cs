@@ -54,15 +54,28 @@ namespace StingTools.UI
         private string _searchText = "";
         private readonly HashSet<string> _activeDisciplines = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Phase 108b: section state preserved across refreshes + per-section snapshot deltas
+        // Phase 108b: section state preserved across refreshes + per-section snapshot deltas.
+        // Keyed by SectionKey(sec) rather than sec.Id — BOQSection.Id is a fresh
+        // Guid.NewGuid on every BuildBOQDocument, so tracking by Id loses the
+        // open/closed set after every rate edit. Composite (Discipline|NRM2|Name)
+        // is stable across rebuilds.
         private readonly HashSet<string> _openSections = new HashSet<string>();
         private string _activeSnapshotLabel = "";
         private readonly Dictionary<string, double> _snapshotDeltas = new Dictionary<string, double>();
+
+        private static string SectionKey(BOQSection sec)
+            => $"{sec?.Discipline}|{sec?.NRM2Section}|{sec?.Name}";
 
         // Phase 108c: toggle hides the NRM2 description RowDetails strip across
         // every section grid — useful when the QS wants a compact price-only view.
         private bool _showNrm2 = true;
         private ToggleButton _nrm2Toggle;
+
+        // Phase 108d: transient status-bar message support. FlashHint() writes
+        // a short amber line into _paragraphCoverage for 4s, then restores the
+        // coverage summary. Used when we cancel an edit on a model-derived cell.
+        private string _defaultCoverageText = "";
+        private int _flashSeq;
 
         // WPF controls we need to mutate
         private TextBlock _projectName, _budgetValue, _modeledValue, _provisionalValue,
@@ -192,7 +205,7 @@ namespace StingTools.UI
             };
             var subtitle = new TextBlock
             {
-                Text = "ISO 19650-3:2020 compliant bill of quantities, NRM2 descriptions, cost snapshots",
+                Text = "ISO 19650-3:2020 compliant bill of quantities, item descriptions, cost snapshots",
                 FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(0xB8, 0xC0, 0xE0))
             };
             left.Children.Add(_projectName);
@@ -370,7 +383,7 @@ namespace StingTools.UI
             sp.Children.Add(MakeToolbarButton("⊞ Expand all", () =>
             {
                 _openSections.Clear();
-                if (_boq != null) foreach (var s2 in _boq.Sections) _openSections.Add(s2.Id);
+                if (_boq != null) foreach (var s2 in _boq.Sections) _openSections.Add(SectionKey(s2));
                 RebuildSectionsView();
             }));
             sp.Children.Add(MakeToolbarButton("⊟ Collapse all", () =>
@@ -385,8 +398,8 @@ namespace StingTools.UI
             // the discipline pills so the affordance is familiar.
             _nrm2Toggle = new ToggleButton
             {
-                Content = "¶ NRM2",
-                ToolTip = "Show / hide NRM2 description under each BOQ row",
+                Content = "¶ Description",
+                ToolTip = "Show / hide item description under each BOQ row",
                 Height = 24, MinWidth = 64, FontSize = 11, FontWeight = FontWeights.SemiBold,
                 Margin = new Thickness(8, 0, 0, 0), Cursor = Cursors.Hand,
                 IsChecked = _showNrm2
@@ -475,7 +488,7 @@ namespace StingTools.UI
                 LoadSnapshotDropdown();
                 // On first load open every section; subsequent refreshes preserve state
                 if (_openSections.Count == 0 && _boq != null)
-                    foreach (var s in _boq.Sections) _openSections.Add(s.Id);
+                    foreach (var s in _boq.Sections) _openSections.Add(SectionKey(s));
                 RefreshDisplay();
             }
             catch (Exception ex)
@@ -529,9 +542,11 @@ namespace StingTools.UI
             _carbonValue.Foreground = carbonKg < 300000 ? GreenBrush
                 : carbonKg < 800000 ? AmberBrush : RedBrush;
 
-            _paragraphCoverage.Text = $"Paragraph coverage {_boq.ParagraphCoveragePct:F0}% ({_boq.ResolvedParagraphCount}/{_boq.AllItems.Count}) "
+            _defaultCoverageText = $"Description coverage {_boq.ParagraphCoveragePct:F0}% ({_boq.ResolvedParagraphCount}/{_boq.AllItems.Count}) "
                 + $"| Avg rate confidence {_boq.AverageRateConfidence:F0} "
                 + $"| Embodied carbon {_boq.TotalCarbonKg / 1000.0:F2} tCO₂e";
+            _paragraphCoverage.Text = _defaultCoverageText;
+            _paragraphCoverage.Foreground = Brushes.Gray;
 
             RebuildSectionsView();
             RebuildMaterialsTab();
@@ -582,7 +597,8 @@ namespace StingTools.UI
 
         private Expander BuildSectionCard(BOQSection sec, List<BOQItemViewModel> vms)
         {
-            bool isExpanded = _openSections.Contains(sec.Id);
+            string secKey = SectionKey(sec);
+            bool isExpanded = _openSections.Contains(secKey);
             double totalShownUgx = vms.Sum(v => v.Underlying.TotalUGX);
             string displayTotal = _displayCurrency == "USD"
                 ? $"$ {vms.Sum(v => v.Underlying.TotalUSD):N2}"
@@ -633,7 +649,7 @@ namespace StingTools.UI
             Grid.SetColumn(namePanel, 2); headerGrid.Children.Add(namePanel);
 
             // Snapshot delta pill — only when an active snapshot is selected
-            if (!string.IsNullOrEmpty(_activeSnapshotLabel) && _snapshotDeltas.TryGetValue(sec.Id, out double delta))
+            if (!string.IsNullOrEmpty(_activeSnapshotLabel) && _snapshotDeltas.TryGetValue(secKey, out double delta))
             {
                 string deltaStr = (delta >= 0 ? "+" : "") + $"UGX {delta:N0}";
                 var deltaPill = new Border
@@ -677,9 +693,10 @@ namespace StingTools.UI
                 Background = Brushes.White,
                 Padding = new Thickness(0)
             };
-            string secId = sec.Id;
-            expander.Expanded  += (s, e) => _openSections.Add(secId);
-            expander.Collapsed += (s, e) => _openSections.Remove(secId);
+            // Capture the stable key — sec will be a new instance on next rebuild
+            string capturedKey = secKey;
+            expander.Expanded  += (s, e) => _openSections.Add(capturedKey);
+            expander.Collapsed += (s, e) => _openSections.Remove(capturedKey);
             return expander;
         }
 
@@ -766,6 +783,44 @@ namespace StingTools.UI
                     cell.IsEditing = true;
                     e.Handled = true;
                 }
+            };
+
+            // Phase 108d: lock model-derived fields. For rows with Source=Model
+            // the Item Name and Qty columns are derived from the Revit element
+            // (FamilySymbol name and geometry-based quantity); editing them in
+            // the panel would look successful but revert on the next BuildBOQ
+            // because the rebuild re-reads the element. Cancel BeginningEdit
+            // for those columns and surface a short status message instead.
+            grid.BeginningEdit += (s, e) =>
+            {
+                if (e.Row?.Item is BOQItemViewModel vm && vm.IsModelSource && e.Column != null)
+                {
+                    string hdr = e.Column.Header as string ?? "";
+                    if (hdr.StartsWith("Item") || hdr == "Qty")
+                    {
+                        e.Cancel = true;
+                        FlashHint(vm, hdr.StartsWith("Item")
+                            ? "Item name is derived from the Revit family — edit the element type in Revit."
+                            : "Quantity is derived from the element geometry — it can't be overridden inline.");
+                    }
+                }
+            };
+
+            // Phase 108d: forward mouse-wheel events to the outer ScrollViewer.
+            // A DataGrid's internal ScrollViewer swallows the wheel event by
+            // default, which stops the whole page from scrolling when the
+            // cursor is over a grid. Re-raise the event on the DataGrid's
+            // parent so the enclosing ScrollViewer picks it up.
+            grid.PreviewMouseWheel += (s, e) =>
+            {
+                if (e.Handled) return;
+                e.Handled = true;
+                var forward = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+                {
+                    RoutedEvent = UIElement.MouseWheelEvent,
+                    Source = grid
+                };
+                (grid.Parent as UIElement)?.RaiseEvent(forward);
             };
 
             // Persist edits on cell commit
@@ -893,7 +948,7 @@ namespace StingTools.UI
 
             // "NRM2 DESCRIPTION" caption
             var nrm2Label = new FrameworkElementFactory(typeof(TextBlock));
-            nrm2Label.SetValue(TextBlock.TextProperty, "NRM2 DESCRIPTION");
+            nrm2Label.SetValue(TextBlock.TextProperty, "DESCRIPTION");
             nrm2Label.SetValue(TextBlock.FontSizeProperty, 9.0);
             nrm2Label.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
             nrm2Label.SetValue(TextBlock.ForegroundProperty,
@@ -923,7 +978,7 @@ namespace StingTools.UI
             // (which sits under the watermark) to start typing.
             var hint = new FrameworkElementFactory(typeof(TextBlock));
             hint.SetValue(TextBlock.TextProperty,
-                "Click to enter NRM2 description for this BOQ item…");
+                "Click to enter description for this BOQ item…");
             hint.SetValue(TextBlock.FontSizeProperty, 11.0);
             hint.SetValue(TextBlock.FontStyleProperty, FontStyles.Italic);
             hint.SetValue(TextBlock.ForegroundProperty,
@@ -972,7 +1027,7 @@ namespace StingTools.UI
             Add("Edit rate",            () => BeginEditCell(vm, 5));
             Add("Edit note",            () => BeginEditCell(vm, 10));
             ctx.Items.Add(new Separator());
-            Add("Edit NRM2 paragraph…", () => ShowNRM2EditDialog(vm));
+            Add("Edit description…", () => ShowNRM2EditDialog(vm));
             ctx.Items.Add(new Separator());
             Add("Mark as modeled",           () => ChangeSource(vm, BOQRowSource.Model));
             Add("Mark as manual / unmodeled", () => ChangeSource(vm, BOQRowSource.Manual));
@@ -1023,7 +1078,7 @@ namespace StingTools.UI
         {
             var w = new Window
             {
-                Title = $"NRM2 paragraph — {vm.ItemName}",
+                Title = $"Description — {vm.ItemName}",
                 Width = 680, Height = 280,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 ResizeMode = ResizeMode.CanResizeWithGrip,
@@ -1033,7 +1088,7 @@ namespace StingTools.UI
             var sp = new StackPanel { Margin = new Thickness(14) };
             sp.Children.Add(new TextBlock
             {
-                Text = "Edit the NRM2 description paragraph for this BOQ item.",
+                Text = "Edit the description for this BOQ item.",
                 FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 8)
             });
             var tb = new System.Windows.Controls.TextBox
@@ -1338,7 +1393,7 @@ namespace StingTools.UI
                         var snapSec = snapDoc.Sections.FirstOrDefault(s =>
                             s.NRM2Section == liveSec.NRM2Section && s.Discipline == liveSec.Discipline);
                         if (snapSec != null)
-                            _snapshotDeltas[liveSec.Id] = liveSec.TotalUGX - snapSec.TotalUGX;
+                            _snapshotDeltas[SectionKey(liveSec)] = liveSec.TotalUGX - snapSec.TotalUGX;
                     }
                 }
             }
@@ -1392,7 +1447,7 @@ namespace StingTools.UI
             string qtyStr = PromptString("Quantity:", "1");
             string unit = PromptString("Unit (m², m³, m, each, item, kg):", "each");
             string rateStr = PromptString("Unit rate (UGX):", "0");
-            string section = PromptString("NRM2 section number:", "22");
+            string section = PromptString("Section number:", "22");
             string disc = PromptString("Discipline code (A/S/M/E/P/FP/PS):", "A");
 
             if (!double.TryParse(qtyStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double qty)) qty = 1;
@@ -1435,6 +1490,28 @@ namespace StingTools.UI
         // ══════════════════════════════════════════════════════════════════
         //  ExternalEvent dispatch — every Revit API call routes through here
         // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Flash an amber hint message in the coverage strip for 4s, then
+        /// restore the default coverage summary. Safe to call repeatedly —
+        /// _flashSeq ensures only the latest restore actually fires.
+        /// </summary>
+        private void FlashHint(BOQItemViewModel vm, string message)
+        {
+            if (_paragraphCoverage == null) return;
+            int mine = System.Threading.Interlocked.Increment(ref _flashSeq);
+            _paragraphCoverage.Text = message;
+            _paragraphCoverage.Foreground = AmberBrush;
+            System.Threading.Tasks.Task.Delay(4000).ContinueWith(_ =>
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (mine != _flashSeq || _paragraphCoverage == null) return;
+                    _paragraphCoverage.Text = _defaultCoverageText ?? "";
+                    _paragraphCoverage.Foreground = Brushes.Gray;
+                }));
+            });
+        }
 
         private void DispatchAction(string tag)
         {

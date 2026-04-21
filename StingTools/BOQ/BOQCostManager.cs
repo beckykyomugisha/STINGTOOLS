@@ -200,6 +200,28 @@ namespace StingTools.BOQ
             Dictionary<string, string> cobieCostCodes,
             out string rateSource, out int rateConfidence)
         {
+            // Pass 0: User override from the BOQ panel edit flow. Written by
+            // BOQWriteItemParamsCommand as CST_UNIT_RATE_UGX + CST_RATE_SOURCE=Override.
+            // Must win over all CSV/COBie/default matches so inline edits persist
+            // across BuildBOQDocument rebuilds.
+            try
+            {
+                string stored = ParameterHelpers.GetString(el, "CST_RATE_SOURCE");
+                if (string.Equals(stored, "Override", StringComparison.OrdinalIgnoreCase))
+                {
+                    string rateStr = ParameterHelpers.GetString(el, "CST_UNIT_RATE_UGX");
+                    if (double.TryParse(rateStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double ovr) && ovr > 0)
+                    {
+                        rateSource = "Override";
+                        rateConfidence = 100;
+                        string unit = "each";
+                        if (csvRates.TryGetValue(catName, out var csvDirect)) unit = csvDirect.unit;
+                        return (ovr, unit, catName);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveRate override: {ex.Message}"); }
+
             // Pass 1: CSV match by category name (most specific, highest confidence)
             if (csvRates.TryGetValue(catName, out var direct))
             {
