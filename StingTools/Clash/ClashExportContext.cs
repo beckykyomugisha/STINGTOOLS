@@ -11,7 +11,7 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.IFC;
+using StingTools.Core;
 
 namespace StingTools.Core.Clash
 {
