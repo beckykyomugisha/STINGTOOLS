@@ -59,6 +59,11 @@ namespace StingTools.UI
         private string _activeSnapshotLabel = "";
         private readonly Dictionary<string, double> _snapshotDeltas = new Dictionary<string, double>();
 
+        // Phase 108c: toggle hides the NRM2 description RowDetails strip across
+        // every section grid — useful when the QS wants a compact price-only view.
+        private bool _showNrm2 = true;
+        private ToggleButton _nrm2Toggle;
+
         // WPF controls we need to mutate
         private TextBlock _projectName, _budgetValue, _modeledValue, _provisionalValue,
                          _varianceValue, _coverageValue, _grandTotalValue, _healthValue,
@@ -373,6 +378,22 @@ namespace StingTools.UI
                 _openSections.Clear();
                 RebuildSectionsView();
             }));
+
+            // Phase 108c: toggle hides/shows the NRM2 description strip on
+            // every row. Pressed = description visible (default); unpressed
+            // = compact price-only view. Uses the same ToggleButton look as
+            // the discipline pills so the affordance is familiar.
+            _nrm2Toggle = new ToggleButton
+            {
+                Content = "¶ NRM2",
+                ToolTip = "Show / hide NRM2 description under each BOQ row",
+                Height = 24, MinWidth = 64, FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(8, 0, 0, 0), Cursor = Cursors.Hand,
+                IsChecked = _showNrm2
+            };
+            _nrm2Toggle.Checked   += (s, e) => { _showNrm2 = true;  RebuildSectionsView(); };
+            _nrm2Toggle.Unchecked += (s, e) => { _showNrm2 = false; RebuildSectionsView(); };
+            sp.Children.Add(_nrm2Toggle);
 
             _matchHint = new TextBlock { Text = "", FontSize = 10, Foreground = Brushes.Gray,
                 Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -726,10 +747,14 @@ namespace StingTools.UI
             });
             grid.Columns.Add(BuildEditableColumn("Note", nameof(BOQItemViewModel.Note), 200, isNumber: false));
 
-            // NRM2 detail panel — shown under EVERY row so descriptions are
-            // always visible (this is the whole point of a BOQ document).
+            // NRM2 detail panel — shown under every row by default so the BOQ
+            // description (the whole point of a BOQ) is always visible. The
+            // "Hide NRM2" toolbar toggle flips this to Collapsed for a compact
+            // price-only view.
             grid.RowDetailsTemplate = BuildNrm2DetailTemplate();
-            grid.RowDetailsVisibilityMode = DataGridRowDetailsVisibilityMode.Visible;
+            grid.RowDetailsVisibilityMode = _showNrm2
+                ? DataGridRowDetailsVisibilityMode.Visible
+                : DataGridRowDetailsVisibilityMode.Collapsed;
 
             // Double-click: enter edit mode (single click selects + shows details)
             grid.MouseDoubleClick += (s, e) =>
