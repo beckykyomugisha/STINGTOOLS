@@ -852,7 +852,11 @@ namespace StingTools.Core
                                 ? "Run 'BOQ Refresh' — the live template resolver will fill the tokens"
                                 : "Open BOQ Cost Manager and add a description in the NRM2 paragraph strip",
                     };
-                    if (gap.ElementId > 0) cw.AllElements.Add(new ElementId(gap.ElementId));
+                    if (gap.ElementId > 0)
+                    {
+                        if (cw.FailingElements == null) cw.FailingElements = new List<ElementId>();
+                        cw.FailingElements.Add(new ElementId(gap.ElementId));
+                    }
                     report.Warnings.Add(cw);
                     report.Total++;
                     if (cw.CanAutoFix) report.AutoFixable++;
