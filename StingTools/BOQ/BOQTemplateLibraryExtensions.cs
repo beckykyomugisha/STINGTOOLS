@@ -224,13 +224,25 @@ namespace StingTools.BOQ
         {
             try
             {
-                string matName = GetBuiltIn(el, BuiltInParameter.ALL_MODEL_MATERIAL_ASSET_NAME);
-                if (!string.IsNullOrEmpty(matName)) return matName;
+                // Revit has no single "ALL_MODEL_MATERIAL_ASSET_NAME" built-in —
+                // material is attached via GetMaterialIds/GetMaterial() or via a
+                // type parameter like STRUCTURAL_MATERIAL_PARAM.
                 var ids = el.GetMaterialIds(false);
                 if (ids != null && ids.Count > 0)
                 {
                     Material m = el.Document.GetElement(ids.First()) as Material;
                     if (m != null) return m.Name ?? "";
+                }
+                // Fallback: structural material reference (common for framing/walls)
+                var p = el.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+                if (p != null && p.StorageType == StorageType.ElementId)
+                {
+                    var mid = p.AsElementId();
+                    if (mid != null && mid.Value > 0)
+                    {
+                        var m = el.Document.GetElement(mid) as Material;
+                        if (m != null) return m.Name ?? "";
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"GetMaterialName: {ex.Message}"); }

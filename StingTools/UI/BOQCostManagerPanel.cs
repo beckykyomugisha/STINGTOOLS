@@ -13,6 +13,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -20,6 +21,12 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.BOQ;
 using StingTools.Core;
+// Disambiguate WPF vs Revit short names (per-file aliases — narrower than fully-qualified paths)
+using Color = System.Windows.Media.Color;
+using Grid = System.Windows.Controls.Grid;
+using Binding = System.Windows.Data.Binding;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using MenuItem = System.Windows.Controls.MenuItem;
 
 namespace StingTools.UI
 {
@@ -44,8 +51,8 @@ namespace StingTools.UI
                          _varianceValue, _coverageValue, _grandTotalValue, _healthValue,
                          _matchHint, _snapshotDiff, _paragraphCoverage;
         private ProgressBar _budgetBar;
-        private ComboBox _snapshotPicker;
-        private TextBox _searchBox;
+        private System.Windows.Controls.ComboBox _snapshotPicker;
+        private System.Windows.Controls.TextBox _searchBox;
         private StackPanel _sectionsPanel;
         private ToggleButton _ugxToggle, _usdToggle;
 
@@ -201,7 +208,7 @@ namespace StingTools.UI
             return border;
         }
 
-        private TextBlock MakeMetric(Panel parent, string label, string value, Brush color)
+        private TextBlock MakeMetric(System.Windows.Controls.Panel parent, string label, string value, Brush color)
         {
             var stack = new StackPanel { Margin = new Thickness(0, 0, 14, 0) };
             stack.Children.Add(new TextBlock { Text = label.ToUpperInvariant(), FontSize = 9,
@@ -229,7 +236,7 @@ namespace StingTools.UI
 
             grid.Children.Add(new TextBlock { Text = "Snapshot:", VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold });
 
-            _snapshotPicker = new ComboBox { Width = 340, Margin = new Thickness(8, 0, 8, 0) };
+            _snapshotPicker = new System.Windows.Controls.ComboBox { Width = 340, Margin = new Thickness(8, 0, 8, 0) };
             Grid.SetColumn(_snapshotPicker, 1);
             grid.Children.Add(_snapshotPicker);
 
@@ -267,7 +274,7 @@ namespace StingTools.UI
                 Padding = new Thickness(12, 6, 12, 6) };
             var sp = new StackPanel { Orientation = Orientation.Horizontal };
 
-            _searchBox = new TextBox { Width = 260, Height = 24, FontSize = 11,
+            _searchBox = new System.Windows.Controls.TextBox { Width = 260, Height = 24, FontSize = 11,
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 10, 0) };
             _searchBox.TextChanged += (s, e) => { _searchText = _searchBox.Text ?? ""; RebuildSectionsView(); };
@@ -625,7 +632,7 @@ namespace StingTools.UI
             };
             var sp = new StackPanel { Margin = new Thickness(14) };
             sp.Children.Add(new TextBlock { Text = prompt, FontSize = 12, Margin = new Thickness(0, 0, 0, 8) });
-            var tb = new TextBox { Text = defaultValue ?? "", Height = 26, FontSize = 12 };
+            var tb = new System.Windows.Controls.TextBox { Text = defaultValue ?? "", Height = 26, FontSize = 12 };
             sp.Children.Add(tb);
             var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
             var ok = new Button { Content = "OK", Width = 80, Height = 26, Margin = new Thickness(0, 0, 6, 0), IsDefault = true };

@@ -793,7 +793,9 @@ namespace StingTools.UI
                     case "ValidateTemplate": RunCommand<Temp.ValidateTemplateCommand>(app); break;
                     case "DynamicBindings": RunCommand<Temp.DynamicBindingsCommand>(app); break;
                     case "SchemaValidate": RunCommand<Temp.SchemaValidateCommand>(app); break;
-                    case "BOQExport": RunCommand<Temp.BOQExportCommand>(app); break;
+                    // "BOQExport" is now routed to BOQ.BOQExportCommand at line ~2547 (new BOQ Cost Manager).
+                    // Legacy Phase 5 Temp.BOQExportCommand accessible via "BOQExportLegacy" tag.
+                    case "BOQExportLegacy": RunCommand<Temp.BOQExportCommand>(app); break;
                     case "TemplateVGAudit": RunCommand<Temp.TemplateVGAuditCommand>(app); break;
                     case "ExportIfcPropertyMap": RunCommand<Temp.ExportIfcPropertyMapCommand>(app); break;
                     case "ValidateBepCompliance": RunCommand<Temp.ValidateBepComplianceCommand>(app); break;
@@ -2869,12 +2871,31 @@ namespace StingTools.UI
                     case "PlanscapeTeams":          PlanscapeGenerateTeamsMessage(app); break;
                     case "PlanscapeWhatsApp":       PlanscapeGenerateWhatsApp(app); break;
                     case "PlanscapeQR":             RunCommand<Tags.QRCodeCommand>(app); break;
+                    case "PlanscapeQRCode":         RunCommand<Tags.QRCodeCommand>(app); break;   // Phase 78 alias
                     case "PlanscapeHTML":           PlanscapeExportHtml(app); break;
+                    case "PlanscapeHTMLDashboard":  PlanscapeExportHtml(app); break;              // Phase 78 alias
                     case "PlanscapeConnect":        RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
                     case "PlanscapeDisconnect":     BIMManager.PlanscapeServerClient.Instance.Disconnect();
                                                    TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
                     case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
                     case "PublishModelToPlanscape": RunCommand<BIMManager.PublishModelCommand>(app); break;
+                    // Phase 78 Section 6.1: Additional Planscape action tags (renamed from StingBIM per Phase 88)
+                    case "PlanscapeAddMember":      RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeRemoveMember":   RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeExportTeam":     RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "PlanscapeShareReport":    RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
+                    case "PlanscapeLinkProject":    RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeUnlinkProject":  BIMManager.PlanscapeServerClient.Instance.Disconnect(); break;
+                    case "PlanscapeTestConnection": RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeClearCredentials": BIMManager.PlanscapeServerClient.Instance.Disconnect(); break;
+                    case "PlanscapeExportConfig":   RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "PlanscapeOpenBrowser":    BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
+                    // Phase 78 Section 6.1: TeamReport
+                    case "TeamReport":             RunCommand<BIMManager.ExportPermissionMatrixCommand>(app); break;
+                    // Phase 78 Section 6.1: MeetingTemplates
+                    case "MeetingTemplates":       RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    // Phase 78 Section 6.1: ConfigureCostFile
+                    case "ConfigureCostFile":      RunCommand<BIMManager.ConfigureCostFileCommand>(app); break;
                     case "SendMeetingInvites":     TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
                     case "ExportMeetingAnalytics":
                     {
