@@ -1997,6 +1997,30 @@
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
                             <StackPanel>
                                 <WrapPanel>
+                                    <!-- Phase 108m — Preset combinations + roadmap buttons -->
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Preset Combinations" Tag="PresetCombinations" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="One-click macros that chain multiple Model* commands — Build Room / Structural Bay / Wet Room / Corridor / Staircase. Defined in Data/PRESET_COMBINATIONS.json."/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Unified DWG Wizard" Tag="UnifiedDWGWizard" Click="Cmd_Click"
+                                            ToolTip="Auto-detect whether the imported DWG is structural / architectural / MEP and dispatch to the right wizard."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="LOD Validation" Tag="LODValidation" Click="Cmd_Click"
+                                            ToolTip="Score every element against the RIBA-stage target LOD (100-500). Fails elements missing material / level / discipline / manufacturer."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Family Library Audit" Tag="FamilyLibraryAudit" Click="Cmd_Click"
+                                            ToolTip="Audit the project against the STING 110-family library manifest. Reports missing / misnamed families per discipline."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Apply Sector Pack" Tag="ApplySectorPack" Click="Cmd_Click"
+                                            ToolTip="Pick Healthcare / Education / Data Centre / Residential starter pack — applies preamble profile, tag style, BOQ defaults, recommended presets + families in one click."/>
+                                    <Separator Style="{StaticResource SectionSeparator}"/>
+                                    <TextBlock Style="{StaticResource SubLabel}" Text="MULTI-BUILDING SITE (§B1-B6)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Seed Building Levels + Grids" Tag="BuildingCodeSeed" Click="Cmd_Click"
+                                            ToolTip="Create pre-named Levels + Grids prefixed with a volume code (BLD1-GF-FFL, BLD1-L01-SSL, BLD1-1..12, BLD1-A..K). Configurable via ExtraParams SeedBuildingCode / SeedLevelCount / SeedGridsX / SeedGridsY."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Set PRJ_VOLUME_CODE" Tag="PrjVolumeCodeAuto" Click="Cmd_Click"
+                                            ToolTip="Parse the ISO 19650 file name and write the Volume code (BLD1/BLD2/SITE) to the PRJ_VOLUME_CODE shared parameter on ProjectInformation."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="SEQ Range Allocation" Tag="SeqRangeValidation" Click="Cmd_Click"
+                                            ToolTip="Show the per-building SEQ counter ranges from project_config.json (Phase 59 FUT-01). Prevents tag-collision when federating multi-building models."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Building-Aware CDE Folders" Tag="BuildingAwareCDEFolders" Click="Cmd_Click"
+                                            ToolTip="Generate the ISO 19650 CDE tree (_CDE/WIP/SHARED/PUBLISHED/ARCHIVE) with per-building sub-folders from the LOC vocabulary."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Federation Review" Tag="FederationReview" Click="Cmd_Click"
+                                            ToolTip="Open every linked RVT in the host doc and verify Levels + Grids are prefixed with a recognised volume code. Reports unprefixed ones as findings."/>
+                                    <Separator Style="{StaticResource SectionSeparator}"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Building Shell" Tag="ModelBuildingShell" Click="Cmd_Click" ToolTip="Create complete building: 4 walls + floor + roof"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Room" Tag="ModelCreateRoom" Click="Cmd_Click" ToolTip="Create rectangular room enclosure (4 walls + room)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Ramp" Tag="ModelCreateRamp" Click="Cmd_Click" ToolTip="Create ramp with BS 8300 compliance (gradient, width, landings)"/>
@@ -2545,6 +2569,11 @@
                                             ToolTip="Export a tender-grade NRM2 Bill of Quantities — Cover, Document Control, Contents, Preliminaries, Preambles, per-section Bills with carry-forward, Collections, Grand Summary and Annexure (PC &amp; Dayworks)"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="BOQ × BCC Refresh" Tag="BOQBccRefresh" Click="Cmd_Click"
                                             ToolTip="Refresh BOQ × BIM Coordination Center integrations: compute cost impact per open issue, remediation cost per clash, BOQ data-quality band, and synthetic BOQ-gap warnings. Auto-hooks (revision snapshot, meeting agenda, deliverable row, CDE routing) fire from their host commands."/>
+                                    <!-- Phase 108m — Product + multi-building roadmap buttons -->
+                                    <Button Style="{StaticResource OrangeBtn}" Content="✓ Prep For Export" Tag="BOQPrepForExport" Click="Cmd_Click"
+                                            ToolTip="Run the pre-export quality gate chain (compliance, containers, stale, BOQ data quality, warnings, placeholders). Only go to export when all gates are green."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BOQ Rate Heat Map" Tag="BOQRateHeatMap" Click="Cmd_Click"
+                                            ToolTip="Visualise per-category rate provenance (Override / CSV / COBie / Default / None). HTML + CSV emitted so QS knows which categories need review."/>
                                     <Button Style="{StaticResource BlueBtn}" Content="BOQ Export" Tag="BOQExport" Click="Cmd_Click"
                                             ToolTip="Export an 8-sheet BOQ data workbook (Summary, Items, Materials, PS, NRM2, Carbon, Audit, Snapshot) for QS round-tripping"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BOQ Import" Tag="BOQImport" Click="Cmd_Click"

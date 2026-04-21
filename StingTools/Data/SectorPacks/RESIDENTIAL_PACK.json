@@ -1,0 +1,17 @@
+{
+  "id": "residential",
+  "label": "Residential — Low-Rise",
+  "description": "STING starter pack for Residential — Low-Rise projects. Applies recommended family subset, preset combinations, tag style, preamble profile and BOQ defaults.",
+  "families": ["ARC_DR_Hinged_SinglePanel_900x2100_FD30","ARC_WIN_Casement_900x1200","ARC_WAL_Stud_Acoustic_150mm","MEP_PLM_WC_Floor","MEP_FIR_Detector_Smoke"],
+  "presets": ["build_room","build_wet_room","build_staircase"],
+  "tag_style": "Discipline",
+  "preamble_profile": "Residential — Low-Rise",
+  "boq_defaults": {
+    "PRELIMINARIES_PCT": 12.0,
+    "CONTINGENCY_PCT":   10.0,
+    "OVERHEAD_PROFIT_PCT": 8.0,
+    "VAT_PCT":           18.0
+  },
+  "workflow_presets": ["MonthlyCostReview", "DailyQA"],
+  "notes": "Per Approved Documents B Vol 1 + HQM. Wall / ceiling / door / fixture defaults optimised for the sector's typical LOD 300-350 brief."
+}
