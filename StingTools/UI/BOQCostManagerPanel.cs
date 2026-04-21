@@ -1145,12 +1145,19 @@ namespace StingTools.UI
         }
 
         // ── Source change / duplicate / delete / persistence ────────────────
+        // Structural ops call RefreshDisplay() (metrics + section rebuild +
+        // materials rebuild) because adding, removing or promoting a row
+        // changes both the displayed rows AND the modeled / provisional /
+        // grand totals / carbon card. Using RebuildSectionsView alone (as
+        // before) left the budget strip stale — e.g. the Phase-108e user
+        // report "duplicated a row but figures never updated, totals never
+        // picked the copies' figures".
 
         private void ChangeSource(BOQItemViewModel vm, BOQRowSource src)
         {
             vm.Underlying.Source = src;
-            OnItemEdited(vm);
-            RebuildSectionsView();
+            PersistManualRows();
+            RefreshDisplay();
         }
 
         private void DuplicateRow(BOQItemViewModel vm)
@@ -1168,7 +1175,7 @@ namespace StingTools.UI
                 int idx = sec.Items.IndexOf(vm.Underlying);
                 sec.Items.Insert(idx + 1, clone);
                 PersistManualRows();
-                RebuildSectionsView();
+                RefreshDisplay();  // totals + carbon must recompute
             }
         }
 
@@ -1180,7 +1187,7 @@ namespace StingTools.UI
             {
                 sec.Items.Remove(vm.Underlying);
                 PersistManualRows();
-                RebuildSectionsView();
+                RefreshDisplay();  // removed row's cost must leave the grand total
             }
         }
 
