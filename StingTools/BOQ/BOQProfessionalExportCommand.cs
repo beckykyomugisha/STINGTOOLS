@@ -221,6 +221,16 @@ namespace StingTools.BOQ
                 if (tcfg.EmitCsvJsonSidecars)
                     BOQParagraphEnhancer.ExportSidecars(boq, outputPath, tcfg);
 
+                // Phase 108k Item 10 — route the export into the ISO 19650
+                // CDE folder structure per pricing mode:
+                //   Tender / Priced   → _CDE/SHARED/BOQ
+                //   Contract          → _CDE/PUBLISHED/BOQ
+                //   As-Built          → _CDE/ARCHIVE/BOQ
+                // Copies the file (keeps the original beside the .rvt so the
+                // user can find it quickly).
+                try { StingTools.BOQ.BOQBccBridge.RouteExportToCDE(doc, outputPath, tcfg.PricingMode); }
+                catch (Exception ex) { StingLog.Warn($"BOQ CDE routing: {ex.Message}"); }
+
                 try { Process.Start("explorer.exe", $"/select,\"{outputPath}\""); }
                 catch (Exception ex) { StingLog.Warn($"Explorer open: {ex.Message}"); }
 

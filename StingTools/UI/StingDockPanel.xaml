@@ -2543,6 +2543,8 @@
                                             ToolTip="Full BOQ editor: NRM2 paragraphs, rates, provisional sums, snapshots, carbon, Excel roundtrip"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="★ Tender BOQ (NRM2)" Tag="BOQExportProfessional" Click="Cmd_Click" FontWeight="Bold"
                                             ToolTip="Export a tender-grade NRM2 Bill of Quantities — Cover, Document Control, Contents, Preliminaries, Preambles, per-section Bills with carry-forward, Collections, Grand Summary and Annexure (PC &amp; Dayworks)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="BOQ × BCC Refresh" Tag="BOQBccRefresh" Click="Cmd_Click"
+                                            ToolTip="Refresh BOQ × BIM Coordination Center integrations: compute cost impact per open issue, remediation cost per clash, BOQ data-quality band, and synthetic BOQ-gap warnings. Auto-hooks (revision snapshot, meeting agenda, deliverable row, CDE routing) fire from their host commands."/>
                                     <Button Style="{StaticResource BlueBtn}" Content="BOQ Export" Tag="BOQExport" Click="Cmd_Click"
                                             ToolTip="Export an 8-sheet BOQ data workbook (Summary, Items, Materials, PS, NRM2, Carbon, Audit, Snapshot) for QS round-tripping"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BOQ Import" Tag="BOQImport" Click="Cmd_Click"

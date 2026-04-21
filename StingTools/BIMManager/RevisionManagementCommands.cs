@@ -651,6 +651,18 @@ namespace StingTools.BIMManager
                         $"Tag snapshot saved ({snapshot.Count} elements tracked).\n" +
                         "Use 'Revision Compare' after changes to see what was modified.");
                 }
+
+                // Phase 108k Item 3 — BOQ × BCC integration. Auto-save a BOQ
+                // snapshot labelled with the revision so every revision has a
+                // matching cost baseline; QS can diff against any revision
+                // from BOQ Cost Manager → Snapshot picker. No-op if the BOQ
+                // engine can't build a document (unlikely on a revision-
+                // worthy model).
+                try
+                {
+                    StingTools.BOQ.BOQBccBridge.OnRevisionCreated(doc, prefix, description);
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ revision hook: {ex.Message}"); }
                 // GAP-FIX: Auto-save warning baseline on revision creation
                 if (TagConfig.AutoSaveBaselineOnRevision)
                 {

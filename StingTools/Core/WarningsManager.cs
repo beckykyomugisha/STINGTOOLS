@@ -829,6 +829,41 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"Stale synthetic warnings: {ex.Message}"); }
 
+            // Phase 108k Item 8 — synthetic BOQ-gap warnings. Items missing
+            // rates or carrying unresolved [tokens] in the description join
+            // the unified warnings feed so coordinators see them alongside
+            // Revit-native warnings in the BCC Warnings tab. Auto-fix hint
+            // points at the live template resolver.
+            try
+            {
+                var boqGaps = StingTools.BOQ.BOQBccBridge.EmitBOQGapWarnings(doc);
+                foreach (var gap in boqGaps)
+                {
+                    var sev = gap.Severity == "MEDIUM" ? WarningSeverity.Medium : WarningSeverity.Low;
+                    var cw = new ClassifiedWarning
+                    {
+                        Description = gap.Description,
+                        Category    = WarningCategory.Data,
+                        Severity    = sev,
+                        CanAutoFix  = gap.Description.Contains("[token]"),
+                        FixStrategy = gap.Description.Contains("rate missing")
+                            ? "Open BOQ Cost Manager and set a rate, or add the category to cost_rates_5d.csv"
+                            : gap.Description.Contains("[token]")
+                                ? "Run 'BOQ Refresh' — the live template resolver will fill the tokens"
+                                : "Open BOQ Cost Manager and add a description in the NRM2 paragraph strip",
+                    };
+                    if (gap.ElementId > 0) cw.AllElements.Add(new ElementId(gap.ElementId));
+                    report.Warnings.Add(cw);
+                    report.Total++;
+                    if (cw.CanAutoFix) report.AutoFixable++;
+                    report.ByCategory.TryGetValue(WarningCategory.Data, out int dataCount);
+                    report.ByCategory[WarningCategory.Data] = dataCount + 1;
+                    report.BySeverity.TryGetValue(sev, out int sevCount);
+                    report.BySeverity[sev] = sevCount + 1;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ gap synthetic warnings: {ex.Message}"); }
+
             // Analyse deliverable impact (COBie, IFC, FM handover, schedules, clash)
             try { report.DeliverableImpact = AnalyseDeliverableImpact(report.Warnings); }
             catch (Exception ex) { StingLog.Warn($"Deliverable impact analysis: {ex.Message}"); }
