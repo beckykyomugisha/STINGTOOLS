@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Phase 108m stub for Dynamo integration.
+
+    Not a buildable project yet — placeholder so the layout is in the tree.
+    To activate:
+      1. Reference Dynamo Core nuget (DynamoVisualProgramming.ZeroTouchLibrary) + Revit API DLLs
+      2. Target net48 or netstandard2.0 per Dynamo Sandbox version
+      3. Add [NodeCategory] attributes to expose STING methods as nodes
+      4. Drop the built .dll into Dynamo's package folder
+
+    See StingTools.Dynamo/DESIGN.md for the node list.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>StingTools.Dynamo</AssemblyName>
+    <RootNamespace>StingTools.Dynamo</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <IsPackable>false</IsPackable>
+    <NoWarn>NU1701;CS1591</NoWarn>
+  </PropertyGroup>
+</Project>

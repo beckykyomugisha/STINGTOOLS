@@ -1301,6 +1301,12 @@ namespace StingTools.Core
                 // Data Pipeline
                 case "DynamicBindings": return new Temp.DynamicBindingsCommand();
                 case "BOQExport": return new Temp.BOQExportCommand();
+
+                // Phase 108j — BOQ × BCC workflow integration
+                case "BOQRefresh":             return new BOQ.BOQRefreshCommand();
+                case "BOQSnapshotSave":        return new BOQ.BOQSnapshotSaveCommand();
+                case "BOQSnapshotCompare":     return new BOQ.BOQSnapshotCompareCommand();
+                case "BOQExportProfessional":  return new BOQ.BOQProfessionalExportCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
                 case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 
@@ -2343,6 +2349,31 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "IssueDashboard", Label = "5. Open issues summary" },
                             new WorkflowStep { CommandTag = "RevisionDashboard", Label = "6. Revision status" },
                             new WorkflowStep { CommandTag = "WeeklyCoordinatorReport", Label = "7. Generate HTML report" },
+                        }
+                    };
+
+                // Phase 108j — BOQ × BCC integration preset.
+                // Monthly cost review loop wiring the BOQ Cost Manager to
+                // the BIM Coordination Center: refresh costs, snapshot,
+                // compare to previous, validate containers (for COBie
+                // coherence), dashboard + weekly report for the meeting.
+                case "MonthlyCostReview":
+                    return new WorkflowPreset
+                    {
+                        Name = "Monthly Cost Review",
+                        Description = "BOQ × BCC integration — refresh rates, take a BOQ snapshot, compare to previous, raise issues on >10% category deltas, update Model Health, export report for the meeting.",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "BOQRefresh",           Label = "1. Refresh BOQ rates + parameters" },
+                            new WorkflowStep { CommandTag = "ValidateTags",         Label = "2. Validate tag compliance (BOQ quality gate)" },
+                            new WorkflowStep { CommandTag = "BOQSnapshotSave",      Label = "3. Save BOQ snapshot for this review cycle" },
+                            new WorkflowStep { CommandTag = "BOQSnapshotCompare",   Label = "4. Compare to previous snapshot", Optional = true },
+                            new WorkflowStep { CommandTag = "ComplianceGateCheck",  Label = "5. Compliance gate check",        Optional = true },
+                            new WorkflowStep { CommandTag = "ModelHealthDashboard", Label = "6. Update Model Health dashboard" },
+                            new WorkflowStep { CommandTag = "IssueDashboard",       Label = "7. Snapshot open issues list" },
+                            new WorkflowStep { CommandTag = "WeeklyCoordinatorReport", Label = "8. Generate HTML cost-review report" },
+                            new WorkflowStep { CommandTag = "BOQExportProfessional", Label = "9. Export Tender BOQ (priced copy for meeting)", Optional = true },
                         }
                     };
 

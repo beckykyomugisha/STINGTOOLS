@@ -60,8 +60,8 @@ namespace StingTools.BOQ
 
             var boq = new BOQDocument
             {
-                ProjectName = doc.ProjectInformation?.Name ?? doc.Title ?? "Unknown project",
-                DocumentTitle = "Bill of Quantities",
+                ProjectName = ReadProjectName(doc),
+                DocumentTitle = ReadProjectDocumentTitle(doc),
                 SnapshotLabel = "Live",
                 SnapshotType = "Live",
                 SnapshotDate = DateTime.UtcNow
@@ -105,6 +105,12 @@ namespace StingTools.BOQ
 
             // ── STEP 7: Group into sections ──────────────────────────────
             boq.Sections = GroupIntoSections(items);
+
+            // ── STEP 7b (Phase 108f): apply persisted model-row overrides.
+            // This runs AFTER the full line-item list is assembled so rate +
+            // description + note survive BuildBOQDocument rebuilds regardless
+            // of whether the background CST_RATE_SOURCE write completed.
+            ApplyModelOverrides(doc, boq);
 
             // ── STEP 8: Assign BOQ line refs across the whole document ───
             AssignBoqLineRefs(boq);
@@ -200,6 +206,28 @@ namespace StingTools.BOQ
             Dictionary<string, string> cobieCostCodes,
             out string rateSource, out int rateConfidence)
         {
+            // Pass 0: User override from the BOQ panel edit flow. Written by
+            // BOQWriteItemParamsCommand as CST_UNIT_RATE_UGX + CST_RATE_SOURCE=Override.
+            // Must win over all CSV/COBie/default matches so inline edits persist
+            // across BuildBOQDocument rebuilds.
+            try
+            {
+                string stored = ParameterHelpers.GetString(el, "CST_RATE_SOURCE");
+                if (string.Equals(stored, "Override", StringComparison.OrdinalIgnoreCase))
+                {
+                    string rateStr = ParameterHelpers.GetString(el, "CST_UNIT_RATE_UGX");
+                    if (double.TryParse(rateStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double ovr) && ovr > 0)
+                    {
+                        rateSource = "Override";
+                        rateConfidence = 100;
+                        string unit = "each";
+                        if (csvRates.TryGetValue(catName, out var csvDirect)) unit = csvDirect.unit;
+                        return (ovr, unit, catName);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveRate override: {ex.Message}"); }
+
             // Pass 1: CSV match by category name (most specific, highest confidence)
             if (csvRates.TryGetValue(catName, out var direct))
             {
@@ -522,6 +550,45 @@ namespace StingTools.BOQ
             return TagConfig.GetConfigDouble("PROJECT_BUDGET_UGX", 0);
         }
 
+        /// <summary>
+        /// Read the "Project Name" field from the Project Information dialog.
+        /// doc.ProjectInformation.Name returns the ELEMENT name (an internal
+        /// identifier), not the value the user types into "Project Name".
+        /// That field is bound to BuiltInParameter.PROJECT_NAME.
+        /// </summary>
+        private static string ReadProjectName(Document doc)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                if (pi != null)
+                {
+                    string v = pi.get_Parameter(BuiltInParameter.PROJECT_NAME)?.AsString();
+                    if (!string.IsNullOrWhiteSpace(v)) return v;
+                    if (!string.IsNullOrWhiteSpace(pi.Name)) return pi.Name;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadProjectName: {ex.Message}"); }
+            return !string.IsNullOrWhiteSpace(doc?.Title) ? doc.Title : "Unknown project";
+        }
+
+        /// <summary>
+        /// BOQ document title — combines the Project Number (if set) with
+        /// "Bill of Quantities" so the exported workbook and the header
+        /// strip identify the project at a glance.
+        /// </summary>
+        private static string ReadProjectDocumentTitle(Document doc)
+        {
+            try
+            {
+                string num = doc?.ProjectInformation?.get_Parameter(BuiltInParameter.PROJECT_NUMBER)?.AsString();
+                if (!string.IsNullOrWhiteSpace(num))
+                    return $"Bill of Quantities — {num}";
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadProjectDocumentTitle: {ex.Message}"); }
+            return "Bill of Quantities";
+        }
+
         // ══════════════════════════════════════════════════════════════════
         //  Snapshot persistence — save, list, load and prune.
         //  Snapshots are plain JSON under {projectDir}/STING_BIM_MANAGER/.
@@ -837,6 +904,129 @@ namespace StingTools.BOQ
                 StingLog.Info($"BOQ manual store saved: {store.ManualRows.Count} manual/PS rows, budget UGX {projectBudgetUgx:N0}");
             }
             catch (Exception ex) { StingLog.Error("SaveManualRows", ex); throw; }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 108f — model-row override sidecar
+        //  {projectDir}/_bim_manager/project_boq_model_overrides.json
+        //  Survives the StingCommandHandler single-_commandTag race and any
+        //  failures of the async BOQWriteItemParams ExternalEvent.
+        // ══════════════════════════════════════════════════════════════════
+
+        private static readonly object _overridesLock = new object();
+
+        internal static string GetModelOverridesPath(Document doc)
+            => Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "project_boq_model_overrides.json");
+
+        internal static BOQModelOverridesStore LoadModelOverrides(Document doc)
+        {
+            string path = GetModelOverridesPath(doc);
+            if (!File.Exists(path)) return new BOQModelOverridesStore();
+            try { return JsonConvert.DeserializeObject<BOQModelOverridesStore>(File.ReadAllText(path), _jsonSettings) ?? new BOQModelOverridesStore(); }
+            catch (Exception ex) { StingLog.Warn($"LoadModelOverrides: {ex.Message}"); return new BOQModelOverridesStore(); }
+        }
+
+        internal static void SaveModelOverrides(Document doc, BOQModelOverridesStore store)
+        {
+            if (store == null) return;
+            store.LastSaved = DateTime.UtcNow;
+            store.LastSavedBy = Environment.UserName ?? "";
+            string path = GetModelOverridesPath(doc);
+            lock (_overridesLock)
+            {
+                try
+                {
+                    string tmp = path + ".tmp";
+                    File.WriteAllText(tmp, JsonConvert.SerializeObject(store, _jsonSettings));
+                    if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
+                    else File.Move(tmp, path);
+                }
+                catch (Exception ex) { StingLog.Error("SaveModelOverrides", ex); throw; }
+            }
+        }
+
+        /// <summary>
+        /// Upsert a single model-row override. Called from the WPF thread
+        /// directly after the user commits a cell edit on a modeled row —
+        /// no ExternalEvent hop, so the write is durable before the panel
+        /// even finishes the CellEditEnding handler.
+        /// </summary>
+        internal static void UpsertModelOverride(Document doc, BOQModelOverride ov)
+        {
+            if (doc == null || ov == null) return;
+            if (string.IsNullOrEmpty(ov.UniqueId) && ov.ElementId <= 0) return;
+            lock (_overridesLock)
+            {
+                var store = LoadModelOverrides(doc);
+                // Match by UniqueId first (stable), fall back to ElementId
+                var existing = !string.IsNullOrEmpty(ov.UniqueId)
+                    ? store.Overrides.FirstOrDefault(o => o.UniqueId == ov.UniqueId)
+                    : store.Overrides.FirstOrDefault(o => o.ElementId == ov.ElementId);
+                if (existing != null)
+                {
+                    if (ov.RateUGX.HasValue) existing.RateUGX = ov.RateUGX;
+                    if (ov.RateUSD.HasValue) existing.RateUSD = ov.RateUSD;
+                    if (ov.NRM2Paragraph != null) existing.NRM2Paragraph = ov.NRM2Paragraph;
+                    if (ov.Note != null) existing.Note = ov.Note;
+                    existing.Modified = DateTime.UtcNow;
+                    existing.ModifiedBy = Environment.UserName ?? "";
+                    if (ov.ElementId > 0) existing.ElementId = ov.ElementId; // refresh the current-session id
+                }
+                else
+                {
+                    ov.Modified = DateTime.UtcNow;
+                    ov.ModifiedBy = Environment.UserName ?? "";
+                    store.Overrides.Add(ov);
+                }
+                SaveModelOverrides(doc, store);
+            }
+        }
+
+        /// <summary>
+        /// Apply all persisted model-row overrides onto freshly-built
+        /// BOQLineItems. Called near the end of BuildBOQDocument after model
+        /// items are constructed but before manual/PS items are merged.
+        /// </summary>
+        private static void ApplyModelOverrides(Document doc, BOQDocument boq)
+        {
+            if (doc == null || boq == null) return;
+            BOQModelOverridesStore store;
+            try { store = LoadModelOverrides(doc); }
+            catch (Exception ex) { StingLog.Warn($"ApplyModelOverrides load: {ex.Message}"); return; }
+            if (store?.Overrides == null || store.Overrides.Count == 0) return;
+
+            // Index overrides by UniqueId (primary) and ElementId (fallback).
+            var byUid = new Dictionary<string, BOQModelOverride>(StringComparer.Ordinal);
+            var byEid = new Dictionary<long, BOQModelOverride>();
+            foreach (var ov in store.Overrides)
+            {
+                if (!string.IsNullOrEmpty(ov.UniqueId)) byUid[ov.UniqueId] = ov;
+                if (ov.ElementId > 0) byEid[ov.ElementId] = ov;
+            }
+
+            double rate = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            int applied = 0;
+            foreach (var item in boq.AllItems)
+            {
+                if (item.Source != BOQRowSource.Model) continue;
+                BOQModelOverride ov = null;
+                if (!string.IsNullOrEmpty(item.UniqueId)) byUid.TryGetValue(item.UniqueId, out ov);
+                if (ov == null && item.RevitElementId > 0) byEid.TryGetValue(item.RevitElementId, out ov);
+                if (ov == null) continue;
+
+                if (ov.RateUGX.HasValue)
+                {
+                    item.RateUGX = ov.RateUGX.Value;
+                    item.RateUSD = ov.RateUSD ?? (rate > 0 ? Math.Round(item.RateUGX / rate, 2) : 0);
+                    item.RateSource = "Override";
+                    item.RateConfidence = 100;
+                }
+                if (!string.IsNullOrEmpty(ov.NRM2Paragraph)) item.ResolvedNRM2Paragraph = ov.NRM2Paragraph;
+                if (!string.IsNullOrEmpty(ov.Note)) item.Note = ov.Note;
+                applied++;
+            }
+            if (applied > 0)
+                StingLog.Info($"BOQ: applied {applied} model-row override(s) from sidecar.");
         }
 
         /// <summary>

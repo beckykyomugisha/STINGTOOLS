@@ -44,6 +44,12 @@ namespace StingTools.BOQ
 
                 // Build BOQ + (optional) paragraph coverage gate
                 var boq = BOQCostManager.BuildBOQDocument(doc);
+
+                // Phase 108b: guarantee every exported row has a clean paragraph —
+                // no [tokens], no blank cells. Runs before the coverage gate so the
+                // gate actually reflects what the exporter will write.
+                EnsureAllParagraphsResolved(boq, doc);
+
                 if (boq.ParagraphCoveragePct < 80)
                 {
                     var td = new TaskDialog("BOQ paragraph coverage")
@@ -500,6 +506,91 @@ namespace StingTools.BOQ
             if (lower.Contains("status:closed") || lower.Contains("closed")) return "Closed";
             if (lower.Contains("status:instructed") || lower.Contains("instructed")) return "Instructed";
             return "Open";
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 108b — paragraph resolution guardrail.
+        //  For every line item without a usable ResolvedNRM2Paragraph (empty
+        //  OR still containing [token] placeholders) re-resolve against the
+        //  live template library; if that still fails, synthesise a QS-safe
+        //  fallback sentence from the item's own fields. This guarantees
+        //  column C in the exported Item Schedule never ships with blanks
+        //  or [tokens].
+        // ══════════════════════════════════════════════════════════════════
+
+        private static readonly System.Text.RegularExpressions.Regex _tokenPattern
+            = new System.Text.RegularExpressions.Regex(@"\[[A-Za-z0-9_]+\]",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private void EnsureAllParagraphsResolved(BOQDocument boq, Document doc)
+        {
+            if (boq == null) return;
+            int rehydrated = 0, fellBack = 0;
+            foreach (var sec in boq.Sections)
+            {
+                foreach (var item in sec.Items)
+                {
+                    bool missing = string.IsNullOrEmpty(item.ResolvedNRM2Paragraph);
+                    bool hasTokens = !missing && _tokenPattern.IsMatch(item.ResolvedNRM2Paragraph);
+                    if (!missing && !hasTokens) continue;
+
+                    // 1) Try live re-resolution from the element when we still
+                    // have a Revit handle (modeled rows only).
+                    if (item.RevitElementId > 0)
+                    {
+                        try
+                        {
+                            var el = doc.GetElement(new ElementId(item.RevitElementId));
+                            if (el != null)
+                            {
+                                var all = StingTools.Temp.BOQTemplateLibrary.LoadAll(doc, StingToolsApp.DataPath);
+                                var tpl = BOQTemplateLibraryExtensions.SelectBestTemplate(all, item.Category, el);
+                                if (tpl != null)
+                                {
+                                    string resolved = BOQTemplateLibraryExtensions.ResolveForElement(tpl, el, doc);
+                                    if (!string.IsNullOrEmpty(resolved)
+                                        && !_tokenPattern.IsMatch(resolved))
+                                    {
+                                        item.ResolvedNRM2Paragraph = resolved;
+                                        rehydrated++;
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"EnsureAllParagraphsResolved: live-resolve {item.RevitElementId}: {ex.Message}"); }
+                    }
+
+                    // 2) Deterministic fallback sentence from item fields —
+                    // always token-free.
+                    item.ResolvedNRM2Paragraph = BuildFallbackParagraph(item);
+                    fellBack++;
+                }
+            }
+            if (rehydrated > 0 || fellBack > 0)
+                StingLog.Info($"BOQ export: paragraph resolution — {rehydrated} re-resolved from elements, {fellBack} fell back to synthetic sentence.");
+        }
+
+        private static string BuildFallbackParagraph(BOQLineItem item)
+        {
+            string cat = item.Category?.ToLowerInvariant() ?? "item";
+            string fam = !string.IsNullOrEmpty(item.FamilyName) && item.FamilyName != "—"
+                ? $" ({item.FamilyName})" : "";
+            string loc = !string.IsNullOrEmpty(item.Location) ? $" at {item.Location}" : "";
+            string lvl = !string.IsNullOrEmpty(item.Level) ? $" on {item.Level}" : "";
+            string disc;
+            switch (item.Discipline)
+            {
+                case "S":  disc = "structural";        break;
+                case "M":  disc = "mechanical";        break;
+                case "E":  disc = "electrical";        break;
+                case "P":  disc = "plumbing";          break;
+                case "FP": disc = "fire protection";   break;
+                default:   disc = "architectural";     break;
+            }
+            return $"Supply, deliver and install {disc} {cat}{fam}{loc}{lvl}; "
+                 + "including all associated fixings, connections, and accessories; "
+                 + "completed and tested to the relevant British Standard or equivalent.";
         }
     }
 }

@@ -1,0 +1,51 @@
+{
+  "_comment": "Phase 108m — LOD (Level of Development) requirements per RIBA stage per category. Mapped per BIMForum LOD Specification 2021 + RIBA Plan of Work 2020. LODValidationCommand scans the project and flags elements that fall below the stage's minimum.",
+  "schemaVersion": "1.0",
+  "stage_to_target_lod": {
+    "RIBA Stage 0 — Strategic Definition":   100,
+    "RIBA Stage 1 — Preparation and Briefing": 100,
+    "RIBA Stage 2 — Concept Design":          200,
+    "RIBA Stage 3 — Spatial Coordination":    300,
+    "RIBA Stage 4 — Technical Design":        350,
+    "RIBA Stage 5 — Manufacturing and Construction": 400,
+    "RIBA Stage 6 — Handover":                500,
+    "RIBA Stage 7 — Use":                     500
+  },
+  "category_minimum_lod": {
+    "Walls":                  { "shell": 350, "partition": 300 },
+    "Floors":                 { "structural": 350, "finish": 300 },
+    "Ceilings":               { "any": 300 },
+    "Roofs":                  { "any": 350 },
+    "Doors":                  { "any": 350 },
+    "Windows":                { "any": 350 },
+    "Curtain Walls":          { "any": 350 },
+    "Stairs":                 { "any": 350 },
+    "Railings":               { "any": 300 },
+    "Structural Columns":     { "any": 350 },
+    "Structural Framing":     { "any": 350 },
+    "Structural Foundations": { "any": 350 },
+    "Structural Walls":       { "any": 350 },
+    "Rooms":                  { "any": 300 },
+    "Ducts":                  { "any": 350 },
+    "Duct Fittings":          { "any": 350 },
+    "Pipes":                  { "any": 350 },
+    "Pipe Fittings":          { "any": 350 },
+    "Cable Trays":            { "any": 300 },
+    "Conduits":               { "any": 300 },
+    "Lighting Fixtures":      { "any": 350 },
+    "Electrical Fixtures":    { "any": 350 },
+    "Electrical Equipment":   { "any": 400 },
+    "Mechanical Equipment":   { "any": 400 },
+    "Plumbing Fixtures":      { "any": 350 },
+    "Air Terminals":          { "any": 350 },
+    "Sprinklers":             { "any": 350 }
+  },
+  "parameter_rules_per_lod": {
+    "100": ["Type name assigned"],
+    "200": ["Type name assigned", "Level assigned", "Category correct"],
+    "300": ["Type name assigned", "Level assigned", "Category correct", "Material assigned at type", "Dimensional accuracy ±100mm"],
+    "350": ["All 300 rules", "ASS_DISCIPLINE_COD_TXT populated", "ASS_LOC_TXT populated", "Connection details modeled (structural)"],
+    "400": ["All 350 rules", "Manufacturer + model populated", "Installation parameters populated"],
+    "500": ["All 400 rules", "Commissioned", "As-built parameters verified", "Serial number populated"]
+  }
+}

@@ -2550,6 +2550,23 @@ namespace StingTools.UI
                     case "BOQImport":               RunCommand<BOQ.BOQImportCommand>(app); break;
                     case "BOQSnapshotCompare":      RunCommand<BOQ.BOQSnapshotCompareCommand>(app); break;
                     case "ReconcileProvisionals":   RunCommand<BOQ.BOQReconcileProvisionalsCommand>(app); break;
+                    case "BOQWriteItemParams":      RunCommand<BOQ.BOQWriteItemParamsCommand>(app); break;
+                    case "BOQExportProfessional":   RunCommand<BOQ.BOQProfessionalExportCommand>(app); break;
+                    case "BOQBccRefresh":           RunCommand<BOQ.BOQBccRefreshCommand>(app); break;
+
+                    // Phase 108m — Product + Multi-building roadmap
+                    case "PresetCombinations":      RunCommand<Presets.PresetCombinationCommand>(app); break;
+                    case "FamilyLibraryAudit":      RunCommand<Temp.FamilyLibraryAuditCommand>(app); break;
+                    case "BOQPrepForExport":        RunCommand<BOQ.BOQPrepForExportCommand>(app); break;
+                    case "LODValidation":           RunCommand<Core.LODValidationCommand>(app); break;
+                    case "ApplySectorPack":         RunCommand<Core.ApplySectorPackCommand>(app); break;
+                    case "UnifiedDWGWizard":        RunCommand<Model.UnifiedDWGWizardCommand>(app); break;
+                    case "BOQRateHeatMap":          RunCommand<BOQ.BOQRateSourceHeatMapCommand>(app); break;
+                    case "BuildingCodeSeed":        RunCommand<Core.BuildingCodeSeedCommand>(app); break;
+                    case "PrjVolumeCodeAuto":       RunCommand<Core.ProjectVolumeCodeAutoPopulateCommand>(app); break;
+                    case "FederationReview":        RunCommand<Core.FederationCoordinationReviewCommand>(app); break;
+                    case "SeqRangeValidation":      RunCommand<Core.SeqRangeValidationCommand>(app); break;
+                    case "BuildingAwareCDEFolders": RunCommand<Core.BuildingAwareCDEFoldersCommand>(app); break;
 
                     // ── Phase 42: Coordination Center Commands ──
                     case "CoordinationCenter": RunCommand<BIMManager.CoordinationCenterCommand>(app); break;

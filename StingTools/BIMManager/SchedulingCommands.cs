@@ -701,6 +701,16 @@ namespace StingTools.BIMManager
             int skippedCount = 0;
             var skippedCategories = new Dictionary<string, int>();
 
+            // Phase 108k Item 5 — BOQ × 4D/5D cash-flow integration.
+            // Prefer the LIVE BOQ rates (per-category averages of the
+            // modeled BOQLineItem rates, picks up the P0 "Override" edits
+            // the QS made inline) over cost_rates_5d.csv / DefaultCostRates
+            // so the cash-flow curve and 4D timeline stay consistent with
+            // the BOQ Cost Manager's totals.
+            Dictionary<string, (double rate, string unit, string description)> boqRateMap = null;
+            try { boqRateMap = StingTools.BOQ.BOQBccBridge.GetBOQCostRateTable(doc); }
+            catch (Exception ex) { StingLog.Warn($"BOQ rate-table lookup: {ex.Message}"); }
+
             // GAP-024: Build sets of phase IDs for cost exclusion
             var temporaryPhaseIds = new HashSet<long>();
             foreach (Phase ph in doc.Phases.Cast<Phase>())
@@ -756,7 +766,13 @@ namespace StingTools.BIMManager
 
                 double rate;
                 string unit;
-                if (costRates != null && costRates.TryGetValue(cat, out var crVal))
+                // Phase 108k Item 5 priority: LIVE BOQ override rates first.
+                if (boqRateMap != null && boqRateMap.TryGetValue(cat, out var bqVal) && bqVal.rate > 0)
+                {
+                    rate = bqVal.rate;
+                    unit = bqVal.unit;
+                }
+                else if (costRates != null && costRates.TryGetValue(cat, out var crVal))
                 {
                     rate = crVal.rate;
                     unit = crVal.unit;
