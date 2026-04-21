@@ -52,6 +52,7 @@ namespace StingTools.Core.Clash
         // warns CS0067. Suppress rather than delete — the contract is used.
 #pragma warning disable CS0067
         public event Action<int, bool> OnElementFlagChanged;   // (eid, isFlagged)
+        public event Action<ClashRunRecord> OnRunCompleted;    // raised by SeedFromRun
 #pragma warning restore CS0067
 
         private ClashSession(Document doc)

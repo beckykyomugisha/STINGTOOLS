@@ -793,7 +793,9 @@ namespace StingTools.UI
                     case "ValidateTemplate": RunCommand<Temp.ValidateTemplateCommand>(app); break;
                     case "DynamicBindings": RunCommand<Temp.DynamicBindingsCommand>(app); break;
                     case "SchemaValidate": RunCommand<Temp.SchemaValidateCommand>(app); break;
-                    case "BOQExport": RunCommand<Temp.BOQExportCommand>(app); break;
+                    // "BOQExport" is now routed to BOQ.BOQExportCommand at line ~2547 (new BOQ Cost Manager).
+                    // Legacy Phase 5 Temp.BOQExportCommand accessible via "BOQExportLegacy" tag.
+                    case "BOQExportLegacy": RunCommand<Temp.BOQExportCommand>(app); break;
                     case "TemplateVGAudit": RunCommand<Temp.TemplateVGAuditCommand>(app); break;
                     case "ExportIfcPropertyMap": RunCommand<Temp.ExportIfcPropertyMapCommand>(app); break;
                     case "ValidateBepCompliance": RunCommand<Temp.ValidateBepComplianceCommand>(app); break;

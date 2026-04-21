@@ -13,6 +13,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -20,6 +21,12 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.BOQ;
 using StingTools.Core;
+// Disambiguate WPF vs Revit short names (per-file aliases — narrower than fully-qualified paths)
+using Color = System.Windows.Media.Color;
+using Grid = System.Windows.Controls.Grid;
+using Binding = System.Windows.Data.Binding;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using MenuItem = System.Windows.Controls.MenuItem;
 
 namespace StingTools.UI
 {
