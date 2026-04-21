@@ -499,7 +499,31 @@ namespace StingTools.UI
             }
         }
 
+        /// <summary>
+        /// Full UI refresh — updates metrics AND rebuilds every section grid
+        /// + the Materials tab. Use this on initial load, the Refresh button,
+        /// currency toggle, and snapshot comparison.
+        ///
+        /// Do NOT call after an inline cell edit: rebuilding the grids tears
+        /// down the user's freshly-bound VM and races the asynchronous
+        /// parameter write in BOQWriteItemParamsCommand, causing the edit to
+        /// "revert" for a frame. Call RefreshMetrics() instead.
+        /// </summary>
         private void RefreshDisplay()
+        {
+            RefreshMetrics();
+            if (_boq == null) return;
+            RebuildSectionsView();
+            RebuildMaterialsTab();
+        }
+
+        /// <summary>
+        /// Metrics-only refresh — budget strip, totals, coverage strip and
+        /// project-name header. Does NOT touch the section grids, so inline
+        /// edits made in VMs survive. BOQLineItem totals are derived
+        /// properties so recomputing here reads the just-edited state.
+        /// </summary>
+        private void RefreshMetrics()
         {
             if (_boq == null) return;
             _projectName.Text = $"BOQ & Cost Manager — {_boq.ProjectName}";
@@ -534,7 +558,6 @@ namespace StingTools.UI
                 : _health.OverallScore >= 85 ? GreenBrush
                 : _health.OverallScore >= 50 ? AmberBrush : RedBrush;
 
-            // Phase 108b: carbon card
             double carbonKg = _boq.TotalCarbonKg;
             _carbonValue.Text = carbonKg >= 1000
                 ? $"{carbonKg / 1000:F1} tCO₂e"
@@ -547,9 +570,6 @@ namespace StingTools.UI
                 + $"| Embodied carbon {_boq.TotalCarbonKg / 1000.0:F2} tCO₂e";
             _paragraphCoverage.Text = _defaultCoverageText;
             _paragraphCoverage.Foreground = Brushes.Gray;
-
-            RebuildSectionsView();
-            RebuildMaterialsTab();
         }
 
         private void RebuildSectionsView()
@@ -1164,6 +1184,19 @@ namespace StingTools.UI
             }
         }
 
+        /// <summary>
+        /// Called by CellEditEnding when the user commits a cell edit.
+        /// Persists the edit and updates the budget strip — but does NOT
+        /// rebuild the section grids. Rebuilding would tear down the user's
+        /// just-bound VM and race the async CST_UNIT_RATE_UGX write in
+        /// BOQWriteItemParamsCommand, causing the displayed value to flash
+        /// to the new number and then revert to the original. The in-memory
+        /// BOQLineItem already has the new rate (VM setter mutated it), so
+        /// recomputing metrics gives the user the correct picture. The next
+        /// full RefreshAsync (Refresh button, currency toggle, doc re-open)
+        /// will re-read from Revit with CST_RATE_SOURCE=Override honoured by
+        /// the new Pass-0 branch in ResolveRate.
+        /// </summary>
         private void OnItemEdited(BOQItemViewModel vm)
         {
             if (_boq == null) return;
@@ -1175,15 +1208,23 @@ namespace StingTools.UI
                 }
                 else
                 {
-                    // Modeled row — dispatch write of CST_* + ASS_NRM2_PARA_TXT via ExternalEvent
+                    // Mark the in-memory item as Override so any subsequent
+                    // local computation sees it, mirroring what the
+                    // ExternalEvent is about to write to the element.
+                    vm.Underlying.RateSource = "Override";
+
                     StingCommandHandler.SetExtraParam("BOQEditElementId", vm.RevitElementId.ToString());
                     StingCommandHandler.SetExtraParam("BOQEditRateUGX",   vm.Underlying.RateUGX.ToString(CultureInfo.InvariantCulture));
                     StingCommandHandler.SetExtraParam("BOQEditRateUSD",   vm.Underlying.RateUSD.ToString(CultureInfo.InvariantCulture));
                     StingCommandHandler.SetExtraParam("BOQEditNRM2Para",  vm.Underlying.ResolvedNRM2Paragraph ?? "");
                     StingCommandHandler.SetExtraParam("BOQEditNote",      vm.Underlying.Note ?? "");
-                    DispatchAction("BOQWriteItemParams");
+                    // refreshAfter:false — no 300ms delayed RefreshAsync.
+                    // Prevents the "flash then revert" the user reported.
+                    DispatchAction("BOQWriteItemParams", refreshAfter: false);
                 }
-                RefreshDisplay();
+                // Metrics only — keeps the user's edit visible and updates
+                // the totals / budget bar / carbon card in place.
+                RefreshMetrics();
             }
             catch (Exception ex) { StingLog.Error("BOQ OnItemEdited", ex); }
         }
@@ -1513,15 +1554,24 @@ namespace StingTools.UI
             });
         }
 
-        private void DispatchAction(string tag)
+        /// <summary>
+        /// Fire-and-forget dispatch of a command tag to the shared ExternalEvent.
+        /// When refreshAfter=true (default) schedules a 300ms RefreshAsync so
+        /// the panel picks up side effects of the command (spatial changes,
+        /// new tags, etc.). Pass refreshAfter=false from edit commit paths —
+        /// the edit is already visible in the mutated VM and the 300ms rebuild
+        /// races the async parameter write, causing the edit to flash-and-revert.
+        /// </summary>
+        private void DispatchAction(string tag, bool refreshAfter = true)
         {
             try
             {
                 StingDockPanel.DispatchCommand(tag);
-                // 300ms empirically enough for most commands; the refresh is
-                // idempotent so spurious calls are harmless.
-                System.Threading.Tasks.Task.Delay(300)
-                    .ContinueWith(_ => Dispatcher.BeginInvoke(new Action(RefreshAsync)));
+                if (refreshAfter)
+                {
+                    System.Threading.Tasks.Task.Delay(300)
+                        .ContinueWith(_ => Dispatcher.BeginInvoke(new Action(RefreshAsync)));
+                }
             }
             catch (Exception ex) { StingLog.Error($"BOQ DispatchAction({tag})", ex); }
         }
