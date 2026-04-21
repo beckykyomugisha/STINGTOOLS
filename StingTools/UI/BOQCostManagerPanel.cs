@@ -186,10 +186,22 @@ namespace StingTools.UI
             _materialsTab = new TabItem { Header = "Materials",
                 Content = new TextBlock { Text = "Loading…", Margin = new Thickness(14), Foreground = Brushes.Gray } };
             _mainTabs.Items.Add(_materialsTab);
-            root.Children.Add(_mainTabs);
+
+            // Phase 108j — wrap the main TabControl in a Grid host so
+            // ShowTenderSetupInline can stack the tender-setup UI on top,
+            // swapping Visibility rather than re-parenting. The footer's
+            // ＋/Reconcile/Import/Export/★ buttons stay visible in either
+            // mode so the user can cancel back to the BOQ without losing
+            // their place in the tabs.
+            _contentHost = new Grid();
+            _contentHost.Children.Add(_mainTabs);
+            root.Children.Add(_contentHost);
 
             Content = root;
         }
+
+        private Grid _contentHost;
+        private FrameworkElement _tenderSetupView;
 
         private UIElement BuildHeaderStrip()
         {
@@ -465,7 +477,7 @@ namespace StingTools.UI
                     else if (caption.StartsWith("Reconcile")) b.Click += (s, e) => DispatchAction("ReconcileProvisionals");
                     else if (caption.StartsWith("Import")) b.Click += (s, e) => DispatchAction("BOQImport");
                     else if (caption.StartsWith("Export")) b.Click += (s, e) => DispatchAction("BOQExport");
-                    else if (caption.StartsWith("★")) b.Click += (s, e) => DispatchAction("BOQExportProfessional");
+                    else if (caption.StartsWith("★")) b.Click += (s, e) => ShowTenderSetupInline();
                 }
             }
             Grid.SetColumn(right, 1);
@@ -1586,6 +1598,135 @@ namespace StingTools.UI
                     _paragraphCoverage.Foreground = Brushes.Gray;
                 }));
             });
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 108j — inline tender-setup view
+        //  Swaps the BOQ/Materials TabControl for the 4-tab tender setup
+        //  built via BOQTenderDialog.CreateInlineTabs. Avoids a modal
+        //  window so the user keeps their place in the coordination
+        //  center / BCC layout. On Export the config is persisted and a
+        //  SkipDialog ExtraParam flag makes the export command bypass
+        //  its own modal and read straight from project_config.json.
+        // ══════════════════════════════════════════════════════════════════
+
+        private BOQTenderDialog _tenderStaging;
+
+        public void ShowTenderSetupInline()
+        {
+            if (_contentHost == null || Doc == null) return;
+            try
+            {
+                if (_tenderSetupView != null)
+                {
+                    _tenderSetupView.Visibility = Visibility.Visible;
+                    if (_mainTabs != null) _mainTabs.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                _tenderSetupView = BuildTenderSetupView();
+                _contentHost.Children.Add(_tenderSetupView);
+                if (_mainTabs != null) _mainTabs.Visibility = Visibility.Collapsed;
+            }
+            catch (Exception ex) { StingLog.Error("ShowTenderSetupInline", ex); }
+        }
+
+        public void HideTenderSetupInline()
+        {
+            if (_mainTabs != null) _mainTabs.Visibility = Visibility.Visible;
+            if (_tenderSetupView != null) _tenderSetupView.Visibility = Visibility.Collapsed;
+        }
+
+        private FrameworkElement BuildTenderSetupView()
+        {
+            // Construct the dialog without showing it; we only use its tabs.
+            var config = BOQTenderDialog.LoadFromConfig(Doc);
+            _tenderStaging = new BOQTenderDialog(config, Doc);
+            var tabs = _tenderStaging.CreateInlineTabs();
+
+            // Outer inline shell: header band + tabs + action bar
+            var root = new DockPanel { LastChildFill = true, Margin = new Thickness(0), Background = PanelBg };
+
+            // Header (inline replacement for the dialog's window title)
+            var header = new Border { Background = NavyBrush, Padding = new Thickness(14, 10, 14, 10) };
+            var hGrid = new Grid();
+            hGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            hGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var titleStack = new StackPanel();
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = "TENDER BOQ — PRE-EXPORT SETUP", FontSize = 14, FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            });
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = "Fill the fields below, click Export ★ to generate the NRM2 BOQ, or Cancel to return to the Bill view.",
+                FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0xB8, 0xC0, 0xE0)),
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+            Grid.SetColumn(titleStack, 0);
+            hGrid.Children.Add(titleStack);
+            var backBtn = new Button
+            {
+                Content = "✕  Back to BOQ", Height = 26, Padding = new Thickness(10, 2, 10, 2),
+                Background = Brushes.Transparent, Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xB8, 0xC0, 0xE0)),
+                BorderThickness = new Thickness(1), Cursor = Cursors.Hand, FontSize = 10
+            };
+            backBtn.Click += (s, e) => HideTenderSetupInline();
+            Grid.SetColumn(backBtn, 1);
+            hGrid.Children.Add(backBtn);
+            header.Child = hGrid;
+            DockPanel.SetDock(header, Dock.Top);
+            root.Children.Add(header);
+
+            // Footer — Cancel + Export ★
+            var actionBar = new Border
+            {
+                Background = Brushes.White, BorderBrush = BorderColor,
+                BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(14, 8, 14, 8)
+            };
+            var aGrid = new Grid();
+            aGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            aGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            aGrid.Children.Add(new TextBlock
+            {
+                Text = "Changes save to project_config.json under BOQ_TENDER_* keys on Export.",
+                Foreground = Brushes.Gray, FontSize = 10, FontStyle = FontStyles.Italic,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
+            Grid.SetColumn(btnRow, 1);
+            var cancelBtn = new Button { Content = "Cancel", Width = 90, Height = 30, Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand };
+            cancelBtn.Click += (s, e) => HideTenderSetupInline();
+            var exportBtn = new Button
+            {
+                Content = "Export ★", Width = 130, Height = 30, FontWeight = FontWeights.Bold,
+                Background = OrangeBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            exportBtn.Click += (s, e) =>
+            {
+                try
+                {
+                    // _tenderStaging.Config is the same instance every tab
+                    // field handler wrote to, so the dialog's existing
+                    // persistence logic works unchanged.
+                    BOQTenderDialog.PersistToConfig(_tenderStaging.Config);
+                    StingCommandHandler.SetExtraParam("BOQTender_SkipDialog", "true");
+                    HideTenderSetupInline();
+                    DispatchAction("BOQExportProfessional", refreshAfter: false);
+                }
+                catch (Exception ex) { StingLog.Error("BOQ inline Export", ex); }
+            };
+            btnRow.Children.Add(cancelBtn);
+            btnRow.Children.Add(exportBtn);
+            aGrid.Children.Add(btnRow);
+            actionBar.Child = aGrid;
+            DockPanel.SetDock(actionBar, Dock.Bottom);
+            root.Children.Add(actionBar);
+
+            root.Children.Add(tabs);
+            return root;
         }
 
         /// <summary>

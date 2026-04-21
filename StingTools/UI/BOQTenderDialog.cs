@@ -26,6 +26,7 @@ using ComboBox = System.Windows.Controls.ComboBox;
 using CheckBox = System.Windows.Controls.CheckBox;
 using Grid = System.Windows.Controls.Grid;
 using Binding = System.Windows.Data.Binding;
+using Color = System.Windows.Media.Color;   // collides with Autodesk.Revit.DB.Color
 
 namespace StingTools.BOQ
 {
@@ -116,6 +117,36 @@ namespace StingTools.BOQ
         }
 
         public BOQTenderConfig Result => _accepted ? _config : null;
+
+        /// <summary>
+        /// Config instance bound to the 4 tabs. Exposed for the inline
+        /// panel flow (BOQCostManagerPanel.BuildTenderSetupView) so
+        /// edits in the tab field handlers mutate this object directly,
+        /// letting the caller persist it without closing a modal window.
+        /// </summary>
+        public BOQTenderConfig Config => _config;
+
+        /// <summary>
+        /// Build a fresh TabControl containing the same 4 tabs the modal
+        /// dialog uses. Used by BOQCostManagerPanel to host the tender
+        /// setup inline — no modal, no OS-level window. The tab builders
+        /// write straight into this dialog's _config so the caller gets
+        /// the edited values via the Config property.
+        /// </summary>
+        public TabControl CreateInlineTabs()
+        {
+            var tabs = new TabControl
+            {
+                Margin = new Thickness(12),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0)
+            };
+            tabs.Items.Add(new TabItem { Header = "1. Project Identity", Content = BuildProjectTab() });
+            tabs.Items.Add(new TabItem { Header = "2. Professional Team", Content = BuildTeamTab() });
+            tabs.Items.Add(new TabItem { Header = "3. Contract",          Content = BuildContractTab() });
+            tabs.Items.Add(new TabItem { Header = "4. Pricing & Output",  Content = BuildOutputTab() });
+            return tabs;
+        }
 
         // ══════════════════════════════════════════════════════════════════
         //  Layout

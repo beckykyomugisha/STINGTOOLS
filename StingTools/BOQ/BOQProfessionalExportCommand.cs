@@ -74,19 +74,34 @@ namespace StingTools.BOQ
                     return Result.Cancelled;
                 }
 
-                // Phase 108h — show pre-export tender dialog. Loads the last-used
-                // values from project_config.json and auto-fills anything still
-                // blank from Revit Project Information. User can override every
-                // field and choose Pricing Mode (Tender Issue = blank rates).
-                var initialConfig = BOQTenderDialog.LoadFromConfig(doc);
-                var dialog = new BOQTenderDialog(initialConfig, doc);
-                var ownerHandle = new System.Windows.Interop.WindowInteropHelper(dialog);
-                try { ownerHandle.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle; }
-                catch (Exception ex) { StingLog.Warn($"BOQ dialog owner: {ex.Message}"); }
-                bool? dr = dialog.ShowDialog();
-                if (dr != true || dialog.Result == null)
-                    return Result.Cancelled;
-                var tcfg = dialog.Result;
+                // Phase 108h / 108j — tender config acquisition.
+                // When invoked from the inline-panel flow on BOQCostManagerPanel
+                // the caller has already persisted config values to
+                // project_config.json and set BOQTender_SkipDialog=true, so we
+                // bypass the modal and read from disk. Otherwise, show the
+                // standalone dialog (kept as a fall-back entry point).
+                BOQTenderConfig tcfg;
+                bool skipDialog = string.Equals(
+                    StingTools.UI.StingCommandHandler.GetExtraParam("BOQTender_SkipDialog"),
+                    "true", StringComparison.OrdinalIgnoreCase);
+                if (skipDialog)
+                {
+                    tcfg = BOQTenderDialog.LoadFromConfig(doc);
+                    StingTools.UI.StingCommandHandler.ClearExtraParam("BOQTender_SkipDialog");
+                    StingLog.Info("BOQ export: inline-panel mode — dialog skipped, config loaded from project_config.json");
+                }
+                else
+                {
+                    var initialConfig = BOQTenderDialog.LoadFromConfig(doc);
+                    var dialog = new BOQTenderDialog(initialConfig, doc);
+                    var ownerHandle = new System.Windows.Interop.WindowInteropHelper(dialog);
+                    try { ownerHandle.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle; }
+                    catch (Exception ex) { StingLog.Warn($"BOQ dialog owner: {ex.Message}"); }
+                    bool? dr = dialog.ShowDialog();
+                    if (dr != true || dialog.Result == null)
+                        return Result.Cancelled;
+                    tcfg = dialog.Result;
+                }
 
                 // Pre-export — guarantee every line has a clean paragraph so
                 // bill descriptions never ship with [tokens] or blanks.
@@ -385,12 +400,16 @@ namespace StingTools.BOQ
             int row = 19;
             foreach (var (label, value) in meta)
             {
-                ws.Cell(row, 2).Value = label.ToUpperInvariant() + "   " + value;
+                // ClosedXML 0.104: IXLCell.RichText was replaced by
+                // GetRichText() method (creates if absent). Clearing the
+                // value first guarantees GetRichText returns a fresh run set.
                 var lbl = ws.Cell(row, 2);
-                lbl.RichText.ClearText();
-                lbl.RichText.AddText(label.ToUpperInvariant() + "   ")
+                lbl.Value = "";
+                var rt = lbl.GetRichText();
+                rt.ClearText();
+                rt.AddText(label.ToUpperInvariant() + "   ")
                     .SetFontName(HeadFont).SetFontSize(9).SetBold(true).SetFontColor(XLColor.FromArgb(110, 110, 110));
-                lbl.RichText.AddText(value)
+                rt.AddText(value)
                     .SetFontName(HeadFont).SetFontSize(12).SetFontColor(Navy);
                 lbl.Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
                 row++;
