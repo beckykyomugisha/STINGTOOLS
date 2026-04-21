@@ -10,6 +10,7 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.Attributes;
 using StingTools.UI;
 using StingTools.BIMManager;
+using StingTools.Clash;
 using Planscape.PluginSync;
 
 namespace StingTools.Core
@@ -47,6 +48,11 @@ namespace StingTools.Core
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
+
+                // Phase 106: reserve the Live Clash Updater id. Triggers are
+                // deferred to a follow-on phase so models that don't use clash
+                // detection pay zero cost at startup.
+                LiveClashUpdater.Register(application);
 
                 // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
                 // on first command. This ensures:
