@@ -34,6 +34,7 @@ using ContextMenu = System.Windows.Controls.ContextMenu;
 using MenuItem = System.Windows.Controls.MenuItem;
 using TextBox = System.Windows.Controls.TextBox;   // collides with Autodesk.Revit.UI.TextBox
 using Ellipse = System.Windows.Shapes.Ellipse;     // collides with Autodesk.Revit.DB.Ellipse
+using Visibility = System.Windows.Visibility;      // collides with Autodesk.Revit.DB.Visibility
 
 namespace StingTools.UI
 {
