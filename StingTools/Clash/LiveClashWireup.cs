@@ -23,6 +23,24 @@ namespace StingTools.Core.Clash
                     LiveClashHandler.Event?.Raise();
                 }
             };
+            // rec-20: Clear the per-document ClashSession singleton when Revit
+            // tells us the document is closing. Without this, stale mesh + OBB
+            // trees for the just-closed doc sit in memory forever (on a project
+            // with 50k elements that's 100-200 MB leaked per close/reopen cycle)
+            // AND — worse — if the document is later reopened with geometry
+            // changes made outside Revit, the stale session returns false
+            // clash verdicts from the old mesh cache.
+            uiApp.ControlledApplication.DocumentClosing += (s, e) =>
+            {
+                try
+                {
+                    if (e?.Document != null) ClashSession.Clear(e.Document);
+                }
+                catch (System.Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"ClashSession.Clear on DocumentClosing: {ex.Message}");
+                }
+            };
             _subscribed = true;
         }
     }

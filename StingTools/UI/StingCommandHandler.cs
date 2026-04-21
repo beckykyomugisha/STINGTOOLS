@@ -1407,6 +1407,17 @@ namespace StingTools.UI
                     case "ExportPermissionMatrix": RunCommand<BIMManager.ExportPermissionMatrixCommand>(app); break;
                     case "ExportCoordLogXlsx":     RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
 
+                    // Clash Detection (rec-4/7/16). Inline dispatch promoted
+                    // to real IExternalCommand classes in ClashSessionCommands.cs
+                    // so BCC's DispatchCoordAction (which uses
+                    // WorkflowEngine.GetCommandInstance) resolves them the same
+                    // way the dockable-panel path does.
+                    case "ClashRun":              RunCommand<Core.Clash.ClashRunCommand>(app); break;
+                    case "ClashBcfExport":        RunCommand<Core.Clash.ClashBcfExportCommand>(app); break;
+                    case "ClashSessionRefresh":   RunCommand<Core.Clash.ClashSessionRefreshCommand>(app); break;
+                    case "ClashSessionClear":     RunCommand<Core.Clash.ClashSessionClearCommand>(app); break;
+                    case "ClashMatrixEdit":       RunCommand<Core.Clash.ClashMatrixEditCommand>(app); break;
+
                     // Warnings Manager (Phase 46)
                     case "WarningsDashboard": RunCommand<Core.WarningsDashboardCommand>(app); break;
                     case "WarningsAutoFix": RunCommand<Core.WarningsAutoFixCommand>(app); break;

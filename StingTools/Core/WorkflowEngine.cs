@@ -1450,6 +1450,19 @@ namespace StingTools.Core
                 case "TemplateAudit":           return new Temp.TemplateAuditCommand();
                 case "TemplateComplianceScore": return new Temp.TemplateComplianceScoreCommand();
                 case "ClashDetection":          return new Temp.ClashDetectionCommand();
+                // Phase 5 clash engine — BCC Clash-tab buttons route through
+                // BIMCoordinationCenterCommand.DispatchCoordAction which uses
+                // WorkflowEngine.GetCommandInstance to resolve a Tag to an
+                // IExternalCommand. The StingCommandHandler.Execute switch
+                // (which I extended in rec-4) handles the SAME tags from the
+                // dockable-panel path, but BCC doesn't go through that switch
+                // — so the tags have to be registered here too or every
+                // Clash-tab button shows "Action 'X' is not handled".
+                case "ClashRun":                return new Core.Clash.ClashRunCommand();
+                case "ClashBcfExport":          return new Core.Clash.ClashBcfExportCommand();
+                case "ClashSessionRefresh":     return new Core.Clash.ClashSessionRefreshCommand();
+                case "ClashSessionClear":       return new Core.Clash.ClashSessionClearCommand();
+                case "ClashMatrixEdit":         return new Core.Clash.ClashMatrixEditCommand();
                 case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
                 case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
                 case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();

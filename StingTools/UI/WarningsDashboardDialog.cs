@@ -83,6 +83,14 @@ namespace StingTools.UI
             public string SelectedOperation { get; set; }
             public TextBlock StatusText { get; set; }
             public List<int> SelectedElementIds { get; } = new();
+            /// <summary>
+            /// Real per-document WarningReport. When set, BuildBrowseSelectTab
+            /// populates its TreeView from Report.RootCauseGroups instead of
+            /// the hardcoded sample data. Fix for "warnings remain the same
+            /// even when projects change" — prior code ignored the per-project
+            /// report entirely.
+            /// </summary>
+            public Core.WarningReport Report { get; set; }
         }
 
         /// <summary>

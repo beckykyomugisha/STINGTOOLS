@@ -874,6 +874,17 @@ namespace StingTools.Core
 
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
+
+            // Clash rec-2: Unregister the live clash IUpdater. Safe against re-entry
+            // and no-op if never registered.
+            try
+            {
+                Autodesk.Revit.DB.UpdaterRegistry.UnregisterUpdater(
+                    StingTools.Core.Clash.LiveClashUpdater.UpdaterGuid);
+                StingLog.Info("LiveClashUpdater unregistered");
+            }
+            catch (Exception ex) { StingLog.Warn($"LiveClashUpdater unregister: {ex.Message}"); }
+
             UI.ThemeManager.ClearTarget(); // H-02: Prevent memory leak from static WPF reference
             StingLog.Shutdown();
             return Result.Succeeded;

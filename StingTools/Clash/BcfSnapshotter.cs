@@ -61,7 +61,11 @@ namespace StingTools.Core.Clash
                 using (var t = new Transaction(_doc, "STING snapshot cleanup"))
                 {
                     t.Start();
-                    try { _doc.Delete(v.Id); } catch { }
+                    try { _doc.Delete(v.Id); }
+                    // H9: Temp 3D-view cleanup. If the view can't be deleted
+                    // (e.g. another transaction is holding it), log but don't
+                    // fail the overall snapshot — the PNG is already on disk.
+                    catch (Exception delEx) { StingLog.Warn($"BcfSnapshotter cleanup {v.Id}: {delEx.Message}"); }
                     t.Commit();
                 }
 
