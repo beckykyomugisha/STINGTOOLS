@@ -60,8 +60,8 @@ namespace StingTools.BOQ
 
             var boq = new BOQDocument
             {
-                ProjectName = doc.ProjectInformation?.Name ?? doc.Title ?? "Unknown project",
-                DocumentTitle = "Bill of Quantities",
+                ProjectName = ReadProjectName(doc),
+                DocumentTitle = ReadProjectDocumentTitle(doc),
                 SnapshotLabel = "Live",
                 SnapshotType = "Live",
                 SnapshotDate = DateTime.UtcNow
@@ -520,6 +520,45 @@ namespace StingTools.BOQ
             }
             // Fallback — project_config.json PROJECT_BUDGET_UGX
             return TagConfig.GetConfigDouble("PROJECT_BUDGET_UGX", 0);
+        }
+
+        /// <summary>
+        /// Read the "Project Name" field from the Project Information dialog.
+        /// doc.ProjectInformation.Name returns the ELEMENT name (an internal
+        /// identifier), not the value the user types into "Project Name".
+        /// That field is bound to BuiltInParameter.PROJECT_NAME.
+        /// </summary>
+        private static string ReadProjectName(Document doc)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                if (pi != null)
+                {
+                    string v = pi.get_Parameter(BuiltInParameter.PROJECT_NAME)?.AsString();
+                    if (!string.IsNullOrWhiteSpace(v)) return v;
+                    if (!string.IsNullOrWhiteSpace(pi.Name)) return pi.Name;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadProjectName: {ex.Message}"); }
+            return !string.IsNullOrWhiteSpace(doc?.Title) ? doc.Title : "Unknown project";
+        }
+
+        /// <summary>
+        /// BOQ document title — combines the Project Number (if set) with
+        /// "Bill of Quantities" so the exported workbook and the header
+        /// strip identify the project at a glance.
+        /// </summary>
+        private static string ReadProjectDocumentTitle(Document doc)
+        {
+            try
+            {
+                string num = doc?.ProjectInformation?.get_Parameter(BuiltInParameter.PROJECT_NUMBER)?.AsString();
+                if (!string.IsNullOrWhiteSpace(num))
+                    return $"Bill of Quantities — {num}";
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadProjectDocumentTitle: {ex.Message}"); }
+            return "Bill of Quantities";
         }
 
         // ══════════════════════════════════════════════════════════════════

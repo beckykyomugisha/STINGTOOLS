@@ -725,9 +725,10 @@ namespace StingTools.UI
             });
             grid.Columns.Add(BuildEditableColumn("Note", nameof(BOQItemViewModel.Note), 200, isNumber: false));
 
-            // NRM2 detail panel — shown below selected row via RowDetailsTemplate
+            // NRM2 detail panel — shown under EVERY row so descriptions are
+            // always visible (this is the whole point of a BOQ document).
             grid.RowDetailsTemplate = BuildNrm2DetailTemplate();
-            grid.RowDetailsVisibilityMode = DataGridRowDetailsVisibilityMode.VisibleWhenSelected;
+            grid.RowDetailsVisibilityMode = DataGridRowDetailsVisibilityMode.Visible;
 
             // Double-click: enter edit mode (single click selects + shows details)
             grid.MouseDoubleClick += (s, e) =>
@@ -852,46 +853,72 @@ namespace StingTools.UI
         private DataTemplate BuildNrm2DetailTemplate()
         {
             var detailTpl = new DataTemplate();
+
+            // Outer soft-blue panel
             var outerBorder = new FrameworkElementFactory(typeof(Border));
             outerBorder.SetValue(Border.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(245, 248, 252)));
+                new SolidColorBrush(Color.FromRgb(248, 250, 253)));
             outerBorder.SetValue(Border.BorderBrushProperty,
-                new SolidColorBrush(Color.FromRgb(180, 200, 220)));
+                new SolidColorBrush(Color.FromRgb(210, 220, 235)));
             outerBorder.SetValue(Border.BorderThicknessProperty, new Thickness(0, 0, 0, 1));
-            outerBorder.SetValue(Border.PaddingProperty, new Thickness(8, 6, 8, 6));
+            outerBorder.SetValue(Border.PaddingProperty, new Thickness(10, 6, 10, 6));
 
             var detailSp = new FrameworkElementFactory(typeof(StackPanel));
 
+            // "NRM2 DESCRIPTION" caption
             var nrm2Label = new FrameworkElementFactory(typeof(TextBlock));
-            nrm2Label.SetValue(TextBlock.TextProperty, "NRM2 paragraph");
-            nrm2Label.SetValue(TextBlock.FontSizeProperty, 10.0);
+            nrm2Label.SetValue(TextBlock.TextProperty, "NRM2 DESCRIPTION");
+            nrm2Label.SetValue(TextBlock.FontSizeProperty, 9.0);
+            nrm2Label.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
             nrm2Label.SetValue(TextBlock.ForegroundProperty,
-                new SolidColorBrush(Color.FromRgb(100, 120, 150)));
+                new SolidColorBrush(Color.FromRgb(110, 130, 160)));
             nrm2Label.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 0, 3));
             detailSp.AppendChild(nrm2Label);
+
+            // Grid so the watermark TextBlock can overlay the TextBox
+            var overlayGrid = new FrameworkElementFactory(typeof(Grid));
 
             var nrm2Box = new FrameworkElementFactory(typeof(TextBox));
             nrm2Box.SetBinding(TextBox.TextProperty, new Binding(nameof(BOQItemViewModel.NRM2Paragraph))
                 { UpdateSourceTrigger = UpdateSourceTrigger.LostFocus, Mode = BindingMode.TwoWay });
             nrm2Box.SetValue(TextBox.TextWrappingProperty, TextWrapping.Wrap);
             nrm2Box.SetValue(TextBox.AcceptsReturnProperty, true);
-            nrm2Box.SetValue(TextBox.FontSizeProperty, 11.0);
-            nrm2Box.SetValue(TextBox.FontStyleProperty, FontStyles.Italic);
+            nrm2Box.SetValue(TextBox.FontSizeProperty, 11.5);
             nrm2Box.SetValue(TextBox.ForegroundProperty,
-                new SolidColorBrush(Color.FromRgb(40, 60, 100)));
+                new SolidColorBrush(Color.FromRgb(40, 50, 80)));
             nrm2Box.SetValue(TextBox.BackgroundProperty, Brushes.Transparent);
             nrm2Box.SetValue(TextBox.BorderThicknessProperty, new Thickness(0, 0, 0, 1));
             nrm2Box.SetValue(TextBox.BorderBrushProperty,
-                new SolidColorBrush(Color.FromRgb(200, 215, 230)));
-            detailSp.AppendChild(nrm2Box);
+                new SolidColorBrush(Color.FromRgb(220, 230, 245)));
+            nrm2Box.SetValue(TextBox.PaddingProperty, new Thickness(2, 2, 2, 2));
+            overlayGrid.AppendChild(nrm2Box);
 
+            // Watermark — shows when paragraph is empty; click the TextBox
+            // (which sits under the watermark) to start typing.
+            var hint = new FrameworkElementFactory(typeof(TextBlock));
+            hint.SetValue(TextBlock.TextProperty,
+                "Click to enter NRM2 description for this BOQ item…");
+            hint.SetValue(TextBlock.FontSizeProperty, 11.0);
+            hint.SetValue(TextBlock.FontStyleProperty, FontStyles.Italic);
+            hint.SetValue(TextBlock.ForegroundProperty,
+                new SolidColorBrush(Color.FromRgb(170, 180, 200)));
+            hint.SetValue(TextBlock.IsHitTestVisibleProperty, false);
+            hint.SetValue(TextBlock.MarginProperty, new Thickness(3, 2, 0, 0));
+            hint.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Top);
+            hint.SetBinding(TextBlock.VisibilityProperty,
+                new Binding(nameof(BOQItemViewModel.NRM2EmptyHintVisibility)));
+            overlayGrid.AppendChild(hint);
+
+            detailSp.AppendChild(overlayGrid);
+
+            // Footnote
             var editNote = new FrameworkElementFactory(typeof(TextBlock));
             editNote.SetValue(TextBlock.TextProperty,
                 "Edit inline · click away or press Tab to save · Export and Save Snapshot persist the paragraph");
             editNote.SetValue(TextBlock.FontSizeProperty, 9.0);
             editNote.SetValue(TextBlock.ForegroundProperty,
-                new SolidColorBrush(Color.FromRgb(160, 160, 160)));
-            editNote.SetValue(TextBlock.MarginProperty, new Thickness(0, 3, 0, 0));
+                new SolidColorBrush(Color.FromRgb(160, 170, 180)));
+            editNote.SetValue(TextBlock.MarginProperty, new Thickness(0, 4, 0, 0));
             detailSp.AppendChild(editNote);
 
             outerBorder.AppendChild(detailSp);
@@ -1486,23 +1513,36 @@ namespace StingTools.UI
             set { if (_item.Note != value) { _item.Note = value ?? ""; N(nameof(Note)); } }
         }
 
+        /// <summary>
+        /// NRM2 BOQ description paragraph. Always editable — when the backend
+        /// couldn't resolve a template the getter returns empty (so the
+        /// TextBox is clean for typing). The detail panel under each row
+        /// shows a watermark hint label when this is empty.
+        /// </summary>
         public string NRM2Paragraph
         {
-            get => string.IsNullOrEmpty(_item.ResolvedNRM2Paragraph)
-                ? "(no NRM2 description resolved — click to enter one manually)"
-                : _item.ResolvedNRM2Paragraph;
+            get => _item.ResolvedNRM2Paragraph ?? "";
             set
             {
                 string v = (value ?? "").Trim();
-                // Reject the placeholder text so clicking in and out doesn't commit it
-                if (v.StartsWith("(no NRM2 description")) v = "";
                 if (_item.ResolvedNRM2Paragraph != v)
                 {
                     _item.ResolvedNRM2Paragraph = v;
                     N(nameof(NRM2Paragraph));
+                    N(nameof(HasNRM2Paragraph));
+                    N(nameof(NRM2EmptyHintVisibility));
                 }
             }
         }
+
+        public bool HasNRM2Paragraph => !string.IsNullOrEmpty(_item.ResolvedNRM2Paragraph);
+
+        /// <summary>
+        /// Visibility of the "Click to enter NRM2 description…" watermark
+        /// shown over an empty paragraph TextBox.
+        /// </summary>
+        public Visibility NRM2EmptyHintVisibility
+            => HasNRM2Paragraph ? Visibility.Collapsed : Visibility.Visible;
 
         public string SourceLabel
         {
