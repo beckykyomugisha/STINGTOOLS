@@ -342,6 +342,29 @@ namespace StingTools.Tags
 
             dg.ItemsSource = rows;
 
+            // Phase 104: forward mouse wheel from the inner DataGrid up to the OUTER
+            // ScrollViewer. Previously the DataGrid's internal scroll-viewer swallowed
+            // the wheel event and BIM coordinators had to click and drag the scrollbar
+            // to move between sections. Walks the visual tree until it finds a
+            // ScrollViewer (the legend's main scroll) and re-raises the event there.
+            dg.PreviewMouseWheel += (s, e) =>
+            {
+                if (e.Handled) return;
+                System.Windows.DependencyObject p = dg;
+                while (p != null)
+                {
+                    p = System.Windows.Media.VisualTreeHelper.GetParent(p);
+                    if (p is ScrollViewer sv)
+                    {
+                        e.Handled = true;
+                        var newArgs = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+                        { RoutedEvent = UIElement.MouseWheelEvent, Source = s };
+                        sv.RaiseEvent(newArgs);
+                        return;
+                    }
+                }
+            };
+
             // Context menu: Copy Code, Copy Row, Copy Section, Copy All Visible.
             // Phase 99 fix: both ContextMenu and MenuItem exist in WPF
             // (System.Windows.Controls) AND in Autodesk.Revit.UI, and both

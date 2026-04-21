@@ -1524,6 +1524,20 @@ namespace StingTools.Core
                 case "SaveWorkingCalendar":    return new BIMManager.WorkingCalendarCommand();
                 case "NavisworksTimeLiner":    return new BIMManager.NavisworksTimeLinerExportCommand();
                 case "ElementCostTrace":       return new BIMManager.ElementCostTraceCommand();
+
+                // Phase 104: GAP-analysis commands (GapAnalysisFixCommands.cs) dispatched from BCC
+                // action bar via WarningsManager.DispatchCoordAction. Previously only resolvable via
+                // StingCommandHandler, so BCC ExternalEvent path produced "Action 'X' is not handled".
+                case "ExportDashboardHTML":    return new BIMManager.ExportDashboardHTMLCommand();
+                case "AutoMeetingMinutes":     return new BIMManager.AutoMeetingMinutesCommand();
+                case "BEPStageValidation":     return new BIMManager.BEPStageValidationCommand();
+                case "IssueRevisionLink":      return new BIMManager.IssueRevisionLinkCommand();
+                case "TagRevisionDiff":        return new BIMManager.TagRevisionDiffCommand();
+                case "AutoScheduleMeetings":   return new BIMManager.AutoScheduleMeetingsCommand();
+                case "COBieExtendedImport":    return new BIMManager.COBieExtendedImportCommand();
+                // "LinkIssueElements" is the BCC-facing alias for SelectIssueElementsCommand — adds
+                // the alias to the existing SelectIssueElements target so the BCC action bar works.
+                case "LinkIssueElements":      return new BIMManager.SelectIssueElementsCommand();
                 // WF-02: EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand.
                 // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
                 // which is handled by the plugin hook fallback + error logging in RunCommandByTag.

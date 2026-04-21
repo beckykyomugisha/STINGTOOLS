@@ -609,7 +609,10 @@ namespace StingTools.UI
         private BIMCoordinationCenter(CoordData data)
         {
             _data = data;
-            Title = "STING BIM Coordination Center";
+            // Phase 104: Rebranded — drop "STING" prefix per user request. The window is now
+            // titled just "BIM Coordination Center" so it reads as a role-based tool rather
+            // than a product feature. "STINGTOOLS BCC" appears in logs/audit trail only.
+            Title = "BIM Coordination Center";
             Width = 1200; Height = 820;
             MinWidth = 900; MinHeight = 600;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -795,7 +798,7 @@ namespace StingTools.UI
             var leftStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             leftStack.Children.Add(new TextBlock
             {
-                Text = "STING BIM COORDINATION CENTER",
+                Text = "BIM COORDINATION CENTER",
                 Foreground = Brushes.White, FontSize = 16, FontWeight = FontWeights.Bold,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 20, 0)
             });
@@ -2503,6 +2506,35 @@ namespace StingTools.UI
         private static readonly (string Code, string Label, string Series, string Tooltip)[] IsoRevisionCodes =
             BuildIsoRevisionCodes();
 
+        // Phase 104: user-hidden ISO revision codes. BIM coordinators asked for a way to
+        // delete codes from the dropdown that are not relevant to their project (e.g., a
+        // residential project never uses IFT/IFP tender stamps). Persisted to
+        // project_config.json under key BCC_HIDDEN_ISO_REVISIONS as a CSV of codes.
+        private static HashSet<string> _hiddenIsoRevisions;
+        private static HashSet<string> HiddenIsoRevisions()
+        {
+            if (_hiddenIsoRevisions != null) return _hiddenIsoRevisions;
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string csv = Core.TagConfig.GetConfigValue("BCC_HIDDEN_ISO_REVISIONS");
+                if (!string.IsNullOrEmpty(csv))
+                    foreach (var c in csv.Split(',')) { var t = c.Trim(); if (t.Length > 0) set.Add(t); }
+            }
+            catch (Exception ex) { StingLog.Warn($"HiddenIsoRevisions load: {ex.Message}"); }
+            _hiddenIsoRevisions = set;
+            return set;
+        }
+        private static void SaveHiddenIsoRevisions()
+        {
+            try
+            {
+                var set = HiddenIsoRevisions();
+                Core.TagConfig.SetConfigValue("BCC_HIDDEN_ISO_REVISIONS", string.Join(",", set));
+            }
+            catch (Exception ex) { StingLog.Warn($"SaveHiddenIsoRevisions: {ex.Message}"); }
+        }
+
         private static (string Code, string Label, string Series, string Tooltip)[] BuildIsoRevisionCodes()
         {
             var list = new List<(string, string, string, string)>();
@@ -2837,9 +2869,13 @@ namespace StingTools.UI
                     Foreground = Br(headerColour)
                 });
             }
+            // Phase 104: filter codes the user has hidden via the Delete button.
+            var hidden = HiddenIsoRevisions();
             void AddSeries(string seriesKey, string header, Color headerColour)
             {
-                var entries = IsoRevisionCodes.Where(r => r.Series == seriesKey).ToList();
+                var entries = IsoRevisionCodes
+                    .Where(r => r.Series == seriesKey && !hidden.Contains(r.Code))
+                    .ToList();
                 if (entries.Count == 0) return;
                 AddSeriesHeader(header, headerColour);
                 foreach (var rc in entries)
@@ -2919,9 +2955,59 @@ namespace StingTools.UI
                 DispatchAction($"CreateRevision|{selCode}|{selDisc}|{selDesc}");
             };
 
+            // Phase 104: "Delete code" removes the currently-selected ISO revision code
+            // from the dropdown (persists to project_config.json). "Restore all" clears the
+            // hidden list. These operate on the IsoRevisionCodes catalogue — not on the
+            // revisions already created on the model.
+            var deleteCodeBtn = new Button
+            {
+                Content = "\u2212 Delete Code", Height = 28, Padding = new Thickness(10,0,10,0),
+                Background = Br(Color.FromRgb(0xC6, 0x28, 0x28)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                Margin = new Thickness(0,0,6,0),
+                ToolTip = "Hide the currently-selected ISO revision code from the dropdown (persists per project). Does not affect existing revisions."
+            };
+            deleteCodeBtn.Click += (s, e) =>
+            {
+                string code = (codeDropdown.SelectedItem as ComboBoxItem)?.Tag as string;
+                if (string.IsNullOrWhiteSpace(code))
+                {
+                    if (_statusBar != null) _statusBar.Text = "Select a preset ISO code from the dropdown first (typed custom codes cannot be deleted).";
+                    return;
+                }
+                var set = HiddenIsoRevisions();
+                set.Add(code);
+                SaveHiddenIsoRevisions();
+                // Remove the corresponding ComboBoxItem from the dropdown live
+                ComboBoxItem toRemove = null;
+                foreach (var it in codeDropdown.Items)
+                    if (it is ComboBoxItem ci && (ci.Tag as string) == code) { toRemove = ci; break; }
+                if (toRemove != null) codeDropdown.Items.Remove(toRemove);
+                if (codeDropdown.Items.Count > 0) codeDropdown.SelectedIndex = 1; // skip first header
+                if (_statusBar != null) _statusBar.Text = $"Hidden ISO revision code '{code}'. Click 'Restore All' to bring it back.";
+            };
+            var restoreCodesBtn = new Button
+            {
+                Content = "\u21BA Restore All", Height = 28, Padding = new Thickness(10,0,10,0),
+                Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                Margin = new Thickness(0,0,8,0),
+                ToolTip = "Restore all hidden ISO revision codes to the dropdown"
+            };
+            restoreCodesBtn.Click += (s, e) =>
+            {
+                HiddenIsoRevisions().Clear();
+                SaveHiddenIsoRevisions();
+                if (_statusBar != null) _statusBar.Text = "All ISO revision codes restored. Close and reopen the Revisions tab to see them.";
+                // Navigate away and back to rebuild
+                try { if (_tabCache.ContainsKey(TabRevisions)) _tabCache.Remove(TabRevisions); NavigateTo(TabRevisions); } catch (Exception ex) { StingLog.Warn($"restoreCodesBtn: {ex.Message}"); }
+            };
+
             var formRow = new WrapPanel { Margin = new Thickness(0,0,0,4) };
             formRow.Children.Add(new TextBlock { Text = "ISO Code: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
             formRow.Children.Add(codeDropdown);
+            formRow.Children.Add(deleteCodeBtn);
+            formRow.Children.Add(restoreCodesBtn);
             formRow.Children.Add(new TextBlock { Text = "Discipline: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
             formRow.Children.Add(discDropdown);
             formRow.Children.Add(new TextBlock { Text = "Description: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
@@ -3514,7 +3600,7 @@ namespace StingTools.UI
                             $"Hi {tm.Name},\n\n" +
                             $"You've been added to the Planscape project '{_data.ProjectName}' as {tm.Role}.\n" +
                             $"Sign in at {BIMManager.PlanscapeServerClient.Instance.ServerUrl}\n\n" +
-                            "\u2014 Sent from STING BIM Coordination Center";
+                            "\u2014 Sent from BIM Coordination Center";
                         try { System.Windows.Clipboard.SetText(invite); } catch { }
                         ShowStatus($"Invite copied for {tm.Name}");
                     }
@@ -4600,8 +4686,25 @@ namespace StingTools.UI
 
                     var zoomRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
                     zoomRow.Children.Add(new TextBlock { Text = "Zoom:", Width = 90, VerticalAlignment = VerticalAlignment.Center });
-                    var zoomSlider = new Slider { Minimum = 1, Maximum = 10, Value = 5, Width = 200, VerticalAlignment = VerticalAlignment.Center };
+                    // Phase 104: TickFrequency + AutoToolTipPlacement so BIM coordinators see the
+                    // exact slider value (previously "blind" — you dragged and guessed).
+                    var zoomSlider = new Slider
+                    {
+                        Minimum = 1, Maximum = 10, Value = 5, Width = 200,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TickFrequency = 1, TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
+                        IsSnapToTickEnabled = true, AutoToolTipPlacement = AutoToolTipPlacement.TopLeft
+                    };
+                    var zoomValueLabel = new TextBlock
+                    {
+                        Text = $"{zoomSlider.Value:F0}x", Width = 50,
+                        FontWeight = FontWeights.SemiBold, FontSize = 12,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(8, 0, 0, 0), Foreground = navyBrush, TextAlignment = TextAlignment.Right
+                    };
+                    zoomSlider.ValueChanged += (ss, ee) => zoomValueLabel.Text = $"{ee.NewValue:F0}x";
                     zoomRow.Children.Add(zoomSlider);
+                    zoomRow.Children.Add(zoomValueLabel);
                     sp.Children.Add(zoomRow);
 
                     sp.Children.Add(new TextBlock
@@ -4669,16 +4772,51 @@ namespace StingTools.UI
                     };
                     sp.Children.Add(dg);
 
+                    // Phase 104: contingency and overhead sliders now show their live % value
+                    // and snap to whole integers via TickFrequency/IsSnapToTickEnabled so the
+                    // resulting cost estimate is reproducible.
                     var contingencyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
                     contingencyRow.Children.Add(new TextBlock { Text = "Contingency %:", Width = 130, VerticalAlignment = VerticalAlignment.Center });
-                    var contingencySlider = new Slider { Minimum = 0, Maximum = 25, Value = 10, Width = 200, VerticalAlignment = VerticalAlignment.Center };
+                    var contingencySlider = new Slider
+                    {
+                        Minimum = 0, Maximum = 25, Value = 10, Width = 200,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TickFrequency = 1, IsSnapToTickEnabled = true,
+                        TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
+                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft
+                    };
+                    var contingencyValueLabel = new TextBlock
+                    {
+                        Text = $"{contingencySlider.Value:F0} %", Width = 55,
+                        FontWeight = FontWeights.SemiBold, FontSize = 12,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(8, 0, 0, 0), Foreground = navyBrush, TextAlignment = TextAlignment.Right
+                    };
+                    contingencySlider.ValueChanged += (ss, ee) => contingencyValueLabel.Text = $"{ee.NewValue:F0} %";
                     contingencyRow.Children.Add(contingencySlider);
+                    contingencyRow.Children.Add(contingencyValueLabel);
                     sp.Children.Add(contingencyRow);
 
                     var overheadRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
                     overheadRow.Children.Add(new TextBlock { Text = "Overhead %:", Width = 130, VerticalAlignment = VerticalAlignment.Center });
-                    var overheadSlider = new Slider { Minimum = 0, Maximum = 20, Value = 8, Width = 200, VerticalAlignment = VerticalAlignment.Center };
+                    var overheadSlider = new Slider
+                    {
+                        Minimum = 0, Maximum = 20, Value = 8, Width = 200,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TickFrequency = 1, IsSnapToTickEnabled = true,
+                        TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
+                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft
+                    };
+                    var overheadValueLabel = new TextBlock
+                    {
+                        Text = $"{overheadSlider.Value:F0} %", Width = 55,
+                        FontWeight = FontWeights.SemiBold, FontSize = 12,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(8, 0, 0, 0), Foreground = navyBrush, TextAlignment = TextAlignment.Right
+                    };
+                    overheadSlider.ValueChanged += (ss, ee) => overheadValueLabel.Text = $"{ee.NewValue:F0} %";
                     overheadRow.Children.Add(overheadSlider);
+                    overheadRow.Children.Add(overheadValueLabel);
                     sp.Children.Add(overheadRow);
 
                     var runBtn = new Button
@@ -9115,6 +9253,11 @@ namespace StingTools.UI
         /// <summary>
         /// Show the BIM Coordination Center as a modeless window.
         /// Actions are dispatched via ActionDispatcher (ExternalEvent).
+        /// Phase 104: now anchors BCC to Revit's main HWND via WindowInteropHelper
+        /// BEFORE Show() so BCC stays z-ordered above Revit. Without this anchor,
+        /// switching focus to any child dialog let Revit come to the front and
+        /// pushed BCC behind — the user reported "BCC gets behind Revit when its
+        /// child UI is activated".
         /// </summary>
         internal static void Show(CoordData data)
         {
@@ -9130,6 +9273,21 @@ namespace StingTools.UI
                 return;
             }
             var dlg = new BIMCoordinationCenter(data);
+
+            // Phase 104: anchor to Revit main window BEFORE first Show() — this is the
+            // only time WindowInteropHelper.Owner can be assigned. Sets the native
+            // owner so BCC and Revit stay in the same z-group: clicking BCC cannot
+            // push Revit behind, clicking Revit cannot push BCC behind.
+            try
+            {
+                IntPtr revitHwnd = NativeMethods.FindWindow("Rvt_MainWindow", null);
+                if (revitHwnd == IntPtr.Zero)
+                    revitHwnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                if (revitHwnd != IntPtr.Zero)
+                    new System.Windows.Interop.WindowInteropHelper(dlg).Owner = revitHwnd;
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"BCC owner anchor: {ex.Message}"); }
+
             dlg.Show();
             // Bring to front after Revit re-activates (common WPF-in-Revit issue)
             dlg.Dispatcher.BeginInvoke(new Action(() =>
@@ -9166,6 +9324,55 @@ namespace StingTools.UI
     /// </summary>
     public static class StingWindowHelper
     {
+        // Phase 104: global class-handler that auto-owns any WPF Window created from
+        // inside Revit. Uses the routed Loaded event (fires after Show but while the
+        // HWND exists) — at that point WindowInteropHelper.Owner can still update the
+        // native owner via SetWindowLongPtr(GWLP_HWNDPARENT), which is sufficient to
+        // fix the z-order. Registered once at plugin load by StingToolsApp.
+        // Without this, every command that opens a dialog without explicitly calling
+        // ApplyOwner drops behind BCC. With this hook, dialogs correctly stack above
+        // BCC and BCC stays above Revit via the anchor set in BIMCoordinationCenter.Show.
+        private static bool _globalHandlerInstalled;
+        public static void InstallGlobalOwnerHandler()
+        {
+            if (_globalHandlerInstalled) return;
+            _globalHandlerInstalled = true;
+            try
+            {
+                EventManager.RegisterClassHandler(typeof(System.Windows.Window),
+                    System.Windows.FrameworkElement.LoadedEvent,
+                    new RoutedEventHandler(OnAnyWindowLoaded));
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"InstallGlobalOwnerHandler: {ex.Message}"); }
+        }
+        private static void OnAnyWindowLoaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!(sender is System.Windows.Window w)) return;
+                // Skip BCC itself — its owner is set explicitly in Show().
+                if (w is BIMCoordinationCenter) return;
+                // Only apply if caller hasn't already set an Owner (WPF or native HWND).
+                if (w.Owner != null) return;
+                var helper = new System.Windows.Interop.WindowInteropHelper(w);
+                if (helper.Owner != IntPtr.Zero) return;
+                // Prefer BCC HWND as native owner when available, so the child stacks
+                // above BCC. Fall back to Revit HWND.
+                IntPtr parentHwnd = IntPtr.Zero;
+                var bcc = BIMCoordinationCenter.CurrentInstance;
+                if (bcc != null && bcc.IsLoaded)
+                    parentHwnd = new System.Windows.Interop.WindowInteropHelper(bcc).Handle;
+                if (parentHwnd == IntPtr.Zero)
+                {
+                    var revitHwnd = NativeMethods.FindWindow("Rvt_MainWindow", null);
+                    parentHwnd = revitHwnd != IntPtr.Zero ? revitHwnd
+                        : System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                }
+                if (parentHwnd != IntPtr.Zero) helper.Owner = parentHwnd;
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"OnAnyWindowLoaded: {ex.Message}"); }
+        }
+
         /// <summary>Set a sensible owner on <paramref name="w"/> so it always stacks
         /// above the BCC / Revit main window. Call BEFORE <c>Show()</c> or
         /// <c>ShowDialog()</c> — WPF doesn't let you change Owner after.</summary>
