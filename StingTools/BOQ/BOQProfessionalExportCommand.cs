@@ -74,6 +74,20 @@ namespace StingTools.BOQ
                     return Result.Cancelled;
                 }
 
+                // Phase 108h — show pre-export tender dialog. Loads the last-used
+                // values from project_config.json and auto-fills anything still
+                // blank from Revit Project Information. User can override every
+                // field and choose Pricing Mode (Tender Issue = blank rates).
+                var initialConfig = BOQTenderDialog.LoadFromConfig(doc);
+                var dialog = new BOQTenderDialog(initialConfig, doc);
+                var ownerHandle = new System.Windows.Interop.WindowInteropHelper(dialog);
+                try { ownerHandle.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle; }
+                catch (Exception ex) { StingLog.Warn($"BOQ dialog owner: {ex.Message}"); }
+                bool? dr = dialog.ShowDialog();
+                if (dr != true || dialog.Result == null)
+                    return Result.Cancelled;
+                var tcfg = dialog.Result;
+
                 // Pre-export — guarantee every line has a clean paragraph so
                 // bill descriptions never ship with [tokens] or blanks.
                 EnsureAllParagraphsResolved(boq, doc);
@@ -88,7 +102,7 @@ namespace StingTools.BOQ
                     tx.Commit();
                 }
 
-                var meta = BuildProjectMetadata(doc, boq);
+                var meta = BuildProjectMetadata(doc, boq, tcfg);
                 string outputPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_BOQ_Professional", ".xlsx");
 
                 using (var wb = new XLWorkbook())
@@ -103,13 +117,16 @@ namespace StingTools.BOQ
                     int billSheetIndex = 0;
                     var tocRows = new List<(string Code, string Name, string SheetName)>();
 
-                    BuildCoverSheet(wb.Worksheets.Add("Cover"), meta);
-                    BuildDocumentControlSheet(wb.Worksheets.Add("Document Control"), meta);
-                    BuildPreliminariesSheet(wb.Worksheets.Add("Preliminaries"), meta);
-                    BuildPreamblesSheet(wb.Worksheets.Add("Preambles"), boq);
+                    if (tcfg.IncludeCover)
+                        BuildCoverSheet(wb.Worksheets.Add("Cover"), meta);
+                    if (tcfg.IncludeDocumentControl)
+                        BuildDocumentControlSheet(wb.Worksheets.Add("Document Control"), meta);
+                    if (tcfg.IncludePreliminaries)
+                        BuildPreliminariesSheet(wb.Worksheets.Add("Preliminaries"), meta);
+                    if (tcfg.IncludePreambles)
+                        BuildPreamblesSheet(wb.Worksheets.Add("Preambles"), boq, tcfg);
 
-                    // Bills — one sheet per section; record entries for the
-                    // Contents and Collections sheets as we go.
+                    // Bills — one sheet per section
                     var sectionSheetNames = new Dictionary<string, string>();
                     var sectionTotals = new List<(BOQSection Sec, string SheetName, double TotalUGX)>();
                     foreach (var sec in boq.Sections)
@@ -118,19 +135,48 @@ namespace StingTools.BOQ
                         string sheetName = SafeSheetName($"{billSheetIndex:00} {sec.NRM2Section} {sec.Name}");
                         sectionSheetNames[sec.Id] = sheetName;
                         var ws = wb.Worksheets.Add(sheetName);
-                        double total = BuildBillSheet(ws, sec, meta);
+                        double total = BuildBillSheet(ws, sec, meta, tcfg);
                         sectionTotals.Add((sec, sheetName, total));
                         tocRows.Add((sec.NRM2Section, sec.Name, sheetName));
                     }
 
-                    BuildCollectionsSheet(wb.Worksheets.Add("Collections"), sectionTotals, meta);
-                    BuildGrandSummarySheet(wb.Worksheets.Add("Grand Summary"), boq, sectionTotals, meta);
-                    BuildAnnexureSheet(wb.Worksheets.Add("Annexure — PC & Dayworks"), boq, meta);
+                    if (tcfg.IncludeCollections)
+                        BuildCollectionsSheet(wb.Worksheets.Add("Collections"), sectionTotals, meta, tcfg);
+                    if (tcfg.IncludeGrandSummary)
+                        BuildGrandSummarySheet(wb.Worksheets.Add("Grand Summary"), boq, sectionTotals, meta, tcfg);
+                    if (tcfg.IncludeAnnexure)
+                        BuildAnnexureSheet(wb.Worksheets.Add("Annexure — PC & Dayworks"), boq, meta, tcfg);
 
-                    // Contents sheet last so we know every sheet name, but
-                    // insert it after "Document Control" for navigation.
-                    var contents = wb.Worksheets.Add("Contents", 3);
-                    BuildContentsSheet(contents, tocRows, sectionTotals, meta);
+                    // Contents last so we know every sheet name, but insert
+                    // near the front so it navigates the rest of the workbook.
+                    if (tcfg.IncludeContents)
+                    {
+                        int contentsIndex = tcfg.IncludeDocumentControl ? 3 : (tcfg.IncludeCover ? 2 : 1);
+                        var contents = wb.Worksheets.Add("Contents", contentsIndex);
+                        BuildContentsSheet(contents, tocRows, sectionTotals, meta, tcfg);
+                    }
+
+                    // Workbook-level watermark (page header)
+                    if (!string.IsNullOrWhiteSpace(tcfg.Watermark))
+                    {
+                        foreach (var ws in wb.Worksheets)
+                        {
+                            ws.PageSetup.Header.Center.AddText(tcfg.Watermark)
+                                .SetFontSize(10).SetBold().SetFontColor(XLColor.FromArgb(180, 0, 0));
+                        }
+                    }
+                    // Timestamp footer
+                    if (tcfg.IncludeTimestamp)
+                    {
+                        string stamp = $"Generated {DateTime.Now:yyyy-MM-dd HH:mm} · Rev {meta.Revision}";
+                        foreach (var ws in wb.Worksheets)
+                        {
+                            ws.PageSetup.Footer.Left.AddText(stamp).SetFontSize(8)
+                                .SetFontColor(XLColor.FromArgb(120, 120, 120));
+                            ws.PageSetup.Footer.Right.AddText("Page &P of &N").SetFontSize(8)
+                                .SetFontColor(XLColor.FromArgb(120, 120, 120));
+                        }
+                    }
 
                     wb.SaveAs(outputPath);
                 }
@@ -189,36 +235,37 @@ namespace StingTools.BOQ
             public double VatPct;
         }
 
-        private ProjectMeta BuildProjectMetadata(Document doc, BOQDocument boq)
+        private ProjectMeta BuildProjectMetadata(Document doc, BOQDocument boq, BOQTenderConfig tcfg)
         {
-            var pi = doc?.ProjectInformation;
-            string piName = pi?.get_Parameter(BuiltInParameter.PROJECT_NAME)?.AsString() ?? pi?.Name ?? doc?.Title ?? "Unknown Project";
-            string piNum = pi?.get_Parameter(BuiltInParameter.PROJECT_NUMBER)?.AsString() ?? "";
-            string piAddr = pi?.get_Parameter(BuiltInParameter.PROJECT_ADDRESS)?.AsString() ?? "";
-            string piClient = pi?.get_Parameter(BuiltInParameter.CLIENT_NAME)?.AsString() ?? "";
-            string piOrg = pi?.get_Parameter(BuiltInParameter.PROJECT_ORGANIZATION_NAME)?.AsString() ?? "";
+            // tcfg already merges Revit Project Information + project_config.json
+            // in the dialog's LoadFromConfig path, and the user may have edited
+            // every field. Use tcfg as primary source; fall back to placeholder
+            // tokens only if both the dialog field and the built-in are empty.
+            string nonEmpty(string a, string placeholder) => string.IsNullOrWhiteSpace(a) ? placeholder : a;
 
             return new ProjectMeta
             {
-                Employer            = Coalesce(TagConfig.GetConfigValue("BOQ_EMPLOYER_NAME") ?? "",    piClient,  "[Employer name]"),
-                ProjectName         = Coalesce(TagConfig.GetConfigValue("BOQ_PROJECT_NAME") ?? "",     piName,    "[Project name]"),
-                ProjectNumber       = Coalesce(TagConfig.GetConfigValue("BOQ_PROJECT_NUMBER") ?? "",   piNum,     "[Project number]"),
-                ProjectAddress      = Coalesce(TagConfig.GetConfigValue("BOQ_PROJECT_ADDRESS") ?? "",  piAddr,    "[Project address]"),
-                QsFirm              = Coalesce(TagConfig.GetConfigValue("BOQ_QS_FIRM") ?? "",          piOrg,     "[Quantity Surveyor]"),
-                Architect           = Coalesce(TagConfig.GetConfigValue("BOQ_ARCHITECT") ?? "",                   "[Architect]"),
-                Engineer            = Coalesce(TagConfig.GetConfigValue("BOQ_ENGINEER") ?? "",                    "[Services Engineer]"),
-                ContractorRef       = Coalesce(TagConfig.GetConfigValue("BOQ_CONTRACTOR") ?? "",                  "[Main Contractor — to be appointed]"),
-                Stage               = Coalesce(TagConfig.GetConfigValue("BOQ_WORK_STAGE") ?? "",                  "RIBA Stage 4 — Technical Design"),
-                Revision            = Coalesce(TagConfig.GetConfigValue("BOQ_REVISION") ?? "",                    "P01"),
-                RevisionDate        = DateTime.UtcNow.ToString("d MMMM yyyy", CultureInfo.InvariantCulture),
-                TenderStatus        = Coalesce(TagConfig.GetConfigValue("BOQ_TENDER_STATUS") ?? "",               "FOR TENDER"),
+                Employer            = nonEmpty(tcfg.Employer,           "[Employer name]"),
+                ProjectName         = nonEmpty(tcfg.ProjectName,        "[Project name]"),
+                ProjectNumber       = nonEmpty(tcfg.ProjectNumber,      "[Project number]"),
+                ProjectAddress      = nonEmpty(tcfg.ProjectAddress,     "[Project address]"),
+                QsFirm              = nonEmpty(tcfg.QsFirm,             "[Quantity Surveyor]"),
+                Architect           = nonEmpty(tcfg.Architect,          "[Architect]"),
+                Engineer            = nonEmpty(tcfg.ServicesEngineer,   "[Services Engineer]"),
+                ContractorRef       = nonEmpty(tcfg.Contractor,         "[Main Contractor — to be appointed]"),
+                Stage               = nonEmpty(tcfg.WorkStage,          "RIBA Stage 4 — Technical Design"),
+                Revision            = nonEmpty(tcfg.Revision,           "P01"),
+                RevisionDate        = string.IsNullOrWhiteSpace(tcfg.RevisionDate)
+                                      ? DateTime.UtcNow.ToString("d MMMM yyyy", CultureInfo.InvariantCulture)
+                                      : tcfg.RevisionDate,
+                TenderStatus        = tcfg.StatusLabel,
                 MeasurementStandard = "RICS New Rules of Measurement (NRM2) — Detailed measurement for building works, 2nd edition",
-                Currency            = boq.Currency ?? "UGX",
-                ExchangeRate        = boq.ExchangeRateUgxPerUsd > 0 ? boq.ExchangeRateUgxPerUsd : 3700,
-                PrelimPct           = boq.PrelimPct,
-                ContingencyPct      = boq.ContingencyPct,
-                OverheadPct         = boq.OverheadPct,
-                VatPct              = TagConfig.GetConfigDouble("BOQ_VAT_PCT", 18.0),
+                Currency            = nonEmpty(tcfg.Currency, "UGX"),
+                ExchangeRate        = tcfg.ExchangeRateUgxPerUsd > 0 ? tcfg.ExchangeRateUgxPerUsd : 3700,
+                PrelimPct           = tcfg.PreliminariesPct,
+                ContingencyPct      = tcfg.ContingencyPct,
+                OverheadPct         = tcfg.OverheadProfitPct,
+                VatPct              = tcfg.VatPct,
             };
         }
 
@@ -436,7 +483,7 @@ namespace StingTools.BOQ
         private void BuildContentsSheet(IXLWorksheet ws,
             List<(string Code, string Name, string SheetName)> tocRows,
             List<(BOQSection Sec, string SheetName, double TotalUGX)> sectionTotals,
-            ProjectMeta m)
+            ProjectMeta m, BOQTenderConfig tcfg)
         {
             ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
             ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
@@ -676,7 +723,7 @@ namespace StingTools.BOQ
         //  Preambles — NRM2 Part 2 per-discipline materials & workmanship
         // ══════════════════════════════════════════════════════════════════
 
-        private void BuildPreamblesSheet(IXLWorksheet ws, BOQDocument boq)
+        private void BuildPreamblesSheet(IXLWorksheet ws, BOQDocument boq, BOQTenderConfig tcfg)
         {
             ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
             ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
@@ -703,6 +750,45 @@ namespace StingTools.BOQ
             ws.Row(2).Height = 40;
 
             int row = 5;
+
+            // Phase 108h — sector-specific preamble section prepended before
+            // the per-discipline preambles. Pulls the full clause set + code
+            // references from a sector library keyed on tcfg.ProjectType so
+            // a Healthcare NHS BOQ cites HTM 03-01 / HTM 64 / HTM 07-01,
+            // a Data Centre cites Uptime Institute / TIA-942, an Education
+            // project cites BB 98-103, etc.
+            string projectType = tcfg?.ProjectType ?? "Other";
+            var (sectorTitle, sectorClauses, sectorCodes) = GetSectorProfile(projectType);
+            if (sectorClauses != null && sectorClauses.Length > 0)
+            {
+                ws.Cell(row, 2).Value = "SEC";
+                ws.Cell(row, 3).Value = $"SECTOR PROFILE — {sectorTitle.ToUpperInvariant()}";
+                ws.Cell(row, 2).Style.Font.SetFontName(HeadFont).Font.SetFontSize(12).Font.SetBold(true).Font.SetFontColor(Orange);
+                ws.Cell(row, 3).Style.Font.SetFontName(HeadFont).Font.SetFontSize(12).Font.SetBold(true).Font.SetFontColor(Navy);
+                ws.Range(row, 2, row, 3).Style.Border.SetBottomBorder(XLBorderStyleValues.Medium)
+                    .Border.SetBottomBorderColor(Navy);
+                ws.Row(row).Height = 22;
+                row++;
+
+                foreach (var clause in sectorClauses)
+                {
+                    ws.Cell(row, 3).Value = clause;
+                    ws.Cell(row, 3).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
+                        .Alignment.SetWrapText(true).Alignment.SetVertical(XLAlignmentVerticalValues.Top);
+                    ws.Row(row).Height = Math.Max(18, Math.Min(140, 2 + clause.Length / 6));
+                    row++;
+                }
+
+                ws.Cell(row, 2).Value = "Codes";
+                ws.Cell(row, 3).Value = sectorCodes;
+                ws.Range(row, 2, row, 3).Style.Fill.SetBackgroundColor(GreyLight);
+                ws.Cell(row, 2).Style.Font.SetFontName(HeadFont).Font.SetFontSize(9).Font.SetBold(true)
+                    .Font.SetFontColor(XLColor.FromArgb(110, 110, 110));
+                ws.Cell(row, 3).Style.Font.SetFontName(BodyFont).Font.SetFontSize(9).Font.SetItalic(true)
+                    .Alignment.SetWrapText(true);
+                ws.Row(row).Height = 34;
+                row += 2;
+            }
             var disciplineGroups = boq.Sections
                 .GroupBy(s => s.Discipline ?? "GEN")
                 .OrderBy(g => DisciplineRank(g.Key));
@@ -802,6 +888,137 @@ namespace StingTools.BOQ
             }
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        //  Phase 108h — sector-specific preamble library
+        //  Returns (title, clauses[], reference codes string) keyed on the
+        //  user-selected Project Type. Coverage: 12 common building sectors.
+        //  Each profile cites the standards a senior QS would quote for
+        //  that sector so the BOQ preambles sheet doesn't read generically.
+        // ══════════════════════════════════════════════════════════════════
+
+        private (string Title, string[] Clauses, string Codes) GetSectorProfile(string projectType)
+        {
+            switch ((projectType ?? "").Trim())
+            {
+                case "Commercial Office":
+                    return ("Commercial Office", new[] {
+                        "The Works shall comply with the British Council for Offices (BCO) Guide to Specification current edition; occupancy densities, lift provisions, small-power loads, cooling loads and floor-to-ceiling heights as stated therein.",
+                        "BREEAM UK New Construction 2018 (or later) rating of 'Very Good' minimum shall be achieved. The Contractor shall cooperate with the Employer's BREEAM Assessor and provide evidence on request.",
+                        "The building envelope shall comply with Approved Document L (Non-Dwellings) limiting U-values, air-permeability shall not exceed 5 m³/hr/m² @ 50 Pa, and daylight factors shall meet the Specification.",
+                    }, "BCO Guide to Specification, BREEAM UK NC 2018, Approved Document L (Non-Dwellings), CIBSE TM52, CIBSE Guide A.");
+
+                case "Residential — Low-Rise":
+                case "Residential — High-Rise":
+                    return ("Residential", new[] {
+                        "The dwellings shall comply with Approved Documents A-Q of the Building Regulations including the fire safety provisions of Approved Document B Volume 1 (dwellings) and, for buildings over 18 m in height, the additional requirements for sprinklers, lobbies, and non-combustible external walls.",
+                        "Home Quality Mark (HQM) rating as stated in the Employer's Requirements shall be achieved. Where the project is social housing, the Employer's Standard shall be the national Housing Design Standards and Lifetime Homes as applicable.",
+                        "Acoustic separation between dwellings shall comply with Approved Document E and the performance-tested values stated in the Specification. Pre-completion testing shall be by a UKAS-accredited tester.",
+                    }, "Approved Docs A-Q, Approved Doc B Vol 1, HQM, Lifetime Homes, Approved Doc E, BS 8233, PAS 9980 (external wall fire review).");
+
+                case "Healthcare — NHS / Public":
+                case "Healthcare — Private":
+                    return ("Healthcare", new[] {
+                        "All Works within clinical areas shall comply with the Health Technical Memoranda (HTMs) as amended — particularly HTM 03-01 (ventilation), HTM 04-01 (water safety), HTM 05-02 (fire safety), HTM 06-01 (electrical), HTM 07-01 (safe hot water), HTM 64 (sanitary assemblies), HTM 66 (cubicle curtains) and HTM 67 (laminates).",
+                        "Infection-control standards shall be to the Department of Health guidance; all finishes in clinical areas shall be non-porous, impervious to cleaning chemicals specified in the DH cleaning frequency matrix, and free from horizontal dirt-retaining ledges.",
+                        "Medical gases installations shall be to HTM 02-01 and commissioned by a qualified engineer; all electrical installations to critical clinical areas shall have UPS back-up and test certificates in accordance with HTM 06-01.",
+                        "BIM deliverables shall comply with NHS BIM requirements including COBie to the specified NRM1 asset classification; manufacturer's O&M data shall include the NHS Procurement Services coding.",
+                    }, "HTM 03-01, HTM 04-01, HTM 05-02, HTM 06-01, HTM 07-01, HTM 02-01, HTM 64, DH HBN series, NHS BIM Framework.");
+
+                case "Education — Primary / Secondary":
+                    return ("Education — Schools", new[] {
+                        "The Works shall comply with the current suite of DfE Building Bulletins — BB 100 (fire safety), BB 101 (ventilation, thermal comfort and indoor air quality), BB 103 (area guidelines for primary and secondary schools), BB 93 (acoustic design) — and the DfE Output Specification where referenced in the Employer's Requirements.",
+                        "Safeguarding: all site perimeter, access control, CCTV, intruder alarm and lock-down systems shall comply with the latest DfE Safer Schools guidance. Background checks for site operatives working during term time shall be to the DfE standard.",
+                        "Acoustic performance shall comply with BB 93 teaching-area criteria — reverberation times, ambient noise levels and internal speech transmission loss between spaces — verified by pre-completion measurement.",
+                    }, "DfE BB 93, BB 98, BB 99, BB 100, BB 101, BB 103, DfE Output Specification, DBS standards, CLEAPSS guidance.");
+
+                case "Education — Higher / FE":
+                    return ("Education — Higher / FE", new[] {
+                        "Laboratory, library, lecture-theatre and social-learning spaces shall comply with the AUDE (Association of University Directors of Estates) design guidance and the funding-body space efficiency metrics current at the date of tender.",
+                        "Acoustic performance for teaching spaces shall comply with BS 8233 and, where applicable, BB 93; for recording studios and music spaces the Specification shall prevail.",
+                    }, "AUDE design guidance, BS 8233, BB 93, Approved Docs B / L / M, CIBSE Guide A.");
+
+                case "Retail":
+                    return ("Retail", new[] {
+                        "Retail units shall be handed over as Category A shell with capped services, ready for the tenant's Category B fit-out. Landlord demise points shall be clearly identified on the hand-over drawings.",
+                        "Shop-front installations shall comply with the landlord's Tenant Design Guide and the local planning authority's shop-front policy; all signage shall be pre-approved by the planning authority.",
+                    }, "Tenant Design Guide, Approved Docs B / K / M / P, BS EN 1627 (security), BCO Fit-Out Guide.");
+
+                case "Hotel / Hospitality":
+                    return ("Hotel / Hospitality", new[] {
+                        "Brand standards as stated in the Employer's Requirements shall prevail where they exceed the Building Regulations — this includes guest-room acoustic performance (typically ≥55 dB DnT,w between rooms), FF&E specification and back-of-house adjacencies.",
+                        "Fire strategy shall be based on a full phased-evacuation strategy with voice alarm to BS 5839-8 and residential sprinklers to BS 9251. Escape from guest rooms shall comply with Approved Document B Volume 2.",
+                    }, "Brand standards, BS 5839-8, BS 9251, Approved Doc B Vol 2, BS 8233, HOTREC acoustic guidance.");
+
+                case "Data Centre":
+                    return ("Data Centre", new[] {
+                        "The facility shall be designed, constructed and commissioned to achieve the Uptime Institute Tier rating stated in the Employer's Requirements. All commissioning shall be five-level (Factory Acceptance, Pre-Installation, Integrated Systems, Level 4 Performance, Level 5 Pull-the-Plug).",
+                        "The infrastructure shall comply with TIA-942 Rev. C for telecommunications infrastructure, cabinet layouts, hot/cold aisle containment, rack power density, fibre backbone and network redundancy.",
+                        "Fire suppression in IT rooms shall be by inert gas (IG-55 / IG-541) to BS EN 15004-1, with VESDA air-sampling detection to BS EN 54-20 Class A, cross-zoned with the gas release.",
+                        "Mechanical cooling shall be N+1 minimum; PUE (Power Usage Effectiveness) shall not exceed the target stated in the Employer's Requirements. CFD analysis shall be provided for the completed fit-out.",
+                    }, "Uptime Institute Tier III/IV, TIA-942 Rev. C, BS EN 15004-1, BS EN 54-20, BICSI 002, ASHRAE TC9.9, ISO 50001.");
+
+                case "Industrial / Manufacturing":
+                    return ("Industrial / Manufacturing", new[] {
+                        "Floor slabs to production areas shall be to TR 34 Floors on Ground Fourth Edition, with joints and flatness tolerances (FM / FL) as stated in the Specification for the designated MHE traffic.",
+                        "Process services (compressed air, process water, steam, cooling water, drainage) shall be commissioned and certified by an independent commissioning specialist. Line-pressure testing and purge records shall be issued at hand-over.",
+                        "ATEX hazardous-area classification shall be stated on the Drawings; all equipment in ATEX zones shall be EU-marked and accompanied by Declarations of Conformity.",
+                    }, "TR 34, ATEX 2014/34/EU, DSEAR, BS EN 60079, ISO 14001, ISO 45001, Approved Doc B Vol 2.");
+
+                case "Mixed-Use":
+                    return ("Mixed-Use", new[] {
+                        "The Works include both residential and non-residential occupancies. Separation — fire, acoustic, smoke, services — between the two occupancy classes shall comply with the stricter of Approved Document B Volume 1 and Volume 2 at every demise.",
+                        "Deliveries and waste management for each occupancy type shall be segregated; the Contractor shall coordinate shared core areas (stair, lift, risers) with defined hand-over demises.",
+                    }, "Approved Docs B Vol 1 & 2, BS 8233, PAS 9980, BS 9991, BS 9999.");
+
+                case "Heritage / Conservation":
+                    return ("Heritage / Conservation", new[] {
+                        "The Works affect a listed / scheduled building or a structure in a conservation area. All interventions shall comply with PAS 2038 (Retrofitting of Non-Domestic Buildings for Improved Energy Efficiency) and BS 7913 (Guide to the Conservation of Historic Buildings).",
+                        "Like-for-like repair shall be the default; modern interventions shall be reversible and clearly distinguished from original fabric. Archaeological watching brief during excavation works shall be included.",
+                    }, "PAS 2038, BS 7913, Historic England TANs, Approved Doc B, Listed Buildings & Conservation Areas Act 1990.");
+
+                case "Sports & Leisure":
+                    return ("Sports & Leisure", new[] {
+                        "Sports-hall and pool-hall finishes, lighting and acoustic design shall comply with Sport England technical guidance and FINA (for competition pools); high-humidity linings, vapour control and balanced ventilation shall comply with CIBSE Guide G.",
+                        "Spectator areas and stadia shall comply with the Guide to Safety at Sports Grounds (Green Guide) and BS EN 13200.",
+                    }, "Sport England Design Guidance, FINA, CIBSE Guide G, Green Guide, BS EN 13200.");
+
+                case "Cultural — Museum / Gallery":
+                    return ("Cultural — Museum / Gallery", new[] {
+                        "Gallery environmental conditions shall be maintained within ±2°C and ±5% RH, with PM2.5 and SO₂ levels within the limits stated in the BSI PD 5454 (Storage & Display of Archival Materials) guidance.",
+                        "Lighting shall deliver the lux levels and UV cut-off stated in the Specification; display-case lighting shall have closed optics preventing heat transfer to exhibits.",
+                    }, "PD 5454, BS EN 16893, ASHRAE Handbook (Museums), CIBSE SLL Lighting Guide.");
+
+                case "Laboratory / Research":
+                    return ("Laboratory / Research", new[] {
+                        "Containment levels (CL1-CL4) shall be stated on the Drawings and shall comply with the HSE ACDP Biological Agents and Classification of Pathogens and, for genetic modification, the SACGM Compendium.",
+                        "Fume cupboards shall be type-tested to BS EN 14175 with annual containment verification. Laboratory water purification shall be to ISO 3696 Grade as stated.",
+                        "Cleanrooms where specified shall comply with ISO 14644-1 / -2 / -3 to the class stated; handover shall include 'at rest' and 'operational' particle-count certification.",
+                    }, "HSE ACDP, SACGM, BS EN 14175, ISO 14644 series, ISO 3696, WHO GMP.");
+
+                case "Transport / Infrastructure":
+                    return ("Transport / Infrastructure", new[] {
+                        "Highway Works shall comply with the Design Manual for Roads and Bridges (DMRB) and the Specification for Highway Works (SHW) in force at the date of tender.",
+                        "Railway Works shall comply with Network Rail Technical Standards and GRIP stages as applicable.",
+                    }, "DMRB, SHW, Network Rail Standards, ORR, PWI, BS 7533.");
+
+                case "Defence / MOD":
+                    return ("Defence / MOD", new[] {
+                        "The Works shall comply with the Defence Works Functional Standards (DWFS) and the JSP suite — particularly JSP 375 (Health & Safety Handbook), JSP 440 (Security) and JSP 886 (Defence Logistics).",
+                        "Security clearance for personnel, vetted drawings storage, and site-access controls shall be as per the Employer's Security Aspects Letter.",
+                    }, "DWFS, JSP 375, JSP 440, JSP 886, DIO Standards, List X.");
+
+                case "Religious":
+                    return ("Religious Buildings", new[] {
+                        "Liturgical design requirements shall be as stated by the Employer's faith authority; modifications to sacred spaces shall respect the tradition's design guidance and applicable faculty / listed consents.",
+                    }, "Faculty jurisdiction, Listed Buildings Act, BS 8233, Approved Doc M.");
+
+                default:
+                    return ("General", new[] {
+                        "The Works shall comply with the current Building Regulations, the Employer's Requirements, and the relevant British and European Standards. Where no specific standard is cited, materials and workmanship shall be equal in quality and performance to those accepted in good building practice.",
+                    }, "Approved Documents, BS / BS EN series as cited in the Specification.");
+            }
+        }
+
         private int DisciplineRank(string d)
         {
             switch (d)
@@ -838,8 +1055,9 @@ namespace StingTools.BOQ
         //  with "Carried to Collection" footer.
         // ══════════════════════════════════════════════════════════════════
 
-        private double BuildBillSheet(IXLWorksheet ws, BOQSection sec, ProjectMeta m)
+        private double BuildBillSheet(IXLWorksheet ws, BOQSection sec, ProjectMeta m, BOQTenderConfig tcfg)
         {
+            bool hidePrices = tcfg?.HidePrices ?? false;
             ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
             ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
             ws.PageSetup.Margins.Top = 0.6; ws.PageSetup.Margins.Bottom = 0.6;
@@ -931,10 +1149,18 @@ namespace StingTools.BOQ
                     .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right)
                     .Alignment.SetVertical(XLAlignmentVerticalValues.Top);
 
-                if (item.RateUGX > 0)
+                // Rate column — Tender Issue blanks this so bidders fill it in
+                if (hidePrices)
+                {
+                    // Blank cell with a light underline so bidders know to price here
+                    ws.Cell(r, 6).Style.Border.SetBottomBorder(XLBorderStyleValues.Thin)
+                        .Border.SetBottomBorderColor(XLColor.FromArgb(160, 160, 160));
+                }
+                else if (item.RateUGX > 0)
                 {
                     ws.Cell(r, 6).Value = item.RateUGX;
-                    ws.Cell(r, 6).Style.NumberFormat.SetFormat("#,##0.00");
+                    ws.Cell(r, 6).Style.NumberFormat.SetFormat("#,##0.00")
+                        .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
                 }
                 else
                 {
@@ -943,15 +1169,19 @@ namespace StingTools.BOQ
                 }
                 ws.Cell(r, 6).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
                     .Alignment.SetVertical(XLAlignmentVerticalValues.Top);
-                if (item.RateUGX > 0)
-                    ws.Cell(r, 6).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
 
                 double amount = item.TotalUGX;
                 total += amount;
-                if (amount > 0)
+                if (hidePrices)
+                {
+                    ws.Cell(r, 7).Style.Border.SetBottomBorder(XLBorderStyleValues.Thin)
+                        .Border.SetBottomBorderColor(XLColor.FromArgb(160, 160, 160));
+                }
+                else if (amount > 0)
                 {
                     ws.Cell(r, 7).Value = amount;
-                    ws.Cell(r, 7).Style.NumberFormat.SetFormat("#,##0.00");
+                    ws.Cell(r, 7).Style.NumberFormat.SetFormat("#,##0.00")
+                        .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
                 }
                 else
                 {
@@ -960,8 +1190,6 @@ namespace StingTools.BOQ
                 }
                 ws.Cell(r, 7).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
                     .Alignment.SetVertical(XLAlignmentVerticalValues.Top);
-                if (amount > 0)
-                    ws.Cell(r, 7).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
 
                 // Row background for PS / Manual
                 if (item.Source == BOQRowSource.ProvisionalSum)
@@ -983,10 +1211,15 @@ namespace StingTools.BOQ
                 r++;
             }
 
-            // Carried-to-Collection footer
+            // Carried-to-Collection footer. In Tender Issue mode the total
+            // cell is blanked — bidders extend their priced rates themselves.
             r++;
             ws.Cell(r, 3).Value = $"CARRIED TO COLLECTION — SECTION {sec.NRM2Section}";
-            ws.Cell(r, 7).Value = total;
+            if (!hidePrices)
+            {
+                ws.Cell(r, 7).Value = total;
+                ws.Cell(r, 7).Style.NumberFormat.SetFormat("#,##0.00");
+            }
             ws.Range(r, 2, r, 7).Style
                 .Fill.SetBackgroundColor(GreyLight)
                 .Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true)
@@ -994,8 +1227,7 @@ namespace StingTools.BOQ
                 .Border.SetTopBorder(XLBorderStyleValues.Medium).Border.SetTopBorderColor(Navy)
                 .Border.SetBottomBorder(XLBorderStyleValues.Medium).Border.SetBottomBorderColor(Navy);
             ws.Cell(r, 3).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
-            ws.Cell(r, 7).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right)
-                .NumberFormat.SetFormat("#,##0.00");
+            ws.Cell(r, 7).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
             ws.Row(r).Height = 22;
 
             ws.SheetView.FreezeRows(4);
@@ -1025,7 +1257,7 @@ namespace StingTools.BOQ
 
         private void BuildCollectionsSheet(IXLWorksheet ws,
             List<(BOQSection Sec, string SheetName, double TotalUGX)> rows,
-            ProjectMeta m)
+            ProjectMeta m, BOQTenderConfig tcfg)
         {
             ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
             ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
@@ -1055,18 +1287,22 @@ namespace StingTools.BOQ
                 ws.Row(r).Height = 20;
                 r++;
 
+                bool hide = tcfg?.HidePrices ?? false;
                 double discTotal = 0;
                 foreach (var row in grp.OrderBy(x => x.Sec.NRM2Section))
                 {
                     ws.Cell(r, 2).Value = row.Sec.NRM2Section;
                     ws.Cell(r, 3).Value = row.Sec.Name;
-                    ws.Cell(r, 4).Value = row.TotalUGX;
+                    if (!hide)
+                    {
+                        ws.Cell(r, 4).Value = row.TotalUGX;
+                        ws.Cell(r, 4).Style.NumberFormat.SetFormat("#,##0.00");
+                    }
                     ws.Cell(r, 2).Style.Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true)
                         .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
                     ws.Cell(r, 3).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
                         .Alignment.SetIndent(1);
                     ws.Cell(r, 4).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
-                        .NumberFormat.SetFormat("#,##0.00")
                         .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
                     for (int i = 2; i <= 4; i++)
                         ws.Cell(r, i).Style.Border.SetBottomBorder(XLBorderStyleValues.Hair).Border.SetBottomBorderColor(GreyMid);
@@ -1074,9 +1310,13 @@ namespace StingTools.BOQ
                     r++;
                 }
 
-                // Discipline subtotal
+                // Discipline subtotal — blanked in Tender Issue mode
                 ws.Cell(r, 3).Value = $"TOTAL — {DisciplineName(grp.Key).ToUpperInvariant()}";
-                ws.Cell(r, 4).Value = discTotal;
+                if (!hide)
+                {
+                    ws.Cell(r, 4).Value = discTotal;
+                    ws.Cell(r, 4).Style.NumberFormat.SetFormat("#,##0.00");
+                }
                 ws.Cell(r, 3).Style.Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true).Font.SetFontColor(Navy)
                     .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
                 ws.Cell(r, 4).Style.Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true).Font.SetFontColor(Navy)
@@ -1088,10 +1328,15 @@ namespace StingTools.BOQ
                 r += 2;
             }
 
-            // Grand sub-total of measured works (before prelims / contingency)
+            // Grand sub-total of measured works — blanked in Tender Issue mode
+            bool hideGrand = tcfg?.HidePrices ?? false;
             double grand = rows.Sum(x => x.TotalUGX);
             ws.Cell(r, 3).Value = "TOTAL MEASURED WORKS — CARRIED TO GRAND SUMMARY";
-            ws.Cell(r, 4).Value = grand;
+            if (!hideGrand)
+            {
+                ws.Cell(r, 4).Value = grand;
+                ws.Cell(r, 4).Style.NumberFormat.SetFormat("#,##0.00");
+            }
             ws.Range(r, 2, r, 4).Style
                 .Fill.SetBackgroundColor(Navy)
                 .Font.SetFontName(HeadFont).Font.SetFontSize(11).Font.SetBold(true).Font.SetFontColor(White)
@@ -1110,7 +1355,7 @@ namespace StingTools.BOQ
 
         private void BuildGrandSummarySheet(IXLWorksheet ws, BOQDocument boq,
             List<(BOQSection Sec, string SheetName, double TotalUGX)> rows,
-            ProjectMeta m)
+            ProjectMeta m, BOQTenderConfig tcfg)
         {
             ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
             ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
@@ -1155,7 +1400,8 @@ namespace StingTools.BOQ
 
                 ws.Cell(r, 2).Value = code;
                 ws.Cell(r, 3).Value = label;
-                if (amt.HasValue)
+                bool hideHere = tcfg?.HidePrices ?? false;
+                if (amt.HasValue && !hideHere)
                 {
                     ws.Cell(r, 4).Value = amt.Value;
                     ws.Cell(r, 4).Style.NumberFormat.SetFormat("#,##0.00");
@@ -1219,7 +1465,7 @@ namespace StingTools.BOQ
         //  Annexure — Prime Cost Sums, Provisional Sums, Dayworks Schedule
         // ══════════════════════════════════════════════════════════════════
 
-        private void BuildAnnexureSheet(IXLWorksheet ws, BOQDocument boq, ProjectMeta m)
+        private void BuildAnnexureSheet(IXLWorksheet ws, BOQDocument boq, ProjectMeta m, BOQTenderConfig tcfg)
         {
             ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
             ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
