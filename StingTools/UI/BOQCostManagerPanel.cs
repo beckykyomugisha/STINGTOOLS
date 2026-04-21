@@ -1215,18 +1215,40 @@ namespace StingTools.UI
                 }
                 else
                 {
-                    // Mark the in-memory item as Override so any subsequent
-                    // local computation sees it, mirroring what the
-                    // ExternalEvent is about to write to the element.
                     vm.Underlying.RateSource = "Override";
 
+                    // (1) Phase 108f — durable sidecar write on the WPF thread.
+                    // This is the authoritative source of truth for model-row
+                    // overrides; BuildBOQDocument re-applies it via
+                    // ApplyModelOverrides on every rebuild, so the edit
+                    // survives Refresh, doc re-open and Revit restart even
+                    // when the ExternalEvent below loses its slot to a
+                    // subsequent SetCommand call.
+                    try
+                    {
+                        BOQCostManager.UpsertModelOverride(Doc, new BOQModelOverride
+                        {
+                            UniqueId      = vm.Underlying.UniqueId,
+                            ElementId     = vm.RevitElementId,
+                            RateUGX       = vm.Underlying.RateUGX,
+                            RateUSD       = vm.Underlying.RateUSD,
+                            NRM2Paragraph = vm.Underlying.ResolvedNRM2Paragraph ?? "",
+                            Note          = vm.Underlying.Note ?? "",
+                            ModifiedBy    = Environment.UserName ?? ""
+                        });
+                    }
+                    catch (Exception ex) { StingLog.Error("BOQ UpsertModelOverride", ex); }
+
+                    // (2) Best-effort background sync to Revit element params
+                    // (CST_UNIT_RATE_UGX, CST_RATE_SOURCE, ASS_NRM2_PARA_TXT)
+                    // so export / IFC / COBie see the current values. May be
+                    // superseded by a subsequent dispatch before Execute runs
+                    // — that's fine, the sidecar already holds the edit.
                     StingCommandHandler.SetExtraParam("BOQEditElementId", vm.RevitElementId.ToString());
                     StingCommandHandler.SetExtraParam("BOQEditRateUGX",   vm.Underlying.RateUGX.ToString(CultureInfo.InvariantCulture));
                     StingCommandHandler.SetExtraParam("BOQEditRateUSD",   vm.Underlying.RateUSD.ToString(CultureInfo.InvariantCulture));
                     StingCommandHandler.SetExtraParam("BOQEditNRM2Para",  vm.Underlying.ResolvedNRM2Paragraph ?? "");
                     StingCommandHandler.SetExtraParam("BOQEditNote",      vm.Underlying.Note ?? "");
-                    // refreshAfter:false — no 300ms delayed RefreshAsync.
-                    // Prevents the "flash then revert" the user reported.
                     DispatchAction("BOQWriteItemParams", refreshAfter: false);
                 }
                 // Metrics only — keeps the user's edit visible and updates

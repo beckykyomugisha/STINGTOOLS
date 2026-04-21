@@ -241,6 +241,46 @@ namespace StingTools.BOQ
         public List<BOQLineItem> ManualRows = new List<BOQLineItem>();
     }
 
+    // ── BOQModelOverride / BOQModelOverridesStore ──────────────────────────
+
+    /// <summary>
+    /// Phase 108f: per-element override for a row whose Source is Model.
+    /// Needed because (a) ResolveRate otherwise re-derives the rate from the
+    /// CSV on every BuildBOQDocument, and (b) the shared ExternalEvent that
+    /// writes CST_RATE_SOURCE = "Override" can race with a user-triggered
+    /// Refresh — the _commandTag field on StingCommandHandler is single-slot
+    /// so if two dispatches queue before Execute runs, the first is lost.
+    ///
+    /// Persisting the edit to a sidecar on the WPF thread (no ExternalEvent
+    /// involved) makes the edit survive Refresh, doc re-open and Revit
+    /// crashes, irrespective of whether the background parameter write
+    /// succeeded.
+    /// </summary>
+    public class BOQModelOverride
+    {
+        public string UniqueId;             // Revit UniqueId — stable across save/reopen, preferred key
+        public long ElementId;              // Current-session ElementId — fallback key
+        public double? RateUGX;
+        public double? RateUSD;
+        public string NRM2Paragraph;
+        public string Note;
+        public DateTime Modified = DateTime.UtcNow;
+        public string ModifiedBy;
+    }
+
+    /// <summary>
+    /// Persistence shape for {projectDir}/_bim_manager/project_boq_model_overrides.json.
+    /// Schema is independent from BOQManualStore so manual-row persistence
+    /// logic stays untouched by model-row edits.
+    /// </summary>
+    public class BOQModelOverridesStore
+    {
+        public string SchemaVersion = "1.0";
+        public DateTime LastSaved = DateTime.UtcNow;
+        public string LastSavedBy;
+        public List<BOQModelOverride> Overrides = new List<BOQModelOverride>();
+    }
+
     // ── BOQReconcileMatch ──────────────────────────────────────────────────
 
     /// <summary>
