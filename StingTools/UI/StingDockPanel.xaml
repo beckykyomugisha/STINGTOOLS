@@ -2008,7 +2008,7 @@
                                             ToolTip="Audit the project against the STING 110-family library manifest. Reports missing / misnamed families per discipline."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Apply Sector Pack" Tag="ApplySectorPack" Click="Cmd_Click"
                                             ToolTip="Pick Healthcare / Education / Data Centre / Residential starter pack — applies preamble profile, tag style, BOQ defaults, recommended presets + families in one click."/>
-                                    <Separator Style="{StaticResource SectionSeparator}"/>
+                                    <Separator Margin="0,4,0,4"/>
                                     <TextBlock Style="{StaticResource SubLabel}" Text="MULTI-BUILDING SITE (§B1-B6)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Seed Building Levels + Grids" Tag="BuildingCodeSeed" Click="Cmd_Click"
                                             ToolTip="Create pre-named Levels + Grids prefixed with a volume code (BLD1-GF-FFL, BLD1-L01-SSL, BLD1-1..12, BLD1-A..K). Configurable via ExtraParams SeedBuildingCode / SeedLevelCount / SeedGridsX / SeedGridsY."/>
@@ -2020,7 +2020,7 @@
                                             ToolTip="Generate the ISO 19650 CDE tree (_CDE/WIP/SHARED/PUBLISHED/ARCHIVE) with per-building sub-folders from the LOC vocabulary."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Federation Review" Tag="FederationReview" Click="Cmd_Click"
                                             ToolTip="Open every linked RVT in the host doc and verify Levels + Grids are prefixed with a recognised volume code. Reports unprefixed ones as findings."/>
-                                    <Separator Style="{StaticResource SectionSeparator}"/>
+                                    <Separator Margin="0,4,0,4"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Building Shell" Tag="ModelBuildingShell" Click="Cmd_Click" ToolTip="Create complete building: 4 walls + floor + roof"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Room" Tag="ModelCreateRoom" Click="Cmd_Click" ToolTip="Create rectangular room enclosure (4 walls + room)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Ramp" Tag="ModelCreateRamp" Click="Cmd_Click" ToolTip="Create ramp with BS 8300 compliance (gradient, width, landings)"/>
