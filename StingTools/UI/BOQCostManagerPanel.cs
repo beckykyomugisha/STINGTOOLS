@@ -451,6 +451,10 @@ namespace StingTools.UI
             right.Children.Add(BuildActionBtn("Reconcile PS", AmberBrush));
             right.Children.Add(BuildActionBtn("Import Excel", NavyBrush));
             right.Children.Add(BuildActionBtn("Export ↗", GreenBrush));
+            var tenderBtn = BuildActionBtn("★ Tender BOQ", OrangeBrush);
+            tenderBtn.ToolTip = "Export a tender-grade NRM2 Bill of Quantities with cover, document control, "
+                + "preliminaries, preambles, bills, collections and grand summary — QS presentation format.";
+            right.Children.Add(tenderBtn);
 
             foreach (UIElement ch in right.Children)
             {
@@ -461,6 +465,7 @@ namespace StingTools.UI
                     else if (caption.StartsWith("Reconcile")) b.Click += (s, e) => DispatchAction("ReconcileProvisionals");
                     else if (caption.StartsWith("Import")) b.Click += (s, e) => DispatchAction("BOQImport");
                     else if (caption.StartsWith("Export")) b.Click += (s, e) => DispatchAction("BOQExport");
+                    else if (caption.StartsWith("★")) b.Click += (s, e) => DispatchAction("BOQExportProfessional");
                 }
             }
             Grid.SetColumn(right, 1);
