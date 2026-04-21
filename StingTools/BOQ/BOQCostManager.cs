@@ -1,0 +1,1310 @@
+// ══════════════════════════════════════════════════════════════════════════
+//  BOQCostManager.cs — Phase 3 of the BOQ & Cost Manager.
+//  Central engine. Builds a BOQDocument from the Revit model, writes cost
+//  parameters back to elements and the ProjectInformation record, persists
+//  JSON snapshots, compares snapshots, reconciles provisional sums and feeds
+//  cash-flow generation for the 4D/5D tab.
+// ══════════════════════════════════════════════════════════════════════════
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using Autodesk.Revit.DB;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using StingTools.BIMManager;
+using StingTools.Core;
+using StingTools.Temp;
+
+namespace StingTools.BOQ
+{
+    internal static class BOQCostManager
+    {
+        // Newtonsoft settings shared by every snapshot write — indented, ignores nulls,
+        // culture-invariant date format so snapshots round-trip across locales.
+        private static readonly JsonSerializerSettings _jsonSettings = new JsonSerializerSettings
+        {
+            Formatting = Formatting.Indented,
+            NullValueHandling = NullValueHandling.Ignore,
+            DateFormatString = "yyyy-MM-dd HH:mm:ss",
+            Culture = CultureInfo.InvariantCulture
+        };
+
+        // Snapshots are capped at 20 per project — older ones pruned automatically.
+        internal const int MaxSnapshotsRetained = 20;
+
+        // Embodied-carbon lifecycle discount rate (UK Treasury Green Book default).
+        private const double LifecycleDiscountRate = 0.035;
+        private const int LifecycleYears = 25;
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Public API — BuildBOQDocument
+        //  Single entry point for building a complete BOQ from the model.
+        //  Reusable from the WPF panel, the Excel exporter and the snapshot
+        //  machinery. Never writes to the model — callers drive writes via
+        //  WriteElementParameters / WriteProjectParameters / SaveSnapshot.
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Builds a complete BOQDocument for the model. Reads cost rates from
+        /// cost_rates_5d.csv (configurable via TagConfig.CostRatesFileName),
+        /// falls back to COBie type map and finally Scheduling4DEngine
+        /// defaults. Merges manual/PS rows from project_boq_manual.json so
+        /// a QS can author extra line items without modelling them.
+        /// </summary>
+        internal static BOQDocument BuildBOQDocument(Document doc, IEnumerable<BOQLineItem> extraManualRows = null)
+        {
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+
+            var boq = new BOQDocument
+            {
+                ProjectName = doc.ProjectInformation?.Name ?? doc.Title ?? "Unknown project",
+                DocumentTitle = "Bill of Quantities",
+                SnapshotLabel = "Live",
+                SnapshotType = "Live",
+                SnapshotDate = DateTime.UtcNow
+            };
+
+            // ── STEP 1: Load config ──────────────────────────────────────
+            boq.PrelimPct = TagConfig.GetConfigDouble("COST_PRELIMINARIES_PCT", 12.0);
+            boq.ContingencyPct = TagConfig.GetConfigDouble("COST_CONTINGENCY_PCT", 10.0);
+            boq.OverheadPct = TagConfig.GetConfigDouble("COST_OVERHEAD_PROFIT_PCT", 8.0);
+            boq.ExchangeRateUgxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            boq.ProjectBudgetUGX = ReadProjectBudget(doc);
+
+            // ── STEP 2: Load rate tables (3-source merge) ────────────────
+            //   (a) project cost_rates_5d.csv  — highest priority
+            //   (b) COBie type map             — category → cost-rate code
+            //   (c) Scheduling4DEngine defaults — lowest priority
+            Dictionary<string, (double rate, string unit)> csvRates = LoadCsvRates();
+            Dictionary<string, string> cobieCostCodes = LoadCobieCostCodes();
+
+            // ── STEP 3: Load embodied carbon factors ─────────────────────
+            CarbonTrackingEngine.EnsureLoaded();
+
+            // ── STEP 4: Collect elements ─────────────────────────────────
+            var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
+            var allElements = CollectCandidateElements(doc, knownCats);
+
+            // ── STEP 5: Per-element costing ──────────────────────────────
+            var items = new List<BOQLineItem>(allElements.Count);
+            foreach (var el in allElements)
+            {
+                var line = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes);
+                if (line != null) items.Add(line);
+            }
+
+            // ── STEP 6: Merge manual + PS rows ───────────────────────────
+            var manualStore = LoadManualStore(doc);
+            if (manualStore?.ManualRows != null)
+                items.AddRange(manualStore.ManualRows.Select(r => r.Clone()));
+            if (extraManualRows != null)
+                items.AddRange(extraManualRows.Select(r => r.Clone()));
+
+            // ── STEP 7: Group into sections ──────────────────────────────
+            boq.Sections = GroupIntoSections(items);
+
+            // ── STEP 8: Assign BOQ line refs across the whole document ───
+            AssignBoqLineRefs(boq);
+
+            return boq;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Per-element line builder — pipeline adapted from
+        //  SchedulingCommands.ElementCostTraceCommand so rate-source precedence
+        //  and quantity derivation stay consistent across the codebase.
+        // ══════════════════════════════════════════════════════════════════
+
+        private static BOQLineItem BuildLineItemFromElement(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates,
+            Dictionary<string, string> cobieCostCodes)
+        {
+            string catName = ParameterHelpers.GetCategoryName(el);
+            if (string.IsNullOrEmpty(catName)) return null;
+
+            // Skip phase-demolished or temporary elements — they don't belong in the cost plan.
+            if (IsPhaseDemolished(doc, el)) return null;
+
+            // (a) Rate lookup — CSV by category → CSV by PROD code → COBie type map → default
+            string rateSource;
+            int rateConfidence;
+            (double rate, string unit, string description) picked = ResolveRate(
+                doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence);
+            if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
+
+            string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
+            double quantity = DeriveQuantity(el, unit);
+
+            // (b) Currency
+            double exchangeRate = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+            double rateUgx = picked.rate;
+            double rateUsd = exchangeRate > 0 ? Math.Round(rateUgx / exchangeRate, 2) : 0;
+
+            // (c) NRM2 paragraph — prefer the previously-resolved value on the element,
+            //      then a template resolution, then a safe fallback.
+            string paragraph = ResolveNrm2Paragraph(doc, el, catName);
+
+            // (d) Embodied carbon
+            double carbonKg = ComputeElementCarbon(el, quantity, unit);
+
+            // (e) Lifecycle cost (capital + simple NPV maintenance)
+            double lifecycleUgx = ComputeLifecycleCost(rateUgx * quantity, catName);
+
+            string disc = DisciplineForCategory(catName);
+            string nrm2Section = DeriveNrm2Section(catName, disc);
+            string sectionName = picked.description;
+            if (string.IsNullOrEmpty(sectionName)) sectionName = catName;
+
+            var line = new BOQLineItem
+            {
+                NRM2Section = nrm2Section,
+                Category = catName,
+                Discipline = disc,
+                ItemName = GetElementDisplayName(el),
+                FamilyName = GetFamilyName(el),
+                TypeName = el.Name ?? "",
+                Quantity = quantity,
+                Unit = unit,
+                RateUGX = rateUgx,
+                RateUSD = rateUsd,
+                EmbodiedCarbonKg = carbonKg,
+                LifecycleCostUGX = lifecycleUgx,
+                ResolvedNRM2Paragraph = paragraph,
+                Note = "",
+                Source = BOQRowSource.Model,
+                SnapshotRef = "",
+                RevitElementId = el.Id?.Value ?? -1,
+                UniqueId = el.UniqueId,
+                Level = GetLevelName(doc, el),
+                Location = GetLocationName(doc, el),
+                LastCosted = DateTime.UtcNow,
+                RateSource = rateSource,
+                RateConfidence = rateConfidence
+            };
+
+            // Mark provisional sums on the element if configured via existing parameter.
+            bool isPS = ParameterHelpers.GetInt(el, "CST_PROVISIONAL_SUM", 0) == 1;
+            if (isPS) line.Source = BOQRowSource.ProvisionalSum;
+
+            return line;
+        }
+
+        // ── Rate resolution ────────────────────────────────────────────────
+
+        private static (double rate, string unit, string description) ResolveRate(
+            Document doc, Element el, string catName,
+            Dictionary<string, (double rate, string unit)> csvRates,
+            Dictionary<string, string> cobieCostCodes,
+            out string rateSource, out int rateConfidence)
+        {
+            // Pass 1: CSV match by category name (most specific, highest confidence)
+            if (csvRates.TryGetValue(catName, out var direct))
+            {
+                rateSource = "CSV";
+                rateConfidence = 90;
+                return (direct.rate, direct.unit, catName);
+            }
+
+            // Pass 2: CSV match by PROD code (useful for MEP equipment)
+            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+            if (!string.IsNullOrEmpty(prod) && csvRates.TryGetValue(prod, out var byProd))
+            {
+                rateSource = "CSV";
+                rateConfidence = 85;
+                return (byProd.rate, byProd.unit, prod);
+            }
+
+            // Pass 3: COBie type map — look up cost-rate code then CSV
+            if (cobieCostCodes != null && cobieCostCodes.TryGetValue(catName, out string cobieCode)
+                && !string.IsNullOrEmpty(cobieCode) && csvRates.TryGetValue(cobieCode, out var byCobie))
+            {
+                rateSource = "COBie";
+                rateConfidence = 75;
+                return (byCobie.rate, byCobie.unit, cobieCode);
+            }
+
+            // Pass 4: Scheduling4DEngine defaults
+            if (Scheduling4DEngine.DefaultCostRates.TryGetValue(catName, out var dcr))
+            {
+                rateSource = "Default";
+                rateConfidence = 60;
+                return (dcr.ratePerUnit, dcr.unit, dcr.description);
+            }
+
+            // Pass 5: No match — emit a zero rate with low confidence so the row is
+            // still visible to the QS and gets flagged by BOQ health scoring.
+            rateSource = "None";
+            rateConfidence = 20;
+            return (0, "each", catName);
+        }
+
+        // ── Quantity derivation ────────────────────────────────────────────
+        // Adapted from SchedulingCommands.ElementCostTraceCommand.DeriveQuantity
+        // so cost totals exactly match the existing 5D Cost Trace output.
+
+        private static double DeriveQuantity(Element el, string unit)
+        {
+            try
+            {
+                switch ((unit ?? "").ToLowerInvariant())
+                {
+                    case "m²":
+                    case "m2":
+                    case "sqm":
+                        Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                        if (areaP != null && areaP.HasValue)
+                            return areaP.AsDouble() * 0.092903; // ft² → m²
+                        return 1.0;
+                    case "m³":
+                    case "m3":
+                    case "cum":
+                        Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
+                        if (volP != null && volP.HasValue)
+                            return volP.AsDouble() * 0.0283168; // ft³ → m³
+                        return 1.0;
+                    case "m":
+                        if (el.Location is LocationCurve lc)
+                            return lc.Curve.Length * 0.3048; // ft → m
+                        Parameter lenP = el.LookupParameter("Length")
+                            ?? el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
+                        if (lenP != null && lenP.HasValue)
+                            return lenP.AsDouble() * 0.3048;
+                        return 1.0;
+                    case "kg":
+                    case "tonne":
+                    case "tonnes":
+                        Parameter massP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
+                        if (massP != null && massP.HasValue)
+                            return massP.AsDouble();
+                        return 1.0;
+                    default:
+                        return 1.0;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveQuantity({unit}): {ex.Message}"); return 1.0; }
+        }
+
+        // ── NRM2 paragraph resolution ──────────────────────────────────────
+
+        private static readonly Regex _tokenRx = new Regex(@"\[([a-zA-Z0-9_]+)\]", RegexOptions.Compiled);
+
+        private static string ResolveNrm2Paragraph(Document doc, Element el, string catName)
+        {
+            // (i) Use the previously stored paragraph if it has no unresolved [tokens]
+            string stored = ParameterHelpers.GetString(el, "ASS_NRM2_PARA_TXT");
+            if (!string.IsNullOrEmpty(stored) && !_tokenRx.IsMatch(stored)) return stored;
+
+            // (ii) Use BOQTemplateLibrary to pick + resolve the best template for this element
+            try
+            {
+                var all = BOQTemplateLibrary.LoadAll(doc, StingToolsApp.DataPath);
+                var tpl = BOQTemplateLibraryExtensions.SelectBestTemplate(all, catName, el);
+                if (tpl != null)
+                {
+                    string resolved = BOQTemplateLibraryExtensions.ResolveForElement(tpl, el, doc);
+                    if (!string.IsNullOrEmpty(resolved)) return resolved;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveNrm2Paragraph template: {ex.Message}"); }
+
+            // (iii) Safe fallback — a QS can override this later in the Excel roundtrip.
+            return $"Supply and fix {catName?.ToLower()}.";
+        }
+
+        // ── Carbon + lifecycle ─────────────────────────────────────────────
+
+        private static double ComputeElementCarbon(Element el, double quantity, string unit)
+        {
+            try
+            {
+                // Preferred source: MAT_CARBON_FACTOR on the element's primary material (kgCO2e/kg).
+                double carbonFactor = 0;
+                string material = GetPrimaryMaterialName(el);
+                if (!string.IsNullOrEmpty(material))
+                    carbonFactor = CarbonTrackingEngine.GetCarbonFactor(material);
+
+                if (carbonFactor <= 0) return 0;
+
+                // Convert quantity to kg using a density estimate. For per-each items we can't
+                // derive a meaningful weight without a family-level property, so carbon stays zero
+                // unless the element exposes a Weight parameter.
+                double kg = EstimateMassKg(el, quantity, unit);
+                return Math.Round(kg * carbonFactor, 2);
+            }
+            catch (Exception ex) { StingLog.Warn($"ComputeElementCarbon: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>
+        /// Simple lifecycle cost: capital + 25y NPV of annual maintenance cost.
+        /// Maintenance fraction driven by COBIE_TYPE_MAP.csv MaintenanceFreqMonths
+        /// column when present (falls back to 2%/y for hard assets, 0.5%/y for shell).
+        /// Discount rate = 3.5% (UK Treasury Green Book).
+        /// </summary>
+        private static double ComputeLifecycleCost(double capitalUgx, string catName)
+        {
+            if (capitalUgx <= 0) return 0;
+            double annualMaintenance = capitalUgx * EstimateAnnualMaintenanceRate(catName);
+            double npvFactor = 0;
+            for (int y = 1; y <= LifecycleYears; y++)
+                npvFactor += 1.0 / Math.Pow(1 + LifecycleDiscountRate, y);
+            return Math.Round(capitalUgx + annualMaintenance * npvFactor, 0);
+        }
+
+        private static double EstimateAnnualMaintenanceRate(string catName)
+        {
+            if (string.IsNullOrEmpty(catName)) return 0.02;
+            string lower = catName.ToLowerInvariant();
+            if (lower.Contains("foundation") || lower.Contains("structural")) return 0.005;
+            if (lower.Contains("wall") || lower.Contains("floor") || lower.Contains("roof")) return 0.01;
+            if (lower.Contains("duct") || lower.Contains("pipe") || lower.Contains("mechanical")) return 0.03;
+            if (lower.Contains("electrical") || lower.Contains("lighting")) return 0.025;
+            if (lower.Contains("furniture") || lower.Contains("casework")) return 0.04;
+            return 0.02;
+        }
+
+        private static double EstimateMassKg(Element el, double quantity, string unit)
+        {
+            try
+            {
+                Parameter massP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
+                if (massP != null && massP.HasValue) return massP.AsDouble();
+
+                // Density fallback — only applies when we have a volume measurement.
+                if ((unit == "m³" || unit == "m3") && quantity > 0)
+                {
+                    double density = EstimateDensityKgPerM3(GetPrimaryMaterialName(el));
+                    return quantity * density;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"EstimateMassKg: {ex.Message}"); }
+            return 0;
+        }
+
+        private static double EstimateDensityKgPerM3(string material)
+        {
+            string lower = (material ?? "").ToLowerInvariant();
+            if (lower.Contains("concrete")) return 2400;
+            if (lower.Contains("steel")) return 7850;
+            if (lower.Contains("timber") || lower.Contains("wood")) return 550;
+            if (lower.Contains("alumin")) return 2700;
+            if (lower.Contains("glass")) return 2500;
+            if (lower.Contains("brick")) return 1920;
+            if (lower.Contains("insulation")) return 40;
+            if (lower.Contains("plaster") || lower.Contains("gypsum")) return 1250;
+            return 1000;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Parameter write-back
+        //  Writes CST_* / ASS_NRM2_PARA_* / ASS_BOQ_* parameters on elements
+        //  (only when values differ — dirty check) and updates ProjectInfo
+        //  project-level parameters. Caller supplies the transaction so
+        //  multiple operations can be batched within a single undo entry.
+        // ══════════════════════════════════════════════════════════════════
+
+        internal static int WriteElementParameters(Document doc, IEnumerable<BOQLineItem> items)
+        {
+            if (items == null) return 0;
+            int written = 0;
+            foreach (var item in items)
+            {
+                if (item.RevitElementId < 0) continue;
+                Element el;
+                try { el = doc.GetElement(new ElementId(item.RevitElementId)); }
+                catch { continue; }
+                if (el == null) continue;
+
+                // Rate fields — always write both currencies so the element stays
+                // currency-agnostic across sessions (Gap G3).
+                WriteIfChanged(el, "CST_UNIT_RATE_UGX", item.RateUGX.ToString("F0", CultureInfo.InvariantCulture), ref written);
+                WriteIfChanged(el, "CST_UNIT_RATE_USD", item.RateUSD.ToString("F2", CultureInfo.InvariantCulture), ref written);
+                WriteIfChanged(el, "CST_QTY_MEASURED", $"{item.Quantity:F3} {item.Unit}", ref written);
+
+                // Computed total — stored as NUMBER parameter
+                TrySetNumber(el, "CST_MODELED_TOTAL_UGX", item.TotalUGX, ref written);
+
+                WriteIfChanged(el, "CST_RATE_SOURCE", item.RateSource ?? "", ref written);
+
+                if (!string.IsNullOrEmpty(item.SnapshotRef))
+                    WriteIfChanged(el, "CST_BOQ_SNAPSHOT_REF", item.SnapshotRef, ref written);
+
+                // Paragraph — audit trail (Phase 11D)
+                string currentPara = ParameterHelpers.GetString(el, "ASS_NRM2_PARA_TXT") ?? "";
+                if (!string.IsNullOrEmpty(item.ResolvedNRM2Paragraph) && currentPara != item.ResolvedNRM2Paragraph)
+                {
+                    if (!string.IsNullOrEmpty(currentPara))
+                    {
+                        ParameterHelpers.SetString(el, "ASS_NRM2_PARA_PREV_TXT", currentPara, overwrite: true);
+                    }
+                    ParameterHelpers.SetString(el, "ASS_NRM2_PARA_TXT", item.ResolvedNRM2Paragraph, overwrite: true);
+                    ParameterHelpers.SetString(el, "ASS_NRM2_PARA_DATE_TXT",
+                        DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture), overwrite: true);
+                    ParameterHelpers.SetString(el, "ASS_NRM2_PARA_AUTHOR_TXT", Environment.UserName ?? "", overwrite: true);
+                    written++;
+                }
+
+                // Line ref is write-once — never overwrite an explicit user-assigned ref (Gap G8)
+                if (!string.IsNullOrEmpty(item.BOQLineRef))
+                {
+                    string existingRef = ParameterHelpers.GetString(el, "ASS_BOQ_LINE_REF");
+                    if (string.IsNullOrEmpty(existingRef))
+                    {
+                        ParameterHelpers.SetString(el, "ASS_BOQ_LINE_REF", item.BOQLineRef, overwrite: true);
+                        written++;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(item.Category))
+                    WriteIfChanged(el, "ASS_BOQ_SECTION_NAME", item.Category, ref written);
+
+                TrySetNumber(el, "CST_EMBODIED_CARBON_KG", item.EmbodiedCarbonKg, ref written);
+                TrySetNumber(el, "CST_LIFECYCLE_COST_UGX", item.LifecycleCostUGX, ref written);
+                ParameterHelpers.SetInt(el, "CST_RATE_CONFIDENCE", item.RateConfidence, overwrite: true);
+            }
+            return written;
+        }
+
+        internal static void WriteProjectParameters(Document doc, BOQDocument boq)
+        {
+            if (doc?.ProjectInformation == null || boq == null) return;
+            Element pi = doc.ProjectInformation;
+            int dummy = 0;
+
+            TrySetNumber(pi, "PROJECT_BUDGET_UGX", boq.ProjectBudgetUGX, ref dummy);
+            TrySetNumber(pi, "CST_BUDGET_VARIANCE_UGX", boq.BudgetVarianceUGX, ref dummy);
+            TrySetNumber(pi, "CST_BOQ_COVERAGE_PCT", boq.BudgetCoveragePct, ref dummy);
+            ParameterHelpers.SetString(pi, "CST_LAST_COSTED_DATE",
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture), overwrite: true);
+        }
+
+        // ── Helpers used by WriteElementParameters ────────────────────────
+
+        private static void WriteIfChanged(Element el, string paramName, string value, ref int counter)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return;
+            string current = ParameterHelpers.GetString(el, paramName);
+            if (current == value) return;
+            if (ParameterHelpers.SetString(el, paramName, value ?? "", overwrite: true)) counter++;
+        }
+
+        private static void TrySetNumber(Element el, string paramName, double value, ref int counter)
+        {
+            try
+            {
+                Parameter p = el.LookupParameter(paramName);
+                if (p == null || p.IsReadOnly) return;
+                // Only write when the displayed value differs — prevents dirtying the
+                // transaction when the model already has the right value.
+                double current = p.HasValue ? p.AsDouble() : double.NaN;
+                if (!double.IsNaN(current) && Math.Abs(current - value) < 1e-6) return;
+                if (p.StorageType == StorageType.Double) { p.Set(value); counter++; }
+                else if (p.StorageType == StorageType.Integer) { p.Set((int)Math.Round(value)); counter++; }
+                else p.Set(value.ToString("F2", CultureInfo.InvariantCulture));
+            }
+            catch (Exception ex) { StingLog.Warn($"TrySetNumber({paramName}): {ex.Message}"); }
+        }
+
+        private static double ReadProjectBudget(Document doc)
+        {
+            if (doc?.ProjectInformation == null) return 0;
+            Parameter p = doc.ProjectInformation.LookupParameter("PROJECT_BUDGET_UGX");
+            if (p != null && p.HasValue)
+            {
+                if (p.StorageType == StorageType.Double) return p.AsDouble();
+                if (p.StorageType == StorageType.String
+                    && double.TryParse(p.AsString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double d))
+                    return d;
+            }
+            // Fallback — project_config.json PROJECT_BUDGET_UGX
+            return TagConfig.GetConfigDouble("PROJECT_BUDGET_UGX", 0);
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Snapshot persistence — save, list, load and prune.
+        //  Snapshots are plain JSON under {projectDir}/STING_BIM_MANAGER/.
+        //  The same dir hosts every other BIM-manager sidecar so backups
+        //  and CDE transmittals pick them up automatically.
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Persist the BOQ to a timestamped JSON snapshot. Also stamps the
+        /// snapshot label onto every modeled element (CST_BOQ_SNAPSHOT_REF)
+        /// so a line in the BOQ can always be traced back to the source
+        /// element at the moment it was costed. Caller supplies a transaction
+        /// context inside which the element stamping runs; budget/variance
+        /// write-back uses the same transaction.
+        /// </summary>
+        internal static string SaveSnapshot(Document doc, BOQDocument boq, string label, string snapshotType)
+        {
+            if (doc == null || boq == null) throw new ArgumentNullException();
+            string safeLabel = MakeSafeFileName(label ?? "snapshot");
+            string safeType = MakeSafeFileName(snapshotType ?? "Manual");
+            string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+            string path = Path.Combine(bimDir,
+                $"boq_snapshot_{safeType}_{safeLabel}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+
+            boq.SnapshotLabel = label;
+            boq.SnapshotType = snapshotType;
+            boq.SnapshotDate = DateTime.UtcNow;
+
+            // Stamp the snapshot reference onto every row before serialising.
+            foreach (var it in boq.AllItems)
+                it.SnapshotRef = label;
+
+            try
+            {
+                string tmp = path + ".tmp";
+                File.WriteAllText(tmp, JsonConvert.SerializeObject(boq, _jsonSettings));
+                if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
+                else File.Move(tmp, path);
+                StingLog.Info($"BOQ snapshot saved: {Path.GetFileName(path)} ({boq.AllItems.Count} items)");
+            }
+            catch (Exception ex) { StingLog.Error("BOQ snapshot save", ex); throw; }
+
+            PruneSnapshots(doc);
+            return path;
+        }
+
+        /// <summary>Load a snapshot JSON. Returns null on any failure.</summary>
+        internal static BOQDocument LoadSnapshot(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+            try { return JsonConvert.DeserializeObject<BOQDocument>(File.ReadAllText(path), _jsonSettings); }
+            catch (Exception ex) { StingLog.Warn($"LoadSnapshot({Path.GetFileName(path)}): {ex.Message}"); return null; }
+        }
+
+        /// <summary>
+        /// Enumerate all available BOQ snapshots. Cheap — reads only the top
+        /// of each file via a lazy JObject Parse that still gives us the KPI
+        /// header (label, type, grand total).
+        /// </summary>
+        internal static List<BOQSnapshotMeta> ListSnapshots(Document doc)
+        {
+            var list = new List<BOQSnapshotMeta>();
+            try
+            {
+                string dir = BIMManagerEngine.GetBIMManagerDir(doc);
+                if (!Directory.Exists(dir)) return list;
+                foreach (string f in Directory.EnumerateFiles(dir, "boq_snapshot_*.json"))
+                {
+                    try
+                    {
+                        // Filename shape:  boq_snapshot_{type}_{label}_{yyyyMMdd_HHmmss}.json
+                        string stem = Path.GetFileNameWithoutExtension(f);
+                        var parts = stem.Split('_');
+                        if (parts.Length < 5) continue;
+                        string type = parts[2];
+                        string dateStr = parts[parts.Length - 2] + "_" + parts[parts.Length - 1];
+                        string label = string.Join("_", parts.Skip(3).Take(parts.Length - 5));
+                        DateTime.TryParseExact(dateStr, "yyyyMMdd_HHmmss", CultureInfo.InvariantCulture,
+                            DateTimeStyles.None, out DateTime dt);
+
+                        double total = 0;
+                        try
+                        {
+                            // Only parse the single top-level property we need.
+                            using (var sr = new StreamReader(f))
+                            using (var jr = new JsonTextReader(sr))
+                            {
+                                var jo = JObject.Load(jr);
+                                if (jo != null && jo["Sections"] is JArray secs)
+                                {
+                                    foreach (var sec in secs)
+                                    {
+                                        if (sec["Items"] is JArray its)
+                                        {
+                                            foreach (var it in its)
+                                            {
+                                                double q = it.Value<double?>("Quantity") ?? 0;
+                                                double r = it.Value<double?>("RateUGX") ?? 0;
+                                                total += q * r;
+                                            }
+                                        }
+                                    }
+                                    double pre = 12.0, con = 10.0, oh = 8.0;
+                                    double.TryParse(jo.Value<string>("PrelimPct") ?? "", NumberStyles.Any,
+                                        CultureInfo.InvariantCulture, out pre);
+                                    total = Math.Round(total * (1 + pre / 100 + con / 100 + oh / 100), 0);
+                                }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"ListSnapshots parse {Path.GetFileName(f)}: {ex.Message}"); }
+
+                        list.Add(new BOQSnapshotMeta
+                        {
+                            Path = f, Label = label, Type = type, Date = dt, GrandTotalUGX = total
+                        });
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ListSnapshots inner: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ListSnapshots: {ex.Message}"); }
+            return list.OrderByDescending(s => s.Date).ToList();
+        }
+
+        private static void PruneSnapshots(Document doc)
+        {
+            try
+            {
+                var all = ListSnapshots(doc);
+                if (all.Count <= MaxSnapshotsRetained) return;
+                foreach (var old in all.Skip(MaxSnapshotsRetained))
+                {
+                    try { File.Delete(old.Path); }
+                    catch (Exception ex) { StingLog.Warn($"PruneSnapshots delete {old.Path}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PruneSnapshots: {ex.Message}"); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Snapshot comparison — builds a structured diff between two
+        //  snapshots suitable for rendering in a StingResultPanel or a
+        //  dedicated Excel "Snapshot Comparison" sheet.
+        // ══════════════════════════════════════════════════════════════════
+
+        internal static BOQSnapshotDiff CompareSnapshots(string pathA, string pathB)
+        {
+            var diff = new BOQSnapshotDiff();
+            var a = LoadSnapshot(pathA);
+            var b = LoadSnapshot(pathB);
+            if (a == null || b == null) return diff;
+
+            diff.LabelA = a.SnapshotLabel; diff.LabelB = b.SnapshotLabel;
+            diff.TypeA = a.SnapshotType; diff.TypeB = b.SnapshotType;
+            diff.DateA = a.SnapshotDate; diff.DateB = b.SnapshotDate;
+            diff.TotalA = a.GrandTotalUGX; diff.TotalB = b.GrandTotalUGX;
+            diff.ModeledA = a.ModeledTotalUGX; diff.ModeledB = b.ModeledTotalUGX;
+            diff.ProvA = a.ProvTotalUGX; diff.ProvB = b.ProvTotalUGX;
+            diff.CarbonA = a.TotalCarbonKg; diff.CarbonB = b.TotalCarbonKg;
+
+            // Match items by BOQLineRef first, then by Category+ItemName composite.
+            var aByKey = IndexByKey(a);
+            var bByKey = IndexByKey(b);
+            var keys = new HashSet<string>(aByKey.Keys);
+            foreach (var k in bByKey.Keys) keys.Add(k);
+
+            foreach (var key in keys)
+            {
+                aByKey.TryGetValue(key, out BOQLineItem ai);
+                bByKey.TryGetValue(key, out BOQLineItem bi);
+                var cd = new CategoryDiff
+                {
+                    NRM2Section = bi?.NRM2Section ?? ai?.NRM2Section,
+                    Name = bi?.Category ?? ai?.Category,
+                    Discipline = bi?.Discipline ?? ai?.Discipline,
+                    QtyA = ai?.Quantity ?? 0,
+                    QtyB = bi?.Quantity ?? 0,
+                    RateA = ai?.RateUGX ?? 0,
+                    RateB = bi?.RateUGX ?? 0,
+                    TotalA = ai?.TotalUGX ?? 0,
+                    TotalB = bi?.TotalUGX ?? 0
+                };
+                cd.ChangeType = ClassifyChange(ai, bi);
+                cd.ChangeReason = BuildChangeReason(cd, ai, bi);
+                if (cd.ChangeType != BOQChangeType.NoChange) diff.CategoryDiffs.Add(cd);
+            }
+
+            // Section-level rollup
+            var rolled = new Dictionary<string, SectionDiff>(StringComparer.OrdinalIgnoreCase);
+            foreach (var cd in diff.CategoryDiffs)
+            {
+                string key = $"{cd.NRM2Section}|{cd.Discipline}";
+                if (!rolled.TryGetValue(key, out var sd))
+                {
+                    sd = new SectionDiff
+                    {
+                        NRM2Section = cd.NRM2Section, Name = cd.Name, Discipline = cd.Discipline
+                    };
+                    rolled[key] = sd;
+                }
+                sd.TotalA += cd.TotalA;
+                sd.TotalB += cd.TotalB;
+            }
+            diff.SectionDiffs = rolled.Values.OrderBy(s => s.NRM2Section).ToList();
+
+            diff.PlainSummary = BuildPlainSummary(diff);
+            return diff;
+        }
+
+        private static Dictionary<string, BOQLineItem> IndexByKey(BOQDocument d)
+        {
+            var map = new Dictionary<string, BOQLineItem>(StringComparer.OrdinalIgnoreCase);
+            foreach (var it in d.AllItems)
+            {
+                string k = !string.IsNullOrEmpty(it.BOQLineRef)
+                    ? "ref:" + it.BOQLineRef
+                    : "cat:" + (it.Category ?? "") + "|" + (it.ItemName ?? "");
+                map[k] = it;
+            }
+            return map;
+        }
+
+        private static BOQChangeType ClassifyChange(BOQLineItem a, BOQLineItem b)
+        {
+            if (a == null && b != null)
+                return b.Source == BOQRowSource.ProvisionalSum ? BOQChangeType.PSAdded : BOQChangeType.NewItem;
+            if (a != null && b == null) return BOQChangeType.ItemRemoved;
+            if (a == null || b == null) return BOQChangeType.NoChange;
+            if (a.Source != BOQRowSource.Model && b.Source == BOQRowSource.Model)
+                return BOQChangeType.SourcePromoted;
+            bool qtyChanged = a.Quantity > 0 && Math.Abs(b.Quantity - a.Quantity) / a.Quantity > 0.001;
+            bool rateChanged = a.RateUGX > 0 && Math.Abs(b.RateUGX - a.RateUGX) / a.RateUGX > 0.01;
+            if (rateChanged && !qtyChanged) return BOQChangeType.RateRevised;
+            if (qtyChanged && !rateChanged) return BOQChangeType.QtyChanged;
+            if (qtyChanged && rateChanged) return BOQChangeType.RateRevised; // dominant narrative
+            return BOQChangeType.NoChange;
+        }
+
+        private static string BuildChangeReason(CategoryDiff cd, BOQLineItem a, BOQLineItem b)
+        {
+            switch (cd.ChangeType)
+            {
+                case BOQChangeType.RateRevised:
+                    return $"Rate revised {cd.Name} UGX {cd.RateA:N0} → {cd.RateB:N0}/unit.";
+                case BOQChangeType.QtyChanged:
+                    string dir = cd.QtyB > cd.QtyA ? "increased" : "reduced";
+                    return $"{cd.Name} {dir} {cd.QtyA:N1} → {cd.QtyB:N1} {b?.Unit ?? a?.Unit}.";
+                case BOQChangeType.NewItem:
+                    return $"{cd.QtyB:N0} {b?.Unit} newly modeled.";
+                case BOQChangeType.ItemRemoved:
+                    return "Removed since last snapshot.";
+                case BOQChangeType.PSAdded:
+                    return $"PC sum registered: {b?.Note ?? cd.Name}.";
+                case BOQChangeType.SourcePromoted:
+                    return "Promoted from manual row to modeled element.";
+                default:
+                    return "";
+            }
+        }
+
+        private static string BuildPlainSummary(BOQSnapshotDiff d)
+        {
+            string sign = d.NetChange >= 0 ? "+" : "";
+            var parts = new List<string>
+            {
+                $"Net movement between '{d.LabelA}' and '{d.LabelB}' is {sign}UGX {d.NetChange:N0} ({d.NetChangePct:+0.0;-0.0;0.0}%)."
+            };
+            var top = d.CategoryDiffs.OrderByDescending(c => Math.Abs(c.Delta)).Take(3).ToList();
+            if (top.Count > 0)
+            {
+                parts.Add("Largest movements: " + string.Join("; ",
+                    top.Select(c => $"{c.Name} {(c.Delta >= 0 ? "+" : "")}{c.Delta:N0}")) + ".");
+            }
+            if (Math.Abs(d.NetCarbonChange) > 1)
+                parts.Add($"Embodied carbon moved by {d.NetCarbonChange:+#,##0;-#,##0;0} kgCO2e.");
+            return string.Join(" ", parts);
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Manual store / provisional sum reconciliation
+        // ══════════════════════════════════════════════════════════════════
+
+        internal static string GetManualStorePath(Document doc)
+            => Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "project_boq_manual.json");
+
+        internal static BOQManualStore LoadManualStore(Document doc)
+        {
+            string path = GetManualStorePath(doc);
+            if (!File.Exists(path)) return new BOQManualStore();
+            try { return JsonConvert.DeserializeObject<BOQManualStore>(File.ReadAllText(path), _jsonSettings) ?? new BOQManualStore(); }
+            catch (Exception ex) { StingLog.Warn($"LoadManualStore: {ex.Message}"); return new BOQManualStore(); }
+        }
+
+        internal static List<BOQLineItem> LoadManualRows(Document doc)
+            => LoadManualStore(doc)?.ManualRows ?? new List<BOQLineItem>();
+
+        internal static void SaveManualRows(Document doc, List<BOQLineItem> rows, double projectBudgetUgx)
+        {
+            var store = new BOQManualStore
+            {
+                SchemaVersion = "1.1",
+                ProjectBudgetUGX = projectBudgetUgx,
+                LastSaved = DateTime.UtcNow,
+                LastSavedBy = Environment.UserName ?? "",
+                ManualRows = rows ?? new List<BOQLineItem>()
+            };
+            string path = GetManualStorePath(doc);
+            try
+            {
+                string tmp = path + ".tmp";
+                File.WriteAllText(tmp, JsonConvert.SerializeObject(store, _jsonSettings));
+                if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
+                else File.Move(tmp, path);
+                StingLog.Info($"BOQ manual store saved: {store.ManualRows.Count} manual/PS rows, budget UGX {projectBudgetUgx:N0}");
+            }
+            catch (Exception ex) { StingLog.Error("SaveManualRows", ex); throw; }
+        }
+
+        /// <summary>
+        /// Identify candidate promotions from provisional sums to modeled
+        /// elements. For each PS row, search modeled rows of the same category
+        /// whose total is within ±30% of the PS total. Ranks by closeness.
+        /// Caller confirms which matches to apply.
+        /// </summary>
+        internal static List<BOQReconcileMatch> ReconcileProvisionals(Document doc, BOQDocument boq)
+        {
+            var results = new List<BOQReconcileMatch>();
+            if (boq == null) return results;
+            var psRows = boq.AllItems.Where(i => i.Source == BOQRowSource.ProvisionalSum).ToList();
+            var modeledByCategory = boq.AllItems
+                .Where(i => i.Source == BOQRowSource.Model)
+                .GroupBy(i => i.Category ?? "", StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var ps in psRows)
+            {
+                if (!modeledByCategory.TryGetValue(ps.Category ?? "", out var candidates) || candidates.Count == 0)
+                    continue;
+                double psTotal = ps.TotalUGX;
+                if (psTotal <= 0) continue;
+                foreach (var mod in candidates)
+                {
+                    double diff = Math.Abs(mod.TotalUGX - psTotal);
+                    double ratio = diff / psTotal;
+                    if (ratio > 0.3) continue;
+                    double confidence = Math.Round((1 - ratio) * 100, 0);
+                    results.Add(new BOQReconcileMatch
+                    {
+                        PSRow = ps,
+                        ModeledRow = mod,
+                        ConfidencePct = confidence,
+                        Reason = $"{ps.Category} total within {ratio * 100:F0}% of PS"
+                    });
+                }
+            }
+            return results.OrderByDescending(m => m.ConfidencePct).ToList();
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Cash-flow generation wrapped around the BOQ
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Build a monthly cash-flow forecast JSON object using BOQ totals.
+        /// Modeled costs distributed linearly across the active phase span,
+        /// provisional costs placed at the end of the project (or instructed
+        /// phase if the PS row's Note contains "phase:XXX"). Returns a JObject
+        /// matching the shape consumed by Scheduling4DEngine.GenerateCashFlow
+        /// downstream.
+        /// </summary>
+        internal static JObject GenerateCashFlowWithBOQ(Document doc, BOQDocument boq)
+        {
+            var root = new JObject();
+            if (boq == null) return root;
+            var monthly = new JArray();
+
+            // Use the project's phases (if defined) to pick start + end months.
+            DateTime start = DateTime.Now.Date;
+            DateTime end = start.AddMonths(18);
+            try
+            {
+                var phases = new FilteredElementCollector(doc).OfClass(typeof(Phase))
+                    .Cast<Phase>().ToList();
+                if (phases.Count >= 2)
+                {
+                    // Earliest + latest phase as rough project envelope — overridable by config.
+                    start = DateTime.Now.Date;
+                    end = DateTime.Now.AddMonths(Math.Max(6, phases.Count * 3));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GenerateCashFlowWithBOQ phases: {ex.Message}"); }
+
+            int months = Math.Max(1, (end.Year - start.Year) * 12 + (end.Month - start.Month) + 1);
+            double modeledPerMonth = boq.ModeledTotalUGX / months;
+            double runningTotal = 0;
+            DateTime cursor = start;
+            for (int i = 0; i < months; i++)
+            {
+                double thisMonth = modeledPerMonth;
+                // PS rows at final month (simplest distribution — future work: parse "phase:" hints)
+                if (i == months - 1) thisMonth += boq.ProvTotalUGX;
+                runningTotal += thisMonth;
+                monthly.Add(new JObject
+                {
+                    ["month"] = cursor.ToString("yyyy-MM"),
+                    ["period_cost_ugx"] = Math.Round(thisMonth, 0),
+                    ["cumulative_ugx"] = Math.Round(runningTotal, 0)
+                });
+                cursor = cursor.AddMonths(1);
+            }
+
+            root["project_name"] = boq.ProjectName;
+            root["generated_at"] = DateTime.UtcNow.ToString("o");
+            root["modeled_total_ugx"] = boq.ModeledTotalUGX;
+            root["provisional_total_ugx"] = boq.ProvTotalUGX;
+            root["grand_total_ugx"] = boq.GrandTotalUGX;
+            root["budget_ugx"] = boq.ProjectBudgetUGX;
+            root["monthly"] = monthly;
+            return root;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  BOQ Health Score (Phase 11C)
+        //  Weighted 0-100 scoring across seven factors. Surfaced as a KPI
+        //  card in both the BOQ panel and the BIM Coordination Center.
+        // ══════════════════════════════════════════════════════════════════
+
+        internal static BOQHealthScore ComputeBOQHealth(BOQDocument boq)
+        {
+            var score = new BOQHealthScore();
+            if (boq == null || boq.AllItems.Count == 0)
+            {
+                score.Grade = "Poor";
+                score.Issues.Add("No items in BOQ.");
+                return score;
+            }
+
+            // Factor 1 — paragraph coverage (25 pts at 90%+)
+            double paraPct = boq.ParagraphCoveragePct;
+            score.ParagraphCoverageScore = paraPct >= 90 ? 25 : paraPct >= 70 ? 18 : paraPct >= 50 ? 10 : 3;
+
+            // Factor 2 — rate confidence (20 pts at avg 75+)
+            double avgConf = boq.AverageRateConfidence;
+            score.RateConfidenceScore = avgConf >= 75 ? 20 : avgConf >= 60 ? 14 : avgConf >= 40 ? 8 : 2;
+
+            // Factor 3 — token completeness (15 pts if no [token] remaining)
+            int tokenStragglers = boq.AllItems.Count(i => _tokenRx.IsMatch(i.ResolvedNRM2Paragraph ?? ""));
+            score.TokenCompletenessScore = tokenStragglers == 0 ? 15 : tokenStragglers <= 5 ? 10 : 3;
+
+            // Factor 4 — line ref completeness (15 pts if all have a ref)
+            int missingRefs = boq.AllItems.Count(i => string.IsNullOrEmpty(i.BOQLineRef));
+            score.LineRefScore = missingRefs == 0 ? 15 : missingRefs <= 3 ? 10 : 4;
+
+            // Factor 5 — budget (10 pts when budget set AND coverage within 80-110%)
+            double cov = boq.BudgetCoveragePct;
+            score.BudgetScore = boq.ProjectBudgetUGX > 0 && cov >= 80 && cov <= 110 ? 10
+                : boq.ProjectBudgetUGX > 0 ? 5 : 0;
+
+            // Factor 6 — PS description completeness (10 pts when all PS have a note)
+            var ps = boq.AllItems.Where(i => i.Source == BOQRowSource.ProvisionalSum).ToList();
+            int psMissing = ps.Count(i => string.IsNullOrWhiteSpace(i.Note) && string.IsNullOrWhiteSpace(i.ResolvedNRM2Paragraph));
+            score.PSDescriptionScore = ps.Count == 0 ? 10 : psMissing == 0 ? 10 : psMissing <= 2 ? 6 : 2;
+
+            // Factor 7 — carbon coverage (5 pts when ≥50% of items have carbon data)
+            int withCarbon = boq.AllItems.Count(i => i.EmbodiedCarbonKg > 0);
+            double carbonPct = 100.0 * withCarbon / boq.AllItems.Count;
+            score.CarbonScore = carbonPct >= 50 ? 5 : carbonPct >= 25 ? 3 : 0;
+
+            score.OverallScore = Math.Round(
+                score.ParagraphCoverageScore + score.RateConfidenceScore +
+                score.TokenCompletenessScore + score.LineRefScore +
+                score.BudgetScore + score.PSDescriptionScore + score.CarbonScore, 0);
+
+            score.Grade = score.OverallScore >= 85 ? "Excellent"
+                : score.OverallScore >= 70 ? "Good"
+                : score.OverallScore >= 50 ? "Fair" : "Poor";
+
+            // Issues + recommendations
+            if (paraPct < 90)
+                score.Issues.Add($"Paragraph coverage {paraPct:F0}% — {boq.AllItems.Count - boq.ResolvedParagraphCount} item(s) lack an NRM2 description.");
+            if (avgConf < 75)
+                score.Issues.Add($"Rate confidence average {avgConf:F0} — rates need verification or CSV overrides.");
+            if (tokenStragglers > 0)
+                score.Issues.Add($"{tokenStragglers} paragraph(s) still contain unresolved [tokens].");
+            if (missingRefs > 0)
+                score.Issues.Add($"{missingRefs} item(s) missing BOQ line reference.");
+            if (boq.ProjectBudgetUGX <= 0)
+                score.Recommendations.Add("Set a project budget via the BOQ panel Budget button.");
+            if (psMissing > 0)
+                score.Recommendations.Add($"Add scope notes to {psMissing} provisional sum(s) before handover.");
+            if (carbonPct < 50)
+                score.Recommendations.Add("Carbon coverage below 50% — populate MAT_CARBON_FACTOR on primary materials.");
+            return score;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Utility helpers — private
+        // ══════════════════════════════════════════════════════════════════
+
+        private static Dictionary<string, (double rate, string unit)> LoadCsvRates()
+        {
+            var rates = new Dictionary<string, (double rate, string unit)>(StringComparer.OrdinalIgnoreCase);
+            string costFile = TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
+            string path = StingToolsApp.FindDataFile(costFile);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rates;
+            try
+            {
+                string[] lines = File.ReadAllLines(path);
+                if (lines.Length < 2) return rates;
+                string header = lines[0].ToLowerInvariant();
+                bool is7Col = header.Contains("mat_code");
+
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
+                    if (cols.Length < 3) continue;
+                    if (is7Col && cols.Length >= 7)
+                    {
+                        // Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
+                        if (double.TryParse(cols[4], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
+                        {
+                            rates[cols[0].Trim()] = (rateUgx, cols[5].Trim());
+                            if (!string.IsNullOrEmpty(cols[1]))
+                                rates[cols[1].Trim()] = (rateUgx, cols[5].Trim());
+                        }
+                    }
+                    else if (double.TryParse(cols[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate3))
+                    {
+                        rates[cols[0].Trim()] = (rate3, cols.Length > 2 ? cols[2].Trim() : "each");
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadCsvRates: {ex.Message}"); }
+            return rates;
+        }
+
+        private static Dictionary<string, string> LoadCobieCostCodes()
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            string path = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return map;
+            try
+            {
+                string[] lines = File.ReadAllLines(path);
+                if (lines.Length < 2) return map;
+                var headers = StingToolsApp.ParseCsvLine(lines[0]).Select(h => h.ToLowerInvariant()).ToArray();
+                int catCol = Array.FindIndex(headers, h => h.Contains("category"));
+                int codeCol = Array.FindIndex(headers, h => h.Contains("cost") && h.Contains("code"));
+                if (catCol < 0 || codeCol < 0) return map;
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
+                    if (cols.Length <= Math.Max(catCol, codeCol)) continue;
+                    string cat = cols[catCol].Trim();
+                    string code = cols[codeCol].Trim();
+                    if (!string.IsNullOrEmpty(cat) && !string.IsNullOrEmpty(code)) map[cat] = code;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadCobieCostCodes: {ex.Message}"); }
+            return map;
+        }
+
+        private static List<Element> CollectCandidateElements(Document doc, HashSet<string> knownCategories)
+        {
+            var list = new List<Element>();
+            var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            if (catEnums != null && catEnums.Length > 0)
+                collector = collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            foreach (Element el in collector)
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (string.IsNullOrEmpty(cat)) continue;
+                if (!knownCategories.Contains(cat)) continue;
+                if (cat.Equals("Rooms", StringComparison.OrdinalIgnoreCase)
+                    || cat.Equals("Spaces", StringComparison.OrdinalIgnoreCase)
+                    || cat.Equals("Areas", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                list.Add(el);
+            }
+            return list;
+        }
+
+        private static bool IsPhaseDemolished(Document doc, Element el)
+        {
+            try
+            {
+                Parameter demP = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+                if (demP != null && demP.HasValue)
+                {
+                    ElementId id = demP.AsElementId();
+                    if (id != null && id.Value > 0) return true;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"IsPhaseDemolished: {ex.Message}"); }
+            return false;
+        }
+
+        private static List<BOQSection> GroupIntoSections(List<BOQLineItem> items)
+        {
+            var groups = items
+                .GroupBy(i => (i.NRM2Section ?? "00", i.Discipline ?? "X"))
+                .OrderBy(g => ParseSectionInt(g.Key.Item1))
+                .ThenBy(g => g.Key.Item2, StringComparer.OrdinalIgnoreCase);
+
+            var sections = new List<BOQSection>();
+            foreach (var g in groups)
+            {
+                var section = new BOQSection
+                {
+                    NRM2Section = g.Key.Item1,
+                    Discipline = g.Key.Item2,
+                    Name = GuessSectionName(g.Key.Item1, g.First().Category),
+                    Items = g.OrderBy(x => (int)x.Source)
+                        .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(x => x.ItemName, StringComparer.OrdinalIgnoreCase)
+                        .ToList()
+                };
+                sections.Add(section);
+            }
+            return sections;
+        }
+
+        private static int ParseSectionInt(string s)
+        {
+            if (int.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out int v)) return v;
+            return 99;
+        }
+
+        private static string GuessSectionName(string section, string firstCategory)
+        {
+            // Map common NRM2 sections to human-readable names. Fallback = category.
+            switch ((section ?? "").Trim())
+            {
+                case "1": return "Demolitions";
+                case "2": return "Substructure";
+                case "3": return "Groundworks";
+                case "4": return "Foundations";
+                case "5": return "In-situ concrete";
+                case "14": return "Masonry";
+                case "15": return "Structural metalwork";
+                case "16": return "Carpentry";
+                case "17": return "Cladding and covering";
+                case "18": return "Waterproofing";
+                case "19": return "Linings, sheathing and dry partitioning";
+                case "20": return "Windows, doors and stairs";
+                case "21": return "Surface finishes";
+                case "22": return "Furniture, fittings and equipment";
+                case "23": return "Building fabric sundries";
+                case "30": return "Drainage above ground";
+                case "31": return "Drainage below ground";
+                case "32": return "Piped supply systems";
+                case "33": return "Mechanical services";
+                case "34": return "Electrical services";
+                case "35": return "Lighting and small power";
+                case "36": return "Security and fire alarm";
+                default: return string.IsNullOrEmpty(firstCategory) ? "General" : firstCategory;
+            }
+        }
+
+        private static void AssignBoqLineRefs(BOQDocument boq)
+        {
+            foreach (var section in boq.Sections)
+            {
+                int rowIndex = 1;
+                string sectionIndex = "1";
+                foreach (var item in section.Items)
+                {
+                    item.BOQLineRef = $"{section.NRM2Section}.{sectionIndex}.{rowIndex}";
+                    rowIndex++;
+                }
+            }
+        }
+
+        private static string DeriveNrm2Section(string catName, string disc)
+        {
+            if (string.IsNullOrEmpty(catName)) return "99";
+            string lower = catName.ToLowerInvariant();
+            // Hardcoded mapping covering the common Revit categories. QS can override via
+            // ASS_BOQ_SECTION_NAME / CATEGORY_NRM2_MAP config key (future work).
+            if (lower.Contains("foundation")) return "4";
+            if (lower.Contains("column") || lower.Contains("framing") || lower.Contains("truss") || lower.Contains("beam")) return "15";
+            if (lower.Contains("wall") && !lower.Contains("curtain")) return "14";
+            if (lower.Contains("floor") || lower.Contains("slab")) return "5";
+            if (lower.Contains("roof") || lower.Contains("fascia") || lower.Contains("gutter")) return "17";
+            if (lower.Contains("door") || lower.Contains("window") || lower.Contains("stair") || lower.Contains("ramp")) return "20";
+            if (lower.Contains("ceiling")) return "19";
+            if (lower.Contains("curtain") || lower.Contains("mullion")) return "17";
+            if (lower.Contains("furniture") || lower.Contains("casework") || lower.Contains("equipment")) return "22";
+            if (lower.Contains("duct") || lower.Contains("pipe") || lower.Contains("mechanical")) return "33";
+            if (lower.Contains("plumbing") || lower.Contains("sanitary")) return "32";
+            if (lower.Contains("electrical") || lower.Contains("conduit") || lower.Contains("cable")) return "34";
+            if (lower.Contains("lighting")) return "35";
+            if (lower.Contains("fire") || lower.Contains("security") || lower.Contains("nurse")) return "36";
+            return disc == "S" ? "15" : disc == "M" ? "33" : disc == "E" ? "34" : disc == "P" ? "32" : "23";
+        }
+
+        private static string DisciplineForCategory(string catName)
+        {
+            if (string.IsNullOrEmpty(catName)) return "X";
+            if (TagConfig.DiscMap != null && TagConfig.DiscMap.TryGetValue(catName, out string disc)) return disc;
+            return "X";
+        }
+
+        private static string MakeSafeFileName(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "item";
+            var invalid = new HashSet<char>(Path.GetInvalidFileNameChars().Concat(new[] { ' ', '/', '\\' }));
+            var sb = new System.Text.StringBuilder(s.Length);
+            foreach (char c in s) sb.Append(invalid.Contains(c) ? '-' : c);
+            string r = sb.ToString().Trim('-');
+            return string.IsNullOrEmpty(r) ? "item" : r;
+        }
+
+        private static string GetElementDisplayName(Element el)
+        {
+            string fam = GetFamilyName(el);
+            string typ = el.Name ?? "";
+            if (!string.IsNullOrEmpty(fam) && !string.IsNullOrEmpty(typ) && !fam.Equals(typ, StringComparison.OrdinalIgnoreCase))
+                return $"{fam} — {typ}";
+            return !string.IsNullOrEmpty(typ) ? typ : fam;
+        }
+
+        private static string GetFamilyName(Element el)
+        {
+            try
+            {
+                if (el is FamilyInstance fi) return fi.Symbol?.Family?.Name ?? "";
+                var typeId = el.GetTypeId();
+                if (typeId != null && typeId.Value > 0)
+                {
+                    Element t = el.Document.GetElement(typeId);
+                    if (t is FamilySymbol fs) return fs.Family?.Name ?? "";
+                    if (t != null) return t.Name ?? "";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetFamilyName: {ex.Message}"); }
+            return "";
+        }
+
+        private static string GetLevelName(Document doc, Element el)
+        {
+            try
+            {
+                Parameter lp = el.get_Parameter(BuiltInParameter.SCHEDULE_LEVEL_PARAM);
+                if (lp != null && lp.HasValue) return lp.AsValueString() ?? lp.AsString() ?? "";
+                ElementId lvlId = el.LevelId;
+                if (lvlId != null && lvlId.Value > 0)
+                {
+                    Element lv = doc.GetElement(lvlId);
+                    if (lv != null) return lv.Name;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetLevelName: {ex.Message}"); }
+            return "";
+        }
+
+        private static string GetLocationName(Document doc, Element el)
+        {
+            // Prefer ASS_LOC_TXT if tagged; otherwise room.
+            string loc = ParameterHelpers.GetString(el, "ASS_LOC_TXT");
+            if (!string.IsNullOrEmpty(loc)) return loc;
+            try
+            {
+                var room = ParameterHelpers.GetRoomAtElement(doc, el);
+                if (room != null) return room.Name ?? "";
+            }
+            catch (Exception ex) { StingLog.Warn($"GetLocationName: {ex.Message}"); }
+            return "";
+        }
+
+        private static string GetPrimaryMaterialName(Element el)
+        {
+            try
+            {
+                var ids = el.GetMaterialIds(false);
+                if (ids != null && ids.Count > 0)
+                {
+                    Material m = el.Document.GetElement(ids.First()) as Material;
+                    if (m != null) return m.Name ?? "";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetPrimaryMaterialName: {ex.Message}"); }
+            return "";
+        }
+    }
+}

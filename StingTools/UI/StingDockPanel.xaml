@@ -2539,6 +2539,14 @@
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="5D — COST ESTIMATION"/>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ BOQ Cost Manager" Tag="BOQCostManager" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Full BOQ editor: NRM2 paragraphs, rates, provisional sums, snapshots, carbon, Excel roundtrip"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="BOQ Export" Tag="BOQExport" Click="Cmd_Click"
+                                            ToolTip="Export an 8-sheet BOQ workbook (Summary, Items, Materials, PS, NRM2, Carbon, Audit, Snapshot)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BOQ Import" Tag="BOQImport" Click="Cmd_Click"
+                                            ToolTip="Import a previously exported BOQ spreadsheet and apply rate overrides"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Snapshot Diff" Tag="BOQSnapshotCompare" Click="Cmd_Click"
+                                            ToolTip="Compare the latest two BOQ snapshots — category-level deltas and narrative"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Auto Cost" Tag="AutoCost5D" Click="Cmd_Click"
                                             ToolTip="Auto-generate cost estimate from element quantities and unit rates"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Import Rates" Tag="ImportCostRates" Click="Cmd_Click"
