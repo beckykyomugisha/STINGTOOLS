@@ -3027,10 +3027,9 @@ namespace StingTools.Tags
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Attempts to set arrowhead style on annotation tag types.
-    /// The Revit API does not directly expose ArrowheadType on IndependentTag,
-    /// so this command provides line weight control on annotation categories
-    /// as the closest available alternative.
+    /// Set arrowhead style on selected tags by overriding the instance
+    /// LEADER_ARROWHEAD parameter (Task 4). When nothing is selected, falls
+    /// back to the legacy pen/line-weight control on annotation categories.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3042,6 +3041,34 @@ namespace StingTools.Tags
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
+
+            // ── Selection-first path: instance-level arrowhead override on tags ──
+            var selIds = uidoc?.Selection?.GetElementIds();
+            var tagIds = new List<ElementId>();
+            if (selIds != null)
+            {
+                foreach (var id in selIds)
+                {
+                    if (doc.GetElement(id) is IndependentTag) tagIds.Add(id);
+                }
+            }
+
+            string arrowName = UI.StingCommandHandler.GetExtraParam("ArrowStyle");
+            if (tagIds.Count > 0 && !string.IsNullOrEmpty(arrowName) && tagIds.Count <= 200)
+            {
+                int updated;
+                using (var tx = new Transaction(doc, "STING Override Tag Arrowhead"))
+                {
+                    tx.Start();
+                    updated = TagStyleEngine.OverrideArrowheadOnSelection(doc, tagIds, arrowName);
+                    tx.Commit();
+                }
+                TaskDialog.Show("STING — Set Arrowhead Style",
+                    $"Overrode arrowhead on {updated}/{tagIds.Count} selected tags.\n" +
+                    "Other tags in the view are unaffected.");
+                return Result.Succeeded;
+            }
 
             StingLog.Warn("SetArrowheadStyle: The Revit API does not expose IndependentTag.ArrowheadType " +
                 "directly. Providing line weight control on annotation categories as alternative.");

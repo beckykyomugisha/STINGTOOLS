@@ -1054,6 +1054,114 @@ namespace StingTools.Tags
                 p.Set(value);
         }
 
+        // ════════════════════════════════════════════════════════════════
+        // TYPE VARIANT LOOKUP — used by the placement path (Task 5)
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Find the FamilySymbol inside <paramref name="baseFamilyId"/> whose name matches the
+        /// canonical name for <c>(size, style, colour, arrowhead, depthTier)</c> (see
+        /// <see cref="TypeVariantSpec.CanonicalTypeName"/>, e.g. "2.5_BOLD_RED_Filled30_T3").
+        ///
+        /// Returns <see cref="ElementId.InvalidElementId"/> when no matching type exists —
+        /// caller should fall back to the current type and log a warning that
+        /// <c>MigrateTagFamilies</c> has not yet been run.
+        ///
+        /// This is how arrowhead/size/style/colour/depth selection happens at placement
+        /// time without mutating the shared type's LEADER_ARROWHEAD parameter, which
+        /// would affect every tag using that type.
+        /// </summary>
+        public static ElementId FindTypeVariant(
+            Document doc, ElementId baseFamilyId,
+            string size, string style, string colour,
+            string arrowhead, int depthTier)
+        {
+            if (doc == null || baseFamilyId == null || baseFamilyId == ElementId.InvalidElementId)
+                return ElementId.InvalidElementId;
+
+            var fam = doc.GetElement(baseFamilyId) as Family;
+            if (fam == null) return ElementId.InvalidElementId;
+
+            var spec = new TypeVariantSpec
+            {
+                Size = string.IsNullOrEmpty(size) ? "2.5" : size,
+                Style = string.IsNullOrEmpty(style) ? "NOM" : style,
+                Colour = string.IsNullOrEmpty(colour) ? "BLACK" : colour,
+                Arrowhead = string.IsNullOrEmpty(arrowhead) ? "None" : arrowhead,
+                DepthTier = Math.Max(1, Math.Min(10, depthTier <= 0 ? 3 : depthTier)),
+            };
+            string wanted = spec.CanonicalTypeName;
+
+            try
+            {
+                foreach (ElementId symId in fam.GetFamilySymbolIds())
+                {
+                    var fs = doc.GetElement(symId) as FamilySymbol;
+                    if (fs == null) continue;
+                    if (string.Equals(fs.Name, wanted, StringComparison.OrdinalIgnoreCase))
+                        return fs.Id;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FindTypeVariant: {ex.Message}"); }
+
+            StingLog.Warn($"FindTypeVariant: no type '{wanted}' in family '{fam.Name}' — run Migrate Tag Families to create it");
+            return ElementId.InvalidElementId;
+        }
+
+        /// <summary>
+        /// Apply an arrowhead override on the INSTANCE parameter of a tag selection
+        /// (BuiltInParameter.LEADER_ARROWHEAD). Use this for live-preview user overrides
+        /// — it does NOT mutate the tag family type, so unaffected tags in the view
+        /// stay on their current arrowhead.
+        ///
+        /// Returns the number of tags updated. Caller must supply a transaction.
+        /// </summary>
+        public static int OverrideArrowheadOnSelection(
+            Document doc, IList<ElementId> tagIds, string arrowheadName)
+        {
+            if (doc == null || tagIds == null || tagIds.Count == 0) return 0;
+            if (string.IsNullOrEmpty(arrowheadName)) return 0;
+
+            // Resolve the arrowhead ElementType by name (OST_ArrowHeads).
+            var types = new FilteredElementCollector(doc)
+                .OfClass(typeof(ElementType))
+                .Cast<ElementType>()
+                .Where(et => et.Category != null &&
+                             et.Category.Id.Value == (long)BuiltInCategory.OST_ArrowHeads)
+                .ToList();
+
+            var match = types.FirstOrDefault(et =>
+                string.Equals(et.Name, arrowheadName, StringComparison.OrdinalIgnoreCase));
+            if (match == null)
+            {
+                match = types.FirstOrDefault(et =>
+                    et.Name != null &&
+                    et.Name.IndexOf(arrowheadName, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+            if (match == null)
+            {
+                StingLog.Warn($"OverrideArrowheadOnSelection: no OST_ArrowHeads type matches '{arrowheadName}'");
+                return 0;
+            }
+
+            int updated = 0;
+            foreach (var id in tagIds)
+            {
+                var tag = doc.GetElement(id) as IndependentTag;
+                if (tag == null) continue;
+                try
+                {
+                    var p = tag.get_Parameter(BuiltInParameter.LEADER_ARROWHEAD);
+                    if (p == null || p.IsReadOnly) continue;
+                    if (p.Set(match.Id)) updated++;
+                }
+                catch (Exception ex) { StingLog.Warn($"OverrideArrowheadOnSelection tag {id}: {ex.Message}"); }
+            }
+
+            StingLog.Info($"OverrideArrowheadOnSelection: set arrowhead '{match.Name}' on {updated}/{tagIds.Count} tags");
+            return updated;
+        }
+
         // ── Helper ────────────────────────────────────────────────────
 
         /// <summary>Solid fill pattern cache keyed by document title.</summary>
