@@ -189,8 +189,9 @@ namespace StingTools.Commands.Mep
             {
                 result = MEPBalancingEngine.BalanceSystem(
                     demoBranches,
-                    toleranceRatio: 0.02,
-                    maxIterations: 50);
+                    totalSupplyPressurePa: 250.0,
+                    maxIterations: 50,
+                    tolerancePa: 1.0);
             }
             catch (Exception ex)
             {
@@ -234,29 +235,28 @@ namespace StingTools.Commands.Mep
 
             try
             {
-                // TODO-VERIFY-API: MEPVibroAcousticEngine.CheckIsolation signatures
-                // vary with frequency + mass. Demonstrate with 3 typical cases.
+                // Library signature: CalculateIsolation(equipmentRpm, equipmentMassKg, mountStiffnessNPerM)
                 var cases = new[]
                 {
-                    ("AHU centrifugal fan",     24.0, 400.0, "Spring mount"),
-                    ("Pump in-line",            50.0, 250.0, "Rubber mount"),
-                    ("Chiller reciprocating",   8.0,  3000.0, "Inertia base + spring")
+                    ("AHU centrifugal fan",     1450.0, 400.0,  1.0e5),
+                    ("Pump in-line",            2900.0, 250.0,  5.0e4),
+                    ("Chiller reciprocating",    500.0, 3000.0, 3.0e5)
                 };
                 panel.AddSection("ISOLATION TRANSMISSIBILITY");
                 foreach (var c in cases)
                 {
                     try
                     {
-                        var res = MEPVibroAcousticEngine.CheckIsolation(
-                            equipmentFreqHz: c.Item2,
-                            mountMassKg: c.Item3,
-                            mountType: c.Item4);
+                        var res = MEPVibroAcousticEngine.CalculateIsolation(
+                            equipmentRpm: c.Item2,
+                            equipmentMassKg: c.Item3,
+                            mountStiffnessNPerM: c.Item4);
                         string status = res.IsolationAdequate ? "OK" : "REVISIT";
                         panel.Metric(c.Item1,
                             $"{res.TransmissibilityPct:F1}% → {status}",
                             note: $"fn {res.MountNaturalFreqHz:F1} Hz, {res.MountType}");
                     }
-                    catch (Exception ex) { panel.Text($"{c.Item1}: CheckIsolation unavailable — {ex.Message}"); }
+                    catch (Exception ex) { panel.Text($"{c.Item1}: CalculateIsolation failed — {ex.Message}"); }
                 }
             }
             catch (Exception ex) { panel.Text($"Vibro-acoustic check failed: {ex.Message}"); }

@@ -28,7 +28,8 @@ namespace StingTools.Commands.Standards
     {
         public static bool TryAsk(string title, string[] labels, double[] defaults, out double[] values)
         {
-            values = defaults;
+            // Local holder — 'out values' can't be captured inside the Click lambda (CS1628).
+            double[] localValues = defaults;
             var w = new Window
             {
                 Title = title, Width = 420, SizeToContent = SizeToContent.Height,
@@ -76,7 +77,7 @@ namespace StingTools.Commands.Standards
                         return;
                     }
                 }
-                values = parsed;
+                localValues = parsed;
                 accepted = true;
                 w.DialogResult = true;
                 w.Close();
@@ -86,6 +87,7 @@ namespace StingTools.Commands.Standards
                 System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle; }
             catch (Exception ex) { StingLog.Warn($"NumericPrompt owner: {ex.Message}"); }
             w.ShowDialog();
+            values = localValues;
             return accepted;
         }
     }
@@ -162,23 +164,26 @@ namespace StingTools.Commands.Standards
 
             try
             {
+                // Library signature: (basicWindSpeedMPH, exposureCategory, buildingHeightFt, riskCategory)
+                double mph = v[0] * 2.2369;
+                double ft  = v[1] * 3.2808;
+                string exp = v[2] <= 1.5 ? "B" : v[2] <= 2.5 ? "C" : "D";
                 var res = AECCalculations.CalculateWindLoad(
-                    windSpeedMps: v[0], heightM: v[1],
-                    exposureCategory: v[2] <= 1.5 ? "B" : v[2] <= 2.5 ? "C" : "D",
-                    topographicFactor: v[3], gustFactor: v[4]);
+                    basicWindSpeedMPH: mph, exposureCategory: exp,
+                    buildingHeightFt: ft, riskCategory: "II");
 
                 var panel = StingResultPanel.Create("Wind load — ASCE 7 / Eurocode EN 1991-1-4");
-                panel.SetSubtitle(res.Standard ?? "");
+                panel.SetSubtitle(res.StandardReference ?? "");
                 panel.AddSection("DESIGN WIND PRESSURE")
-                     .Metric("Velocity pressure qz", $"{res.VelocityPressurePa:F0} Pa")
-                     .Metric("Design pressure p",    $"{res.DesignPressurePa:F0} Pa")
-                     .Metric("Basic wind speed V",   $"{v[0]:F0} m/s")
+                     .Metric("Basic wind speed",     $"{res.BasicWindSpeed:F0} mph ({v[0]:F0} m/s)")
+                     .Metric("Velocity pressure qz", $"{res.VelocityPressureKPa * 1000:F0} Pa ({res.VelocityPressurePSF:F1} psf)")
+                     .Metric("Windward p",           $"{res.WindwardPressurePSF:F1} psf")
+                     .Metric("Leeward p",            $"{res.LeewardPressurePSF:F1} psf")
                      .Metric("Mean roof height h",   $"{v[1]:F1} m")
-                     .Metric("Exposure",             v[2] <= 1.5 ? "B" : v[2] <= 2.5 ? "C" : "D")
-                     .Metric("Kzt",                  $"{v[3]:F2}")
-                     .Metric("Gust factor G",        $"{v[4]:F2}");
-                if (res.Notes != null)
-                    foreach (var n in res.Notes) panel.Text(n);
+                     .Metric("Exposure",             res.ExposureCategory ?? exp)
+                     .Metric("Kz",                    $"{res.Kz:F2}")
+                     .Metric("Kzt",                   $"{res.Kzt:F2}")
+                     .Metric("Kd",                    $"{res.Kd:F2}");
                 panel.Show();
                 return Result.Succeeded;
             }
@@ -200,26 +205,24 @@ namespace StingTools.Commands.Standards
 
             if (!NumericPrompt.TryAsk(
                 "STING Standards — Lighting (CIBSE / EN 12464-1)",
-                new[] { "Room area (m²)", "Target illuminance E (lx)", "Luminaire lumens F (lm)", "Utilisation factor UF", "Maintenance factor MF" },
-                new[] { 40.0,               500.0,                        4000.0,                     0.60,                   0.80 },
+                new[] { "Floor area (m²)", "Ceiling height (m)", "Space type (1=Office, 2=Class, 3=Retail)" },
+                new[] { 40.0,                2.7,                   1.0 },
                 out var v)) return Result.Cancelled;
 
             try
             {
+                string space = v[2] <= 1.5 ? "Office" : v[2] <= 2.5 ? "Classroom" : "Retail";
                 var res = StandardsAPI.CalculateLighting(
-                    roomAreaM2: v[0], targetLux: v[1],
-                    luminaireLumens: v[2], utilisationFactor: v[3], maintenanceFactor: v[4]);
+                    floorAreaM2: v[0], spaceType: space, ceilingHeightM: v[1]);
 
                 var panel = StingResultPanel.Create("Lighting — CIBSE / EN 12464-1");
-                panel.SetSubtitle(res.Standard ?? "BS EN 12464-1:2021");
+                panel.SetSubtitle(res.CIBSEReference ?? "BS EN 12464-1:2021");
                 panel.AddSection("RESULT")
-                     .Metric("Luminaires required", res.NumLuminaires.ToString())
-                     .Metric("Design illuminance",  $"{res.DesignLux:F0} lx")
-                     .Metric("Room index K",        $"{res.RoomIndex:F2}")
-                     .Metric("UGR (approx)",        res.UGR.ToString("F1"))
-                     .Metric("Power density",       $"{res.PowerDensityWm2:F1} W/m²");
-                if (res.Recommendations != null)
-                    foreach (var r in res.Recommendations) panel.Text(r);
+                     .Metric("Space type",           res.SpaceType ?? space)
+                     .Metric("Illuminance target",   $"{res.IlluminanceLux:F0} lx ({res.IlluminanceFootcandles:F0} fc)")
+                     .Metric("Total lumens required",$"{res.TotalLumensRequired:F0} lm")
+                     .Metric("Power density",        $"{res.PowerDensityWM2:F1} W/m²")
+                     .Metric("Measurement plane",     res.MeasurementPlane ?? "-");
                 panel.Show();
                 return Result.Succeeded;
             }
@@ -244,29 +247,31 @@ namespace StingTools.Commands.Standards
 
             if (!NumericPrompt.TryAsk(
                 "STING Standards — HVAC cooling load (ASHRAE / CIBSE Guide A)",
-                new[] { "Floor area (m²)", "People", "Equipment W/m²", "Lighting W/m²", "Outdoor °C", "Indoor °C" },
-                new[] { 100.0,              10.0,     15.0,             10.0,             35.0,         24.0 },
+                new[] { "Floor area (m²)", "People", "Equipment W/m²", "Lighting W/m²", "Ceiling height (m)" },
+                new[] { 100.0,              10.0,     15.0,             10.0,             2.7 },
                 out var v)) return Result.Cancelled;
 
             try
             {
+                // Library signature: (floorAreaM2, buildingType, climateZone, occupantCount, equipmentLoadW, lightingLoadW, orientation, ceilingHeightM)
+                double equipW  = v[2] * v[0];
+                double lightW  = v[3] * v[0];
                 var res = StandardsAPI.CalculateCoolingLoad(
-                    floorAreaM2: v[0], numberOfPeople: (int)v[1],
-                    equipmentWm2: v[2], lightingWm2: v[3],
-                    outdoorTempC: v[4], indoorTempC: v[5], buildingType: "Office");
+                    floorAreaM2: v[0], buildingType: "Office", climateZone: "3A",
+                    occupantCount: v[1],
+                    equipmentLoadW: equipW, lightingLoadW: lightW,
+                    orientationN_E_S_W: "N", ceilingHeightM: v[4]);
 
                 var panel = StingResultPanel.Create("HVAC cooling load — ASHRAE / CIBSE Guide A");
-                panel.SetSubtitle(res.Standard ?? "ASHRAE 62.1 + Guide A");
-                panel.AddSection("LOAD BREAKDOWN (W)")
-                     .Metric("Envelope",   $"{res.EnvelopeLoadW:F0}")
-                     .Metric("Ventilation",$"{res.VentilationLoadW:F0}")
-                     .Metric("Occupancy",  $"{res.OccupancyLoadW:F0}")
-                     .Metric("Equipment",  $"{res.EquipmentLoadW:F0}")
-                     .Metric("Lighting",   $"{res.LightingLoadW:F0}")
-                     .Metric("Sensible",   $"{res.SensibleLoadW:F0}")
-                     .Metric("Latent",     $"{res.LatentLoadW:F0}");
-                panel.AddSection("TOTALS")
-                     .Metric("Total cooling", $"{res.TotalCoolingLoadKW:F1} kW / {res.TotalCoolingLoadTons:F1} tons");
+                panel.SetSubtitle(res.CIBSEReference ?? "ASHRAE 62.1 + CIBSE Guide A");
+                panel.AddSection("LOADS")
+                     .Metric("Sensible",      $"{res.SensibleLoadKW:F1} kW")
+                     .Metric("Latent",        $"{res.LatentLoadKW:F1} kW")
+                     .Metric("Total cooling", $"{res.CoolingLoadKW:F1} kW ({res.CoolingLoadKW / 3.517:F1} tons)")
+                     .Metric("Heating (est.)",$"{res.HeatingLoadKW:F1} kW")
+                     .Metric("Ventilation",   $"{res.VentilationLPS:F0} L/s");
+                if (!string.IsNullOrEmpty(res.RecommendedSystem))
+                    panel.AddSection("RECOMMENDATION").Text(res.RecommendedSystem);
                 panel.Show();
                 return Result.Succeeded;
             }
@@ -294,32 +299,38 @@ namespace StingTools.Commands.Standards
 
             try
             {
+                // Library signatures:
+                //   CalculateOccupantLoad(floorAreaSqFt, occupancyType, standard)
+                //   CalculateEgressWidth(occupantLoad, egressComponent, sprinklered, standard)
+                //   CalculateTravelDistance(occupancyGroup, sprinklered, standard)
+                double areaSqFt = v[0] * 10.7639;
                 var occ = AECCalculations.CalculateOccupantLoad(
-                    floorAreaM2: v[0], loadFactorM2PerOccupant: v[1], occupancyType: "B-Business");
+                    floorAreaSqFt: areaSqFt, occupancyType: "B-Business");
                 var eg = AECCalculations.CalculateEgressWidth(
-                    occupantLoad: occ.OccupantLoad, isStair: false,
-                    factorMmPerOccupant: 5.1, minimumWidthMm: 915);
+                    occupantLoad: occ.OccupantLoad,
+                    egressComponent: "Corridor",
+                    sprinklered: v[3] >= 0.5);
                 var td = AECCalculations.CalculateTravelDistance(
-                    occupancyType: "B-Business", isSprinklered: v[3] >= 0.5,
-                    storyNumber: (int)v[2]);
+                    occupancyGroup: "B", sprinklered: v[3] >= 0.5);
 
                 var panel = StingResultPanel.Create("Egress + travel distance — IBC / NFPA 101");
-                panel.SetSubtitle($"Building occupancy {occ.OccupantLoad}, sprinklered: {(v[3] >= 0.5 ? "yes" : "no")}");
+                panel.SetSubtitle($"Occupancy {occ.OccupantLoad}, sprinklered: {(v[3] >= 0.5 ? "yes" : "no")}");
 
                 panel.AddSection("OCCUPANT LOAD")
                      .Metric("Occupant load", occ.OccupantLoad.ToString())
-                     .Metric("Area",          $"{v[0]:F0} m²")
-                     .Metric("Load factor",   $"{v[1]:F1} m²/occ");
+                     .Metric("Area",          $"{v[0]:F0} m² ({areaSqFt:F0} ft²)")
+                     .Metric("Load factor",   $"{occ.LoadFactor:F1}")
+                     .Metric("Ref",           occ.StandardReference ?? "-");
 
                 panel.AddSection("EGRESS WIDTH")
-                     .Metric("Required width", $"{eg.RequiredWidthMm:F0} mm")
-                     .Metric("Min door width", $"{eg.MinimumDoorWidthMm:F0} mm")
-                     .Metric("Min corridor",   $"{eg.MinimumCorridorWidthMm:F0} mm");
+                     .Metric("Required width", $"{eg.RequiredWidthMM:F0} mm ({eg.RequiredWidthInches:F1} in)")
+                     .Metric("Min width",       $"{eg.MinimumWidthInches:F1} in")
+                     .Metric("Exits required",  eg.ExitsRequired.ToString());
 
                 panel.AddSection("TRAVEL DISTANCE")
-                     .Metric("Max allowed",     $"{td.MaxTravelDistanceM:F0} m")
-                     .Metric("Common path",     $"{td.CommonPathDistanceM:F0} m")
-                     .Metric("Dead-end max",    $"{td.DeadEndCorridorMaxM:F0} m");
+                     .Metric("Max travel",   $"{td.MaxTravelDistanceM:F0} m ({td.MaxTravelDistanceFt:F0} ft)")
+                     .Metric("Occupancy",    td.OccupancyGroup ?? "B")
+                     .Metric("Ref",           td.StandardReference ?? "-");
 
                 panel.Show();
                 return Result.Succeeded;
@@ -342,32 +353,32 @@ namespace StingTools.Commands.Standards
 
             if (!NumericPrompt.TryAsk(
                 "STING Standards — Sprinkler design (NFPA 13 / BS EN 12845)",
-                new[] { "Hazard class (1=LH, 2=OH1, 3=OH2, 4=HH1)", "Design area (m²)", "Density (mm/min)", "K-factor" },
-                new[] { 2.0,                                          140.0,              5.0,                80.0 },
+                new[] { "Floor area (m²)", "Hazard (1=Light, 2=OrdGrp1, 3=OrdGrp2, 4=Extra)" },
+                new[] { 500.0,              2.0 },
                 out var v)) return Result.Cancelled;
 
             try
             {
-                var criteria = new SprinklerDesignCriteria
-                {
-                    HazardClass     = v[0] <= 1.5 ? "LH" : v[0] <= 2.5 ? "OH1" : v[0] <= 3.5 ? "OH2" : "HH1",
-                    DesignAreaM2    = v[1],
-                    DensityMmPerMin = v[2],
-                    KFactor         = v[3]
-                };
-                var res = StandardsAPI.DesignSprinklerSystem(criteria);
+                // Library signature: (floorAreaM2, occupancyType, hazardClassification, standard)
+                string hazard = v[1] <= 1.5 ? "Light" : v[1] <= 2.5 ? "OrdinaryGroup1" :
+                                v[1] <= 3.5 ? "OrdinaryGroup2" : "ExtraHazard";
+                var res = StandardsAPI.DesignSprinklerSystem(
+                    floorAreaM2: v[0], occupancyType: "Office",
+                    hazardClassification: hazard);
 
                 var panel = StingResultPanel.Create("Sprinkler design — NFPA 13 / BS EN 12845");
-                panel.SetSubtitle(res.Standard ?? "NFPA 13 / BS EN 12845");
+                panel.SetSubtitle(res.NFPAReference ?? "NFPA 13 / BS EN 12845");
                 panel.AddSection("HYDRAULIC DEMAND")
-                     .Metric("Hazard class",        criteria.HazardClass)
-                     .Metric("Design area",         $"{criteria.DesignAreaM2:F0} m²")
-                     .Metric("Density",             $"{criteria.DensityMmPerMin:F1} mm/min")
-                     .Metric("Total flow required", $"{res.TotalFlowLpm:F0} L/min")
-                     .Metric("Operating pressure",  $"{res.OperatingPressureBar:F1} bar")
-                     .Metric("Sprinkler count",     res.NumberOfSprinklers.ToString());
-                if (res.Warnings != null)
-                    foreach (var w in res.Warnings) panel.Text(w);
+                     .Metric("Hazard class",       res.HazardClass ?? hazard)
+                     .Metric("Occupancy",           res.OccupancyType ?? "Office")
+                     .Metric("Design area",         $"{res.DesignAreaFt2:F0} ft² ({res.DesignAreaFt2 * 0.0929:F0} m²)")
+                     .Metric("Design density",      $"{res.DesignDensity:F3} gpm/ft²")
+                     .Metric("Design heads",        res.DesignHeads.ToString())
+                     .Metric("Total heads",         res.NumberOfHeads.ToString())
+                     .Metric("Flow rate",           $"{res.FlowRateGPM:F0} gpm ({res.FlowRateGPM * 3.785:F0} L/min)")
+                     .Metric("Hose stream",         $"{res.HoseStreamGPM:F0} gpm");
+                if (!res.Success && !string.IsNullOrEmpty(res.ErrorMessage))
+                    panel.Text(res.ErrorMessage);
                 panel.Show();
                 return Result.Succeeded;
             }

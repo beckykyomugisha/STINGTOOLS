@@ -46,10 +46,12 @@ namespace StingTools.Commands.MepDesign
                         inspected++;
                         try
                         {
-                            // TODO-VERIFY-API: voltage on RBS_ELEC_VOLTAGE, current on
-                            // RBS_ELEC_APPARENT_LOAD_A. Guarded reads below.
+                            // Read voltage + apparent current by name — RBS_ELEC_APPARENT_LOAD_A
+                            // is not a valid BuiltInParameter enum member across all Revit
+                            // versions; use LookupParameter with common display names + a
+                            // BuiltInParameter fallback for voltage.
                             double voltageV = ReadBip(el, BuiltInParameter.RBS_ELEC_VOLTAGE);
-                            double currentA = ReadBip(el, BuiltInParameter.RBS_ELEC_APPARENT_LOAD_A);
+                            double currentA = ReadNamed(el, new[] { "Apparent Current", "Current", "Total Installed Current" });
                             if (voltageV <= 0 || currentA <= 0) { skipped++; continue; }
 
                             var res = StingTools.Standards.StandardsAPI.CalculateCableSize(
@@ -109,6 +111,25 @@ namespace StingTools.Commands.MepDesign
                         System.Globalization.CultureInfo.InvariantCulture,
                         out double v)) return v; }
             catch (Exception ex) { StingLog.Warn($"ReadBip: {ex.Message}"); }
+            return 0;
+        }
+
+        private static double ReadNamed(Element el, string[] names)
+        {
+            if (el == null) return 0;
+            foreach (var n in names)
+            {
+                try { var p = el.LookupParameter(n);
+                      if (p == null) continue;
+                      if (p.StorageType == StorageType.Double) return p.AsDouble();
+                      if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                      if (p.StorageType == StorageType.String &&
+                          double.TryParse(p.AsString(),
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out double v)) return v; }
+                catch (Exception ex) { StingLog.Warn($"ReadNamed '{n}': {ex.Message}"); }
+            }
             return 0;
         }
     }
