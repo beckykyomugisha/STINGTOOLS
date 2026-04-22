@@ -1,0 +1,17 @@
+# STING v4 MVP shared-parameter fragment.
+# Merge these PARAM rows into MR_PARAMETERS.txt or load directly
+# via LoadSharedParamsCommand. Group IDs must exist in the host file
+# (ASS_MNG=1, ELC_PWR=4, PLM_DRN=6 in current MR_PARAMETERS.txt).
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	ASS_MNG
+GROUP	4	ELC_PWR
+GROUP	6	PLM_DRN
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
+PARAM	a4b5c6d7-e8f9-4a0b-8c1d-2e3f4a5b6c7d	ASS_PLACE_ANCHOR_TXT	TEXT		1	1	Anchor reference used by FixturePlacementEngine (e.g. DOOR_HINGE, ROOM_CENTRE, WALL_MIDPOINT)	1
+PARAM	b5c6d7e8-f9a0-4b1c-9d2e-3f4a5b6c7d8e	ASS_PLACE_OFFSET_X_MM	LENGTH		1	1	Signed horizontal offset from placement anchor in millimetres	1
+PARAM	c6d7e8f9-a0b1-4c2d-ae3f-4a5b6c7d8e9f	ASS_PLACE_SIDE_TXT	TEXT		1	1	Wall or host side constraint (LEFT / RIGHT / EITHER)	1
+PARAM	d7e8f9a0-b1c2-4d3e-bf4a-5b6c7d8e9fa0	ELC_CPC_SZ_MM	TEXT		4	1	Circuit protective conductor size in mm2 per BS 7671	1
+PARAM	e8f9a0b1-c2d3-4e4f-ca5b-6c7d8e9fa0b1	PLM_PPE_INSULATION_THK_MM	LENGTH		6	1	Pipe insulation thickness in millimetres	1
+PARAM	f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2	PLM_SLOPE_PCT	TEXT		6	1	Drainage pipe slope percentage per BS EN 12056 (1:80 default for sanitary)	1
