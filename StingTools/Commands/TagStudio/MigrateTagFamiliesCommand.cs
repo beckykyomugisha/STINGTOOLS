@@ -329,13 +329,16 @@ namespace StingTools.Commands.TagStudio
 
                 fm.CurrentType = target;
 
-                // 1. Depth tiers: PARA_STATE_1..depth = Yes, rest = No
+                // 1. Depth tiers: PARA_STATE_1..depth = Yes, rest = No.
+                // Tag-formula BOOLs are TEXT in MR_PARAMETERS v5.3+ so Revit label
+                // Calculated Values can reference them inside if(...); the Integer
+                // branch keeps legacy YESNO families migrating cleanly.
                 for (int t = 1; t <= 10; t++)
                 {
                     string pname = $"TAG_PARA_STATE_{t}_BOOL";
                     if (paramByName.TryGetValue(pname, out var pfp))
                     {
-                        try { fm.Set(pfp, t <= spec.DepthTier ? 1 : 0); }
+                        try { SetFamilyBool(fm, pfp, t <= spec.DepthTier); }
                         catch (Exception ex) { StingLog.Warn($"Set {pname} on {typeName}: {ex.Message}"); }
                     }
                 }
@@ -345,7 +348,7 @@ namespace StingTools.Commands.TagStudio
                 foreach (string pname in ParamRegistry.AllTagStyleParams)
                 {
                     if (!paramByName.TryGetValue(pname, out var pfp)) continue;
-                    try { fm.Set(pfp, string.Equals(pname, activeStyle, StringComparison.OrdinalIgnoreCase) ? 1 : 0); }
+                    try { SetFamilyBool(fm, pfp, string.Equals(pname, activeStyle, StringComparison.OrdinalIgnoreCase)); }
                     catch (Exception ex) { StingLog.Warn($"Set {pname} on {typeName}: {ex.Message}"); }
                 }
 
@@ -381,6 +384,28 @@ namespace StingTools.Commands.TagStudio
             }
 
             return created;
+        }
+
+        /// <summary>
+        /// Set a tag-formula BOOL on a family type, regardless of whether the parameter
+        /// is stored as TEXT ("Yes"/"No") or INTEGER (1/0). TEXT is the v5.3+ default —
+        /// YESNO is not allowed as the condition of a Revit label Calculated Value.
+        /// </summary>
+        private static void SetFamilyBool(FamilyManager fm, FamilyParameter fp, bool value)
+        {
+            if (fp == null) return;
+            switch (fp.StorageType)
+            {
+                case StorageType.String:
+                    fm.Set(fp, value ? "Yes" : "No");
+                    break;
+                case StorageType.Integer:
+                    fm.Set(fp, value ? 1 : 0);
+                    break;
+                default:
+                    StingLog.Warn($"SetFamilyBool: unsupported storage {fp.StorageType} on '{fp.Definition.Name}'");
+                    break;
+            }
         }
 
         /// <summary>

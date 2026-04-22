@@ -126,11 +126,24 @@ namespace StingTools.Tags
 
         private static bool SetBool(Element el, string paramName, bool value)
         {
+            // Tag-formula BOOLs ship as TEXT in MR_PARAMETERS v5.3+ so Revit label
+            // Calculated Values can reference them inside if(...); legacy YESNO
+            // families still resolve via the Integer branch.
             Parameter p = el.LookupParameter(paramName);
             if (p == null || p.IsReadOnly) return false;
+            if (p.StorageType == StorageType.String)
+            {
+                string target = value ? "Yes" : "No";
+                string cur = p.AsString() ?? "";
+                if (string.Equals(cur, target, StringComparison.OrdinalIgnoreCase)) return false;
+                p.Set(target);
+                return true;
+            }
             if (p.StorageType == StorageType.Integer)
             {
-                p.Set(value ? 1 : 0);
+                int target = value ? 1 : 0;
+                if (p.AsInteger() == target) return false;
+                p.Set(target);
                 return true;
             }
             return false;

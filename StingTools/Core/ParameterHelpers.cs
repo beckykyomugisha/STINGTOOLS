@@ -134,8 +134,10 @@ namespace StingTools.Core
         }
 
         /// <summary>Cached parameter lookup. Uses stable document key + element's TypeId + paramName as cache key.
-        /// Falls back to LookupParameter on first access per type, then O(1) thereafter.</summary>
-        private static Parameter CachedLookup(Element el, string paramName)
+        /// Falls back to LookupParameter on first access per type, then O(1) thereafter.
+        /// Exposed as `internal` so sibling classes in this file (NativeParamMapper,
+        /// TagPipelineHelper, SpatialAutoDetect, ...) can share the same cache.</summary>
+        internal static Parameter CachedLookup(Element el, string paramName)
         {
             string docKey = GetStableDocKey(el.Document);
             ElementId typeId = el.GetTypeId();
@@ -2530,8 +2532,8 @@ namespace StingTools.Core
             try
             {
                 // PERF: MapLookup is called dozens of times per element from NativeParamMapper.
-                // Route through CachedLookup so repeated types hit the definition cache.
-                Parameter p = CachedLookup(el, paramName);
+                // Route through the ParameterHelpers cache so repeated types hit the definition cache.
+                Parameter p = ParameterHelpers.CachedLookup(el, paramName);
                 if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return 0;
 
                 double val = p.AsDouble() * conversionFactor;
@@ -2551,7 +2553,7 @@ namespace StingTools.Core
             {
                 // PERF: same hot path as MapLookup — definition cache short-circuits
                 // the per-element O(n) parameter scan at batch tagging scale.
-                Parameter p = CachedLookup(el, sourceName);
+                Parameter p = ParameterHelpers.CachedLookup(el, sourceName);
                 if (p == null || !p.HasValue) return 0;
 
                 string val = p.StorageType == StorageType.String
@@ -3743,7 +3745,7 @@ namespace StingTools.Core
                             // FUT-18: Early-exit skip — avoids expensive BuildContext
                             // PERF: cached lookup so the same formula target on repeated types
                             // doesn't rescan the element's parameter collection each time.
-                            Parameter targetParam = CachedLookup(el, formula.ParameterName);
+                            Parameter targetParam = ParameterHelpers.CachedLookup(el, formula.ParameterName);
                             if (targetParam == null || targetParam.IsReadOnly) continue;
 
                             var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
