@@ -150,6 +150,20 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 113: MEP Design Extensions ──
+                    case "MepA_CableSizeApply":  RunCommand<Commands.MepDesign.CableSizeApplyCommand>(app); break;
+                    case "MepA_PanelSchedule":    RunCommand<Commands.MepDesign.PanelScheduleBuildCommand>(app); break;
+                    case "MepA_BreakerAutoSize":  RunCommand<Commands.MepDesign.BreakerAutoSizeCommand>(app); break;
+                    case "MepA_AutoSizeConduitAll": RunCommand<Commands.MepDesign.AutoSizeConduitAllCommand>(app); break;
+                    case "MepA_GroundingDesign":  RunCommand<Commands.MepDesign.GroundingDesignCommand>(app); break;
+                    case "MepA_DuctStaticRegain":  RunCommand<Commands.MepDesign.DuctStaticRegainCommand>(app); break;
+                    case "MepA_PumpSize":          RunCommand<Commands.MepDesign.PumpSizeCommand>(app); break;
+                    case "MepA_TransformerSize":   RunCommand<Commands.MepDesign.TransformerSizeCommand>(app); break;
+                    case "MepA_GeneratorSize":     RunCommand<Commands.MepDesign.GeneratorSizeCommand>(app); break;
+                    case "MepA_WaterHeaterSize":   RunCommand<Commands.MepDesign.WaterHeaterSizeCommand>(app); break;
+                    case "MepA_DrainageSize":      RunCommand<Commands.MepDesign.DrainageSizeCommand>(app); break;
+                    case "MepA_BalanceApply":      RunCommand<Commands.MepDesign.BalanceApplyCommand>(app); break;
+
                     // ── Phase 112: Structural Extensions ──
                     case "StrExt_AutoSlabRebar":     RunCommand<Commands.StructuralExt.AutoSlabRebarCommand>(app); break;
                     case "StrExt_FullColumnTakedown":RunCommand<Commands.StructuralExt.FullColumnTakedownCommand>(app); break;
