@@ -163,7 +163,6 @@ namespace StingTools.Commands.Mep
             return Result.Succeeded;
         }
     }
-}
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
