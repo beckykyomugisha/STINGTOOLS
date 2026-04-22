@@ -128,7 +128,7 @@ namespace StingTools.Core.Validation
                         // to StingLog if the manager call fails.
                         try
                         {
-                            StingTools.Core.WarningsManager.LogCoordinationAction(
+                            StingTools.Core.WarningsEngine.LogCoordinationAction(
                                 doc, "LIVE_STANDARDS", "Validation", r.ToString(), "MEDIUM");
                         }
                         catch (Exception logEx)
