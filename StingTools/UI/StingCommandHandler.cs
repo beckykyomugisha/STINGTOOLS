@@ -150,6 +150,18 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 112: Structural Extensions ──
+                    case "StrExt_AutoSlabRebar":     RunCommand<Commands.StructuralExt.AutoSlabRebarCommand>(app); break;
+                    case "StrExt_FullColumnTakedown":RunCommand<Commands.StructuralExt.FullColumnTakedownCommand>(app); break;
+                    case "StrExt_WindAutoApply":     RunCommand<Commands.StructuralExt.WindAutoApplyCommand>(app); break;
+                    case "StrExt_SeismicAutoApply":  RunCommand<Commands.StructuralExt.SeismicAutoApplyCommand>(app); break;
+                    case "StrExt_PileGroup":         RunCommand<Commands.StructuralExt.PileGroupDesignCommand>(app); break;
+                    case "StrExt_RetainingWall":     RunCommand<Commands.StructuralExt.RetainingWallCheckCommand>(app); break;
+                    case "StrExt_AutoConnection":    RunCommand<Commands.StructuralExt.AutoConnectionCommand>(app); break;
+                    case "StrExt_CompositeBeam":     RunCommand<Commands.StructuralExt.CompositeBeamDesignCommand>(app); break;
+                    case "StrExt_ToleranceCheck":    RunCommand<Commands.StructuralExt.ToleranceCheckCommand>(app); break;
+                    case "StrExt_CreepDeflection":   RunCommand<Commands.StructuralExt.CreepDeflectionCommand>(app); break;
+
                     // ── Phase 111: Architecture & shell automation ──
                     case "Arch_AutoStair":       RunCommand<Commands.Architecture.AutoStairCommand>(app); break;
                     case "Arch_AutoRailing":     RunCommand<Commands.Architecture.AutoRailingCommand>(app); break;
