@@ -1,58 +1,257 @@
 {
-  "version": "5.6",
-  "description": "STING Seed Tag v5.6 — master label specification with enriched warnings (99 thresholds, all columns populated)",
+  "version": "5.7",
+  "description": "STING Seed Tag v5.7 — master label specification. Paragraph tiers expanded from 3 to 10. All BOOL parameters referenced inside tag-family Calculated Values are stored as TEXT in MR_PARAMETERS v5.3+ (Revit label formulas cannot reference YESNO params inside if(...)). Includes 99 threshold warnings with all columns populated.",
   "presentation_modes": {
     "Compact": {
       "state_1": true,
       "state_2": false,
       "state_3": false,
       "warnings": false,
-      "description": "Basic identification — tag code + type name only"
+      "description": "Basic identification — tag code + type name only",
+      "state_4": false,
+      "state_5": false,
+      "state_6": false,
+      "state_7": false,
+      "state_8": false,
+      "state_9": false,
+      "state_10": false
     },
     "Technical": {
       "state_1": true,
       "state_2": true,
       "state_3": false,
       "warnings": true,
-      "description": "Engineering documentation — key properties + threshold warnings"
+      "description": "Engineering documentation — key properties + threshold warnings",
+      "state_4": false,
+      "state_5": false,
+      "state_6": false,
+      "state_7": false,
+      "state_8": false,
+      "state_9": false,
+      "state_10": false
     },
     "Full_Specification": {
       "state_1": true,
       "state_2": true,
       "state_3": true,
       "warnings": true,
-      "description": "Complete specification — all tiers + paragraph + warnings"
+      "description": "Complete specification — all tiers + paragraph + warnings",
+      "state_4": false,
+      "state_5": false,
+      "state_6": false,
+      "state_7": false,
+      "state_8": false,
+      "state_9": false,
+      "state_10": false
     },
     "Presentation": {
       "state_1": true,
       "state_2": true,
       "state_3": false,
       "warnings": false,
-      "description": "Client presentation — clean tags without warning text"
+      "description": "Client presentation — clean tags without warning text",
+      "state_4": false,
+      "state_5": false,
+      "state_6": false,
+      "state_7": false,
+      "state_8": false,
+      "state_9": false,
+      "state_10": false
     },
     "BOQ": {
       "state_1": true,
       "state_2": true,
       "state_3": false,
       "warnings": false,
-      "description": "Bill of Quantities — identity + quantities for cost schedules"
+      "description": "Bill of Quantities — identity + quantities for cost schedules",
+      "state_4": false,
+      "state_5": false,
+      "state_6": false,
+      "state_7": false,
+      "state_8": false,
+      "state_9": false,
+      "state_10": false
+    },
+    "Handover": {
+      "state_1": true,
+      "state_2": true,
+      "state_3": true,
+      "state_4": true,
+      "state_5": false,
+      "state_6": false,
+      "state_7": false,
+      "state_8": false,
+      "state_9": false,
+      "state_10": false,
+      "warnings": false,
+      "description": "FM handover — identity + commissioning + maintenance (T1-T4)"
+    },
+    "Procurement": {
+      "state_1": true,
+      "state_2": true,
+      "state_3": true,
+      "state_4": true,
+      "state_5": true,
+      "state_6": false,
+      "state_7": false,
+      "state_8": false,
+      "state_9": false,
+      "state_10": false,
+      "warnings": false,
+      "description": "Procurement / cost manager — identity + cost roll-up (T1-T5)"
+    },
+    "Carbon": {
+      "state_1": true,
+      "state_2": true,
+      "state_3": true,
+      "state_4": false,
+      "state_5": false,
+      "state_6": true,
+      "state_7": false,
+      "state_8": false,
+      "state_9": false,
+      "state_10": false,
+      "warnings": true,
+      "description": "Sustainability audit — identity + carbon stages A1-C4 (T1-T3+T6)"
+    },
+    "Fabrication": {
+      "state_1": true,
+      "state_2": true,
+      "state_3": true,
+      "state_4": false,
+      "state_5": false,
+      "state_6": false,
+      "state_7": true,
+      "state_8": false,
+      "state_9": false,
+      "state_10": false,
+      "warnings": true,
+      "description": "Shop drawings / fab package — identity + fab+QC (T1-T3+T7)"
+    },
+    "Coordination": {
+      "state_1": true,
+      "state_2": true,
+      "state_3": true,
+      "state_4": false,
+      "state_5": false,
+      "state_6": false,
+      "state_7": false,
+      "state_8": true,
+      "state_9": false,
+      "state_10": false,
+      "warnings": true,
+      "description": "Clash / coordination review — identity + clash triage (T1-T3+T8)"
+    },
+    "AsBuilt": {
+      "state_1": true,
+      "state_2": true,
+      "state_3": true,
+      "state_4": true,
+      "state_5": false,
+      "state_6": false,
+      "state_7": false,
+      "state_8": false,
+      "state_9": true,
+      "state_10": false,
+      "warnings": false,
+      "description": "As-built model — identity + commissioning + asbuilt/health (T1-T4+T9)"
+    },
+    "Audit": {
+      "state_1": true,
+      "state_2": true,
+      "state_3": true,
+      "state_4": true,
+      "state_5": true,
+      "state_6": true,
+      "state_7": true,
+      "state_8": true,
+      "state_9": true,
+      "state_10": true,
+      "warnings": true,
+      "description": "Full audit trail — every tier + warnings (T1-T10)"
     }
   },
   "calculated_value_templates": {
     "cv_show_tier2": {
       "name": "Show Tier 2",
       "formula": "if(TAG_PARA_STATE_2_BOOL, <param>, \"\")",
-      "description": "Gates tier 2 parameters — visible when Standard or above"
+      "description": "Gates tier 2 parameters — visible at Standard or above"
     },
     "cv_show_tier3": {
       "name": "Show Tier 3",
       "formula": "if(TAG_PARA_STATE_3_BOOL, <param>, \"\")",
-      "description": "Gates tier 3 parameters — visible when Comprehensive"
+      "description": "Gates tier 3 parameters — visible at Comprehensive"
     },
     "cv_show_warning": {
       "name": "Show Warning",
       "formula": "if(TAG_WARN_VISIBLE_BOOL, <param>, \"\")",
-      "description": "Gates warning text — visible when warnings enabled"
+      "description": "Gates warning text — visible when warnings enabled. Respects TAG_WARN_SEVERITY_FILTER_TXT"
+    },
+    "_comment": "Calculated Value templates that tag family labels plug in to. In MR_PARAMETERS v5.3+ every BOOL parameter referenced by one of these templates is stored as TEXT ('Yes'/'No') because Revit label formulas cannot use YESNO parameters as the condition of if(...). STING writers (TagStyleEngine.SetTagFormulaBool, ParameterHelpers.SetYesNo, PresentationModeCommand.SetBool, MigrateTagFamiliesCommand.SetFamilyBool) detect the storage type automatically and write 'Yes'/'No' for TEXT or 1/0 for legacy INTEGER-storage families.",
+    "cv_show_tier4": {
+      "name": "Show Tier 4",
+      "formula": "if(TAG_PARA_STATE_4_BOOL, <param>, \"\")",
+      "description": "Gates tier 4 — Commissioning & handover data"
+    },
+    "cv_show_tier5": {
+      "name": "Show Tier 5",
+      "formula": "if(TAG_PARA_STATE_5_BOOL, <param>, \"\")",
+      "description": "Gates tier 5 — Cost & procurement roll-up"
+    },
+    "cv_show_tier6": {
+      "name": "Show Tier 6",
+      "formula": "if(TAG_PARA_STATE_6_BOOL, <param>, \"\")",
+      "description": "Gates tier 6 — Carbon & sustainability (A1-A3 / A4 / A5 / B6 / C1-C4)"
+    },
+    "cv_show_tier7": {
+      "name": "Show Tier 7",
+      "formula": "if(TAG_PARA_STATE_7_BOOL, <param>, \"\")",
+      "description": "Gates tier 7 — Fabrication & QC (spool, weld/bolt/flange counts, QC inspector)"
+    },
+    "cv_show_tier8": {
+      "name": "Show Tier 8",
+      "formula": "if(TAG_PARA_STATE_8_BOOL, <param>, \"\")",
+      "description": "Gates tier 8 — Clash & coordination (triage score, severity, resolution action)"
+    },
+    "cv_show_tier9": {
+      "name": "Show Tier 9",
+      "formula": "if(TAG_PARA_STATE_9_BOOL, <param>, \"\")",
+      "description": "Gates tier 9 — As-built & model health metrics"
+    },
+    "cv_show_tier10": {
+      "name": "Show Tier 10",
+      "formula": "if(TAG_PARA_STATE_10_BOOL, <param>, \"\")",
+      "description": "Gates tier 10 — Compliance / audit trail (RGL_*, IFC_PSET_OVERRIDE_TXT)"
+    },
+    "cv_show_section_a": {
+      "name": "Show TAG7 Section A",
+      "formula": "if(TAG_7_SECTION_VISIBLE_A_BOOL, ASS_TAG_7A_TXT, \"\")",
+      "description": "Gates TAG7 sub-section A visibility on the tag face"
+    },
+    "cv_show_section_b": {
+      "name": "Show TAG7 Section B",
+      "formula": "if(TAG_7_SECTION_VISIBLE_B_BOOL, ASS_TAG_7B_TXT, \"\")",
+      "description": "Gates TAG7 sub-section B visibility on the tag face"
+    },
+    "cv_show_section_c": {
+      "name": "Show TAG7 Section C",
+      "formula": "if(TAG_7_SECTION_VISIBLE_C_BOOL, ASS_TAG_7C_TXT, \"\")",
+      "description": "Gates TAG7 sub-section C visibility on the tag face"
+    },
+    "cv_show_section_d": {
+      "name": "Show TAG7 Section D",
+      "formula": "if(TAG_7_SECTION_VISIBLE_D_BOOL, ASS_TAG_7D_TXT, \"\")",
+      "description": "Gates TAG7 sub-section D visibility on the tag face"
+    },
+    "cv_show_section_e": {
+      "name": "Show TAG7 Section E",
+      "formula": "if(TAG_7_SECTION_VISIBLE_E_BOOL, ASS_TAG_7E_TXT, \"\")",
+      "description": "Gates TAG7 sub-section E visibility on the tag face"
+    },
+    "cv_show_section_f": {
+      "name": "Show TAG7 Section F",
+      "formula": "if(TAG_7_SECTION_VISIBLE_F_BOOL, ASS_TAG_7F_TXT, \"\")",
+      "description": "Gates TAG7 sub-section F visibility on the tag face"
     }
   },
   "parameter_text": {
@@ -57748,5 +57947,79 @@
       "command": "SetTag7HeadingStyleCommand",
       "applies_to": "ASS_TAG_2_TXT label row in all STING tag families"
     }
+  },
+  "tag_style_parameters": {
+    "_comment": "Every STING tag family gets this exact set of type parameters. TagFamilyCreatorCommand.GetAllFamilyParams injects them on family creation; FamilyParamCreatorCommand (Add Missing Params mode) appends whichever are absent without touching existing labels.",
+    "datatype_note": "All BOOL parameters in this section are TEXT-stored in MR_PARAMETERS v5.3+ so Revit label Calculated Values can use them inside if(...). Helpers write 'Yes' / 'No' strings; values are read by comparing against 'Yes' / '1' (case-insensitive truthy) or '' / 'No' / '0' (falsy).",
+    "paragraph_gates": [
+      "TAG_PARA_STATE_1_BOOL",
+      "TAG_PARA_STATE_2_BOOL",
+      "TAG_PARA_STATE_3_BOOL",
+      "TAG_PARA_STATE_4_BOOL",
+      "TAG_PARA_STATE_5_BOOL",
+      "TAG_PARA_STATE_6_BOOL",
+      "TAG_PARA_STATE_7_BOOL",
+      "TAG_PARA_STATE_8_BOOL",
+      "TAG_PARA_STATE_9_BOOL",
+      "TAG_PARA_STATE_10_BOOL"
+    ],
+    "tag7_section_gates": [
+      "TAG_7_SECTION_VISIBLE_A_BOOL",
+      "TAG_7_SECTION_VISIBLE_B_BOOL",
+      "TAG_7_SECTION_VISIBLE_C_BOOL",
+      "TAG_7_SECTION_VISIBLE_D_BOOL",
+      "TAG_7_SECTION_VISIBLE_E_BOOL",
+      "TAG_7_SECTION_VISIBLE_F_BOOL"
+    ],
+    "warning_visibility": [
+      "TAG_WARN_VISIBLE_BOOL",
+      "TAG_WARN_SEVERITY_FILTER_TXT"
+    ],
+    "text_style_matrix": {
+      "_comment": "128 combinations — 4 sizes x 4 styles x 8 colors. Exactly one BOOL set to Yes per element type.",
+      "sizes": [
+        "2",
+        "2.5",
+        "3",
+        "3.5"
+      ],
+      "styles": [
+        "NOM",
+        "BOLD",
+        "ITALIC",
+        "BOLDITALIC"
+      ],
+      "colors": [
+        "BLACK",
+        "BLUE",
+        "GREEN",
+        "RED",
+        "ORANGE",
+        "PURPLE",
+        "GREY",
+        "WHITE"
+      ],
+      "template": "TAG_{size}{style}_{color}_BOOL"
+    },
+    "box_appearance": {
+      "colors": [
+        "TAG_BOX_COLOR_R_INT",
+        "TAG_BOX_COLOR_G_INT",
+        "TAG_BOX_COLOR_B_INT"
+      ],
+      "visibility": "TAG_BOX_VISIBLE_BOOL",
+      "style": "TAG_BOX_STYLE_TXT  (SOLID | DASHED | NONE | ROUND)"
+    },
+    "leader_appearance": {
+      "colors": [
+        "TAG_LEADER_COLOR_R_INT",
+        "TAG_LEADER_COLOR_G_INT",
+        "TAG_LEADER_COLOR_B_INT"
+      ]
+    },
+    "scale_and_depth_cache": [
+      "TAG_SCALE_TIER_AUTO_BOOL",
+      "TAG_DEPTH_TIER_INT"
+    ]
   }
 }

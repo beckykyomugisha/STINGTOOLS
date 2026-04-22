@@ -3398,10 +3398,12 @@ namespace StingTools.Tags
                                     {
                                         for (int tier = 1; tier <= 3; tier++)
                                         {
+                                            // TAG_PARA_STATE_N_BOOL is TEXT in v5.3+ (Revit label
+                                            // Calculated Values cannot reference YESNO). Route through
+                                            // SetYesNo so both TEXT and legacy INTEGER storage work.
                                             string boolParam = $"TAG_PARA_STATE_{tier}_BOOL";
-                                            Parameter p = host.LookupParameter(boolParam);
-                                            if (p != null && !p.IsReadOnly)
-                                                p.Set(tier <= ParaDepth ? 1 : 0);
+                                            ParameterHelpers.SetYesNo(host, boolParam,
+                                                tier <= ParaDepth, overwrite: true);
                                         }
                                     }
                                 }

@@ -22,7 +22,7 @@ namespace StingTools.V6
                 var doc = ctx.Doc;
 
                 // Scope: active selection if any, else every element whose category appears in the rate table.
-                var selIds = ctx.UiDoc?.Selection?.GetElementIds();
+                var selIds = ctx.UIDoc?.Selection?.GetElementIds();
                 List<Element> targets;
                 if (selIds != null && selIds.Count > 0)
                 {

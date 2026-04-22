@@ -15,6 +15,7 @@ GROUP	18	ACC_SYNC
 GROUP	19	IFC_EXCH
 GROUP	20	HEALTH_METRICS
 GROUP	21	ASBUILT
+GROUP	22	COMMISSIONING
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
 # --- N-G12 install hours ---
 PARAM	v6-0001-0000-0000-000000000001	CST_INSTALL_HRS	NUMBER		2	1	Install time in hours per element for labour takeoff	1
@@ -43,3 +44,12 @@ PARAM	v6-0001-0000-0000-000000000012	IFC_PSET_OVERRIDE_TXT	TEXT		19	1	Manual IFC
 # --- N-G4 model health ---
 PARAM	v6-0001-0000-0000-000000000013	HEALTH_SCORE_LAST_NR	NUMBER		20	1	Last model health score 0 to 100	1
 PARAM	v6-0001-0000-0000-000000000014	HEALTH_SCORE_DATE_TXT	TEXT		20	1	ISO 8601 timestamp of last health score evaluation	1
+# --- N-G12 labour hours engine (crew + GBP rate override) ---
+PARAM	v6-0001-0000-0000-000000000015	CST_LABOUR_CREW_TXT	TEXT		2	1	Labour crew name or role (e.g. PIPEFITTER_2P, ELECTRICIAN_LEAD) used by crew-aware labour takeoff	1
+PARAM	v6-0001-0000-0000-000000000016	CST_LABOUR_RATE_GBP	NUMBER		2	1	Labour rate in GBP per hour (override for UK projects)	1
+# --- N-G16 QR commissioning workflow (state + stamps) ---
+PARAM	v6-0001-0000-0000-000000000017	COMM_STATE_TXT	TEXT		22	1	Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER)	1
+PARAM	v6-0001-0000-0000-000000000018	COMM_DATE_TXT	TEXT		22	1	ISO 8601 date of commissioning state change	1
+PARAM	v6-0001-0000-0000-000000000019	COMM_OPERATIVE_TXT	TEXT		22	1	Commissioning operative name or ID who performed the test	1
+PARAM	v6-0001-0000-0000-00000000001a	COMM_WITNESS_TXT	TEXT		22	1	Commissioning witness name or ID (client / CA representative)	1
+PARAM	v6-0001-0000-0000-00000000001b	COMM_NOTES_TXT	TEXT		22	1	Free-text commissioning notes captured from the QR workflow	1

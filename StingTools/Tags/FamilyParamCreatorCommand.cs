@@ -67,19 +67,29 @@ namespace StingTools.Tags
         private static Dictionary<string, Dictionary<string, string>> _cobieTypeMap;
         private static bool _cobieTypeMapLoaded;
 
-        /// <summary>Options for family processing.</summary>
+        /// <summary>Options for family processing. Defaults are the safe "add only what's
+        /// missing" profile — every mutation beyond injecting absent shared parameters is
+        /// opt-in. Callers that explicitly want to migrate families (purge, rewrite the
+        /// TAG_POS formula, add position types) must flip the relevant flags themselves.</summary>
         public class ProcessOptions
         {
-            public bool InjectTagPos { get; set; } = true;
-            public bool InjectFormulas { get; set; } = true;
             public bool PlaceAnchor { get; set; } = false;
-            public bool CreatePositionTypes { get; set; } = true;
-            /// <summary>FIX-9.1: When true, remove ALL pre-existing shared parameters from the family
-            /// (any STING prefix — ASS_, BLE_, CST_, ELC_, ELE_, FLS_, HVC_, ICT_, LTG_, MAT_,
-            /// MEP_, NCL_, PER_, PLM_, RGL_, SEC_, SLV_, STING_, STR_, TAG_, WARN_) before injecting
-            /// a fresh set. Default true so families cannot accumulate stale/duplicate bindings
-            /// across successive runs.</summary>
-            public bool PurgeFirst { get; set; } = true;
+            /// <summary>When true, inject STING position types (Left/Right/Top/Bottom variants).
+            /// Default false — "add only what's missing" mode never alters family types.</summary>
+            public bool CreatePositionTypes { get; set; } = false;
+            /// <summary>When true, inject the 16-branch Calculated Value formula onto TAG_POS.
+            /// Default false — "add only what's missing" mode never rewrites labels / formulas.</summary>
+            public bool InjectFormulas { get; set; } = false;
+            /// <summary>When true, inject the TAG_POS parameter itself (independent of formulas).
+            /// Default false — TAG_POS is already added via ParamNames if requested.</summary>
+            public bool InjectTagPos { get; set; } = false;
+            /// <summary>When true, remove ALL pre-existing STING-prefixed shared parameters from the
+            /// family (ASS_, BLE_, CST_, ELC_, ELE_, FLS_, HVC_, ICT_, LTG_, MAT_, MEP_, NCL_, PER_,
+            /// PLM_, RGL_, SEC_, SLV_, STING_, STR_, TAG_, WARN_) before injecting a fresh set. This
+            /// destroys label bindings in the family and should stay OFF for routine "add missing
+            /// parameters" runs. Default false — only set true when migrating a family between
+            /// schema versions that needs a full reset.</summary>
+            public bool PurgeFirst { get; set; } = false;
             public List<string> ParamNames { get; set; } = new List<string>();
         }
 
@@ -1033,8 +1043,13 @@ namespace StingTools.Tags
     // ════════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Inject STING shared parameters into .rfa family files with category detection,
-    /// tag position formulas, and named position variant types.
+    /// Inject STING shared parameters into existing .rfa family files.
+    /// This command only modifies families that already exist on disk — it
+    /// never calls app.NewFamilyDocument and never creates new .rfa files.
+    /// The default mode is purely additive: absent STING parameters are
+    /// appended, but labels, formulas, family types, and previously-set
+    /// bindings are left exactly as they were. Optional migrate / purge
+    /// modes are explicit opt-ins for schema-reset workflows.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -1056,36 +1071,46 @@ namespace StingTools.Tags
             var app = ctx.App.Application;
 
             // Mode selection using StingListPicker for polished UI.
-            // Default workflow is Purge + Inject — families accumulate stale/duplicate
-            // bindings otherwise. "Add without purging" remains for edge cases.
+            // Default is Add-Only: inject any missing STING shared parameters while
+            // leaving all existing labels, formulas, family types, and current bindings
+            // untouched. The "Migrate" modes are destructive — they rewrite TAG_POS
+            // formulas, add position family types, and (in the purge variant) delete
+            // every pre-existing STING shared parameter from the family.
             var modeItems = new List<StingListPicker.ListItem>
             {
                 new StingListPicker.ListItem
-                    { Label = "Single Family — Purge + Inject (recommended)", Detail = "Remove all existing STING shared params, then inject a fresh set", Tag = "purge_single" },
+                    { Label = "Single Family — Add Missing Params (recommended)", Detail = "Append any missing STING params. Existing labels, formulas and types are left alone.", Tag = "add_single" },
                 new StingListPicker.ListItem
-                    { Label = "Batch Folder — Purge + Inject (recommended)", Detail = "Purge + re-inject every .rfa in the target folder", Tag = "purge_batch" },
+                    { Label = "Batch Folder — Add Missing Params (recommended)", Detail = "Append missing params across every .rfa in the target folder.", Tag = "add_batch" },
                 new StingListPicker.ListItem
-                    { Label = "Single Family — Add Only (no purge)", Detail = "Append missing params without removing existing ones", Tag = "single" },
+                    { Label = "Single Family — Migrate (rewrite TAG_POS + position types)", Detail = "Adds TAG_POS, writes the 16-branch formula, creates position types. Modifies label bindings.", Tag = "migrate_single" },
                 new StingListPicker.ListItem
-                    { Label = "Batch Folder — Add Only (no purge)", Detail = "Append missing params across folder without removing existing", Tag = "batch" },
+                    { Label = "Batch Folder — Migrate (rewrite TAG_POS + position types)", Detail = "Migrate every .rfa in the target folder.", Tag = "migrate_batch" },
+                new StingListPicker.ListItem
+                    { Label = "Single Family — Purge + Reinject (destructive)", Detail = "Remove ALL STING-prefixed shared params then re-inject a fresh set. Use only for schema migrations.", Tag = "purge_single" },
+                new StingListPicker.ListItem
+                    { Label = "Batch Folder — Purge + Reinject (destructive)", Detail = "Purge + reinject across folder. Use only for schema migrations.", Tag = "purge_batch" },
             };
             var selected = StingListPicker.Show(
                 "STING — Family Param Creator",
                 "Inject STING shared parameters into .rfa family files",
                 modeItems);
             if (selected == null || selected.Count == 0) return Result.Cancelled;
-            string mode = selected[0].Tag as string ?? "single";
+            string mode = selected[0].Tag as string ?? "add_single";
 
             bool purgeFirst = mode.StartsWith("purge");
+            bool migrate = mode.StartsWith("migrate") || purgeFirst;
             bool isBatch = mode.Contains("batch");
 
-            // Options
+            // Options — Add mode is purely additive. Migrate mode rewrites
+            // TAG_POS / formulas / position types. Purge mode additionally
+            // deletes existing STING params before reinjection.
             var opts = new FamilyParamEngine.ProcessOptions
             {
-                InjectTagPos = true,
-                InjectFormulas = true,
-                CreatePositionTypes = true,
-                PurgeFirst = purgeFirst
+                InjectTagPos        = migrate,
+                InjectFormulas      = migrate,
+                CreatePositionTypes = migrate,
+                PurgeFirst          = purgeFirst,
             };
 
             // Get file(s) to process using file/folder browser dialogs
