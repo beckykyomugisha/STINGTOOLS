@@ -279,3 +279,16 @@ new gaps (N-G1 … N-G18). Closing status as of Phase 111:
 original runner's Year-2 scope. The Phase 111 commits (`S7.1` → `S7.4`)
 landed without `dotnet build` verification — the only remaining
 pre-merge task is running `Tests_V6SmokeTest.md` Section 8 in Revit.
+
+### Tag Label Content Gaps — 2026-04-22 Audit
+
+Infrastructure for paragraph-depth tiers T1-T10 and per-row Style/Color/Size/Box/Arrow
+overrides is fully live (`ParamRegistry.PARA_STATE_1..10`, `TagStyleEngine.SetParagraphDepth`,
+`SetParagraphDepthExtCommand` with .01-.10 picker, TagStyleCatalogue variant naming).
+Actual content authored in `STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}.csv` is a subset.
+
+| Gap | Title | Status |
+|-----|-------|--------|
+| TAG-LABEL-T4-10 | Author T4-T10 label rows across all tag families. Current data: 170 T1 + 751 T2 + 744 T3 + Warning rows. T4-T10 rows: **0**. Picking .04-.10 in the ParaDepth UI renders identically to .03 until rows exist. | Open |
+| TAG-LABEL-STYLE-COLS | Populate per-row `Style` / `Color` / `Size` columns in the v5.2 schema. Current data: **0/1,665** rows populated — every row inherits the tier default (T1=NOM/2.5, T2=NOM/2.0, T3=NOM/2.0, all BLACK). Overrides like "BOLD BLUE for 7A headers" are documented (TAGGING_WORKFLOW_GUIDE.md §6) but not yet written into the CSVs. | Open |
+| TAG-LABEL-BOX-ARROW-COLS | Extend the v5.2 schema to include per-row `Box` and `Arrow` columns, mirroring the tag family variant naming `{size}_{style}_{colour}_{arrow}_T{n}`. Today these only exist as type parameters (`TAG_BOX_*`) and catalogue arrowhead names — no per-row authoring path. | Open (schema + content) |
