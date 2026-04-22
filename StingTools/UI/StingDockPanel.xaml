@@ -4128,6 +4128,89 @@
                                 </DockPanel>
                             </TabItem>
 
+                            <!-- ─── v4 MVP: Fixture Placement Tab ─── -->
+                            <TabItem Header="Fixtures">
+                                <DockPanel>
+                                    <!-- Pinned action bar at bottom -->
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Place fixtures" Tag="Placement_PlaceFixtures" Click="Cmd_Click" Width="100" Height="30" ToolTip="Place all fixture categories per STING_PLACEMENT_RULES.json in scope rooms"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Lighting grid"  Tag="Placement_LightingGrid"  Click="Cmd_Click" Width="90"  Height="30" ToolTip="BS EN 12464-1 lux-target grid for the active room"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Learn"          Tag="Placement_Learn"          Click="Cmd_Click" Width="70"  Height="30" ToolTip="Extract project-level rule overrides from already-placed fixtures"/>
+                                    </WrapPanel>
+
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel Margin="4">
+
+                                            <!-- SCOPE -->
+                                            <TextBlock Text="SCOPE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Apply to" FontSize="9" Margin="0,0,0,2"/>
+                                                    <WrapPanel>
+                                                        <RadioButton Content="Selected rooms" GroupName="FxScope" x:Name="rbFxScopeSel" IsChecked="True" Margin="2" FontSize="9" ToolTip="Only placements in rooms currently selected"/>
+                                                        <RadioButton Content="Active view"    GroupName="FxScope" x:Name="rbFxScopeView" Margin="2" FontSize="9" ToolTip="All rooms visible in the active plan view"/>
+                                                        <RadioButton Content="All rooms"      GroupName="FxScope" x:Name="rbFxScopeAll" Margin="2" FontSize="9" ToolTip="Every room in the project"/>
+                                                    </WrapPanel>
+                                                    <CheckBox Content="Dry-run preview first" x:Name="chkFxDryRun" IsChecked="True" Margin="0,4,0,0" FontSize="9" ToolTip="Score candidates and show report without creating any instances"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- CATEGORY -->
+                                            <TextBlock Text="CATEGORY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <CheckBox Content="Electrical Fixtures" x:Name="chkFxElec" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Lighting Devices"   x:Name="chkFxLtgDev" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Lighting Fixtures"  x:Name="chkFxLtgFix" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Communication Devices" x:Name="chkFxComm" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Data Devices"         x:Name="chkFxData" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Security Devices"     x:Name="chkFxSec"  IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Fire Alarm Devices"   x:Name="chkFxFire" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Plumbing Fixtures"    x:Name="chkFxPlm"  IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Air Terminals"        x:Name="chkFxHvac" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Sprinklers"           x:Name="chkFxSpr"  IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- STANDARDS -->
+                                            <TextBlock Text="STANDARDS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <CheckBox Content="Approved Doc M (300mm switch, 450mm socket)" x:Name="chkFxDocM" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="BS 7671 (socket/isolator heights)"             x:Name="chkFxBS7671" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="BS 5266-1 (emergency luminaire spacing)"       x:Name="chkFxBS5266" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="BS 5839-1 (smoke/heat detector coverage)"       x:Name="chkFxBS5839" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="BS 6465 (sanitary fitting clearances)"          x:Name="chkFxBS6465" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="BS EN 12464-1 (lux targets)"                    x:Name="chkFxEN12464" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- SPACING -->
+                                            <TextBlock Text="SPACING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Min spacing override (mm)" FontSize="9" Margin="0,0,0,2"/>
+                                                    <TextBox x:Name="txtFxMinSpacing" Text="" FontSize="10" Padding="2" ToolTip="Empty = use per-rule MinSpacingMm from JSON"/>
+                                                    <CheckBox Content="Snap placements to 300mm grid" x:Name="chkFxSnap300" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- COLLISION -->
+                                            <TextBlock Text="COLLISION" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <CheckBox Content="Reject placements inside walls"          x:Name="chkFxNoWall" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Reject placements outside room boundary"  x:Name="chkFxNoRoomOut" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Clearance from doors (min 300mm)"         x:Name="chkFxDoorClr" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Clearance from windows (min 100mm)"       x:Name="chkFxWinClr" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+
                         </TabControl>
                 </DockPanel>
             </TabItem>
