@@ -58,7 +58,7 @@ namespace StingTools.Core.Fabrication.Electrical
 
         private void EmitBendScheduleCsv(Document doc, IList<ElementId> ids, FabricationResult result)
         {
-            string outDir = OutputLocationHelper.Get(doc, "Fabrication");
+            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
             if (string.IsNullOrEmpty(outDir)) return;
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_electrical_bends.csv");
