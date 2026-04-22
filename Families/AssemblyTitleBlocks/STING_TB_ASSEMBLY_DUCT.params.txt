@@ -1,0 +1,29 @@
+# STING v4 MVP — Title block parameter stub for STING_TB_ASSEMBLY_DUCT.rfa
+# Author the actual .rfa in Revit Family Editor. Required parameters
+# below must exist as Title Block instance parameters bound to the
+# shared parameters in StingTools.Core.Fabrication.AssyParams.
+
+REQUIRED PARAMETERS
+ASS_SPOOL_NR_TXT       (Text, Instance) — Auto-populated by ShopDrawingComposer
+ASS_WEIGHT_KG          (Number / Mass, Instance)
+ASS_TEST_PRESSURE_BAR  (Number / Pressure, Instance)
+ASS_FAB_LOC_TXT        (Text, Instance) — WORKSHOP / SITE
+ASS_FAB_SEQ_NR         (Integer, Instance)
+ASS_FAB_STATUS_TXT     (Text, Instance) — DRAFT / IFC / IFA / IFR
+ASS_BOM_REV_TXT        (Text, Instance) — P01 / P02 / C01...
+ASS_QC_INSPECTOR_TXT   (Text, Instance)
+ASS_WELD_COUNT_NR      (Integer, Instance)
+ASS_BOLT_COUNT_NR      (Integer, Instance)
+ASS_FLANGE_COUNT_NR    (Integer, Instance)
+ASS_FITTING_COUNT_NR   (Integer, Instance)
+ASS_LENGTH_TOTAL_MM    (Length, Instance)
+ASS_INSULATION_AREA_M2 (Area, Instance)
+ASS_SUPPORT_COUNT_NR   (Integer, Instance)
+ASS_SPOOL_DRAWING_REF_TXT (Text, Instance)
+DISCIPLINE             (Text, Instance) — Pipe / Duct / Electrical / Hanger
+
+LAYOUT NOTES
+- A1 landscape (594mm x 841mm)
+- Right-hand strip 200mm wide reserved for BOM schedule
+- Title block at bottom 80mm
+- 5 viewport slots laid out by ShopDrawingComposer (PLAN, ISO, ELEV0, ELEV90, 3D)

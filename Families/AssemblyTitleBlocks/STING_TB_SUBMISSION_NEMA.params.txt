@@ -1,0 +1,20 @@
+# STING v4 MVP — Submission title block parameter stub for STING_TB_SUBMISSION_NEMA.rfa
+# Authority-specific submission sheet (Kampala Capital City Authority,
+# Electricity Regulatory Authority, National Environment Management
+# Authority). Author the .rfa in Revit Family Editor with the required
+# parameter set below. ShopDrawingComposer will not auto-populate these
+# unless explicitly wired in a future runner.
+
+REQUIRED PARAMETERS
+PROJECT_REF_TXT        (Text, Instance) — Project reference per submission rules
+SUBMISSION_REV_TXT     (Text, Instance) — Revision tracker
+SUBMISSION_DATE_TXT    (Text, Instance)
+APPROVED_BY_TXT        (Text, Instance)
+AUTHORITY_STAMP_AREA   (Detail Item, Instance) — Reserved space
+DISCIPLINE             (Text, Instance)
+ASS_SPOOL_NR_TXT       (Text, Instance)
+
+LAYOUT NOTES
+- Authority-mandated A1 / A2 sheet sizes per local rules
+- Authority logo top-left, project info top-right
+- Approval / signature block centred bottom
