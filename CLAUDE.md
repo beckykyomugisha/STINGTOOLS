@@ -3552,3 +3552,52 @@ Closes 31 build errors surfaced when the BOQ Cost Manager (Phase 107) merged alo
 - **Visvesvaraya BCC conflict** (`StingTools/UI/BIMCoordinationCenter.cs`): Kept HEAD's `_planscapeDetailArea` field with `CS0169` pragma wrapper. `StingBIM` naming was deprecated per Phase 88 in favour of `Planscape`; incoming branch still referenced the old name.
 - **Visvesvaraya dispatch conflict** (`StingTools/UI/StingCommandHandler.cs`): Kept HEAD's Planscape-based dispatch cases; renamed incoming `StingBIM*` action tags to `Planscape*` equivalents (the `StingBIMConnectCommand` / `StingBIMServerClient` / `SyncToStingBIMServer` / `StingBIMCopyLink` types do not exist in HEAD — only the `Planscape*` counterparts do, introduced in Phase 82 / Phase 90). Added Phase 78 Section 6.1 handlers for `TeamReport`, `MeetingTemplates`, `ConfigureCostFile` (all reference existing commands).
 - **Files changed**: `StingTools/BOQ/BOQTemplateLibraryExtensions.cs`, `StingTools/Clash/ClashSession.cs`, `StingTools/UI/BOQCostManagerPanel.cs`, `StingTools/UI/StingCommandHandler.cs`, `StingTools/Core/WarningsManager.cs`, `StingTools/UI/BIMCoordinationCenter.cs`. Net diff: +51 lines / -27 lines across 6 files.
+
+#### Completed (Phase 109 — v6 MVP: Phases 1-6 partial)
+
+Per `docs/20260422_sting_v6_claude_code_runner_prompt_v1.0.docx`, this phase implements the v6 MVP additions on branch `claude/heredoc-large-files-6h5P9`. Work is layered on top of the already-committed v4 work (Placement, Routing, Validation, Fabrication) so only the deltas are described here. Builds use heredoc (max 150-line chunks) with structural / brace-balance checks in lieu of a missing dotnet SDK in the Linux sandbox.
+
+**Phase 1 — Parameter delta + performance hygiene:**
+- **S1.1** — `ParamRegistry.cs` gains a `#region V6 parameters` with 20 new constants covering N-G12 install hours (1), N-G13 carbon A1-A3/A4/A5/B6/C1/C2/C3-C4 (8), N-G5/G6 clash triage + resolution (6), N-G9 as-built deviation + capture date (2), N-G8 ACC Issue ID + sync status (2), N-G14 IFC PSet override (1), N-G4 health score + date (2). Placeholder GUIDs `v6-0001-0000-0000-xxxxxxxxxxxx`.
+- **S1.2** — `StingTools/Data/Parameters/STING_PARAMS_V6.txt` mirrors the 20 constants as a Revit shared-parameter fragment with 5 new groups (CLASH_MNG=17, ACC_SYNC=18, IFC_EXCH=19, HEALTH_METRICS=20, ASBUILT=21).
+- **S1.3** — `Performance_AuditNotes.md` catalogues 8 FilteredElementCollector antipatterns across 5 files (ExcelLink, ParameterDiff, CarbonTracking, Scheduling ×3, Model, DataPipeline ×2).
+- **S1.4** — Fixes 5 antipatterns by prepending `ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums)` quick filter. Expected speedup 5-10× on 10k+ element projects.
+- **S1.5** — `StingTools/Core/TransactionHelper.cs` with `RunInScope` / `TryRunInScope` / `RunInSingleTransaction` — all v6 engines batch DB changes under one undo step.
+
+**Phase 2 — Placement extensions:**
+- **S2.15** — `StingTools/Core/Placement/CeilingGridSnap.cs` (L-G1): snaps luminaire XYZ to nearest ceiling-tile grid intersection (1200×600 mm default from Ceiling type Tile Width/Height), long-axis orientation, BoundingBoxIntersectsFilter for ceiling lookup.
+- **S2.16** — `StingTools/Core/Placement/ObstructionIndex.cs` (L-G2): builds 2D AABB exclusion list from ceiling-mounted obstructions (7 categories) with CIBSE Guide B4 §3.6 350 mm buffer, filters candidate XYZ positions before scoring.
+
+**Phase 3 — Advanced routing pipeline:**
+- **S3.7** — `StingTools/Core/Routing/VoxelGrid.cs` (R-E1): adaptive voxel grid (100/200/400 mm cells by obstacle proximity) backed by RBush spatial index; per-cell `CostMultiplier` feeds the A* heuristic.
+- **S3.8** — `StingTools/Core/Routing/AStarSolver.cs`: classic A* over VoxelGrid with .NET 8 PriorityQueue, 200k node-expansion cap, structured `AStarResult` (Success, Path, FailureReason, NodesExpanded, TotalCost).
+- **S3.9** — `StingTools/Core/Routing/AcoRefiner.cs`: ACO seeded from A* path, 7-term multi-objective cost (length, bends live; clearance, system, void, slope, thermal stubbed for validator integration), 10-iteration stagnation convergence.
+- **S3.10** — `StingTools/Core/Routing/ThreeOptSmoother.cs`: 3-opt local search, 7 reconnection orderings, 25-pass cap.
+- **S3.11** — `StingTools/Core/Routing/BezierFittingSnap.cs`: snaps corners to nearest legal fitting angle (45/60/90/135° default), replaces each corner with quadratic Bezier sampled 6× per bend.
+- **S3.12** — `StingTools/Data/Routing/STING_SERVICE_CORRIDORS.json`: 14 service corridor bands (CIBSE / BS EN 12056 / BS 8313 / BS 7671 / BS EN 50174-2 / BS 5839-1), consumed by VoxelGrid for CostMultiplier and by the R-E5 validator.
+
+**Phase 4 — Validation extensions:**
+- **S4.8-S4.9** — `StingTools/Core/Validation/SeparationValidator.cs` + `StingTools/Data/Routing/STING_SEPARATION_RULES.json` (R-E5): 12 BS EN 50174-2 / HTM 02-01 / BS 5839-1 / BS 6891 / BS EN 12056 / BS 5266-1 / BS 7671 separation rules, BoundingBoxIntersectsFilter + tagged-category quick filter, returns ValidationResult list.
+- **S4.10** — `StingTools/Core/Validation/LiveStandardsUpdater.cs` (N-G3): `IUpdater` that fires on MEP element addition / geometry change, runs SeparationValidator, pipes results to `WarningsManager.LogCoordinationAction`. Opt-in via `LiveStandardsUpdater.Enable()`.
+
+**Phase 6 — New v6 gap engines:**
+- **S6.1** — `StingTools/V6/ClashTriageEngine.cs` (N-G5): 6-factor weighted triage (severity, schedule, cost, recurrence, penetration, not-dismiss), top-N (20) cutoff, `ClashTriageConfig` loadable from JSON.
+- **S6.2** — `StingTools/V6/ClashResolutionSuggester.cs` (N-G6): 3 candidates per clash (MOVE / REROUTE / ACCEPT) with cost + risk score; `Apply` writes CLASH_RESOLUTION_STATUS_TXT + CLASH_RESOLUTION_ACTION_TXT atomically.
+- **S6.3** — `StingTools/V6/FederationLinkedWalker.cs` (N-G7): enumerates `RevitLinkInstance`, transforms linked BBs into host frame via `GetTotalTransform()`, `QueryAcrossLinks<T>` + `CollectFederatedElements` helpers.
+- **S6.4** — `StingTools/V6/AccIssueSync.cs` (N-G8): OAuth 2.0 refresh_token flow with SemaphoreSlim, 429 exponential back-off, `PushIssueAsync` / `PullIssuesAsync`, credentials persisted to `%APPDATA%\Planscape\acc_credentials.json`.
+- **S6.5** — `StingTools/V6/AsBuiltReconciler.cs` (N-G9): reads `{project}_asbuilt_captures.json` sidecar, writes ASBUILT_DEVIATION_MM + ASBUILT_CAPTURE_DATE_TXT, magnitude colour buckets (10 mm green / 50 mm amber / >50 mm red) for AS-BUILT DEVIATIONS 3D view.
+- **S6.6** — `StingTools/V6/SheetMatrixGenerator.cs` (N-G10): `LoadMatrix` + `Generate` create ViewSheets from STING_SHEET_MATRIX.json, iterator over LEVEL / PHASE / AXIS, `SheetNumberPattern` with `{i:D2}` placeholder.
+- **S6.7** — `StingTools/V6/FourdGanttReader.cs` (N-G11): parses MS Project XML (XDocument / namespaces) and Primavera XER (%T/%F/%R), `AssignPhasesToModel` writes PHASE_CREATED.
+- **S6.8** — `StingTools/V6/CarbonStageTracker.cs` (N-G13): per-stage kgCO2e A1-A3 / A4 / A5 / B6 / C1 / C2 / C3-C4, writes to v6 CBN_* params, CSV export with LETI 2030 / RIBA 2030 benchmarks.
+- **S6.9-S6.10** — `StingTools/V6/IfcPsetMapping.cs` + `StingTools/Data/IFC/STING_IFC_PSET_MAPPING.json` (N-G14): 33 representative PSet mappings covering tag tokens, lifecycle, placement, electrical, carbon stages, clash, as-built, ACC, health. Full 2307-parameter table is documented follow-up work.
+- **S6.11** — `StingTools/V6/ExcelBidirectionalSync.cs` (N-G15): ClosedXML round-trip of 12-column metadata with formula preservation via `{workbook}.formulas.json` sidecar.
+
+**Phase 6 deferred for follow-up:** S6.12 runner also called for wiring the v6 engines into `StingCommandHandler` dispatch, adding ribbon/dock-panel entries, and authoring the full 2307-parameter IFC mapping. Those are tracked as their own phase because they touch 7000+-line generated dispatch files that carry bite-risk for heredoc-sized edits.
+
+**Deferred items / known limits:**
+- No `dotnet build` verification in sandbox — brace-balance + grep-based structural checks were the gate. `TODO-VERIFY-API` comments flag the most uncertain Revit API calls (RBush.BulkLoad, Conduit.Create overloads, Transform.Inverse, ACC REST response shapes).
+- IFC PSet mapping ships 33 rows; full 2307-row population is a data-authoring task that can happen outside the plug-in.
+- Live standards IUpdater only runs SeparationValidator; heavier validators (fill, slope, spec) stay batch-only because they need cross-element state a single UpdaterData delta can't provide.
+- Placeholder GUIDs `v6-0001-*` need real GUIDs before family-library authoring.
+
+**Commit count: 22** v6 commits on `claude/heredoc-large-files-6h5P9` (S1.1 through S6.11), ~3,100 new lines across 18 new files.
