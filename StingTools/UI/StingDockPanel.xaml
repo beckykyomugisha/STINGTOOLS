@@ -4128,6 +4128,69 @@
                                 </DockPanel>
                             </TabItem>
 
+                            <!-- ─── Phase 111-117: Design Automation Roll-up Tab ─── -->
+                            <TabItem Header="Automation">
+                                <DockPanel>
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Cover audit"     Tag="Arch_CoverAudit"       Click="Cmd_Click" Width="90"  Height="30" ToolTip="ARCH-06 Fire / moisture / thermal cover audit"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Wind apply"      Tag="StrExt_WindAutoApply"  Click="Cmd_Click" Width="90"  Height="30" ToolTip="STR-03 ASCE 7 / EC 1 wind pressure"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Stage audit"     Tag="StdExt_StageCompliance" Click="Cmd_Click" Width="90"  Height="30" ToolTip="STD-01 RIBA 0-7 compliance gate"/>
+                                    </WrapPanel>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel Margin="4">
+
+                                            <TextBlock Text="ARCHITECTURE (P111 — 6 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto stair (BS 5395 + Part K)"    Tag="Arch_AutoStair"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto railing (BS 6180 + Part K)" Tag="Arch_AutoRailing"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Curtain wall grid (BS EN 13830)"  Tag="Arch_AutoCurtainWall" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Wall opening"                       Tag="Arch_AutoOpening"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Plaster + paint takeoff"            Tag="Arch_AutoPlaster"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Cover audit (fire + U-value)"        Tag="Arch_CoverAudit"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                            </StackPanel></Border>
+
+                                            <TextBlock Text="STRUCTURAL EXT (P112 — 10 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto slab rebar"         Tag="StrExt_AutoSlabRebar"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Full column takedown"     Tag="StrExt_FullColumnTakedown" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Wind auto-apply"          Tag="StrExt_WindAutoApply"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Seismic auto-apply"       Tag="StrExt_SeismicAutoApply"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Pile group design"        Tag="StrExt_PileGroup"             Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Retaining wall check"      Tag="StrExt_RetainingWall"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto connection (SCI P358)" Tag="StrExt_AutoConnection"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Composite beam (EC4)"      Tag="StrExt_CompositeBeam"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Fab tolerance"              Tag="StrExt_ToleranceCheck"        Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Creep deflection (EC2)"     Tag="StrExt_CreepDeflection"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                            </StackPanel></Border>
+
+                                            <TextBlock Text="MEP DESIGN (P113 — 12 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Panel schedule build"  Tag="MepA_PanelSchedule"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Breaker size (IEC)"     Tag="MepA_BreakerAutoSize"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Grounding (BS 7671)"    Tag="MepA_GroundingDesign"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Pump size (Guide C)"    Tag="MepA_PumpSize"          Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Transformer size"        Tag="MepA_TransformerSize"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Generator size"          Tag="MepA_GeneratorSize"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Drainage (BS EN 12056)"  Tag="MepA_DrainageSize"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                            </StackPanel></Border>
+
+                                            <TextBlock Text="STANDARDS BULK (P116 — 30 items, see Dynamo for full list)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Stage audit (RIBA)"     Tag="StdExt_StageCompliance"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Accessibility audit"     Tag="StdExt_AccessibilityAudit" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="EUI benchmark"            Tag="StdExt_EUIBenchmark"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Load combinations"        Tag="StdExt_LoadCombinations" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Regional overlay"          Tag="StdExt_SetRegion"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                            </StackPanel></Border>
+
+                                            <TextBlock Text="REFERENCE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}"><TextBlock FontSize="9" TextWrapping="Wrap" Text="All 80+ new commands also dispatch as Dynamo nodes under STING Tools.Architecture, .Structural, .MEP, .Placement, .Routing, .Fabrication, .Standards. See docs/DESIGN_MODELING_AUTOMATION_ROADMAP.md for the full catalogue."/></Border>
+
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+
                             <!-- ─── Phase 110: Standards & Compliance Tab ─── -->
                             <TabItem Header="Standards">
                                 <DockPanel>

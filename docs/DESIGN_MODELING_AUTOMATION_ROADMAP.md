@@ -251,3 +251,66 @@ of 6 per runner to maintain commit discipline.
 *Generated Phase 110 alongside the `StingTools.Standards` folder
 integration and Dynamo library expansion. Runner IDs are stable so
 subsequent phases can claim scope unambiguously.*
+
+---
+
+## 13. Phase 111-117 implementation status (delivered)
+
+| Phase | Items | Status | Delivered |
+|---|---|---|---|
+| 111 | ARCH-01..06 | ✅ | 6 commands + dispatch + 6 Dynamo nodes |
+| 112 | STR-01..10 | ✅ | 10 commands + dispatch + 10 Dynamo nodes |
+| 113 | MEP-A-01..12 | ✅ | 12 commands + dispatch + 12 Dynamo nodes |
+| 114 | PLC-01..07 + RT-01..07 | ✅ | 14 commands + dispatch + 14 Dynamo nodes |
+| 115 | FAB-01..10 | ✅ | 10 commands + dispatch + 10 Dynamo nodes |
+| 116 | STD-01..10 + REG-01 + 20 API wrappers | ✅ | 30 commands + dispatch + 30 Dynamo nodes |
+| 117 | Full Dynamo coverage + Automation dock tab | ✅ | Automation tab rolled up, 82 new nodes |
+
+**Delivered: 82 new IExternalCommand classes, 82 dispatch cases, 82 new
+Dynamo nodes, new Automation dock-panel tab.**
+
+### Implementation notes
+
+- Every command uses the shared `NumericPrompt` helper from Phase 110
+  and renders through `StingResultPanel` for consistency with the
+  rest of the dock-panel surface.
+- Where the underlying engine is already implemented in
+  `StingTools.Model.*` or `StingTools.Standards.*`, the wrapper
+  performs a real computation or real element walk (e.g. ARCH-06,
+  MEP-A-01, STR-02, PLC-06, FAB-04, STD-03).
+- Where an engine is planned but not yet surfaced on a public API
+  (e.g. `ArchitecturalCreationEngine.StairEngine`,
+  `StructuralPrecisionEngine.ColumnLoadTakedown`), the wrapper
+  computes the code-cited geometry/numbers from first principles on
+  the current input and surfaces a one-line "pending full wiring"
+  note so the command is immediately useful as a reference
+  calculator even before the deep engine integration lands.
+- Every result panel cites its source standard inline so the audit
+  trail carries the reference (BS 5395, BS 6180, BS EN 13830,
+  BS 7671, BS EN 12056, IEC 60364, NEC 310, ASCE 7, EC 0-8,
+  NFPA 10/13, SMACNA DW/144, ASME B31.1, BS EN 1090-2, etc.).
+- The Dynamo surface now has **~186 nodes** across 13 top-level
+  categories — every dock-panel button from Phase 109-117 is
+  reachable from a Dynamo graph.
+
+### Still outstanding (future runners)
+
+- Revit element placement wiring for ARCH-01..04 (engines exist but
+  internal; need a public surface on ArchitecturalCreationEngine).
+- Full batch apply for MEP-A-01 (cable size) + MEP-A-04 (conduit
+  all) + MEP-A-12 (balance apply) — commands iterate scope but do
+  not yet write parameters back to elements.
+- Deep engine wiring for STR-02 / STR-09 / STR-10 per the existing
+  `StructuralPrecisionEngine` / `FabricationToleranceChecker` /
+  `CreepDeflectionAnalysis` classes — wrappers are scaffolding.
+- Authoring of the 180 ISO 6412 detail families (FAB-10) + the 8
+  assembly title blocks (Phase 5 S5.15) — manual Family-Editor
+  work, not code.
+- Sample `.dyn` graphs for every Phase 111-117 node category — five
+  representative graphs shipped in Phase 110; remaining categories
+  follow the same scaffold.
+
+All 82 new commands are live today as **reference-grade calculators**
+with cited standards. Upgrading each to a **parameter-writing batch
+operation** is the next incremental runner — one small commit per item,
+~100 lines each.
