@@ -1213,11 +1213,12 @@ namespace StingTools.Tags
 
         private static ElementId ResolveArrowheadId(Document doc, string name)
         {
+            // Arrowhead ElementType has no BuiltInCategory in Revit 2025 —
+            // Category is null and FamilyName is "Arrowhead".
             var types = new FilteredElementCollector(doc)
                 .OfClass(typeof(ElementType))
                 .Cast<ElementType>()
-                .Where(et => et.Category != null &&
-                             et.Category.Id.Value == (long)BuiltInCategory.OST_ArrowHeads);
+                .Where(et => string.Equals(et.FamilyName, "Arrowhead", StringComparison.Ordinal));
             var match = types.FirstOrDefault(et =>
                 string.Equals(et.Name, name, StringComparison.OrdinalIgnoreCase))
                 ?? types.FirstOrDefault(et =>
@@ -1393,12 +1394,12 @@ namespace StingTools.Tags
             if (doc == null || tagIds == null || tagIds.Count == 0) return 0;
             if (string.IsNullOrEmpty(arrowheadName)) return 0;
 
-            // Resolve the arrowhead ElementType by name (OST_ArrowHeads).
+            // Resolve the arrowhead ElementType by name. Arrowheads in Revit 2025
+            // have no BuiltInCategory — Category is null and FamilyName is "Arrowhead".
             var types = new FilteredElementCollector(doc)
                 .OfClass(typeof(ElementType))
                 .Cast<ElementType>()
-                .Where(et => et.Category != null &&
-                             et.Category.Id.Value == (long)BuiltInCategory.OST_ArrowHeads)
+                .Where(et => string.Equals(et.FamilyName, "Arrowhead", StringComparison.Ordinal))
                 .ToList();
 
             var match = types.FirstOrDefault(et =>

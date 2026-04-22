@@ -392,11 +392,12 @@ namespace StingTools.Commands.TagStudio
             var lookup = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
             try
             {
+                // Arrowhead ElementType has no BuiltInCategory in Revit 2025 —
+                // Category is null and FamilyName is "Arrowhead".
                 var types = new FilteredElementCollector(doc)
                     .OfClass(typeof(ElementType))
                     .Cast<ElementType>()
-                    .Where(et => et.Category != null &&
-                                 et.Category.Id.Value == (long)BuiltInCategory.OST_ArrowHeads)
+                    .Where(et => string.Equals(et.FamilyName, "Arrowhead", StringComparison.Ordinal))
                     .ToList();
 
                 var wanted = new HashSet<string>(TagStyleCatalogue.Arrowheads, StringComparer.OrdinalIgnoreCase);
