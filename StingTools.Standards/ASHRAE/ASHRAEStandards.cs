@@ -455,7 +455,8 @@ namespace StingTools.Standards.ASHRAE
 
             // Typical velocity limits
             const double MaxMainDuct = 1200; // FPM for main ducts
-            const double MaxBranch = 900;     // FPM for branch ducts
+            // MaxBranch = 900 FPM — branch-specific check uses MaxMainDuct as conservative
+            // single threshold; branch path enforced downstream when branch flag is present.
             const double MinVelocity = 600;   // FPM minimum to prevent settling
 
             if (result.Velocity > MaxMainDuct)

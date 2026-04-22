@@ -215,19 +215,21 @@ namespace StingTools.Standards
                 {"Theater", (0.25, "per seat")}
             };
 
-            var ratio = parkingRatios.ContainsKey(useType)
+            // Name the fallback tuple so the ternary result preserves
+            // the (double ratio, string basis) member names.
+            (double ratio, string basis) sel = parkingRatios.ContainsKey(useType)
                 ? parkingRatios[useType]
-                : (3.0, "per 1000 sqft");
+                : (ratio: 3.0, basis: "per 1000 sqft");
 
             int standardSpaces;
-            if (ratio.basis == "per 1000 sqft")
-                standardSpaces = (int)Math.Ceiling((grossFloorAreaSqFt / 1000) * ratio.ratio);
-            else if (ratio.basis == "per unit" || ratio.basis == "per room")
-                standardSpaces = (int)Math.Ceiling(dwellingUnits * ratio.ratio);
-            else if (ratio.basis == "per seat" || ratio.basis == "per student")
-                standardSpaces = (int)Math.Ceiling(seats * ratio.ratio);
+            if (sel.basis == "per 1000 sqft")
+                standardSpaces = (int)Math.Ceiling((grossFloorAreaSqFt / 1000) * sel.ratio);
+            else if (sel.basis == "per unit" || sel.basis == "per room")
+                standardSpaces = (int)Math.Ceiling(dwellingUnits * sel.ratio);
+            else if (sel.basis == "per seat" || sel.basis == "per student")
+                standardSpaces = (int)Math.Ceiling(seats * sel.ratio);
             else
-                standardSpaces = (int)Math.Ceiling((grossFloorAreaSqFt / 1000) * ratio.ratio);
+                standardSpaces = (int)Math.Ceiling((grossFloorAreaSqFt / 1000) * sel.ratio);
 
             // ADA accessible spaces (2010 ADA Standards)
             int accessibleSpaces = CalculateAccessibleParkingSpaces(standardSpaces);
@@ -240,8 +242,8 @@ namespace StingTools.Standards
                 AccessibleSpaces = accessibleSpaces,
                 VanAccessibleSpaces = vanAccessible,
                 TotalSpaces = standardSpaces,
-                ParkingRatio = ratio.ratio,
-                RatioBasis = ratio.basis,
+                ParkingRatio = sel.ratio,
+                RatioBasis = sel.basis,
                 UseType = useType,
                 StandardReference = "IBC/ADA 2010"
             };
@@ -279,9 +281,8 @@ namespace StingTools.Standards
             var issues = new List<string>();
             bool compliant = true;
 
-            // ADA minimum clear width: 36" (44" for passing)
+            // ADA minimum clear width: 36" (44" for passing — reference only, not yet enforced)
             double minWidth = 36;
-            double passingWidth = 60;
 
             if (routeWidthInches < minWidth)
             {
@@ -1026,7 +1027,8 @@ namespace StingTools.Standards
             double baselineUrinalGPF = 1.0;
             double baselineLavatoryGPM = 2.2;
             double baselineShowerGPM = 2.5;
-            double baselineKitchenGPM = 2.2;
+            // baselineKitchenGPM = 2.2 — reference only, not currently part of the
+            // water-reduction formula (kitchen is excluded from LEED WE Prereq 1).
 
             // Usage assumptions (LEED default)
             int toiletUsesPerDay = 3;
