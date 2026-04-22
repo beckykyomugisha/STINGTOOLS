@@ -15,6 +15,64 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 - **Phase 76 additions**: Revisions inline panels, Workflow ToggleButton tabs, QR code generation (ZXing.Net), Code Legend (120+ entries), Project Members unified tab, Material Manager 7-tab dialog, Issues dynamic context panels
 - **Phase 77 additions**: BCC complete UX overhaul — Deliverables inline editable grid + transmittal section, Meetings 4-sub-tab inline panel (Meetings List, Action Items, Minutes Editor, Automation), Model Health inline action panels, QR Codes section in Overview, 20 issue types with color coding, StingCommandHandler wired for all BCC action tags, keyboard navigation (Escape/F5), ShowStatus helper, RefreshBadges method, Overview quick actions toolbar
 
+## v4 MVP
+
+**Status**: Phase 1 (parameters) → Phase 5 (fabrication) implemented across ~50 commits on branch `claude/sting-tools-v4-mvp-SiPGw`. Code committed without `dotnet build` verification (Linux sandbox, no .NET / Revit API). Verify in Revit before merge.
+
+### New folders
+
+| Path | Purpose |
+|---|---|
+| `StingTools/Core/Placement/` | Fixture placement engine (rule + scorer + candidate + lighting grid) |
+| `StingTools/Core/Routing/` | Auto-drop engines (DropEngineBase + AutoConduitDrop / AutoPipeDrop / AutoDuctDrop) |
+| `StingTools/Core/Validation/` | Five v4 validators (connectivity / fill / spec / termination / slope) + ValidationResult record |
+| `StingTools/Core/Fabrication/` | Fabrication coordinator + AssemblyGrouper + AssemblyBuilder + AssemblyViewBuilder + ShopDrawingComposer + IsoSymbolPlacer + per-discipline subfolders (Electrical / Pipe / Duct) |
+| `StingTools/Commands/Placement/` | PlaceFixturesCommand, LightingGridCommand, LearnPlacementV4Command |
+| `StingTools/Commands/Routing/` | AutoDropCommand, GenerateLayoutCommand, ValidateFillsCommand |
+| `StingTools/Commands/Validation/` | RunAllValidatorsCommand |
+| `StingTools/Commands/Fabrication/` | GenerateFabPackageCommand, ExportCutListCommand, ExportIsometricsCommand, ExportWeldMapCommand |
+| `StingTools/Data/Placement/` | STING_PLACEMENT_RULES.json (43 rules) |
+| `StingTools/Data/Fabrication/` | STING_FAB_RULES.json (6 disciplines), STING_ISO_SYMBOLS_INDEX.csv (180+ symbols) |
+| `StingTools/Data/Parameters/` | STING_PARAMS_V4.txt shared-parameter fragment |
+| `Families/AssemblyTitleBlocks/` | 8 title block parameter spec stubs + README |
+
+### New namespaces
+
+`StingTools.Core.Placement`, `StingTools.Core.Routing`, `StingTools.Core.Validation`, `StingTools.Core.Fabrication`, `StingTools.Core.Fabrication.Electrical`, `StingTools.Core.Fabrication.Pipe`, `StingTools.Core.Fabrication.Duct`, `StingTools.Commands.Placement`, `StingTools.Commands.Routing`, `StingTools.Commands.Validation`, `StingTools.Commands.Fabrication`.
+
+### New commands (12)
+
+| Command tag | Class | Tab |
+|---|---|---|
+| `Placement_PlaceFixtures` | `PlaceFixturesCommand` | Fixtures |
+| `Placement_LightingGrid` | `LightingGridCommand` | Fixtures |
+| `Placement_Learn` | `LearnPlacementV4Command` | Fixtures |
+| `Routing_AutoDrop` | `AutoDropCommand` | Routing |
+| `Routing_GenerateLayout` | `GenerateLayoutCommand` | Routing |
+| `Routing_ValidateFills` | `ValidateFillsCommand` | Routing |
+| `Validation_RunAll` | `RunAllValidatorsCommand` | (called from Routing) |
+| `Fabrication_GeneratePackage` | `GenerateFabPackageCommand` | Fabrication |
+| `Fabrication_ExportCutList` | `ExportCutListCommand` | Fabrication |
+| `Fabrication_ExportIsometrics` | `ExportIsometricsCommand` | Fabrication |
+| `Fabrication_ExportWeldMap` | `ExportWeldMapCommand` | Fabrication |
+| `Fabrication_PlaceISOSymbols` | inline TaskDialog (placement runs in GeneratePackage) | Fabrication |
+
+### New tags Studio sub-tabs (3)
+
+`Fabrication`, `Routing`, `Fixtures` — added to `tagStudioTabs` inside the existing TAGS top-tab. Each follows the proven DockPanel + pinned WrapPanel + ScrollViewer pattern.
+
+### New parameter count
+
+- **6 net-new shared parameters** (S1.1 + S1.2): PLACE_ANCHOR / PLACE_OFFSET_X_MM / PLACE_SIDE / CPC_SZ_MM / PPE_INSULATION_THK_MM / PLM_SLOPE_PCT_V4
+- **46 fabrication / LPS / pricing constants** (S1.3) in `StingTools.Core.Fabrication.{AssyParams,LpsParams,CostParams}` with placeholder `v4-YYYY-xxxx` GUIDs awaiting family library authoring.
+- **Total**: 52 new constants. The 6 net-new ones use stable GUIDs; the 46 placeholders need real GUIDs assigned during family-library authoring.
+
+### Caveats
+
+1. Built without `dotnet build` verification — every Revit API call uses the documented signature but has not been compile-checked. `// TODO-VERIFY-API` comments mark the most uncertain spots (`AssemblyInstance.Create` category arg, `Conduit.Create` / `Pipe.Create` / `Duct.Create` overloads, ISO 6412 axonometric section transform).
+2. The 8 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project.
+3. ISO 6412 detail families (180 entries) are referenced by name in `STING_ISO_SYMBOLS_INDEX.csv`; `IsoSymbolPlacer` lazy-loads from `Families/ISO6412/` and warns once per missing family.
+
 ## Technology Stack
 
 - **Platform**: Autodesk Revit 2025/2026/2027 (BIM software)
