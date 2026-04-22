@@ -1055,6 +1055,106 @@ namespace StingTools.Tags
         }
 
         // ════════════════════════════════════════════════════════════════
+        // PLACEMENT RESOLVER — map the base tag type the placer found to the
+        // variant the user's Tag Studio ExtraParams are asking for.  Reads
+        //   TagTextSize   (e.g. "2.5")
+        //   TagTextWeight ("Normal" | "Bold" | "Italic" → "NOM"/"BOLD"/"ITALIC")
+        //   TagTextColor  ("Black" | "Blue" | ...)
+        //   ArrowStyle    ("None" | "Arrow Filled 30" | ...)
+        //   ParaDepth     ("1".."10")
+        //
+        // Returns the matched FamilySymbol.Id or — when the family has no
+        // matching variant (migration not yet run) — the supplied fallback.
+        // ════════════════════════════════════════════════════════════════
+        public static ElementId ResolveTagTypeForPlacement(
+            Document doc, FamilySymbol baseTagType, string discipline = null)
+        {
+            if (baseTagType == null) return ElementId.InvalidElementId;
+
+            string size   = UI.StingCommandHandler.GetExtraParam("TagTextSize");
+            string weight = UI.StingCommandHandler.GetExtraParam("TagTextWeight");
+            string colour = UI.StingCommandHandler.GetExtraParam("TagTextColor");
+            string arrow  = UI.StingCommandHandler.GetExtraParam("ArrowStyle");
+            string depthS = UI.StingCommandHandler.GetExtraParam("ParaDepth");
+
+            var def = TagStyleCatalogue.GetDisciplineDefault(discipline ?? "");
+
+            // Normalise size (strip trailing zeros — "2.50" → "2.5").
+            size = NormaliseSize(size, def.Size);
+
+            // Map weight: UI uses "Normal"/"Bold"/"Italic", catalogue uses "NOM"/"BOLD"/"ITALIC".
+            string style = string.IsNullOrEmpty(weight) ? def.Style : MapWeight(weight, def.Style);
+
+            colour = string.IsNullOrEmpty(colour) ? def.Colour : MapColour(colour, def.Colour);
+            arrow  = string.IsNullOrEmpty(arrow)  ? def.Arrowhead : MapArrow(arrow, def.Arrowhead);
+
+            int depth = def.DepthTier;
+            if (!string.IsNullOrEmpty(depthS) && int.TryParse(depthS, out int d) && d >= 1 && d <= 10)
+                depth = d;
+
+            ElementId familyId = baseTagType.Family?.Id ?? ElementId.InvalidElementId;
+            ElementId match = FindTypeVariant(doc, familyId, size, style, colour, arrow, depth);
+            return match == ElementId.InvalidElementId ? baseTagType.Id : match;
+        }
+
+        private static string NormaliseSize(string s, string fallback)
+        {
+            if (string.IsNullOrEmpty(s)) return fallback;
+            if (double.TryParse(s, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out double d))
+            {
+                string str = d.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+                foreach (string allowed in TagStyleCatalogue.Sizes)
+                    if (allowed == str) return allowed;
+            }
+            return fallback;
+        }
+
+        private static string MapWeight(string uiWeight, string fallback)
+        {
+            switch ((uiWeight ?? "").ToUpperInvariant())
+            {
+                case "NORMAL": return "NOM";
+                case "NOM":    return "NOM";
+                case "BOLD":   return "BOLD";
+                case "ITALIC": return "ITALIC";
+                case "BOLDITALIC":
+                case "BOLD ITALIC": return "BOLDITALIC";
+                default: return fallback;
+            }
+        }
+
+        private static string MapColour(string uiColour, string fallback)
+        {
+            if (string.IsNullOrEmpty(uiColour)) return fallback;
+            string upper = uiColour.Trim().ToUpperInvariant();
+            foreach (string allowed in TagStyleCatalogue.Colours)
+                if (allowed == upper) return allowed;
+            // UI sometimes passes title-case — try a case-insensitive match
+            foreach (string allowed in TagStyleCatalogue.Colours)
+                if (string.Equals(allowed, uiColour, StringComparison.OrdinalIgnoreCase)) return allowed;
+            return fallback;
+        }
+
+        private static string MapArrow(string uiArrow, string fallback)
+        {
+            if (string.IsNullOrEmpty(uiArrow)) return fallback;
+            foreach (string allowed in TagStyleCatalogue.Arrowheads)
+                if (string.Equals(allowed, uiArrow, StringComparison.OrdinalIgnoreCase)) return allowed;
+            // UI uses short names like "Filled", "Open", "Dot" — map to canonical
+            string upper = uiArrow.Trim().ToUpperInvariant();
+            switch (upper)
+            {
+                case "NONE":   return "None";
+                case "FILLED": return "Arrow Filled 30";
+                case "OPEN":   return "Arrow Open 30";
+                case "DOT":    return "Dot Filled";
+                case "TICK":   return "Tick";
+            }
+            return fallback;
+        }
+
+        // ════════════════════════════════════════════════════════════════
         // TYPE VARIANT LOOKUP — used by the placement path (Task 5)
         // ════════════════════════════════════════════════════════════════
 

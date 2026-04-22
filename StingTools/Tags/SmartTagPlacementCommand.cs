@@ -815,6 +815,22 @@ namespace StingTools.Tags
                     continue;
                 }
 
+                // Task 5: resolve the Tag Studio size/style/colour/arrowhead/depth combo
+                // to a specific type variant BEFORE IndependentTag.Create. Falls back to
+                // the base type when the variant does not exist in the family (run
+                // Migrate Tag Families to create it).
+                try
+                {
+                    var baseType = doc.GetElement(tagTypeId) as FamilySymbol;
+                    if (baseType != null)
+                    {
+                        string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                        ElementId variantId = TagStyleEngine.ResolveTagTypeForPlacement(doc, baseType, disc);
+                        if (variantId != ElementId.InvalidElementId) tagTypeId = variantId;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement: {ex.Message}"); }
+
                 string catName = elem.Category?.Name ?? "";
                 // Apply per-category scale multiplier to offset
                 double catOffset = offset;
@@ -998,8 +1014,18 @@ namespace StingTools.Tags
                             XYZ[] candidates = GetCandidateOffsets(offset);
                             XYZ tagPos = center + candidates[preferred < candidates.Length ? preferred : 0];
 
+                            // Task 5: Pick the correct style/size/colour/arrow/depth variant
+                            // BEFORE creating the tag so placement is atomic.
+                            ElementId tagTypeIdLink = tagType.Id;
+                            try
+                            {
+                                ElementId vId = TagStyleEngine.ResolveTagTypeForPlacement(doc, tagType, null);
+                                if (vId != ElementId.InvalidElementId) tagTypeIdLink = vId;
+                            }
+                            catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement (linked): {ex.Message}"); }
+
                             IndependentTag tag = IndependentTag.Create(
-                                doc, tagType.Id, view.Id, linkRef,
+                                doc, tagTypeIdLink, view.Id, linkRef,
                                 false, TagOrientation.Horizontal, tagPos);
 
                             if (tag != null) placed++;
@@ -1182,6 +1208,19 @@ namespace StingTools.Tags
                     tagTypeCache[catId] = tagTypeId;
                 }
                 if (tagTypeId == ElementId.InvalidElementId) { skipped++; continue; }
+
+                // Task 5: resolve style/size/colour/arrow/depth variant before IndependentTag.Create
+                try
+                {
+                    var baseType = doc.GetElement(tagTypeId) as FamilySymbol;
+                    if (baseType != null)
+                    {
+                        string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                        ElementId vId = TagStyleEngine.ResolveTagTypeForPlacement(doc, baseType, disc);
+                        if (vId != ElementId.InvalidElementId) tagTypeId = vId;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement (apply preset): {ex.Message}"); }
 
                 // Look up category rule
                 double dx = 0, dy = 0;
@@ -1464,6 +1503,19 @@ namespace StingTools.Tags
                             tagTypeCache[catId] = tagTypeId;
                         }
                         if (tagTypeId == ElementId.InvalidElementId) { skipped++; continue; }
+
+                        // Task 5: variant resolution before placement
+                        try
+                        {
+                            var baseType = doc.GetElement(tagTypeId) as FamilySymbol;
+                            if (baseType != null)
+                            {
+                                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                                ElementId vId = TagStyleEngine.ResolveTagTypeForPlacement(doc, baseType, disc);
+                                if (vId != ElementId.InvalidElementId) tagTypeId = vId;
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement (smart sel): {ex.Message}"); }
 
                         XYZ center = TagPlacementEngine.GetElementCenter(elem, view);
                         var offsets = TagPlacementEngine.GetCandidateOffsets(offset);
