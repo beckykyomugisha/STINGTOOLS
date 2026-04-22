@@ -1,0 +1,66 @@
+# STING v4 MVP — Room name classifier for LightingGridCalculator.
+# Columns: room_name_pattern, en12464_room_code, target_lux, notes
+# Pattern is a regex (case-insensitive). First match wins.
+# target_lux is optional; 0 = use LUX_TARGETS_EN12464.csv lookup.
+room_name_pattern,en12464_room_code,target_lux,notes
+^(cellular|private|executive|director) *office,OFFICE_PRIVATE,500,BS EN 12464-1 Table 5 office writing/reading
+^open.?plan|^open *office|^studio|work *station,OFFICE_OPEN,500,Open-plan office 500 lux
+^conference|^meeting|^board|^huddle,CONFERENCE,500,Conference / board room
+^reception|^lobby|^foyer|^entry|^entrance,RECEPTION,300,Building entrance / reception
+^corridor|^circulation|^passage,CORRIDOR,100,Corridor / circulation
+^stair|^staircase|^escape *stair,STAIR,150,Staircase 150 lux
+^lift *lobby|^elevator|^lift *hall,LIFT_LOBBY,200,Lift lobby 200 lux
+^toilet|^wc|^restroom,TOILET,200,Toilets 200 lux
+^bathroom|^ensuite|^en.suite,BATHROOM,200,Residential bathroom 200 lux
+^shower|^wet *room,SHOWER,200,Shower / wet room 200 lux
+^kitchen,KITCHEN_DOMESTIC,500,Residential kitchen 500 lux
+^kitchenette|^pantry|^tea *point,PANTRY,300,Tea point / pantry
+^canteen|^cafeteria|^dining,CANTEEN,200,Canteen / dining 200 lux
+^cafe|^coffee,CAFE,300,Coffee / cafe area
+^restaurant,RESTAURANT,200,Restaurant service 200 lux
+^classroom|^teaching|^lecture,CLASSROOM,300,Classroom general 300 lux
+^lecture *theatre|^lecture *hall|^auditor,AUDITORIUM,500,Lecture theatre 500 lux
+^library,LIBRARY,500,Library reading area 500 lux
+^lab|^laboratory,LABORATORY,500,Laboratory bench 500 lux
+^cleanroom|^clean *room,CLEANROOM,1000,Cleanroom 1000 lux
+^ward|^patient *room,WARD,100,Hospital ward general 100 lux (500 at bedhead)
+^exam|^examination|^consult,EXAM_ROOM,1000,Examination / consulting 1000 lux
+^operating|^theatre|^ot$,OPERATING_THEATRE,1000,Operating theatre general 1000 lux
+^pharmacy,PHARMACY,500,Pharmacy dispensing 500 lux
+^dental,DENTAL,1000,Dental clinic 1000 lux
+^workshop|^maintenance,WORKSHOP,300,Workshop general 300 lux
+^plant|^boiler|^mechanical *room,PLANT_ROOM,200,Plant room 200 lux
+^server|^comms|^data *room|^idf|^mdf,SERVER,500,IT / data room 500 lux
+^electrical|^switchgear|^transformer,ELECTRICAL_ROOM,500,Electrical room 500 lux
+^store|^storage|^cupboard|^store *room,STORAGE,100,Storage 100 lux
+^warehouse,WAREHOUSE,150,Warehouse floor 150 lux
+^loading|^dock|^goods *in,LOADING_DOCK,150,Loading dock / goods area 150 lux
+^archive,ARCHIVE,200,Archive / records 200 lux
+^car *park|^garage|^parking,PARKING,75,Parking / garage 75 lux
+^retail|^shop|^store *floor|^sales,RETAIL,500,Retail sales floor 500 lux
+^fitting|^changing *room,FITTING_ROOM,500,Fitting room 500 lux
+^gym|^fitness|^exercise,GYM,300,Gym / fitness 300 lux
+^changing|^locker,CHANGING_ROOM,200,Changing / locker room 200 lux
+^swimming|^pool,POOL,300,Swimming pool area 300 lux
+^bedroom|^guest *room|^hotel *room,BEDROOM_HOTEL,100,Hotel bedroom 100 lux (200 at dressing)
+^living|^lounge,LIVING_ROOM,200,Residential living area 200 lux
+^bedroom,BEDROOM_RESIDENTIAL,100,Residential bedroom 100 lux
+^study|^studio|^home *office,HOME_OFFICE,500,Home office 500 lux
+^utility|^laundry,UTILITY,200,Utility / laundry 200 lux
+^garage$,GARAGE,75,Residential garage 75 lux
+^nursery|^playroom|^childcare,NURSERY,300,Nursery / childcare 300 lux
+^chapel|^prayer|^worship,WORSHIP,200,Place of worship 200 lux
+^atrium,ATRIUM,200,Atrium 200 lux
+^balcony|^terrace,OUTDOOR_COVERED,100,Covered external 100 lux
+^patio|^veranda,OUTDOOR_COVERED,100,Covered external 100 lux
+^courtyard|^yard,COURTYARD,100,External courtyard 100 lux
+^control *room|^dispatch|^scada,CONTROL_ROOM,500,Control room console 500 lux
+^security *room|^cctv *room,SECURITY_ROOM,300,Security / CCTV room 300 lux
+^clean *er|^janitor,JANITOR,100,Cleaner / janitor closet 100 lux
+^refuse|^bin *store|^recycling,REFUSE,100,Refuse / recycling 100 lux
+^post *room|^mailroom,POST_ROOM,300,Post / mailroom 300 lux
+^print *room|^reprographics,PRINT_ROOM,500,Print / repro 500 lux
+^break *out|^quiet *room,BREAKOUT,300,Breakout / quiet room 300 lux
+^interview|^consult *room,INTERVIEW,300,Interview / 1-to-1 room 300 lux
+^training *room,TRAINING,500,Training room 500 lux
+,GENERAL,300,Default fallback 300 lux
