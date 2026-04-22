@@ -314,3 +314,38 @@ All 82 new commands are live today as **reference-grade calculators**
 with cited standards. Upgrading each to a **parameter-writing batch
 operation** is the next incremental runner — one small commit per item,
 ~100 lines each.
+
+---
+
+## 14. Phase 118 incremental upgrades (delivered)
+
+Follow-up runner picking up the "still outstanding" items from Section 13.
+Every command below now calls a real engine or writes a real parameter;
+previous revision was reference-calculator only.
+
+| Runner | Upgrade | From | To |
+|---|---|---|---|
+| S118.01 | MEP-A-01 CableSizeApply | Circuit count only | Iterates OST_ElectricalCircuit, reads RBS_ELEC_VOLTAGE + RBS_ELEC_APPARENT_LOAD_A, calls StandardsAPI.CalculateCableSize, writes SizeAWG back to CABLE_SIZE / ELC_CBL_SIZE_TXT |
+| S118.02 | MEP-A-12 BalanceApply | Info panel | Collects duct + pipe flow data, runs MEPBalancingEngine.BalanceSystem, writes balanced ActualFlowLs back to RBS_DUCT_FLOW_PARAM / RBS_PIPE_FLOW_PARAM |
+| S118.03 | ARCH-01 AutoStair | Geometry prompt only | Calls StairEngine.DesignStair → rise/going/pitch/compliance + prompts to place via StairEngine.CreateStair (uses StairsEditScope, picks first 2 levels) |
+| S118.03 | ARCH-03 AutoCurtainWall | Grid preview | Calls CurtainWallEngine.Design → CurtainWallSpec + prompts to place via CurtainWallEngine.Create at active level origin |
+| S118.04 | STR-09 ToleranceCheck | Reference tolerances | Walks OST_StructuralColumns + Framing, calls FabricationToleranceChecker.CheckElement per element, reports passed/flagged + top-30 issues |
+| S118.04 | STR-10 CreepDeflection | φ back-of-envelope | Calls CreepDeflectionAnalysis.Calculate(span, immediate, dead/live ratios, RH, age, years) → full CreepResult with Pass verdict + recommendation |
+| S118.05 | Sample graphs | 8 total | 15 total (+7: Architecture, Structural design, MEP full chain, Life safety, Fab CNC, Standards audit, Engineering reference) |
+
+### Still outstanding (next session)
+
+| ID | Work | Complexity |
+|---|---|---|
+| ARCH-02 RailingEngine | Add public `RailingEngine.Create` to ArchitecturalCreationEngine.cs | Small engine addition |
+| ARCH-04 Opening placement | Add wall-pick step + wire to OpeningEngine.CreateWallOpening | Small |
+| ARCH-05 PlasteringEngine wiring | Wire to existing PlasteringEngine material-set call | Small |
+| STR-02 FullColumnTakedown | Wire to StructuralPrecisionEngine.ColumnLoadTakedown (signature TBD) | Small-Medium |
+| MEP-A-04 AutoSizeConduitAll | Already delegates to Phase 109 Mep_AutoSizeConduitCommand — confirm scope in Windows build | Verification only |
+| FAB-10 ISO 6412 families | Manual Family Editor authoring (180 .rfa files) | Out of scope for code session |
+| Phase 5 S5.15 title blocks | Manual Family Editor authoring (8 .rfa files) | Out of scope for code session |
+| PushNotification wiring | The Phase 96 P0 notification service + FCM integration — separate runner | Medium |
+
+Delivered in Phase 118: **8 commits** covering 6 real engine wirings +
+7 Dynamo samples + roadmap status update.
+
