@@ -1501,6 +1501,8 @@
                                     <Button Style="{StaticResource OrangeBtn}" Content="Configure Labels" Tag="ConfigureTagLabels" Click="Cmd_Click" ToolTip="Guided wizard to set Labels in each tag family"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load" Tag="LoadTagFamilies" Click="Cmd_Click" ToolTip="Load pre-created tag families into project"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="AuditTagFamilies" Click="Cmd_Click" ToolTip="Check tag family coverage by category"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Migrate Tag Families" Tag="MigrateTagFamilies" Click="Cmd_Click" ToolTip="Upgrade loaded STING tag families: add PARA_STATE_4..10, 128 style BOOLs, box/leader colour params, and pre-create standard type variants"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Style Audit" Tag="StyleAudit" Click="Cmd_Click" ToolTip="Audit every tag family for missing params / variants and flag deviations from disciplinary defaults"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
