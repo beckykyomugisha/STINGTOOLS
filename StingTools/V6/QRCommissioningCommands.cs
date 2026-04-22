@@ -24,7 +24,7 @@ namespace StingTools.V6
                 if (ctx == null) return Result.Failed;
                 var doc = ctx.Doc;
 
-                var selIds = ctx.UiDoc?.Selection?.GetElementIds();
+                var selIds = ctx.UIDoc?.Selection?.GetElementIds();
                 if (selIds == null || selIds.Count == 0)
                 {
                     TaskDialog.Show("STING", "Select the element to advance (or scan its QR into selection first).");
