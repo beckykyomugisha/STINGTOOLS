@@ -285,10 +285,9 @@ pre-merge task is running `Tests_V6SmokeTest.md` Section 8 in Revit.
 Infrastructure for paragraph-depth tiers T1-T10 and per-row Style/Color/Size/Box/Arrow
 overrides is fully live (`ParamRegistry.PARA_STATE_1..10`, `TagStyleEngine.SetParagraphDepth`,
 `SetParagraphDepthExtCommand` with .01-.10 picker, TagStyleCatalogue variant naming).
-Actual content authored in `STING_TAG_CONFIG_v5_0_{ARCH,GEN,MEP,STR}.csv` is a subset.
 
 | Gap | Title | Status |
 |-----|-------|--------|
-| TAG-LABEL-T4-10 | Author T4-T10 label rows across all tag families. Current data: 170 T1 + 751 T2 + 744 T3 + Warning rows. T4-T10 rows: **0**. Picking .04-.10 in the ParaDepth UI renders identically to .03 until rows exist. | Open |
-| TAG-LABEL-STYLE-COLS | Populate per-row `Style` / `Color` / `Size` columns in the v5.2 schema. Current data: **0/1,665** rows populated — every row inherits the tier default (T1=NOM/2.5, T2=NOM/2.0, T3=NOM/2.0, all BLACK). Overrides like "BOLD BLUE for 7A headers" are documented (TAGGING_WORKFLOW_GUIDE.md §6) but not yet written into the CSVs. | Open |
-| TAG-LABEL-BOX-ARROW-COLS | Extend the v5.2 schema to include per-row `Box` and `Arrow` columns, mirroring the tag family variant naming `{size}_{style}_{colour}_{arrow}_T{n}`. Today these only exist as type parameters (`TAG_BOX_*`) and catalogue arrowhead names — no per-row authoring path. | Open (schema + content) |
+| TAG-LABEL-T4-10 | Author T4-T10 label rows across all tag families. | **DONE** Phase 106. Added 2,038 rows across 141 tag families: T4=415 (identity/manufacturer), T5=188 (category/description), T6=432 (Uniclass/OmniClass/keynote), T7=286 (BOQ qty/unit price), T8=141 (PPM interval), T9=288 (recyclability/LEED), T10=288 (notes/revision). Per-family dedupe skips any T4-T10 candidate already used in that family's T1-T3. |
+| TAG-LABEL-STYLE-COLS | Populate per-row `Style` / `Color` / `Size` columns. | **DONE** Phase 106. All 3,703 tier rows now carry explicit Style/Color/Size per tier defaults (T1=NOM/BLACK/2.5, T2..T5=NOM/BLACK/2.0, T6=ITALIC/GREY, T7=BOLD/PURPLE, T8=NOM/ORANGE, T9=ITALIC/GREEN, T10=NOM/GREY). TAG7A-F rows carry the ISO 19650 prescriptions (BOLD/BLUE for 7A, ITALIC/GREEN for 7B, etc.). |
+| TAG-LABEL-BOX-ARROW-COLS | Add `Box` and `Arrow` trailing columns. | **DONE** Phase 106. Schema bumped v5.2 → v5.3. All 3,703 tier rows carry explicit Box=None / Arrow=None defaults; per-row overrides can be set to values from `TagStyleCatalogue.Arrowheads` (Arrow30, Arrow_Open_30, Arrow_Filled_15, Dot, Tick) and the tag-box set (Filled30, Filled50, Outline). Warning sections untouched. |
