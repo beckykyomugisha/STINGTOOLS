@@ -1,20 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    STING Tools — Standards & Compliance library.
+
+    22,800+ lines of calculation-grade code across 36 .cs files
+    covering IBC, ASHRAE, ACI, ASCE7, ASTM, NEC, NFPA, IMC, IPC,
+    IEEE, SMACNA, BS (6399, 7671, structural, comprehensive),
+    CIBSE, Eurocodes (EC2+EC3 plus EN 1990-1999), ISO 19650 +
+    ISO 9001/14001/45001, regional African codes (KEBS, UNBS, TBS,
+    RSB, SSBS, BBN, EAS, ECOWAS, SANS, CIDB), green building +
+    project-level standards manager + compliance engine.
+
+    Target: net8.0-windows to match StingTools.csproj — Revit 2025
+    is net8.0, and the project references Revit API types through
+    StandardsAPI result classes so it must match the host assembly.
+
+    Previously carried a broken ProjectReference to
+    ..\\StingBIM.Core\\StingBIM.Core.csproj which is from a
+    deprecated namespace that was never committed to main. Removed
+    so the project builds standalone; StingTools.csproj references
+    this project in S110.04.
+  -->
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
     <LangVersion>latest</LangVersion>
     <RootNamespace>StingTools.Standards</RootNamespace>
     <AssemblyName>StingTools.Standards</AssemblyName>
-    <Description>Building standards and compliance for StingBIM - IBC, ASHRAE, ADA, ISO19650</Description>
+    <Description>Building standards &amp; compliance for StingTools — ISO 19650, Eurocodes, BS, CIBSE, NFPA, ASHRAE, IBC, regional African codes</Description>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <IsPackable>false</IsPackable>
+    <Nullable>disable</Nullable>
+    <!-- Standards calc library is pure C#, no Revit dependency. -->
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Standards CSV loading + structured config. Matches StingTools.csproj. -->
     <PackageReference Include="CsvHelper" Version="30.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="NLog" Version="5.2.8" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\StingBIM.Core\StingBIM.Core.csproj" />
   </ItemGroup>
 </Project>
