@@ -150,6 +150,13 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── v4 MVP: fabrication (Phase 5) ──
+                    case "Fabrication_GeneratePackage": RunCommand<Commands.Fabrication.GenerateFabPackageCommand>(app); break;
+                    case "Fabrication_ExportCutList":   RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;
+                    case "Fabrication_ExportIsometrics":RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
+                    case "Fabrication_ExportWeldMap":   RunCommand<Commands.Fabrication.ExportWeldMapCommand>(app); break;
+                    case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
+
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
                     case "SetScopeProject": Select.SelectionScopeHelper.SetScope(true); TaskDialog.Show("Scope", "Selection scope: WHOLE PROJECT"); break;

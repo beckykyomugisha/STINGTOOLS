@@ -4128,6 +4128,70 @@
                                 </DockPanel>
                             </TabItem>
 
+                            <!-- ─── v4 MVP: Fabrication Tab ─── -->
+                            <TabItem Header="Fabrication">
+                                <DockPanel>
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Generate package" Tag="Fabrication_GeneratePackage" Click="Cmd_Click" Width="110" Height="30" ToolTip="Build assemblies + views + sheets for selected MEP elements"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Cut list"         Tag="Fabrication_ExportCutList"   Click="Cmd_Click" Width="80"  Height="30" ToolTip="Re-emit pipe cut list CSV"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Isometrics"       Tag="Fabrication_ExportIsometrics" Click="Cmd_Click" Width="80"  Height="30" ToolTip="Index SP-... isometric sheets"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Weld map"         Tag="Fabrication_ExportWeldMap"   Click="Cmd_Click" Width="80"  Height="30" ToolTip="Re-emit weld map CSV"/>
+                                    </WrapPanel>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel Margin="4">
+
+                                            <TextBlock Text="SCOPE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <RadioButton Content="Selection" GroupName="FabScope" x:Name="rbFabScopeSel"  IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Active view" GroupName="FabScope" x:Name="rbFabScopeView" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Project"   GroupName="FabScope" x:Name="rbFabScopeAll"  Margin="2" FontSize="9"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="RULES" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Discipline rules from STING_FAB_RULES.json" FontSize="9" Margin="0,0,0,2"/>
+                                                    <CheckBox Content="Pipe (max 6m / 4 bends)"        x:Name="chkFabPipe" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Pipe large bore (max 3m)"       x:Name="chkFabPipeLB" IsChecked="False" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Duct TDF (max 3m / 3 bends)"    x:Name="chkFabDuct" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Duct Pittsburgh (max 2.4m)"     x:Name="chkFabDuctPit" IsChecked="False" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Conduit (max 6m / 3 bends BS 7671)" x:Name="chkFabConduit" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="OUTPUT" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <CheckBox Content="Generate AssemblyInstances" x:Name="chkFabAssy" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Generate views (5 + BOM)"     x:Name="chkFabViews" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Generate shop drawing sheets"  x:Name="chkFabSheets" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Place ISO 6412 symbols"        x:Name="chkFabSymbols" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Emit per-discipline CSVs"      x:Name="chkFabCsv" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="CONTENT MODE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <RadioButton Content="ISO 6412 (workshop)"      GroupName="FabContent" x:Name="rbFabIso6412"   IsChecked="True" Margin="2" FontSize="9"/>
+                                                    <RadioButton Content="Generic (geometry only)"   GroupName="FabContent" x:Name="rbFabGeneric" Margin="2" FontSize="9"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="TITLE BLOCK" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Auto-resolved per discipline (STING_TB_ASSEMBLY_*).&#x0A;Falls back to first available title block when missing." FontSize="9" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+
                             <!-- ─── v4 MVP: Auto-drop Routing Tab ─── -->
                             <TabItem Header="Routing">
                                 <DockPanel>
