@@ -1143,6 +1143,22 @@ namespace StingTools.UI
                 "Run ISO 19650 tag validation — checks all tokens, cross-validates DISC/SYS, reports 4-bucket compliance"));
             stack.Children.Add(actionsWrap);
 
+            // Phase 106: Coordination checks — surface rule-based clash, clearance and naming audits
+            // on the BCC Overview. Buttons dispatch through ActionDispatcher → BCCActionEventHandler →
+            // DispatchCoordAction → WorkflowEngine.GetCommandInstance, which resolves each tag to the
+            // matching StingTools.Temp command.
+            stack.Children.Add(MakeSectionHeader("COORDINATION CHECKS"));
+            var clashWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+            clashWrap.Children.Add(MakeActionButton("Run Clash Detection", "ClashDetection", Br(CRed),
+                "Rule-based MEP vs structural clash on the active model. Writes JSON report to 12_CLASHES."));
+            clashWrap.Children.Add(MakeActionButton("Cross-Model Clash", "CrossModelClash", Br(Color.FromRgb(0xAD, 0x14, 0x57)),
+                "Host MEP vs linked-model structural clash using each link's total transform."));
+            clashWrap.Children.Add(MakeActionButton("MEP Clearance", "MEPClearance", Br(CAmber),
+                "CIBSE Guide W / BS EN 12237 clearance audit: 200 mm ducts, 150 mm pipes. CSV report."));
+            clashWrap.Children.Add(MakeActionButton("Naming Audit", "NamingAudit", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                "BS 1192 / ISO 19650 view, sheet and workset naming audit. TSV report in .bimmanager."));
+            stack.Children.Add(clashWrap);
+
             // Phase 48b: Action Required section — top 3 priority items
             var actionRequired = new List<(string text, string action, SolidColorBrush color)>();
             if (_data.StaleCount > 0)
