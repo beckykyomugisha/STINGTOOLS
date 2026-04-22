@@ -436,16 +436,45 @@ namespace StingTools.Tags
 
         /// <summary>
         /// Visibility control parameters — added to every tag family so that
-        /// calculated values in Edit Label can gate tier 2/3 and warning visibility.
-        /// These are Type parameters (Yes/No) set by SetPresentationModeCommand.
+        /// calculated values in Edit Label can gate tier 1..10 and warning visibility.
+        /// These are Type parameters (Yes/No) set by SetPresentationModeCommand and
+        /// used by MigrateTagFamiliesCommand / TagStyleEngine.FindTypeVariant.
+        /// Tiers 4..10 are required so the slider and SetParagraphDepth are not orphaned.
         /// </summary>
         public static readonly string[] VisibilityParams = new[]
         {
-            ParamRegistry.PARA_STATE_1,  // TAG_PARA_STATE_1_BOOL — Compact
-            ParamRegistry.PARA_STATE_2,  // TAG_PARA_STATE_2_BOOL — Standard
-            ParamRegistry.PARA_STATE_3,  // TAG_PARA_STATE_3_BOOL — Comprehensive
-            ParamRegistry.WARN_VISIBLE,  // TAG_WARN_VISIBLE_BOOL — Warning toggle
+            ParamRegistry.PARA_STATE_1, ParamRegistry.PARA_STATE_2, ParamRegistry.PARA_STATE_3,
+            ParamRegistry.PARA_STATE_4, ParamRegistry.PARA_STATE_5, ParamRegistry.PARA_STATE_6,
+            ParamRegistry.PARA_STATE_7, ParamRegistry.PARA_STATE_8, ParamRegistry.PARA_STATE_9,
+            ParamRegistry.PARA_STATE_10,
+            ParamRegistry.WARN_VISIBLE,
         };
+
+        /// <summary>
+        /// Style/appearance parameters — all 128 TAG_{size}{style}_{colour}_BOOL variants plus
+        /// box colour/visibility/style, leader colour, scale-tier-auto, and depth-tier cache.
+        /// Added to every tag family by Create/Migrate so the Tag Style Engine can switch
+        /// visible label rows and box/leader overrides per type.
+        /// </summary>
+        public static string[] StyleParams
+        {
+            get
+            {
+                var list = new List<string>();
+                list.AddRange(ParamRegistry.AllTagStyleParams); // 128 variants
+                list.Add(ParamRegistry.TAG_BOX_COLOR_R);
+                list.Add(ParamRegistry.TAG_BOX_COLOR_G);
+                list.Add(ParamRegistry.TAG_BOX_COLOR_B);
+                list.Add(ParamRegistry.TAG_BOX_VISIBLE);
+                list.Add(ParamRegistry.TAG_BOX_STYLE);
+                list.Add(ParamRegistry.TAG_LEADER_COLOR_R);
+                list.Add(ParamRegistry.TAG_LEADER_COLOR_G);
+                list.Add(ParamRegistry.TAG_LEADER_COLOR_B);
+                list.Add(ParamRegistry.TAG_SCALE_TIER_AUTO);
+                list.Add(ParamRegistry.TAG_DEPTH_TIER);
+                return list.ToArray();
+            }
+        }
 
         /// <summary>
         /// Get all parameters that should be added to a tag family for a specific
@@ -459,8 +488,13 @@ namespace StingTools.Tags
             // Always add universal tag params
             result.AddRange(TagParams);
 
-            // Always add visibility control params
+            // Always add visibility control params (PARA_STATE_1..10 + WARN_VISIBLE)
             result.AddRange(VisibilityParams);
+
+            // Always add style/appearance params (128 TAG_{size}{style}_{colour}_BOOL +
+            // box colour/visible/style + leader colour + scale-tier-auto + depth-tier cache)
+            foreach (string sp in StyleParams)
+                if (!result.Contains(sp)) result.Add(sp);
 
             // Add description param
             result.Add("ASS_DESCRIPTION_TXT");

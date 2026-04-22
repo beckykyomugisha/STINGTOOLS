@@ -426,6 +426,28 @@ namespace StingTools.Tags
             var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
+            // Task 8: deprecation notice.  Paragraph depth is now a TYPE property
+            // cached on every tag variant by MigrateTagFamiliesCommand (variants are
+            // named "{size}_{style}_{colour}_{arrow}_T{n}" — T1..T10).  The placement
+            // path picks the right variant before IndependentTag.Create based on the
+            // ParaDepth ExtraParam from the Tag Studio slider — so there is no need
+            // to mutate PARA_STATE_* bools on instances anymore.
+            //
+            // Bulk-writing to PARA_STATE bools on every element type is the legacy
+            // behaviour and only works when those params are actually bound to the
+            // type, which we now guarantee via Create/Migrate Tag Families.
+            var deprNotice = new TaskDialog("Paragraph Depth — deprecated entry point");
+            deprNotice.MainInstruction = "This command writes PARA_STATE_* directly on element types.";
+            deprNotice.MainContent =
+                "Depth is now type-based: every tag family variant carries its depth tier " +
+                "in its name (e.g. '2.5_BOLD_RED_Filled30_T3') and in TAG_DEPTH_TIER_INT.\n\n" +
+                "The Tag Studio ParaDepth slider picks the correct variant at placement time. " +
+                "Prefer the Tag Studio 'Apply style' / 'Apply scheme' path, or use the ParaDepth " +
+                "slider before SmartPlace / BatchPlace / Tag & Combine.\n\n" +
+                "Continue with the legacy bulk-write anyway?";
+            deprNotice.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (deprNotice.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
+
             // Unified WPF slider dialog replacing 2-3 step TaskDialog chain
             var result = ShowParagraphDepthDialog();
             if (result == null) return Result.Cancelled;

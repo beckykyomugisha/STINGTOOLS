@@ -570,8 +570,18 @@ namespace StingTools.Core
                                                 XYZ[] candidates = Tags.TagPlacementEngine.GetCandidateOffsets(offset);
                                                 XYZ bestPos = elCenter + candidates[preferred < candidates.Length ? preferred : 0];
 
+                                                // Task 5: variant resolution before IndependentTag.Create
+                                                ElementId tagTypeId = tagType.Id;
+                                                try
+                                                {
+                                                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                                                    ElementId vId = Tags.TagStyleEngine.ResolveTagTypeForPlacement(doc, tagType, disc);
+                                                    if (vId != ElementId.InvalidElementId) tagTypeId = vId;
+                                                }
+                                                catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement (autotagger): {ex.Message}"); }
+
                                                 IndependentTag.Create(
-                                                    doc, tagType.Id, view.Id, new Reference(el),
+                                                    doc, tagTypeId, view.Id, new Reference(el),
                                                     false, TagOrientation.Horizontal, bestPos);
                                             }
                                         }

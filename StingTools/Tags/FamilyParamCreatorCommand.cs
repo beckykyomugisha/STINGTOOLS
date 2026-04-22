@@ -854,15 +854,14 @@ namespace StingTools.Tags
                 }
             }
 
-            // 3-tier gating booleans (progressive disclosure)
-            var gatingBools = new[]
-            {
-                "TAG_PARA_STATE_2_BOOL",
-                "TAG_PARA_STATE_3_BOOL",
-                "TAG_WARN_VISIBLE_BOOL"
-            };
-            foreach (var g in gatingBools)
-                if (!baseParams.Contains(g)) baseParams.Add(g);
+            // Full 10-tier gating booleans + warning toggle + full style matrix.
+            // Keeping this in lock-step with TagFamilyConfig.VisibilityParams and
+            // TagFamilyConfig.StyleParams so family-param-creator and tag-family-creator
+            // produce identical parameter sets.
+            foreach (string p in TagFamilyConfig.VisibilityParams)
+                if (!baseParams.Contains(p)) baseParams.Add(p);
+            foreach (string p in TagFamilyConfig.StyleParams)
+                if (!baseParams.Contains(p)) baseParams.Add(p);
 
             // Common tie-in params shared by ALL tie-in families (#46-#51)
             var tieinCommon = new[]
@@ -1016,6 +1015,14 @@ namespace StingTools.Tags
                         list.Add(c.ParamName);
                 }
             }
+
+            // Add the full visibility + style-appearance fleet so every family
+            // carries PARA_STATE_1..10, all 128 TAG_{size}{style}_{colour}_BOOL
+            // variants, box/leader colour params, and the scale/depth caches.
+            foreach (string p in TagFamilyConfig.VisibilityParams)
+                if (!list.Contains(p)) list.Add(p);
+            foreach (string p in TagFamilyConfig.StyleParams)
+                if (!list.Contains(p)) list.Add(p);
 
             return list;
         }
