@@ -1055,6 +1055,177 @@ namespace StingTools.Tags
         }
 
         // ════════════════════════════════════════════════════════════════
+        // STYLE APPLY SPECS — box/leader appearance bundles (Task 6)
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>Bundle of box-appearance settings applied to a tag family type.</summary>
+        public struct BoxStyleSpec
+        {
+            public string Style;          // "SOLID", "DASHED", "NONE", "ROUND" (maps to TAG_BOX_STYLE_TXT)
+            public byte R, G, B;          // TAG_BOX_COLOR_R/G/B_INT
+            public bool Visible;          // TAG_BOX_VISIBLE_BOOL
+            public double OpacityPct;     // 0..100 (informational; no Revit parameter yet)
+            public double BorderWeightPt; // informational
+            public int RadiusPx;          // informational
+            public int PaddingMm;         // informational
+
+            public static BoxStyleSpec Default => new BoxStyleSpec
+            {
+                Style = "NONE", R = 255, G = 255, B = 255,
+                Visible = false, OpacityPct = 100.0,
+                BorderWeightPt = 1.0, RadiusPx = 0, PaddingMm = 0,
+            };
+        }
+
+        /// <summary>Bundle of leader-appearance settings applied to a tag family type.</summary>
+        public struct LeaderStyleSpec
+        {
+            public string Mode;        // "Auto", "Always", "Never", "Smart"
+            public string ArrowStyle;  // Canonical arrowhead name (see TagStyleCatalogue.Arrowheads)
+            public double LenMm, MinMm, MaxMm, ThresholdMm;
+            public double ElbowX, ElbowY, ElbowDistMm;
+            public byte R, G, B;       // TAG_LEADER_COLOR_R/G/B_INT
+
+            public static LeaderStyleSpec Default => new LeaderStyleSpec
+            {
+                Mode = "Auto", ArrowStyle = "None",
+                LenMm = 14, MinMm = 5, MaxMm = 43, ThresholdMm = 20,
+                ElbowX = 0, ElbowY = -16, ElbowDistMm = 8,
+                R = 0, G = 0, B = 0,
+            };
+        }
+
+        /// <summary>
+        /// Unified style-apply entry point (Task 6). Applies size/style/colour,
+        /// depth tier, box-appearance, and leader colour/arrowhead to the given
+        /// tag family type. Returns the number of parameters actually mutated.
+        ///
+        /// All commands that previously wrote style params on element types
+        /// (ApplyTagStyleCommand, SetBoxColorCommand, ApplyColorSchemeCommand,
+        /// SwitchTagStyleByDiscCommand, SetParagraphDepthExtCommand) should
+        /// call this method with the appropriate specs.
+        /// </summary>
+        public static int ApplyToType(
+            Document doc, ElementId tagTypeId,
+            string size, string style, string colour,
+            string arrowhead, int depthTier,
+            BoxStyleSpec box, LeaderStyleSpec leader)
+        {
+            if (doc == null || tagTypeId == null || tagTypeId == ElementId.InvalidElementId) return 0;
+            var typeEl = doc.GetElement(tagTypeId);
+            if (typeEl == null) return 0;
+
+            int changed = 0;
+
+            // 1. Style BOOL matrix — exactly one TAG_{size}{style}_{colour}_BOOL = Yes
+            string activeStyle = ParamRegistry.TagStyleParamName(
+                string.IsNullOrEmpty(size) ? "2.5" : size,
+                string.IsNullOrEmpty(style) ? "NOM" : style,
+                string.IsNullOrEmpty(colour) ? "BLACK" : colour);
+            foreach (string pname in ParamRegistry.AllTagStyleParams)
+            {
+                var p = typeEl.LookupParameter(pname);
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer) continue;
+                int want = string.Equals(pname, activeStyle, StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                if (p.AsInteger() != want) { p.Set(want); changed++; }
+            }
+
+            // 2. Depth tiers — PARA_STATE_1..depth = Yes, rest = No
+            int d = Math.Max(1, Math.Min(10, depthTier <= 0 ? 3 : depthTier));
+            string[] states = ParamRegistry.AllParaStates;
+            for (int i = 0; i < states.Length; i++)
+            {
+                var p = typeEl.LookupParameter(states[i]);
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer) continue;
+                int want = (i < d) ? 1 : 0;
+                if (p.AsInteger() != want) { p.Set(want); changed++; }
+            }
+            // Cache the active depth tier
+            var depthFp = typeEl.LookupParameter(ParamRegistry.TAG_DEPTH_TIER);
+            if (depthFp != null && !depthFp.IsReadOnly && depthFp.StorageType == StorageType.Integer
+                && depthFp.AsInteger() != d) { depthFp.Set(d); changed++; }
+
+            // 3. Box
+            changed += ApplyBoxSpec(typeEl, box);
+
+            // 4. Leader colour
+            changed += ApplyLeaderSpec(typeEl, leader);
+
+            // 5. Arrowhead (type param — applies to every tag of this type)
+            if (!string.IsNullOrEmpty(arrowhead) &&
+                !string.Equals(arrowhead, "None", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var arrowId = ResolveArrowheadId(doc, arrowhead);
+                    if (arrowId != ElementId.InvalidElementId)
+                    {
+                        var ap = typeEl.get_Parameter(BuiltInParameter.LEADER_ARROWHEAD);
+                        if (ap != null && !ap.IsReadOnly && ap.Set(arrowId)) changed++;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ApplyToType arrowhead: {ex.Message}"); }
+            }
+
+            return changed;
+        }
+
+        private static int ApplyBoxSpec(Element typeEl, BoxStyleSpec box)
+        {
+            int c = 0;
+            c += SetIntIfChanged(typeEl, ParamRegistry.TAG_BOX_COLOR_R, box.R);
+            c += SetIntIfChanged(typeEl, ParamRegistry.TAG_BOX_COLOR_G, box.G);
+            c += SetIntIfChanged(typeEl, ParamRegistry.TAG_BOX_COLOR_B, box.B);
+
+            var vis = typeEl.LookupParameter(ParamRegistry.TAG_BOX_VISIBLE);
+            if (vis != null && !vis.IsReadOnly && vis.StorageType == StorageType.Integer)
+            {
+                int want = box.Visible ? 1 : 0;
+                if (vis.AsInteger() != want) { vis.Set(want); c++; }
+            }
+
+            if (!string.IsNullOrEmpty(box.Style))
+            {
+                var st = typeEl.LookupParameter(ParamRegistry.TAG_BOX_STYLE);
+                if (st != null && !st.IsReadOnly && st.StorageType == StorageType.String
+                    && !string.Equals(st.AsString(), box.Style, StringComparison.OrdinalIgnoreCase))
+                { st.Set(box.Style); c++; }
+            }
+            return c;
+        }
+
+        private static int ApplyLeaderSpec(Element typeEl, LeaderStyleSpec leader)
+        {
+            int c = 0;
+            c += SetIntIfChanged(typeEl, ParamRegistry.TAG_LEADER_COLOR_R, leader.R);
+            c += SetIntIfChanged(typeEl, ParamRegistry.TAG_LEADER_COLOR_G, leader.G);
+            c += SetIntIfChanged(typeEl, ParamRegistry.TAG_LEADER_COLOR_B, leader.B);
+            return c;
+        }
+
+        private static int SetIntIfChanged(Element el, string pname, int want)
+        {
+            var p = el.LookupParameter(pname);
+            if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer) return 0;
+            if (p.AsInteger() != want) { p.Set(want); return 1; }
+            return 0;
+        }
+
+        private static ElementId ResolveArrowheadId(Document doc, string name)
+        {
+            var types = new FilteredElementCollector(doc)
+                .OfClass(typeof(ElementType))
+                .Cast<ElementType>()
+                .Where(et => et.Category != null &&
+                             et.Category.Id.Value == (long)BuiltInCategory.OST_ArrowHeads);
+            var match = types.FirstOrDefault(et =>
+                string.Equals(et.Name, name, StringComparison.OrdinalIgnoreCase))
+                ?? types.FirstOrDefault(et =>
+                    et.Name != null && et.Name.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0);
+            return match?.Id ?? ElementId.InvalidElementId;
+        }
+
+        // ════════════════════════════════════════════════════════════════
         // PLACEMENT RESOLVER — map the base tag type the placer found to the
         // variant the user's Tag Studio ExtraParams are asking for.  Reads
         //   TagTextSize   (e.g. "2.5")
