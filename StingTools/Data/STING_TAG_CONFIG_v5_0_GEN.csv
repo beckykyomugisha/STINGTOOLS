@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.2,CREATED=2026-03-16,UPDATED=2026-04-16,NOTES=all_params_verified_against_MR_PARAMETERS
+#SCHEMA_VERSION=5.3,CREATED=2026-03-16,UPDATED=2026-04-22,ADDS=tier_4_to_10_and_full_tag_style_param_catalogue
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -17,6 +17,37 @@
 # ApplyTagStyleCommand sets exactly one BOOL true per element type; label rows gated by that BOOL become
 # visible. Blank Style/Color/Size fields in this CSV mean "inherit tier default" — values are picked up
 # by TagFamilyCreatorCommand when generating the label row and by ApplyTagStyleCommand when switching.
+#
+#
+# SCHEMA v5.3 (2026-04-22) — Paragraph tiers 1 to 10 (was 1 to 3)
+#   Every STING tag family now carries TAG_PARA_STATE_1_BOOL .. TAG_PARA_STATE_10_BOOL as
+#   type parameters. TagFamilyCreatorCommand injects all ten via VisibilityParams.
+#   SetParagraphDepthCommand supports cumulative depths (1=T1 only, 2=T1+T2, ... 10=T1..T10).
+#   Each tier beyond T3 uses the same Calculated Value pattern:
+#
+#     Tier row formula template (any Tier N row):
+#       if(TAG_PARA_STATE_N_BOOL, <Parameter>, "")
+#
+#   Recommended use of tiers 4 to 10:
+#     T4 — Commissioning & handover   (COMM_* params, asset serials, warranty)
+#     T5 — Cost & procurement         (CST_*, ASS_CST_* cost roll-ups)
+#     T6 — Carbon & sustainability    (CBN_A1_A3 .. CBN_C3_C4, embodied / operational)
+#     T7 — Fabrication & QC           (ASS_SPOOL_*, ASS_WELD/BOLT/FITTING_COUNT_NR, QC inspector)
+#     T8 — Clash & coordination       (CLASH_TRIAGE_*, CLASH_RESOLUTION_*)
+#     T9 — As-built & health          (ASBUILT_*, HEALTH_SCORE_*)
+#     T10 — Compliance / audit trail  (RGL_*, IFC_PSET_OVERRIDE_TXT, action log refs)
+#
+# Tier column accepts: T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8 | T9 | T10
+#
+# Full tag style parameter set injected into every family (TagFamilyCreatorCommand.StyleParams):
+#   128 text style BOOLs           TAG_{SIZE}{STYLE}_{COLOR}_BOOL
+#                                  SIZES: 2 / 2.5 / 3 / 3.5   STYLES: NOM / BOLD / ITALIC / BOLDITALIC
+#                                  COLORS: BLACK BLUE GREEN RED ORANGE PURPLE GREY WHITE
+#   Box colour (RGB 0-255)         TAG_BOX_COLOR_R_INT / _G_INT / _B_INT
+#   Box visibility / style         TAG_BOX_VISIBLE_BOOL / TAG_BOX_STYLE_TXT  (SOLID | DASHED | NONE | ROUND)
+#   Leader colour (RGB 0-255)      TAG_LEADER_COLOR_R_INT / _G_INT / _B_INT
+#   Scale / depth cache            TAG_SCALE_TIER_AUTO_BOOL / TAG_DEPTH_TIER_INT
+#   Warnings                       TAG_WARN_VISIBLE_BOOL / TAG_WARN_SEVERITY_FILTER_TXT
 #
 STING Tag Configuration v5.0 - GEN (COMPLETE with Warnings)
 6E — Generic / Site / Specialty
