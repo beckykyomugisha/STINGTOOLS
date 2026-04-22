@@ -150,6 +150,14 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 111: Architecture & shell automation ──
+                    case "Arch_AutoStair":       RunCommand<Commands.Architecture.AutoStairCommand>(app); break;
+                    case "Arch_AutoRailing":     RunCommand<Commands.Architecture.AutoRailingCommand>(app); break;
+                    case "Arch_AutoCurtainWall": RunCommand<Commands.Architecture.AutoCurtainWallCommand>(app); break;
+                    case "Arch_AutoOpening":     RunCommand<Commands.Architecture.AutoOpeningCommand>(app); break;
+                    case "Arch_AutoPlaster":     RunCommand<Commands.Architecture.AutoPlasterCommand>(app); break;
+                    case "Arch_CoverAudit":      RunCommand<Commands.Architecture.CoverAuditCommand>(app); break;
+
                     // ── Phase 110: Standards & compliance calculations ──
                     case "Std_CalcCableSize":   RunCommand<Commands.Standards.CalcCableSizeCommand>(app); break;
                     case "Std_CalcWindLoad":    RunCommand<Commands.Standards.CalcWindLoadCommand>(app); break;
