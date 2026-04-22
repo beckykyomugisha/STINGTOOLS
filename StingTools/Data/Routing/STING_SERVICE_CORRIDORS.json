@@ -1,0 +1,113 @@
+{
+  "_meta": {
+    "name": "STING v6 service corridor definitions",
+    "section": "S3.12 (R-E2)",
+    "units": "millimetres above finished floor level (FFL+mm)",
+    "reference_docs": [
+      "CIBSE Guide B: Heating, ventilating, air conditioning and refrigeration",
+      "BS EN 12056 drainage",
+      "BS 8313 service ducts",
+      "BS 7671 electrical installation"
+    ],
+    "notes": [
+      "Band definitions are suspended-ceiling plenum layouts. Below-slab",
+      "and raised-floor service corridors are handled by a separate",
+      "file (STING_CORRIDORS_BELOW_SLAB.json, not yet authored)."
+    ]
+  },
+  "bands": [
+    {
+      "id": "HWS",
+      "label": "Hot water service",
+      "min_mm": 2800, "max_mm": 2900,
+      "allowed_services": ["PLM_HWS"],
+      "notes": "Kept high to minimise heat loss via ambient air circulation."
+    },
+    {
+      "id": "CWS",
+      "label": "Cold water service",
+      "min_mm": 2700, "max_mm": 2800,
+      "allowed_services": ["PLM_CWS"]
+    },
+    {
+      "id": "GAS",
+      "label": "Gas supply",
+      "min_mm": 2900, "max_mm": 3000,
+      "allowed_services": ["PLM_GAS"],
+      "notes": "Highest of all services per BS 6891 gas rising."
+    },
+    {
+      "id": "CHW",
+      "label": "Chilled water",
+      "min_mm": 2600, "max_mm": 2700,
+      "allowed_services": ["HVC_CHW"]
+    },
+    {
+      "id": "LTHW",
+      "label": "Low-temp hot water heating",
+      "min_mm": 2700, "max_mm": 2800,
+      "allowed_services": ["HVC_LTHW"],
+      "notes": "Can share CWS band if flow direction and insulation agree."
+    },
+    {
+      "id": "DRAIN",
+      "label": "Foul + sanitary drainage",
+      "min_mm": 2400, "max_mm": 2500,
+      "allowed_services": ["PLM_FOUL", "PLM_SANITARY"],
+      "notes": "Lowest of all services — gradient required, per BS EN 12056."
+    },
+    {
+      "id": "STORM",
+      "label": "Rainwater / storm drainage",
+      "min_mm": 2500, "max_mm": 2600,
+      "allowed_services": ["PLM_STORM"]
+    },
+    {
+      "id": "PWR_TRAY",
+      "label": "Power cable tray",
+      "min_mm": 3000, "max_mm": 3100,
+      "allowed_services": ["ELC_PWR"],
+      "notes": "Above all services to reduce induction risk per BS 7671."
+    },
+    {
+      "id": "DATA_TRAY",
+      "label": "Data / telecoms cable tray",
+      "min_mm": 3100, "max_mm": 3200,
+      "allowed_services": ["COM_DATA"],
+      "notes": "Stacked above power per BS EN 50174-2; min 200 mm separation checked by S4.8."
+    },
+    {
+      "id": "SEC",
+      "label": "Security / fire low-voltage",
+      "min_mm": 3150, "max_mm": 3250,
+      "allowed_services": ["COM_SEC", "COM_FIRE"],
+      "notes": "Partially overlaps data band — fire cables must be separate per BS 5839-1."
+    },
+    {
+      "id": "FIRE_WET",
+      "label": "Fire sprinkler supply",
+      "min_mm": 3200, "max_mm": 3300,
+      "allowed_services": ["FLS_SPK"],
+      "notes": "Highest band reserved for wet sprinkler supply."
+    },
+    {
+      "id": "SUPPLY_AIR",
+      "label": "HVAC supply air ductwork",
+      "min_mm": 2500, "max_mm": 2900,
+      "allowed_services": ["HVC_SA"],
+      "notes": "Ducts are large — band is tall. Surround with CIBSE 150 mm clearance."
+    },
+    {
+      "id": "RETURN_AIR",
+      "label": "HVAC return air ductwork",
+      "min_mm": 2400, "max_mm": 2800,
+      "allowed_services": ["HVC_RA"]
+    },
+    {
+      "id": "EXHAUST",
+      "label": "HVAC exhaust ductwork",
+      "min_mm": 2300, "max_mm": 2700,
+      "allowed_services": ["HVC_EX"]
+    }
+  ]
+}

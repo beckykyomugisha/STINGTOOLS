@@ -1806,8 +1806,12 @@ namespace StingTools.BIMManager
 
                 if (targetPhase == null) return Result.Cancelled;
 
-                // Find elements in target phase
+                // Find elements in target phase.
+                // S1.4 (N-G1): pre-filter with ElementMulticategoryFilter so
+                // the per-element PHASE_CREATED lookup only runs on tagged
+                // physical categories, not every element in the document.
                 var matchIds = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                     .WhereElementIsNotElementType()
                     .Where(e =>
                     {
@@ -1850,7 +1854,11 @@ namespace StingTools.BIMManager
                 var phases = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase)).Cast<Phase>().ToList();
 
+                // S1.4 (N-G1): pre-filter to tagged categories so the phase
+                // summary iterates ~10k tagged elements instead of scanning
+                // hundreds of thousands of element-type rows.
                 var allElements = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                     .WhereElementIsNotElementType()
                     .Where(e => e.Category != null)
                     .ToList();
