@@ -4128,6 +4128,69 @@
                                 </DockPanel>
                             </TabItem>
 
+                            <!-- ─── v4 MVP: Auto-drop Routing Tab ─── -->
+                            <TabItem Header="Routing">
+                                <DockPanel>
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Auto-drop"        Tag="Routing_AutoDrop"        Click="Cmd_Click" Width="90" Height="30" ToolTip="Drop conduit/pipe/duct from selected fixtures to nearest containment"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Generate layout"  Tag="Routing_GenerateLayout"  Click="Cmd_Click" Width="100" Height="30" ToolTip="Manhattan layout for selected runs (preview)"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Validate fills"   Tag="Routing_ValidateFills"   Click="Cmd_Click" Width="90" Height="30" ToolTip="Run conduit/tray/pipe/duct fill validators"/>
+                                    </WrapPanel>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel Margin="4">
+
+                                            <TextBlock Text="DISCIPLINE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <CheckBox Content="Electrical (conduit / tray drops)" x:Name="chkRtElec" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="Plumbing (DHW / DCW / waste)"      x:Name="chkRtPlm"  IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                    <CheckBox Content="HVAC (supply / extract / return)"  x:Name="chkRtHvac" IsChecked="True" Margin="0,1" FontSize="9"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="SEARCH" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Max search radius (mm)" FontSize="9" Margin="0,0,0,2"/>
+                                                    <TextBox x:Name="txtRtSearchMm" Text="3000" FontSize="10" Padding="2"/>
+                                                    <CheckBox Content="Snap drop to host service zone" x:Name="chkRtSnapZone" IsChecked="True" Margin="0,4,0,0" FontSize="9"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="FABRICATION" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Conduit install method" FontSize="9" Margin="0,0,0,2"/>
+                                                    <ComboBox x:Name="cboRtCdtInstall" FontSize="10" SelectedIndex="0">
+                                                        <ComboBoxItem Content="CLIPPED"/>
+                                                        <ComboBoxItem Content="SUSPENDED"/>
+                                                        <ComboBoxItem Content="EMBEDDED"/>
+                                                        <ComboBoxItem Content="CHASED"/>
+                                                    </ComboBox>
+                                                    <TextBlock Text="Duct seam (SMACNA A-F)" FontSize="9" Margin="0,4,0,2"/>
+                                                    <ComboBox x:Name="cboRtDuctSeam" FontSize="10" SelectedIndex="0">
+                                                        <ComboBoxItem Content="A — Pittsburgh lock"/>
+                                                        <ComboBoxItem Content="B — Snap lock"/>
+                                                        <ComboBoxItem Content="C — Grooved"/>
+                                                        <ComboBoxItem Content="D — Double seam"/>
+                                                        <ComboBoxItem Content="E — Government"/>
+                                                        <ComboBoxItem Content="F — TDC/TDF flange"/>
+                                                    </ComboBox>
+                                                    <TextBlock Text="Pipe hanger" FontSize="9" Margin="0,4,0,2"/>
+                                                    <ComboBox x:Name="cboRtPipeHanger" FontSize="10" SelectedIndex="0">
+                                                        <ComboBoxItem Content="CLEVIS_ROD"/>
+                                                        <ComboBoxItem Content="CLAMP"/>
+                                                        <ComboBoxItem Content="ROLLER"/>
+                                                        <ComboBoxItem Content="TRAPEZE"/>
+                                                    </ComboBox>
+                                                </StackPanel>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+
                             <!-- ─── v4 MVP: Fixture Placement Tab ─── -->
                             <TabItem Header="Fixtures">
                                 <DockPanel>
