@@ -150,6 +150,21 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 109: MEP workflow automation ──
+                    case "Mep_PressureDrop":    RunCommand<Commands.Mep.MepPressureDropAnalyseCommand>(app); break;
+                    case "Mep_FittingLoss":     RunCommand<Commands.Mep.MepFittingLossReportCommand>(app); break;
+                    case "Mep_Balance":         RunCommand<Commands.Mep.MepBalanceSystemCommand>(app); break;
+                    case "Mep_VibroAcoustic":   RunCommand<Commands.Mep.MepVibroAcousticCheckCommand>(app); break;
+                    case "Mep_SystemAnalyse":   RunCommand<Commands.Mep.MepSystemAnalyseCommand>(app); break;
+                    case "Mep_SystemTracer":    RunCommand<Commands.Mep.MepSystemTracerCommand>(app); break;
+                    case "Mep_AutoSleeve":      RunCommand<Commands.Mep.AutoSleevePlacementCommand>(app); break;
+                    case "Mep_AutoSizePipe":    RunCommand<Commands.Mep.MepAutoSizePipeCommand>(app); break;
+                    case "Mep_AutoSizeDuct":    RunCommand<Commands.Mep.MepAutoSizeDuctCommand>(app); break;
+                    case "Mep_AutoSizeConduit": RunCommand<Commands.Mep.MepAutoSizeConduitCommand>(app); break;
+                    case "Mep_AutoSizeAll":     RunCommand<Commands.Mep.MepAutoSizeAllCommand>(app); break;
+                    case "Mep_FillLiveCalc":    RunCommand<Commands.Mep.MepFillLiveCalcCommand>(app); break;
+                    case "Mep_NamingAudit":     RunCommand<Commands.Mep.MepNamingAuditCommand>(app); break;
+
                     // ── v4 MVP: fabrication (Phase 5) ──
                     case "Fabrication_GeneratePackage": RunCommand<Commands.Fabrication.GenerateFabPackageCommand>(app); break;
                     case "Fabrication_ExportCutList":   RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;

@@ -4128,6 +4128,57 @@
                                 </DockPanel>
                             </TabItem>
 
+                            <!-- ─── Phase 109: MEP Automation Tab ─── -->
+                            <TabItem Header="MEP">
+                                <DockPanel>
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="System trace"    Tag="Mep_SystemTracer"  Click="Cmd_Click" Width="100" Height="30" ToolTip="BFS walk of the MEP connector graph from selection"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Auto-size all"   Tag="Mep_AutoSizeAll"   Click="Cmd_Click" Width="100" Height="30" ToolTip="Size every pipe / duct / conduit from flow + cable data"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Auto-sleeve"     Tag="Mep_AutoSleeve"    Click="Cmd_Click" Width="100" Height="30" ToolTip="Insert sleeve families at every wall / floor / roof crossing"/>
+                                    </WrapPanel>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel Margin="4">
+
+                                            <TextBlock Text="INTELLIGENCE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Pressure-drop analyse" Tag="Mep_PressureDrop"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Darcy-Weisbach + Swamee-Jain pressure drop per CIBSE Guide C"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Fitting loss report"    Tag="Mep_FittingLoss"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Kv + equivalent length per ASHRAE / CIBSE / DW144"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Hardy-Cross balance"    Tag="Mep_Balance"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Iterative flow balancer with damper Cv sizing"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Vibro-acoustic check"   Tag="Mep_VibroAcoustic"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="CIBSE TG6 isolation + NC criteria"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="System analyse (model)"  Tag="Mep_SystemAnalyse"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Whole-model analyser"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="AUTO-SIZE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Pipes"    Tag="Mep_AutoSizePipe"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Size pipes for ≤ 2.5 m/s, BS EN 10255 bore table"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Ducts"    Tag="Mep_AutoSizeDuct"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Size ducts for ≤ 6 m/s, SMACNA standard sizes"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Conduits" Tag="Mep_AutoSizeConduit" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Size conduits for ≤ 45% fill (BS 7671 522.8)"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="QA" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Live fill calc"        Tag="Mep_FillLiveCalc" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Recompute conduit + tray fill% from current cable cross section"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="System naming audit"    Tag="Mep_NamingAudit"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Audit MEP system names against CIBSE / BSRIA / Uniclass 2015 prefix set"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="REFERENCE STANDARDS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <TextBlock FontSize="9" TextWrapping="Wrap" Text="CIBSE Guide C (flow &amp; pressure), Guide B3 (HVAC), TG6 (NC / vibro-acoustics), TM39 (commissioning). BS 7671 Appendix 4 (conduit fill). SMACNA DW/144. BS EN 13480 / 10255 (pipe bore). BS EN 61386 (conduit trade sizes)."/>
+                                                </StackPanel>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+
                             <!-- ─── v4 MVP: Fabrication Tab ─── -->
                             <TabItem Header="Fabrication">
                                 <DockPanel>
