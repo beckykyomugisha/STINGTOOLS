@@ -1614,3 +1614,67 @@ Consolidates all remaining remote branches into `claude/merge-branches-resolve-c
 
 **Verification:** `git branch -r --no-merged HEAD` returns empty. `git grep -l '^<<<<<<< \|^=======$\|^>>>>>>> '` across `.md`/`.cs`/`.xaml`/`.json`/`.csproj` returns no hits. No build work lost; the only content dropped was the duplicated `StingBIM.Standards/` folder already superseded by `StingTools.Standards/`.
 
+
+#### Completed (Phase 111 — v6 residual gaps: N-G4 / N-G12 / N-G16 / N-G17)
+
+Closes the four "partial / missing" items identified in the 2026-04-22 v6
+runner audit against `20260422_sting_v6_claude_code_runner_prompt_v1.0.docx`.
+N-G18 (AI vision) remains deferred to Year 2 per the original runner.
+
+- **S7.1 — N-G4 Health Dashboard completion**: adds
+  `StingTools/V6/HealthDashboardEngine.cs` (157 lines). Wraps the existing
+  `ModelHealthEngine` with structured `Dashboard` / `DashboardCategory` DTOs,
+  per-category RAG rating, and a self-contained HTML exporter (inline CSS,
+  trend table) suitable for CDE upload. New command
+  `HealthDashboardExportHtmlCommand`.
+
+- **S7.2 — N-G12 Labour Hours Engine**: adds
+  `StingTools/V6/LabourHoursEngine.cs` (128 lines),
+  `StingTools/V6/LabourHoursCommands.cs` (121 lines), and
+  `StingTools/Data/Labour/STING_LABOUR_RATES.csv` (37 categories, BESA/RICS
+  2025 indicative rates). Resolves by `category_name` + optional
+  `family_filter`, computes quantity by unit (EA/LF/SF/CF from
+  `LocationCurve` or HOST_AREA/HOST_VOLUME), and writes `CST_INSTALL_HRS` /
+  `CST_LABOUR_CREW_TXT` / `CST_LABOUR_RATE_GBP`. Commands:
+  `ApplyLabourHoursCommand` (selection or project-wide) and
+  `ExportLabourHoursCommand` (per-crew / per-category CSV).
+
+- **S7.3 — N-G16 QR Commissioning Workflow**: adds
+  `StingTools/V6/QRCommissioningWorkflow.cs` (139 lines) and
+  `StingTools/V6/QRCommissioningCommands.cs` (136 lines). Six-state lifecycle
+  (`NOT_STARTED → RECEIVED → INSTALLED → TESTED → COMMISSIONED → HANDOVER`)
+  with regression guard, skip-state guard, witness-required check at
+  COMMISSIONED, and UTC-stamped audit entries persisted to
+  `STING_Commissioning_Audit.json` (rolling 10,000-entry cap). Commands:
+  `QRAdvanceCommissioningCommand` (active selection) and
+  `QRCommissioningReportCommand` (per-state / per-category CSV + audit tail).
+
+- **S7.4 — N-G17 Mobile Offline-First**: enhances the existing Planscape
+  mobile offline queue with three new utilities and a backoff gate.
+  - `Planscape/src/utils/readThroughCache.ts` (119 lines) — AsyncStorage
+    TTL cache with stale-while-revalidate; screens stay usable offline,
+    background refresh emits on update.
+  - `Planscape/src/utils/connectivity.ts` (75 lines) — NetInfo-gated
+    listener that auto-drains the offline queue on reconnect (5 s debounce
+    against flappy networks; graceful fallback when NetInfo absent).
+  - `Planscape/src/utils/conflictResolver.ts` (105 lines) — per-action-type
+    policies (server-wins / client-wins / merge-fields) for HTTP 409s.
+  - `Planscape/src/utils/offlineQueue.ts` — new `nextRetryAt` gate on
+    `OfflineAction`; exponential backoff (2 / 4 / 8 / 16 s with ±20 %
+    jitter) prevents reconnect-storm thundering herds.
+
+- **Params added (7)**: `CST_LABOUR_CREW_TXT`, `CST_LABOUR_RATE_GBP`,
+  `COMM_STATE_TXT`, `COMM_DATE_TXT`, `COMM_OPERATIVE_TXT`,
+  `COMM_WITNESS_TXT`, `COMM_NOTES_TXT` with GUIDs `v6-0001-0000-0000-00000000001{5-b}`.
+
+**Commit range**: `69354d64` → `8ae8bfab` (4 commits, `S7.1` → `S7.4`).
+
+**Caveats**: Built without `dotnet build` verification (Linux sandbox has no
+.NET SDK / Revit API). Every Revit API call uses the documented signature.
+One `// TODO-VERIFY-API` marker in `QRAdvanceCommissioningCommand` flags the
+operative-name source (currently `Environment.UserName`; richer QR-scan
+dialog in the dock panel is a follow-up).
+
+**Audit outcome**: 60 of 62 runner sections implemented (96 %);
+17 of 18 new gaps implemented (94 %). Only N-G18 (AI vision) remains
+deferred, per the original v6 runner's Year-2 scope.

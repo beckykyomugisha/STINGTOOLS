@@ -230,3 +230,71 @@ a specific engine.
       should always be visible to Ctrl+Z)
 - [ ] Close the project without a save — no dialog about pending
       changes beyond what the user expects
+
+---
+
+## Section 8 — Phase 111 residual gaps (S7.1 – S7.4)
+
+These cases cover N-G4 / N-G12 / N-G16 / N-G17 closures added after the
+initial v6 runner. Each scenario is independently resumable; rerun only
+the affected section on failure.
+
+### 8.1 Health dashboard HTML export (S7.1, N-G4)
+
+- [ ] Run `HealthDashboardExportHtmlCommand` on an arbitrary project
+- [ ] Opens the generated `STING_HealthDashboard_*.html` — categories
+      render as RAG bars, overall score matches the TaskDialog
+- [ ] Trend table populates from `STING_ModelHealth_Log.csv` if a prior
+      `ModelHealthDashboardCommand` run exists; empty when no log present
+- [ ] File path returned from the TaskDialog is reachable from the user's
+      desktop file explorer
+
+### 8.2 Labour hours engine (S7.2, N-G12)
+
+- [ ] Run `ApplyLabourHoursCommand` on a mixed selection (ducts, pipes,
+      fixtures, walls)
+- [ ] Each affected element has `CST_INSTALL_HRS`, `CST_LABOUR_CREW_TXT`,
+      `CST_LABOUR_RATE_GBP` populated
+- [ ] TaskDialog summary reports per-crew totals; numbers roughly match
+      quantity × rate from `STING_LABOUR_RATES.csv`
+- [ ] Run `ExportLabourHoursCommand` — CSV has a per-crew section and
+      per-category section; opens cleanly in Excel
+- [ ] Adding a new rate line to `STING_LABOUR_RATES.csv` and reopening
+      Revit picks it up (cache repopulates on first call)
+
+### 8.3 QR commissioning workflow (S7.3, N-G16)
+
+- [ ] Run `QRAdvanceCommissioningCommand` with a single element selected
+      and no prior `COMM_STATE_TXT` — advances to `RECEIVED`
+- [ ] Repeat — advances to `INSTALLED`
+- [ ] Continue until `COMMISSIONED` — refuses because no witness; enter
+      one via the dock-panel scan dialog (follow-up) then retry
+- [ ] Manually set `COMM_STATE_TXT` to `HANDOVER` and re-run — command
+      refuses (refuse-regress guard)
+- [ ] Run `QRCommissioningReportCommand` — CSV shows per-state counts
+      matching the sum of manually checked elements, plus the audit tail
+- [ ] Delete `STING_Commissioning_Audit.json`, run a fresh advance —
+      audit file recreated with one entry
+
+### 8.4 Mobile offline-first (S7.4, N-G17)
+
+- [ ] With the Planscape mobile app offline, create an issue — queued
+- [ ] Toggle airplane mode off — `connectivity.startConnectivityListener`
+      fires `syncQueue` within 5 s; issue appears in the server list
+- [ ] Force a 409 response (edit same issue on desktop, then try updating
+      from mobile) — `conflictResolver` applies the policy configured in
+      `DEFAULT_POLICIES` (UPDATE_ISSUE → merge-fields)
+- [ ] Cause three consecutive failures on an action — observe it moves to
+      the failed side-queue (no infinite retries)
+- [ ] With a fresh install, open the Issues screen offline — list renders
+      from `readThroughCache` (TTL not yet expired) with no spinner
+- [ ] Background refresh completes when connectivity returns; subscribed
+      screen updates via `onCacheUpdate`
+
+### 8.5 Parameter registry sanity
+
+- [ ] 7 new constants visible in Revit's Shared Parameters dialog:
+      `CST_LABOUR_CREW_TXT`, `CST_LABOUR_RATE_GBP`,
+      `COMM_STATE_TXT`, `COMM_DATE_TXT`, `COMM_OPERATIVE_TXT`,
+      `COMM_WITNESS_TXT`, `COMM_NOTES_TXT`
+- [ ] GUIDs match `v6-0001-0000-0000-00000000001{5,6,7,8,9,a,b}`

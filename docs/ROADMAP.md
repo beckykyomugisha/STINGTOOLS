@@ -248,3 +248,34 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 | STRUCT-REBAR-01 | Rebar spacing validation (spacing > bar diameter) | Documented |
 | ACOUSTIC-CAVITY-01 | Frequency-dependent cavity bonus in double-leaf Rw | Documented |
 
+
+### v6 Runner Gaps — 2026-04-22 Audit
+
+The "STING v6 — Claude Code runner prompt" (docx 2026-04-22) defined 18
+new gaps (N-G1 … N-G18). Closing status as of Phase 111:
+
+| Gap | Title | Status | Reference |
+|-----|-------|--------|-----------|
+| N-G1 | FilteredElementCollector audit | **DONE** Phase 109 (S1.3) | `Performance_AuditNotes.md` |
+| N-G2 | TransactionHelper | **DONE** Phase 109 (S1.5) | `Core/TransactionHelper.cs` |
+| N-G3 | Live standards IUpdater | **DONE** Phase 109 (S4.10) | `Core/Validation/LiveStandardsUpdater.cs` |
+| N-G4 | Health dashboard | **DONE** Phase 111 (S7.1) | `V6/HealthDashboardEngine.cs` |
+| N-G5 | Clash triage | **DONE** Phase 109 (S6.1) | `V6/ClashTriageEngine.cs` |
+| N-G6 | Clash resolution suggester | **DONE** Phase 109 (S6.2) | `V6/ClashResolutionSuggester.cs` |
+| N-G7 | Federation walker | **DONE** Phase 109 (S6.3) | `V6/FederationLinkedWalker.cs` |
+| N-G8 | ACC Issues round-trip | **DONE** Phase 109 (S6.4) | `V6/AccIssueSync.cs` |
+| N-G9 | As-built reconciler | **DONE** Phase 109 (S6.5) | `V6/AsBuiltReconciler.cs` |
+| N-G10 | Sheet matrix | **DONE** Phase 109 (S6.6) | `V6/SheetMatrixGenerator.cs` |
+| N-G11 | 4D Gantt reader | **DONE** Phase 109 (S6.7) | `V6/FourdGanttReader.cs` |
+| N-G12 | Install-hours / labour takeoff | **DONE** Phase 111 (S7.2) | `V6/LabourHoursEngine.cs` |
+| N-G13 | Carbon staging | **DONE** Phase 109 (S6.8) | `V6/CarbonStageTracker.cs` |
+| N-G14 | IFC 4.3 PSet mapping | **DONE** Phase 109 (S6.9) | `V6/IfcPsetMapping.cs` |
+| N-G15 | Excel formula-preserving sync | **DONE** Phase 109 (S6.11) | `V6/ExcelBidirectionalSync.cs` |
+| N-G16 | QR commissioning workflow | **DONE** Phase 111 (S7.3) | `V6/QRCommissioningWorkflow.cs` |
+| N-G17 | Mobile offline-first | **DONE** Phase 111 (S7.4) | `Planscape/src/utils/{readThroughCache,connectivity,conflictResolver,offlineQueue}.ts` |
+| N-G18 | AI vision | Deferred Y2 | — |
+
+**Outcome**: 17 of 18 gaps closed. Only N-G18 remains deferred per the
+original runner's Year-2 scope. The Phase 111 commits (`S7.1` → `S7.4`)
+landed without `dotnet build` verification — the only remaining
+pre-merge task is running `Tests_V6SmokeTest.md` Section 8 in Revit.
