@@ -1,0 +1,289 @@
+// STING Tools — Phase 113: MEP Design Extensions (MEP-A-01..12).
+
+using System;
+using System.Collections.Generic;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using StingTools.Commands.Standards;
+using StingTools.Core;
+using StingTools.Standards;
+using StingTools.UI;
+
+namespace StingTools.Commands.MepDesign
+{
+    internal static class MepPanel
+    {
+        public static StingResultPanel.Builder Build(string title, string subtitle)
+            => StingResultPanel.Create(title).SetSubtitle(subtitle);
+    }
+
+    // MEP-A-01 — Cable sizing auto-apply to every circuit
+    [Transaction(TransactionMode.Manual)][Regeneration(RegenerationOption.Manual)]
+    public class CableSizeApplyCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            int circuits = 0;
+            try {
+                foreach (var el in new FilteredElementCollector(ctx.Doc)
+                    .OfCategory(BuiltInCategory.OST_ElectricalCircuit).WhereElementIsNotElementType())
+                    circuits++;
+            } catch { }
+            MepPanel.Build("MEP-A-01 Cable size apply", "BS 7671 / IEC 60364 / NEC — whole project")
+                .AddSection("SCOPE")
+                .Metric("Circuits found", circuits.ToString())
+                .Text("For each circuit, calls StandardsAPI.CalculateCableSize with circuit load + length + insulation + ambient °C, then writes the selected AWG/mm² back to CABLE_SIZE parameter. Full writer pending Revit API wiring.")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+
+    // MEP-A-02 — Panel schedule builder
+    [Transaction(TransactionMode.Manual)][Regeneration(RegenerationOption.Manual)]
+    public class PanelScheduleBuildCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            if (!NumericPrompt.TryAsk("MEP-A-02 Panel schedule build",
+                new[] { "Panel voltage (V)", "Number of circuits", "Total connected load (kW)", "Demand factor" },
+                new[] { 415.0, 24.0, 35.0, 0.80 }, out var v)) return Result.Cancelled;
+            double demandKW = v[2] * v[3];
+            double demandA  = demandKW * 1000 / (v[0] * 1.732);
+            MepPanel.Build("MEP-A-02 Panel schedule", "BS 7671 + BS EN 60439 / NEC 408")
+                .AddSection("DEMAND ANALYSIS")
+                .Metric("Connected kW",  $"{v[2]:F1}")
+                .Metric("Demand factor",  $"{v[3]:F2}")
+                .Metric("Demand kW",      $"{demandKW:F1}")
+                .Metric("Demand A (3φ)",  $"{demandA:F1} A")
+                .Metric("Main breaker rec.", $"{Math.Ceiling(demandA * 1.25 / 10) * 10:F0} A")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+
+    // MEP-A-03 — Breaker auto-size
+    [Transaction(TransactionMode.Manual)][Regeneration(RegenerationOption.Manual)]
+    public class BreakerAutoSizeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            if (!NumericPrompt.TryAsk("MEP-A-03 Breaker size (IEC 60947-2)",
+                new[] { "Circuit load (A)", "Cable ampacity (A)", "Margin %" },
+                new[] { 40.0, 63.0, 125.0 }, out var v)) return Result.Cancelled;
+            double minRating = v[0] * v[2] / 100.0;
+            double maxRating = v[1];
+            int[] std = { 6,10,16,20,25,32,40,50,63,80,100,125,160,200,250,320,400,500,630 };
+            int selected = 6;
+            foreach (var s in std) if (s >= minRating && s <= maxRating) { selected = s; break; }
+            MepPanel.Build("MEP-A-03 Breaker auto-size", "IEC 60947-2 / NEC 240")
+                .AddSection("SELECTION")
+                .Metric("Circuit load",  $"{v[0]:F0} A")
+                .Metric("Min rating (125%)", $"{minRating:F0} A")
+                .Metric("Cable ampacity cap", $"{maxRating:F0} A")
+                .Metric("Selected breaker",   $"{selected} A")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+}
+
+namespace StingTools.Commands.MepDesign
+{
+    // MEP-A-04 — Auto-size every conduit in project
+    [Transaction(TransactionMode.Manual)][Regeneration(RegenerationOption.Manual)]
+    public class AutoSizeConduitAllCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            // Dispatch the existing Phase 109 Mep_AutoSizeConduit but in a loop
+            // across every circuit. For now, delegate to the Phase 109 command
+            // which already iterates the whole project.
+            return new Mep.MepAutoSizeConduitCommand().Execute(cd, ref message, elements);
+        }
+    }
+
+    // MEP-A-05 — Grounding design
+    [Transaction(TransactionMode.ReadOnly)][Regeneration(RegenerationOption.Manual)]
+    public class GroundingDesignCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            if (!NumericPrompt.TryAsk("MEP-A-05 Grounding (BS 7671 + IEEE 142)",
+                new[] { "Max fault current (kA)", "Clearing time (s)", "Soil ρ (Ω·m)" },
+                new[] { 10.0, 0.4, 100.0 }, out var v)) return Result.Cancelled;
+            double cpcMm2 = v[0] * 1000 * Math.Sqrt(v[1]) / 143;
+            int[] std = { 2,4,6,10,16,25,35,50,70,95,120,150,185,240,300,400 };
+            int selected = 400;
+            foreach (var s in std) if (s >= cpcMm2) { selected = s; break; }
+            MepPanel.Build("MEP-A-05 Grounding", "BS 7671 542 + IEEE 142")
+                .AddSection("SIZING")
+                .Metric("Calculated CPC",   $"{cpcMm2:F1} mm²")
+                .Metric("Standard size",    $"{selected} mm²")
+                .Metric("Soil resistivity", $"{v[2]:F0} Ω·m")
+                .Metric("Earth electrode",  v[2] <= 100 ? "Single rod 1.5m" : v[2] <= 500 ? "3 rods at 3m" : "Ring earth 20m")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+
+    // MEP-A-06 — Duct static regain sizing
+    [Transaction(TransactionMode.ReadOnly)][Regeneration(RegenerationOption.Manual)]
+    public class DuctStaticRegainCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            if (!NumericPrompt.TryAsk("MEP-A-06 Duct static regain",
+                new[] { "Upstream velocity (m/s)", "Downstream velocity (m/s)", "R recovery" },
+                new[] { 10.0, 6.0, 0.75 }, out var v)) return Result.Cancelled;
+            double regainPa = v[2] * 0.5 * 1.2 * (v[0]*v[0] - v[1]*v[1]);
+            MepPanel.Build("MEP-A-06 Static regain", "CIBSE Guide B3 / ASHRAE")
+                .AddSection("REGAIN")
+                .Metric("Upstream V",   $"{v[0]:F1} m/s")
+                .Metric("Downstream V", $"{v[1]:F1} m/s")
+                .Metric("Regain factor R", $"{v[2]:F2}")
+                .Metric("Static regain", $"{regainPa:F0} Pa")
+                .Text("Sequential sizing: drop velocity at each branch to recover static pressure, not friction loss.")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+
+    // MEP-A-07 — Pump sizing
+    [Transaction(TransactionMode.ReadOnly)][Regeneration(RegenerationOption.Manual)]
+    public class PumpSizeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            if (!NumericPrompt.TryAsk("MEP-A-07 Pump size (CIBSE Guide C)",
+                new[] { "Flow (L/s)", "Head TDH (m)", "Efficiency η", "SG" },
+                new[] { 10.0, 25.0, 0.75, 1.0 }, out var v)) return Result.Cancelled;
+            double powerKW = v[0] * v[1] * v[3] * 9.81 / (1000 * v[2]);
+            MepPanel.Build("MEP-A-07 Pump size", "CIBSE Guide C")
+                .AddSection("HYDRAULIC")
+                .Metric("Flow",       $"{v[0]:F1} L/s")
+                .Metric("TDH",        $"{v[1]:F1} m")
+                .Metric("η",          $"{v[2]:F2}")
+                .Metric("Shaft power", $"{powerKW:F2} kW")
+                .Metric("Motor select (×1.25)", $"{powerKW * 1.25:F1} kW")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+}
+
+namespace StingTools.Commands.MepDesign
+{
+    // MEP-A-08 — Transformer size
+    [Transaction(TransactionMode.ReadOnly)][Regeneration(RegenerationOption.Manual)]
+    public class TransformerSizeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            if (!NumericPrompt.TryAsk("MEP-A-08 Transformer (IEC 60076)",
+                new[] { "Connected load kW", "Power factor", "Future growth %" },
+                new[] { 300.0, 0.85, 25.0 }, out var v)) return Result.Cancelled;
+            double kva = v[0] / v[1] * (1 + v[2]/100);
+            int[] std = { 50, 75, 100, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500 };
+            int sel = std[^1];
+            foreach (var s in std) if (s >= kva) { sel = s; break; }
+            MepPanel.Build("MEP-A-08 Transformer", "IEC 60076 / NEC 450")
+                .AddSection("SIZING")
+                .Metric("Connected kW",       $"{v[0]:F0}")
+                .Metric("Design kVA (w/growth)", $"{kva:F0}")
+                .Metric("Standard kVA",         $"{sel}")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+
+    // MEP-A-09 — Generator size
+    [Transaction(TransactionMode.ReadOnly)][Regeneration(RegenerationOption.Manual)]
+    public class GeneratorSizeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            if (!NumericPrompt.TryAsk("MEP-A-09 Generator",
+                new[] { "Block load kVA", "Starting kVA multiplier", "Altitude m" },
+                new[] { 500.0, 2.5, 1100.0 }, out var v)) return Result.Cancelled;
+            double derate = v[2] > 1000 ? 1 - ((v[2]-1000) * 0.03 / 300.0) : 1.0;
+            double kvaReq = v[0] * v[1] / derate;
+            MepPanel.Build("MEP-A-09 Generator", "BS 5514 / ISO 8528")
+                .AddSection("SIZING")
+                .Metric("Block load",      $"{v[0]:F0} kVA")
+                .Metric("Start-kVA factor", $"{v[1]:F1}×")
+                .Metric("Altitude derate",  $"{derate:F2}")
+                .Metric("Required kVA",     $"{kvaReq:F0}")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+
+    // MEP-A-10 — Water heater size
+    [Transaction(TransactionMode.ReadOnly)][Regeneration(RegenerationOption.Manual)]
+    public class WaterHeaterSizeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            if (!NumericPrompt.TryAsk("MEP-A-10 Water heater (BS 6700 + CIBSE G)",
+                new[] { "Peak demand L/hr", "Recovery time min", "ΔT °C" },
+                new[] { 400.0, 60.0, 50.0 }, out var v)) return Result.Cancelled;
+            double storageL = v[0] * (v[1]/60);
+            double kw = storageL * 4.187 * v[2] / (3600 * v[1]/60);
+            MepPanel.Build("MEP-A-10 Water heater", "BS 6700 + CIBSE Guide G")
+                .AddSection("SIZE")
+                .Metric("Storage",      $"{storageL:F0} L")
+                .Metric("Recovery kW",  $"{kw:F1} kW")
+                .Metric("Common sizes", "100 / 150 / 200 / 300 / 500 L")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+
+    // MEP-A-11 — Drainage size
+    [Transaction(TransactionMode.ReadOnly)][Regeneration(RegenerationOption.Manual)]
+    public class DrainageSizeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            if (!NumericPrompt.TryAsk("MEP-A-11 Drainage (BS EN 12056)",
+                new[] { "Discharge units DU", "Slope %", "System type (1=I, 2=II, 3=III, 4=IV)" },
+                new[] { 30.0, 1.5, 1.0 }, out var v)) return Result.Cancelled;
+            // BS EN 12056 System I: DU 0-4 → DN50, 4-25 → DN75, 25-60 → DN100, 60-220 → DN125, 220+ → DN150
+            int dn = v[0] < 4 ? 50 : v[0] < 25 ? 75 : v[0] < 60 ? 100 : v[0] < 220 ? 125 : 150;
+            MepPanel.Build("MEP-A-11 Drainage pipe size", "BS EN 12056-2")
+                .AddSection("SELECTION")
+                .Metric("DU total",  $"{v[0]:F0}")
+                .Metric("Slope",     $"{v[1]:F2}%")
+                .Metric("DN select", $"DN {dn}")
+                .Metric("Min slope (San)", "1:80 = 1.25%")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+
+    // MEP-A-12 — Balance apply
+    [Transaction(TransactionMode.Manual)][Regeneration(RegenerationOption.Manual)]
+    public class BalanceApplyCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            MepPanel.Build("MEP-A-12 Balance apply", "Hardy-Cross → Revit")
+                .AddSection("BALANCE APPLY")
+                .Text("Runs Phase 109 MEPBalancingEngine then writes each branch's computed flow to RBS_DUCT_DESIGN_FLOW / RBS_PIPE_DESIGN_FLOW so the model reflects the balanced state. Full writer coming; Mep_Balance already computes the target flows.")
+                .Show();
+            return Result.Succeeded;
+        }
+    }
+}
