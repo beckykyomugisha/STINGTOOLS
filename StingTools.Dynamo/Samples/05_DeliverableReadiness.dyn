@@ -1,0 +1,39 @@
+{
+  "Uuid": "a1b2c3d4-0005-4a5b-8c6d-0000000000e5",
+  "IsCustomNode": false,
+  "Description": "STING deliverable readiness — ISO 19650 audit + tag completeness + sheet compliance + COBie export + BCF export.",
+  "Name": "05_DeliverableReadiness",
+  "ElementResolver": { "ResolutionMap": {} },
+  "Inputs": [],
+  "Outputs": [],
+  "Nodes": [
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"d1","Inputs":[],"Outputs":[{"Id":"od1","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Std.ISO19650Audit","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"d2","Inputs":[],"Outputs":[{"Id":"od2","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Tag.CompletenessDashboard","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"d3","Inputs":[],"Outputs":[{"Id":"od3","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Sheets.ComplianceCheck","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"d4","Inputs":[],"Outputs":[{"Id":"od4","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Export.COBie","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"d5","Inputs":[],"Outputs":[{"Id":"od5","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Export.BCF","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" }
+  ],
+  "Connectors": [],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [
+    { "Name":"STING Tools","Version":"1.0.0","ReferenceType":"Package","Nodes":["d1","d2","d3","d4","d5"] }
+  ],
+  "Thumbnail":"","GraphDocumentationURL":null,"ExtensionWorkspaceData":[],"Author":"STING Tools v4",
+  "Linting":{ "activeLinter":"None","activeLinterId":"7b75fb44-43fd-4631-a878-29f4d5d8399a","warningCount":0,"errorCount":0 },"Bindings":[],
+  "View": {
+    "Dynamo":{ "ScaleFactor":1.0,"HasRunWithoutCrash":true,"IsVisibleInDynamoLibrary":true,"Version":"2.17.0","RunType":"Manual","RunPeriod":"1000" },
+    "Camera":{ "Name":"_Background Preview","EyeX":-17.0,"EyeY":24.0,"EyeZ":50.0,"LookX":12.0,"LookY":-13.0,"LookZ":-58.0,"UpX":0.0,"UpY":1.0,"UpZ":0.0 },
+    "ConnectorPins":[],
+    "NodeViews":[
+      { "Name":"Std.ISO19650Audit",           "ShowGeometry":true,"Id":"d1","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":100.0, "Y":220.0 },
+      { "Name":"Tag.CompletenessDashboard",   "ShowGeometry":true,"Id":"d2","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":380.0, "Y":220.0 },
+      { "Name":"Sheets.ComplianceCheck",      "ShowGeometry":true,"Id":"d3","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":660.0, "Y":220.0 },
+      { "Name":"Export.COBie",                "ShowGeometry":true,"Id":"d4","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":940.0, "Y":220.0 },
+      { "Name":"Export.BCF",                  "ShowGeometry":true,"Id":"d5","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":1220.0,"Y":220.0 }
+    ],
+    "Annotations":[
+      { "Id":"a1","Title":"Data-drop readiness","DescriptionText":"Run this graph before a CDE data drop. ISO19650Audit catches naming + container + CDE gaps. CompletenessDashboard reports the RAG-coded tag compliance %. ComplianceCheck audits every sheet against the ISO 19650 10-rule checklist. COBie export produces the V2.4 workbook for FM. BCF export packages the open issues for BIM 360 / ACC upload. If every node returns green the package is handover-ready.","IsExpanded":true,"WidthAdjustment":0.0,"HeightAdjustment":0.0,"Nodes":["d1","d2","d3","d4","d5"],"HasNestedGroups":false,"Left":80.0,"Top":180.0,"Width":1260.0,"Height":200.0,"FontSize":22.0,"GroupStyleId":"00000000-0000-0000-0000-000000000000","Background":"#FFDFB3B3","TextBlockHeight":28.0,"InitialTop":190.0,"InitialHeight":20.0 }
+    ],
+    "X":0.0,"Y":0.0,"Zoom":1.0
+  }
+}

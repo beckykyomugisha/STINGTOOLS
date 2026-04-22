@@ -1,0 +1,74 @@
+{
+  "Uuid": "a1b2c3d4-0001-4a5b-8c6d-0000000000e1",
+  "IsCustomNode": false,
+  "Description": "STING Daily QA — AutoTag + RunAll validators + Completeness dashboard. Coordinator's morning routine.",
+  "Name": "01_DailyQA",
+  "ElementResolver": { "ResolutionMap": {} },
+  "Inputs": [],
+  "Outputs": [],
+  "Nodes": [
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "n001",
+      "Inputs": [],
+      "Outputs": [ { "Id": "o001", "Name": "", "Description": "bool", "UsingDefaultValue": false, "Level": 2, "UseLevels": false, "KeepListStructure": false } ],
+      "FunctionSignature": "StingTools.Dynamo.Tag.AutoTag",
+      "Replication": "Disabled",
+      "DisplayLabels": false,
+      "NodeType": "FunctionNode"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "n002",
+      "Inputs": [],
+      "Outputs": [ { "Id": "o002", "Name": "", "Description": "bool", "UsingDefaultValue": false, "Level": 2, "UseLevels": false, "KeepListStructure": false } ],
+      "FunctionSignature": "StingTools.Dynamo.Validation.RunAll",
+      "Replication": "Disabled",
+      "DisplayLabels": false,
+      "NodeType": "FunctionNode"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "n003",
+      "Inputs": [],
+      "Outputs": [ { "Id": "o003", "Name": "", "Description": "bool", "UsingDefaultValue": false, "Level": 2, "UseLevels": false, "KeepListStructure": false } ],
+      "FunctionSignature": "StingTools.Dynamo.Tag.CompletenessDashboard",
+      "Replication": "Disabled",
+      "DisplayLabels": false,
+      "NodeType": "FunctionNode"
+    }
+  ],
+  "Connectors": [],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [
+    { "Name": "STING Tools", "Version": "1.0.0", "ReferenceType": "Package", "Nodes": [ "n001", "n002", "n003" ] }
+  ],
+  "Thumbnail": "",
+  "GraphDocumentationURL": null,
+  "ExtensionWorkspaceData": [],
+  "Author": "STING Tools v4",
+  "Linting": { "activeLinter": "None", "activeLinterId": "7b75fb44-43fd-4631-a878-29f4d5d8399a", "warningCount": 0, "errorCount": 0 },
+  "Bindings": [],
+  "View": {
+    "Dynamo": { "ScaleFactor": 1.0, "HasRunWithoutCrash": true, "IsVisibleInDynamoLibrary": true, "Version": "2.17.0", "RunType": "Manual", "RunPeriod": "1000" },
+    "Camera": { "Name": "_Background Preview", "EyeX": -17.0, "EyeY": 24.0, "EyeZ": 50.0, "LookX": 12.0, "LookY": -13.0, "LookZ": -58.0, "UpX": 0.0, "UpY": 1.0, "UpZ": 0.0 },
+    "ConnectorPins": [],
+    "NodeViews": [
+      { "Name": "Tag.AutoTag",              "ShowGeometry": true, "Id": "n001", "IsSetAsInput": false, "IsSetAsOutput": false, "Excluded": false, "X": 120.0, "Y": 120.0 },
+      { "Name": "Validation.RunAll",        "ShowGeometry": true, "Id": "n002", "IsSetAsInput": false, "IsSetAsOutput": false, "Excluded": false, "X": 420.0, "Y": 120.0 },
+      { "Name": "Tag.CompletenessDashboard","ShowGeometry": true, "Id": "n003", "IsSetAsInput": false, "IsSetAsOutput": false, "Excluded": false, "X": 720.0, "Y": 120.0 }
+    ],
+    "Annotations": [
+      {
+        "Id": "a001", "Title": "STING Daily QA",
+        "DescriptionText": "Run every morning before design work starts. AutoTag any new elements added overnight, validate the whole model, and surface the compliance dashboard. Each node delegates to the same command handler as the dock-panel button.",
+        "IsExpanded": true, "WidthAdjustment": 0.0, "HeightAdjustment": 0.0,
+        "Nodes": [ "n001", "n002", "n003" ],
+        "HasNestedGroups": false,
+        "Left": 100.0, "Top": 80.0, "Width": 800.0, "Height": 200.0,
+        "FontSize": 24.0, "GroupStyleId": "00000000-0000-0000-0000-000000000000", "Background": "#FFC1D676", "TextBlockHeight": 28.0, "InitialTop": 90.0, "InitialHeight": 20.0
+      }
+    ],
+    "X": 0.0, "Y": 0.0, "Zoom": 1.0
+  }
+}

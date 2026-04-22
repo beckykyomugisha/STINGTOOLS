@@ -18,8 +18,8 @@ namespace StingTools.Commands.Routing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var ctx = new ParameterHelpers.CommandExecutionContext(commandData);
-            if (ctx.Document == null) { message = "No active document."; return Result.Failed; }
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
 
             try
             {
@@ -48,8 +48,8 @@ namespace StingTools.Commands.Routing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var ctx = new ParameterHelpers.CommandExecutionContext(commandData);
-            if (ctx.Document == null) { message = "No active document."; return Result.Failed; }
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
 
             try
             {

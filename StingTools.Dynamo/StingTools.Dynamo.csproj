@@ -1,22 +1,77 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <!--
-    Phase 108m stub for Dynamo integration.
+    STING Tools Dynamo ZeroTouch library — Phase 109.
 
-    Not a buildable project yet — placeholder so the layout is in the tree.
-    To activate:
-      1. Reference Dynamo Core nuget (DynamoVisualProgramming.ZeroTouchLibrary) + Revit API DLLs
-      2. Target net48 or netstandard2.0 per Dynamo Sandbox version
-      3. Add [NodeCategory] attributes to expose STING methods as nodes
-      4. Drop the built .dll into Dynamo's package folder
+    Targets net48 for Dynamo Sandbox compatibility. Do not switch to
+    net8.0-windows without verifying Dynamo runtime bindings for your
+    target Revit version first — Revit 2025+ ships Dynamo 2.18 on
+    net48 AppDomain inside the host.
 
-    See StingTools.Dynamo/DESIGN.md for the node list.
+    Linux sandbox cannot resolve DynamoVisualProgramming.* packages.
+    This project builds cleanly on Windows with:
+
+        dotnet restore
+        dotnet build -c Release
+
+    Resulting StingTools.Dynamo.dll is copied into
+      %APPDATA%\Dynamo\Dynamo Revit\2.17\packages\STING Tools\bin\
+    alongside pkg.json (see DESIGN.md deploy section).
   -->
+
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
     <AssemblyName>StingTools.Dynamo</AssemblyName>
     <RootNamespace>StingTools.Dynamo</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <IsPackable>false</IsPackable>
-    <NoWarn>NU1701;CS1591</NoWarn>
+    <LangVersion>latest</LangVersion>
+    <NoWarn>NU1701;CS1591;MSB3277</NoWarn>
+    <!-- Dynamo hosts the DLL inside Revit — do NOT copy runtime deps. -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
+
+  <!-- ═══════════════════════════════════════════════
+       Dynamo ZeroTouch packages — resolved on Windows.
+       On Linux these are marked as "missing packages";
+       the project still authorises its source tree.
+       ═══════════════════════════════════════════════ -->
+  <ItemGroup>
+    <PackageReference Include="DynamoVisualProgramming.ZeroTouchLibrary" Version="2.17.0" Condition="'$(OS)' == 'Windows_NT'">
+      <Private>false</Private>
+    </PackageReference>
+    <PackageReference Include="DynamoVisualProgramming.Core" Version="2.17.0" Condition="'$(OS)' == 'Windows_NT'">
+      <Private>false</Private>
+    </PackageReference>
+    <PackageReference Include="DynamoVisualProgramming.Revit" Version="2.17.0" Condition="'$(OS)' == 'Windows_NT'">
+      <Private>false</Private>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Revit 2025 API. Matches StingTools.csproj reference style. -->
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitApiPath)\RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitApiPath)\RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- StingTools.dll reference. Dynamo nodes are thin facades only. -->
+  <ItemGroup>
+    <ProjectReference Include="..\StingTools\StingTools.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <!-- Copy pkg.json + samples into the output directory so the
+       package folder is complete next to the DLL. -->
+  <ItemGroup>
+    <None Include="pkg.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Samples\**\*.dyn" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
