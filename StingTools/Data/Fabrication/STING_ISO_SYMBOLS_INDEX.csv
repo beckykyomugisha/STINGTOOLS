@@ -1,0 +1,189 @@
+# STING v4 MVP — ISO 6412 detail symbol catalogue.
+# Maps short symbol_code identifiers to the .rfa family filename
+# placed by IsoSymbolPlacer (S5.11). Categories cover pipe + duct +
+# conduit fittings, valves, accessories, weld marks and notation.
+# Rows: ~180. Edit and add via the project override file
+# STING_ISO_SYMBOLS_INDEX.project.csv next to the .rvt.
+symbol_code,family_filename,category,description
+ELBOW_90_BW,STING_FAM_PIPE_ELBOW_90_BW.rfa,Pipe,Butt-weld 90deg long radius elbow
+ELBOW_45_BW,STING_FAM_PIPE_ELBOW_45_BW.rfa,Pipe,Butt-weld 45deg elbow
+ELBOW_90_SR,STING_FAM_PIPE_ELBOW_90_SR.rfa,Pipe,Short radius 90deg elbow
+ELBOW_180_BW,STING_FAM_PIPE_ELBOW_180_BW.rfa,Pipe,Butt-weld 180deg return bend
+TEE_EQ,STING_FAM_PIPE_TEE_EQ.rfa,Pipe,Equal tee
+TEE_RED,STING_FAM_PIPE_TEE_RED.rfa,Pipe,Reducing tee
+CROSS,STING_FAM_PIPE_CROSS.rfa,Pipe,Cross fitting
+RED_CONC,STING_FAM_PIPE_RED_CONC.rfa,Pipe,Concentric reducer
+RED_ECC,STING_FAM_PIPE_RED_ECC.rfa,Pipe,Eccentric reducer
+COUPLING,STING_FAM_PIPE_COUPLING.rfa,Pipe,Pipe coupling / sleeve
+UNION,STING_FAM_PIPE_UNION.rfa,Pipe,Threaded union
+CAP,STING_FAM_PIPE_CAP.rfa,Pipe,Pipe cap
+PLUG,STING_FAM_PIPE_PLUG.rfa,Pipe,Pipe plug
+SWAGE,STING_FAM_PIPE_SWAGE.rfa,Pipe,Swage nipple
+NIPPLE,STING_FAM_PIPE_NIPPLE.rfa,Pipe,Pipe nipple
+FLG_WN,STING_FAM_PIPE_FLG_WN.rfa,Flange,Weld-neck flange
+FLG_SO,STING_FAM_PIPE_FLG_SO.rfa,Flange,Slip-on flange
+FLG_BL,STING_FAM_PIPE_FLG_BL.rfa,Flange,Blind flange
+FLG_LJ,STING_FAM_PIPE_FLG_LJ.rfa,Flange,Lap-joint flange
+FLG_THD,STING_FAM_PIPE_FLG_THD.rfa,Flange,Threaded flange
+FLG_SW,STING_FAM_PIPE_FLG_SW.rfa,Flange,Socket-weld flange
+FLG_RTJ,STING_FAM_PIPE_FLG_RTJ.rfa,Flange,Ring-type-joint flange
+GASKET_RF,STING_FAM_GASKET_RF.rfa,Flange,Raised face gasket
+GASKET_FF,STING_FAM_GASKET_FF.rfa,Flange,Flat face gasket
+SPECTACLE_BLIND,STING_FAM_SPEC_BLIND.rfa,Flange,Spectacle blind / line blank
+SPACER_RING,STING_FAM_SPACER_RING.rfa,Flange,Spacer ring
+VLV_GATE,STING_FAM_VLV_GATE.rfa,Valve,Gate valve
+VLV_GLOBE,STING_FAM_VLV_GLOBE.rfa,Valve,Globe valve
+VLV_BALL,STING_FAM_VLV_BALL.rfa,Valve,Ball valve
+VLV_BFLY,STING_FAM_VLV_BFLY.rfa,Valve,Butterfly valve
+VLV_PLUG,STING_FAM_VLV_PLUG.rfa,Valve,Plug valve
+VLV_NEEDLE,STING_FAM_VLV_NEEDLE.rfa,Valve,Needle valve
+VLV_DIAPHR,STING_FAM_VLV_DIAPHR.rfa,Valve,Diaphragm valve
+VLV_PINCH,STING_FAM_VLV_PINCH.rfa,Valve,Pinch valve
+VLV_KNIFE,STING_FAM_VLV_KNIFE.rfa,Valve,Knife-gate valve
+VLV_CHECK_SWING,STING_FAM_VLV_CHECK_SWING.rfa,Valve,Swing check valve
+VLV_CHECK_LIFT,STING_FAM_VLV_CHECK_LIFT.rfa,Valve,Lift check valve
+VLV_CHECK_DUAL,STING_FAM_VLV_CHECK_DUAL.rfa,Valve,Dual-plate check valve
+VLV_RELIEF,STING_FAM_VLV_RELIEF.rfa,Valve,Pressure relief valve
+VLV_SAFETY,STING_FAM_VLV_SAFETY.rfa,Valve,Safety valve
+VLV_VENT,STING_FAM_VLV_VENT.rfa,Valve,Air-vent valve
+VLV_DRAIN,STING_FAM_VLV_DRAIN.rfa,Valve,Drain valve
+VLV_3WAY,STING_FAM_VLV_3WAY.rfa,Valve,Three-way valve
+VLV_4WAY,STING_FAM_VLV_4WAY.rfa,Valve,Four-way valve
+VLV_FCV,STING_FAM_VLV_FCV.rfa,Valve,Flow control valve
+VLV_PCV,STING_FAM_VLV_PCV.rfa,Valve,Pressure control valve
+VLV_TCV,STING_FAM_VLV_TCV.rfa,Valve,Temperature control valve
+VLV_LCV,STING_FAM_VLV_LCV.rfa,Valve,Level control valve
+VLV_MOV,STING_FAM_VLV_MOV.rfa,Valve,Motor-operated valve
+VLV_AOV,STING_FAM_VLV_AOV.rfa,Valve,Air-operated valve
+VLV_HOV,STING_FAM_VLV_HOV.rfa,Valve,Hydraulic-operated valve
+VLV_SOV,STING_FAM_VLV_SOV.rfa,Valve,Solenoid-operated valve
+VLV_HANDLE,STING_FAM_VLV_HANDLE.rfa,Valve,Hand-wheel actuator
+VLV_LEVER,STING_FAM_VLV_LEVER.rfa,Valve,Lever actuator
+VLV_GEAR,STING_FAM_VLV_GEAR.rfa,Valve,Gear-box actuator
+STRAINER_Y,STING_FAM_STR_Y.rfa,Strainer,Y-type strainer
+STRAINER_T,STING_FAM_STR_T.rfa,Strainer,T-type strainer
+STRAINER_BASKET,STING_FAM_STR_BASKET.rfa,Strainer,Basket strainer
+STRAINER_DUPLEX,STING_FAM_STR_DUPLEX.rfa,Strainer,Duplex strainer
+TRAP_FLOAT,STING_FAM_TRAP_FLOAT.rfa,Steam,Float steam trap
+TRAP_BUCKET,STING_FAM_TRAP_BUCKET.rfa,Steam,Inverted bucket trap
+TRAP_THERM,STING_FAM_TRAP_THERM.rfa,Steam,Thermodynamic trap
+TRAP_BALANCED,STING_FAM_TRAP_BALANCED.rfa,Steam,Balanced pressure trap
+SEP_AIR,STING_FAM_SEP_AIR.rfa,Equipment,Air separator
+SEP_DIRT,STING_FAM_SEP_DIRT.rfa,Equipment,Dirt / sediment separator
+EXP_TANK,STING_FAM_EXP_TANK.rfa,Equipment,Expansion tank
+ACCUMULATOR,STING_FAM_ACCUM.rfa,Equipment,Hydraulic accumulator
+PUMP_CENTR,STING_FAM_PUMP_CENTR.rfa,Pump,Centrifugal pump
+PUMP_INLINE,STING_FAM_PUMP_INLINE.rfa,Pump,In-line pump
+PUMP_SUMP,STING_FAM_PUMP_SUMP.rfa,Pump,Sump pump
+DCT_ELBOW_90_R,STING_FAM_DCT_ELBOW_90_R.rfa,Duct,Rectangular 90deg elbow
+DCT_ELBOW_45_R,STING_FAM_DCT_ELBOW_45_R.rfa,Duct,Rectangular 45deg elbow
+DCT_ELBOW_90_C,STING_FAM_DCT_ELBOW_90_C.rfa,Duct,Round 90deg elbow
+DCT_ELBOW_45_C,STING_FAM_DCT_ELBOW_45_C.rfa,Duct,Round 45deg elbow
+DCT_TEE_R,STING_FAM_DCT_TEE_R.rfa,Duct,Rectangular tee
+DCT_TEE_C,STING_FAM_DCT_TEE_C.rfa,Duct,Round tee
+DCT_RED_R,STING_FAM_DCT_RED_R.rfa,Duct,Rectangular reducer
+DCT_RED_C,STING_FAM_DCT_RED_C.rfa,Duct,Round reducer
+DCT_RECT_TO_RND,STING_FAM_DCT_R2C.rfa,Duct,Rectangular to round transition
+DCT_OFFSET,STING_FAM_DCT_OFFSET.rfa,Duct,Duct offset
+DCT_DAMPER_VOL,STING_FAM_DCT_DAMPER_VOL.rfa,Duct,Volume control damper
+DCT_DAMPER_FIRE,STING_FAM_DCT_DAMPER_FIRE.rfa,Duct,Fire damper
+DCT_DAMPER_SMOKE,STING_FAM_DCT_DAMPER_SMOKE.rfa,Duct,Smoke damper
+DCT_DAMPER_FSD,STING_FAM_DCT_DAMPER_FSD.rfa,Duct,Combined fire/smoke damper
+DCT_DAMPER_BACK,STING_FAM_DCT_DAMPER_BACK.rfa,Duct,Backdraft damper
+DCT_GRILLE_SUP,STING_FAM_DCT_GRILLE_SUP.rfa,Duct,Supply grille
+DCT_GRILLE_RET,STING_FAM_DCT_GRILLE_RET.rfa,Duct,Return grille
+DCT_GRILLE_EXH,STING_FAM_DCT_GRILLE_EXH.rfa,Duct,Exhaust grille
+DCT_DIFFUSER_4W,STING_FAM_DCT_DIFFUSER_4W.rfa,Duct,Four-way diffuser
+DCT_DIFFUSER_LIN,STING_FAM_DCT_DIFFUSER_LIN.rfa,Duct,Linear slot diffuser
+DCT_REGISTER,STING_FAM_DCT_REGISTER.rfa,Duct,Register
+DCT_FILTER,STING_FAM_DCT_FILTER.rfa,Duct,Filter section
+DCT_COIL,STING_FAM_DCT_COIL.rfa,Duct,Coil section
+DCT_FAN,STING_FAM_DCT_FAN.rfa,Duct,In-duct fan
+DCT_SILENCER,STING_FAM_DCT_SILENCER.rfa,Duct,Acoustic silencer
+DCT_FLEX,STING_FAM_DCT_FLEX.rfa,Duct,Flexible duct connector
+DCT_PLENUM,STING_FAM_DCT_PLENUM.rfa,Duct,Plenum box
+CDT_ELBOW_90,STING_FAM_CDT_ELBOW_90.rfa,Conduit,Conduit 90deg elbow
+CDT_ELBOW_45,STING_FAM_CDT_ELBOW_45.rfa,Conduit,Conduit 45deg elbow
+CDT_TEE,STING_FAM_CDT_TEE.rfa,Conduit,Conduit T-fitting
+CDT_COUPLING,STING_FAM_CDT_COUPLING.rfa,Conduit,Conduit coupling
+CDT_REDUCER,STING_FAM_CDT_REDUCER.rfa,Conduit,Conduit reducer
+CDT_BUSH,STING_FAM_CDT_BUSH.rfa,Conduit,Conduit bush
+CDT_LB,STING_FAM_CDT_LB.rfa,Conduit,LB condulet
+CDT_LL,STING_FAM_CDT_LL.rfa,Conduit,LL condulet
+CDT_LR,STING_FAM_CDT_LR.rfa,Conduit,LR condulet
+CDT_T,STING_FAM_CDT_T.rfa,Conduit,T condulet
+CDT_X,STING_FAM_CDT_X.rfa,Conduit,X condulet
+CDT_PULL_BOX,STING_FAM_CDT_PULL_BOX.rfa,Conduit,Pull box / draw-in box
+CDT_GLAND,STING_FAM_CDT_GLAND.rfa,Conduit,Cable gland
+CDT_LOCKNUT,STING_FAM_CDT_LOCKNUT.rfa,Conduit,Locknut
+CTR_BEND_90,STING_FAM_CTR_BEND_90.rfa,CableTray,Cable tray 90deg bend
+CTR_BEND_45,STING_FAM_CTR_BEND_45.rfa,CableTray,Cable tray 45deg bend
+CTR_TEE,STING_FAM_CTR_TEE.rfa,CableTray,Cable tray tee
+CTR_CROSS,STING_FAM_CTR_CROSS.rfa,CableTray,Cable tray cross
+CTR_REDUCER,STING_FAM_CTR_REDUCER.rfa,CableTray,Cable tray reducer
+CTR_DROPOUT,STING_FAM_CTR_DROPOUT.rfa,CableTray,Cable tray dropout
+CTR_END_PLATE,STING_FAM_CTR_END_PLATE.rfa,CableTray,Cable tray end plate
+CTR_DIVIDER,STING_FAM_CTR_DIVIDER.rfa,CableTray,Cable tray divider strip
+CTR_COVER,STING_FAM_CTR_COVER.rfa,CableTray,Cable tray cover
+SLEEVE_FIRESTOP,STING_FAM_SLEEVE_FIRESTOP.rfa,Penetration,Firestop sleeve
+SLEEVE_PUDDLE,STING_FAM_SLEEVE_PUDDLE.rfa,Penetration,Puddle flange
+SLEEVE_LINK_SEAL,STING_FAM_SLEEVE_LINK.rfa,Penetration,Link-seal sleeve
+WALL_PENETRATION,STING_FAM_WALL_PEN.rfa,Penetration,Generic wall penetration
+SLAB_PENETRATION,STING_FAM_SLAB_PEN.rfa,Penetration,Generic slab penetration
+WELD_SHOP_FW,STING_FAM_WELD_SHOP_FW.rfa,Weld,Shop fillet weld mark
+WELD_SHOP_BW,STING_FAM_WELD_SHOP_BW.rfa,Weld,Shop butt weld mark
+WELD_FIELD_FW,STING_FAM_WELD_FIELD_FW.rfa,Weld,Field fillet weld mark
+WELD_FIELD_BW,STING_FAM_WELD_FIELD_BW.rfa,Weld,Field butt weld mark
+WELD_FIT_BW,STING_FAM_WELD_FIT_BW.rfa,Weld,Field-fit butt weld mark
+WELD_SW,STING_FAM_WELD_SW.rfa,Weld,Socket weld mark
+WELD_SP,STING_FAM_WELD_SP.rfa,Weld,Spot weld mark
+WELD_SEAM,STING_FAM_WELD_SEAM.rfa,Weld,Seam weld mark
+WELD_TACK,STING_FAM_WELD_TACK.rfa,Weld,Tack weld mark
+WELD_GROOVE_V,STING_FAM_WELD_GROOVE_V.rfa,Weld,V-groove weld
+WELD_GROOVE_BEVEL,STING_FAM_WELD_GROOVE_B.rfa,Weld,Bevel groove weld
+WELD_BACKING,STING_FAM_WELD_BACKING.rfa,Weld,Backing strip weld
+WELD_PLUG,STING_FAM_WELD_PLUG.rfa,Weld,Plug weld
+WELD_SLOT,STING_FAM_WELD_SLOT.rfa,Weld,Slot weld
+WELD_NDT_RT,STING_FAM_WELD_NDT_RT.rfa,Weld,RT (radiographic) test mark
+WELD_NDT_UT,STING_FAM_WELD_NDT_UT.rfa,Weld,UT (ultrasonic) test mark
+WELD_NDT_PT,STING_FAM_WELD_NDT_PT.rfa,Weld,PT (penetrant) test mark
+WELD_NDT_MT,STING_FAM_WELD_NDT_MT.rfa,Weld,MT (magnetic particle) test mark
+WELD_NDT_VT,STING_FAM_WELD_NDT_VT.rfa,Weld,VT (visual) test mark
+WELD_PWHT,STING_FAM_WELD_PWHT.rfa,Weld,Post-weld heat treatment marker
+WELD_HARDNESS,STING_FAM_WELD_HARDNESS.rfa,Weld,Hardness test marker
+HANGER_CLEVIS,STING_FAM_HANGER_CLEVIS.rfa,Hanger,Clevis-rod hanger
+HANGER_CLAMP,STING_FAM_HANGER_CLAMP.rfa,Hanger,Pipe clamp
+HANGER_ROLLER,STING_FAM_HANGER_ROLLER.rfa,Hanger,Roller hanger
+HANGER_TRAPEZE,STING_FAM_HANGER_TRAPEZE.rfa,Hanger,Trapeze hanger
+HANGER_SPRING,STING_FAM_HANGER_SPRING.rfa,Hanger,Variable-spring hanger
+HANGER_CONST,STING_FAM_HANGER_CONST.rfa,Hanger,Constant-effort hanger
+HANGER_RIGID,STING_FAM_HANGER_RIGID.rfa,Hanger,Rigid hanger
+GUIDE_PIPE,STING_FAM_GUIDE_PIPE.rfa,Hanger,Pipe guide
+ANCHOR_PIPE,STING_FAM_ANCHOR_PIPE.rfa,Hanger,Pipe anchor
+EXPANSION_JOINT,STING_FAM_EXP_JOINT.rfa,Hanger,Expansion joint
+SHOE_LOW,STING_FAM_SHOE_LOW.rfa,Hanger,Low-temp pipe shoe
+SHOE_HIGH,STING_FAM_SHOE_HIGH.rfa,Hanger,High-temp pipe shoe
+INSUL_PIPE,STING_FAM_INSUL_PIPE.rfa,Insulation,Pipe insulation
+INSUL_DUCT,STING_FAM_INSUL_DUCT.rfa,Insulation,Duct insulation
+INSUL_VAPOR,STING_FAM_INSUL_VAPOR.rfa,Insulation,Vapor barrier insulation
+TAG_PIPE,STING_FAM_TAG_PIPE.rfa,Notation,Pipe tag
+TAG_DUCT,STING_FAM_TAG_DUCT.rfa,Notation,Duct tag
+TAG_FITTING,STING_FAM_TAG_FITTING.rfa,Notation,Fitting tag
+TAG_VALVE,STING_FAM_TAG_VALVE.rfa,Notation,Valve tag
+TAG_HANGER,STING_FAM_TAG_HANGER.rfa,Notation,Hanger tag
+TAG_WELD,STING_FAM_TAG_WELD.rfa,Notation,Weld tag
+NOTE_GENERAL,STING_FAM_NOTE_GENERAL.rfa,Notation,General note callout
+NOTE_TYPICAL,STING_FAM_NOTE_TYP.rfa,Notation,Typical (TYP) callout
+NOTE_NIC,STING_FAM_NOTE_NIC.rfa,Notation,Not-in-contract callout
+NOTE_NTS,STING_FAM_NOTE_NTS.rfa,Notation,Not-to-scale callout
+NOTE_REVCLOUD,STING_FAM_NOTE_REVCLOUD.rfa,Notation,Revision cloud
+DIM_LINEAR,STING_FAM_DIM_LINEAR.rfa,Notation,Linear dimension symbol
+DIM_RADIAL,STING_FAM_DIM_RADIAL.rfa,Notation,Radial dimension symbol
+DIM_ANGULAR,STING_FAM_DIM_ANGULAR.rfa,Notation,Angular dimension symbol
+DIM_SLOPE,STING_FAM_DIM_SLOPE.rfa,Notation,Slope indicator symbol
+NORTH_ARROW,STING_FAM_NORTH_ARROW.rfa,Notation,North arrow
+SCALE_BAR,STING_FAM_SCALE_BAR.rfa,Notation,Scale bar
+GRID_BUBBLE,STING_FAM_GRID_BUBBLE.rfa,Notation,Grid bubble
+LEVEL_HEAD,STING_FAM_LEVEL_HEAD.rfa,Notation,Level head
+SECTION_HEAD,STING_FAM_SECTION_HEAD.rfa,Notation,Section head
+CALLOUT_HEAD,STING_FAM_CALLOUT_HEAD.rfa,Notation,Callout / detail head
