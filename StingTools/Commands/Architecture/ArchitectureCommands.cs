@@ -4,6 +4,7 @@
 // so the dock-panel + Dynamo expose one-click shell automation that
 // respects BS 5395 / BS 6180 / BS EN 13830 / BS EN 13914 / Part B / Part K / Part M.
 
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
@@ -32,36 +33,59 @@ namespace StingTools.Commands.Architecture
                 out var v)) return Result.Cancelled;
 
             var panel = StingResultPanel.Create("ARCH-01 Auto Stair")
-                .SetSubtitle("BS 5395-1 + Part K (UK) + Part M accessibility");
+                .SetSubtitle("BS 5395-1 + Part K + Part M — via StairEngine");
             try
             {
-                // TODO-VERIFY-API: ArchitecturalCreationEngine.StairEngine signature
-                // varies; this wrapper opens a TaskDialog summarising the computed
-                // riser/tread per BS 5395 Table 1 pending engine-side Revit stair
-                // creation.
-                int risers = v[2] > 0 ? (int)v[2] : (int)Math.Ceiling(v[0] / 175.0);
-                double riserMm = v[0] / risers;
-                double goMm    = v[3];
-
-                bool compliantK = riserMm <= 220 && riserMm >= 150 && goMm >= 220;
-                bool compliantM = riserMm <= 170 && goMm >= 250 && v[1] >= 1000;
+                // Real engine call: compute the compliant design first.
+                var design = StingTools.Model.StairEngine.DesignStair(
+                    floorToFloorMm: v[0],
+                    use: StingTools.Model.StairEngine.StairUseType.Common,
+                    widthMm: v[1]);
 
                 panel.AddSection("COMPUTED GEOMETRY")
-                     .Metric("Risers",    risers.ToString())
-                     .Metric("Riser height", $"{riserMm:F0} mm")
-                     .Metric("Going (tread)", $"{goMm:F0} mm")
-                     .Metric("Width",      $"{v[1]:F0} mm");
+                     .Metric("Risers",        design.Risers.ToString())
+                     .Metric("Rise",           $"{design.RiseMm:F0} mm")
+                     .Metric("Going",          $"{design.GoingMm:F0} mm")
+                     .Metric("Width",          $"{design.WidthMm:F0} mm")
+                     .Metric("Pitch",          $"{design.PitchDeg:F1}°")
+                     .Metric("2R + G",          $"{design.TwoRPlusG:F0} mm")
+                     .Metric("Flights",        design.Flights.ToString())
+                     .Metric("Landings",       design.LandingsRequired.ToString())
+                     .Metric("Total run",      $"{design.TotalRunMm:F0} mm");
 
                 panel.AddSection("COMPLIANCE")
-                     .Metric("BS 5395 + Part K", compliantK ? "PASS" : "REVIEW")
-                     .Metric("Part M (accessible)", compliantM ? "PASS" : "REVIEW");
+                     .Metric("BS 5395 + Part K", design.Compliant ? "PASS" : "REVIEW");
+                foreach (var issue in design.Issues) panel.Text(issue);
 
-                if (!compliantK)
-                    panel.Text("Riser 150-220mm, going ≥ 220mm per BS 5395 Table 1.");
-                if (!compliantM)
-                    panel.Text("Part M: riser ≤ 170mm, going ≥ 250mm, width ≥ 1000mm for accessible route.");
-
-                panel.Text("Note: Stair family creation in Revit pending ArchitecturalCreationEngine.StairEngine wiring. This command surfaces the code-compliant geometry; place the stair with ARCH-02 railing afterwards.");
+                // Ask whether to place the stair in Revit too.
+                var place = TaskDialog.Show("STING ARCH-01 — Place stair?",
+                    $"{design.Summary}\n\nPlace the stair in Revit at the active view origin?",
+                    TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    TaskDialogResult.No);
+                if (place == TaskDialogResult.Yes)
+                {
+                    // TODO-VERIFY-API: StairEngine.CreateStair uses StairsEditScope.
+                    // Picks first two levels in the document for base/top.
+                    var doc = ctx.Doc;
+                    var levels = new FilteredElementCollector(doc).OfClass(typeof(Level))
+                        .Cast<Level>().OrderBy(l => l.Elevation).ToList();
+                    if (levels.Count >= 2)
+                    {
+                        Level baseLevel = levels[0], topLevel = levels[1];
+                        ElementId stairId = ElementId.InvalidElementId;
+                        try
+                        {
+                            stairId = StingTools.Model.StairEngine.CreateStair(
+                                doc, XYZ.Zero, baseLevel, topLevel, design);
+                            panel.AddSection("PLACEMENT")
+                                 .Metric("Stair ElementId", stairId != ElementId.InvalidElementId
+                                    ? stairId.ToString() : "creation failed — see log");
+                        }
+                        catch (Exception ex) { StingLog.Error("ARCH-01 Create stair", ex);
+                            panel.AddSection("PLACEMENT").Text($"Create failed: {ex.Message}"); }
+                    }
+                    else panel.AddSection("PLACEMENT").Text("Need at least 2 levels to place stair.");
+                }
             }
             catch (Exception ex) { StingLog.Error("AutoStair failed", ex); message = ex.Message; return Result.Failed; }
 
@@ -121,19 +145,48 @@ namespace StingTools.Commands.Architecture
                 new[] { 12000.0,              4000.0,                1200.0,                     3000.0 },
                 out var v)) return Result.Cancelled;
 
-            int hMullions = (int)Math.Ceiling(v[0] / v[2]) + 1;
-            int vMullions = (int)Math.Ceiling(v[1] / v[3]) + 1;
-            int panels    = (hMullions - 1) * (vMullions - 1);
+            var spec = StingTools.Model.CurtainWallEngine.Design(
+                lengthMm: v[0], heightMm: v[1], gridHorizMm: v[2], gridVertMm: v[3]);
 
             var panel = StingResultPanel.Create("ARCH-03 Auto Curtain Wall")
-                .SetSubtitle("BS EN 13830 (CW) + BS 8200 (cladding)");
+                .SetSubtitle("BS EN 13830 + BS 8200 — via CurtainWallEngine");
             panel.AddSection("GRID")
-                 .Metric("Horizontal mullions", hMullions.ToString())
-                 .Metric("Vertical mullions",   vMullions.ToString())
-                 .Metric("Panel count",         panels.ToString())
-                 .Metric("H spacing", $"{v[2]:F0} mm")
-                 .Metric("V spacing", $"{v[3]:F0} mm");
-            panel.Text("Pending ArchitecturalCreationEngine.CurtainWallEngine wiring to place the mullion grid.");
+                 .Metric("Panel columns",  spec.PanelColumns.ToString())
+                 .Metric("Panel rows",      spec.PanelRows.ToString())
+                 .Metric("Total panels",    (spec.PanelColumns * spec.PanelRows).ToString())
+                 .Metric("H spacing",       $"{spec.GridSpacingHorizMm:F0} mm")
+                 .Metric("V spacing",       $"{spec.GridSpacingVertMm:F0} mm");
+            panel.Text(spec.Summary ?? "");
+
+            var place = TaskDialog.Show("STING ARCH-03 — Place curtain wall?",
+                "Place this curtain wall at active view origin along +X axis?",
+                TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                TaskDialogResult.No);
+            if (place == TaskDialogResult.Yes)
+            {
+                var doc = ctx.Doc;
+                var level = new FilteredElementCollector(doc).OfClass(typeof(Level))
+                    .Cast<Level>().OrderBy(l => l.Elevation).FirstOrDefault();
+                if (level != null)
+                {
+                    try
+                    {
+                        double startX = 0, endX = v[0] * 1.0 / 304.8;
+                        var id = StingTools.Model.CurtainWallEngine.Create(
+                            doc, new XYZ(startX, 0, level.Elevation),
+                            new XYZ(endX, 0, level.Elevation), level, v[1]);
+                        panel.AddSection("PLACEMENT")
+                             .Metric("Curtain wall ElementId",
+                                id != ElementId.InvalidElementId ? id.ToString() : "creation failed");
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error("ARCH-03 Create", ex);
+                        panel.AddSection("PLACEMENT").Text($"Create failed: {ex.Message}");
+                    }
+                }
+                else panel.AddSection("PLACEMENT").Text("No Level found in document.");
+            }
             panel.Show();
             return Result.Succeeded;
         }
