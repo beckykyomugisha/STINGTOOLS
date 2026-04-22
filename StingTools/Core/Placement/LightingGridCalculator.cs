@@ -184,7 +184,7 @@ namespace StingTools.Core.Placement
                     if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
                     if (first) { first = false; continue; } // header
                     var cols = StingToolsApp.ParseCsvLine(raw);
-                    if (cols == null || cols.Count < 3) continue;
+                    if (cols == null || cols.Length < 3) continue;
                     string patt = cols[0];
                     string code = cols[1];
                     double lux = 0.0;
@@ -220,7 +220,7 @@ namespace StingTools.Core.Placement
                     if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("#")) continue;
                     if (first) { first = false; continue; }
                     var cols = StingToolsApp.ParseCsvLine(raw);
-                    if (cols == null || cols.Count < 2) continue;
+                    if (cols == null || cols.Length < 2) continue;
                     string code = cols[0];
                     if (!double.TryParse(cols[1], System.Globalization.NumberStyles.Any,
                                          System.Globalization.CultureInfo.InvariantCulture,

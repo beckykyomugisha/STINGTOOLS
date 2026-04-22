@@ -17,9 +17,9 @@ namespace StingTools.Commands.Placement
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var ctx = new ParameterHelpers.CommandExecutionContext(commandData);
-            var doc = ctx.Document;
-            if (doc == null) { message = "No active document."; return Result.Failed; }
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            var doc = ctx.Doc;
 
             try
             {
