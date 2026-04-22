@@ -44,27 +44,6 @@ namespace StingTools.Standards
     
     // HVAC/MECHANICAL RESULTS
     
-    public class HVACSizingResult
-    {
-        public string Standard { get; set; }
-        public double FloorAreaM2 { get; set; }
-        public string BuildingType { get; set; }
-        public double EnvelopeLoadW { get; set; }
-        public double VentilationLoadW { get; set; }
-        public double OccupancyLoadW { get; set; }
-        public double EquipmentLoadW { get; set; }
-        public double LightingLoadW { get; set; }
-        public double SensibleLoadW { get; set; }
-        public double LatentLoadW { get; set; }
-        public double TotalCoolingLoadKW { get; set; }
-        public double TotalCoolingLoadTons { get; set; }
-        public double RequiredAirflowCFM { get; set; }
-        public double RequiredAirflowCMH { get; set; }
-        public double LoadPerAreaWM2 { get; set; }
-        public double RecommendedEquipmentSize { get; set; }
-        public List<string> Recommendations { get; set; } = new List<string>();
-    }
-    
     public class DuctSizingResult
     {
         public string Standard { get; set; }
@@ -128,19 +107,6 @@ namespace StingTools.Standards
         public List<string> Recommendations { get; set; } = new List<string>();
     }
     
-    public class WaterHeaterResult
-    {
-        public int OccupantCount { get; set; }
-        public string BuildingType { get; set; }
-        public double PeakHourlyDemandGallons { get; set; }
-        public double RequiredFirstHourRating { get; set; }
-        public double RecommendedTankSizeGallons { get; set; }
-        public double RecoveryRateGPH { get; set; }
-        public double InputRatingBTUH { get; set; }
-        public double InputRatingKW { get; set; }
-        public List<string> Recommendations { get; set; } = new List<string>();
-    }
-    
     // STRUCTURAL RESULTS
     
     public class SteelBeamResult
@@ -195,59 +161,7 @@ namespace StingTools.Standards
         public List<string> Recommendations { get; set; } = new List<string>();
     }
     
-    public class WindLoadResult
-    {
-        public string Standard { get; set; }
-        public double BuildingHeightM { get; set; }
-        public double BuildingWidthM { get; set; }
-        public double BasicWindSpeedMPS { get; set; }
-        public double VelocityPressurePa { get; set; }
-        public double ExposureCoefficient { get; set; }
-        public double DesignWindPressurePa { get; set; }
-        public double DesignWindPressureKPa { get; set; }
-        public double TotalWindForceKN { get; set; }
-        public double OverturningMomentKNm { get; set; }
-        public List<string> Recommendations { get; set; } = new List<string>();
-    }
-    
-    public class SeismicLoadResult
-    {
-        public string Standard { get; set; }
-        public double BuildingWeightKN { get; set; }
-        public double BuildingHeightM { get; set; }
-        public string SoilType { get; set; }
-        public double SiteCoeffFa { get; set; }
-        public double SiteCoeffFv { get; set; }
-        public double DesignSpectralAccelSDS { get; set; }
-        public double DesignSpectralAccelSD1 { get; set; }
-        public double ResponseModFactorR { get; set; }
-        public double FundamentalPeriodSec { get; set; }
-        public double SeismicRespCoeff { get; set; }
-        public double BaseShearKN { get; set; }
-        public List<string> Recommendations { get; set; } = new List<string>();
-    }
-    
     // FIRE PROTECTION RESULTS
-    
-    public class SprinklerResult
-    {
-        public string Standard { get; set; }
-        public double FloorAreaM2 { get; set; }
-        public string OccupancyType { get; set; }
-        public string HazardClassification { get; set; }
-        public double DesignDensityLPMPerM2 { get; set; }
-        public double DesignAreaM2 { get; set; }
-        public double FlowRateLPM { get; set; }
-        public double FlowRateGPM { get; set; }
-        public double DesignPressureKPa { get; set; }
-        public double DesignPressurePSI { get; set; }
-        public int TotalSprinklers { get; set; }
-        public int DesignSprinklers { get; set; }
-        public int DurationMinutes { get; set; }
-        public double TotalWaterDemandLiters { get; set; }
-        public double TotalWaterDemandGallons { get; set; }
-        public List<string> Recommendations { get; set; } = new List<string>();
-    }
     
     public class HydrantResult
     {
@@ -278,22 +192,6 @@ namespace StingTools.Standards
         public List<string> Recommendations { get; set; } = new List<string>();
     }
     
-    public class EquipmentLifecycleResult
-    {
-        public string EquipmentType { get; set; }
-        public DateTime InstallDate { get; set; }
-        public double PurchaseCost { get; set; }
-        public int ExpectedLifeYears { get; set; }
-        public int CurrentAgeYears { get; set; }
-        public int RemainingLifeYears { get; set; }
-        public DateTime ProjectedReplacementDate { get; set; }
-        public double TotalMaintenanceCost { get; set; }
-        public double TotalLifecycleCost { get; set; }
-        public double AnnualDepreciation { get; set; }
-        public double BookValue { get; set; }
-        public List<string> Recommendations { get; set; } = new List<string>();
-    }
-    
     public class EnergyAnalysisResult
     {
         public double FloorAreaM2 { get; set; }
@@ -313,62 +211,6 @@ namespace StingTools.Standards
     }
     
     // CODE COMPLIANCE RESULTS
-    
-    public class EgressResult
-    {
-        public double FloorAreaM2 { get; set; }
-        public int OccupantLoad { get; set; }
-        public string OccupancyGroup { get; set; }
-        public bool Sprinklered { get; set; }
-        public double RequiredWidthMM { get; set; }
-        public int RequiredExits { get; set; }
-        public double MinSeparationDistanceM { get; set; }
-        public double MaxTravelDistanceM { get; set; }
-        public double MaxDeadEndCorridorM { get; set; }
-        public List<string> Recommendations { get; set; } = new List<string>();
-    }
-    
-    public class AccessibilityResult
-    {
-        public double ElevationChangeM { get; set; }
-        public int TotalParkingSpaces { get; set; }
-        public double RequiredRampLengthM { get; set; }
-        public double MaxRampSlope { get; set; }
-        public int RequiredLandings { get; set; }
-        public int RequiredAccessibleParking { get; set; }
-        public int RequiredVanAccessibleSpaces { get; set; }
-        public double MinAccessibleRouteWidthMM { get; set; }
-        public int RequiredAccessibleToilets { get; set; }
-        public List<string> Recommendations { get; set; } = new List<string>();
-    }
-    
-    public class ParkingResult
-    {
-        public double FloorAreaM2 { get; set; }
-        public string BuildingUse { get; set; }
-        public string LocationContext { get; set; }
-        public double ParkingRatio { get; set; }
-        public int RequiredSpaces { get; set; }
-        public int AccessibleSpaces { get; set; }
-        public double TotalParkingAreaM2 { get; set; }
-        public int EVChargingSpaces { get; set; }
-        public List<string> Recommendations { get; set; } = new List<string>();
-    }
-    
-    public class LightingResult
-    {
-        public string Standard { get; set; }
-        public double FloorAreaM2 { get; set; }
-        public string SpaceType { get; set; }
-        public double RequiredLuxLevel { get; set; }
-        public double TotalLumensRequired { get; set; }
-        public int NumberOfFixtures { get; set; }
-        public double LumensPerFixture { get; set; }
-        public double TotalPowerW { get; set; }
-        public double PowerDensityWPerM2 { get; set; }
-        public bool MeetsStandard { get; set; }
-        public List<string> Recommendations { get; set; } = new List<string>();
-    }
     
     #endregion
     
@@ -405,18 +247,6 @@ namespace StingTools.Standards
         public string SpaceType { get; set; }
         public double AreaM2 { get; set; }
         public int OccupantCount { get; set; }
-    }
-    
-    public class StandardInfo
-    {
-        public string Code { get; set; }
-        public string FullName { get; set; }
-        public string Discipline { get; set; }
-        public string IssuingBody { get; set; }
-        public string Region { get; set; }
-        public int YearPublished { get; set; }
-        public string Description { get; set; }
-        public bool IsActive { get; set; }
     }
     
     public class SprinklerDesignCriteria
