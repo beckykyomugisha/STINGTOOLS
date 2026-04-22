@@ -150,6 +150,18 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 115: Fabrication Extensions ──
+                    case "FabExt_ACCPublish":    RunCommand<Commands.FabricationExt.ACCPublishShopCommand>(app); break;
+                    case "FabExt_WeldPath":      RunCommand<Commands.FabricationExt.WeldPathExportCommand>(app); break;
+                    case "FabExt_ExportNC":      RunCommand<Commands.FabricationExt.ExportNCCommand>(app); break;
+                    case "FabExt_DuctSeamAudit": RunCommand<Commands.FabricationExt.DuctSeamAuditCommand>(app); break;
+                    case "FabExt_PipeSupports":  RunCommand<Commands.FabricationExt.PipeSupportGridCommand>(app); break;
+                    case "FabExt_HangerTakedown":RunCommand<Commands.FabricationExt.HangerTakedownCommand>(app); break;
+                    case "FabExt_FlangeRating":  RunCommand<Commands.FabricationExt.FlangeRatingCommand>(app); break;
+                    case "FabExt_SpoolWeight":   RunCommand<Commands.FabricationExt.SpoolWeightCommand>(app); break;
+                    case "FabExt_TitleBlockFill":RunCommand<Commands.FabricationExt.TitleBlockFillCommand>(app); break;
+                    case "FabExt_ISOSymbolsFull":RunCommand<Commands.FabricationExt.ISOSymbolsFullCommand>(app); break;
+
                     // ── Phase 114: Placement + Routing Extensions ──
                     case "PlcExt_SprinklerGrid":  RunCommand<Commands.PlacementExt.SprinklerGridCommand>(app); break;
                     case "PlcExt_AccessibleWC":   RunCommand<Commands.PlacementExt.AccessibleWcCommand>(app); break;
