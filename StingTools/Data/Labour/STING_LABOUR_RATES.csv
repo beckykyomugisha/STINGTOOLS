@@ -1,0 +1,42 @@
+# STING_LABOUR_RATES.csv — labour hours per unit by category/family
+# unit: EA (each), LF (linear feet), SF (square feet), CF (cubic feet)
+# rate_gbp_per_hour: typical UK all-in rate (NAECI 2025 / BESA 2025 indicative)
+# source: BESA Labour Rates 2025, CIBSE TM65, RICS Construction Handbook 2025
+# category_name,family_filter,unit,hours_per_unit,crew,rate_gbp_per_hour
+Electrical Fixtures,,EA,0.50,Sparks,48.00
+Lighting Fixtures,,EA,0.75,Sparks,48.00
+Electrical Equipment,Distribution Board,EA,4.00,Sparks,52.00
+Electrical Equipment,Panel,EA,4.00,Sparks,52.00
+Electrical Equipment,Transformer,EA,8.00,Sparks,55.00
+Electrical Equipment,,EA,2.00,Sparks,48.00
+Conduits,,LF,0.08,Sparks,48.00
+Cable Trays,,LF,0.12,Sparks,48.00
+Mechanical Equipment,AHU,EA,16.00,HVAC,54.00
+Mechanical Equipment,Fan Coil,EA,3.00,HVAC,50.00
+Mechanical Equipment,Chiller,EA,24.00,HVAC,58.00
+Mechanical Equipment,Boiler,EA,12.00,HVAC,54.00
+Mechanical Equipment,Pump,EA,2.50,HVAC,50.00
+Mechanical Equipment,,EA,3.00,HVAC,52.00
+Air Terminals,,EA,0.60,HVAC,48.00
+Ducts,,LF,0.18,HVAC,48.00
+Duct Fittings,,EA,0.40,HVAC,48.00
+Flex Ducts,,LF,0.10,HVAC,46.00
+Pipes,Copper,LF,0.15,Plumber,46.00
+Pipes,,LF,0.10,Plumber,44.00
+Pipe Fittings,,EA,0.30,Plumber,44.00
+Plumbing Fixtures,WC,EA,2.50,Plumber,46.00
+Plumbing Fixtures,Basin,EA,1.50,Plumber,46.00
+Plumbing Fixtures,,EA,1.25,Plumber,44.00
+Sprinklers,,EA,0.80,Fitter,48.00
+Fire Alarm Devices,,EA,0.60,Sparks,50.00
+Communication Devices,,EA,0.40,Sparks,48.00
+Security Devices,,EA,0.75,Sparks,50.00
+Data Devices,,EA,0.40,Sparks,48.00
+Walls,,SF,0.06,Joiner,38.00
+Floors,,SF,0.05,Joiner,38.00
+Ceilings,,SF,0.08,Joiner,38.00
+Roofs,,SF,0.09,Roofer,42.00
+Doors,,EA,1.50,Joiner,38.00
+Windows,,EA,2.00,Joiner,38.00
+Structural Framing,,LF,0.25,Steelwork,55.00
+Structural Columns,,EA,2.50,Steelwork,55.00

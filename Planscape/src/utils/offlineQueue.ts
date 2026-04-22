@@ -197,6 +197,17 @@ export interface SyncResult {
 const MAX_RETRIES_PER_ACTION = 3;
 
 /**
+ * N-G17 — compute exponential-backoff delay in milliseconds.
+ * Sequence: 2s → 4s → 8s → 16s (capped), with ±20% jitter so reconnect
+ * storms across many devices don't hammer the server simultaneously.
+ */
+function backoffMs(retryCount: number): number {
+  const base = Math.min(2_000 * Math.pow(2, Math.max(0, retryCount - 1)), 16_000);
+  const jitter = 1 + (Math.random() * 0.4 - 0.2);
+  return Math.round(base * jitter);
+}
+
+/**
  * Attempt to sync all unsynced actions in FIFO order.
  * Phase 96 — each action gets up to MAX_RETRIES_PER_ACTION shots in the live
  * queue. On transient failure (network) we stop the drain but keep the action
@@ -212,7 +223,10 @@ export async function syncQueue(): Promise<SyncResult> {
   const failed = await loadFailedQueue();
   const result: SyncResult = { total: 0, succeeded: 0, failed: 0, moved: 0, conflicts: 0 };
 
-  const pending = queue.filter((a) => !a.synced);
+  // N-G17 — honour the exponential-backoff gate. Actions whose nextRetryAt
+  // is still in the future are skipped this drain and retried later.
+  const nowMs = Date.now();
+  const pending = queue.filter((a) => !a.synced && (a.nextRetryAt == null || a.nextRetryAt <= nowMs));
   result.total = pending.length;
 
   for (let i = 0; i < pending.length; i++) {
@@ -220,11 +234,13 @@ export async function syncQueue(): Promise<SyncResult> {
     try {
       await replayAction(action);
       action.synced = true;
+      action.nextRetryAt = undefined;
       result.succeeded++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       action.retryCount = (action.retryCount ?? 0) + 1;
       action.lastError = msg;
+      action.nextRetryAt = Date.now() + backoffMs(action.retryCount);
 
       // Permanent errors — move to failed side-queue immediately rather than
       // retry. 4xx (except 408/429) indicate the client payload is the problem
