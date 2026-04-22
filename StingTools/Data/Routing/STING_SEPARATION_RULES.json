@@ -1,0 +1,115 @@
+{
+  "_meta": {
+    "name": "STING v6 BS EN 50174-2 separation rules",
+    "section": "S4.9 (R-E5)",
+    "units": "millimetres between service outer faces",
+    "reference_docs": [
+      "BS EN 50174-2:2018 Information technology — Cabling installation",
+      "HTM 02-01 Medical gas pipeline systems — Part A",
+      "BS 5839-1:2017 Fire detection and fire alarm systems — Code of practice"
+    ]
+  },
+  "rules": [
+    {
+      "id": "PWR_DATA_PARALLEL_ENCLOSED",
+      "source_service": "ELC_PWR",
+      "target_service": "COM_DATA",
+      "geometry": "parallel",
+      "both_enclosed_metal": true,
+      "min_separation_mm": 200,
+      "rationale": "BS EN 50174-2 Table 2 power and data in separate metal trays, parallel run"
+    },
+    {
+      "id": "PWR_DATA_PARALLEL_ONE_OPEN",
+      "source_service": "ELC_PWR",
+      "target_service": "COM_DATA",
+      "geometry": "parallel",
+      "both_enclosed_metal": false,
+      "min_separation_mm": 300,
+      "rationale": "BS EN 50174-2 Table 2 at least one cable not in enclosed metal tray"
+    },
+    {
+      "id": "PWR_DATA_CROSSING",
+      "source_service": "ELC_PWR",
+      "target_service": "COM_DATA",
+      "geometry": "crossing",
+      "min_separation_mm": 50,
+      "rationale": "BS EN 50174-2 90-degree crossings only require short separation"
+    },
+    {
+      "id": "MED_GAS_FROM_ELC",
+      "source_service": "PLM_MED_GAS",
+      "target_service": "ELC_PWR",
+      "geometry": "any",
+      "min_separation_mm": 300,
+      "rationale": "HTM 02-01 Part A 9.22 medical gas min 300 mm from electrical"
+    },
+    {
+      "id": "FIRE_CABLES_NO_SHARE_DATA",
+      "source_service": "COM_FIRE",
+      "target_service": "COM_DATA",
+      "geometry": "any",
+      "share_containment": false,
+      "min_separation_mm": 50,
+      "rationale": "BS 5839-1 §26 fire cables in separate containment from data"
+    },
+    {
+      "id": "FIRE_CABLES_NO_SHARE_PWR",
+      "source_service": "COM_FIRE",
+      "target_service": "ELC_PWR",
+      "geometry": "any",
+      "share_containment": false,
+      "min_separation_mm": 50,
+      "rationale": "BS 5839-1 §26 fire cables in separate containment from power"
+    },
+    {
+      "id": "DATA_BESIDE_FLUORESCENT",
+      "source_service": "COM_DATA",
+      "target_service": "LTG_FLUORESCENT",
+      "geometry": "parallel",
+      "min_separation_mm": 130,
+      "rationale": "BS EN 50174-2 Annex B fluorescent ballast interference"
+    },
+    {
+      "id": "HOT_COLD_WATER",
+      "source_service": "PLM_HWS",
+      "target_service": "PLM_CWS",
+      "geometry": "parallel",
+      "min_separation_mm": 100,
+      "rationale": "CIBSE Guide G condensation prevention"
+    },
+    {
+      "id": "GAS_FROM_ELC",
+      "source_service": "PLM_GAS",
+      "target_service": "ELC_PWR",
+      "geometry": "parallel",
+      "min_separation_mm": 150,
+      "rationale": "BS 6891 gas installations and electrical separation"
+    },
+    {
+      "id": "DRAINAGE_FROM_WATER_SUPPLY",
+      "source_service": "PLM_FOUL",
+      "target_service": "PLM_CWS",
+      "geometry": "vertical",
+      "min_separation_mm": 300,
+      "rationale": "BS EN 12056 drainage above water supply prohibited within 300 mm"
+    },
+    {
+      "id": "EMERGENCY_LTG_FROM_PWR",
+      "source_service": "LTG_EMERGENCY",
+      "target_service": "ELC_PWR",
+      "geometry": "any",
+      "share_containment": false,
+      "min_separation_mm": 50,
+      "rationale": "BS 5266-1 emergency lighting cables separate containment"
+    },
+    {
+      "id": "HIGH_VOLTAGE_FROM_ANY",
+      "source_service": "ELC_HV",
+      "target_service": "*",
+      "geometry": "any",
+      "min_separation_mm": 600,
+      "rationale": "BS 7671 high-voltage min 600 mm from any other service"
+    }
+  ]
+}
