@@ -177,6 +177,8 @@ export interface OfflineAction {
   /** Phase 96 — retry bookkeeping. Actions move to failed side-queue at 3. */
   retryCount?: number;
   lastError?: string;
+  /** N-G17 — exponential-backoff gate: epoch ms when this action may retry. */
+  nextRetryAt?: number;
 }
 
 // ── NEW-INT-01 — entities the mobile app can now list/read ────────────
