@@ -219,26 +219,65 @@ namespace StingTools.Commands.StructuralExt
         }
     }
 
-    // STR-09 — Fabrication tolerance check (BS EN 1090-2)
+    // STR-09 — Fabrication tolerance check (BS EN 1090-2) — wired to FabricationToleranceChecker
     [Transaction(TransactionMode.ReadOnly)][Regeneration(RegenerationOption.Manual)]
     public class ToleranceCheckCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No document."; return Result.Failed; }
-            var p = SExtPanel.Build("STR-09 Fab tolerance", "BS EN 1090-2 Table D.1.1")
-                .AddSection("TOLERANCES")
-                .Metric("Column verticality", "H/300 (e.g. 10mm over 3m)")
-                .Metric("Cumulative vertical", "H/500")
-                .Metric("Beam length",         "± 2 mm up to 6m, ± 3mm 6-24m")
-                .Metric("Straightness",        "L/750")
-                .Metric("Foundation level",    "± 15 mm");
-            p.Text("Pending FabricationToleranceChecker wiring for per-element measured audit.");
-            p.Show(); return Result.Succeeded;
+            var doc = ctx.Doc;
+
+            int colInspected = 0, beamInspected = 0, checksTotal = 0, passed = 0, failed = 0;
+            var issues = new System.Collections.Generic.List<string>();
+
+            try
+            {
+                var targets = new System.Collections.Generic.List<Element>();
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType())
+                { targets.Add(el); colInspected++; }
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType())
+                { targets.Add(el); beamInspected++; }
+
+                foreach (var el in targets)
+                {
+                    try
+                    {
+                        var checks = StingTools.Model.FabricationToleranceChecker.CheckElement(el, doc);
+                        foreach (var c in checks)
+                        {
+                            checksTotal++;
+                            if (c.Pass) passed++;
+                            else { failed++; issues.Add($"{el.Id} {c.CheckName}: {c.Recommendation}"); }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"STR-09 {el?.Id}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Error("STR-09 scan", ex); message = ex.Message; return Result.Failed; }
+
+            var p = SExtPanel.Build("STR-09 Fab tolerance", "BS EN 1090-2 — via FabricationToleranceChecker")
+                .AddSection("SCOPE")
+                .Metric("Columns inspected", colInspected.ToString())
+                .Metric("Beams inspected",    beamInspected.ToString())
+                .AddSection("RESULTS")
+                .Metric("Checks run", checksTotal.ToString())
+                .Metric("Passed",     passed.ToString())
+                .Metric("Flagged",    failed.ToString());
+            if (issues.Count > 0)
+            {
+                p.AddSection("FLAGS (first 30)");
+                foreach (var s in issues.GetRange(0, Math.Min(30, issues.Count))) p.Text(s);
+                if (issues.Count > 30) p.Text($"(+{issues.Count - 30} more)");
+            }
+            p.Show();
+            return Result.Succeeded;
         }
     }
 
-    // STR-10 — Creep + shrinkage deflection (EC2 Annex B)
+    // STR-10 — Creep + shrinkage deflection (EC2 Annex B) — wired to CreepDeflectionAnalysis
     [Transaction(TransactionMode.ReadOnly)][Regeneration(RegenerationOption.Manual)]
     public class CreepDeflectionCommand : IExternalCommand
     {
@@ -246,18 +285,31 @@ namespace StingTools.Commands.StructuralExt
         {
             var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No document."; return Result.Failed; }
             if (!NumericPrompt.TryAsk("STR-10 Creep deflection (EC2 Annex B)",
-                new[] { "Span (m)", "Concrete C fck (MPa)", "RH (%)", "Age at loading t0 (days)", "Slab thickness (mm)" },
-                new[] { 6.0, 30.0, 70.0, 28.0, 200.0 }, out var v)) return Result.Cancelled;
-            double phi = 1.6 * (1 - v[2]/100) / Math.Pow(v[3] / 28, 0.2) * Math.Pow(300 / v[4], 0.1);
-            // Simple estimate: long-term deflection = short × (1 + φ)
-            double spanLimit = v[0] * 1000 / 250; // L/250
-            var p = SExtPanel.Build("STR-10 Creep deflection", "EC2 §7.4.3 + Annex B")
-                .AddSection("TIME-DEPENDENT")
-                .Metric("Creep coefficient φ(∞,t0)", $"{phi:F2}")
-                .Metric("Span limit L/250",          $"{spanLimit:F0} mm")
-                .Metric("Span limit L/125 (partition)", $"{spanLimit*2:F0} mm");
-            p.Text("Pre-camber = short-term deflection × (1 + φ) to meet limit. Pending CreepDeflectionAnalysis wiring.");
-            p.Show(); return Result.Succeeded;
+                new[] { "Span (mm)", "Immediate δ (mm)", "Dead:total ratio", "Live:total ratio", "RH %", "Age t0 days", "Years" },
+                new[] { 6000.0,       12.0,                0.7,                0.3,                 70.0,     28.0,            60.0 },
+                out var v)) return Result.Cancelled;
+
+            try
+            {
+                var res = StingTools.Model.CreepDeflectionAnalysis.Calculate(
+                    spanMm: v[0], immediateDeflectionMm: v[1],
+                    deadLoadRatio: v[2], liveLoadRatio: v[3],
+                    relativeHumidityPct: v[4], loadingAgeDays: v[5], timeYears: (int)v[6]);
+
+                var p = SExtPanel.Build("STR-10 Creep deflection", "EC2 §7.4 + Annex B — via CreepDeflectionAnalysis")
+                    .AddSection("TIME-DEPENDENT")
+                    .Metric("φ(∞,t0)",             $"{res.CreepCoefficient:F2}")
+                    .Metric("Immediate δ",          $"{res.ImmediateDeflectionMm:F1} mm")
+                    .Metric("Creep δ",              $"{res.CreepDeflectionMm:F1} mm")
+                    .Metric("Total long-term δ",    $"{(res.ImmediateDeflectionMm + res.CreepDeflectionMm):F1} mm")
+                    .Metric("Span/δ ratio",         $"{res.SpanDeflectionRatio:F0}")
+                    .Metric("Allowed L/250",        $"{res.AllowedRatio:F0}")
+                    .Metric("Verdict",              res.Pass ? "PASS" : "REVIEW");
+                if (!string.IsNullOrEmpty(res.Recommendation)) p.Text(res.Recommendation);
+                p.Show();
+            }
+            catch (Exception ex) { StingLog.Error("STR-10", ex); message = ex.Message; return Result.Failed; }
+            return Result.Succeeded;
         }
     }
 }
