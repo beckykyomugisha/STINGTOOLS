@@ -150,6 +150,38 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 116: Standards Extensions + Regional + Bulk API wrappers ──
+                    case "StdExt_StageCompliance":  RunCommand<Commands.StandardsExt.StageComplianceAuditCommand>(app); break;
+                    case "StdExt_SetRegion":         RunCommand<Commands.StandardsExt.SetRegionCommand>(app); break;
+                    case "StdExt_AccessibilityAudit":RunCommand<Commands.StandardsExt.AccessibilityAuditCommand>(app); break;
+                    case "StdExt_ParkingAudit":      RunCommand<Commands.StandardsExt.ParkingAuditCommand>(app); break;
+                    case "StdExt_LiveLoadAudit":     RunCommand<Commands.StandardsExt.LiveLoadAuditCommand>(app); break;
+                    case "StdExt_LoadCombinations":  RunCommand<Commands.StandardsExt.LoadCombinationsCommand>(app); break;
+                    case "StdExt_EUIBenchmark":      RunCommand<Commands.StandardsExt.EUIBenchmarkCommand>(app); break;
+                    case "StdExt_WaterUse":           RunCommand<Commands.StandardsExt.WaterUseCommand>(app); break;
+                    case "StdExt_SpaceEff":           RunCommand<Commands.StandardsExt.SpaceEffCommand>(app); break;
+                    case "StdExt_LifecycleCost":      RunCommand<Commands.StandardsExt.LifecycleCostCommand>(app); break;
+                    case "StdBulk_Ventilation":      RunCommand<Commands.StandardsExt.VentilationCommand>(app); break;
+                    case "StdBulk_PlumbingPipe":      RunCommand<Commands.StandardsExt.PlumbingPipeSizeCommand>(app); break;
+                    case "StdBulk_DuctEqualFrict":    RunCommand<Commands.StandardsExt.DuctEqualFrictionCommand>(app); break;
+                    case "StdBulk_Psychrometric":     RunCommand<Commands.StandardsExt.PsychrometricCommand>(app); break;
+                    case "StdBulk_ArcFlash":          RunCommand<Commands.StandardsExt.ArcFlashCommand>(app); break;
+                    case "StdBulk_ConduitFill":       RunCommand<Commands.StandardsExt.ConduitFillCommand>(app); break;
+                    case "StdBulk_SteelBeam":         RunCommand<Commands.StandardsExt.SteelBeamCommand>(app); break;
+                    case "StdBulk_ConcreteBeam":      RunCommand<Commands.StandardsExt.ConcreteBeamCommand>(app); break;
+                    case "StdBulk_Foundation":        RunCommand<Commands.StandardsExt.FoundationCommand>(app); break;
+                    case "StdBulk_Seismic":           RunCommand<Commands.StandardsExt.SeismicCommand>(app); break;
+                    case "StdBulk_OccupantLoad":      RunCommand<Commands.StandardsExt.OccupantLoadCommand>(app); break;
+                    case "StdBulk_TravelDistance":    RunCommand<Commands.StandardsExt.TravelDistanceCommand>(app); break;
+                    case "StdBulk_EgressWidth":       RunCommand<Commands.StandardsExt.EgressWidthCommand>(app); break;
+                    case "StdBulk_SpaceUtil":         RunCommand<Commands.StandardsExt.SpaceUtilizationCommand>(app); break;
+                    case "StdBulk_Hydrant":           RunCommand<Commands.StandardsExt.HydrantCommand>(app); break;
+                    case "StdBulk_MaintenanceCost":   RunCommand<Commands.StandardsExt.MaintenanceCostCommand>(app); break;
+                    case "StdBulk_AccessibleToilet":  RunCommand<Commands.StandardsExt.AccessibleToiletCommand>(app); break;
+                    case "StdBulk_AccessibleFix":     RunCommand<Commands.StandardsExt.AccessibleFixturesCommand>(app); break;
+                    case "StdBulk_EnergyAnalysis":    RunCommand<Commands.StandardsExt.EnergyAnalysisCommand>(app); break;
+                    case "StdBulk_SprinklerCriteria": RunCommand<Commands.StandardsExt.SprinklerCriteriaCommand>(app); break;
+
                     // ── Phase 115: Fabrication Extensions ──
                     case "FabExt_ACCPublish":    RunCommand<Commands.FabricationExt.ACCPublishShopCommand>(app); break;
                     case "FabExt_WeldPath":      RunCommand<Commands.FabricationExt.WeldPathExportCommand>(app); break;
