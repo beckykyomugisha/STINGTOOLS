@@ -150,6 +150,14 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 110: Standards & compliance calculations ──
+                    case "Std_CalcCableSize":   RunCommand<Commands.Standards.CalcCableSizeCommand>(app); break;
+                    case "Std_CalcWindLoad":    RunCommand<Commands.Standards.CalcWindLoadCommand>(app); break;
+                    case "Std_CalcLighting":    RunCommand<Commands.Standards.CalcLightingCommand>(app); break;
+                    case "Std_CalcCoolingLoad": RunCommand<Commands.Standards.CalcCoolingLoadCommand>(app); break;
+                    case "Std_CalcEgress":      RunCommand<Commands.Standards.CalcEgressCommand>(app); break;
+                    case "Std_DesignSprinkler": RunCommand<Commands.Standards.DesignSprinklerCommand>(app); break;
+
                     // ── Phase 109: MEP workflow automation ──
                     case "Mep_PressureDrop":    RunCommand<Commands.Mep.MepPressureDropAnalyseCommand>(app); break;
                     case "Mep_FittingLoss":     RunCommand<Commands.Mep.MepFittingLossReportCommand>(app); break;

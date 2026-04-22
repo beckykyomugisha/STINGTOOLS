@@ -4128,6 +4128,59 @@
                                 </DockPanel>
                             </TabItem>
 
+                            <!-- ─── Phase 110: Standards & Compliance Tab ─── -->
+                            <TabItem Header="Standards">
+                                <DockPanel>
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Cable size"    Tag="Std_CalcCableSize"    Click="Cmd_Click" Width="90"  Height="30" ToolTip="BS 7671 / IEC 60364 / NEC 310 cable sizing"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Wind load"     Tag="Std_CalcWindLoad"     Click="Cmd_Click" Width="90"  Height="30" ToolTip="ASCE 7 / EN 1991-1-4 / BS 6399-2 wind pressure"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Lighting"      Tag="Std_CalcLighting"     Click="Cmd_Click" Width="80"  Height="30" ToolTip="CIBSE / EN 12464-1 lux calculation"/>
+                                    </WrapPanel>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel Margin="4">
+
+                                            <TextBlock Text="ELECTRICAL" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Cable size (V/A/length → AWG, Vdrop)"  Tag="Std_CalcCableSize"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="STRUCTURAL" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Wind load (ASCE 7 / EC 1991-1-4)"       Tag="Std_CalcWindLoad"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="HVAC + LIGHTING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Cooling load (ASHRAE / CIBSE Guide A)"   Tag="Std_CalcCoolingLoad"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Lighting (CIBSE / EN 12464-1)"            Tag="Std_CalcLighting"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="LIFE SAFETY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Egress + travel distance (IBC / NFPA 101)"  Tag="Std_CalcEgress"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Sprinkler design (NFPA 13 / EN 12845)"      Tag="Std_DesignSprinkler"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="REFERENCE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <TextBlock FontSize="9" TextWrapping="Wrap" Text="Backed by StingTools.Standards calc library — 22,800 lines covering IBC / ASHRAE / ACI / ASCE 7 / ASTM / NEC / NFPA / IMC / IPC / IEEE / SMACNA / BS (6399, 7671, struct, compr) / CIBSE / Eurocodes (EC2+EC3+EN 1990-1999) / ISO 19650 + ISO 9001 family / KEBS / UNBS / TBS / RSB / SSBS / BBN / EAS / ECOWAS / SANS / CIDB / green building."/>
+                                                </StackPanel>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+
                             <!-- ─── Phase 109: MEP Automation Tab ─── -->
                             <TabItem Header="MEP">
                                 <DockPanel>
