@@ -150,6 +150,22 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 114: Placement + Routing Extensions ──
+                    case "PlcExt_SprinklerGrid":  RunCommand<Commands.PlacementExt.SprinklerGridCommand>(app); break;
+                    case "PlcExt_AccessibleWC":   RunCommand<Commands.PlacementExt.AccessibleWcCommand>(app); break;
+                    case "PlcExt_FireExt":        RunCommand<Commands.PlacementExt.FireExtinguisherCommand>(app); break;
+                    case "PlcExt_ExitSigns":      RunCommand<Commands.PlacementExt.ExitSignsCommand>(app); break;
+                    case "PlcExt_EmergencyLumAll":RunCommand<Commands.PlacementExt.EmergencyLumAllCommand>(app); break;
+                    case "PlcExt_AccessControl":  RunCommand<Commands.PlacementExt.AccessControlCommand>(app); break;
+                    case "PlcExt_CCTVCoverage":   RunCommand<Commands.PlacementExt.CCTVCoverageCommand>(app); break;
+                    case "RtExt_Manhattan":       RunCommand<Commands.RoutingExt.ManhattanLayoutCommand>(app); break;
+                    case "RtExt_ClashAvoid":      RunCommand<Commands.RoutingExt.ClashAvoidCommand>(app); break;
+                    case "RtExt_CableBundle":     RunCommand<Commands.RoutingExt.CableBundleCommand>(app); break;
+                    case "RtExt_PipeInsulation":  RunCommand<Commands.RoutingExt.PipeInsulationCommand>(app); break;
+                    case "RtExt_AutoFireDamper":  RunCommand<Commands.RoutingExt.AutoFireDamperCommand>(app); break;
+                    case "RtExt_ExpansionLoop":   RunCommand<Commands.RoutingExt.ExpansionLoopCommand>(app); break;
+                    case "RtExt_TrayRiser":       RunCommand<Commands.RoutingExt.TrayRiserCommand>(app); break;
+
                     // ── Phase 113: MEP Design Extensions ──
                     case "MepA_CableSizeApply":  RunCommand<Commands.MepDesign.CableSizeApplyCommand>(app); break;
                     case "MepA_PanelSchedule":    RunCommand<Commands.MepDesign.PanelScheduleBuildCommand>(app); break;
