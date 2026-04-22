@@ -1,6 +1,7 @@
 // STING Tools — Phase 113: MEP Design Extensions (MEP-A-01..12).
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -25,18 +26,90 @@ namespace StingTools.Commands.MepDesign
         public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
-            int circuits = 0;
-            try {
-                foreach (var el in new FilteredElementCollector(ctx.Doc)
-                    .OfCategory(BuiltInCategory.OST_ElectricalCircuit).WhereElementIsNotElementType())
-                    circuits++;
-            } catch { }
-            MepPanel.Build("MEP-A-01 Cable size apply", "BS 7671 / IEC 60364 / NEC — whole project")
-                .AddSection("SCOPE")
-                .Metric("Circuits found", circuits.ToString())
-                .Text("For each circuit, calls StandardsAPI.CalculateCableSize with circuit load + length + insulation + ambient °C, then writes the selected AWG/mm² back to CABLE_SIZE parameter. Full writer pending Revit API wiring.")
-                .Show();
+            var doc = ctx.Doc;
+
+            if (!NumericPrompt.TryAsk("MEP-A-01 Cable size apply (project-wide)",
+                new[] { "Default length (m)", "Default ambient °C", "Conduit fill" },
+                new[] { 30.0,                   30.0,                  3.0 }, out var v)) return Result.Cancelled;
+
+            int inspected = 0, sized = 0, skipped = 0;
+            var warnings = new List<string>();
+
+            using (var tx = new Transaction(doc, "STING MEP-A-01 cable size apply"))
+            {
+                try { tx.Start(); } catch (Exception ex) { warnings.Add($"tx: {ex.Message}"); goto Done; }
+                try
+                {
+                    foreach (var el in new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_ElectricalCircuit).WhereElementIsNotElementType())
+                    {
+                        inspected++;
+                        try
+                        {
+                            // TODO-VERIFY-API: voltage on RBS_ELEC_VOLTAGE, current on
+                            // RBS_ELEC_APPARENT_LOAD_A. Guarded reads below.
+                            double voltageV = ReadBip(el, BuiltInParameter.RBS_ELEC_VOLTAGE);
+                            double currentA = ReadBip(el, BuiltInParameter.RBS_ELEC_APPARENT_LOAD_A);
+                            if (voltageV <= 0 || currentA <= 0) { skipped++; continue; }
+
+                            var res = StingTools.Standards.StandardsAPI.CalculateCableSize(
+                                voltageV: voltageV, currentA: currentA, lengthM: v[0],
+                                conductorType: "Copper", insulationType: "THHN",
+                                conduitFill: (int)v[2], ambientTempC: v[1], standard: "IEC60364");
+                            if (!res.Success || string.IsNullOrEmpty(res.SizeAWG)) { skipped++; continue; }
+
+                            var p = el.LookupParameter("CABLE_SIZE") ??
+                                    el.LookupParameter("ELC_CBL_SIZE_TXT");
+                            if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
+                            {
+                                p.Set(res.SizeAWG);
+                                sized++;
+                            }
+                            else skipped++;
+                        }
+                        catch (Exception ex)
+                        {
+                            skipped++;
+                            warnings.Add($"circuit {el?.Id}: {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    warnings.Add($"fatal: {ex.Message}");
+                }
+            }
+        Done:
+            var panel = MepPanel.Build("MEP-A-01 Cable size apply", "BS 7671 / IEC 60364 / NEC — whole project")
+                .AddSection("RESULT")
+                .Metric("Circuits inspected", inspected.ToString())
+                .Metric("Cables sized + written", sized.ToString())
+                .Metric("Skipped (missing V/A or param)", skipped.ToString());
+            if (warnings.Count > 0)
+            {
+                panel.AddSection("WARNINGS");
+                foreach (var w in warnings.GetRange(0, Math.Min(30, warnings.Count))) panel.Text(w);
+                if (warnings.Count > 30) panel.Text($"(+{warnings.Count - 30} more)");
+            }
+            panel.Show();
             return Result.Succeeded;
+        }
+
+        private static double ReadBip(Element el, BuiltInParameter bip)
+        {
+            try { var p = el?.get_Parameter(bip);
+                  if (p == null) return 0;
+                  if (p.StorageType == StorageType.Double) return p.AsDouble();
+                  if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                  if (p.StorageType == StorageType.String &&
+                      double.TryParse(p.AsString(),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out double v)) return v; }
+            catch (Exception ex) { StingLog.Warn($"ReadBip: {ex.Message}"); }
+            return 0;
         }
     }
 
@@ -279,11 +352,107 @@ namespace StingTools.Commands.MepDesign
         public Result Execute(ExternalCommandData cd, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
+            var doc = ctx.Doc;
+
+            // Collect every duct + pipe with a non-zero RBS flow parameter,
+            // build a branch dataset, run MEPBalancingEngine, then write the
+            // balanced flow back as the element's "Design flow" override.
+            var branches = new List<(string Name, double DesignFlowLs, double ResistanceCoeff, ElementId Id, bool IsDuct)>();
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_DuctCurves).WhereElementIsNotElementType())
+                {
+                    double cfm = ReadBip(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
+                    if (cfm <= 0) continue;
+                    double lps = cfm * 0.4719;
+                    branches.Add(($"D{el.Id}", lps, 0.1, el.Id, true));
+                }
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_PipeCurves).WhereElementIsNotElementType())
+                {
+                    double lps = ReadBip(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM);
+                    if (lps <= 0) continue;
+                    branches.Add(($"P{el.Id}", lps, 0.2, el.Id, false));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BalanceApply collect: {ex.Message}"); }
+
+            if (branches.Count == 0)
+            {
+                MepPanel.Build("MEP-A-12 Balance apply", "Hardy-Cross → Revit")
+                    .AddSection("NO BRANCHES")
+                    .Text("No ducts/pipes with flow parameter set. Run design flow assignment first (Mep_DuctStaticRegain or design tool).")
+                    .Show();
+                return Result.Succeeded;
+            }
+
+            // Run the balancer
+            var enginBranches = branches.Select(b => (b.Name, b.DesignFlowLs, b.ResistanceCoeff)).ToList();
+            var result = StingTools.Model.MEPBalancingEngine.BalanceSystem(
+                enginBranches, totalSupplyPressurePa: 250.0, maxIterations: 50, tolerancePa: 1.0);
+
+            // Build a name → balanced-flow lookup so we can write back.
+            var byName = result.BranchResults.ToDictionary(b => b.BranchName, b => b);
+
+            int written = 0, skipped = 0;
+            using (var tx = new Transaction(doc, "STING MEP-A-12 balance apply"))
+            {
+                try { tx.Start(); }
+                catch (Exception ex) { MepPanel.Build("MEP-A-12 Balance apply", "tx failed").AddSection("").Text(ex.Message).Show(); return Result.Failed; }
+                try
+                {
+                    foreach (var b in branches)
+                    {
+                        if (!byName.TryGetValue(b.Name, out var outcome)) { skipped++; continue; }
+                        var el = doc.GetElement(b.Id);
+                        if (el == null) { skipped++; continue; }
+                        try
+                        {
+                            if (b.IsDuct)
+                            {
+                                double cfm = outcome.ActualFlowLs / 0.4719;
+                                var p = el.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
+                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double) { p.Set(cfm); written++; }
+                                else skipped++;
+                            }
+                            else
+                            {
+                                var p = el.get_Parameter(BuiltInParameter.RBS_PIPE_FLOW_PARAM);
+                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double) { p.Set(outcome.ActualFlowLs); written++; }
+                                else skipped++;
+                            }
+                        }
+                        catch { skipped++; }
+                    }
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    StingLog.Warn($"BalanceApply commit: {ex.Message}");
+                }
+            }
+
             MepPanel.Build("MEP-A-12 Balance apply", "Hardy-Cross → Revit")
-                .AddSection("BALANCE APPLY")
-                .Text("Runs Phase 109 MEPBalancingEngine then writes each branch's computed flow to RBS_DUCT_DESIGN_FLOW / RBS_PIPE_DESIGN_FLOW so the model reflects the balanced state. Full writer coming; Mep_Balance already computes the target flows.")
+                .AddSection("BALANCER")
+                .Metric("Iterations", result.Iterations.ToString())
+                .Metric("Converged",   result.Converged ? "yes" : "no")
+                .Metric("Max imbalance", $"{result.MaxImbalancePa:F0} Pa")
+                .AddSection("WRITE-BACK")
+                .Metric("Branches",  branches.Count.ToString())
+                .Metric("Written",    written.ToString())
+                .Metric("Skipped",    skipped.ToString())
                 .Show();
             return Result.Succeeded;
+        }
+
+        private static double ReadBip(Element el, BuiltInParameter bip)
+        {
+            try { var p = el?.get_Parameter(bip);
+                  if (p == null || p.StorageType != StorageType.Double) return 0;
+                  return p.AsDouble(); }
+            catch { return 0; }
         }
     }
 }
