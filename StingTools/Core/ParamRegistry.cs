@@ -672,6 +672,10 @@ namespace StingTools.Core
         public static string TAG_LEADER_COLOR_G { get; private set; } = "TAG_LEADER_COLOR_G_INT";
         /// <summary>Tag leader line color — Blue channel (0-255).</summary>
         public static string TAG_LEADER_COLOR_B { get; private set; } = "TAG_LEADER_COLOR_B_INT";
+        /// <summary>Tag scale tier auto-selection flag (type BOOL).</summary>
+        public static string TAG_SCALE_TIER_AUTO { get; private set; } = "TAG_SCALE_TIER_AUTO_BOOL";
+        /// <summary>Active depth tier cached on tag family type (1-10, type INTEGER).</summary>
+        public static string TAG_DEPTH_TIER { get; private set; } = "TAG_DEPTH_TIER_INT";
 
         // ── Semantic color meaning registry ──────────────────────────────
         // Maps colors to what they represent in each context:
