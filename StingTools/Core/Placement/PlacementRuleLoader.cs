@@ -1,0 +1,128 @@
+// StingTools v4 MVP — placement rule loader.
+//
+// Loads STING_PLACEMENT_RULES.json (plugin default) and optionally
+// STING_PLACEMENT_RULES.project.json (per-project override) and
+// merges them with project-level winning on MergeKey.
+//
+// Default path resolution reuses StingToolsApp.FindDataFile which
+// searches the DataPath (copied from StingTools/Data/ at build time).
+// Project-override path is resolved against the .rvt's directory.
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Newtonsoft.Json;
+
+namespace StingTools.Core.Placement
+{
+    /// <summary>
+    /// Loads + merges placement rules. Stateless; all methods static.
+    /// Never throws: any IO / parse failure returns an empty list and
+    /// writes a StingLog.Warn line.
+    /// </summary>
+    public static class PlacementRuleLoader
+    {
+        private const string DefaultFileName = "STING_PLACEMENT_RULES.json";
+        private const string ProjectOverrideFileName = "STING_PLACEMENT_RULES.project.json";
+
+        /// <summary>
+        /// Load the default rule set only (no project override).
+        /// </summary>
+        public static List<PlacementRule> LoadDefaults()
+        {
+            string path = StingToolsApp.FindDataFile(DefaultFileName);
+            return LoadFromFileSafe(path);
+        }
+
+        /// <summary>
+        /// Load + merge. projectPath is the absolute path of the
+        /// current .rvt; override file is expected next to it.
+        /// If projectPath is null or empty, returns defaults only.
+        /// </summary>
+        public static List<PlacementRule> Load(string projectPath)
+        {
+            List<PlacementRule> merged = LoadDefaults();
+
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return merged;
+
+            string projectDir = null;
+            try { projectDir = Path.GetDirectoryName(projectPath); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementRuleLoader: cannot derive directory from project path '{projectPath}': {ex.Message}");
+                return merged;
+            }
+
+            if (string.IsNullOrEmpty(projectDir))
+                return merged;
+
+            string overridePath = Path.Combine(projectDir, ProjectOverrideFileName);
+            if (!File.Exists(overridePath))
+                return merged;
+
+            List<PlacementRule> overrides = LoadFromFileSafe(overridePath);
+            if (overrides == null || overrides.Count == 0)
+                return merged;
+
+            return MergeRules(merged, overrides);
+        }
+
+        /// <summary>
+        /// Project overrides win on MergeKey match. Rules with a unique
+        /// MergeKey are appended. Priority is NOT used for merge — it is
+        /// a scoring tie-breaker at placement time.
+        /// </summary>
+        public static List<PlacementRule> MergeRules(
+            List<PlacementRule> defaults,
+            List<PlacementRule> overrides)
+        {
+            var result = new Dictionary<string, PlacementRule>(StringComparer.OrdinalIgnoreCase);
+
+            if (defaults != null)
+            {
+                foreach (var rule in defaults)
+                {
+                    if (rule == null) continue;
+                    result[rule.MergeKey] = rule.Clone();
+                }
+            }
+
+            if (overrides != null)
+            {
+                foreach (var rule in overrides)
+                {
+                    if (rule == null) continue;
+                    // Project override wins on same merge key.
+                    result[rule.MergeKey] = rule.Clone();
+                }
+            }
+
+            return new List<PlacementRule>(result.Values);
+        }
+
+        /// <summary>
+        /// Parse a single rules JSON file. Returns empty list on any
+        /// failure (missing file, malformed JSON, wrong schema).
+        /// </summary>
+        private static List<PlacementRule> LoadFromFileSafe(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return new List<PlacementRule>();
+
+            try
+            {
+                string json = File.ReadAllText(path);
+                var set = JsonConvert.DeserializeObject<PlacementRuleSet>(json);
+                if (set == null || set.Rules == null)
+                    return new List<PlacementRule>();
+                return set.Rules;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementRuleLoader: failed to parse '{path}': {ex.Message}");
+                return new List<PlacementRule>();
+            }
+        }
+    }
+}

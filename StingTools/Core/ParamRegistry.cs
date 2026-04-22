@@ -2412,5 +2412,33 @@ namespace StingTools.Core
             public string Description { get; set; }
             public string[] Categories { get; set; }
         }
+
+        #region V4 placement + CPC parameters
+
+        // ASS_PLACE_ANCHOR_TXT — anchor reference used by FixturePlacementEngine (e.g. "DOOR_HINGE", "ROOM_CENTRE", "WALL_MIDPOINT")
+        public const string PLACE_ANCHOR = "ASS_PLACE_ANCHOR_TXT";
+        public const string PLACE_ANCHOR_GUID = "a4b5c6d7-e8f9-4a0b-8c1d-2e3f4a5b6c7d";
+
+        // ASS_PLACE_OFFSET_X_MM — signed horizontal offset from anchor in millimetres
+        public const string PLACE_OFFSET_X_MM = "ASS_PLACE_OFFSET_X_MM";
+        public const string PLACE_OFFSET_X_MM_GUID = "b5c6d7e8-f9a0-4b1c-9d2e-3f4a5b6c7d8e";
+
+        // ASS_PLACE_SIDE_TXT — wall/host side flag ("LEFT", "RIGHT", "EITHER")
+        public const string PLACE_SIDE = "ASS_PLACE_SIDE_TXT";
+        public const string PLACE_SIDE_GUID = "c6d7e8f9-a0b1-4c2d-ae3f-4a5b6c7d8e9f";
+
+        // ELC_CPC_SZ_MM — circuit protective conductor size in mm² per BS 7671
+        public const string CPC_SZ_MM = "ELC_CPC_SZ_MM";
+        public const string CPC_SZ_MM_GUID = "d7e8f9a0-b1c2-4d3e-bf4a-5b6c7d8e9fa0";
+
+        // PLM_PPE_INSULATION_THK_MM — pipe insulation thickness in millimetres
+        public const string PPE_INSULATION_THK_MM = "PLM_PPE_INSULATION_THK_MM";
+        public const string PPE_INSULATION_THK_MM_GUID = "e8f9a0b1-c2d3-4e4f-ca5b-6c7d8e9fa0b1";
+
+        // PLM_SLOPE_PCT — drainage pipe slope per BS EN 12056 (1:80 default for sanitary)
+        public const string PLM_SLOPE_PCT_V4 = "PLM_SLOPE_PCT";
+        public const string PLM_SLOPE_PCT_V4_GUID = "f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2";
+
+        #endregion
     }
 }

@@ -137,6 +137,26 @@ namespace StingTools.UI
                     case "SelectAllTaggable": RunCommand<Select.SelectAllTaggableCommand>(app); break;
                     case "SelectCustomCategory": RunCommand<Select.SelectCustomCategoryCommand>(app); break;
 
+                    // ── v4 MVP: fixture placement (Phase 2) ──
+                    case "Placement_PlaceFixtures": RunCommand<Commands.Placement.PlaceFixturesCommand>(app); break;
+                    case "Placement_LightingGrid":  RunCommand<Commands.Placement.LightingGridCommand>(app); break;
+                    case "Placement_Learn":         RunCommand<Commands.Placement.LearnPlacementV4Command>(app); break;
+
+                    // ── v4 MVP: auto-drop routing (Phase 3) ──
+                    case "Routing_AutoDrop":         RunCommand<Commands.Routing.AutoDropCommand>(app); break;
+                    case "Routing_GenerateLayout":   RunCommand<Commands.Routing.GenerateLayoutCommand>(app); break;
+                    case "Routing_ValidateFills":    RunCommand<Commands.Routing.ValidateFillsCommand>(app); break;
+
+                    // ── v4 MVP: validators (Phase 4) ──
+                    case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
+
+                    // ── v4 MVP: fabrication (Phase 5) ──
+                    case "Fabrication_GeneratePackage": RunCommand<Commands.Fabrication.GenerateFabPackageCommand>(app); break;
+                    case "Fabrication_ExportCutList":   RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;
+                    case "Fabrication_ExportIsometrics":RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
+                    case "Fabrication_ExportWeldMap":   RunCommand<Commands.Fabrication.ExportWeldMapCommand>(app); break;
+                    case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
+
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
                     case "SetScopeProject": Select.SelectionScopeHelper.SetScope(true); TaskDialog.Show("Scope", "Selection scope: WHOLE PROJECT"); break;
