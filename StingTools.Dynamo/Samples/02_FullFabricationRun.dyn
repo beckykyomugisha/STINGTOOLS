@@ -1,0 +1,43 @@
+{
+  "Uuid": "a1b2c3d4-0002-4a5b-8c6d-0000000000e2",
+  "IsCustomNode": false,
+  "Description": "STING Fabrication — auto-size + auto-drop + auto-sleeve + fab package + cut list export.",
+  "Name": "02_FullFabricationRun",
+  "ElementResolver": { "ResolutionMap": {} },
+  "Inputs": [],
+  "Outputs": [],
+  "Nodes": [
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"n01","Inputs":[],"Outputs":[{"Id":"o01","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Mep.AutoSizeAll","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"n02","Inputs":[],"Outputs":[{"Id":"o02","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Routing.AutoDrop","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"n03","Inputs":[],"Outputs":[{"Id":"o03","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Mep.AutoSleeve","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"n04","Inputs":[],"Outputs":[{"Id":"o04","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Fab.GeneratePackage","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"n05","Inputs":[],"Outputs":[{"Id":"o05","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Fab.ExportCutList","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" }
+  ],
+  "Connectors": [],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [
+    { "Name":"STING Tools","Version":"1.0.0","ReferenceType":"Package","Nodes":["n01","n02","n03","n04","n05"] }
+  ],
+  "Thumbnail": "",
+  "GraphDocumentationURL": null,
+  "ExtensionWorkspaceData": [],
+  "Author": "STING Tools v4",
+  "Linting": { "activeLinter":"None","activeLinterId":"7b75fb44-43fd-4631-a878-29f4d5d8399a","warningCount":0,"errorCount":0 },
+  "Bindings": [],
+  "View": {
+    "Dynamo": { "ScaleFactor":1.0,"HasRunWithoutCrash":true,"IsVisibleInDynamoLibrary":true,"Version":"2.17.0","RunType":"Manual","RunPeriod":"1000" },
+    "Camera": { "Name":"_Background Preview","EyeX":-17.0,"EyeY":24.0,"EyeZ":50.0,"LookX":12.0,"LookY":-13.0,"LookZ":-58.0,"UpX":0.0,"UpY":1.0,"UpZ":0.0 },
+    "ConnectorPins": [],
+    "NodeViews": [
+      { "Name":"Mep.AutoSizeAll",     "ShowGeometry":true,"Id":"n01","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":100.0, "Y":150.0 },
+      { "Name":"Routing.AutoDrop",    "ShowGeometry":true,"Id":"n02","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":380.0, "Y":150.0 },
+      { "Name":"Mep.AutoSleeve",      "ShowGeometry":true,"Id":"n03","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":660.0, "Y":150.0 },
+      { "Name":"Fab.GeneratePackage", "ShowGeometry":true,"Id":"n04","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":940.0, "Y":150.0 },
+      { "Name":"Fab.ExportCutList",   "ShowGeometry":true,"Id":"n05","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":1220.0,"Y":150.0 }
+    ],
+    "Annotations": [
+      { "Id":"a01","Title":"Full fabrication run","DescriptionText":"Select the services you want to fabricate. Auto-size runs first so diameters/widths are up-to-date. AutoDrop generates vertical conduit/pipe/duct from each selected fixture. AutoSleeve inserts fire-stop sleeves at every wall crossing. GeneratePackage builds assemblies + shop drawing sheets. ExportCutList closes the loop with a pipe cut-list CSV.","IsExpanded":true,"WidthAdjustment":0.0,"HeightAdjustment":0.0,"Nodes":["n01","n02","n03","n04","n05"],"HasNestedGroups":false,"Left":80.0,"Top":110.0,"Width":1260.0,"Height":200.0,"FontSize":22.0,"GroupStyleId":"00000000-0000-0000-0000-000000000000","Background":"#FFF2A765","TextBlockHeight":28.0,"InitialTop":120.0,"InitialHeight":20.0 }
+    ],
+    "X":0.0,"Y":0.0,"Zoom":1.0
+  }
+}
