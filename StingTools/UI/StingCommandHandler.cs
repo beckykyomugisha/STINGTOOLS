@@ -150,6 +150,123 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Phase 116: Standards Extensions + Regional + Bulk API wrappers ──
+                    case "StdExt_StageCompliance":  RunCommand<Commands.StandardsExt.StageComplianceAuditCommand>(app); break;
+                    case "StdExt_SetRegion":         RunCommand<Commands.StandardsExt.SetRegionCommand>(app); break;
+                    case "StdExt_AccessibilityAudit":RunCommand<Commands.StandardsExt.AccessibilityAuditCommand>(app); break;
+                    case "StdExt_ParkingAudit":      RunCommand<Commands.StandardsExt.ParkingAuditCommand>(app); break;
+                    case "StdExt_LiveLoadAudit":     RunCommand<Commands.StandardsExt.LiveLoadAuditCommand>(app); break;
+                    case "StdExt_LoadCombinations":  RunCommand<Commands.StandardsExt.LoadCombinationsCommand>(app); break;
+                    case "StdExt_EUIBenchmark":      RunCommand<Commands.StandardsExt.EUIBenchmarkCommand>(app); break;
+                    case "StdExt_WaterUse":           RunCommand<Commands.StandardsExt.WaterUseCommand>(app); break;
+                    case "StdExt_SpaceEff":           RunCommand<Commands.StandardsExt.SpaceEffCommand>(app); break;
+                    case "StdExt_LifecycleCost":      RunCommand<Commands.StandardsExt.LifecycleCostCommand>(app); break;
+                    case "StdBulk_Ventilation":      RunCommand<Commands.StandardsExt.VentilationCommand>(app); break;
+                    case "StdBulk_PlumbingPipe":      RunCommand<Commands.StandardsExt.PlumbingPipeSizeCommand>(app); break;
+                    case "StdBulk_DuctEqualFrict":    RunCommand<Commands.StandardsExt.DuctEqualFrictionCommand>(app); break;
+                    case "StdBulk_Psychrometric":     RunCommand<Commands.StandardsExt.PsychrometricCommand>(app); break;
+                    case "StdBulk_ArcFlash":          RunCommand<Commands.StandardsExt.ArcFlashCommand>(app); break;
+                    case "StdBulk_ConduitFill":       RunCommand<Commands.StandardsExt.ConduitFillCommand>(app); break;
+                    case "StdBulk_SteelBeam":         RunCommand<Commands.StandardsExt.SteelBeamCommand>(app); break;
+                    case "StdBulk_ConcreteBeam":      RunCommand<Commands.StandardsExt.ConcreteBeamCommand>(app); break;
+                    case "StdBulk_Foundation":        RunCommand<Commands.StandardsExt.FoundationCommand>(app); break;
+                    case "StdBulk_Seismic":           RunCommand<Commands.StandardsExt.SeismicCommand>(app); break;
+                    case "StdBulk_OccupantLoad":      RunCommand<Commands.StandardsExt.OccupantLoadCommand>(app); break;
+                    case "StdBulk_TravelDistance":    RunCommand<Commands.StandardsExt.TravelDistanceCommand>(app); break;
+                    case "StdBulk_EgressWidth":       RunCommand<Commands.StandardsExt.EgressWidthCommand>(app); break;
+                    case "StdBulk_SpaceUtil":         RunCommand<Commands.StandardsExt.SpaceUtilizationCommand>(app); break;
+                    case "StdBulk_Hydrant":           RunCommand<Commands.StandardsExt.HydrantCommand>(app); break;
+                    case "StdBulk_MaintenanceCost":   RunCommand<Commands.StandardsExt.MaintenanceCostCommand>(app); break;
+                    case "StdBulk_AccessibleToilet":  RunCommand<Commands.StandardsExt.AccessibleToiletCommand>(app); break;
+                    case "StdBulk_AccessibleFix":     RunCommand<Commands.StandardsExt.AccessibleFixturesCommand>(app); break;
+                    case "StdBulk_EnergyAnalysis":    RunCommand<Commands.StandardsExt.EnergyAnalysisCommand>(app); break;
+                    case "StdBulk_SprinklerCriteria": RunCommand<Commands.StandardsExt.SprinklerCriteriaCommand>(app); break;
+
+                    // ── Phase 115: Fabrication Extensions ──
+                    case "FabExt_ACCPublish":    RunCommand<Commands.FabricationExt.ACCPublishShopCommand>(app); break;
+                    case "FabExt_WeldPath":      RunCommand<Commands.FabricationExt.WeldPathExportCommand>(app); break;
+                    case "FabExt_ExportNC":      RunCommand<Commands.FabricationExt.ExportNCCommand>(app); break;
+                    case "FabExt_DuctSeamAudit": RunCommand<Commands.FabricationExt.DuctSeamAuditCommand>(app); break;
+                    case "FabExt_PipeSupports":  RunCommand<Commands.FabricationExt.PipeSupportGridCommand>(app); break;
+                    case "FabExt_HangerTakedown":RunCommand<Commands.FabricationExt.HangerTakedownCommand>(app); break;
+                    case "FabExt_FlangeRating":  RunCommand<Commands.FabricationExt.FlangeRatingCommand>(app); break;
+                    case "FabExt_SpoolWeight":   RunCommand<Commands.FabricationExt.SpoolWeightCommand>(app); break;
+                    case "FabExt_TitleBlockFill":RunCommand<Commands.FabricationExt.TitleBlockFillCommand>(app); break;
+                    case "FabExt_ISOSymbolsFull":RunCommand<Commands.FabricationExt.ISOSymbolsFullCommand>(app); break;
+
+                    // ── Phase 114: Placement + Routing Extensions ──
+                    case "PlcExt_SprinklerGrid":  RunCommand<Commands.PlacementExt.SprinklerGridCommand>(app); break;
+                    case "PlcExt_AccessibleWC":   RunCommand<Commands.PlacementExt.AccessibleWcCommand>(app); break;
+                    case "PlcExt_FireExt":        RunCommand<Commands.PlacementExt.FireExtinguisherCommand>(app); break;
+                    case "PlcExt_ExitSigns":      RunCommand<Commands.PlacementExt.ExitSignsCommand>(app); break;
+                    case "PlcExt_EmergencyLumAll":RunCommand<Commands.PlacementExt.EmergencyLumAllCommand>(app); break;
+                    case "PlcExt_AccessControl":  RunCommand<Commands.PlacementExt.AccessControlCommand>(app); break;
+                    case "PlcExt_CCTVCoverage":   RunCommand<Commands.PlacementExt.CCTVCoverageCommand>(app); break;
+                    case "RtExt_Manhattan":       RunCommand<Commands.RoutingExt.ManhattanLayoutCommand>(app); break;
+                    case "RtExt_ClashAvoid":      RunCommand<Commands.RoutingExt.ClashAvoidCommand>(app); break;
+                    case "RtExt_CableBundle":     RunCommand<Commands.RoutingExt.CableBundleCommand>(app); break;
+                    case "RtExt_PipeInsulation":  RunCommand<Commands.RoutingExt.PipeInsulationCommand>(app); break;
+                    case "RtExt_AutoFireDamper":  RunCommand<Commands.RoutingExt.AutoFireDamperCommand>(app); break;
+                    case "RtExt_ExpansionLoop":   RunCommand<Commands.RoutingExt.ExpansionLoopCommand>(app); break;
+                    case "RtExt_TrayRiser":       RunCommand<Commands.RoutingExt.TrayRiserCommand>(app); break;
+
+                    // ── Phase 113: MEP Design Extensions ──
+                    case "MepA_CableSizeApply":  RunCommand<Commands.MepDesign.CableSizeApplyCommand>(app); break;
+                    case "MepA_PanelSchedule":    RunCommand<Commands.MepDesign.PanelScheduleBuildCommand>(app); break;
+                    case "MepA_BreakerAutoSize":  RunCommand<Commands.MepDesign.BreakerAutoSizeCommand>(app); break;
+                    case "MepA_AutoSizeConduitAll": RunCommand<Commands.MepDesign.AutoSizeConduitAllCommand>(app); break;
+                    case "MepA_GroundingDesign":  RunCommand<Commands.MepDesign.GroundingDesignCommand>(app); break;
+                    case "MepA_DuctStaticRegain":  RunCommand<Commands.MepDesign.DuctStaticRegainCommand>(app); break;
+                    case "MepA_PumpSize":          RunCommand<Commands.MepDesign.PumpSizeCommand>(app); break;
+                    case "MepA_TransformerSize":   RunCommand<Commands.MepDesign.TransformerSizeCommand>(app); break;
+                    case "MepA_GeneratorSize":     RunCommand<Commands.MepDesign.GeneratorSizeCommand>(app); break;
+                    case "MepA_WaterHeaterSize":   RunCommand<Commands.MepDesign.WaterHeaterSizeCommand>(app); break;
+                    case "MepA_DrainageSize":      RunCommand<Commands.MepDesign.DrainageSizeCommand>(app); break;
+                    case "MepA_BalanceApply":      RunCommand<Commands.MepDesign.BalanceApplyCommand>(app); break;
+
+                    // ── Phase 112: Structural Extensions ──
+                    case "StrExt_AutoSlabRebar":     RunCommand<Commands.StructuralExt.AutoSlabRebarCommand>(app); break;
+                    case "StrExt_FullColumnTakedown":RunCommand<Commands.StructuralExt.FullColumnTakedownCommand>(app); break;
+                    case "StrExt_WindAutoApply":     RunCommand<Commands.StructuralExt.WindAutoApplyCommand>(app); break;
+                    case "StrExt_SeismicAutoApply":  RunCommand<Commands.StructuralExt.SeismicAutoApplyCommand>(app); break;
+                    case "StrExt_PileGroup":         RunCommand<Commands.StructuralExt.PileGroupDesignCommand>(app); break;
+                    case "StrExt_RetainingWall":     RunCommand<Commands.StructuralExt.RetainingWallCheckCommand>(app); break;
+                    case "StrExt_AutoConnection":    RunCommand<Commands.StructuralExt.AutoConnectionCommand>(app); break;
+                    case "StrExt_CompositeBeam":     RunCommand<Commands.StructuralExt.CompositeBeamDesignCommand>(app); break;
+                    case "StrExt_ToleranceCheck":    RunCommand<Commands.StructuralExt.ToleranceCheckCommand>(app); break;
+                    case "StrExt_CreepDeflection":   RunCommand<Commands.StructuralExt.CreepDeflectionCommand>(app); break;
+
+                    // ── Phase 111: Architecture & shell automation ──
+                    case "Arch_AutoStair":       RunCommand<Commands.Architecture.AutoStairCommand>(app); break;
+                    case "Arch_AutoRailing":     RunCommand<Commands.Architecture.AutoRailingCommand>(app); break;
+                    case "Arch_AutoCurtainWall": RunCommand<Commands.Architecture.AutoCurtainWallCommand>(app); break;
+                    case "Arch_AutoOpening":     RunCommand<Commands.Architecture.AutoOpeningCommand>(app); break;
+                    case "Arch_AutoPlaster":     RunCommand<Commands.Architecture.AutoPlasterCommand>(app); break;
+                    case "Arch_CoverAudit":      RunCommand<Commands.Architecture.CoverAuditCommand>(app); break;
+
+                    // ── Phase 110: Standards & compliance calculations ──
+                    case "Std_CalcCableSize":   RunCommand<Commands.Standards.CalcCableSizeCommand>(app); break;
+                    case "Std_CalcWindLoad":    RunCommand<Commands.Standards.CalcWindLoadCommand>(app); break;
+                    case "Std_CalcLighting":    RunCommand<Commands.Standards.CalcLightingCommand>(app); break;
+                    case "Std_CalcCoolingLoad": RunCommand<Commands.Standards.CalcCoolingLoadCommand>(app); break;
+                    case "Std_CalcEgress":      RunCommand<Commands.Standards.CalcEgressCommand>(app); break;
+                    case "Std_DesignSprinkler": RunCommand<Commands.Standards.DesignSprinklerCommand>(app); break;
+
+                    // ── Phase 109: MEP workflow automation ──
+                    case "Mep_PressureDrop":    RunCommand<Commands.Mep.MepPressureDropAnalyseCommand>(app); break;
+                    case "Mep_FittingLoss":     RunCommand<Commands.Mep.MepFittingLossReportCommand>(app); break;
+                    case "Mep_Balance":         RunCommand<Commands.Mep.MepBalanceSystemCommand>(app); break;
+                    case "Mep_VibroAcoustic":   RunCommand<Commands.Mep.MepVibroAcousticCheckCommand>(app); break;
+                    case "Mep_SystemAnalyse":   RunCommand<Commands.Mep.MepSystemAnalyseCommand>(app); break;
+                    case "Mep_SystemTracer":    RunCommand<Commands.Mep.MepSystemTracerCommand>(app); break;
+                    case "Mep_AutoSleeve":      RunCommand<Commands.Mep.AutoSleevePlacementCommand>(app); break;
+                    case "Mep_AutoSizePipe":    RunCommand<Commands.Mep.MepAutoSizePipeCommand>(app); break;
+                    case "Mep_AutoSizeDuct":    RunCommand<Commands.Mep.MepAutoSizeDuctCommand>(app); break;
+                    case "Mep_AutoSizeConduit": RunCommand<Commands.Mep.MepAutoSizeConduitCommand>(app); break;
+                    case "Mep_AutoSizeAll":     RunCommand<Commands.Mep.MepAutoSizeAllCommand>(app); break;
+                    case "Mep_FillLiveCalc":    RunCommand<Commands.Mep.MepFillLiveCalcCommand>(app); break;
+                    case "Mep_NamingAudit":     RunCommand<Commands.Mep.MepNamingAuditCommand>(app); break;
+
                     // ── v4 MVP: fabrication (Phase 5) ──
                     case "Fabrication_GeneratePackage": RunCommand<Commands.Fabrication.GenerateFabPackageCommand>(app); break;
                     case "Fabrication_ExportCutList":   RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;

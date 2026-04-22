@@ -41,7 +41,11 @@ namespace StingTools.BIMManager
                 ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD,
                 ParamRegistry.SEQ, ParamRegistry.TAG1, "ASS_TAG_7_TXT", "ASS_STATUS_TXT", "ASS_REV_TXT" };
 
+            // S1.4 (N-G1): pre-filter with ElementMulticategoryFilter so the
+            // ParameterHelpers.GetString per-element call only runs on
+            // tagged categories, not every element in the document.
             var elements = new FilteredElementCollector(doc)
+                .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null && !string.IsNullOrWhiteSpace(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
 

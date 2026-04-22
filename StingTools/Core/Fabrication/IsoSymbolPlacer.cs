@@ -165,7 +165,7 @@ namespace StingTools.Core.Fabrication
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
                     if (first) { first = false; continue; }
                     var cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols == null || cols.Count < 4) continue;
+                    if (cols == null || cols.Length < 4) continue;
                     _index.Add(new SymbolEntry
                     {
                         SymbolCode  = cols[0],

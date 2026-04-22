@@ -1,0 +1,39 @@
+{
+  "Uuid": "a1b2c3d4-0006-4a5b-8c6d-0000000000e6",
+  "IsCustomNode": false,
+  "Description": "STING — grid-driven structural bay: AutoFoundations + ColumnGrid + BeamSystem + SlabEdgeBeams → AutoSizeAll → CarbonAssessment.",
+  "Name": "06_StructuralBayFromGrid",
+  "ElementResolver": { "ResolutionMap": {} },
+  "Inputs": [], "Outputs": [],
+  "Nodes": [
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"s1","Inputs":[],"Outputs":[{"Id":"os1","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Model.ColumnGrid","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"s2","Inputs":[],"Outputs":[{"Id":"os2","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Structural.AutoFoundations","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"s3","Inputs":[],"Outputs":[{"Id":"os3","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Structural.CreateBeamSystem","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"s4","Inputs":[],"Outputs":[{"Id":"os4","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Structural.SlabEdgeBeams","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"s5","Inputs":[],"Outputs":[{"Id":"os5","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Structural.AutoSizeAll","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"s6","Inputs":[],"Outputs":[{"Id":"os6","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Structural.CarbonAssessment","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" }
+  ],
+  "Connectors": [], "Dependencies": [],
+  "NodeLibraryDependencies": [
+    { "Name":"STING Tools","Version":"1.0.0","ReferenceType":"Package","Nodes":["s1","s2","s3","s4","s5","s6"] }
+  ],
+  "Thumbnail":"","GraphDocumentationURL":null,"ExtensionWorkspaceData":[],"Author":"STING Tools v4",
+  "Linting":{ "activeLinter":"None","activeLinterId":"7b75fb44-43fd-4631-a878-29f4d5d8399a","warningCount":0,"errorCount":0 },"Bindings":[],
+  "View": {
+    "Dynamo":{ "ScaleFactor":1.0,"HasRunWithoutCrash":true,"IsVisibleInDynamoLibrary":true,"Version":"2.17.0","RunType":"Manual","RunPeriod":"1000" },
+    "Camera":{ "Name":"_Background Preview","EyeX":-17.0,"EyeY":24.0,"EyeZ":50.0,"LookX":12.0,"LookY":-13.0,"LookZ":-58.0,"UpX":0.0,"UpY":1.0,"UpZ":0.0 },
+    "ConnectorPins":[],
+    "NodeViews":[
+      { "Name":"Model.ColumnGrid",         "ShowGeometry":true,"Id":"s1","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":100.0, "Y":180.0 },
+      { "Name":"Structural.AutoFoundations","ShowGeometry":true,"Id":"s2","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":380.0, "Y":180.0 },
+      { "Name":"Structural.CreateBeamSystem","ShowGeometry":true,"Id":"s3","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":660.0, "Y":180.0 },
+      { "Name":"Structural.SlabEdgeBeams",   "ShowGeometry":true,"Id":"s4","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":940.0, "Y":180.0 },
+      { "Name":"Structural.AutoSizeAll",     "ShowGeometry":true,"Id":"s5","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":1220.0,"Y":180.0 },
+      { "Name":"Structural.CarbonAssessment","ShowGeometry":true,"Id":"s6","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":1500.0,"Y":180.0 }
+    ],
+    "Annotations":[
+      { "Id":"a1","Title":"Structural bay from grid","DescriptionText":"Put a Revit grid in place first, then run this graph. ColumnGrid drops columns at every grid intersection. AutoFoundations pad-foots each. CreateBeamSystem + SlabEdgeBeams close off the floor plate. AutoSizeAll tunes every member to EC2/EC3 service + ultimate limits. CarbonAssessment reports embodied CO2 per element using ICE v3.","IsExpanded":true,"WidthAdjustment":0.0,"HeightAdjustment":0.0,"Nodes":["s1","s2","s3","s4","s5","s6"],"HasNestedGroups":false,"Left":80.0,"Top":140.0,"Width":1540.0,"Height":200.0,"FontSize":22.0,"GroupStyleId":"00000000-0000-0000-0000-000000000000","Background":"#FFB1C29F","TextBlockHeight":28.0,"InitialTop":150.0,"InitialHeight":20.0 }
+    ],
+    "X":0.0,"Y":0.0,"Zoom":1.0
+  }
+}

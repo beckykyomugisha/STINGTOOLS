@@ -1,0 +1,39 @@
+{
+  "Uuid": "a1b2c3d4-0004-4a5b-8c6d-0000000000e4",
+  "IsCustomNode": false,
+  "Description": "STING MEP system audit — naming audit + live fill + pressure drop + fitting loss + vibro-acoustic check.",
+  "Name": "04_MEPSystemAudit",
+  "ElementResolver": { "ResolutionMap": {} },
+  "Inputs": [],
+  "Outputs": [],
+  "Nodes": [
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"m1","Inputs":[],"Outputs":[{"Id":"om1","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Mep.NamingAudit","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"m2","Inputs":[],"Outputs":[{"Id":"om2","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Mep.FillLiveCalc","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"m3","Inputs":[],"Outputs":[{"Id":"om3","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Mep.PressureDropAnalyse","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"m4","Inputs":[],"Outputs":[{"Id":"om4","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Mep.FittingLossReport","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"m5","Inputs":[],"Outputs":[{"Id":"om5","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Mep.VibroAcoustic","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" }
+  ],
+  "Connectors": [],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [
+    { "Name":"STING Tools","Version":"1.0.0","ReferenceType":"Package","Nodes":["m1","m2","m3","m4","m5"] }
+  ],
+  "Thumbnail":"","GraphDocumentationURL":null,"ExtensionWorkspaceData":[],"Author":"STING Tools v4",
+  "Linting":{ "activeLinter":"None","activeLinterId":"7b75fb44-43fd-4631-a878-29f4d5d8399a","warningCount":0,"errorCount":0 },"Bindings":[],
+  "View": {
+    "Dynamo":{ "ScaleFactor":1.0,"HasRunWithoutCrash":true,"IsVisibleInDynamoLibrary":true,"Version":"2.17.0","RunType":"Manual","RunPeriod":"1000" },
+    "Camera":{ "Name":"_Background Preview","EyeX":-17.0,"EyeY":24.0,"EyeZ":50.0,"LookX":12.0,"LookY":-13.0,"LookZ":-58.0,"UpX":0.0,"UpY":1.0,"UpZ":0.0 },
+    "ConnectorPins":[],
+    "NodeViews":[
+      { "Name":"Mep.NamingAudit",         "ShowGeometry":true,"Id":"m1","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":100.0, "Y":200.0 },
+      { "Name":"Mep.FillLiveCalc",        "ShowGeometry":true,"Id":"m2","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":380.0, "Y":200.0 },
+      { "Name":"Mep.PressureDropAnalyse", "ShowGeometry":true,"Id":"m3","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":660.0, "Y":200.0 },
+      { "Name":"Mep.FittingLossReport",   "ShowGeometry":true,"Id":"m4","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":940.0, "Y":200.0 },
+      { "Name":"Mep.VibroAcoustic",       "ShowGeometry":true,"Id":"m5","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":1220.0,"Y":200.0 }
+    ],
+    "Annotations":[
+      { "Id":"a1","Title":"MEP system audit","DescriptionText":"Five-node CIBSE-aligned audit. NamingAudit flags any system that does not follow CIBSE/BSRIA/Uniclass 2015 prefixes. FillLiveCalc recomputes conduit + tray fill from current cable cross section. PressureDropAnalyse runs Darcy-Weisbach per CIBSE Guide C. FittingLossReport catalogues Kv + equivalent length per element. VibroAcoustic checks isolation transmissibility + NC criteria per TG6.","IsExpanded":true,"WidthAdjustment":0.0,"HeightAdjustment":0.0,"Nodes":["m1","m2","m3","m4","m5"],"HasNestedGroups":false,"Left":80.0,"Top":160.0,"Width":1260.0,"Height":200.0,"FontSize":22.0,"GroupStyleId":"00000000-0000-0000-0000-000000000000","Background":"#FFD6A7D6","TextBlockHeight":28.0,"InitialTop":170.0,"InitialHeight":20.0 }
+    ],
+    "X":0.0,"Y":0.0,"Zoom":1.0
+  }
+}

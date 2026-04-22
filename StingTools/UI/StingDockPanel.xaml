@@ -4128,6 +4128,173 @@
                                 </DockPanel>
                             </TabItem>
 
+                            <!-- ─── Phase 111-117: Design Automation Roll-up Tab ─── -->
+                            <TabItem Header="Automation">
+                                <DockPanel>
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Cover audit"     Tag="Arch_CoverAudit"       Click="Cmd_Click" Width="90"  Height="30" ToolTip="ARCH-06 Fire / moisture / thermal cover audit"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Wind apply"      Tag="StrExt_WindAutoApply"  Click="Cmd_Click" Width="90"  Height="30" ToolTip="STR-03 ASCE 7 / EC 1 wind pressure"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Stage audit"     Tag="StdExt_StageCompliance" Click="Cmd_Click" Width="90"  Height="30" ToolTip="STD-01 RIBA 0-7 compliance gate"/>
+                                    </WrapPanel>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel Margin="4">
+
+                                            <TextBlock Text="ARCHITECTURE (P111 — 6 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto stair (BS 5395 + Part K)"    Tag="Arch_AutoStair"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto railing (BS 6180 + Part K)" Tag="Arch_AutoRailing"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Curtain wall grid (BS EN 13830)"  Tag="Arch_AutoCurtainWall" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Wall opening"                       Tag="Arch_AutoOpening"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Plaster + paint takeoff"            Tag="Arch_AutoPlaster"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Cover audit (fire + U-value)"        Tag="Arch_CoverAudit"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                            </StackPanel></Border>
+
+                                            <TextBlock Text="STRUCTURAL EXT (P112 — 10 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto slab rebar"         Tag="StrExt_AutoSlabRebar"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Full column takedown"     Tag="StrExt_FullColumnTakedown" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Wind auto-apply"          Tag="StrExt_WindAutoApply"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Seismic auto-apply"       Tag="StrExt_SeismicAutoApply"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Pile group design"        Tag="StrExt_PileGroup"             Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Retaining wall check"      Tag="StrExt_RetainingWall"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Auto connection (SCI P358)" Tag="StrExt_AutoConnection"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Composite beam (EC4)"      Tag="StrExt_CompositeBeam"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Fab tolerance"              Tag="StrExt_ToleranceCheck"        Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Creep deflection (EC2)"     Tag="StrExt_CreepDeflection"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                            </StackPanel></Border>
+
+                                            <TextBlock Text="MEP DESIGN (P113 — 12 items)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Panel schedule build"  Tag="MepA_PanelSchedule"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Breaker size (IEC)"     Tag="MepA_BreakerAutoSize"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Grounding (BS 7671)"    Tag="MepA_GroundingDesign"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Pump size (Guide C)"    Tag="MepA_PumpSize"          Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Transformer size"        Tag="MepA_TransformerSize"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Generator size"          Tag="MepA_GeneratorSize"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Drainage (BS EN 12056)"  Tag="MepA_DrainageSize"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                            </StackPanel></Border>
+
+                                            <TextBlock Text="STANDARDS BULK (P116 — 30 items, see Dynamo for full list)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}"><StackPanel>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Stage audit (RIBA)"     Tag="StdExt_StageCompliance"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Accessibility audit"     Tag="StdExt_AccessibilityAudit" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="EUI benchmark"            Tag="StdExt_EUIBenchmark"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Load combinations"        Tag="StdExt_LoadCombinations" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Regional overlay"          Tag="StdExt_SetRegion"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="24" Margin="0,1"/>
+                                            </StackPanel></Border>
+
+                                            <TextBlock Text="REFERENCE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}"><TextBlock FontSize="9" TextWrapping="Wrap" Text="All 80+ new commands also dispatch as Dynamo nodes under STING Tools.Architecture, .Structural, .MEP, .Placement, .Routing, .Fabrication, .Standards. See docs/DESIGN_MODELING_AUTOMATION_ROADMAP.md for the full catalogue."/></Border>
+
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+
+                            <!-- ─── Phase 110: Standards & Compliance Tab ─── -->
+                            <TabItem Header="Standards">
+                                <DockPanel>
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Cable size"    Tag="Std_CalcCableSize"    Click="Cmd_Click" Width="90"  Height="30" ToolTip="BS 7671 / IEC 60364 / NEC 310 cable sizing"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Wind load"     Tag="Std_CalcWindLoad"     Click="Cmd_Click" Width="90"  Height="30" ToolTip="ASCE 7 / EN 1991-1-4 / BS 6399-2 wind pressure"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Lighting"      Tag="Std_CalcLighting"     Click="Cmd_Click" Width="80"  Height="30" ToolTip="CIBSE / EN 12464-1 lux calculation"/>
+                                    </WrapPanel>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel Margin="4">
+
+                                            <TextBlock Text="ELECTRICAL" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Cable size (V/A/length → AWG, Vdrop)"  Tag="Std_CalcCableSize"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="STRUCTURAL" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Wind load (ASCE 7 / EC 1991-1-4)"       Tag="Std_CalcWindLoad"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="HVAC + LIGHTING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Cooling load (ASHRAE / CIBSE Guide A)"   Tag="Std_CalcCoolingLoad"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Lighting (CIBSE / EN 12464-1)"            Tag="Std_CalcLighting"      Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="LIFE SAFETY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Egress + travel distance (IBC / NFPA 101)"  Tag="Std_CalcEgress"       Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Sprinkler design (NFPA 13 / EN 12845)"      Tag="Std_DesignSprinkler"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="REFERENCE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <TextBlock FontSize="9" TextWrapping="Wrap" Text="Backed by StingTools.Standards calc library — 22,800 lines covering IBC / ASHRAE / ACI / ASCE 7 / ASTM / NEC / NFPA / IMC / IPC / IEEE / SMACNA / BS (6399, 7671, struct, compr) / CIBSE / Eurocodes (EC2+EC3+EN 1990-1999) / ISO 19650 + ISO 9001 family / KEBS / UNBS / TBS / RSB / SSBS / BBN / EAS / ECOWAS / SANS / CIDB / green building."/>
+                                                </StackPanel>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+
+                            <!-- ─── Phase 109: MEP Automation Tab ─── -->
+                            <TabItem Header="MEP">
+                                <DockPanel>
+                                    <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
+                                        <Button Style="{StaticResource GreenBtn}"  Content="System trace"    Tag="Mep_SystemTracer"  Click="Cmd_Click" Width="100" Height="30" ToolTip="BFS walk of the MEP connector graph from selection"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Auto-size all"   Tag="Mep_AutoSizeAll"   Click="Cmd_Click" Width="100" Height="30" ToolTip="Size every pipe / duct / conduit from flow + cable data"/>
+                                        <Button Style="{StaticResource OrangeBtn}" Content="Auto-sleeve"     Tag="Mep_AutoSleeve"    Click="Cmd_Click" Width="100" Height="30" ToolTip="Insert sleeve families at every wall / floor / roof crossing"/>
+                                    </WrapPanel>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel Margin="4">
+
+                                            <TextBlock Text="INTELLIGENCE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,2,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Pressure-drop analyse" Tag="Mep_PressureDrop"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Darcy-Weisbach + Swamee-Jain pressure drop per CIBSE Guide C"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Fitting loss report"    Tag="Mep_FittingLoss"     Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Kv + equivalent length per ASHRAE / CIBSE / DW144"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Hardy-Cross balance"    Tag="Mep_Balance"         Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Iterative flow balancer with damper Cv sizing"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Vibro-acoustic check"   Tag="Mep_VibroAcoustic"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="CIBSE TG6 isolation + NC criteria"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="System analyse (model)"  Tag="Mep_SystemAnalyse"   Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Whole-model analyser"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="AUTO-SIZE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Pipes"    Tag="Mep_AutoSizePipe"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Size pipes for ≤ 2.5 m/s, BS EN 10255 bore table"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Ducts"    Tag="Mep_AutoSizeDuct"    Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Size ducts for ≤ 6 m/s, SMACNA standard sizes"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Conduits" Tag="Mep_AutoSizeConduit" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Size conduits for ≤ 45% fill (BS 7671 522.8)"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="QA" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Live fill calc"        Tag="Mep_FillLiveCalc" Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Recompute conduit + tray fill% from current cable cross section"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="System naming audit"    Tag="Mep_NamingAudit"  Click="Cmd_Click" HorizontalAlignment="Stretch" Height="26" Margin="0,1" ToolTip="Audit MEP system names against CIBSE / BSRIA / Uniclass 2015 prefix set"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Text="REFERENCE STANDARDS" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <Border Style="{StaticResource GroupBorder}">
+                                                <StackPanel>
+                                                    <TextBlock FontSize="9" TextWrapping="Wrap" Text="CIBSE Guide C (flow &amp; pressure), Guide B3 (HVAC), TG6 (NC / vibro-acoustics), TM39 (commissioning). BS 7671 Appendix 4 (conduit fill). SMACNA DW/144. BS EN 13480 / 10255 (pipe bore). BS EN 61386 (conduit trade sizes)."/>
+                                                </StackPanel>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+
                             <!-- ─── v4 MVP: Fabrication Tab ─── -->
                             <TabItem Header="Fabrication">
                                 <DockPanel>

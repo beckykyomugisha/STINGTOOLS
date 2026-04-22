@@ -303,8 +303,12 @@ namespace StingTools.BIMManager
                 return (elements, $"selection ({elements.Count} of {selIds.Count})");
             }
 
-            // All taggable elements in the project
+            // All taggable elements in the project.
+            // S1.4 (N-G1): pre-filter with ElementMulticategoryFilter on
+            // AllCategoryEnums so .Where() only runs on tagged categories,
+            // not the entire document.
             var allElements = new FilteredElementCollector(doc)
+                .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null && knownCatNames.Contains(e.Category.Name))
                 .ToList();
