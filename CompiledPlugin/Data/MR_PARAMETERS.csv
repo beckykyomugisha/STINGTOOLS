@@ -500,7 +500,7 @@ Generic Models,MAT_LAYER_5_THICKNESS_MM,70322b56-805e-5cc0-b939-0baea195fb6f,TEX
 Generic Models,PER_SUST_LEED_CONTRIB_TXT,710bd756-8685-53df-9e99-ff974d4d1ad9,TEXT,PER_SUST,Type,Per Sust Leed Contrib Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,SUST_MAT_TAG_2_TXT,7f2ca957-dd29-4a9a-835a-c39dbdfed8d9,TEXT,PER_SUST,Type,"Green certification tag: LEED credits, EDGE savings, energy rating [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,PLM_VENT_CONNECTED_TO_TXT,aec0b857-0c69-550c-a3f2-0dbed660038a,TEXT,PLM_DRN,Type,Plm Vent Connected To Txt [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,PER_SUST_RECYCLABLE_BOOL,30d1ec57-f844-5585-8af5-8828d9f98dbb,TEXT,PER_SUST,Type,Per Sust Recyclable Bool [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PER_SUST_RECYCLABLE_BOOL,30d1ec57-f844-5585-8af5-8828d9f98dbb,YESNO,PER_SUST,Type,Per Sust Recyclable Bool [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_FOUNDATION_TYPE_TXT,d6705b58-9a98-5a20-98e8-3fe13dfb048a,TEXT,CST_PROC,Type,Ble Struct Foundation Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,SYS_APPLICABLE_STANDARDS_TXT,ffea8a58-370e-4783-a55b-32e5c8da41e8,TEXT,TPL_TRACKING,Type,Applicable standards [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PRJ_TB_CHECKED_BY_TXT,052af358-d13d-5e2e-aaf2-9a7e58d18371,TEXT,PRJ_INFORMATION,Type,Prj Tb Checked By Txt [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -2341,6 +2341,7 @@ Generic Models,SEC_DEV_TAG,de2cd955-4727-5488-a783-5d9be9942169,TEXT,COM_DAT,Typ
 Generic Models,BLE_FINISH_TXT,2808be20-c49b-5167-868e-fc894cf8161d,TEXT,BLE_ELES,Instance,Building element finish description [ISO 19650-2:2018],False,,,MULTI,1,1
 Generic Models,BLE_MATERIAL_TXT,6a532cfc-c412-5f81-9b93-5c7e4d0ac31a,TEXT,BLE_ELES,Instance,Building element material description [ISO 19650-2:2018],False,,,MULTI,1,1
 Generic Models,SLV_TAG_7_PARA_TXT,4529fc89-90fb-56f9-955a-2d54998a294c,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve paragraph container [ISO 19650-3:2020],False,,,MULTI,1,1
+Generic Models,SLV_TAG,fa93b8a1-3383-5c1f-8935-0dadba420f50,TEXT,SLV_SLEEVE_PARAMS,Instance,MEP Sleeve discipline tag container [ISO 19650-3:2020],False,,,MULTI,1,1
 Generic Models,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH,f2f0b231-ac86-59fd-a1f7-5e7dc0c111a1,TEXT,STINGTags_ISO19650,Type,Tag warning: per embodied carbon kg CO2/m2 architectural [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,WARN_SHT_DISC_MISMATCH,ae00ba3e-96a9-5dac-bee2-b89817614765,TEXT,WARN_THRESHOLDS,Type,Warning: sheet discipline mismatch between name and content [ISO 19650],False,,,MULTI,1,0
 Generic Models,WARN_SHT_NO_DISC,745e3b6f-84a1-537c-af98-6cd0415c0610,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no discipline code [ISO 19650],False,,,MULTI,1,0

@@ -1,0 +1,17 @@
+{
+  "id": "healthcare",
+  "label": "Healthcare — NHS / Public",
+  "description": "STING starter pack for Healthcare — NHS / Public projects. Applies recommended family subset, preset combinations, tag style, preamble profile and BOQ defaults.",
+  "families": ["MEP_PLM_WC_Wall","MEP_PLM_Basin_Wall","ARC_DR_Hinged_SinglePanel_1000x2100","ARC_WAL_FireRated_FR60","ARC_WAL_FireRated_FR120","ARC_CEI_MR_Moisture","MEP_HVAC_AHU_Medium","MEP_FIR_Sprinkler_Pendant"],
+  "presets": ["build_room","build_wet_room","build_corridor"],
+  "tag_style": "Discipline",
+  "preamble_profile": "Healthcare — NHS / Public",
+  "boq_defaults": {
+    "PRELIMINARIES_PCT": 12.0,
+    "CONTINGENCY_PCT":   10.0,
+    "OVERHEAD_PROFIT_PCT": 8.0,
+    "VAT_PCT":           18.0
+  },
+  "workflow_presets": ["MonthlyCostReview", "DailyQA"],
+  "notes": "Per Healthcare — NHS / Public Technical Memoranda (HTM). Wall / ceiling / door / fixture defaults optimised for the sector's typical LOD 300-350 brief."
+}

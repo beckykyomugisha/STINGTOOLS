@@ -1,0 +1,17 @@
+{
+  "id": "datacentre",
+  "label": "Data Centre",
+  "description": "STING starter pack for Data Centre projects. Applies recommended family subset, preset combinations, tag style, preamble profile and BOQ defaults.",
+  "families": ["MEP_ELE_Panel_DB_TP","MEP_ELE_CableTray_300W","MEP_HVAC_AHU_Large","MEP_FIR_Detector_Smoke","MEP_ELE_Luminaire_Emergency"],
+  "presets": ["build_structural_bay"],
+  "tag_style": "Cool",
+  "preamble_profile": "Data Centre",
+  "boq_defaults": {
+    "PRELIMINARIES_PCT": 12.0,
+    "CONTINGENCY_PCT":   10.0,
+    "OVERHEAD_PROFIT_PCT": 8.0,
+    "VAT_PCT":           18.0
+  },
+  "workflow_presets": ["MonthlyCostReview", "DailyQA"],
+  "notes": "Per Uptime Institute Tier III / IV + TIA-942. Wall / ceiling / door / fixture defaults optimised for the sector's typical LOD 300-350 brief."
+}

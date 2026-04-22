@@ -1,0 +1,64 @@
+{
+  "ByDiscipline": {
+    "Pipe": {
+      "MaxLengthMm":        6000,
+      "MaxBends":           4,
+      "MaxFittings":       12,
+      "BreakAtFlange":     true,
+      "BreakAtValve":      true,
+      "BreakAtPenetration": true,
+      "BreakAtBranch":     true,
+      "_notes": "BS EN 13480 / ASME B31.3 — 6m (20ft) std mill length for steel; large bore reduce to 3m via project override file"
+    },
+    "Pipe_LargeBore": {
+      "MaxLengthMm":        3000,
+      "MaxBends":           3,
+      "MaxFittings":        6,
+      "BreakAtFlange":     true,
+      "BreakAtValve":      true,
+      "BreakAtPenetration": true,
+      "BreakAtBranch":     true,
+      "_notes": "DN150+ pipe — handling limits force 3m segments"
+    },
+    "Duct": {
+      "MaxLengthMm":        3000,
+      "MaxBends":           3,
+      "MaxFittings":        8,
+      "BreakAtFlange":     true,
+      "BreakAtValve":      false,
+      "BreakAtPenetration": true,
+      "BreakAtBranch":     true,
+      "_notes": "SMACNA HVAC Duct Construction Standards — 3m (10ft) standard for TDF flanged sections"
+    },
+    "Duct_Pittsburgh": {
+      "MaxLengthMm":        2400,
+      "MaxBends":           3,
+      "MaxFittings":        6,
+      "BreakAtFlange":     true,
+      "BreakAtValve":      false,
+      "BreakAtPenetration": true,
+      "BreakAtBranch":     true,
+      "_notes": "Pittsburgh-lock seam (SMACNA seam type A) — 2.4m for handling"
+    },
+    "Conduit": {
+      "MaxLengthMm":        6000,
+      "MaxBends":           3,
+      "MaxFittings":       10,
+      "BreakAtFlange":     false,
+      "BreakAtValve":      false,
+      "BreakAtPenetration": true,
+      "BreakAtBranch":     true,
+      "_notes": "BS EN 61386 — 6m (20ft) std rigid conduit; >3 90deg bends per BS 7671 522.8 requires draw-in box"
+    },
+    "Electrical": {
+      "MaxLengthMm":        6000,
+      "MaxBends":           3,
+      "MaxFittings":       10,
+      "BreakAtFlange":     false,
+      "BreakAtValve":      false,
+      "BreakAtPenetration": true,
+      "BreakAtBranch":     true,
+      "_notes": "Generic electrical fallback (ducts conduit + tray follow Conduit rules)"
+    }
+  }
+}

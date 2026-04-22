@@ -299,7 +299,7 @@ Settings: Check 'Wrap between parameters only'
 | Warning | `if(TAG_WARN_VISIBLE_BOOL, <param>, "")` | Technical and Full Specification modes |
 | TAG7 A-F | `if(TAG_PARA_STATE_3_BOOL, ASS_TAG_7x_TXT, "")` | Full Specification mode only |
 
-> **IMPORTANT — `_BOOL` Parameter Datatype**: All parameters ending in `_BOOL` (e.g., `TAG_PARA_STATE_2_BOOL`, `TAG_WARN_VISIBLE_BOOL`, `TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) are defined as **YESNO** datatype in `MR_PARAMETERS.txt`. This matches Revit's shared parameter type system and prevents "Inconsistent Units" errors when loading shared parameters. In calculated value formulas, the `if()` condition parameter accepts YESNO directly — Revit handles the type coercion between the YESNO condition and the TEXT result branches. Values are `Yes`/`No` (or `1`/`0` when set programmatically via the API).
+> **IMPORTANT — `_BOOL` Parameter Datatypes**: All `_BOOL` parameters — both the 12 **gating** parameters (`TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL` and `TAG_WARN_VISIBLE_BOOL`) and the 134 **style visibility** parameters (`TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) — are defined as **YESNO** datatype in `MR_PARAMETERS.txt`. Once a shared parameter GUID is created as YESNO in Revit, it cannot be changed to INTEGER without GUID type conflicts. Both YESNO and INTEGER use `StorageType.Integer` internally — values are `1`/`0` (or `Yes`/`No` in the Revit UI for YESNO).
 
 ### TAG7 Sub-Section Styling
 
