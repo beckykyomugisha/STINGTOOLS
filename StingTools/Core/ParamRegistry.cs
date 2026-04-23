@@ -2445,79 +2445,98 @@ namespace StingTools.Core
 
         #endregion
 
-        #region V6 parameters
+        #region V6 / Tier 4-10 parameters
+        //
+        // Parameters backing tag label tiers T4..T10 (schema v5.3 — see STING_TAG_CONFIG_v5_0_*.csv).
+        // All GUIDs follow the placeholder pattern `5753b5aa-000T-4000-8000-0000000000PP`
+        // where T is the tier (4..a hex) and PP is the per-tier row index. Pattern is valid hex
+        // so Guid.TryParse succeeds — essential for the families to bind via shared parameters.
+        // Each constant is also mirrored into PARAMETER_REGISTRY.json extended_params.tier_4_10
+        // so ParamRegistry.GetGuid() resolves correctly at runtime.
+        //
+        // NOTE: The earlier `v6-0001-...` pseudo-GUIDs were invalid hex and silently dropped out
+        // of _guidByName. This region replaces them with valid-hex placeholders. Real stable
+        // GUIDs will be assigned during family-library authoring (same policy as the v4 region).
 
-        // --- N-G12 install time (labour takeoff) ---
-        public const string CST_INSTALL_HRS              = "CST_INSTALL_HRS";
-        public const string CST_INSTALL_HRS_GUID         = "v6-0001-0000-0000-000000000001";
-
-        // --- N-G13 carbon stage breakdown (ISO 14064 / BS EN 15978) ---
-        public const string CBN_A1_A3_KG_CO2E            = "CBN_A1_A3_KG_CO2E";
-        public const string CBN_A1_A3_KG_CO2E_GUID       = "v6-0001-0000-0000-000000000002";
-        public const string CBN_A4_KG_CO2E               = "CBN_A4_KG_CO2E";
-        public const string CBN_A4_KG_CO2E_GUID          = "v6-0001-0000-0000-000000000003";
-        public const string CBN_A5_KG_CO2E               = "CBN_A5_KG_CO2E";
-        public const string CBN_A5_KG_CO2E_GUID          = "v6-0001-0000-0000-000000000004";
-        public const string CBN_B6_KG_CO2E_YR            = "CBN_B6_KG_CO2E_YR";
-        public const string CBN_B6_KG_CO2E_YR_GUID       = "v6-0001-0000-0000-000000000005";
-        public const string CBN_C1_KG_CO2E               = "CBN_C1_KG_CO2E";
-        public const string CBN_C1_KG_CO2E_GUID          = "v6-0001-0000-0000-000000000006";
-        public const string CBN_C2_KG_CO2E               = "CBN_C2_KG_CO2E";
-        public const string CBN_C2_KG_CO2E_GUID          = "v6-0001-0000-0000-000000000007";
-        public const string CBN_C3_C4_KG_CO2E            = "CBN_C3_C4_KG_CO2E";
-        public const string CBN_C3_C4_KG_CO2E_GUID       = "v6-0001-0000-0000-000000000008";
-
-        // --- N-G5 / N-G6 clash triage + resolution ---
-        public const string CLASH_TRIAGE_SEVERITY_NR     = "CLASH_TRIAGE_SEVERITY_NR";
-        public const string CLASH_TRIAGE_SEVERITY_NR_GUID = "v6-0001-0000-0000-000000000009";
-        public const string CLASH_TRIAGE_SCORE           = "CLASH_TRIAGE_SCORE";
-        public const string CLASH_TRIAGE_SCORE_GUID      = "v6-0001-0000-0000-00000000000a";
-        public const string CLASH_TRIAGE_CATEGORY_TXT    = "CLASH_TRIAGE_CATEGORY_TXT";
-        public const string CLASH_TRIAGE_CATEGORY_TXT_GUID = "v6-0001-0000-0000-00000000000b";
-        public const string CLASH_RESOLUTION_STATUS_TXT  = "CLASH_RESOLUTION_STATUS_TXT";
-        public const string CLASH_RESOLUTION_STATUS_TXT_GUID = "v6-0001-0000-0000-00000000000c";
-        public const string CLASH_RESOLUTION_ACTION_TXT  = "CLASH_RESOLUTION_ACTION_TXT";
-        public const string CLASH_RESOLUTION_ACTION_TXT_GUID = "v6-0001-0000-0000-00000000000d";
-
-        // --- N-G9 as-built reconciliation ---
-        public const string ASBUILT_DEVIATION_MM         = "ASBUILT_DEVIATION_MM";
-        public const string ASBUILT_DEVIATION_MM_GUID    = "v6-0001-0000-0000-00000000000e";
-        public const string ASBUILT_CAPTURE_DATE_TXT     = "ASBUILT_CAPTURE_DATE_TXT";
-        public const string ASBUILT_CAPTURE_DATE_TXT_GUID = "v6-0001-0000-0000-00000000000f";
-
-        // --- N-G8 ACC Issues round-trip ---
-        public const string ACC_ISSUE_ID_TXT             = "ACC_ISSUE_ID_TXT";
-        public const string ACC_ISSUE_ID_TXT_GUID        = "v6-0001-0000-0000-000000000010";
-        public const string ACC_SYNC_STATUS_TXT          = "ACC_SYNC_STATUS_TXT";
-        public const string ACC_SYNC_STATUS_TXT_GUID     = "v6-0001-0000-0000-000000000011";
-
-        // --- N-G14 IFC 4.3 PSet override ---
-        public const string IFC_PSET_OVERRIDE_TXT        = "IFC_PSET_OVERRIDE_TXT";
-        public const string IFC_PSET_OVERRIDE_TXT_GUID   = "v6-0001-0000-0000-000000000012";
-
-        // --- N-G4 model health metrics ---
-        public const string HEALTH_SCORE_LAST_NR         = "HEALTH_SCORE_LAST_NR";
-        public const string HEALTH_SCORE_LAST_NR_GUID    = "v6-0001-0000-0000-000000000013";
-        public const string HEALTH_SCORE_DATE_TXT        = "HEALTH_SCORE_DATE_TXT";
-        public const string HEALTH_SCORE_DATE_TXT_GUID   = "v6-0001-0000-0000-000000000014";
-
-        // --- N-G12 labour-hours engine (crew + rate override) ---
-        public const string CST_LABOUR_CREW_TXT          = "CST_LABOUR_CREW_TXT";
-        public const string CST_LABOUR_CREW_TXT_GUID     = "v6-0001-0000-0000-000000000015";
-        public const string CST_LABOUR_RATE_GBP          = "CST_LABOUR_RATE_GBP";
-        public const string CST_LABOUR_RATE_GBP_GUID     = "v6-0001-0000-0000-000000000016";
-
-        // --- N-G16 QR commissioning workflow (state + stamps) ---
+        // --- T4: Commissioning & handover (N-G16 QR workflow) ---
         public const string COMM_STATE_TXT               = "COMM_STATE_TXT";
-        public const string COMM_STATE_TXT_GUID          = "v6-0001-0000-0000-000000000017";
+        public const string COMM_STATE_TXT_GUID          = "5753b5aa-0004-4000-8000-000000000001";
         public const string COMM_DATE_TXT                = "COMM_DATE_TXT";
-        public const string COMM_DATE_TXT_GUID           = "v6-0001-0000-0000-000000000018";
+        public const string COMM_DATE_TXT_GUID           = "5753b5aa-0004-4000-8000-000000000002";
         public const string COMM_OPERATIVE_TXT           = "COMM_OPERATIVE_TXT";
-        public const string COMM_OPERATIVE_TXT_GUID      = "v6-0001-0000-0000-000000000019";
+        public const string COMM_OPERATIVE_TXT_GUID      = "5753b5aa-0004-4000-8000-000000000003";
         public const string COMM_WITNESS_TXT             = "COMM_WITNESS_TXT";
-        public const string COMM_WITNESS_TXT_GUID        = "v6-0001-0000-0000-00000000001a";
+        public const string COMM_WITNESS_TXT_GUID        = "5753b5aa-0004-4000-8000-000000000010";
         public const string COMM_NOTES_TXT               = "COMM_NOTES_TXT";
-        public const string COMM_NOTES_TXT_GUID          = "v6-0001-0000-0000-00000000001b";
+        public const string COMM_NOTES_TXT_GUID          = "5753b5aa-0004-4000-8000-000000000011";
+
+        // --- T5: Cost & procurement (N-G12 install/labour + UGX/USD quote) ---
+        public const string CST_UG_PRICE_UGX             = "CST_UG_PRICE_UGX";
+        public const string CST_UG_PRICE_UGX_GUID        = "5753b5aa-0005-4000-8000-000000000001";
+        public const string CST_INTL_PRICE_USD           = "CST_INTL_PRICE_USD";
+        public const string CST_INTL_PRICE_USD_GUID      = "5753b5aa-0005-4000-8000-000000000002";
+        public const string CST_QUOTE_REF_TXT            = "CST_QUOTE_REF_TXT";
+        public const string CST_QUOTE_REF_TXT_GUID       = "5753b5aa-0005-4000-8000-000000000003";
+        public const string CST_INSTALL_HRS              = "CST_INSTALL_HRS";
+        public const string CST_INSTALL_HRS_GUID         = "5753b5aa-0005-4000-8000-000000000010";
+        public const string CST_LABOUR_CREW_TXT          = "CST_LABOUR_CREW_TXT";
+        public const string CST_LABOUR_CREW_TXT_GUID     = "5753b5aa-0005-4000-8000-000000000011";
+        public const string CST_LABOUR_RATE_GBP          = "CST_LABOUR_RATE_GBP";
+        public const string CST_LABOUR_RATE_GBP_GUID     = "5753b5aa-0005-4000-8000-000000000012";
+
+        // --- T6: Carbon & sustainability (N-G13 — ISO 14064 / BS EN 15978) ---
+        public const string CBN_A1_A3_KG_CO2E            = "CBN_A1_A3_KG_CO2E";
+        public const string CBN_A1_A3_KG_CO2E_GUID       = "5753b5aa-0006-4000-8000-000000000001";
+        public const string CBN_A4_KG_CO2E               = "CBN_A4_KG_CO2E";
+        public const string CBN_A4_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000002";
+        public const string CBN_B6_KG_CO2E_YR            = "CBN_B6_KG_CO2E_YR";
+        public const string CBN_B6_KG_CO2E_YR_GUID       = "5753b5aa-0006-4000-8000-000000000003";
+        public const string CBN_A5_KG_CO2E               = "CBN_A5_KG_CO2E";
+        public const string CBN_A5_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000010";
+        public const string CBN_C1_KG_CO2E               = "CBN_C1_KG_CO2E";
+        public const string CBN_C1_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000011";
+        public const string CBN_C2_KG_CO2E               = "CBN_C2_KG_CO2E";
+        public const string CBN_C2_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000012";
+        public const string CBN_C3_C4_KG_CO2E            = "CBN_C3_C4_KG_CO2E";
+        public const string CBN_C3_C4_KG_CO2E_GUID       = "5753b5aa-0006-4000-8000-000000000013";
+
+        // --- T7: Fabrication & QC (BS EN ISO 6412 spool / QC inspector chain) ---
+        public const string ASS_SPOOL_NR_TXT             = "ASS_SPOOL_NR_TXT";
+        public const string ASS_SPOOL_NR_TXT_GUID        = "5753b5aa-0007-4000-8000-000000000001";
+        public const string ASS_FAB_STATUS_TXT           = "ASS_FAB_STATUS_TXT";
+        public const string ASS_FAB_STATUS_TXT_GUID      = "5753b5aa-0007-4000-8000-000000000002";
+        public const string ASS_QC_INSPECTOR_TXT         = "ASS_QC_INSPECTOR_TXT";
+        public const string ASS_QC_INSPECTOR_TXT_GUID    = "5753b5aa-0007-4000-8000-000000000003";
+
+        // --- T8: Clash triage + resolution (N-G5 / N-G6) ---
+        public const string CLASH_TRIAGE_SEVERITY_NR     = "CLASH_TRIAGE_SEVERITY_NR";
+        public const string CLASH_TRIAGE_SEVERITY_NR_GUID = "5753b5aa-0008-4000-8000-000000000001";
+        public const string CLASH_TRIAGE_CATEGORY_TXT    = "CLASH_TRIAGE_CATEGORY_TXT";
+        public const string CLASH_TRIAGE_CATEGORY_TXT_GUID = "5753b5aa-0008-4000-8000-000000000002";
+        public const string CLASH_RESOLUTION_STATUS_TXT  = "CLASH_RESOLUTION_STATUS_TXT";
+        public const string CLASH_RESOLUTION_STATUS_TXT_GUID = "5753b5aa-0008-4000-8000-000000000003";
+        public const string CLASH_TRIAGE_SCORE           = "CLASH_TRIAGE_SCORE";
+        public const string CLASH_TRIAGE_SCORE_GUID      = "5753b5aa-0008-4000-8000-000000000010";
+        public const string CLASH_RESOLUTION_ACTION_TXT  = "CLASH_RESOLUTION_ACTION_TXT";
+        public const string CLASH_RESOLUTION_ACTION_TXT_GUID = "5753b5aa-0008-4000-8000-000000000011";
+
+        // --- T9: As-built reconciliation & model health (N-G4 / N-G9) ---
+        public const string ASBUILT_DEVIATION_MM         = "ASBUILT_DEVIATION_MM";
+        public const string ASBUILT_DEVIATION_MM_GUID    = "5753b5aa-0009-4000-8000-000000000001";
+        public const string ASBUILT_CAPTURE_DATE_TXT     = "ASBUILT_CAPTURE_DATE_TXT";
+        public const string ASBUILT_CAPTURE_DATE_TXT_GUID = "5753b5aa-0009-4000-8000-000000000002";
+        public const string HEALTH_SCORE_LAST_NR         = "HEALTH_SCORE_LAST_NR";
+        public const string HEALTH_SCORE_LAST_NR_GUID    = "5753b5aa-0009-4000-8000-000000000003";
+        public const string HEALTH_SCORE_DATE_TXT        = "HEALTH_SCORE_DATE_TXT";
+        public const string HEALTH_SCORE_DATE_TXT_GUID   = "5753b5aa-0009-4000-8000-000000000010";
+
+        // --- T10: Compliance / audit trail (N-G8 ACC round-trip + N-G14 IFC PSet) ---
+        public const string IFC_PSET_OVERRIDE_TXT        = "IFC_PSET_OVERRIDE_TXT";
+        public const string IFC_PSET_OVERRIDE_TXT_GUID   = "5753b5aa-000a-4000-8000-000000000001";
+        public const string ACC_ISSUE_ID_TXT             = "ACC_ISSUE_ID_TXT";
+        public const string ACC_ISSUE_ID_TXT_GUID        = "5753b5aa-000a-4000-8000-000000000002";
+        public const string ACC_SYNC_STATUS_TXT          = "ACC_SYNC_STATUS_TXT";
+        public const string ACC_SYNC_STATUS_TXT_GUID     = "5753b5aa-000a-4000-8000-000000000003";
 
         #endregion
     }

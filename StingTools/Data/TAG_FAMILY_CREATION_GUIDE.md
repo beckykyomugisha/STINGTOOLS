@@ -421,15 +421,66 @@ For finer control, set paragraph depth per selection or project-wide:
 - **Standard (State 2)** — Tiers 1+2: adds materials, thermal, acoustic data
 - **Comprehensive (State 3)** — Tiers 1+2+3: full specification with regulatory, sustainability, QA
 
-### Extended Paragraph Depth (1-10 Tiers)
+### Extended Paragraph Depth (1-10 Tiers) — schema v5.3
 
-**Command**: `SetParagraphDepthExtCommand`
+**Command**: `SetParagraphDepthExtCommand` (and `SetParagraphDepthCommand` via the
+Tag Studio Tokens & Depth slider)
 **Button**: **`Set Depth (1-10)`** — VIEW tab → TAG STYLE ENGINE section → PARAGRAPH DEPTH sub-section
 
-For even finer control with up to 10 visibility tiers:
-- Tiers 1-3: Original compact/standard/comprehensive
-- Tiers 4-6: Extended detail (MEP specs, material properties, classification codes)
-- Tiers 7-10: Full specification (complete BOQ data, maintenance info, lifecycle data)
+Each tag family now carries `TAG_PARA_STATE_1_BOOL` .. `TAG_PARA_STATE_10_BOOL`
+(type parameters, injected by `TagFamilyCreatorCommand.VisibilityParams`).
+`SetParagraphDepthCommand` supports cumulative depths (depth N enables states 1..N).
+
+| Tier | Purpose | Canonical parameters | Style / Color (default) |
+|------|---------|-----------------------|------------------------|
+| T1 | Identity | `ASS_TAG_1_TXT` | NOM BLACK 2.5 |
+| T2 | Technical basics | `ASS_TAG_2_TXT`, `ASS_DESCRIPTION_TXT`, category specifics | NOM BLACK 2.0 |
+| T3 | Comprehensive spec | Paragraph container + TAG7 sub-sections | NOM BLACK 2.0 |
+| T4 | Commissioning & handover | `COMM_STATE_TXT`, `COMM_DATE_TXT`, `COMM_OPERATIVE_TXT` | BOLD BLUE 2.0 |
+| T5 | Cost & procurement | `CST_UG_PRICE_UGX`, `CST_INTL_PRICE_USD`, `CST_QUOTE_REF_TXT` | NOM PURPLE 2.0 |
+| T6 | Carbon & sustainability (BS EN 15978) | `CBN_A1_A3_KG_CO2E`, `CBN_A4_KG_CO2E`, `CBN_B6_KG_CO2E_YR` | ITALIC GREEN 2.0 |
+| T7 | Fabrication & QC (ISO 6412) | `ASS_SPOOL_NR_TXT`, `ASS_FAB_STATUS_TXT`, `ASS_QC_INSPECTOR_TXT` | BOLD ORANGE 2.0 |
+| T8 | Clash & coordination | `CLASH_TRIAGE_SEVERITY_NR`, `CLASH_TRIAGE_CATEGORY_TXT`, `CLASH_RESOLUTION_STATUS_TXT` | BOLD RED 2.0 |
+| T9 | As-built & health | `ASBUILT_DEVIATION_MM`, `ASBUILT_CAPTURE_DATE_TXT`, `HEALTH_SCORE_LAST_NR` | ITALIC GREY 2.0 |
+| T10 | Compliance / audit trail | `IFC_PSET_OVERRIDE_TXT`, `ACC_ISSUE_ID_TXT`, `ACC_SYNC_STATUS_TXT` | NOM GREY 2.0 |
+
+The canonical T4-T10 block is shared across all 142 tag families. Each row uses
+the Calculated Value pattern `if(TAG_PARA_STATE_N_BOOL, <param>, "")`.
+
+**Data-source alignment (schema v5.3 — 2026-04-23)**:
+
+| Source | Role | File |
+|--------|------|------|
+| CSV (human-readable spec) | Authoring surface — 142 Tag Family entries, full tier_1..tier_10 rows, Style/Color/Size per row, plus 150-parameter TAG STYLE PARAMETER CATALOG block | `STING_TAG_CONFIG_v5_0_{ARCH,MEP,STR,GEN}.csv` |
+| JSON (code-consumed) | Runtime data read by `LabelDefinitionHelper` and `TagFamilyCreatorCommand` — 138 categories, each with tier_1..tier_10 arrays, plus top-level `tier_style_defaults` block | `LABEL_DEFINITIONS.json` v5.9 |
+| Registry (GUID + binding) | `ParamRegistry.GetGuid()` / shared-parameter binding — T4-T10 parameters in `extended_params.tier_4_10` (33 entries) with valid-hex placeholder GUIDs `5753b5aa-000T-4000-8PPP-...` | `PARAMETER_REGISTRY.json` v5.6 |
+| C# constants | Source-level references from commands | `StingTools/Core/ParamRegistry.cs` V6/Tier-4-10 region |
+
+**Naming mapping** (CSV ↔ JSON): CSV uses singular family-friendly names
+("Duct", "Wall") while JSON uses Revit `BuiltInCategory` display names (plural:
+"Ducts", "Walls"). 39 JSON entries carry a `csv_family_alias` field linking
+back to the CSV. 12 CSV-only families (Tie-In Point tags, Sheet tags for
+Architectural/MEP/Structural, Brace / Truss, Generic Model, etc.) are added as
+JSON entries tagged with `source_csv`. The gap from 142 CSV entries to 138 JSON
+entries is 6 duplicates (same category name appearing in two discipline CSVs,
+e.g. "Specialty Equipment", "Internal Area Loads" — the JSON de-duplicates
+while CSV tolerates the duplication per discipline).
+
+### TAG STYLE PARAMETER CATALOG (150 parameters per family)
+
+Every STING tag family is injected with a fixed 150-parameter set of **type**
+parameters that the Tag Style Engine flips at runtime. The complete list lives
+at the top of each v5 CSV (section titled `TAG STYLE PARAMETER CATALOG (v5.3)`)
+and is generated in C# by `TagFamilyCreatorCommand.StyleParams`:
+
+| Group | Count | Pattern |
+|-------|------:|---------|
+| Text style switch matrix | 128 | `TAG_{size}{style}_{color}_BOOL` (sizes 2/2.5/3/3.5 × styles NOM/BOLD/ITALIC/BOLDITALIC × 8 colors) |
+| Paragraph-depth gates | 10 | `TAG_PARA_STATE_1_BOOL` .. `TAG_PARA_STATE_10_BOOL` |
+| Warnings | 2 | `TAG_WARN_VISIBLE_BOOL`, `TAG_WARN_SEVERITY_FILTER_TXT` |
+| Tag box | 5 | `TAG_BOX_COLOR_{R,G,B}_INT`, `TAG_BOX_VISIBLE_BOOL`, `TAG_BOX_STYLE_TXT` |
+| Leader | 3 | `TAG_LEADER_COLOR_{R,G,B}_INT` |
+| Scale / depth cache | 2 | `TAG_SCALE_TIER_AUTO_BOOL`, `TAG_DEPTH_TIER_INT` |
 
 ### Warning Visibility
 

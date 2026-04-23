@@ -2195,6 +2195,33 @@ namespace StingTools.Tags
                     FormatTierTable(sb, tier3, paramText);
                 }
 
+                // Tiers 4..10 — shared commissioning / cost / carbon / fabrication /
+                // clash / as-built / compliance rows (v5.3 schema). Gated by matching
+                // TAG_PARA_STATE_N_BOOL type parameter so SetParagraphDepthCommand can
+                // progressively widen visible tiers.
+                string[] extLabels = new[]
+                {
+                    "TIER 4 (Commissioning & handover)",
+                    "TIER 5 (Cost & procurement)",
+                    "TIER 6 (Carbon & sustainability — BS EN 15978)",
+                    "TIER 7 (Fabrication & QC — ISO 6412)",
+                    "TIER 8 (Clash & coordination)",
+                    "TIER 9 (As-built & health)",
+                    "TIER 10 (Compliance / audit trail)",
+                };
+                for (int i = 0; i < 7; i++)
+                {
+                    int t = i + 4;
+                    var arr = catDef[$"tier_{t}"] as JArray;
+                    if (arr == null || arr.Count == 0) continue;
+                    sb.AppendLine();
+                    sb.AppendLine($"── {extLabels[i]} ──");
+                    sb.AppendLine("Use CALCULATED VALUES (Type: Text) for each parameter:");
+                    sb.AppendLine($"  Formula: if(TAG_PARA_STATE_{t}_BOOL, <param>, \"\")");
+                    sb.AppendLine();
+                    FormatTierTable(sb, arr, paramText);
+                }
+
                 // Paragraph container
                 string paraCont = catDef["paragraph_container"]?.ToString();
                 if (!string.IsNullOrEmpty(paraCont) && paraCont != "null")
@@ -2281,8 +2308,25 @@ namespace StingTools.Tags
                 return;
             }
 
-            sb.AppendLine("  Parameter                    | Prefix         | Suffix         | Spc | Brk");
-            sb.AppendLine("  " + new string('─', 80));
+            // Header includes Style/Color/Size columns when any row in this tier carries them
+            // (v5.3 schema — tier_4..tier_10 ship with style/color/size; tier_1..3 inherit defaults).
+            bool anyStyle = false;
+            foreach (JObject e in tierParams)
+            {
+                if (e["style"] != null || e["color"] != null || e["size"] != null)
+                { anyStyle = true; break; }
+            }
+
+            if (anyStyle)
+            {
+                sb.AppendLine("  Parameter                    | Prefix         | Suffix         | Spc | Brk | Style  | Color  | Size");
+                sb.AppendLine("  " + new string('─', 108));
+            }
+            else
+            {
+                sb.AppendLine("  Parameter                    | Prefix         | Suffix         | Spc | Brk");
+                sb.AppendLine("  " + new string('─', 80));
+            }
 
             foreach (JObject entry in tierParams)
             {
@@ -2307,7 +2351,17 @@ namespace StingTools.Tags
                 string prefixDisp = prefix.Length > 0 ? $"\"{prefix}\"" : "";
                 string suffixDisp = suffix.Length > 0 ? $"\"{suffix}\"" : "";
 
-                sb.AppendLine($"  {paramShort,-30} | {prefixDisp,-14} | {suffixDisp,-14} | {spaces,-3} | {(brk ? "YES" : "")}");
+                if (anyStyle)
+                {
+                    string style = entry["style"]?.ToString() ?? "";
+                    string color = entry["color"]?.ToString() ?? "";
+                    string size = entry["size"]?.ToString() ?? "";
+                    sb.AppendLine($"  {paramShort,-30} | {prefixDisp,-14} | {suffixDisp,-14} | {spaces,-3} | {(brk ? "YES" : ""),-3} | {style,-6} | {color,-6} | {size}");
+                }
+                else
+                {
+                    sb.AppendLine($"  {paramShort,-30} | {prefixDisp,-14} | {suffixDisp,-14} | {spaces,-3} | {(brk ? "YES" : "")}");
+                }
             }
         }
     }
