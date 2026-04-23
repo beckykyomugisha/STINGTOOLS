@@ -290,6 +290,7 @@ namespace StingTools.UI
                     // ── v4 Phase J: cable-in-tray modelling ──
                     case "Electrical_AddCable":    RunCommand<Commands.Electrical.AddCableCommand>(app); break;
                     case "Electrical_ListCables":  RunCommand<Commands.Electrical.ListCablesCommand>(app); break;
+                    case "Electrical_ExportCircuits": RunCommand<Commands.Electrical.ExportCircuitsCommand>(app); break;
 
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
