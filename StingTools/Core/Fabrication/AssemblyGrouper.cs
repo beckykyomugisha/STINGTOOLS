@@ -31,13 +31,39 @@ namespace StingTools.Core.Fabrication
         }
         public class DisciplineRules
         {
+            /// <summary>Hard max stick length — industry default 6000 mm
+            /// (single stick of steel pipe).</summary>
             public double MaxLengthMm    { get; set; } = 6000;
-            public int    MaxBends       { get; set; } = 6;
+            /// <summary>Max bends per spool. 4 is the Phase A default;
+            /// beyond this hydro-test alignment becomes problematic.</summary>
+            public int    MaxBends       { get; set; } = 4;
             public int    MaxFittings    { get; set; } = 12;
+            /// <summary>Manual-handling weight cap. 200 kg is typical for
+            /// 2-man lift; 500 kg is the crane threshold. Phase E adds
+            /// this constraint so spools don't exceed the loading bay
+            /// or forklift capacity of the fab shop.</summary>
+            public double MaxWeightKg    { get; set; } = 400;
             public bool   BreakAtFlange  { get; set; } = true;
             public bool   BreakAtValve   { get; set; } = true;
             public bool   BreakAtPenetration { get; set; } = true;
             public bool   BreakAtBranch  { get; set; } = true;
+        }
+
+        /// <summary>
+        /// Per-spool metrics recorded by the grouper so AssemblyBuilder
+        /// can write them back to ASS_LENGTH_TOTAL_MM, ASS_WEIGHT_KG,
+        /// ASS_WELD_COUNT_NR, etc. Keyed on the index of the group in
+        /// the output list.
+        /// </summary>
+        public class SpoolMetrics
+        {
+            public double LengthTotalMm { get; set; }
+            public double WeightKg      { get; set; }
+            public int    BendCount     { get; set; }
+            public int    FittingCount  { get; set; }
+            public int    WeldCount     { get; set; }
+            public int    FlangeCount   { get; set; }
+            public int    CutCount      { get; set; }
         }
 
         private const double MmToFt = 1.0 / 304.8;
@@ -51,15 +77,31 @@ namespace StingTools.Core.Fabrication
         public List<List<ElementId>> GroupForDiscipline(
             Document doc, IList<ElementId> ids, string discipline)
         {
+            var metrics = new List<SpoolMetrics>();
+            return GroupForDiscipline(doc, ids, discipline, out metrics);
+        }
+
+        /// <summary>
+        /// Overload that also returns per-group metrics aligned to the
+        /// output list. metrics[i] corresponds to groups[i].
+        /// </summary>
+        public List<List<ElementId>> GroupForDiscipline(
+            Document doc, IList<ElementId> ids, string discipline,
+            out List<SpoolMetrics> metrics)
+        {
             var groups = new List<List<ElementId>>();
+            metrics = new List<SpoolMetrics>();
             if (doc == null || ids == null || ids.Count == 0) return groups;
             DisciplineRules rules = ResolveRules(discipline);
 
             var visited = new HashSet<long>();
             var current = new List<ElementId>();
+            var metric  = new SpoolMetrics();
             double lengthAccumFt = 0.0;
             int bendAccum = 0;
             int fittingAccum = 0;
+            int flangeAccum  = 0;
+            double weightAccumKg = 0.0;
 
             foreach (var id in ids)
             {
@@ -69,38 +111,69 @@ namespace StingTools.Core.Fabrication
                 Element el = doc.GetElement(id);
                 if (el == null) continue;
 
-                // Hard-break override
+                // Hard-break override written by earlier QC pass.
                 if (ReadBool(el, "ASS_FAB_BREAK_BOOL"))
                 {
-                    if (current.Count > 0) { groups.Add(current); current = new List<ElementId>(); }
-                    lengthAccumFt = 0; bendAccum = 0; fittingAccum = 0;
+                    if (current.Count > 0) { groups.Add(current); metrics.Add(metric); current = new List<ElementId>(); metric = new SpoolMetrics(); }
+                    lengthAccumFt = 0; bendAccum = 0; fittingAccum = 0; flangeAccum = 0; weightAccumKg = 0;
                     current.Add(id);
                     continue;
                 }
 
-                // Add element to current group
+                // Add element to current group and update accumulators.
                 current.Add(id);
-                lengthAccumFt += SafeLengthFt(el);
-                if (IsBendFitting(el)) bendAccum++;
-                if (IsFitting(el))     fittingAccum++;
+                double lenFt = SafeLengthFt(el);
+                lengthAccumFt += lenFt;
+
+                // Per-element weight estimate. We accumulate on the fly
+                // so MaxWeightKg is respected in the same pass as length.
+                double elementWeight = SpoolWeightCalculator.WeightKg(doc, new[] { id });
+                weightAccumKg += elementWeight;
+
+                bool isBend    = IsBendFitting(el);
+                bool isFit     = IsFitting(el);
+                bool isFlange  = IsFlange(el);
+                bool isValve   = IsValve(el);
+                bool isPen     = IsPenetration(el);
+                if (isBend)   bendAccum++;
+                if (isFit)    fittingAccum++;
+                if (isFlange) flangeAccum++;
+
+                metric.LengthTotalMm = lengthAccumFt * 304.8;
+                metric.WeightKg      = weightAccumKg;
+                metric.BendCount     = bendAccum;
+                metric.FittingCount  = fittingAccum;
+                metric.FlangeCount   = flangeAccum;
+                // Welds (approx): one weld per inline fitting joint +
+                // end-to-end coupling on cut pieces. Phase E rough
+                // estimate: fittings + (stick-breaks - 1).
+                metric.WeldCount = fittingAccum;
+                metric.CutCount  = Math.Max(0, fittingAccum - 1);
 
                 bool overflow = (lengthAccumFt * 304.8) > rules.MaxLengthMm
-                             || bendAccum    > rules.MaxBends
-                             || fittingAccum > rules.MaxFittings;
+                             || bendAccum      > rules.MaxBends
+                             || fittingAccum   > rules.MaxFittings
+                             || weightAccumKg  > rules.MaxWeightKg;
 
                 bool breakHere = overflow
-                              || (rules.BreakAtFlange     && IsFlange(el))
-                              || (rules.BreakAtValve      && IsValve(el))
-                              || (rules.BreakAtPenetration&& IsPenetration(el));
+                              || (rules.BreakAtFlange     && isFlange)
+                              || (rules.BreakAtValve      && isValve)
+                              || (rules.BreakAtPenetration&& isPen);
 
                 if (breakHere)
                 {
                     groups.Add(current);
+                    metrics.Add(metric);
                     current = new List<ElementId>();
-                    lengthAccumFt = 0; bendAccum = 0; fittingAccum = 0;
+                    metric  = new SpoolMetrics();
+                    lengthAccumFt = 0; bendAccum = 0; fittingAccum = 0; flangeAccum = 0; weightAccumKg = 0;
                 }
             }
-            if (current.Count > 0) groups.Add(current);
+            if (current.Count > 0)
+            {
+                groups.Add(current);
+                metrics.Add(metric);
+            }
             return groups;
         }
 

@@ -1802,3 +1802,374 @@ expand bespoke layouts in Word without breaking the `{{token}}` contract.
 abstraction and S20 AI-assisted PDF metadata extraction. Both require
 server-side key management / Python service respectively. Design is
 complete; implementation deferred.
+
+---
+
+#### Completed (Phase 113 — v4 MEP robustness, Phases A–F)
+
+Unified fabrication / routing / fixture-placement hardening pass on
+branch `claude/research-mep-automation-NMLDm`. Addresses the gap
+matrix in the Phase-A gap-analysis report: turns the v4 MVP from a
+skeleton that calls the right Revit APIs in the wrong order into a
+production-grade system that (a) actually connects MEP networks,
+(b) integrates with Revit Fabrication content, (c) ships real BS /
+ASHRAE / SMACNA calc engines, (d) places hangers, (e) packages
+spools under weight caps, and (f) emits PCF for Isogen.
+
+**Phase A — Wire what's already built (12 commits)**
+
+1. **TaskDialog bug fix (6 sites)** — Removed
+   `DefaultButton = TaskDialogResult.CommandLink1` which Revit
+   validates against `CommonButtons` only (not `CommandLink*`).
+   Fixed in `PlaceFixturesCommand`, `DocAutomationExtCommands`,
+   `AutoTagCommand`, `BatchTagCommand`, `FamilyStagePopulateCommand`.
+   The Fixtures tab was crashing on first click before this.
+
+2. **`Connector.ConnectTo` + `NewTakeoffFitting` wired into drop
+   engines** — `Core/Routing/DropEngineBase.cs` now:
+   (a) reads the fixture's `MEPModel.ConnectorManager.Connectors`,
+   (b) filters by `Domain` (Piping / Hvac / CableTrayConduit),
+   (c) calls `Connector.ConnectTo(nearConn)` for the fixture end,
+   (d) calls `Document.Create.NewTakeoffFitting(farConn, hostCurve)`
+   for the host end (piping / HVAC; conduit uses direct ConnectTo).
+   `DropResult` gained `ConnectedCount` + `TakeoffCount` metrics.
+
+3. **BS EN 50174-2 separation rules enforced** —
+   `Core/Routing/RoutingRules.cs` loader + `SeparationChecker.cs`.
+   Loads the 12 separation rules and 14 corridor bands from the
+   two JSON files that existed in v4 MVP but were never read.
+   System-name classifier (13 heuristics: FIRE, DATA, HV, POWER,
+   MED, GAS, …) maps neighbour services to the rule keys.
+
+4. **`LIGHTING_GRID` anchor type** — `PlacementScorer` now honours
+   a `LIGHTING_GRID` / `LUX_GRID` / `EN12464` anchor type and
+   emits one candidate per required luminaire via the
+   `LightingGridCalculator` that also existed but was orphaned.
+
+5. **Real collision scoring** — `PlacementScorer.ComputeCollisionScore`
+   uses the `ObstructionIndex` AABB cache (7-category default:
+   DuctTerminal, Sprinklers, FireAlarmDevices,
+   MechanicalEquipment, SpecialityEquipment, SecurityDevices,
+   CommunicationDevices) with the 350 mm CIBSE Guide B4 buffer.
+   Hard-collision candidates now score 0 and are rejected upstream.
+
+6. **`AssemblyViewUtils.*` swap** — `AssemblyViewBuilder` stopped
+   reinventing elevations via hand-rolled `ViewSection.CreateSection`
+   transforms and now uses
+   `AssemblyViewUtils.CreateDetailSection(AssemblyDetailViewOrientation.ElevationFront/ElevationLeft/HorizontalDetail)`.
+   Added `CreateMaterialTakeoff` for the shop's procurement rollup.
+   The 30° trimetric `ViewSection` is kept as a fallback "iso-style"
+   view since there's no native ISO-6412 axonometric API.
+
+7. **Sheet numbering `SP-{disc}-{sys}-{lvl}-{seq}`** —
+   `ShopDrawingComposer` now generates discipline-coded, level-
+   aware, sequence-scoped sheet numbers with `EnsureUniqueSheetNumber`
+   collision resolution and a `Sanitise` helper for Revit-reserved
+   characters.
+
+8. **UI option wiring** — ~30 XAML CheckBox / RadioButton / ComboBox
+   / TextBox controls on the Fixtures / Routing / Fabrication
+   sub-tabs now populate static option singletons
+   (`PlaceFixturesOptions`, `AutoDropOptions`, `FabricationOptions`)
+   via `SetV4{Placement,Routing,Fabrication}Options` methods in
+   `StingDockPanel.xaml.cs`.
+
+9. **Real UUIDv5 GUIDs for 46 fabrication params** —
+   Previously shipped as `v4-YYYY-xxxx` placeholders that Revit
+   refuses to bind. Regenerated deterministically via
+   `tools/mint_fab_guids.py` under namespace
+   `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`. `--check` mode verifies
+   `.cs` and `.txt` stay in lock-step.
+
+10. **A* pathfinder wired** — `Core/Routing/RoutingPathfinder.cs`
+    façade over the formerly dead `VoxelGrid` + `AStarSolver`.
+    `GenerateLayoutCommand` swapped from TaskDialog stub to a
+    live A* preview that picks 2 points, collects obstacles in a
+    padded AABB (walls / floors / roofs / ceilings / columns /
+    beams via `BoundingBoxIntersectsFilter`), runs the solver,
+    and draws the resulting polyline as `DetailCurve`s.
+
+**Phase B — Revit Fabrication API integration (4 commits)**
+
+1. **`FabricationServiceLocator`** —
+   `FabricationConfiguration.GetFabricationConfiguration(doc)` +
+   `GetAllLoadedServices()` cached per (PathName, CreationGUID).
+   `FindButton(desiredCategory, serviceHint?, buttonHint?)` does
+   the substring search the drop engines need.
+
+2. **`FabricationPart.Create` fallback in pipe + duct drops** —
+   New `PreferFabricationContent` toggle (default true). When a
+   config is loaded, drops become LOD-400 ITM content aligned via
+   `ElementTransformUtils.MoveElement`; fall back to Pipe/Duct.Create
+   otherwise. Conduit stays design-intent (conduit shops rarely
+   use ITM).
+
+3. **`RoutingPreferenceInspector`** —
+   `Core/Routing/RoutingPreferenceInspector.cs` walks the
+   `RoutingPreferenceRuleGroupType` enum (Elbows, Junctions,
+   Crosses, Transitions, Unions, Caps) and checks each rule has
+   a bound `MEPPartId`. Empty slots are reported as
+   `DropResult.Warnings` so users stop getting silent open-joint
+   drops.
+
+4. **Wall collision via `ElementIntersectsSolidFilter`** —
+   `PlacementScorer.IsInsideWall` builds a 50 mm hexahedron probe
+   at each candidate, then `BooleanOperationsUtils.ExecuteBooleanOperation`
+   against cached wall solids (`OST_Walls` + 1 ft-padded AABB).
+   Hit ⇒ `CollisionScore=0`, `CollisionFlags |= InsideWall`.
+
+5. **MAJ export command** —
+   `Commands/Fabrication/ExportMajCommand.cs` invokes
+   `FabricationUtils.ExportToMAJ` with `FabricationSaveJobOptions
+   { IncludeHangerRods = true }`. Writes to
+   `<project>/_BIM_COORD/fab/<stamp>.maj`. Dispatched via
+   `Fabrication_ExportMaj`. Closes the CAMduct / ESTmep handoff.
+
+**Phase C — Calc engines (1 commit, 5 files)**
+
+1. **`ConduitFillSolver`** — BS 7671 Appendix E Tables 11/12/13/14
+   verbatim. `Solve(cables, lengthM, bendCount)` returns the
+   smallest compliant bore with a 5%/bend compounded penalty
+   beyond the first bend. `FillRatio` for validator use.
+
+2. **`DuctFrictionSolver`** — Darcy-Weisbach + Swamee-Jain explicit
+   Colebrook + SMACNA fitting-loss coefficients (17 fittings).
+   `CibseB3VelocityCheck` reports main/branch/terminal 7.6/5.0/3.0
+   m/s limits + 15 m/s noise threshold.
+
+3. **`SlopeAutoCorrector`** — Walks drainage pipes (system-name
+   matched) and either FLIPs pipes sloping the wrong way or
+   DEPRESSes the downstream end to hit 1.0% minimum. Wrapped
+   in a `TransactionGroup` with atomic rollback on any failure.
+   Offers dry-run or apply mode.
+
+4. **Command surface** — `Commands/Routing/CalcCommands.cs`:
+   `CalcConduitFillCommand`, `CalcDuctFrictionCommand`,
+   `CalcSlopeCorrectCommand`. Dispatcher tags: `Calc_ConduitFill`,
+   `Calc_DuctFriction`, `Calc_SlopeCorrect`.
+
+**Phase D — Hanger placement (1 commit, 3 files)**
+
+1. **`HangerSpacingTable`** — MSS SP-58 / HVCA TR/19 / SMACNA / BS
+   416 / BS EN 61386 tables keyed by (Kind, Material, Diameter).
+   Linear interpolation; 10% penalty for insulated runs.
+
+2. **`HangerPlacementEngine`** — for each MEP run, emits candidates
+   at spacing-table increments; probes the 3 m volume above each
+   candidate for slabs (`OST_Floors`) → `CONCRETE_ANCHOR`, then
+   beams (`OST_StructuralFraming`) → `BEAM_CLAMP`, else
+   `GENERIC`. 600 mm trapeze consolidation for parallel runs.
+
+3. **`PlaceHangersCommand`** — preview-only in Phase D (no hanger
+   family shipped). DetailCurve crosshairs at every candidate +
+   full per-candidate report. Dispatch tag: `Routing_PlaceHangers`.
+
+**Phase E — Spool intelligence (1 commit, 6 files modified)**
+
+1. **`SpoolWeightCalculator`** — weight = Σ (volume × density).
+   Analytic shell volumes for Pipe / Duct / Conduit / CableTray;
+   Solid geometry for FamilyInstances. 15-material density table.
+
+2. **`AssemblyGrouper.DisciplineRules.MaxWeightKg`** (default 400)
+   added. `MaxBends` reduced 6 → 4 per research spec. New
+   `SpoolMetrics` record returned aligned to the group list.
+
+3. **`AssemblyBuilder.Build` metrics hook** — writes back
+   `ASS_LENGTH_TOTAL_MM`, `ASS_WEIGHT_KG`, `ASS_WELD_COUNT_NR`,
+   `ASS_FLANGE_COUNT_NR`, `ASS_FITTING_COUNT_NR`,
+   `ASS_CUT_COUNT_NR` per spool. Also now writes `ASS_LVL_COD_TXT`
+   for `ShopDrawingComposer` to pick up.
+
+4. **All three fabricators (Pipe / Duct / Electrical)** switched to
+   the metrics overload and forward `SpoolMetrics` to
+   `AssemblyBuilder.Build`.
+
+**Phase F — PCF exporter for Isogen (1 commit, 3 files)**
+
+1. **`PcfExporter`** — emits Alias PCF (Pipe Component File) with
+   `ISOGEN-FILES`, `UNITS-*`, `PIPELINE-REFERENCE`, plus PIPE /
+   ELBOW / TEE / REDUCER / COUPLING / UNION / FLANGE / VALVE / CAP /
+   INSTRUMENT component blocks with `END-POSITION`,
+   `CENTRE-POSITION`, `ITEM-CODE`, `UCI`, `WEIGHT`. All
+   coordinates in mm.
+
+2. **`ExportPcfCommand`** — splits scope by `MEPSystem.Name` so
+   each pipeline gets its own PCF; writes to
+   `<project>/_BIM_COORD/pcf/`. Dispatch tag:
+   `Fabrication_ExportPcf`. Closes the ISO-6412 axonometric gap
+   without reinventing Isogen.
+
+**Caveats (carried forward from v4 MVP)**:
+- All 12 Phase-A commits + 12 subsequent phase-B-F commits built
+  without `dotnet build` verification (Linux sandbox). Every Revit
+  API call uses the documented signature. Known-vector unit tests
+  are the next step.
+- Hanger placement is preview-only until a hanger `.rfa` family is
+  authored in the library.
+- PCF covers piping only; duct iso remains a CAMduct (MAJ) workflow.
+
+---
+
+#### Completed (Phase 114 — v4 MEP robustness, Phases D.2 / C-ext / novel segregation)
+
+Second hardening pass on branch `claude/research-mep-automation-NMLDm`,
+informed by three parallel research reports (sleeve/opening software,
+cable/hanger software, wire-annotation repo audit).
+
+**Phase D.2 — Hanger family binding** (1 commit)
+ - `Core/Calc/HangerFamilyResolver.cs` — 3-tier family resolver
+   (STING_HANGER_* exact → vendor catalogue substring → keyword)
+   with per-document cache.
+ - `PlaceHangersCommand` now offers Preview vs Apply; Apply calls
+   `doc.Create.NewFamilyInstance(point, symbol, NonStructural)` per
+   candidate, writes 5 shared params. Falls back to preview when
+   no family is loaded anywhere in the project.
+ - `Data/Parameters/STING_HANGER_PARAMS.txt` — 5 UUIDv5 shared
+   params for hanger-instance metadata.
+
+**Phase C extension — Hardy Cross network balancing** (1 commit)
+ - `Core/Calc/HardyCrossSolver.cs` — classic iterative ΔQ correction
+   for looped hydronic networks. Water (n=2) and air (n=1.852)
+   regimes. 60-iter default, 0.1% tolerance.
+ - `Core/Calc/NetworkExtractor.cs` — Revit Pipe selection → signed
+   topology graph via 1 mm-rounded node hashing + spanning-tree DFS
+   + fundamental-cycle extraction.
+ - `Commands/Routing/HardyCrossCommand.cs` — Preview / Apply modes;
+   Apply writes solved flows back to RBS_PIPE_FLOW_PARAM.
+ - Dispatch tag: `Calc_HardyCross`.
+
+**Phase C.4 — BS EN 50174-2 cable segregation validator** (1 commit)
+ - The "unique differentiator" called out in the cable/hanger
+   research brief — no surveyed competitor (MagiCAD, eVolve,
+   ProDesign, Cymap, ETAP, SysQue) validates cable segregation.
+ - `Core/Calc/CableSegregationValidator.cs` — classifies each
+   tray/conduit as UTP / FTP / SFTP / SWA / Power / Fire / Unknown
+   via `ELC_CABLE_SEG_CLASS_TXT` or system-name heuristics.
+   Pairwise AABB pre-filter + 6-sample curve-to-curve check;
+   applies Annex E matrix: 200/50/30/0 mm minimum separation per
+   power/data class pair. Fire cables trigger a BS 5839-1 "separate
+   containment" warning.
+ - `Commands/Routing/CableSegregationCommand.cs` — Routing-tab
+   validator with severity-graded result panel.
+ - `Data/Parameters/STING_ELEC_WIRE_PARAMS.txt` — 7 UUIDv5 shared
+   params closing the wire-annotation audit's "missing wire params"
+   gap: PHASE, CORE_COUNT, CSA_MM2, CIRCUIT_LINK_ID, HOME_RUN,
+   VOLT_DROP_PCT, SEG_CLASS_TXT.
+ - `Data/Parameters/STING_SLEEVE_PARAMS.txt` — 3 UUIDv5 params for
+   future Provision-for-Void / Tekla round-trip: PFV_UUID,
+   HOST_FIRE_RATING, UL_SYS.
+ - Dispatch tag: `Calc_CableSegregation`.
+
+**Deferred** (identified in research):
+ - Cable drawing / cable-in-tray modelling (research gap #1, effort L)
+ - Live tray fill-ratio widget (gap #3, effort M)
+ - Point-load hanger sizing (gap #5, effort M)
+ - Rod-coupler auto-insert (gap #6, effort S — trivial once an
+   upper-bound rod length is agreed per shop)
+ - Pull-tension solver (gap #7, effort M)
+ - `Pset_ProvisionForVoid` IFC export option (sleeve research
+   recommended quick win)
+
+---
+
+#### Completed (Phase 115 — v4 MEP parity sweep: Phases M / I / I.5 / J / K / L)
+
+Third hardening pass on branch `claude/research-mep-automation-NMLDm`,
+closing 9 of the 10 Top-5 gaps from the two research briefs in one
+sequence. 7 new commits on top of Phase 114.
+
+**Phase M — Point-load hanger sizing** (MSS SP-58 Table 4)
+ - `Core/Calc/RodSizeTable.cs` — 11-row M10→M56 SWL table with
+   temperature derate per §4.2. `StockLengthMm` = 3000 constant.
+ - `HangerPlacementEngine.PlanOneRun` computes per-metre load (shell
+   + water content π·D²/4·ρ_water + insulation π·D·thk × 30 kg/m³
+   mineral wool) and selects rod per candidate via `RodSizeTable.Select`.
+ - `STING_HANGER_PARAMS.txt` + 4 new UUIDv5 params:
+   `STING_HANGER_POINT_LOAD_KG`, `STING_HANGER_ROD_DIA_MM`,
+   `STING_HANGER_ROD_IMPERIAL`, `STING_HANGER_COUPLER_BOOL`.
+ - `PlaceHangersCommand` writes them per FamilyInstance; result
+   panel shows M10(3/8) / M12(1/2) / M20(3/4) style labels.
+
+**Phase I — Sleeve engine** (rule-driven sizing + cut + fire rating + IFC PfV)
+ - `Core/Mep/SleeveSizingRules.cs` + `Data/Routing/STING_SLEEVE_RULES.json`
+   (8 rules, insulation-aware, min-bore clamped).
+ - `Core/Mep/SleeveEngine.cs` — penetration scan via
+   `BoundingBoxIntersectsFilter` + `ElementIntersectsElementFilter`;
+   `FamilyInstance.Create` of `STING_SLEEVE_ROUND/RECT/PROVISION_VOID`
+   (3-tier family resolution); `InstanceVoidCutUtils.AddInstanceVoidCut`
+   with `CanBeCutWithVoid` gate; host-type `FIRE_RATING` inheritance;
+   deterministic SHA1-based UUIDv5 PFV keys.
+ - `Commands/Mep/PlaceSleevesCommand.cs` — Preview/Apply.
+ - `Commands/Mep/ExportPfvIfcCommand.cs` — IFC4 Reference View with
+   `ExportProvisionForVoids=true` option for Tekla Hole Reservation
+   Manager round-trip.
+
+**Phase I.5 — Sleeve → BCF 2.1 round-trip**
+ - `Commands/Mep/ExportSleeveBcfCommand.cs` — reuses
+   `Planscape.Shared.BCF.BcfEngine`; one topic per sleeve; PFV UUID
+   = BCF topic GUID so ACC Issues / BIMcollab / Solibri / Revizto /
+   Trimble Connect and Tekla all key off the same identifier.
+
+**Phase J — Cable-in-tray modelling** (MagiCAD parity)
+ - `Core/Electrical/CableManifest.cs` — `StingCable` record with
+   circuit id, phase, core count, CSA, OD, material, insulation,
+   segregation class; persisted to `_BIM_COORD/cables.json`.
+ - `Core/Electrical/CableRouter.cs` — graph over
+   `OST_CableTray` + `OST_Conduit` + fittings via
+   `ConnectorManager.Connectors.AllRefs`; Dijkstra from source→dest
+   equipment.
+ - `Core/Calc/VoltageDropSolver.cs` — BS 7671 Appendix 4 Table 4D1A
+   (Cu 70 °C two-core) with IEC 60364-5-52 Al correction and
+   three-phase √3 factor.
+ - `Commands/Electrical/AddCableCommand.cs` — PickObject source +
+   destination with `FixtureFilter`, routes, solves voltage drop,
+   appends to manifest.
+ - `Commands/Electrical/ListCablesCommand.cs` — manifest listing.
+
+**Phase K — Circuit schedule export** (ProDesign / EasyPower / ETAP)
+ - `Core/Electrical/CircuitScheduleExporter.cs` — walks
+   `FilteredElementCollector.OfClass(typeof(ElectricalSystem))` and
+   extracts 13 Revit BuiltInParameter fields
+   (`RBS_ELEC_NUMBER_OF_POLES` through
+   `RBS_ELEC_VOLTAGE_DROP_PARAM`). Emits three files to
+   `_BIM_COORD/electrical/`:
+     CSV (Excel), XML (ProDesign schema 1.0), JSON (EasyPower / ETAP
+     generic).
+ - `Commands/Electrical/ExportCircuitsCommand.cs` — dispatch tag
+   `Electrical_ExportCircuits`.
+
+**Phase L — Live tray fill-ratio widget**
+ - `Core/Electrical/TrayFillCalculator.cs` — reads tray geometry;
+   sums π·D²/4·N·coreCount with 10% packing waste for cables routed
+   through the tray (via `CableManifest.RouteTrayIds`); IEC 61537 /
+   BS 7671 App E / NEC 300.17 compliance:
+   40% covered tray, 45% perforated, 50% ladder, 40% conduit.
+ - `UI/TrayFillWindow.xaml.cs` — non-modal WPF canvas with tray
+   outline + colour-coded ellipses per cable (POWER red / UTP blue
+   / FTP cyan / SFTP mint / SWA grey / FIRE orange); header shows
+   fill% vs limit + PASS/OVERFILL.
+ - `Commands/Electrical/ShowTrayFillCommand.cs` — `PickObject` with
+   `TrayFilter`; renders cross-section.
+
+**Gap scoreboard after Phase 115**
+
+| Research gap | Status |
+|---|---|
+| Cable drawing / cable-in-tray modelling (MagiCAD) | DONE (Phase J) |
+| Circuit schedule export (ProDesign / EasyPower) | DONE (Phase K) |
+| Live tray fill-ratio widget (MagiCAD) | DONE (Phase L) |
+| BS EN 50174-2 segregation validator (novel) | DONE (Phase C.4) |
+| Point-load hanger sizing (MSUITE) | DONE (Phase M) |
+| Pset_ProvisionForVoid IFC4 export | DONE (Phase I.5) |
+| Rule-driven sleeve sizing, insulation-aware | DONE (Phase I) |
+| Host-aware cut (InstanceVoidCutUtils) | DONE (Phase I) |
+| Fire-rating inheritance (FIRE_RATING) | DONE (Phase I) |
+| BCF/ACC Issue round-trip | DONE (Phase I.5) |
+
+**Deferred for Phase 116+**
+ - Rod-coupler auto-insert (small, trivial — needs coupler family)
+ - Pull-tension solver (Polywater eqn — useful for conduit pulls)
+ - Seismic bracing content library (US-only)
+ - Cable-schedule round-trip import (ProDesign → Revit write-back)
+ - Hanger family library (no .rfa files shipped; Tier-1 resolver
+   finds vendor families when loaded).

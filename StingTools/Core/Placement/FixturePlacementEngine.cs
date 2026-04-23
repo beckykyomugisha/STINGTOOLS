@@ -78,7 +78,15 @@ namespace StingTools.Core.Placement
             result.RoomsVisited = rooms.Count;
             if (rooms.Count == 0) return result;
 
-            var scorer = new PlacementScorer(doc);
+            var scorer = new PlacementScorer(doc)
+            {
+                // Carry the Fixtures-tab RejectInsideWall option through
+                // to the scorer so ElementIntersectsSolidFilter runs on
+                // every candidate. Default off for fast-path placement
+                // in large rooms; on by default in the UI because
+                // users expect fixtures not to sit inside walls.
+                RejectInsideWall = StingTools.Commands.Placement.PlaceFixturesOptions.RejectInsideWall,
+            };
             var perCategorySymbol = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
 
             // Rule ordering: higher Priority first so specialised rules

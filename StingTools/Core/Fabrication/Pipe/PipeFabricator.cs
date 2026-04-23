@@ -19,7 +19,8 @@ namespace StingTools.Core.Fabrication.Pipe
             if (doc == null || elementIds == null || elementIds.Count == 0) return;
 
             var grouper = new AssemblyGrouper();
-            var groups = grouper.GroupForDiscipline(doc, elementIds, "Pipe");
+            var groups = grouper.GroupForDiscipline(doc, elementIds, "Pipe",
+                out List<AssemblyGrouper.SpoolMetrics> metrics);
             int seq = 1;
 
             using (var tx = new Transaction(doc, "STING v4 Pipe fabrication"))
@@ -29,9 +30,11 @@ namespace StingTools.Core.Fabrication.Pipe
 
                 try
                 {
-                    foreach (var g in groups)
+                    for (int i = 0; i < groups.Count; i++)
                     {
-                        ElementId assyId = AssemblyBuilder.Build(doc, "Pipe", g, seq++, result);
+                        var g = groups[i];
+                        var m = i < metrics.Count ? metrics[i] : null;
+                        ElementId assyId = AssemblyBuilder.Build(doc, "Pipe", g, seq++, result, m);
                         if (assyId == null || assyId == ElementId.InvalidElementId) { result.FailedCount++; continue; }
                         result.AssemblyIds.Add(assyId);
                         var views = AssemblyViewBuilder.BuildViews(doc, assyId);
@@ -62,6 +65,7 @@ namespace StingTools.Core.Fabrication.Pipe
             string path = Path.Combine(outDir, "STING_v4_pipe_welds.csv");
             using (var w = new StreamWriter(path, false))
             {
+                Core.Branding.BrandTokens.StampCsvHeader(w, doc, "pipe_weld_map");
                 w.WriteLine("element_id,category,name,weld_type,size_mm,schedule");
                 foreach (var id in ids)
                 {

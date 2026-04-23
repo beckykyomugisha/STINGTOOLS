@@ -272,6 +272,29 @@ namespace StingTools.UI
                     case "Fabrication_ExportCutList":   RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;
                     case "Fabrication_ExportIsometrics":RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
                     case "Fabrication_ExportWeldMap":   RunCommand<Commands.Fabrication.ExportWeldMapCommand>(app); break;
+                    case "Fabrication_ExportMaj":       RunCommand<Commands.Fabrication.ExportMajCommand>(app); break;
+                    case "Fabrication_ExportPcf":       RunCommand<Commands.Fabrication.ExportPcfCommand>(app); break;
+
+                    // ── v4 Phase C: calc engines ──
+                    case "Calc_ConduitFill":  RunCommand<Commands.Routing.CalcConduitFillCommand>(app); break;
+                    case "Calc_DuctFriction": RunCommand<Commands.Routing.CalcDuctFrictionCommand>(app); break;
+                    case "Calc_SlopeCorrect": RunCommand<Commands.Routing.CalcSlopeCorrectCommand>(app); break;
+                    case "Calc_HardyCross":  RunCommand<Commands.Routing.HardyCrossCommand>(app); break;
+                    case "Calc_CableSegregation": RunCommand<Commands.Routing.CableSegregationCommand>(app); break;
+
+                    // ── v4 Phase I: sleeve engine ──
+                    case "Mep_PlaceSleeves":   RunCommand<Commands.Mep.PlaceSleevesCommand>(app); break;
+                    case "Mep_ExportPfvIfc":   RunCommand<Commands.Mep.ExportPfvIfcCommand>(app); break;
+                    case "Mep_ExportSleeveBcf":RunCommand<Commands.Mep.ExportSleeveBcfCommand>(app); break;
+
+                    // ── v4 Phase J: cable-in-tray modelling ──
+                    case "Electrical_AddCable":    RunCommand<Commands.Electrical.AddCableCommand>(app); break;
+                    case "Electrical_ListCables":  RunCommand<Commands.Electrical.ListCablesCommand>(app); break;
+                    case "Electrical_ExportCircuits": RunCommand<Commands.Electrical.ExportCircuitsCommand>(app); break;
+                    case "Electrical_TrayFill":    RunCommand<Commands.Electrical.ShowTrayFillCommand>(app); break;
+
+                    // ── v4 Phase D: hanger placement ──
+                    case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
                     case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
 
                     // ── Selection scope ──
@@ -1586,6 +1609,7 @@ namespace StingTools.UI
                     case "ClashSessionRefresh":   RunCommand<Core.Clash.ClashSessionRefreshCommand>(app); break;
                     case "ClashSessionClear":     RunCommand<Core.Clash.ClashSessionClearCommand>(app); break;
                     case "ClashMatrixEdit":       RunCommand<Core.Clash.ClashMatrixEditCommand>(app); break;
+                    case "ClashManager":          RunCommand<Commands.Mep.ClashManagerCommand>(app); break;
 
                     // Warnings Manager (Phase 46)
                     case "WarningsDashboard": RunCommand<Core.WarningsDashboardCommand>(app); break;

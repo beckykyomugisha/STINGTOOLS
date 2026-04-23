@@ -1,0 +1,83 @@
+{
+  "_meta": {
+    "name": "STING v4 Phase I sleeve-sizing rules",
+    "section": "Phase I (sleeve engine)",
+    "units": "millimetres",
+    "reference_docs": [
+      "SMACNA — Through-Penetration Firestopping (clear gap)",
+      "UK shop practice — pipe OD + 50 mm",
+      "BS EN 1366-3 — fire test of penetration seals",
+      "Approved Document B volume 2 — fire rating inheritance",
+      "IEC 61386 — conduit inside diameter allowances"
+    ]
+  },
+  "rules": [
+    {
+      "id": "PIPE_DEFAULT",
+      "element_category": "PipeCurves",
+      "clearance_mm": 50.0,
+      "include_insulation": true,
+      "shape": "round",
+      "min_bore_mm": 40.0
+    },
+    {
+      "id": "PIPE_LARGEBORE",
+      "element_category": "PipeCurves",
+      "diameter_ge_mm": 250.0,
+      "clearance_mm": 75.0,
+      "include_insulation": true,
+      "shape": "round",
+      "min_bore_mm": 300.0
+    },
+    {
+      "id": "DUCT_RECT",
+      "element_category": "DuctCurves",
+      "shape_hint": "rectangular",
+      "clearance_mm": 50.0,
+      "include_insulation": true,
+      "shape": "rectangular",
+      "min_bore_mm": 100.0
+    },
+    {
+      "id": "DUCT_ROUND",
+      "element_category": "DuctCurves",
+      "shape_hint": "round",
+      "clearance_mm": 50.0,
+      "include_insulation": true,
+      "shape": "round",
+      "min_bore_mm": 100.0
+    },
+    {
+      "id": "CONDUIT",
+      "element_category": "Conduit",
+      "clearance_mm": 15.0,
+      "include_insulation": false,
+      "shape": "round",
+      "min_bore_mm": 25.0
+    },
+    {
+      "id": "CABLE_TRAY",
+      "element_category": "CableTray",
+      "clearance_mm": 100.0,
+      "include_insulation": false,
+      "shape": "rectangular",
+      "min_bore_mm": 150.0
+    },
+    {
+      "id": "FLEX_PIPE",
+      "element_category": "FlexPipeCurves",
+      "clearance_mm": 50.0,
+      "include_insulation": true,
+      "shape": "round",
+      "min_bore_mm": 40.0
+    },
+    {
+      "id": "FLEX_DUCT",
+      "element_category": "FlexDuctCurves",
+      "clearance_mm": 50.0,
+      "include_insulation": true,
+      "shape": "round",
+      "min_bore_mm": 100.0
+    }
+  ]
+}

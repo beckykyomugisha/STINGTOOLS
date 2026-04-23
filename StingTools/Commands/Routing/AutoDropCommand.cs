@@ -17,6 +17,25 @@ using StingTools.UI;
 
 namespace StingTools.Commands.Routing
 {
+    /// <summary>
+    /// Shared options surface for Auto-drop, populated by the Routing
+    /// tab UI before Execute is invoked. Static — read-only session
+    /// singleton, mirrors the pattern used elsewhere in StingTools
+    /// (e.g. TagConfig) so that UI wiring can be incremental.
+    /// </summary>
+    public static class AutoDropOptions
+    {
+        public static bool   SnapToCorridorBand { get; set; } = true;
+        public static bool   EnforceSeparation  { get; set; } = true;
+        public static double MaxSearchRadiusMm  { get; set; } = 3000.0;
+        public static bool   IncludeElectrical  { get; set; } = true;
+        public static bool   IncludePlumbing    { get; set; } = true;
+        public static bool   IncludeHvac        { get; set; } = true;
+        public static string ConduitInstallMethod { get; set; } = "CLIPPED";
+        public static string DuctSeamType       { get; set; } = "A";
+        public static string PipeHangerType     { get; set; } = "CLEVIS_ROD";
+    }
+
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class AutoDropCommand : IExternalCommand
@@ -61,12 +80,39 @@ namespace StingTools.Commands.Routing
             var allResults = new List<DropResult>();
             try
             {
-                if (byDisc["Electrical"].Count > 0)
-                    allResults.Add(new AutoConduitDrop(doc).Execute(byDisc["Electrical"]));
-                if (byDisc["Plumbing"].Count > 0)
-                    allResults.Add(new AutoPipeDrop(doc).Execute(byDisc["Plumbing"]));
-                if (byDisc["HVAC"].Count > 0)
-                    allResults.Add(new AutoDuctDrop(doc).Execute(byDisc["HVAC"]));
+                if (AutoDropOptions.IncludeElectrical && byDisc["Electrical"].Count > 0)
+                {
+                    var eng = new AutoConduitDrop(doc)
+                    {
+                        SnapToCorridorBand = AutoDropOptions.SnapToCorridorBand,
+                        EnforceSeparation  = AutoDropOptions.EnforceSeparation,
+                        SearchRadiusMm     = AutoDropOptions.MaxSearchRadiusMm,
+                        InstallMethod      = AutoDropOptions.ConduitInstallMethod,
+                    };
+                    allResults.Add(eng.Execute(byDisc["Electrical"]));
+                }
+                if (AutoDropOptions.IncludePlumbing && byDisc["Plumbing"].Count > 0)
+                {
+                    var eng = new AutoPipeDrop(doc)
+                    {
+                        SnapToCorridorBand = AutoDropOptions.SnapToCorridorBand,
+                        EnforceSeparation  = AutoDropOptions.EnforceSeparation,
+                        SearchRadiusMm     = AutoDropOptions.MaxSearchRadiusMm,
+                        HangerType         = AutoDropOptions.PipeHangerType,
+                    };
+                    allResults.Add(eng.Execute(byDisc["Plumbing"]));
+                }
+                if (AutoDropOptions.IncludeHvac && byDisc["HVAC"].Count > 0)
+                {
+                    var eng = new AutoDuctDrop(doc)
+                    {
+                        SnapToCorridorBand = AutoDropOptions.SnapToCorridorBand,
+                        EnforceSeparation  = AutoDropOptions.EnforceSeparation,
+                        SearchRadiusMm     = AutoDropOptions.MaxSearchRadiusMm,
+                        SeamType           = AutoDropOptions.DuctSeamType,
+                    };
+                    allResults.Add(eng.Execute(byDisc["HVAC"]));
+                }
             }
             catch (Exception ex)
             {
@@ -113,9 +159,11 @@ namespace StingTools.Commands.Routing
             foreach (var r in results)
             {
                 panel.AddSection(r.Discipline.ToUpperInvariant())
-                     .Metric("Created", r.CreatedIds.Count.ToString())
-                     .Metric("Skipped", r.SkippedCount.ToString())
-                     .Metric("Failed",  r.FailedCount.ToString());
+                     .Metric("Created",       r.CreatedIds.Count.ToString())
+                     .Metric("Connected",     r.ConnectedCount.ToString())
+                     .Metric("Takeoffs",      r.TakeoffCount.ToString())
+                     .Metric("Skipped",       r.SkippedCount.ToString())
+                     .Metric("Failed",        r.FailedCount.ToString());
                 if (r.Warnings.Count > 0)
                 {
                     foreach (var w in r.Warnings.Take(10)) panel.Text(w);

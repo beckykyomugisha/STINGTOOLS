@@ -12,6 +12,45 @@ using StingTools.UI;
 
 namespace StingTools.Commands.Fabrication
 {
+    /// <summary>
+    /// Static option surface for Generate Fabrication Package, populated
+    /// by the TAGS → Fabrication sub-tab before Execute runs.
+    /// Mirrors the 16 CheckBox / 2 RadioButton controls documented in
+    /// StingDockPanel.xaml under the Fabrication sub-tab.
+    /// </summary>
+    public static class FabricationOptions
+    {
+        // Scope radio buttons
+        public static bool ScopeSelection { get; set; } = true;
+        public static bool ScopeActiveView{ get; set; } = false;
+        public static bool ScopeProject   { get; set; } = false;
+
+        // Discipline rule toggles
+        public static bool RulePipe       { get; set; } = true;
+        public static bool RulePipeLB     { get; set; } = false;
+        public static bool RuleDuct       { get; set; } = true;
+        public static bool RuleDuctPitt   { get; set; } = false;
+        public static bool RuleConduit    { get; set; } = true;
+
+        // Output toggles
+        public static bool GenerateAssemblies  { get; set; } = true;
+        public static bool GenerateViews       { get; set; } = true;
+        public static bool GenerateSheets      { get; set; } = true;
+        public static bool PlaceISO6412Symbols { get; set; } = true;
+        public static bool EmitPerDisciplineCsv{ get; set; } = true;
+
+        // Content mode — ISO 6412 (workshop) vs Generic (geometry only)
+        public static bool ContentModeIso6412  { get; set; } = true;
+
+        /// <summary>
+        /// Shop-drawing composition options captured from the
+        /// ShopDrawingOptionsDialog. Null = use engine defaults
+        /// (per-discipline STING_TB_ASSEMBLY_*, no view template,
+        /// SP-{disc}-{sys}-{lvl}-{seq} sheet numbering).
+        /// </summary>
+        public static StingTools.UI.ShopDrawingOptions ShopDrawing { get; set; }
+    }
+
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class GenerateFabPackageCommand : IExternalCommand
@@ -23,11 +62,20 @@ namespace StingTools.Commands.Fabrication
             var doc = ctx.Doc;
             var uidoc = ctx.UIDoc;
 
-            var selIds = uidoc.Selection.GetElementIds();
-            if (selIds == null || selIds.Count == 0)
+            // Scope resolution — Fabrication sub-tab radio buttons drive
+            // which MEP elements feed the engine. Selection (default)
+            // means "current uidoc selection"; Active view means "all
+            // MEP curves visible in the active view"; Project means
+            // "every MEP curve in the document".
+            var ids = CollectScope(doc, uidoc);
+            if (ids == null || ids.Count == 0)
             {
+                string scopeLabel =
+                    FabricationOptions.ScopeProject    ? "project"       :
+                    FabricationOptions.ScopeActiveView ? "active view"   :
+                                                         "current selection";
                 TaskDialog.Show("STING v4 — Generate Fabrication Package",
-                    "Select MEP elements (pipes / ducts / conduits / fittings) before running.\n\n" +
+                    $"Scope '{scopeLabel}' contains no MEP elements to package.\n\n" +
                     "FabricationEngine will:\n" +
                     "  1. Group elements per discipline rules (STING_FAB_RULES.json)\n" +
                     "  2. Create AssemblyInstances with SP-{DISC}-{SYS}-{LVL}-{SEQ} naming\n" +
@@ -37,10 +85,21 @@ namespace StingTools.Commands.Fabrication
                 return Result.Cancelled;
             }
 
+            // Shop-drawing composition dialog — lets users pick a
+            // specific title block + view template + sheet-number
+            // pattern instead of the per-discipline STING_TB_ASSEMBLY_*
+            // default. Cancelling the dialog aborts the command.
+            if (FabricationOptions.GenerateSheets)
+            {
+                var dlg = new StingTools.UI.ShopDrawingOptionsDialog(doc);
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                if (dlg.ShowDialog() != true) return Result.Cancelled;
+                FabricationOptions.ShopDrawing = dlg.Result;
+            }
+
             FabricationResult res;
             try
             {
-                var ids = new List<ElementId>(selIds);
                 res = FabricationEngine.GenerateFabricationPackage(doc, ids);
             }
             catch (Exception ex)
@@ -64,6 +123,69 @@ namespace StingTools.Commands.Fabrication
             }
 
             return Result.Succeeded;
+        }
+
+        private static List<ElementId> CollectScope(Document doc, Autodesk.Revit.UI.UIDocument uidoc)
+        {
+            var ids = new List<ElementId>();
+            var mepCats = new[]
+            {
+                BuiltInCategory.OST_PipeCurves,
+                BuiltInCategory.OST_FlexPipeCurves,
+                BuiltInCategory.OST_PipeFitting,
+                BuiltInCategory.OST_PipeAccessory,
+                BuiltInCategory.OST_DuctCurves,
+                BuiltInCategory.OST_FlexDuctCurves,
+                BuiltInCategory.OST_DuctFitting,
+                BuiltInCategory.OST_DuctAccessory,
+                BuiltInCategory.OST_Conduit,
+                BuiltInCategory.OST_ConduitFitting,
+                BuiltInCategory.OST_CableTray,
+                BuiltInCategory.OST_CableTrayFitting,
+            };
+            try
+            {
+                if (FabricationOptions.ScopeProject)
+                {
+                    var col = new FilteredElementCollector(doc)
+                        .WherePasses(new ElementMulticategoryFilter(mepCats))
+                        .WhereElementIsNotElementType();
+                    foreach (var e in col) ids.Add(e.Id);
+                }
+                else if (FabricationOptions.ScopeActiveView)
+                {
+                    var view = doc.ActiveView;
+                    if (view != null)
+                    {
+                        var col = new FilteredElementCollector(doc, view.Id)
+                            .WherePasses(new ElementMulticategoryFilter(mepCats))
+                            .WhereElementIsNotElementType();
+                        foreach (var e in col) ids.Add(e.Id);
+                    }
+                }
+                else
+                {
+                    var sel = uidoc.Selection.GetElementIds();
+                    if (sel != null)
+                    {
+                        foreach (var id in sel)
+                        {
+                            var el = doc.GetElement(id);
+                            if (el?.Category == null) continue;
+                            int bic = (int)el.Category.Id.Value;
+                            foreach (var c in mepCats)
+                            {
+                                if ((int)c == bic) { ids.Add(id); break; }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GenerateFabPackage.CollectScope: {ex.Message}");
+            }
+            return ids;
         }
 
         private void ShowResult(FabricationResult res)

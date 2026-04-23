@@ -63,10 +63,10 @@ namespace Planscape.Docs.Templates
                 int templateRowCount = end - start + 1 - 2; // exclude marker rows
                 if (templateRowCount < 0) templateRowCount = 0;
 
-                // Grab the body template rows once (between start+1 and end-1).
-                var bodyRows = new List<IXLRangeRow>();
-                for (int r = start + 1; r <= end - 1; r++)
-                    bodyRows.Add(sheet.Row(r).AsRange().RangeUsed() ?? sheet.Row(r).AsRange());
+                // Dead bodyRows snapshot loop was here (never read downstream;
+                // capturedRows below is the authoritative snapshot) — removed
+                // both for clarity and to settle an IXLRangeRow/IXLRange type
+                // mismatch the build compiler flagged.
 
                 // For each item, insert copies of the body rows below the end marker,
                 // substituting tokens against the item dictionary.

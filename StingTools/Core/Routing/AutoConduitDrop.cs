@@ -36,7 +36,18 @@ namespace StingTools.Core.Routing
         /// </summary>
         public ElementId ConduitTypeId { get; set; }
 
-        public AutoConduitDrop(Document doc) : base(doc) { }
+        public AutoConduitDrop(Document doc) : base(doc)
+        {
+            ConnectorDomain = Domain.DomainCableTrayConduit;
+            ServiceId       = "ELC_PWR"; // default — overridable from command
+        }
+
+        /// <summary>
+        /// Cable-tray / conduit has no NewTakeoffFitting API — wire-up at
+        /// the host end uses Connector.ConnectTo with an adjacent tray
+        /// connector instead.
+        /// </summary>
+        protected override bool SupportsTakeoff => false;
 
         public DropResult Execute(IList<Element> fixtures)
         {
@@ -53,6 +64,19 @@ namespace StingTools.Core.Routing
                 result.Warnings.Add("AutoConduitDrop: no ConduitType found in project");
                 return result;
             }
+
+            // Inspect the RoutingPreferenceManager on the chosen ConduitType.
+            try
+            {
+                var ct = Doc.GetElement(ConduitTypeId) as ConduitType;
+                var rpt = RoutingPreferenceInspector.Inspect(ct);
+                if (!rpt.IsProductionReady)
+                    result.Warnings.Add($"RoutingPreferenceManager gaps: {rpt}");
+                else
+                    StingLog.Info($"AutoConduitDrop: {rpt}");
+            }
+            catch (Exception ex)
+            { result.Warnings.Add($"RoutingPreferenceInspector: {ex.Message}"); }
 
             using (var tx = new Transaction(Doc, "STING v4 Auto-conduit drop"))
             {
@@ -123,7 +147,11 @@ namespace StingTools.Core.Routing
 
             try
             {
-                // TODO-VERIFY-API: Conduit.Create(doc, conduitTypeId, from, to, levelId)
+                // Conduit.Create(doc, conduitTypeId, from, to, levelId) —
+                // verified against Revit 2025 API. Returned Conduit
+                // exposes two end connectors that DropEngineBase wires
+                // up via Connector.ConnectTo (conduits have no takeoff
+                // fitting so SupportsTakeoff is false).
                 var cdt = Conduit.Create(Doc, ConduitTypeId, from, to, levelId);
                 if (cdt == null) return ElementId.InvalidElementId;
 

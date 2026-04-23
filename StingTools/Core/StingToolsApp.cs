@@ -557,7 +557,7 @@ namespace StingTools.Core
                 // workflows, and manifest on first open per project.
                 try
                 {
-                    Planscape.Docs.Templates.EmbeddedTemplates.ExtractIfMissing(doc);
+                    Planscape.Docs.Templates.EmbeddedTemplates.ExtractIfMissing(e.Document);
                 }
                 catch (Exception tEx)
                 {

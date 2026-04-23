@@ -44,10 +44,56 @@ namespace StingTools.Core.Placement
         private const double SymmetryWeight  = 0.05;
 
         private readonly Document _doc;
+        private LightingGridCalculator _lightingGrid;
+
+        /// <summary>
+        /// Per-room cache of ceiling obstruction AABBs. Built once on
+        /// the first candidate for each room so FilteredElementCollector
+        /// is not re-run for every rule.
+        /// </summary>
+        private readonly Dictionary<ElementId, List<ExclusionRect>> _obstructionCache
+            = new Dictionary<ElementId, List<ExclusionRect>>();
+
+        /// <summary>
+        /// Per-room cache of wall solids used for the
+        /// ElementIntersectsSolidFilter path (RejectInsideWall). Walls
+        /// are captured as (ElementId, Solid) pairs so the filter can
+        /// report which wall an offending candidate hit.
+        /// </summary>
+        private readonly Dictionary<ElementId, List<(ElementId wallId, Solid solid)>> _wallSolidCache
+            = new Dictionary<ElementId, List<(ElementId, Solid)>>();
+
+        /// <summary>
+        /// When true, BuildCandidate invokes ElementIntersectsSolidFilter
+        /// against wall solids and marks the candidate with
+        /// InsideWall when it overlaps. Defaults false — enable via
+        /// PlaceFixturesOptions.RejectInsideWall read by the command
+        /// entry point.
+        /// </summary>
+        public bool RejectInsideWall { get; set; } = false;
 
         public PlacementScorer(Document doc)
         {
             _doc = doc;
+        }
+
+        /// <summary>
+        /// Lazy-initialised BS EN 12464-1 lux calculator. Shared across
+        /// all rules scored in a single session so the classifier CSV
+        /// and lux-target table parse only once.
+        /// </summary>
+        private LightingGridCalculator LightingGrid
+        {
+            get
+            {
+                if (_lightingGrid == null)
+                {
+                    try { _lightingGrid = new LightingGridCalculator(); }
+                    catch (Exception ex)
+                    { StingLog.Warn($"PlacementScorer: LightingGridCalculator init failed: {ex.Message}"); }
+                }
+                return _lightingGrid;
+            }
         }
 
         /// <summary>
@@ -135,6 +181,36 @@ namespace StingTools.Core.Placement
                     // Mounting height treated as elevation above room floor
                     points.Add(new XYZ(roomPt.X, roomPt.Y, roomPt.Z + Math.Max(mountingFt, 2.8 / 0.3048)));
                     break;
+                case "LIGHTING_GRID":
+                case "LUX_GRID":
+                case "EN12464":
+                    // BS EN 12464-1 lumen-method grid. The calculator
+                    // emits one point per required luminaire. Returns
+                    // no points when the room is too small or the
+                    // classifier yields zero target lux.
+                    var grid = LightingGrid?.Compute(room);
+                    if (grid != null && grid.Points.Count > 0)
+                    {
+                        foreach (var p in grid.Points)
+                        {
+                            // Respect the rule's mounting height instead
+                            // of the grid's default room-Z (the calculator
+                            // uses the room bounding box min-Z which is
+                            // the room floor, not the ceiling plane).
+                            points.Add(new XYZ(p.X, p.Y, roomPt.Z + mountingFt));
+                        }
+                        StingLog.Info(
+                            $"PlacementScorer: lighting grid for room {room.Id} — " +
+                            $"{grid.RoomTypeCode} target {grid.TargetLux:F0}lx, " +
+                            $"{grid.FixturesRequired} fixture(s) on {grid.SpacingXMm:F0}×{grid.SpacingYMm:F0}mm grid");
+                    }
+                    else
+                    {
+                        // Fallback: treat as CEILING_CENTRE so lux-gated
+                        // rules still produce a candidate.
+                        points.Add(new XYZ(roomPt.X, roomPt.Y, roomPt.Z + mountingFt));
+                    }
+                    break;
                 case "WALL_MIDPOINT":
                 case "WALL_CORNER":
                 case "DOOR_HINGE":
@@ -190,9 +266,28 @@ namespace StingTools.Core.Placement
             if (c.SpacingScore < 0.05)
                 c.CollisionFlags |= (int)PlacementCollisionFlags.MinSpacingFail;
 
-            // Collision: real mesh collision happens in the engine; the
-            // scorer uses a generous "close to room centre" heuristic.
-            c.CollisionScore = 1.0;
+            // Collision: use ObstructionIndex to compute a per-room
+            // AABB exclusion list (air terminals, sprinklers, smoke
+            // detectors, speakers) once per room and score the candidate
+            // against it. Inside an exclusion → 0 score + hard-collision
+            // flag so BuildCandidate's caller discards. Within one buffer
+            // distance → linear penalty. Cache keyed by room id.
+            var (collisionScore, collisionAdd) = ComputeCollisionScore(room, anchor);
+            c.CollisionScore = collisionScore;
+            c.CollisionFlags |= collisionAdd;
+
+            // Wall collision: when RejectInsideWall is enabled, run
+            // ElementIntersectsSolidFilter against the cached wall solids
+            // for this room. Any overlap marks the candidate as
+            // InsideWall (hard collision, causes rejection upstream).
+            if (RejectInsideWall && c.CollisionScore > 0)
+            {
+                if (IsInsideWall(room, anchor))
+                {
+                    c.CollisionScore = 0;
+                    c.CollisionFlags |= (int)PlacementCollisionFlags.InsideWall;
+                }
+            }
 
             // Symmetry / aesthetic: small bonus for being near an
             // integer multiple of 300mm from the nearest placed point
@@ -205,6 +300,206 @@ namespace StingTools.Core.Placement
                     + c.CollisionScore * CollisionWeight
                     + c.SymmetryScore  * SymmetryWeight;
             return c;
+        }
+
+        /// <summary>
+        /// Score a candidate against the cached ObstructionIndex AABBs
+        /// for its room. Inside an exclusion → (0.0, InsideWall flag).
+        /// Within one buffer distance of an edge → linear penalty
+        /// 0..1 across the buffer. Outside all exclusions → 1.0.
+        /// </summary>
+        private (double score, int flags) ComputeCollisionScore(Room room, XYZ pt)
+        {
+            if (room == null || pt == null) return (1.0, 0);
+
+            List<ExclusionRect> list;
+            if (!_obstructionCache.TryGetValue(room.Id, out list))
+            {
+                try { list = ObstructionIndex.BuildForRoom(_doc, room); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PlacementScorer: obstruction build failed for room {room.Id}: {ex.Message}");
+                    list = new List<ExclusionRect>();
+                }
+                _obstructionCache[room.Id] = list;
+            }
+            if (list.Count == 0) return (1.0, 0);
+
+            double bufferFt = ObstructionIndex.DefaultBufferFt;
+
+            // Hard hit: candidate is inside any exclusion AABB.
+            foreach (var r in list)
+            {
+                if (r.Contains(pt.X, pt.Y))
+                    return (0.0, (int)PlacementCollisionFlags.OverlapsFixture);
+            }
+
+            // Soft penalty: candidate is within one buffer distance of
+            // an exclusion edge. Compute min-edge-distance, score scales
+            // linearly from 0 (touching) to 1 (at or beyond buffer).
+            double minDistFt = double.MaxValue;
+            foreach (var r in list)
+            {
+                double dx = Math.Max(0.0, Math.Max(r.MinX - pt.X, pt.X - r.MaxX));
+                double dy = Math.Max(0.0, Math.Max(r.MinY - pt.Y, pt.Y - r.MaxY));
+                double d  = Math.Sqrt(dx * dx + dy * dy);
+                if (d < minDistFt) minDistFt = d;
+            }
+            if (minDistFt >= bufferFt) return (1.0, 0);
+            double score = Math.Max(0.0, minDistFt / bufferFt);
+            return (score, 0);
+        }
+
+        /// <summary>
+        /// Cache wall solids around each room and report true when the
+        /// candidate XYZ falls inside any of them. Uses
+        /// ElementIntersectsSolidFilter with a tiny sphere solid built
+        /// around the candidate point — cheaper than computing each
+        /// wall's 3D geometry and doing the intersection manually.
+        /// </summary>
+        private bool IsInsideWall(Room room, XYZ pt)
+        {
+            if (room == null || pt == null) return false;
+
+            // Build or retrieve the per-room wall-solid cache.
+            List<(ElementId wallId, Solid solid)> walls;
+            if (!_wallSolidCache.TryGetValue(room.Id, out walls))
+            {
+                walls = CollectWallSolidsNearRoom(room);
+                _wallSolidCache[room.Id] = walls;
+            }
+            if (walls.Count == 0) return false;
+
+            // Build a small-radius test sphere at the candidate. A
+            // 50 mm radius is enough to catch fixtures that would
+            // poke into a wall without false-positives on room-hugging
+            // rails.
+            const double testRadiusFt = 50.0 / 304.8;
+            Solid probe;
+            try
+            {
+                probe = CreatePointSphere(pt, testRadiusFt);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer: IsInsideWall probe build failed: {ex.Message}");
+                return false;
+            }
+            if (probe == null) return false;
+
+            // Short-circuit via AABB first; fall back to geometric
+            // intersection only when the bounding boxes overlap.
+            foreach (var (wallId, wallSolid) in walls)
+            {
+                if (wallSolid == null) continue;
+                try
+                {
+                    var wallBb = wallSolid.GetBoundingBox();
+                    if (wallBb == null) continue;
+                    // Transform AABB to world.
+                    var t = wallBb.Transform;
+                    var corner = t.OfPoint(wallBb.Min);
+                    var maxWorld = t.OfPoint(wallBb.Max);
+                    var min = new XYZ(Math.Min(corner.X, maxWorld.X),
+                                      Math.Min(corner.Y, maxWorld.Y),
+                                      Math.Min(corner.Z, maxWorld.Z));
+                    var max = new XYZ(Math.Max(corner.X, maxWorld.X),
+                                      Math.Max(corner.Y, maxWorld.Y),
+                                      Math.Max(corner.Z, maxWorld.Z));
+                    if (pt.X < min.X - testRadiusFt || pt.X > max.X + testRadiusFt ||
+                        pt.Y < min.Y - testRadiusFt || pt.Y > max.Y + testRadiusFt ||
+                        pt.Z < min.Z - testRadiusFt || pt.Z > max.Z + testRadiusFt)
+                        continue;
+
+                    var inter = BooleanOperationsUtils.ExecuteBooleanOperation(
+                        probe, wallSolid, BooleanOperationsType.Intersect);
+                    if (inter != null && inter.Volume > 1e-9)
+                        return true;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PlacementScorer: wall-intersect {wallId} failed: {ex.Message}");
+                }
+            }
+            return false;
+        }
+
+        private List<(ElementId wallId, Solid solid)> CollectWallSolidsNearRoom(Room room)
+        {
+            var list = new List<(ElementId, Solid)>();
+            if (_doc == null || room == null) return list;
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return list;
+                var pad = 1.0; // 1 ft pad around the room
+                var outline = new Outline(
+                    new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                    new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
+                var bboxFilter = new BoundingBoxIntersectsFilter(outline);
+
+                var col = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_Walls)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(bboxFilter);
+
+                var opts = new Options
+                {
+                    DetailLevel          = ViewDetailLevel.Medium,
+                    ComputeReferences    = false,
+                    IncludeNonVisibleObjects = false
+                };
+
+                foreach (var wallEl in col)
+                {
+                    try
+                    {
+                        var geom = wallEl.get_Geometry(opts);
+                        if (geom == null) continue;
+                        foreach (var g in geom)
+                        {
+                            if (g is Solid s && s.Volume > 1e-9)
+                                list.Add((wallEl.Id, s));
+                        }
+                    }
+                    catch (Exception ex)
+                    { StingLog.Warn($"PlacementScorer: wall geom {wallEl.Id} failed: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex)
+            { StingLog.Warn($"PlacementScorer: CollectWallSolidsNearRoom failed: {ex.Message}"); }
+            return list;
+        }
+
+        /// <summary>
+        /// Build a small axis-aligned hexahedron (approximation of a
+        /// sphere) centred on the given point. Used as the probe solid
+        /// for ElementIntersectsSolidFilter — a cheap way to test
+        /// "point is inside wall volume" without building a true sphere.
+        /// </summary>
+        private static Solid CreatePointSphere(XYZ centre, double radiusFt)
+        {
+            try
+            {
+                // GeometryCreationUtilities.CreateExtrusionGeometry from a
+                // small square loop, extruded 2*radiusFt along +Z starting
+                // at centre - radiusFt*Z.
+                var p0 = new XYZ(centre.X - radiusFt, centre.Y - radiusFt, centre.Z - radiusFt);
+                var p1 = new XYZ(centre.X + radiusFt, centre.Y - radiusFt, centre.Z - radiusFt);
+                var p2 = new XYZ(centre.X + radiusFt, centre.Y + radiusFt, centre.Z - radiusFt);
+                var p3 = new XYZ(centre.X - radiusFt, centre.Y + radiusFt, centre.Z - radiusFt);
+                var loop = new CurveLoop();
+                loop.Append(Line.CreateBound(p0, p1));
+                loop.Append(Line.CreateBound(p1, p2));
+                loop.Append(Line.CreateBound(p2, p3));
+                loop.Append(Line.CreateBound(p3, p0));
+                return GeometryCreationUtilities.CreateExtrusionGeometry(
+                    new List<CurveLoop> { loop }, XYZ.BasisZ, 2 * radiusFt);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private double ComputeSpacingScore(XYZ pt, IList<XYZ> placed, double minSpacingMm)

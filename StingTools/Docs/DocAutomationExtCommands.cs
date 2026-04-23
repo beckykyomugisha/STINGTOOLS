@@ -559,7 +559,6 @@ namespace StingTools.Docs
                 "No templates (assign later)",
                 "Create views without template assignment");
             tplDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            tplDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
             bool autoTemplate;
             switch (tplDlg.Show())
@@ -770,7 +769,6 @@ namespace StingTools.Docs
                 "Group by discipline",
                 "Views of the same discipline share a sheet");
             modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            modeDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
             int mode;
             switch (modeDlg.Show())

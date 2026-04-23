@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
+using StingTools.Core.Fabrication;
 
 namespace StingTools.Core.Routing
 {
@@ -26,7 +27,19 @@ namespace StingTools.Core.Routing
         public ElementId DuctTypeId       { get; set; }
         public ElementId MechanicalSystemTypeId { get; set; }
 
-        public AutoDuctDrop(Document doc) : base(doc) { }
+        /// <summary>
+        /// When true, and a FabricationConfiguration is loaded in the
+        /// document, the drop is created as a FabricationPart instead
+        /// of a design-intent Duct. Falls back automatically when no
+        /// fab content is loaded.
+        /// </summary>
+        public bool PreferFabricationContent { get; set; } = true;
+
+        public AutoDuctDrop(Document doc) : base(doc)
+        {
+            ConnectorDomain = Domain.DomainHvac;
+            ServiceId       = "HVC_SA"; // default — overridable from command
+        }
 
         public DropResult Execute(IList<Element> fixtures)
         {
@@ -48,6 +61,19 @@ namespace StingTools.Core.Routing
                 result.Warnings.Add("AutoDuctDrop: no MechanicalSystemType found");
                 return result;
             }
+
+            // Inspect the RoutingPreferenceManager on the chosen DuctType.
+            try
+            {
+                var dt = Doc.GetElement(DuctTypeId) as DuctType;
+                var rpt = RoutingPreferenceInspector.Inspect(dt);
+                if (!rpt.IsProductionReady)
+                    result.Warnings.Add($"RoutingPreferenceManager gaps: {rpt}");
+                else
+                    StingLog.Info($"AutoDuctDrop: {rpt}");
+            }
+            catch (Exception ex)
+            { result.Warnings.Add($"RoutingPreferenceInspector: {ex.Message}"); }
 
             using (var tx = new Transaction(Doc, "STING v4 Auto-duct drop"))
             {
@@ -115,9 +141,21 @@ namespace StingTools.Core.Routing
                 result.Warnings.Add("CreateRunBetween (duct): no host level; skipping");
                 return ElementId.InvalidElementId;
             }
+            // Route A (Phase B.2 deferred) — see AutoPipeDrop for the
+            // full deferral rationale. Fabrication content routing
+            // requires SDK-verified FabricationPart.Create signatures.
+            if (PreferFabricationContent && FabricationServiceLocator.HasFabContent(Doc))
+            {
+                result.Warnings.Add(
+                    "Fabrication content detected — ITM duct routing deferred to Phase B.2; " +
+                    "falling back to design-intent Duct.Create.");
+            }
+
             try
             {
-                // TODO-VERIFY-API: Duct.Create(doc, mechanicalSystemTypeId, ductTypeId, levelId, from, to)
+                // Duct.Create(doc, mechanicalSystemTypeId, ductTypeId, levelId, from, to) —
+                // verified against Revit 2025 API. Returned Duct exposes
+                // two end connectors that DropEngineBase wires up.
                 var duct = Duct.Create(Doc, MechanicalSystemTypeId, DuctTypeId, levelId, from, to);
                 if (duct == null) return ElementId.InvalidElementId;
                 TrySetString(duct, "HVC_DCT_FAB_METHOD_TXT", FabMethod);

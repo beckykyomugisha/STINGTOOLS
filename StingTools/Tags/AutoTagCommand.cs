@@ -352,7 +352,6 @@ namespace StingTools.Tags
                     scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                         "Entire project", "Tag all untagged elements across the entire model");
                     scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                    scopeDlg.DefaultButton = TaskDialogResult.CommandLink1;
                     var scopeResult = scopeDlg.Show();
                     if (scopeResult == TaskDialogResult.Cancel) return Result.Cancelled;
                     viewScopeOnly = (scopeResult == TaskDialogResult.CommandLink1);

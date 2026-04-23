@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
+using StingTools.Core.Fabrication;
 
 namespace StingTools.Core.Routing
 {
@@ -21,7 +22,19 @@ namespace StingTools.Core.Routing
         public ElementId PipeTypeId       { get; set; }
         public ElementId PipingSystemTypeId { get; set; }
 
-        public AutoPipeDrop(Document doc) : base(doc) { }
+        /// <summary>
+        /// When true, and a FabricationConfiguration is loaded in the
+        /// document, the drop is created as a FabricationPart (ITM
+        /// content, LOD 400) instead of a design-intent Pipe. Defaults
+        /// true; falls back automatically when no fab content is loaded.
+        /// </summary>
+        public bool PreferFabricationContent { get; set; } = true;
+
+        public AutoPipeDrop(Document doc) : base(doc)
+        {
+            ConnectorDomain = Domain.DomainPiping;
+            ServiceId       = "PLM_CWS"; // default — overridable from command
+        }
 
         public DropResult Execute(IList<Element> fixtures)
         {
@@ -43,6 +56,21 @@ namespace StingTools.Core.Routing
                 result.Warnings.Add("AutoPipeDrop: no PipingSystemType found in project");
                 return result;
             }
+
+            // Inspect the RoutingPreferenceManager on the chosen PipeType
+            // so we can surface "your type has no elbow rule" before we
+            // issue N connects that silently no-op at fitting time.
+            try
+            {
+                var pt = Doc.GetElement(PipeTypeId) as PipeType;
+                var rpt = RoutingPreferenceInspector.Inspect(pt);
+                if (!rpt.IsProductionReady)
+                    result.Warnings.Add($"RoutingPreferenceManager gaps: {rpt}");
+                else
+                    StingLog.Info($"AutoPipeDrop: {rpt}");
+            }
+            catch (Exception ex)
+            { result.Warnings.Add($"RoutingPreferenceInspector: {ex.Message}"); }
 
             using (var tx = new Transaction(Doc, "STING v4 Auto-pipe drop"))
             {
@@ -110,9 +138,26 @@ namespace StingTools.Core.Routing
                 result.Warnings.Add("CreateRunBetween (pipe): no host level; skipping");
                 return ElementId.InvalidElementId;
             }
+
+            // Route A (Phase B.2 deferred): FabricationPart.Create with
+            // ITM content. The service→palette→button walk uses API
+            // surface (FabricationService.PaletteCount + GetButtons,
+            // FabricationPart.Create overload) that could not be
+            // verified in the Linux sandbox — signatures differ across
+            // 2024/2025/2026. Fabrication content is therefore flagged
+            // for a verified rewrite in Phase B.2; the routing engine
+            // stays on the design-intent path below so v4 still ships.
+            if (PreferFabricationContent && FabricationServiceLocator.HasFabContent(Doc))
+            {
+                result.Warnings.Add(
+                    "Fabrication content is loaded in this project, but FabricationPart.Create " +
+                    "routing is deferred to Phase B.2 (API verification required). Falling back " +
+                    "to design-intent Pipe.Create.");
+            }
+
+            // Route B: design-intent Pipe.Create.
             try
             {
-                // TODO-VERIFY-API: Pipe.Create(doc, systemTypeId, pipeTypeId, levelId, from, to)
                 var pipe = Pipe.Create(Doc, PipingSystemTypeId, PipeTypeId, levelId, from, to);
                 if (pipe == null) return ElementId.InvalidElementId;
                 TrySetString(pipe, "PLM_PPE_FAB_METHOD_TXT",     FabMethod);

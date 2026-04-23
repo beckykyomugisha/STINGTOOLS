@@ -8,6 +8,14 @@ using System.Windows.Threading;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
+// Autodesk.Revit.UI ships TextBox + ComboBox types that collide with
+// System.Windows.Controls equivalents used by the WPF dockable panel.
+// Alias the WPF types so this file's controls code compiles without
+// having to fully-qualify every call site.
+using TextBox = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
+using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+
 namespace StingTools.UI
 {
     /// <summary>
@@ -239,6 +247,13 @@ namespace StingTools.UI
                     UpdateStatus($"Theme: {next}");
                     return;
                 }
+
+                // v4 Phase A — populate static option singletons from
+                // Fixtures / Routing / Fabrication sub-tab state before
+                // the command crosses the IExternalEventHandler boundary.
+                if (cmdTag.StartsWith("Placement_"))  SetV4PlacementOptions();
+                if (cmdTag.StartsWith("Routing_"))    SetV4RoutingOptions();
+                if (cmdTag.StartsWith("Fabrication_")) SetV4FabricationOptions();
 
                 _handler?.SetCommand(cmdTag);
                 var result = _externalEvent?.Raise() ?? ExternalEventRequest.Denied;
@@ -598,6 +613,171 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("PreferredTagPos", "1");
             }
             catch (Exception ex) { StingLog.Warn($"Read preferred position param failed: {ex.Message}"); }
+        }
+
+        // ---- v4 Phase A: Fixtures / Routing / Fabrication option capture ----
+        //
+        // Each of the three sub-tabs under TAGS exposes CheckBox /
+        // RadioButton controls that describe the command's options.
+        // Instead of passing them through SetExtraParam stringly-typed,
+        // we hydrate static option singletons (PlaceFixturesOptions,
+        // AutoDropOptions, FabricationOptions) so commands can read
+        // typed state with compile-time checking.
+
+        private static bool ChkState(DependencyObject root, string name, bool def)
+        {
+            if (root == null) return def;
+            try
+            {
+                var cb = FindVisualChild<CheckBox>(root, name);
+                if (cb != null) return cb.IsChecked == true;
+            }
+            catch { }
+            return def;
+        }
+
+        private static bool RadioState(DependencyObject root, string name, bool def)
+        {
+            if (root == null) return def;
+            try
+            {
+                var rb = FindVisualChild<RadioButton>(root, name);
+                if (rb != null) return rb.IsChecked == true;
+            }
+            catch { }
+            return def;
+        }
+
+        private static T FindVisualChild<T>(DependencyObject parent, string name)
+            where T : FrameworkElement
+        {
+            if (parent == null) return null;
+            try
+            {
+                var named = LogicalTreeHelper.FindLogicalNode(parent, name) as T;
+                if (named != null) return named;
+            }
+            catch { }
+            return null;
+        }
+
+        private void SetV4PlacementOptions()
+        {
+            try
+            {
+                DependencyObject root = this;
+                StingTools.Commands.Placement.PlaceFixturesOptions.DryRunPreference = ChkState(root, "chkFxDryRun", true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.SnapTo300mmGrid  = ChkState(root, "chkFxSnap300", true);
+
+                StingTools.Commands.Placement.PlaceFixturesOptions.IncludeElectricalFixtures   = ChkState(root, "chkFxElec",    true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.IncludeLightingDevices      = ChkState(root, "chkFxLtgDev",  true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.IncludeLightingFixtures     = ChkState(root, "chkFxLtgFix",  true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.IncludeCommunicationDevices = ChkState(root, "chkFxComm",    true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.IncludeDataDevices          = ChkState(root, "chkFxData",    true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.IncludeSecurityDevices      = ChkState(root, "chkFxSec",     true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.IncludeFireAlarmDevices     = ChkState(root, "chkFxFire",    true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.IncludePlumbingFixtures     = ChkState(root, "chkFxPlm",     true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.IncludeAirTerminals         = ChkState(root, "chkFxHvac",    true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.IncludeSprinklers           = ChkState(root, "chkFxSpr",     true);
+
+                StingTools.Commands.Placement.PlaceFixturesOptions.EnforceDocM    = ChkState(root, "chkFxDocM",    true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.EnforceBS7671  = ChkState(root, "chkFxBS7671",  true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.EnforceBS5266  = ChkState(root, "chkFxBS5266",  true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.EnforceBS5839  = ChkState(root, "chkFxBS5839",  true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.EnforceBS6465  = ChkState(root, "chkFxBS6465",  true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.EnforceEN12464 = ChkState(root, "chkFxEN12464", true);
+
+                StingTools.Commands.Placement.PlaceFixturesOptions.RejectInsideWall      = ChkState(root, "chkFxNoWall",     true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.RejectOutsideRoom     = ChkState(root, "chkFxNoRoomOut",  true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.MinDoorClearance300   = ChkState(root, "chkFxDoorClr",    true);
+                StingTools.Commands.Placement.PlaceFixturesOptions.MinWindowClearance100 = ChkState(root, "chkFxWinClr",     true);
+            }
+            catch (Exception ex) { StingLog.Warn($"SetV4PlacementOptions failed: {ex.Message}"); }
+        }
+
+        private void SetV4RoutingOptions()
+        {
+            try
+            {
+                DependencyObject root = this;
+                StingTools.Commands.Routing.AutoDropOptions.IncludeElectrical  = ChkState(root, "chkRtElec",  true);
+                StingTools.Commands.Routing.AutoDropOptions.IncludePlumbing    = ChkState(root, "chkRtPlm",   true);
+                StingTools.Commands.Routing.AutoDropOptions.IncludeHvac        = ChkState(root, "chkRtHvac",  true);
+                StingTools.Commands.Routing.AutoDropOptions.SnapToCorridorBand = ChkState(root, "chkRtSnapZone", true);
+
+                // Max search radius — parse from txtRtSearchMm if present.
+                try
+                {
+                    var tb = FindVisualChild<TextBox>(root, "txtRtSearchMm");
+                    if (tb != null && double.TryParse(tb.Text, out var mm) && mm > 0)
+                        StingTools.Commands.Routing.AutoDropOptions.MaxSearchRadiusMm = mm;
+                }
+                catch { }
+
+                try
+                {
+                    var cb = FindVisualChild<ComboBox>(root, "cboRtCdtInstall");
+                    if (cb != null && cb.SelectedItem is ComboBoxItem ci && ci.Content is string s)
+                        StingTools.Commands.Routing.AutoDropOptions.ConduitInstallMethod = s;
+                }
+                catch { }
+                try
+                {
+                    var cb = FindVisualChild<ComboBox>(root, "cboRtDuctSeam");
+                    if (cb != null && cb.SelectedItem is ComboBoxItem ci && ci.Content is string s)
+                        StingTools.Commands.Routing.AutoDropOptions.DuctSeamType = ExtractSeamCode(s);
+                }
+                catch { }
+                try
+                {
+                    var cb = FindVisualChild<ComboBox>(root, "cboRtPipeHanger");
+                    if (cb != null && cb.SelectedItem is ComboBoxItem ci && ci.Content is string s)
+                        StingTools.Commands.Routing.AutoDropOptions.PipeHangerType = s;
+                }
+                catch { }
+            }
+            catch (Exception ex) { StingLog.Warn($"SetV4RoutingOptions failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Duct seam combo items look like "A — Pittsburgh lock".
+        /// Strip down to the single-letter SMACNA code.
+        /// </summary>
+        private static string ExtractSeamCode(string comboText)
+        {
+            if (string.IsNullOrEmpty(comboText)) return "A";
+            var t = comboText.TrimStart();
+            return t.Length >= 1 ? t.Substring(0, 1).ToUpperInvariant() : "A";
+        }
+
+        private void SetV4FabricationOptions()
+        {
+            try
+            {
+                DependencyObject root = this;
+                // Scope radios (only one true at a time).
+                bool sel = RadioState(root, "rbFabScopeSel",  true);
+                bool av  = RadioState(root, "rbFabScopeView", false);
+                bool prj = RadioState(root, "rbFabScopeAll",  false);
+                StingTools.Commands.Fabrication.FabricationOptions.ScopeSelection  = sel;
+                StingTools.Commands.Fabrication.FabricationOptions.ScopeActiveView = av;
+                StingTools.Commands.Fabrication.FabricationOptions.ScopeProject    = prj;
+
+                StingTools.Commands.Fabrication.FabricationOptions.RulePipe     = ChkState(root, "chkFabPipe",    true);
+                StingTools.Commands.Fabrication.FabricationOptions.RulePipeLB   = ChkState(root, "chkFabPipeLB",  false);
+                StingTools.Commands.Fabrication.FabricationOptions.RuleDuct     = ChkState(root, "chkFabDuct",    true);
+                StingTools.Commands.Fabrication.FabricationOptions.RuleDuctPitt = ChkState(root, "chkFabDuctPit", false);
+                StingTools.Commands.Fabrication.FabricationOptions.RuleConduit  = ChkState(root, "chkFabConduit", true);
+
+                StingTools.Commands.Fabrication.FabricationOptions.GenerateAssemblies   = ChkState(root, "chkFabAssy",     true);
+                StingTools.Commands.Fabrication.FabricationOptions.GenerateViews        = ChkState(root, "chkFabViews",    true);
+                StingTools.Commands.Fabrication.FabricationOptions.GenerateSheets       = ChkState(root, "chkFabSheets",   true);
+                StingTools.Commands.Fabrication.FabricationOptions.PlaceISO6412Symbols  = ChkState(root, "chkFabSymbols",  true);
+                StingTools.Commands.Fabrication.FabricationOptions.EmitPerDisciplineCsv = ChkState(root, "chkFabCsv",      true);
+
+                StingTools.Commands.Fabrication.FabricationOptions.ContentModeIso6412   = RadioState(root, "rbFabIso6412", true);
+            }
+            catch (Exception ex) { StingLog.Warn($"SetV4FabricationOptions failed: {ex.Message}"); }
         }
 
         private void BtnPin_Click(object sender, RoutedEventArgs e)
