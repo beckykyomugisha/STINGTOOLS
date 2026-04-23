@@ -19,6 +19,11 @@ using Lucene.Net.Util;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
 
+// Lucene.Net and Revit / BCL share type names — explicit aliases avoid
+// CS0104 ambiguity without fully-qualifying them at every use site.
+using LuceneDocument  = Lucene.Net.Documents.Document;
+using LuceneDirectory = Lucene.Net.Store.Directory;
+
 namespace Planscape.Docs.Search
 {
     public class IndexedDoc
@@ -50,18 +55,18 @@ namespace Planscape.Docs.Search
     public class DocumentIndex : IDisposable
     {
         private const LuceneVersion Version = LuceneVersion.LUCENE_48;
-        private readonly Directory _dir;
+        private readonly LuceneDirectory _dir;
         private readonly StandardAnalyzer _analyzer;
         private IndexWriter _writer;
         private DirectoryReader _reader;
 
-        private DocumentIndex(Directory d)
+        private DocumentIndex(LuceneDirectory d)
         {
             _dir = d;
             _analyzer = new StandardAnalyzer(Version);
         }
 
-        public static DocumentIndex Build(Document revitDoc)
+        public static DocumentIndex Build(Autodesk.Revit.DB.Document revitDoc)
         {
             string root = ResolveProjectRoot(revitDoc);
             string indexDir = Path.Combine(root, "_BIM_COORD", "search_index");
@@ -73,7 +78,7 @@ namespace Planscape.Docs.Search
             return idx;
         }
 
-        public void Rebuild(Document revitDoc)
+        public void Rebuild(Autodesk.Revit.DB.Document revitDoc)
         {
             var cfg = new IndexWriterConfig(Version, _analyzer) { OpenMode = OpenMode.CREATE };
             using (var writer = new IndexWriter(_dir, cfg))
@@ -148,9 +153,9 @@ namespace Planscape.Docs.Search
             booleanQ.Add(new TermQuery(new Term(field, val.ToLowerInvariant())), Occur.MUST);
         }
 
-        private static Document ToLuceneDoc(IndexedDoc d)
+        private static LuceneDocument ToLuceneDoc(IndexedDoc d)
         {
-            var ld = new Document();
+            var ld = new LuceneDocument();
             ld.Add(new StringField("id",            d.Id              ?? "", Field.Store.YES));
             ld.Add(new TextField  ("number",        d.Number          ?? "", Field.Store.YES));
             ld.Add(new TextField  ("title",         d.Title           ?? "", Field.Store.YES));
@@ -168,7 +173,7 @@ namespace Planscape.Docs.Search
             return ld;
         }
 
-        private static IndexedDoc FromLuceneDoc(Document ld)
+        private static IndexedDoc FromLuceneDoc(LuceneDocument ld)
         {
             var d = new IndexedDoc
             {

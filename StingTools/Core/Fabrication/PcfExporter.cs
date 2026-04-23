@@ -26,7 +26,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Plumbing;
+// Alias: the StingTools.Core.Fabrication.Pipe sub-namespace shadows
+// Autodesk.Revit.DB.Plumbing.Pipe inside this file. Use the alias so
+// WritePipe's parameter binds to the Revit class.
+using RevitPipe = Autodesk.Revit.DB.Plumbing.Pipe;
 
 namespace StingTools.Core.Fabrication
 {
@@ -83,7 +86,7 @@ namespace StingTools.Core.Fabrication
                 try
                 {
                     var firstEl = doc.GetElement(ids[0]);
-                    if (firstEl is Pipe p) pipelineName = p.MEPSystem?.Name ?? "UNKNOWN";
+                    if (firstEl is RevitPipe p) pipelineName = p.MEPSystem?.Name ?? "UNKNOWN";
                     else pipelineName = "UNKNOWN";
                 }
                 catch { pipelineName = "UNKNOWN"; }
@@ -101,7 +104,7 @@ namespace StingTools.Core.Fabrication
                     {
                         var el = doc.GetElement(id);
                         if (el == null) continue;
-                        if (el is Pipe pipe)
+                        if (el is RevitPipe pipe)
                         {
                             WritePipe(w, pipe, result);
                         }
@@ -148,7 +151,7 @@ namespace StingTools.Core.Fabrication
             w.WriteLine();
         }
 
-        private static void WritePipe(StreamWriter w, Pipe pipe, PcfExportResult result)
+        private static void WritePipe(StreamWriter w, RevitPipe pipe, PcfExportResult result)
         {
             try
             {

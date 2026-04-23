@@ -10,6 +10,13 @@ using Autodesk.Revit.DB;
 using StingTools.Core;
 using StingTools.Tags;
 
+// WPF and Revit both declare Color / Grid — disambiguate once at the
+// top so CS0104 doesn't fire on every colour / Grid reference in the
+// file. UI code here always wants the WPF types.
+using Color = System.Windows.Media.Color;
+using Colors = System.Windows.Media.Colors;
+using Grid = System.Windows.Controls.Grid;
+
 namespace StingTools.UI
 {
     /// <summary>

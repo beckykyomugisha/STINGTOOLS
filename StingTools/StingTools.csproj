@@ -49,9 +49,13 @@
     <!-- Template engine v1.1 (S06): MiniWord replaces the hand-rolled OpenXml
          renderer. Kept a small DocumentFormat.OpenXml dep via ClosedXML already. -->
     <PackageReference Include="MiniWord" Version="0.9.0" />
-    <!-- Template engine v1.1 (S17): Lucene-backed document index. -->
+    <!-- Template engine v1.1 (S17): Lucene-backed document index.
+         QueryParser ships in its own NuGet package in 4.8.0-beta* (it is
+         the home of Lucene.Net.QueryParsers.Classic used by DocumentIndex).
+    -->
     <PackageReference Include="Lucene.Net" Version="4.8.0-beta00016" />
     <PackageReference Include="Lucene.Net.Analysis.Common" Version="4.8.0-beta00016" />
+    <PackageReference Include="Lucene.Net.QueryParser" Version="4.8.0-beta00016" />
   </ItemGroup>
 
   <!-- Template engine v1.1 (S11/S14/S15): embedded default templates + workflow JSON.
