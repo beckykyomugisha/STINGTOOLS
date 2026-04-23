@@ -21,6 +21,12 @@ using Newtonsoft.Json.Linq;
 using Planscape.Docs.Workflow;
 using StingTools.Core;
 
+// StingTools.Core ships its own WorkflowEngine (ribbon workflow
+// presets) which shadows Planscape.Docs.Workflow.WorkflowEngine
+// inside this file. Alias the template-engine one so the
+// orchestrator binds to the correct class at line 68.
+using WorkflowEngine = Planscape.Docs.Workflow.WorkflowEngine;
+
 namespace Planscape.Docs.Templates
 {
     public class TransmittalResult

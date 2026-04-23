@@ -188,7 +188,6 @@ namespace StingTools.Core.Calc
 
             // Pairwise check. O(n²) is fine for project-scale (~200
             // trays typical); Phase I can swap for an R-tree.
-            double radiusFt = SearchRadiusMm / FtToMm;
             for (int i = 0; i < classified.Count; i++)
             {
                 for (int j = i + 1; j < classified.Count; j++)

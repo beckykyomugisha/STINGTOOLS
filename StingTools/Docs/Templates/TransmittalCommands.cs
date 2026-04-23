@@ -123,7 +123,11 @@ namespace Planscape.Docs.Templates
 
                 // BCC pushes a selection list into a static holder; when not set we
                 // exit early. This intentionally stays decoupled from the UI file.
-                var holder = typeof(Planscape.Docs.Templates.DeliverableLifecycleCommands).Assembly
+                // The file DeliverableLifecycleCommands.cs defines several
+                // IExternalCommand classes (Issue/ReIssue/Publish/Cancel/…)
+                // but no wrapper class of the same name — use one of the
+                // concrete commands to grab the assembly reference.
+                var holder = typeof(Planscape.Docs.Templates.IssueDeliverableCommand).Assembly
                     .GetType("StingTools.UI.BIMCoordinationCenter");
                 var field = holder?.GetField("SelectedDeliverables",
                     System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);

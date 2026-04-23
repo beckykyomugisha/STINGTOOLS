@@ -93,8 +93,14 @@ namespace StingTools.Commands.Mep
                 return Result.Failed;
             }
 
+            // BcfEngine.Export returns the topic count it wrote.
+            int exportedCount;
             bool exported;
-            try { exported = BcfEngine.Export(issues, path); }
+            try
+            {
+                exportedCount = BcfEngine.Export(issues, path);
+                exported = exportedCount > 0;
+            }
             catch (Exception ex)
             {
                 StingLog.Error("ExportSleeveBcfCommand: BcfEngine.Export", ex);

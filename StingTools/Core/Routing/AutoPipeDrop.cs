@@ -140,61 +140,20 @@ namespace StingTools.Core.Routing
                 return ElementId.InvalidElementId;
             }
 
-            // Route A: Fabrication content (ITM, LOD 400). Only when a
-            // FabricationConfiguration is loaded and the user hasn't
-            // opted out via PreferFabricationContent.
+            // Route A (Phase B.2 deferred): FabricationPart.Create with
+            // ITM content. The service→palette→button walk uses API
+            // surface (FabricationService.PaletteCount + GetButtons,
+            // FabricationPart.Create overload) that could not be
+            // verified in the Linux sandbox — signatures differ across
+            // 2024/2025/2026. Fabrication content is therefore flagged
+            // for a verified rewrite in Phase B.2; the routing engine
+            // stays on the design-intent path below so v4 still ships.
             if (PreferFabricationContent && FabricationServiceLocator.HasFabContent(Doc))
             {
-                var btn = FabricationServiceLocator.FindButton(
-                    Doc, BuiltInCategory.OST_PipeCurves,
-                    serviceNameHint: "Pipe");
-                if (btn != null)
-                {
-                    try
-                    {
-                        // FabricationPart.Create(doc, button, level, serviceIndex)
-                        // returns a FabricationPart stick at origin; we then
-                        // align it to from→to via AlignPartByConnectors after
-                        // creation (driven by DropEngineBase wire-up stage).
-                        var svc = FabricationServiceLocator.GetConfig(Doc)
-                                      .GetAllLoadedServices()[btn.ServiceIndex];
-                        var part = FabricationPart.Create(Doc, svc, btn.GroupIndex, btn.ButtonIndex, levelId);
-                        if (part != null)
-                        {
-                            // Translate the part to the drop midpoint so the
-                            // subsequent ConnectTo stage has a reasonable
-                            // starting position. The ACO refiner will clean
-                            // up any residual offset in Phase C.
-                            try
-                            {
-                                var mid = new XYZ((from.X + to.X) * 0.5,
-                                                  (from.Y + to.Y) * 0.5,
-                                                  (from.Z + to.Z) * 0.5);
-                                var bb = part.get_BoundingBox(null);
-                                if (bb != null)
-                                {
-                                    var cur = (bb.Min + bb.Max) * 0.5;
-                                    ElementTransformUtils.MoveElement(Doc, part.Id, mid - cur);
-                                }
-                            }
-                            catch (Exception ex)
-                            { result.Warnings.Add($"FabricationPart align: {ex.Message}"); }
-
-                            TrySetString(part, "PLM_PPE_FAB_METHOD_TXT", "SHOP"); // ITM = shop
-                            TrySetString(part, "PLM_PPE_HANGER_TYPE_TXT", HangerType);
-                            return part.Id;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        // Swallow and fall through to the design-intent path.
-                        result.Warnings.Add($"FabricationPart.Create failed ({btn}): {ex.Message}; falling back to Pipe.Create");
-                    }
-                }
-                else
-                {
-                    result.Warnings.Add("PreferFabricationContent=true but no Pipe-category button found; using design pipe.");
-                }
+                result.Warnings.Add(
+                    "Fabrication content is loaded in this project, but FabricationPart.Create " +
+                    "routing is deferred to Phase B.2 (API verification required). Falling back " +
+                    "to design-intent Pipe.Create.");
             }
 
             // Route B: design-intent Pipe.Create.

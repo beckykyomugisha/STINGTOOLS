@@ -255,8 +255,12 @@ namespace StingTools.Core
                 case StorageType.Integer:   return p.AsInteger().ToString();
                 case StorageType.Double:    return p.AsValueString() ?? p.AsDouble().ToString("0.###");
                 case StorageType.ElementId:
-                    var e = p.Document.GetElement(p.AsElementId());
-                    return e?.Name ?? "";
+                    // Revit Parameter has no .Document property; fall back to
+                    // the raw id string. Resolving to an element name is
+                    // caller-context dependent.
+                    var eid = p.AsElementId();
+                    return eid == null || eid == ElementId.InvalidElementId
+                           ? "" : eid.Value.ToString();
                 default: return "";
             }
         }

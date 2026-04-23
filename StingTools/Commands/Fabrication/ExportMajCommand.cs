@@ -68,27 +68,15 @@ namespace StingTools.Commands.Fabrication
                 return Result.Failed;
             }
 
-            ICollection<ElementId> failed = null;
-            bool success = false;
-            try
-            {
-                var opts = new FabricationSaveJobOptions(doc)
-                {
-                    IncludeHangerRods = true,
-                };
-                // Revit 2025 signature: ExportToMAJ(Document, ICollection<ElementId> ids,
-                //   string path, bool includeHoles, out ICollection<ElementId> failedIds)
-                success = FabricationUtils.ExportToMAJ(
-                    doc, partIds, outPath, includeHoles: true, out failed);
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("ExportMajCommand: ExportToMAJ threw", ex);
-                message = ex.Message;
-                return Result.Failed;
-            }
-
-            ShowResult(outPath, partIds.Count, failed, success);
+            // Phase B.2 deferred: the direct API path
+            // (FabricationPart.SaveAsFabricationJob / FabricationUtils.*)
+            // could not be verified in the sandbox; signatures differ
+            // 2024/2025/2026. We surface a pointer to Revit's built-in
+            // Fabrication → Export to MAJ menu so users are unblocked
+            // on the CAMduct/ESTmep handoff today, and keep the
+            // command wired so the verified API path can land later
+            // in a one-file swap.
+            ShowDeferred(outPath, partIds.Count);
             return Result.Succeeded;
         }
 
@@ -146,32 +134,25 @@ namespace StingTools.Commands.Fabrication
             return Path.Combine(baseDir, $"sting_fabjob_{stamp}.maj");
         }
 
-        private void ShowResult(string outPath, int partCount,
-            ICollection<ElementId> failed, bool success)
+        private void ShowDeferred(string plannedPath, int partCount)
         {
             var panel = StingResultPanel.Create("v4 Fabrication Job Export");
-            panel.SetSubtitle(success
-                ? $"MAJ written: {outPath}"
-                : "MAJ export reported failure");
+            panel.SetSubtitle("MAJ export — Phase B.2 deferred");
 
-            panel.AddSection("SUMMARY")
-                 .Metric("Parts requested", partCount.ToString())
-                 .Metric("Parts failed",    (failed?.Count ?? 0).ToString())
-                 .Metric("Success",         success ? "Yes" : "No");
+            panel.AddSection("STATUS")
+                 .Metric("Parts in scope", partCount.ToString())
+                 .Metric("Planned path",   plannedPath)
+                 .Metric("API status",     "pending SDK-linked build verification");
 
-            if (failed != null && failed.Count > 0)
-            {
-                panel.AddSection("FAILED PART IDS");
-                foreach (var id in failed.Take(40))
-                    panel.Text(id.Value.ToString());
-                if (failed.Count > 40)
-                    panel.Text($"(+{failed.Count - 40} more — see StingLog)");
-            }
+            panel.AddSection("IMMEDIATE WORKAROUND")
+                 .Text("Select the FabricationParts above and use Revit's built-in menu:")
+                 .Text("  Systems ribbon → MEP Fabrication → Export to MAJ")
+                 .Text("Drop the resulting .maj into CAMduct / ESTmep via File → Open Job.");
 
-            panel.AddSection("NEXT STEPS")
-                 .Text("Open CAMduct / ESTmep and File → Open Job.")
-                 .Text("Select this MAJ file to flow cut list, labour hours,")
-                 .Text("and NC output into the shop-floor workflow.");
+            panel.AddSection("PHASE B.2 PLAN")
+                 .Text("Verify the 2025 FabricationUtils.ExportToMAJ signature + options")
+                 .Text("against a live Revit SDK build bench, then this command emits the")
+                 .Text(".maj file automatically. One-file swap — no downstream changes.");
             panel.Show();
         }
     }

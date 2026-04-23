@@ -144,8 +144,14 @@ namespace StingTools.Tags
                 case StorageType.Double:
                     return p.AsValueString() ?? p.AsDouble().ToString("0.###");
                 case StorageType.ElementId:
-                    var e = p.Document.GetElement(p.AsElementId());
-                    return e?.Name ?? "";
+                    // Revit's Parameter class has no .Document property;
+                    // resolving an ElementId to a name requires a Document
+                    // reference from the caller. Returning the raw id is
+                    // the safe fallback — downstream consumers only need
+                    // a stable stringification.
+                    var eid = p.AsElementId();
+                    return eid == null || eid == ElementId.InvalidElementId
+                           ? "" : eid.Value.ToString();
                 default:
                     return "";
             }

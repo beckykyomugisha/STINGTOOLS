@@ -19,6 +19,11 @@ using StingTools.Core;
 using StingTools.Core.Calc;
 using StingTools.UI;
 
+// Autodesk.Revit.DB.Mechanical.DuctShape shadows our enum here because
+// the Mechanical namespace is imported above. Alias the local one so
+// the calc code keeps reading cleanly.
+using DuctShape = StingTools.Core.Calc.DuctShape;
+
 namespace StingTools.Commands.Routing
 {
     /// <summary>

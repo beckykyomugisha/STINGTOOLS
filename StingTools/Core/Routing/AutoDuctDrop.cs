@@ -142,47 +142,14 @@ namespace StingTools.Core.Routing
                 result.Warnings.Add("CreateRunBetween (duct): no host level; skipping");
                 return ElementId.InvalidElementId;
             }
-            // Route A: Fabrication content (LOD 400 ITM duct).
+            // Route A (Phase B.2 deferred) — see AutoPipeDrop for the
+            // full deferral rationale. Fabrication content routing
+            // requires SDK-verified FabricationPart.Create signatures.
             if (PreferFabricationContent && FabricationServiceLocator.HasFabContent(Doc))
             {
-                var btn = FabricationServiceLocator.FindButton(
-                    Doc, BuiltInCategory.OST_DuctCurves,
-                    serviceNameHint: "Duct");
-                if (btn != null)
-                {
-                    try
-                    {
-                        var svc = FabricationServiceLocator.GetConfig(Doc)
-                                      .GetAllLoadedServices()[btn.ServiceIndex];
-                        var part = FabricationPart.Create(Doc, svc, btn.GroupIndex, btn.ButtonIndex, levelId);
-                        if (part != null)
-                        {
-                            try
-                            {
-                                var mid = new XYZ((from.X + to.X) * 0.5,
-                                                  (from.Y + to.Y) * 0.5,
-                                                  (from.Z + to.Z) * 0.5);
-                                var bb = part.get_BoundingBox(null);
-                                if (bb != null)
-                                {
-                                    var cur = (bb.Min + bb.Max) * 0.5;
-                                    ElementTransformUtils.MoveElement(Doc, part.Id, mid - cur);
-                                }
-                            }
-                            catch (Exception ex)
-                            { result.Warnings.Add($"FabricationPart align: {ex.Message}"); }
-
-                            TrySetString(part, "HVC_DCT_FAB_METHOD_TXT", "SHOP");
-                            TrySetString(part, "HVC_DCT_SEAM_TYPE_TXT",  SeamType);
-                            TrySetString(part, "HVC_DCT_MAT_TXT",        Material);
-                            return part.Id;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        result.Warnings.Add($"FabricationPart.Create failed ({btn}): {ex.Message}; falling back to Duct.Create");
-                    }
-                }
+                result.Warnings.Add(
+                    "Fabrication content detected — ITM duct routing deferred to Phase B.2; " +
+                    "falling back to design-intent Duct.Create.");
             }
 
             try

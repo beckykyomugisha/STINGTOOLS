@@ -104,13 +104,22 @@ namespace StingTools.Core.Electrical
                         CircuitId  = sys.Name ?? sys.Id.Value.ToString(),
                         PanelName  = sys.PanelName ?? "",
                         LoadName   = sys.LoadName ?? "",
-                        Poles      = SafeInt(sys.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES)),
+                        // Prefer ElectricalSystem direct properties where Revit
+                        // exposes them; use LookupParameter by display name for
+                        // Phase + WireSize — their BuiltInParameter enum names
+                        // vary across Revit 2024/2025/2026, while the English
+                        // parameter display names are stable.
+                        Poles      = SafePoles(sys),
                         RatingA    = SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM)),
                         LoadVA     = SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)),
                         VoltageV   = SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)),
-                        Phase      = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_PHASE_PARAM)?.AsValueString() ?? "",
+                        Phase      = sys.LookupParameter("Phase")?.AsValueString()
+                                     ?? sys.LookupParameter("Number of Phases")?.AsValueString()
+                                     ?? "",
                         LengthM    = SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_LENGTH_PARAM)) * FtToM,
-                        WireSize   = sys.get_Parameter(BuiltInParameter.RBS_ELEC_WIRE_SIZE_PARAM)?.AsString() ?? "",
+                        WireSize   = sys.LookupParameter("Wire Size")?.AsString()
+                                     ?? sys.LookupParameter("Cable Size")?.AsString()
+                                     ?? "",
                         VoltDropPct= SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE_DROP_PARAM)) * 100.0,
                         ElementCount = sys.Elements?.Size ?? 0,
                         SystemType = sys.SystemType.ToString(),
@@ -192,6 +201,16 @@ namespace StingTools.Core.Electrical
         private static int SafeInt(Parameter p)
         {
             try { return p == null ? 0 : (p.StorageType == StorageType.Integer ? p.AsInteger() : (int)p.AsDouble()); }
+            catch { return 0; }
+        }
+        private static int SafePoles(ElectricalSystem sys)
+        {
+            try { return sys.PolesNumber; } catch { }
+            try
+            {
+                var p = sys.LookupParameter("Number of Poles") ?? sys.LookupParameter("Poles");
+                return SafeInt(p);
+            }
             catch { return 0; }
         }
         private static double SafeDouble(Parameter p)
