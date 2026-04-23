@@ -386,6 +386,12 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex) { StingLog.Warn($"SetHandoverMode: preset mirror failed: {ex.Message}"); }
 
+                // Reload TagConfig so category warnings (loaded from the
+                // mode-specific CSVs via HandoverModeHelper) refresh live
+                // instead of waiting for the next document open.
+                try { Core.TagConfig.LoadDefaults(); }
+                catch (Exception ex) { StingLog.Warn($"SetHandoverMode: TagConfig reload failed: {ex.Message}"); }
+
                 StingLog.Info($"Handover mode set to {mode}");
                 if (string.IsNullOrEmpty(StingCommandHandler.GetExtraParam("SuppressDialog")))
                 {

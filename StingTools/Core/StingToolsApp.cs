@@ -1029,14 +1029,12 @@ namespace StingTools.Core
                 catch (Exception ex) { StingLog.Warn($"PyRevit manifest check: {ex.Message}"); }
             }
 
-            // DATA-01: Validate schema version headers on TAG_CONFIG CSVs
-            string[] versionedCsvs = new[]
-            {
-                "STING_TAG_CONFIG_v5_0_GEN.csv",
-                "STING_TAG_CONFIG_v5_0_ARCH.csv",
-                "STING_TAG_CONFIG_v5_0_STR.csv",
-                "STING_TAG_CONFIG_v5_0_MEP.csv",
-            };
+            // DATA-01: Validate schema version headers on TAG_CONFIG CSVs.
+            // Routed through HandoverModeHelper so the active preset's CSVs
+            // (Handover default, or DesignConstruction variant) are the ones
+            // checked at startup.
+            // doc is null at startup; helper falls back to PARAGRAPH_PRESETS.json active_preset.
+            string[] versionedCsvs = HandoverModeHelper.GetAllTagConfigCsvs(null);
             foreach (string csv in versionedCsvs)
             {
                 string path = FindDataFile(csv);
