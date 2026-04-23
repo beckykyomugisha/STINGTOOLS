@@ -161,6 +161,10 @@ namespace StingTools.Commands.Routing
                     TrySetDouble(fi, "STING_HANGER_STRUT_LEN_MM", c.StrutRodMm);
                     TrySetDouble(fi, "STING_HANGER_SPACING_MM",   c.MaxSpanMm);
                     TrySetInt   (fi, "STING_HANGER_TRAPEZE_BOOL", c.OnTrapeze ? 1 : 0);
+                    TrySetDouble(fi, "STING_HANGER_POINT_LOAD_KG", c.PointLoadKg);
+                    TrySetDouble(fi, "STING_HANGER_ROD_DIA_MM",   c.RodDiameterMm);
+                    TrySetString(fi, "STING_HANGER_ROD_IMPERIAL", c.RodImperial ?? "");
+                    TrySetInt   (fi, "STING_HANGER_COUPLER_BOOL", c.RodNeedsCoupler ? 1 : 0);
                     placed++;
                 }
                 catch (Exception ex)
@@ -292,7 +296,10 @@ namespace StingTools.Commands.Routing
                 panel.AddSection("PER-CANDIDATE (first 40)");
                 foreach (var c in res.Candidates.Take(40))
                 {
-                    panel.Text($"#{c.HostRun.Value} {c.AnchorType} span={c.MaxSpanMm:F0}mm rod={c.StrutRodMm:F0}mm" +
+                    panel.Text($"#{c.HostRun.Value} {c.AnchorType} span={c.MaxSpanMm:F0}mm " +
+                               $"load={c.PointLoadKg:F0}kg rod=M{c.RodDiameterMm:F0}({c.RodImperial})" +
+                               $" util={c.RodUtilizationPct:F0}%" +
+                               (c.RodNeedsCoupler ? " [coupler]" : "") +
                                (c.OnTrapeze ? " [trapeze]" : "") +
                                $"  — {c.SpacingBasis}");
                 }

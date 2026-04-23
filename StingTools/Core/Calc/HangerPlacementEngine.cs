@@ -41,6 +41,21 @@ namespace StingTools.Core.Calc
         public double    StrutRodMm    { get; set; }
         public bool      OnTrapeze     { get; set; }
         public string    SpacingBasis  { get; set; } = "";
+        /// <summary>
+        /// Computed carried load at this hanger in kilograms. Equals
+        /// span × (shell weight + content + insulation). Used by
+        /// RodSizeTable.Select for MSUITE-style load-aware rod sizing.
+        /// </summary>
+        public double    PointLoadKg   { get; set; }
+        /// <summary>Selected rod diameter in mm.</summary>
+        public double    RodDiameterMm { get; set; }
+        /// <summary>Safe-working-load utilisation at this hanger.</summary>
+        public double    RodUtilizationPct { get; set; }
+        /// <summary>Imperial thread designation of selected rod.</summary>
+        public string    RodImperial   { get; set; } = "";
+        /// <summary>True when strut rod length &gt; StockLengthMm (3 m)
+        /// and a coupler must be inserted.</summary>
+        public bool      RodNeedsCoupler { get; set; }
     }
 
     public class HangerPlacementResult
@@ -120,6 +135,15 @@ namespace StingTools.Core.Calc
             int nHangers = Math.Max(2, (int)Math.Ceiling(runLenMm / spacing.MaxSpanMm));
             double actualSpan = runLenFt / (nHangers - 1);
 
+            // Per-metre weight for point-load sizing. Phase M: reuse
+            // SpoolWeightCalculator for the shell, then add content
+            // mass for water-filled piping at full-bore.
+            double totalWeightKg = 0;
+            try { totalWeightKg = Fabrication.SpoolWeightCalculator.WeightKg(doc, new[] { el.Id }); } catch { }
+            double contentKg = ComputeContentMassKg(el, runLenMm);
+            double insulationKg = ComputeInsulationMassKg(el, runLenMm);
+            double perMetreKg = (totalWeightKg + contentKg + insulationKg) / Math.Max(0.1, runLenMm / 1000.0);
+
             for (int i = 0; i < nHangers; i++)
             {
                 double t = (nHangers == 1) ? 0.5 : (double)i / (nHangers - 1);
@@ -135,8 +159,21 @@ namespace StingTools.Core.Calc
                     SpacingBasis = spacing.Basis,
                 };
 
+                // Point load = per-metre mass × full span carried
+                // (half span each side for interior hangers; half for
+                // end hangers). Phase M simplification: use full span
+                // for every hanger — conservative.
+                cand.PointLoadKg = perMetreKg * (spacing.MaxSpanMm / 1000.0);
+
+                var rod = RodSizeTable.Select(
+                    new RodSizeQuery { PointLoadKg = cand.PointLoadKg });
+                cand.RodDiameterMm     = rod.RodDiameterMm;
+                cand.RodImperial       = rod.RodImperial;
+                cand.RodUtilizationPct = rod.UtilizationPct;
+
                 // Pick anchor type based on what's directly above.
                 FindAnchor(doc, pt, cand);
+                cand.RodNeedsCoupler = cand.StrutRodMm > RodSizeTable.StockLengthMm;
                 switch (cand.AnchorType)
                 {
                     case "CONCRETE_ANCHOR": result.ConcreteAnchorCount++; break;
@@ -147,6 +184,54 @@ namespace StingTools.Core.Calc
                 result.Candidates.Add(cand);
                 result.CandidatesGenerated++;
             }
+        }
+
+        /// <summary>Water mass carried inside a pipe at full bore.</summary>
+        private static double ComputeContentMassKg(Element el, double runLengthMm)
+        {
+            try
+            {
+                if (el is Pipe p)
+                {
+                    double dM = p.Diameter * 0.3048;
+                    double areaM2 = Math.PI * dM * dM * 0.25;
+                    return areaM2 * (runLengthMm / 1000.0) * 1000.0; // ρ_water = 1000 kg/m³
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>Insulation mass if PLM_PPE_INSULATION_THK_MM or
+        /// HVC_DCT_INSULATION_THK_MM is set.</summary>
+        private static double ComputeInsulationMassKg(Element el, double runLengthMm)
+        {
+            try
+            {
+                double thkMm = 0;
+                var pPipe = el.LookupParameter("PLM_PPE_INSULATION_THK_MM");
+                var pDuct = el.LookupParameter("HVC_DCT_INSULATION_THK_MM");
+                if (pPipe != null && pPipe.StorageType == StorageType.Double) thkMm = pPipe.AsDouble() * 304.8;
+                else if (pDuct != null && pDuct.StorageType == StorageType.Double) thkMm = pDuct.AsDouble() * 304.8;
+                else if (pPipe != null && double.TryParse(pPipe.AsString(),
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var vP)) thkMm = vP;
+                else if (pDuct != null && double.TryParse(pDuct.AsString(),
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var vD)) thkMm = vD;
+                if (thkMm <= 0) return 0;
+
+                // Nominal insulation density 30 kg/m³ (mineral wool).
+                // Shell volume = π × D × thk × L (thin-wall assumption).
+                double dM = 0;
+                if (el is Pipe p) dM = p.Diameter * 0.3048;
+                else if (el is Duct d) dM = Math.Max(d.Width, d.Height) * 0.3048;
+                if (dM <= 0) return 0;
+                double thkM = thkMm / 1000.0;
+                return Math.PI * dM * thkM * (runLengthMm / 1000.0) * 30.0;
+            }
+            catch { }
+            return 0;
         }
 
         private static HangerSpacingQuery BuildQuery(Element el)
