@@ -2007,3 +2007,65 @@ spools under weight caps, and (f) emits PCF for Isogen.
 - Hanger placement is preview-only until a hanger `.rfa` family is
   authored in the library.
 - PCF covers piping only; duct iso remains a CAMduct (MAJ) workflow.
+
+---
+
+#### Completed (Phase 114 — v4 MEP robustness, Phases D.2 / C-ext / novel segregation)
+
+Second hardening pass on branch `claude/research-mep-automation-NMLDm`,
+informed by three parallel research reports (sleeve/opening software,
+cable/hanger software, wire-annotation repo audit).
+
+**Phase D.2 — Hanger family binding** (1 commit)
+ - `Core/Calc/HangerFamilyResolver.cs` — 3-tier family resolver
+   (STING_HANGER_* exact → vendor catalogue substring → keyword)
+   with per-document cache.
+ - `PlaceHangersCommand` now offers Preview vs Apply; Apply calls
+   `doc.Create.NewFamilyInstance(point, symbol, NonStructural)` per
+   candidate, writes 5 shared params. Falls back to preview when
+   no family is loaded anywhere in the project.
+ - `Data/Parameters/STING_HANGER_PARAMS.txt` — 5 UUIDv5 shared
+   params for hanger-instance metadata.
+
+**Phase C extension — Hardy Cross network balancing** (1 commit)
+ - `Core/Calc/HardyCrossSolver.cs` — classic iterative ΔQ correction
+   for looped hydronic networks. Water (n=2) and air (n=1.852)
+   regimes. 60-iter default, 0.1% tolerance.
+ - `Core/Calc/NetworkExtractor.cs` — Revit Pipe selection → signed
+   topology graph via 1 mm-rounded node hashing + spanning-tree DFS
+   + fundamental-cycle extraction.
+ - `Commands/Routing/HardyCrossCommand.cs` — Preview / Apply modes;
+   Apply writes solved flows back to RBS_PIPE_FLOW_PARAM.
+ - Dispatch tag: `Calc_HardyCross`.
+
+**Phase C.4 — BS EN 50174-2 cable segregation validator** (1 commit)
+ - The "unique differentiator" called out in the cable/hanger
+   research brief — no surveyed competitor (MagiCAD, eVolve,
+   ProDesign, Cymap, ETAP, SysQue) validates cable segregation.
+ - `Core/Calc/CableSegregationValidator.cs` — classifies each
+   tray/conduit as UTP / FTP / SFTP / SWA / Power / Fire / Unknown
+   via `ELC_CABLE_SEG_CLASS_TXT` or system-name heuristics.
+   Pairwise AABB pre-filter + 6-sample curve-to-curve check;
+   applies Annex E matrix: 200/50/30/0 mm minimum separation per
+   power/data class pair. Fire cables trigger a BS 5839-1 "separate
+   containment" warning.
+ - `Commands/Routing/CableSegregationCommand.cs` — Routing-tab
+   validator with severity-graded result panel.
+ - `Data/Parameters/STING_ELEC_WIRE_PARAMS.txt` — 7 UUIDv5 shared
+   params closing the wire-annotation audit's "missing wire params"
+   gap: PHASE, CORE_COUNT, CSA_MM2, CIRCUIT_LINK_ID, HOME_RUN,
+   VOLT_DROP_PCT, SEG_CLASS_TXT.
+ - `Data/Parameters/STING_SLEEVE_PARAMS.txt` — 3 UUIDv5 params for
+   future Provision-for-Void / Tekla round-trip: PFV_UUID,
+   HOST_FIRE_RATING, UL_SYS.
+ - Dispatch tag: `Calc_CableSegregation`.
+
+**Deferred** (identified in research):
+ - Cable drawing / cable-in-tray modelling (research gap #1, effort L)
+ - Live tray fill-ratio widget (gap #3, effort M)
+ - Point-load hanger sizing (gap #5, effort M)
+ - Rod-coupler auto-insert (gap #6, effort S — trivial once an
+   upper-bound rod length is agreed per shop)
+ - Pull-tension solver (gap #7, effort M)
+ - `Pset_ProvisionForVoid` IFC export option (sleeve research
+   recommended quick win)

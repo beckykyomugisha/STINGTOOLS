@@ -1,0 +1,13 @@
+# STING v4 Phase H sleeve / Provision-for-Void parameters.
+# Enables Pset_ProvisionForVoid round-trip with Tekla via IFC4.
+# Loaded via LoadSharedParamsCommand or merged into MR_PARAMETERS.txt.
+# GUIDs are UUIDv5 hashes under the STING fabrication namespace
+# 7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	ASS_MNG
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
+PARAM	cfe809e7-77c4-5f44-a43c-1d770d97abea	STING_SLEEVE_PFV_UUID	TEXT		1	1	buildingSMART Pset_ProvisionForVoid UUID for IFC4 round-trip with Tekla Hole Reservation Manager	1
+PARAM	a2a00ce9-5812-5db6-bde0-cefb05775691	STING_SLEEVE_HOST_FIRE_RATING	TEXT		1	1	Fire-rating inherited from host element (BuiltInParameter.FIRE_RATING on wall/floor type)	1
+PARAM	3ec85c17-a7f3-5b2f-879b-14bbb6b05e2c	STING_SLEEVE_UL_SYS	TEXT		1	1	UL 1479 / FM 4991 firestop system ID (e.g. UL W-L-1001)	1
