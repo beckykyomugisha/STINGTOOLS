@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.3,CREATED=2026-03-16,UPDATED=2026-04-22,ADDS=tier_4_to_10_and_full_tag_style_param_catalogue
+#SCHEMA_VERSION=5.3,CREATED=2026-03-16,UPDATED=2026-04-23,ADDS=tier_4_to_10_and_full_tag_style_param_catalogue,SYNC=LABEL_DEFINITIONS.json_v5.8+PARAMETER_REGISTRY.json_extended_params.tier_4_10
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -2332,12 +2332,9 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_SHT_MULTI_DISC_MEP,Multiple MEP disciplines on same sheet — coordination risk,ISO 19650-2 / PAS 1192-2,Common,Text,⚠ Warning: Multi-Discipline Sheet,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_MULTI_DISC_MEP, """")"
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# TAG FAMILY #53 — STING - MEP Sleeve Tag
-# ═══════════════════════════════════════════════════════════════════════════════
+Tag Family #53: STING - MEP Sleeve Tag
 # Category: Generic Models | PROD: SLV | FUNC: PEN | Disciplines: M, E, P, FP
 # Fire-rated construction penetration sleeves per BS EN 1366-3 / BS 9999
-# ───────────────────────────────────────────────────────────────────────────────
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -2347,7 +2344,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T2,ASS_TAG_2_TXT,,,0,✓,---,---,---,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
 2,T2,SLV_SZ_MM,Ø,mm,0,✓,Common,Text,Sleeve Size,"if(TAG_PARA_STATE_2_BOOL, SLV_SZ_MM, """")",NOM,BLACK,2.0,None,None
-3,T2,SLV_FIRE_RATING_TXT,,, 0,✓,Common,Text,Fire Rating,"if(TAG_PARA_STATE_2_BOOL, SLV_FIRE_RATING_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,SLV_FIRE_RATING_TXT,,,0,✓,Common,Text,Fire Rating,"if(TAG_PARA_STATE_2_BOOL, SLV_FIRE_RATING_TXT, """")",NOM,BLACK,2.0,None,None
 4,T2,SLV_SERVICE_TXT,Service:,,0,✓,Common,Text,Service Through,"if(TAG_PARA_STATE_2_BOOL, SLV_SERVICE_TXT, """")",NOM,BLACK,2.0,None,None
 5,T2,SLV_STATUS_TXT,,,0,✓,Common,Text,Sleeve Status,"if(TAG_PARA_STATE_2_BOOL, SLV_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 

@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.3,CREATED=2026-03-16,UPDATED=2026-04-22,ADDS=tier_4_to_10_and_full_tag_style_param_catalogue
+#SCHEMA_VERSION=5.3,CREATED=2026-03-16,UPDATED=2026-04-23,ADDS=tier_4_to_10_and_full_tag_style_param_catalogue,SYNC=LABEL_DEFINITIONS.json_v5.8+PARAMETER_REGISTRY.json_extended_params.tier_4_10
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)

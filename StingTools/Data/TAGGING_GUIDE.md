@@ -592,17 +592,34 @@ TAG7 is a human-readable descriptive tag with 6 sections (A-F):
 | Presentation | Identity + Spatial | Client presentations |
 | BOQ | Identity + Classification + Cost | Bill of Quantities |
 
-### Paragraph Depth Control
+### Paragraph Depth Control (schema v5.3 — tiers T1..T10)
 
-TAG7 visibility controlled by `TAG_PARA_STATE_1/2/3_BOOL` parameters:
-- Tier 1: Basic (identity + system)
-- Tier 2: Extended (+ spatial + lifecycle)
-- Tier 3: Full (+ technical + classification)
-- Tiers 4-10: Custom depth levels
+TAG7 visibility is controlled by `TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL`.
+Every STING tag family now carries all ten as type parameters, and
+`SetParagraphDepthCommand` supports cumulative depths (depth N enables states 1..N).
 
-> **Note — `_BOOL` Parameter Datatypes**: All `_BOOL` parameters — both the 12 **gating** parameters (`TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL` and `TAG_WARN_VISIBLE_BOOL`) and the 134 **style visibility** parameters (`TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) — use **YESNO** datatype in `MR_PARAMETERS.txt`. Once a shared parameter GUID is created as YESNO in Revit, it cannot be changed to INTEGER without GUID conflicts. Both YESNO and INTEGER use `StorageType.Integer` internally — values are `1`/`0` in both cases.
+| Depth | Tier(s) enabled | Content | Style default |
+|-------|-----------------|---------|----------------|
+| 1 | T1 | Identity (`ASS_TAG_1_TXT`) | NOM BLACK 2.5 |
+| 2 | T1-T2 | + Description, dimensions, materials | NOM BLACK 2.0 |
+| 3 | T1-T3 | + Paragraph container + TAG7 sub-sections | NOM BLACK 2.0 |
+| 4 | T1-T4 | + Commissioning & handover (`COMM_*`) | BOLD BLUE 2.0 |
+| 5 | T1-T5 | + Cost & procurement (`CST_UG_PRICE_UGX`, `CST_INTL_PRICE_USD`, `CST_QUOTE_REF_TXT`) | NOM PURPLE 2.0 |
+| 6 | T1-T6 | + Carbon & sustainability (`CBN_A1_A3`, `CBN_A4`, `CBN_B6`) | ITALIC GREEN 2.0 |
+| 7 | T1-T7 | + Fabrication & QC (`ASS_SPOOL_NR_TXT`, `ASS_FAB_STATUS_TXT`, `ASS_QC_INSPECTOR_TXT`) | BOLD ORANGE 2.0 |
+| 8 | T1-T8 | + Clash & coordination (`CLASH_TRIAGE_*`, `CLASH_RESOLUTION_*`) | BOLD RED 2.0 |
+| 9 | T1-T9 | + As-built deviation & health (`ASBUILT_*`, `HEALTH_SCORE_*`) | ITALIC GREY 2.0 |
+| 10 | T1-T10 | + Compliance / audit trail (`IFC_PSET_OVERRIDE_TXT`, `ACC_ISSUE_ID_TXT`, `ACC_SYNC_STATUS_TXT`) | NOM GREY 2.0 |
 
-Set via: CREATE → Presentation → Set Paragraph Depth
+The T4-T10 block is identical across all 142 families. Canonical definitions live in
+`Data/LABEL_DEFINITIONS.json` (`category_labels.*.tier_4..tier_10` + top-level
+`tier_style_defaults`). The authoring surface is the 4 CSVs
+(`STING_TAG_CONFIG_v5_0_{ARCH,MEP,STR,GEN}.csv`). Parameter GUIDs are in
+`PARAMETER_REGISTRY.json` → `extended_params.tier_4_10`.
+
+> **Note — `_BOOL` Parameter Datatypes**: All `_BOOL` parameters — both the 11 **gating** parameters (`TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL` and `TAG_WARN_VISIBLE_BOOL`) and the 128 **style visibility** parameters (`TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) — use **YESNO** datatype in `MR_PARAMETERS.txt`. Once a shared parameter GUID is created as YESNO in Revit, it cannot be changed to INTEGER without GUID conflicts. Both YESNO and INTEGER use `StorageType.Integer` internally — values are `1`/`0` in both cases.
+
+Set via: CREATE → Presentation → Set Paragraph Depth (TaskDialog path covers T1-T3; the Tag Studio Tokens & Depth slider covers T1-T10).
 
 ---
 
