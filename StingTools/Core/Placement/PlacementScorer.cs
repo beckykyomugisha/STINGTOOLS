@@ -46,6 +46,14 @@ namespace StingTools.Core.Placement
         private readonly Document _doc;
         private LightingGridCalculator _lightingGrid;
 
+        /// <summary>
+        /// Per-room cache of ceiling obstruction AABBs. Built once on
+        /// the first candidate for each room so FilteredElementCollector
+        /// is not re-run for every rule.
+        /// </summary>
+        private readonly Dictionary<ElementId, List<ExclusionRect>> _obstructionCache
+            = new Dictionary<ElementId, List<ExclusionRect>>();
+
         public PlacementScorer(Document doc)
         {
             _doc = doc;
@@ -240,9 +248,15 @@ namespace StingTools.Core.Placement
             if (c.SpacingScore < 0.05)
                 c.CollisionFlags |= (int)PlacementCollisionFlags.MinSpacingFail;
 
-            // Collision: real mesh collision happens in the engine; the
-            // scorer uses a generous "close to room centre" heuristic.
-            c.CollisionScore = 1.0;
+            // Collision: use ObstructionIndex to compute a per-room
+            // AABB exclusion list (air terminals, sprinklers, smoke
+            // detectors, speakers) once per room and score the candidate
+            // against it. Inside an exclusion → 0 score + hard-collision
+            // flag so BuildCandidate's caller discards. Within one buffer
+            // distance → linear penalty. Cache keyed by room id.
+            var (collisionScore, collisionAdd) = ComputeCollisionScore(room, anchor);
+            c.CollisionScore = collisionScore;
+            c.CollisionFlags |= collisionAdd;
 
             // Symmetry / aesthetic: small bonus for being near an
             // integer multiple of 300mm from the nearest placed point
@@ -255,6 +269,54 @@ namespace StingTools.Core.Placement
                     + c.CollisionScore * CollisionWeight
                     + c.SymmetryScore  * SymmetryWeight;
             return c;
+        }
+
+        /// <summary>
+        /// Score a candidate against the cached ObstructionIndex AABBs
+        /// for its room. Inside an exclusion → (0.0, InsideWall flag).
+        /// Within one buffer distance of an edge → linear penalty
+        /// 0..1 across the buffer. Outside all exclusions → 1.0.
+        /// </summary>
+        private (double score, int flags) ComputeCollisionScore(Room room, XYZ pt)
+        {
+            if (room == null || pt == null) return (1.0, 0);
+
+            List<ExclusionRect> list;
+            if (!_obstructionCache.TryGetValue(room.Id, out list))
+            {
+                try { list = ObstructionIndex.BuildForRoom(_doc, room); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PlacementScorer: obstruction build failed for room {room.Id}: {ex.Message}");
+                    list = new List<ExclusionRect>();
+                }
+                _obstructionCache[room.Id] = list;
+            }
+            if (list.Count == 0) return (1.0, 0);
+
+            double bufferFt = ObstructionIndex.DefaultBufferFt;
+
+            // Hard hit: candidate is inside any exclusion AABB.
+            foreach (var r in list)
+            {
+                if (r.Contains(pt.X, pt.Y))
+                    return (0.0, (int)PlacementCollisionFlags.OverlapsFixture);
+            }
+
+            // Soft penalty: candidate is within one buffer distance of
+            // an exclusion edge. Compute min-edge-distance, score scales
+            // linearly from 0 (touching) to 1 (at or beyond buffer).
+            double minDistFt = double.MaxValue;
+            foreach (var r in list)
+            {
+                double dx = Math.Max(0.0, Math.Max(r.MinX - pt.X, pt.X - r.MaxX));
+                double dy = Math.Max(0.0, Math.Max(r.MinY - pt.Y, pt.Y - r.MaxY));
+                double d  = Math.Sqrt(dx * dx + dy * dy);
+                if (d < minDistFt) minDistFt = d;
+            }
+            if (minDistFt >= bufferFt) return (1.0, 0);
+            double score = Math.Max(0.0, minDistFt / bufferFt);
+            return (score, 0);
         }
 
         private double ComputeSpacingScore(XYZ pt, IList<XYZ> placed, double minSpacingMm)
