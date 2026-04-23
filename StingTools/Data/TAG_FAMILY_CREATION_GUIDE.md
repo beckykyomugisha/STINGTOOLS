@@ -451,10 +451,36 @@ the Calculated Value pattern `if(TAG_PARA_STATE_N_BOOL, <param>, "")`.
 
 | Source | Role | File |
 |--------|------|------|
-| CSV (human-readable spec) | Authoring surface for row order, prefix/suffix, style/color/size | `STING_TAG_CONFIG_v5_0_{ARCH,MEP,STR,GEN}.csv` |
-| JSON (code-consumed) | What `LabelDefinitionHelper` and `TagFamilyCreatorCommand` read at runtime — carries `tier_1..tier_10` arrays and the top-level `tier_style_defaults` block | `LABEL_DEFINITIONS.json` v5.8 |
-| Registry (GUID + binding) | `ParamRegistry.GetGuid()` / shared-parameter binding — all T4-T10 parameters live in `extended_params.tier_4_10` with valid-hex placeholder GUIDs `5753b5aa-000T-4000-8PPP-...` | `PARAMETER_REGISTRY.json` v5.6 |
+| CSV (human-readable spec) | Authoring surface — 142 Tag Family entries, full tier_1..tier_10 rows, Style/Color/Size per row, plus 150-parameter TAG STYLE PARAMETER CATALOG block | `STING_TAG_CONFIG_v5_0_{ARCH,MEP,STR,GEN}.csv` |
+| JSON (code-consumed) | Runtime data read by `LabelDefinitionHelper` and `TagFamilyCreatorCommand` — 138 categories, each with tier_1..tier_10 arrays, plus top-level `tier_style_defaults` block | `LABEL_DEFINITIONS.json` v5.9 |
+| Registry (GUID + binding) | `ParamRegistry.GetGuid()` / shared-parameter binding — T4-T10 parameters in `extended_params.tier_4_10` (33 entries) with valid-hex placeholder GUIDs `5753b5aa-000T-4000-8PPP-...` | `PARAMETER_REGISTRY.json` v5.6 |
 | C# constants | Source-level references from commands | `StingTools/Core/ParamRegistry.cs` V6/Tier-4-10 region |
+
+**Naming mapping** (CSV ↔ JSON): CSV uses singular family-friendly names
+("Duct", "Wall") while JSON uses Revit `BuiltInCategory` display names (plural:
+"Ducts", "Walls"). 39 JSON entries carry a `csv_family_alias` field linking
+back to the CSV. 12 CSV-only families (Tie-In Point tags, Sheet tags for
+Architectural/MEP/Structural, Brace / Truss, Generic Model, etc.) are added as
+JSON entries tagged with `source_csv`. The gap from 142 CSV entries to 138 JSON
+entries is 6 duplicates (same category name appearing in two discipline CSVs,
+e.g. "Specialty Equipment", "Internal Area Loads" — the JSON de-duplicates
+while CSV tolerates the duplication per discipline).
+
+### TAG STYLE PARAMETER CATALOG (150 parameters per family)
+
+Every STING tag family is injected with a fixed 150-parameter set of **type**
+parameters that the Tag Style Engine flips at runtime. The complete list lives
+at the top of each v5 CSV (section titled `TAG STYLE PARAMETER CATALOG (v5.3)`)
+and is generated in C# by `TagFamilyCreatorCommand.StyleParams`:
+
+| Group | Count | Pattern |
+|-------|------:|---------|
+| Text style switch matrix | 128 | `TAG_{size}{style}_{color}_BOOL` (sizes 2/2.5/3/3.5 × styles NOM/BOLD/ITALIC/BOLDITALIC × 8 colors) |
+| Paragraph-depth gates | 10 | `TAG_PARA_STATE_1_BOOL` .. `TAG_PARA_STATE_10_BOOL` |
+| Warnings | 2 | `TAG_WARN_VISIBLE_BOOL`, `TAG_WARN_SEVERITY_FILTER_TXT` |
+| Tag box | 5 | `TAG_BOX_COLOR_{R,G,B}_INT`, `TAG_BOX_VISIBLE_BOOL`, `TAG_BOX_STYLE_TXT` |
+| Leader | 3 | `TAG_LEADER_COLOR_{R,G,B}_INT` |
+| Scale / depth cache | 2 | `TAG_SCALE_TIER_AUTO_BOOL`, `TAG_DEPTH_TIER_INT` |
 
 ### Warning Visibility
 

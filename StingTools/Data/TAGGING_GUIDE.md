@@ -611,11 +611,17 @@ Every STING tag family now carries all ten as type parameters, and
 | 9 | T1-T9 | + As-built deviation & health (`ASBUILT_*`, `HEALTH_SCORE_*`) | ITALIC GREY 2.0 |
 | 10 | T1-T10 | + Compliance / audit trail (`IFC_PSET_OVERRIDE_TXT`, `ACC_ISSUE_ID_TXT`, `ACC_SYNC_STATUS_TXT`) | NOM GREY 2.0 |
 
-The T4-T10 block is identical across all 142 families. Canonical definitions live in
-`Data/LABEL_DEFINITIONS.json` (`category_labels.*.tier_4..tier_10` + top-level
-`tier_style_defaults`). The authoring surface is the 4 CSVs
-(`STING_TAG_CONFIG_v5_0_{ARCH,MEP,STR,GEN}.csv`). Parameter GUIDs are in
-`PARAMETER_REGISTRY.json` → `extended_params.tier_4_10`.
+The T4-T10 block is identical across all 142 CSV tag-family entries (138 unique
+JSON categories after de-duplicating cross-discipline names). Canonical
+definitions live in `Data/LABEL_DEFINITIONS.json` v5.9 (`category_labels.*.tier_4..tier_10`
++ top-level `tier_style_defaults`). The authoring surface is the 4 CSVs
+(`STING_TAG_CONFIG_v5_0_{ARCH,MEP,STR,GEN}.csv`) — each now ships with a
+150-parameter `TAG STYLE PARAMETER CATALOG` header section listing every type
+parameter a manually-authored seed family needs (128 text-style BOOLs + 10 tier
+gates + 12 support params). Parameter GUIDs are in
+`PARAMETER_REGISTRY.json` → `extended_params.tier_4_10` (33 entries). JSON
+categories use Revit `BuiltInCategory` plural names ("Ducts"); CSV families use
+singular names ("Duct"); the `csv_family_alias` field in JSON links the two.
 
 > **Note — `_BOOL` Parameter Datatypes**: All `_BOOL` parameters — both the 11 **gating** parameters (`TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL` and `TAG_WARN_VISIBLE_BOOL`) and the 128 **style visibility** parameters (`TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) — use **YESNO** datatype in `MR_PARAMETERS.txt`. Once a shared parameter GUID is created as YESNO in Revit, it cannot be changed to INTEGER without GUID conflicts. Both YESNO and INTEGER use `StorageType.Integer` internally — values are `1`/`0` in both cases.
 
