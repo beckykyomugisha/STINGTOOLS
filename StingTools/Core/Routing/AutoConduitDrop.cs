@@ -39,6 +39,7 @@ namespace StingTools.Core.Routing
         public AutoConduitDrop(Document doc) : base(doc)
         {
             ConnectorDomain = Domain.DomainCableTrayConduit;
+            ServiceId       = "ELC_PWR"; // default — overridable from command
         }
 
         /// <summary>

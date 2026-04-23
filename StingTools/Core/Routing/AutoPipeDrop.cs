@@ -24,6 +24,7 @@ namespace StingTools.Core.Routing
         public AutoPipeDrop(Document doc) : base(doc)
         {
             ConnectorDomain = Domain.DomainPiping;
+            ServiceId       = "PLM_CWS"; // default — overridable from command
         }
 
         public DropResult Execute(IList<Element> fixtures)

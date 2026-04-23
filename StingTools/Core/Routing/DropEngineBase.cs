@@ -56,6 +56,31 @@ namespace StingTools.Core.Routing
         /// </summary>
         protected Domain ConnectorDomain { get; set; } = Domain.DomainUndefined;
 
+        /// <summary>
+        /// Service id used for RoutingRules lookups (BS EN 50174-2
+        /// separation + service corridor band enforcement). Values
+        /// match the keys in STING_SEPARATION_RULES.json and
+        /// STING_SERVICE_CORRIDORS.json: e.g. "ELC_PWR", "PLM_CWS",
+        /// "HVC_SA". Empty string disables rule enforcement on this
+        /// engine.
+        /// </summary>
+        public string ServiceId { get; set; } = "";
+
+        /// <summary>
+        /// When true, the drop engine snaps the intercept Z to the
+        /// centre of the corridor band claimed by ServiceId (within
+        /// ±200 mm) so drops stack in their documented stratum.
+        /// Defaults false — enable from the UI "Snap to service zone"
+        /// checkbox on the Routing tab.
+        /// </summary>
+        public bool SnapToCorridorBand { get; set; } = false;
+
+        /// <summary>
+        /// When true, runs SeparationChecker after intercept is chosen
+        /// and logs any BS EN 50174-2 violations to DropResult.Warnings.
+        /// </summary>
+        public bool EnforceSeparation { get; set; } = true;
+
         protected DropEngineBase(Document doc)
         {
             Doc = doc;
@@ -329,6 +354,20 @@ namespace StingTools.Core.Routing
             }
             XYZ to = ComputeInterceptPoint(origin, host);
 
+            // Stage 2.5: corridor-band snap + separation check.
+            to = MaybeSnapToCorridorBand(origin, to, result);
+            if (EnforceSeparation && !string.IsNullOrEmpty(ServiceId))
+            {
+                try
+                {
+                    var violations = SeparationChecker.Check(Doc, origin, to, ServiceId);
+                    foreach (var v in violations)
+                        result.Warnings.Add($"Separation: {v}");
+                }
+                catch (Exception ex)
+                { result.Warnings.Add($"SeparationChecker failed: {ex.Message}"); }
+            }
+
             // Stage 3: subclass creates the run geometry.
             var id = CreateRunBetween(origin, to, host, result);
             if (id == null || id == ElementId.InvalidElementId)
@@ -367,6 +406,47 @@ namespace StingTools.Core.Routing
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// When SnapToCorridorBand is enabled and the engine's ServiceId
+        /// maps to a corridor band, nudge the intercept Z to the band
+        /// centre (relative to the host level) provided the existing
+        /// intercept is within ±200 mm of the band centre. Anything
+        /// further is left alone — the host curve genuinely sits in
+        /// another band and forcing a snap would break the topology.
+        /// </summary>
+        protected XYZ MaybeSnapToCorridorBand(XYZ from, XYZ to, DropResult result)
+        {
+            if (!SnapToCorridorBand) return to;
+            if (string.IsNullOrEmpty(ServiceId)) return to;
+            var band = RoutingRules.FindBandForService(ServiceId);
+            if (band == null) return to;
+
+            try
+            {
+                // Band centre is FFL+mm. Derive FFL from the ActiveView's
+                // GenLevel, falling back to Z=0.
+                double levelZFt = 0;
+                var lvlId = Doc.ActiveView?.GenLevel?.Id;
+                if (lvlId != null && lvlId != ElementId.InvalidElementId)
+                {
+                    var lvl = Doc.GetElement(lvlId) as Level;
+                    if (lvl != null) levelZFt = lvl.Elevation;
+                }
+                double bandCentreFt = levelZFt + (band.CentreMm * MmToFt);
+                double deltaMm = Math.Abs(to.Z - bandCentreFt) * 304.8;
+                if (deltaMm > 200.0) return to; // too far — leave alone
+
+                var snapped = new XYZ(to.X, to.Y, bandCentreFt);
+                result.Warnings.Add($"Band snap: {band.Id} @ FFL+{band.CentreMm:F0}mm (adjusted {deltaMm:F0}mm)");
+                return snapped;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Corridor band snap failed: {ex.Message}");
+                return to;
+            }
         }
 
         // ---- parameter helpers --------------------------------------------------

@@ -29,6 +29,7 @@ namespace StingTools.Core.Routing
         public AutoDuctDrop(Document doc) : base(doc)
         {
             ConnectorDomain = Domain.DomainHvac;
+            ServiceId       = "HVC_SA"; // default — overridable from command
         }
 
         public DropResult Execute(IList<Element> fixtures)
