@@ -1609,6 +1609,7 @@ namespace StingTools.UI
                     case "ClashSessionRefresh":   RunCommand<Core.Clash.ClashSessionRefreshCommand>(app); break;
                     case "ClashSessionClear":     RunCommand<Core.Clash.ClashSessionClearCommand>(app); break;
                     case "ClashMatrixEdit":       RunCommand<Core.Clash.ClashMatrixEditCommand>(app); break;
+                    case "ClashManager":          RunCommand<Commands.Mep.ClashManagerCommand>(app); break;
 
                     // Warnings Manager (Phase 46)
                     case "WarningsDashboard": RunCommand<Core.WarningsDashboardCommand>(app); break;
