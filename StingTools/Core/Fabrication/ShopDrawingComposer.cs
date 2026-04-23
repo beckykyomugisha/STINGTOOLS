@@ -29,6 +29,27 @@ namespace StingTools.Core.Fabrication
             { "Generic",    "STING_TB_ASSEMBLY_PIPE" }
         };
 
+        // Discipline code used when assembling the SP-{disc}-{sys}-{lvl}-{seq}
+        // sheet number. Matches ISO 19650 discipline single-letter codes.
+        private static readonly Dictionary<string, string> DisciplineCode =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Plumbing",   "P"  },
+            { "Pipe",       "P"  },
+            { "HVAC",       "M"  },
+            { "Duct",       "M"  },
+            { "Electrical", "E"  },
+            { "Hanger",     "HG" },
+            { "Generic",    "G"  }
+        };
+
+        // Session-scoped sequence per (discipline, level) bucket — ensures
+        // unique SP-M-HVAC-L02-0003 even when the assembly has no spool
+        // number yet (Phase A fallback; Phase B will hydrate from a
+        // persistent doc_sequences.json keyed per project).
+        private static readonly Dictionary<string, int> _sequenceByBucket
+            = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
         // Slot positions on a 1:50 A1 sheet (Revit feet, sheet origin).
         // Plan TL, ISO TR, Elev0 BL, Elev90 ML, 3D BR, BOM RIGHT-PANEL.
         private static readonly Dictionary<string, XYZ> SlotPositions =
@@ -67,8 +88,15 @@ namespace StingTools.Core.Fabrication
             try { ApplySheetMetadata(doc, sheet, assemblyId, discipline, result); }
             catch (Exception ex) { result.Warnings.Add($"Sheet metadata: {ex.Message}"); }
 
-            // Place views at fixed slots
-            PlaceView(doc, sheet, views.ViewPlan,    SlotPositions["PLAN"],   result);
+            // Place views at fixed slots. Elev0/Elev90 receive the new
+            // ElevationFront / ElevationLeft views from AssemblyViewUtils
+            // (fixed by the Phase A swap). ElevationTop reuses the plan
+            // slot when no native plan/part-list was created.
+            PlaceView(doc, sheet,
+                      views.ViewPlan != ElementId.InvalidElementId
+                          ? views.ViewPlan
+                          : views.ElevationTop,
+                      SlotPositions["PLAN"],   result);
             PlaceView(doc, sheet, views.ViewIso6412, SlotPositions["ISO"],    result);
             PlaceView(doc, sheet, views.Elevation0,  SlotPositions["ELEV0"],  result);
             PlaceView(doc, sheet, views.Elevation90, SlotPositions["ELEV90"], result);
@@ -130,12 +158,47 @@ namespace StingTools.Core.Fabrication
             var ai = doc.GetElement(assemblyId) as AssemblyInstance;
             if (ai == null) return;
 
+            // Sheet number follows the SP-{disc}-{sys}-{lvl}-{seq} pattern
+            // so every shop drawing has a unique, parseable identifier.
+            // If the assembly carries a spool number (AssyParams.SPOOL_NR_TXT)
+            // we use that verbatim — it was minted by AssemblyBuilder and
+            // already respects the same convention. Otherwise we compose
+            // one here and bump a session-scoped counter.
             string spool = ReadString(ai, AssyParams.SPOOL_NR_TXT);
+            string systemCode = ReadString(ai, "ASS_SYSTEM_TYPE_TXT");
+            string levelCode  = ReadString(ai, "ASS_LVL_COD_TXT");
+            if (string.IsNullOrEmpty(levelCode)) levelCode = "XX";
+
+            string sheetNumber;
             if (!string.IsNullOrEmpty(spool))
             {
-                try { sheet.SheetNumber = spool; } catch { }
-                try { sheet.Name        = spool; } catch { }
+                sheetNumber = spool;
             }
+            else
+            {
+                string discCode = DisciplineCode.TryGetValue(discipline ?? "", out var dc) ? dc : "G";
+                string sysCode  = string.IsNullOrEmpty(systemCode) ? "GEN" : Sanitise(systemCode);
+                string bucket   = $"{discCode}:{sysCode}:{levelCode}";
+                lock (_sequenceByBucket)
+                {
+                    _sequenceByBucket.TryGetValue(bucket, out int cur);
+                    cur += 1;
+                    _sequenceByBucket[bucket] = cur;
+                    sheetNumber = $"SP-{discCode}-{sysCode}-{levelCode}-{cur:D4}";
+                }
+            }
+
+            // Revit throws when two sheets share a number. Uniquify with
+            // a monotonic suffix as a last resort.
+            string unique = EnsureUniqueSheetNumber(doc, sheetNumber);
+            try { sheet.SheetNumber = unique; }
+            catch (Exception ex)
+            { result.Warnings.Add($"SheetNumber assign ('{unique}'): {ex.Message}"); }
+
+            string sheetName = !string.IsNullOrEmpty(spool)
+                ? $"Spool {spool}"
+                : $"{discipline} spool {unique}";
+            try { sheet.Name = sheetName; } catch { }
 
             // Title-block instance parameters live on the title block
             // FamilyInstance, accessible via collector. We set the
@@ -160,6 +223,50 @@ namespace StingTools.Core.Fabrication
         private static string ReadString(Element el, string param)
         {
             try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch { return ""; }
+        }
+
+        /// <summary>
+        /// Strip characters Revit refuses in sheet numbers (\ / : * ?
+        /// " &lt; &gt; | {} [] ;) and collapse whitespace to a single
+        /// underscore. Preserves A-Z / 0-9 / - / _.
+        /// </summary>
+        private static string Sanitise(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var chars = new System.Text.StringBuilder(s.Length);
+            foreach (var ch in s.ToUpperInvariant())
+            {
+                if (char.IsLetterOrDigit(ch) || ch == '-' || ch == '_') chars.Append(ch);
+                else if (char.IsWhiteSpace(ch)) chars.Append('_');
+            }
+            return chars.ToString();
+        }
+
+        /// <summary>
+        /// Probe the document for an existing sheet with the proposed
+        /// number and, if found, append -A, -B, … until unique.
+        /// </summary>
+        private static string EnsureUniqueSheetNumber(Document doc, string baseNumber)
+        {
+            if (string.IsNullOrEmpty(baseNumber)) return baseNumber;
+            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
+                {
+                    if (el is ViewSheet vs && !string.IsNullOrEmpty(vs.SheetNumber))
+                        existing.Add(vs.SheetNumber);
+                }
+            }
+            catch { return baseNumber; }
+            if (!existing.Contains(baseNumber)) return baseNumber;
+            for (char c = 'A'; c <= 'Z'; c++)
+            {
+                var candidate = baseNumber + "-" + c;
+                if (!existing.Contains(candidate)) return candidate;
+            }
+            // Final fallback: long random suffix.
+            return baseNumber + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
         }
         private static void TrySetString(Element el, string param, string val)
         {
