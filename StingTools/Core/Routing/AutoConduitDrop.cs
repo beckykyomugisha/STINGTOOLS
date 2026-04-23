@@ -65,6 +65,19 @@ namespace StingTools.Core.Routing
                 return result;
             }
 
+            // Inspect the RoutingPreferenceManager on the chosen ConduitType.
+            try
+            {
+                var ct = Doc.GetElement(ConduitTypeId) as ConduitType;
+                var rpt = RoutingPreferenceInspector.Inspect(ct);
+                if (!rpt.IsProductionReady)
+                    result.Warnings.Add($"RoutingPreferenceManager gaps: {rpt}");
+                else
+                    StingLog.Info($"AutoConduitDrop: {rpt}");
+            }
+            catch (Exception ex)
+            { result.Warnings.Add($"RoutingPreferenceInspector: {ex.Message}"); }
+
             using (var tx = new Transaction(Doc, "STING v4 Auto-conduit drop"))
             {
                 try { tx.Start(); }

@@ -58,6 +58,21 @@ namespace StingTools.Core.Routing
                 return result;
             }
 
+            // Inspect the RoutingPreferenceManager on the chosen PipeType
+            // so we can surface "your type has no elbow rule" before we
+            // issue N connects that silently no-op at fitting time.
+            try
+            {
+                var pt = Doc.GetElement(PipeTypeId) as PipeType;
+                var rpt = RoutingPreferenceInspector.Inspect(pt);
+                if (!rpt.IsProductionReady)
+                    result.Warnings.Add($"RoutingPreferenceManager gaps: {rpt}");
+                else
+                    StingLog.Info($"AutoPipeDrop: {rpt}");
+            }
+            catch (Exception ex)
+            { result.Warnings.Add($"RoutingPreferenceInspector: {ex.Message}"); }
+
             using (var tx = new Transaction(Doc, "STING v4 Auto-pipe drop"))
             {
                 try { tx.Start(); }
