@@ -8,7 +8,9 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Fabrication;
 using Autodesk.Revit.DB.Plumbing;
+using StingTools.Core.Fabrication;
 
 namespace StingTools.Core.Routing
 {
@@ -20,6 +22,14 @@ namespace StingTools.Core.Routing
 
         public ElementId PipeTypeId       { get; set; }
         public ElementId PipingSystemTypeId { get; set; }
+
+        /// <summary>
+        /// When true, and a FabricationConfiguration is loaded in the
+        /// document, the drop is created as a FabricationPart (ITM
+        /// content, LOD 400) instead of a design-intent Pipe. Defaults
+        /// true; falls back automatically when no fab content is loaded.
+        /// </summary>
+        public bool PreferFabricationContent { get; set; } = true;
 
         public AutoPipeDrop(Document doc) : base(doc)
         {
@@ -114,12 +124,67 @@ namespace StingTools.Core.Routing
                 result.Warnings.Add("CreateRunBetween (pipe): no host level; skipping");
                 return ElementId.InvalidElementId;
             }
+
+            // Route A: Fabrication content (ITM, LOD 400). Only when a
+            // FabricationConfiguration is loaded and the user hasn't
+            // opted out via PreferFabricationContent.
+            if (PreferFabricationContent && FabricationServiceLocator.HasFabContent(Doc))
+            {
+                var btn = FabricationServiceLocator.FindButton(
+                    Doc, BuiltInCategory.OST_PipeCurves,
+                    serviceNameHint: "Pipe");
+                if (btn != null)
+                {
+                    try
+                    {
+                        // FabricationPart.Create(doc, button, level, serviceIndex)
+                        // returns a FabricationPart stick at origin; we then
+                        // align it to from→to via AlignPartByConnectors after
+                        // creation (driven by DropEngineBase wire-up stage).
+                        var svc = FabricationServiceLocator.GetConfig(Doc)
+                                      .GetAllLoadedServices()[btn.ServiceIndex];
+                        var part = FabricationPart.Create(Doc, svc, btn.GroupIndex, btn.ButtonIndex, levelId);
+                        if (part != null)
+                        {
+                            // Translate the part to the drop midpoint so the
+                            // subsequent ConnectTo stage has a reasonable
+                            // starting position. The ACO refiner will clean
+                            // up any residual offset in Phase C.
+                            try
+                            {
+                                var mid = new XYZ((from.X + to.X) * 0.5,
+                                                  (from.Y + to.Y) * 0.5,
+                                                  (from.Z + to.Z) * 0.5);
+                                var bb = part.get_BoundingBox(null);
+                                if (bb != null)
+                                {
+                                    var cur = (bb.Min + bb.Max) * 0.5;
+                                    ElementTransformUtils.MoveElement(Doc, part.Id, mid - cur);
+                                }
+                            }
+                            catch (Exception ex)
+                            { result.Warnings.Add($"FabricationPart align: {ex.Message}"); }
+
+                            TrySetString(part, "PLM_PPE_FAB_METHOD_TXT", "SHOP"); // ITM = shop
+                            TrySetString(part, "PLM_PPE_HANGER_TYPE_TXT", HangerType);
+                            return part.Id;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Swallow and fall through to the design-intent path.
+                        result.Warnings.Add($"FabricationPart.Create failed ({btn}): {ex.Message}; falling back to Pipe.Create");
+                    }
+                }
+                else
+                {
+                    result.Warnings.Add("PreferFabricationContent=true but no Pipe-category button found; using design pipe.");
+                }
+            }
+
+            // Route B: design-intent Pipe.Create.
             try
             {
-                // Pipe.Create(doc, systemTypeId, pipeTypeId, levelId, from, to) —
-                // verified against Revit 2025 API. Returns a Pipe whose
-                // ConnectorManager exposes two end connectors that the
-                // DropEngineBase will wire up post-creation.
                 var pipe = Pipe.Create(Doc, PipingSystemTypeId, PipeTypeId, levelId, from, to);
                 if (pipe == null) return ElementId.InvalidElementId;
                 TrySetString(pipe, "PLM_PPE_FAB_METHOD_TXT",     FabMethod);

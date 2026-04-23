@@ -8,7 +8,9 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Fabrication;
 using Autodesk.Revit.DB.Mechanical;
+using StingTools.Core.Fabrication;
 
 namespace StingTools.Core.Routing
 {
@@ -25,6 +27,14 @@ namespace StingTools.Core.Routing
 
         public ElementId DuctTypeId       { get; set; }
         public ElementId MechanicalSystemTypeId { get; set; }
+
+        /// <summary>
+        /// When true, and a FabricationConfiguration is loaded in the
+        /// document, the drop is created as a FabricationPart instead
+        /// of a design-intent Duct. Falls back automatically when no
+        /// fab content is loaded.
+        /// </summary>
+        public bool PreferFabricationContent { get; set; } = true;
 
         public AutoDuctDrop(Document doc) : base(doc)
         {
@@ -119,6 +129,49 @@ namespace StingTools.Core.Routing
                 result.Warnings.Add("CreateRunBetween (duct): no host level; skipping");
                 return ElementId.InvalidElementId;
             }
+            // Route A: Fabrication content (LOD 400 ITM duct).
+            if (PreferFabricationContent && FabricationServiceLocator.HasFabContent(Doc))
+            {
+                var btn = FabricationServiceLocator.FindButton(
+                    Doc, BuiltInCategory.OST_DuctCurves,
+                    serviceNameHint: "Duct");
+                if (btn != null)
+                {
+                    try
+                    {
+                        var svc = FabricationServiceLocator.GetConfig(Doc)
+                                      .GetAllLoadedServices()[btn.ServiceIndex];
+                        var part = FabricationPart.Create(Doc, svc, btn.GroupIndex, btn.ButtonIndex, levelId);
+                        if (part != null)
+                        {
+                            try
+                            {
+                                var mid = new XYZ((from.X + to.X) * 0.5,
+                                                  (from.Y + to.Y) * 0.5,
+                                                  (from.Z + to.Z) * 0.5);
+                                var bb = part.get_BoundingBox(null);
+                                if (bb != null)
+                                {
+                                    var cur = (bb.Min + bb.Max) * 0.5;
+                                    ElementTransformUtils.MoveElement(Doc, part.Id, mid - cur);
+                                }
+                            }
+                            catch (Exception ex)
+                            { result.Warnings.Add($"FabricationPart align: {ex.Message}"); }
+
+                            TrySetString(part, "HVC_DCT_FAB_METHOD_TXT", "SHOP");
+                            TrySetString(part, "HVC_DCT_SEAM_TYPE_TXT",  SeamType);
+                            TrySetString(part, "HVC_DCT_MAT_TXT",        Material);
+                            return part.Id;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Warnings.Add($"FabricationPart.Create failed ({btn}): {ex.Message}; falling back to Duct.Create");
+                    }
+                }
+            }
+
             try
             {
                 // Duct.Create(doc, mechanicalSystemTypeId, ductTypeId, levelId, from, to) —
