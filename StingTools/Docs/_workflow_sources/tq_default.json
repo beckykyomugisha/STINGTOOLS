@@ -1,0 +1,23 @@
+{
+  "id": "tq_default",
+  "name": "Technical Query default",
+  "start_state": "Open",
+  "states": [
+    {
+      "name": "Open",
+      "sla_hours": 48
+    },
+    {
+      "name": "Answered",
+      "sla_hours": 24,
+      "is_terminal": true
+    }
+  ],
+  "transitions": [
+    {
+      "from": "Open",
+      "to": "Answered",
+      "action": "answer"
+    }
+  ]
+}

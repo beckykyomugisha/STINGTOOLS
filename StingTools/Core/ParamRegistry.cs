@@ -299,6 +299,62 @@ namespace StingTools.Core
             TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND
         };
 
+        // ── Organisation parameters (v1.1 template engine + workflow) ──
+        // Thirteen PRJ_ORG_* shared parameters scoped to ProjectInformation.
+        // GUIDs are deterministic UUIDv5 in the Planscape docs namespace
+        // UUID('a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a'). Originator code defaults to
+        // "PLNS"; company name to "Planscape Limited". These feed TemplateManifest,
+        // DocumentIdentityGenerator, TokenContext.FromDeliverable, and WorkflowEngine.
+        public const string ORG_PROJECT_CODE            = "PRJ_ORG_PROJECT_CODE_TXT";
+        public const string ORG_PROJECT_CODE_GUID       = "d72513d3-2aed-5048-a949-b262fcd51a39";
+        public const string ORG_ORIGINATOR_CODE         = "PRJ_ORG_ORIGINATOR_CODE_TXT";
+        public const string ORG_ORIGINATOR_CODE_GUID    = "d9b568c8-0dcf-5226-add0-a6e3643589e8";
+        public const string ORG_COMPANY_NAME            = "PRJ_ORG_COMPANY_NAME_TXT";
+        public const string ORG_COMPANY_NAME_GUID       = "f08b9a37-5e44-5074-a9e1-0a0f6418a305";
+        public const string ORG_COMPANY_ADDRESS         = "PRJ_ORG_COMPANY_ADDRESS_TXT";
+        public const string ORG_COMPANY_ADDRESS_GUID    = "834df80b-0472-5724-afab-1c90ce7eac80";
+        public const string ORG_CLIENT_NAME             = "PRJ_ORG_CLIENT_NAME_TXT";
+        public const string ORG_CLIENT_NAME_GUID        = "32487484-61c4-5043-aec1-0851720902a6";
+        public const string ORG_APPOINTING_PARTY        = "PRJ_ORG_APPOINTING_PARTY_TXT";
+        public const string ORG_APPOINTING_PARTY_GUID   = "b9df91ba-d8ee-561c-9786-d0ce3c74c55e";
+        public const string ORG_LEAD_APPOINTED_PARTY    = "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT";
+        public const string ORG_LEAD_APPOINTED_PARTY_GUID = "77069632-0604-5cb1-b6ef-5e2211f6b3f4";
+        public const string ORG_PARTICIPANTS            = "PRJ_ORG_PARTICIPANTS_TXT";
+        public const string ORG_PARTICIPANTS_GUID       = "a4c8ef52-5bb2-579f-9308-8a6c2177bf52";
+        public const string ORG_PHASE                   = "PRJ_ORG_PHASE_TXT";
+        public const string ORG_PHASE_GUID              = "d187fdbd-f701-5334-90da-1ab6694c5034";
+        public const string ORG_CLASS                   = "PRJ_ORG_CLASS_TXT";
+        public const string ORG_CLASS_GUID              = "cef45220-b201-5c44-baed-275a0fd556a7";
+        public const string ORG_WORKFLOW_PROFILE        = "PRJ_ORG_WORKFLOW_PROFILE_TXT";
+        public const string ORG_WORKFLOW_PROFILE_GUID   = "48a26ee9-211d-5525-8fbb-9f8eb1f38878";
+        public const string ORG_SIGNATURE_PROVIDER      = "PRJ_ORG_SIGNATURE_PROVIDER_TXT";
+        public const string ORG_SIGNATURE_PROVIDER_GUID = "e669eea3-d1fa-51b7-b820-83fa21d40877";
+        public const string ORG_AI_EXTRACT_ENABLED      = "PRJ_ORG_AI_EXTRACT_ENABLED_BOOL";
+        public const string ORG_AI_EXTRACT_ENABLED_GUID = "a7c93ee1-9df2-5531-b873-1df826526e82";
+
+        /// <summary>All 13 PRJ_ORG_* parameters added in template engine v1.1 (S01).</summary>
+        public static readonly string[] AllOrganisationParams = new[]
+        {
+            ORG_PROJECT_CODE, ORG_ORIGINATOR_CODE, ORG_COMPANY_NAME, ORG_COMPANY_ADDRESS,
+            ORG_CLIENT_NAME, ORG_APPOINTING_PARTY, ORG_LEAD_APPOINTED_PARTY, ORG_PARTICIPANTS,
+            ORG_PHASE, ORG_CLASS, ORG_WORKFLOW_PROFILE, ORG_SIGNATURE_PROVIDER,
+            ORG_AI_EXTRACT_ENABLED
+        };
+
+        /// <summary>Default values for PRJ_ORG_* parameters (used by TemplateManifest.CreateDefault).</summary>
+        public static readonly Dictionary<string, string> OrganisationDefaults = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            { ORG_ORIGINATOR_CODE,      "PLNS" },
+            { ORG_COMPANY_NAME,         "Planscape Limited" },
+            { ORG_COMPANY_ADDRESS,      "Kampala, Uganda" },
+            { ORG_LEAD_APPOINTED_PARTY, "Planscape Limited" },
+            { ORG_PHASE,                "DE" },
+            { ORG_CLASS,                "2" },
+            { ORG_WORKFLOW_PROFILE,     "default" },
+            { ORG_SIGNATURE_PROVIDER,   "" },
+            { ORG_AI_EXTRACT_ENABLED,   "0" }
+        };
+
         // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
         // Loaded from extended_params section. Keys map to param_name values.
         private static Dictionary<string, string> _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);

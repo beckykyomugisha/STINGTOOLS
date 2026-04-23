@@ -1,0 +1,57 @@
+{
+  "id": "rfi_default",
+  "name": "RFI default",
+  "description": "Raise \u2192 review \u2192 respond \u2192 close",
+  "start_state": "Open",
+  "states": [
+    {
+      "name": "Open",
+      "sla_hours": 48,
+      "escalations": [
+        {
+          "after_hours": 48,
+          "action": "remind",
+          "to": "owner"
+        }
+      ]
+    },
+    {
+      "name": "Reviewed",
+      "sla_hours": 96,
+      "escalations": [
+        {
+          "after_hours": 96,
+          "action": "notify",
+          "to": "manager"
+        }
+      ]
+    },
+    {
+      "name": "Responded",
+      "sla_hours": 24,
+      "escalations": []
+    },
+    {
+      "name": "Closed",
+      "sla_hours": null,
+      "is_terminal": true
+    }
+  ],
+  "transitions": [
+    {
+      "from": "Open",
+      "to": "Reviewed",
+      "action": "review"
+    },
+    {
+      "from": "Reviewed",
+      "to": "Responded",
+      "action": "respond"
+    },
+    {
+      "from": "Responded",
+      "to": "Closed",
+      "action": "close"
+    }
+  ]
+}
