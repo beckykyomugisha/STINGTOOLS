@@ -815,6 +815,15 @@ namespace StingTools.Tags
             Document doc = uidoc.Document;
             var app = uiApp.Application;
 
+            // ── Wave-1 commit 3: resolve the mode-appropriate TierPlans from
+            //    the v5 CSVs so each family can be authored (bind shared
+            //    params + apply visibility formulas) in addition to being
+            //    created from its .rft template. Missing CSVs are tolerated —
+            //    families without a plan keep the existing behaviour.
+            Dictionary<string, TierPlan> plansByFamily = TagConfigPlanResolver.LoadAll(doc);
+            bool preserveHandEdits = TagConfigPlanResolver.ReadPreserveHandEdits(doc);
+            string activeMode = HandoverModeHelper.GetActiveMode(doc);
+
             // ── Pre-check: Auto-fix any numeric label params to TEXT ──
             var typeMismatches = LabelParamTypeValidator.ValidateSourceFile();
             if (typeMismatches.Count > 0)
@@ -919,15 +928,24 @@ namespace StingTools.Tags
 
             TaskDialog confirm = new TaskDialog("Create Tag Families");
             confirm.MainInstruction = $"Create {toCreate} STING tag families?";
+            int familiesWithPlan = 0;
+            foreach (var bic in categories)
+            {
+                string fn = TagFamilyConfig.GetFamilyName(bic);
+                if (plansByFamily.ContainsKey(fn)) familiesWithPlan++;
+            }
             confirm.MainContent =
                 $"Total taggable categories: {total}\n" +
                 $"Already loaded: {alreadyLoaded}\n" +
                 $"To create: {toCreate}\n\n" +
+                $"Mode: {activeMode}  •  Preserve hand-edits: {(preserveHandEdits ? "on" : "off")}\n" +
+                $"Families with a CSV plan: {familiesWithPlan} (of {categories.Count} primary categories)\n\n" +
                 $"Templates: {templateDir}\n" +
                 $"Tag .rft files found: {tagRftCount} of {availableRft.Length} total\n" +
                 $"Output: {TagFamilyConfig.GetOutputDirectory()}\n\n" +
-                "Each family will be created from a Revit annotation template\n" +
-                "and loaded into the project with STING shared parameters.";
+                "Each family will be created from a Revit annotation template,\n" +
+                "loaded with STING shared parameters, and — when a plan is\n" +
+                "available — have T4..T10 visibility formulas re-authored.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
@@ -1046,6 +1064,13 @@ namespace StingTools.Tags
                     // Attempt to rebind the existing Label to ASS_TAG_1_TXT
                     bool labelBound = TryRebindLabel(famDoc);
 
+                    // Wave-1 commit 3: if a TierPlan for this family is known,
+                    // bind T4..T10 shared params + apply visibility formulas
+                    // before saving. No-op when plansByFamily does not contain
+                    // the family (e.g. a category not yet listed in the CSVs).
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByFamily,
+                        app, sharedParamFile, preserveHandEdits, report);
+
                     // Save the family document
                     SaveAsOptions saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(outputPath, saveOpts);
@@ -1156,6 +1181,9 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, tieInParams);
 
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByFamily,
+                        app, sharedParamFile, preserveHandEdits, report);
+
                     // Save and load — always proceeds even if params failed
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -1261,6 +1289,9 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, dsParams);
 
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByFamily,
+                        app, sharedParamFile, preserveHandEdits, report);
+
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
@@ -1364,6 +1395,9 @@ namespace StingTools.Tags
                         .Concat(TagFamilyConfig.VisibilityParamsFor(famName, sv.display))
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, svParams);
+
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByFamily,
+                        app, sharedParamFile, preserveHandEdits, report);
 
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
@@ -1469,6 +1503,9 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, mvParams);
 
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByFamily,
+                        app, sharedParamFile, preserveHandEdits, report);
+
                     string savePath = Path.Combine(outputDir, fileName);
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
@@ -1528,6 +1565,45 @@ namespace StingTools.Tags
                 $"skipped={alreadyLoaded}, missing={templateMissing}, failed={failed}");
 
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Wave-1 commit 3 hook. When <paramref name="plansByFamily"/> has a
+        /// <see cref="TierPlan"/> for <paramref name="famName"/>, invoke
+        /// <see cref="FamilyLabelAuthor.AuthorLabels"/> and append a short
+        /// line to the report. When no plan is available (e.g. the family is
+        /// not listed in the active-mode CSVs yet) this is a no-op so the
+        /// outer command behaves exactly as it did pre-wave-1.
+        /// </summary>
+        private void AuthorFromPlanIfAvailable(Document famDoc, string famName,
+            Dictionary<string, TierPlan> plansByFamily,
+            Autodesk.Revit.ApplicationServices.Application app,
+            string sharedParamFile, bool preserveHandEdits,
+            StringBuilder report)
+        {
+            if (famDoc == null || string.IsNullOrEmpty(famName) || plansByFamily == null) return;
+            if (!plansByFamily.TryGetValue(famName, out TierPlan plan) || plan == null) return;
+
+            try
+            {
+                var opts = new FamilyLabelAuthor.Options
+                {
+                    App = app,
+                    SharedParamFile = sharedParamFile,
+                    PreserveHandEdits = preserveHandEdits,
+                    FamilyName = famName,
+                };
+                var r = FamilyLabelAuthor.AuthorLabels(famDoc, plan, opts);
+                report.AppendLine($"         author → bound={r.ParamsBound} " +
+                    $"formulas={r.FormulasApplied} skipped={r.FormulasSkipped} " +
+                    $"preserved={r.TiersPreserved} label-rebound={r.LabelRebound}");
+                foreach (var w in r.Warnings) StingLog.Warn($"{famName}: {w}");
+            }
+            catch (Exception ex)
+            {
+                report.AppendLine($"         author → FAILED: {ex.Message}");
+                StingLog.Error($"AuthorFromPlanIfAvailable({famName})", ex);
+            }
         }
 
         /// <summary>
