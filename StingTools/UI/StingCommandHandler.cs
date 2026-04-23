@@ -1490,6 +1490,17 @@ namespace StingTools.UI
                     case "SelectIssueElements": RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
                     case "IssuesBulkClose": RunCommand<BIMManager.BulkCloseIssuesCommand>(app); break;
 
+                    // Template engine v1.1 — deliverable lifecycle (S12) + orchestrator (S13)
+                    case "IssueDeliverable":       RunCommand<Planscape.Docs.Templates.IssueDeliverableCommand>(app); break;
+                    case "ReIssueDeliverable":     RunCommand<Planscape.Docs.Templates.ReIssueDeliverableCommand>(app); break;
+                    case "PublishDeliverable":     RunCommand<Planscape.Docs.Templates.PublishDeliverableCommand>(app); break;
+                    case "CancelDeliverable":      RunCommand<Planscape.Docs.Templates.CancelDeliverableCommand>(app); break;
+                    case "SupersedeDeliverable":   RunCommand<Planscape.Docs.Templates.SupersedeDeliverableCommand>(app); break;
+                    case "ReplaceDeliverable":     RunCommand<Planscape.Docs.Templates.ReplaceDeliverableCommand>(app); break;
+                    case "CreateTransmittalOrchestrated":
+                        RunCommand<Planscape.Docs.Templates.CreateTransmittalOrchestratedCommand>(app); break;
+                    case "BulkIssueDeliverables":  RunCommand<Planscape.Docs.Templates.BulkIssueDeliverablesCommand>(app); break;
+
                     // COBie & Handover
                     case "COBieExport": RunCommand<BIMManager.COBieExportCommand>(app); break;
                     case "COBieImport": RunCommand<BIMManager.COBieImportCommand>(app); break;

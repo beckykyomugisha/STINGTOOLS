@@ -515,6 +515,83 @@ namespace StingTools.UI
             public string Owner { get; set; }
             public string DueDate { get; set; }
             public bool IsOverdue { get; set; }
+
+            // ── v1.0 template-engine fields (S02) ──
+            public string DocNumber { get; set; }
+            public string Revision { get; set; }
+            public string FunctionalBreakdown { get; set; } = "ZZ";
+            public string SpatialBreakdown { get; set; } = "XX";
+            public string Originator { get; set; } = "PLNS";
+            public string RoleCode { get; set; }
+            public string ContractorRef { get; set; }
+            public string System { get; set; }
+            public string Subsystem { get; set; }
+            public string EquipmentType { get; set; }
+            public string IssuedBy { get; set; }
+            public string ReviewedBy { get; set; }
+            public string ApprovedBy { get; set; }
+            public string Supersedes { get; set; }
+            public string SupersededBy { get; set; }
+            public List<RevisionHistoryEntry> RevisionHistory { get; set; } = new List<RevisionHistoryEntry>();
+            public List<HoldEntry> Holds { get; set; } = new List<HoldEntry>();
+            public List<ReferenceEntry> References { get; set; } = new List<ReferenceEntry>();
+
+            // ── v1.1 additions (workflow, signature, cross-links) ──
+            public string WorkflowState { get; set; }
+            public string AssignedTo { get; set; }
+            public DateTime? SlaDeadline { get; set; }
+            public List<WorkflowHistoryEntry> WorkflowHistory { get; set; } = new List<WorkflowHistoryEntry>();
+            public string FileHashSha256 { get; set; }
+            public List<string> Tags { get; set; } = new List<string>();
+            public List<string> RelatedTransmittalIds { get; set; } = new List<string>();
+            public List<string> RelatedRfiIds { get; set; } = new List<string>();
+            public bool RequiresSignature { get; set; }
+            public string SignatureStatus { get; set; } = "None";
+            public string SignedFilePath { get; set; }
+        }
+
+        /// <summary>Template engine v1.0 — revision history entry captured in DeliverableRow.RevisionHistory.</summary>
+        internal class RevisionHistoryEntry
+        {
+            public string Revision { get; set; }
+            public string Suitability { get; set; }
+            public string Timestamp { get; set; }
+            public string User { get; set; }
+            public string Reason { get; set; }
+            public string TemplateId { get; set; }
+            public string RenderedFilePath { get; set; }
+        }
+
+        /// <summary>Template engine v1.0 — hold entry captured in DeliverableRow.Holds.</summary>
+        internal class HoldEntry
+        {
+            public string Id { get; set; }
+            public string Description { get; set; }
+            public string RaisedBy { get; set; }
+            public string RaisedAt { get; set; }
+            public string ClearedBy { get; set; }
+            public string ClearedAt { get; set; }
+            public bool IsOpen { get; set; } = true;
+        }
+
+        /// <summary>Template engine v1.0 — reference row captured in DeliverableRow.References.</summary>
+        internal class ReferenceEntry
+        {
+            public string RefType { get; set; }    // "Drawing", "Spec", "Standard", "RFI", "External"
+            public string RefId { get; set; }
+            public string RefTitle { get; set; }
+            public string RefUrl { get; set; }
+        }
+
+        /// <summary>Template engine v1.1 — workflow history entry captured in DeliverableRow.WorkflowHistory.</summary>
+        internal class WorkflowHistoryEntry
+        {
+            public string Timestamp { get; set; }
+            public string FromState { get; set; }
+            public string ToState { get; set; }
+            public string Action { get; set; }
+            public string User { get; set; }
+            public string Comment { get; set; }
         }
 
         /// <summary>Phase 49: Coordination log entry for audit trail.</summary>

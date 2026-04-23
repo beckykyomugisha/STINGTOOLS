@@ -8,9 +8,9 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **193 source files** (190 C# + 3 XAML, ~250,000 lines of code) across 12 directories
-- **755+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **51 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
+- **215 source files** (212 C# + 3 XAML, ~254,000 lines of code) across 13 directories
+- **763+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **72 runtime / embedded data files** (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes the template engine v1.1 pack (16 templates + 5 workflow definitions + `manifest.json`)
 - **WPF dockable panel** (9 tabs, primary UI) + 1 BIM Coordination Center (13 tabs) + 1 Material Manager (7 tabs) + 1 Document Management Center (8 tabs) + ribbon retained for legacy compat
 
 ## Documentation Map
@@ -85,12 +85,112 @@ When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than exten
 2. The 8 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project.
 3. ISO 6412 detail families (180 entries) are referenced by name in `STING_ISO_SYMBOLS_INDEX.csv`; `IsoSymbolPlacer` lazy-loads from `Families/ISO6412/` and warns once per missing family.
 
+## Template Engine v1.1 (Phase 112)
+
+**Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`
+(commits `e92a504f` + `a37c4c61`). Everything from the
+`20260423_planscape_template_engine_runner_v1.1.pdf` runner is
+implemented against the nested repo layout — the runner assumed a flat
+root, but `.cs` files live under `StingTools/Docs/{Templates,Workflow,Search}/`.
+S19 (signature provider) and S20 (AI metadata extraction) are design-
+complete and deferred to v1.2 per the runner.
+
+### New folders
+
+| Path | Purpose |
+|---|---|
+| `StingTools/Docs/Templates/` | MiniWord + ClosedXML render pipeline (14 files) |
+| `StingTools/Docs/Workflow/` | WorkflowEngine + AuditLog + DistributionGroups (6 files) |
+| `StingTools/Docs/Search/` | Lucene.NET document index + saved searches (2 files) |
+| `StingTools/Docs/_template_sources/` | 16 embedded `.docx` / `.xlsx` templates (EmbeddedResource) |
+| `StingTools/Docs/_workflow_sources/` | 5 embedded workflow JSONs (EmbeddedResource) |
+
+### New namespaces
+
+`Planscape.Docs.Templates`, `Planscape.Docs.Workflow`,
+`Planscape.Docs.Search`. The plugin assembly remains `StingTools` — these
+namespaces coexist with the existing `StingTools.*` tree.
+
+### New parameters (13)
+
+All `PRJ_ORG_*` scoped to `ProjectInformation`, UUIDv5 in Planscape docs
+namespace `a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a`. Constants on
+`ParamRegistry`: `ORG_PROJECT_CODE`, `ORG_ORIGINATOR_CODE`,
+`ORG_COMPANY_NAME`, `ORG_COMPANY_ADDRESS`, `ORG_CLIENT_NAME`,
+`ORG_APPOINTING_PARTY`, `ORG_LEAD_APPOINTED_PARTY`, `ORG_PARTICIPANTS`,
+`ORG_PHASE`, `ORG_CLASS`, `ORG_WORKFLOW_PROFILE`,
+`ORG_SIGNATURE_PROVIDER`, `ORG_AI_EXTRACT_ENABLED`. Exposed as
+`AllOrganisationParams[]` + `OrganisationDefaults{}` (seeds `"PLNS"` /
+`"Planscape Limited"` / `"Kampala, Uganda"` / phase `DE` / class `2` /
+workflow profile `default`).
+
+### New commands (8)
+
+Registered in the BIM tab of the dock panel and in `StingCommandHandler`:
+
+| Tag | Class | Transaction | Description |
+|---|---|---|---|
+| `IssueDeliverable` | `Planscape.Docs.Templates.IssueDeliverableCommand` | Manual | Render A01, write revision history, start `deliverable_issue_default` workflow, audit |
+| `ReIssueDeliverable` | `ReIssueDeliverableCommand` | Manual | Bump revision + re-issue |
+| `PublishDeliverable` | `PublishDeliverableCommand` | Manual | Promote to S4 / `PUBLISHED` CDE container |
+| `CancelDeliverable` | `CancelDeliverableCommand` | Manual | Render A02 cancellation notice, archive |
+| `SupersedeDeliverable` | `SupersedeDeliverableCommand` | Manual | Mint new number, render A03 |
+| `ReplaceDeliverable` | `ReplaceDeliverableCommand` | Manual | Render A04 replacing notice, cross-link |
+| `CreateTransmittalOrchestrated` | `CreateTransmittalOrchestratedCommand` | Manual | Full pipeline: mint id → render B06 → start `transmittal_default` workflow → audit |
+| `BulkIssueDeliverables` | `BulkIssueDeliverablesCommand` | Manual | Issue all currently-selected deliverables in one `TransactionGroup` |
+
+Existing `DocumentManagementDialog.QuickTransmittal` and
+`BIMManagerCommands.CreateTransmittalCommand` also delegate to
+`TransmittalOrchestrator.Create` after their classic JSON write — both
+entry points produce rendered docx + workflow instance + audit entry,
+while keeping their existing UI rows (`delivery_tracking`,
+`recipient_count`, `status_history`) unchanged for backwards compat.
+
+### Runtime artefacts (per project)
+
+Written under `<project>/_BIM_COORD/`:
+
+| File | Purpose |
+|---|---|
+| `templates/manifest.json` | Seeded from `ProjectInformation` + `PRJ_ORG_*` on first open |
+| `templates/*.docx` / `*.xlsx` | 16 default templates extracted from embedded resources |
+| `workflows/*.json` | 5 default workflow definitions extracted from embedded resources |
+| `generated/YYYYMMDD_{doc_number}_{template_id}.{ext}` | Rendered output |
+| `doc_sequences.json` | Atomic counter store per `(type\|role\|fb\|sb)` key |
+| `deliverables.json` | Lifecycle state + revision history per deliverable |
+| `transmittals.json` | Enriched with `template_id`, `rendered_file_path`, `workflow_instance_id` |
+| `workflow_state.json` | `WorkflowInstance` rows per open workflow |
+| `audit_log_{yyyy}_{MM}.jsonl` | Append-only SHA-256 tamper-evidence chain |
+| `distribution_groups.json` | Type/role/suitability-scored recipient groups |
+| `saved_searches.json` | Per-user saved document search queries |
+| `search_index/` | Lucene FSDirectory index over register + deliverables |
+
+### Extraction lifecycle
+
+`StingToolsApp.OnDocumentOpened` calls
+`EmbeddedTemplates.ExtractIfMissing(doc)` on first open per project.
+This streams the 16 templates + 5 workflow JSONs onto disk and writes
+a default `manifest.json` seeded from `ProjectInformation` and
+`PRJ_ORG_*`. Idempotent — re-opens are no-ops.
+
+### Caveats (template engine)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The 16 `.docx` / `.xlsx` templates ship as professional-quality stubs
+   — proper Word tables, banded header, footer `PAGE`/`NUMPAGES` fields,
+   loop tables, signature blocks — but designers can still expand
+   bespoke layouts in Word without breaking the `{{token}}` contract.
+3. S19 (signature provider) and S20 (AI extraction) are deferred to v1.2
+   per the runner PDF. `PRJ_ORG_SIGNATURE_PROVIDER_TXT` and
+   `PRJ_ORG_AI_EXTRACT_ENABLED_BOOL` are already defined so enabling
+   them is additive only.
+
 ## Technology Stack
 
 - **Platform**: Autodesk Revit 2025/2026/2027 (BIM software)
 - **Language**: C# / .NET 8.0 (`net8.0-windows`)
 - **Plugin type**: `IExternalApplication` + `IExternalEventHandler` + `IDockablePaneProvider` + `IUpdater` with `IExternalCommand` classes
-- **Dependencies**: `Newtonsoft.Json` 13.0.3, `ClosedXML` 0.104.2 (XLSX/BOQ export), `ZXing.Net` 0.16.9 (QR code generation), Revit API assemblies (`RevitAPI.dll`, `RevitAPIUI.dll`)
+- **Dependencies**: `Newtonsoft.Json` 13.0.3, `ClosedXML` 0.104.2 (XLSX/BOQ export), `ZXing.Net` 0.16.9 (QR code generation), `MiniWord` 0.9.0 (template engine v1.1 DOCX renderer), `Lucene.Net` 4.8.0-beta00016 + `Lucene.Net.Analysis.Common` 4.8.0-beta00016 (document index v1.1), Revit API assemblies (`RevitAPI.dll`, `RevitAPIUI.dll`)
 - **Data formats**: CSV and JSON files for configuration data (materials, parameters, schedules)
 - **Deployment**: `StingTools.addin` (XML manifest) + `extract_plugin.sh` (Bash)
 
@@ -298,6 +398,59 @@ STINGTOOLS/
     │   ├── OperationsCommands.cs       # Workflow & batch operations: preset sequences, PDF/IFC/COBie export, clash detection
     │   ├── RoomSpaceCommands.cs        # Room audit, department assignment, room schedule with tag integration
     │   └── StandardsEngine.cs          # Standards compliance: ISO 19650, CIBSE, BS 7671, Uniclass 2015, BS 8300, Part L
+    │
+    ├── Docs/Templates/                  # Template engine v1.1 — MiniWord + ClosedXML pipeline (14 files, ~1,900 lines)
+    │   ├── TemplateManifest.cs         # POCOs + TemplateManifestIO (Load/Save/CreateDefault) + Validator
+    │   ├── DocumentIdentityGenerator.cs # Next / Preview / PeekNext / Reserve (bulk) over doc_sequences.json
+    │   ├── TokenContext.cs             # Doc/Project/People/Transmittal/Loops flattener + TransmittalRequest DTOs
+    │   ├── TokenResolver.cs            # FindAllTokens + Resolve + EvaluateIf + loop helpers
+    │   ├── MiniWordAdapter.cs          # Pre-process {{#if}} → MiniWord → post-process {{link:}} + core props
+    │   ├── LegacyDocxRenderer.cs       # OpenXml safety-net used when manifest.use_legacy_renderer=true
+    │   ├── XlsxTemplateRenderer.cs     # ClosedXML row-loop expansion with style preservation
+    │   ├── TemplateRegistry.cs         # ResolveById / ResolveByPurpose / ValidateAll
+    │   ├── TemplateEngine.cs           # Façade: .docx→MiniWord, .xlsx→ClosedXML, writes _BIM_COORD/generated/
+    │   ├── DeliverableLifecycle.cs     # Issue/ReIssue/Publish/Cancel/Supersede/Replace state machine
+    │   ├── TransmittalOrchestrator.cs  # Id → context → render → persist → workflow start → audit
+    │   ├── EmbeddedTemplates.cs        # Extracts 16 templates + 5 workflows + manifest on first open
+    │   ├── DeliverableLifecycleCommands.cs # 6 IExternalCommands (Issue/ReIssue/Publish/Cancel/Supersede/Replace)
+    │   └── TransmittalCommands.cs      # CreateTransmittalOrchestratedCommand + BulkIssueDeliverablesCommand
+    │
+    ├── Docs/Workflow/                   # Template engine v1.1 — workflow + audit + distribution (6 files, ~700 lines)
+    │   ├── WorkflowDefinition.cs       # POCOs: WorkflowDefinition/State/Transition/Escalation/Instance/HistoryRow
+    │   ├── WorkflowRegistry.cs         # Loads every JSON under _BIM_COORD/workflows/
+    │   ├── WorkflowEngine.cs           # Start / Transition / GetInstance / GetMyQueue / CheckSlaBreaches
+    │   ├── SlaScanner.cs               # Opportunistic SLA checker (BCC open / tab switch / dispatch)
+    │   ├── AuditLog.cs                 # Append-only JSONL with SHA-256 tamper chain + VerifyChain
+    │   └── DistributionGroups.cs       # LoadAll/Save/SuggestFor(deliverable) via type/role/suit matching
+    │
+    ├── Docs/Search/                     # Template engine v1.1 — Lucene document index (2 files, ~360 lines)
+    │   ├── DocumentIndex.cs            # Lucene.NET 4.8 FSDirectory over document_register + deliverables
+    │   └── SearchQueryBuilder.cs       # Fluent facet builder + SavedSearch + SavedSearchStore
+    │
+    ├── Docs/_template_sources/          # Template engine v1.1 — 16 embedded templates (EmbeddedResource)
+    │   ├── deliverable_standard.docx   # A01 — default deliverable cover sheet
+    │   ├── deliverable_cancelled.docx  # A02 — cancellation notice
+    │   ├── deliverable_superseded.docx # A03 — superseded notice
+    │   ├── deliverable_replacing.docx  # A04 — replacing notice
+    │   ├── deliverable_tabular.xlsx    # A05 — tabular deliverable (styled xlsx)
+    │   ├── transmittal.docx            # B06 — transmittal memo
+    │   ├── technical_query.docx        # B07 — TQ
+    │   ├── rfi.docx                    # B08 — RFI
+    │   ├── technical_response.docx     # B09 — response cross-linked via doc.supersedes
+    │   ├── material_requisition.docx   # C10 — MR (largest, scope_items + supplier_docs loops)
+    │   ├── submittal_cover.docx        # C11 — submittal cover
+    │   ├── variation.docx              # C12 — variation / change order
+    │   ├── letter_transmittal.docx     # C13 — formal letter of transmittal
+    │   ├── meeting_minutes.docx        # D14 — attendees / agenda / discussion / actions
+    │   ├── progress_report.docx        # D15 — period summary + holds + queries + SLA
+    │   └── handover_certificate.docx   # D16 — tri-party signature block
+    │
+    ├── Docs/_workflow_sources/          # Template engine v1.1 — 5 embedded workflow JSONs (EmbeddedResource)
+    │   ├── transmittal_default.json    # Draft → Issued → Acknowledged (24/72/∞ hr SLA)
+    │   ├── rfi_default.json            # Open → Reviewed → Responded → Closed
+    │   ├── tq_default.json             # Open → Answered
+    │   ├── mr_default.json             # Draft → Submitted → Approved/Rejected
+    │   └── deliverable_issue_default.json # WIP → Shared → Published → Archived
     │
     └── Data/                           # Runtime data files (49 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials

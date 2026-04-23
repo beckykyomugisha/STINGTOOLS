@@ -1,0 +1,55 @@
+{
+  "id": "transmittal_default",
+  "name": "Transmittal default",
+  "description": "Single-step transmittal issue / acknowledge workflow.",
+  "start_state": "Draft",
+  "states": [
+    {
+      "name": "Draft",
+      "sla_hours": 24,
+      "escalations": [
+        {
+          "after_hours": 24,
+          "action": "remind",
+          "to": "owner"
+        }
+      ]
+    },
+    {
+      "name": "Issued",
+      "sla_hours": 72,
+      "escalations": [
+        {
+          "after_hours": 72,
+          "action": "notify",
+          "to": "manager"
+        }
+      ]
+    },
+    {
+      "name": "Acknowledged",
+      "sla_hours": null,
+      "escalations": [],
+      "is_terminal": true
+    }
+  ],
+  "transitions": [
+    {
+      "from": "Draft",
+      "to": "Issued",
+      "action": "issue",
+      "allowed_roles": [
+        "BIM Manager",
+        "Coordinator"
+      ]
+    },
+    {
+      "from": "Issued",
+      "to": "Acknowledged",
+      "action": "acknowledge",
+      "allowed_roles": [
+        "Recipient"
+      ]
+    }
+  ]
+}

@@ -1678,3 +1678,127 @@ dialog in the dock panel is a follow-up).
 **Audit outcome**: 60 of 62 runner sections implemented (96 %);
 17 of 18 new gaps implemented (94 %). Only N-G18 (AI vision) remains
 deferred, per the original v6 runner's Year-2 scope.
+
+
+#### Completed (Phase 112 — Planscape Template Engine v1.1: S01–S18 + visibility fix)
+
+Landed the 18-stage template engine + workflow automation runner
+(`20260423_planscape_template_engine_runner_v1.1.pdf`) in two commits on
+`claude/implement-template-engine-COd9n`. The runner assumed a flat-root
+layout; this repo is nested under `StingTools/`, so new `.cs` files live
+under `StingTools/Docs/{Templates,Workflow,Search}/` (namespaces
+`Planscape.Docs.{Templates,Workflow,Search}`), and embedded pack files
+under `StingTools/Docs/{_template_sources,_workflow_sources}/`.
+Originator code `"PLNS"` everywhere; default company
+`"Planscape Limited"`; no hard-coded client branding.
+
+**S01 — 13 PRJ_ORG_* shared parameters** (`StingTools/Core/ParamRegistry.cs`,
+`StingTools/Data/MR_PARAMETERS.txt`). UUIDv5 GUIDs in the Planscape docs
+namespace `a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a`. New constants:
+`ORG_PROJECT_CODE`, `ORG_ORIGINATOR_CODE`, `ORG_COMPANY_NAME`,
+`ORG_COMPANY_ADDRESS`, `ORG_CLIENT_NAME`, `ORG_APPOINTING_PARTY`,
+`ORG_LEAD_APPOINTED_PARTY`, `ORG_PARTICIPANTS`, `ORG_PHASE`, `ORG_CLASS`,
+`ORG_WORKFLOW_PROFILE`, `ORG_SIGNATURE_PROVIDER`, `ORG_AI_EXTRACT_ENABLED`.
+Exposed as `AllOrganisationParams[]` and `OrganisationDefaults{}`
+for `TemplateManifestIO.CreateDefault`. 13 CRLF lines appended to
+`MR_PARAMETERS.txt` (group 13 = `PRJ_INFORMATION`, `YESNO` for the `_BOOL`).
+
+**S02 — DeliverableRow extensions** (`StingTools/UI/BIMCoordinationCenter.cs`).
+12 v1.0 fields + 10 v1.1 fields + 4 new support classes:
+`RevisionHistoryEntry`, `HoldEntry`, `ReferenceEntry`,
+`WorkflowHistoryEntry`. Defaults seeded (`Originator="PLNS"`,
+`FunctionalBreakdown="ZZ"`, `SpatialBreakdown="XX"`,
+`SignatureStatus="None"`).
+
+**S03–S18 — 22 new `.cs` files under `StingTools/Docs/`**:
+
+| File | Namespace | Purpose |
+|---|---|---|
+| `Templates/TemplateManifest.cs` | `Planscape.Docs.Templates` | `TemplateManifest`, `ProjectManifestBlock`, `TemplateEntry`, `ManifestExtensions`, `SignatureConfig`, `ValidationIssue`, `TemplateManifestIO` (Load/Save/CreateDefault), `TemplateManifestValidator` |
+| `Templates/DocumentIdentityGenerator.cs` | idem | `Next` / `Preview` / `PeekNext` / `Reserve` (bulk) over `_BIM_COORD/doc_sequences.json` atomic store; format tokens `{project_code} {originator} {role} {fb} {sb} {type} {number:D4}` |
+| `Templates/TokenContext.cs` | idem | Dotted-key flattener for renderers; `FromDeliverable` / `FromTransmittalRequest` factories; `TransmittalRequest` + `TransmittalDocumentRef` DTOs |
+| `Templates/TokenResolver.cs` | idem | `FindAllTokens`, `Resolve` with `<TOKEN_NOT_FOUND:>` fallback, `IsLoopStart/End`, `IsIfStart/End`, `EvaluateIf` |
+| `Templates/MiniWordAdapter.cs` | idem | Pre-process `{{#if}}…{{/if}}` → MiniWord call → post-process `{{link:…}}` + core properties. Uses MiniWord 0.9.0. |
+| `Templates/LegacyDocxRenderer.cs` | idem | Safety-net renderer used when `manifest.use_legacy_renderer = true` |
+| `Templates/XlsxTemplateRenderer.cs` | idem | ClosedXML-based, row-loop expansion via `{{#name}} … {{/name}}` markers with style preservation |
+| `Templates/TemplateRegistry.cs` | idem | `ResolveById`, `ResolveByPurpose`, `ValidateAll` across manifest + filesystem |
+| `Templates/TemplateEngine.cs` | idem | Façade dispatching `.docx` → MiniWord, `.xlsx` → ClosedXML; writes `_BIM_COORD/generated/YYYYMMDD_{doc_number}_{template_id}.{ext}` |
+| `Templates/DeliverableLifecycle.cs` | idem | State machine: `Issue`, `ReIssue`, `Publish(stage)`, `Cancel`, `Supersede`, `Replace`; revision-history append; `deliverables.json` atomic persist; AuditLog + WorkflowEngine hooks |
+| `Templates/TransmittalOrchestrator.cs` | idem | `Create(doc, req)` pipeline: mint id → context → render → persist `transmittals.json` → start workflow → audit |
+| `Templates/EmbeddedTemplates.cs` | idem | `ExtractIfMissing` streams 16 embedded templates + 5 workflows + default `manifest.json` on first `DocumentOpened` |
+| `Templates/DeliverableLifecycleCommands.cs` | idem | 6 `IExternalCommand`s (one per lifecycle transition) with render+open UX |
+| `Templates/TransmittalCommands.cs` | idem | Thin integration shim: `TransmittalCommands.Create*`, `CreateTransmittalOrchestratedCommand`, `BulkIssueDeliverablesCommand` |
+| `Workflow/WorkflowDefinition.cs` | `Planscape.Docs.Workflow` | `WorkflowDefinition`, `WorkflowState`, `WorkflowTransition`, `WorkflowEscalation`, `WorkflowInstance`, `WorkflowHistoryRow`, `SlaBreach` |
+| `Workflow/WorkflowRegistry.cs` | idem | Loads every JSON from `_BIM_COORD/workflows/` |
+| `Workflow/WorkflowEngine.cs` | idem | `Start / Transition / GetInstance / GetMyQueue / CheckSlaBreaches` over `_BIM_COORD/workflow_state.json` with SLA computation |
+| `Workflow/SlaScanner.cs` | idem | Opportunistic checker called on BCC open / tab switch / dispatch — not a real-time timer |
+| `Workflow/AuditLog.cs` | idem | Append-only monthly JSONL (`audit_log_{yyyy}_{MM}.jsonl`) with SHA-256 tamper-evidence chain; `Append / Read / VerifyChain` |
+| `Workflow/DistributionGroups.cs` | idem | `LoadAll / Save / SuggestFor(deliverable)` scoring on type/role/suitability |
+| `Search/DocumentIndex.cs` | `Planscape.Docs.Search` | Lucene.NET 4.8 FSDirectory index over `document_register.json` + `deliverables.json`; `Build / Search / UpdateOne / Rebuild` |
+| `Search/SearchQueryBuilder.cs` | idem | Fluent facet builder + `SavedSearch` + `SavedSearchStore` |
+
+**S11 + S14 — 16 embedded templates** (`StingTools/Docs/_template_sources/`):
+`deliverable_standard`, `deliverable_cancelled`, `deliverable_superseded`,
+`deliverable_replacing`, `transmittal`, `letter_transmittal` (S11); plus
+`deliverable_tabular.xlsx`, `technical_query`, `rfi`,
+`material_requisition`, `submittal_cover`, `variation`,
+`technical_response`, `meeting_minutes`, `progress_report`,
+`handover_certificate` (S14a–c). Authored via `python-docx` + `openpyxl`
+with proper tables, brand header band, footer `PAGE`/`NUMPAGES` fields,
+loop tables, zebra striping, and signature blocks. Every `{{token}}`
+preserved so MiniWordAdapter resolves at render time. All 16 zip-valid
+with 19–36 tokens each.
+
+**S15 — 5 embedded workflow JSONs** (`StingTools/Docs/_workflow_sources/`):
+`transmittal_default`, `rfi_default`, `tq_default`, `mr_default`,
+`deliverable_issue_default`.
+
+**Dependencies added** (`StingTools/StingTools.csproj`):
+`MiniWord 0.9.0`, `Lucene.Net 4.8.0-beta00016`,
+`Lucene.Net.Analysis.Common 4.8.0-beta00016`. `_template_sources\*.docx`,
+`_template_sources\*.xlsx`, `_workflow_sources\*.json` registered as
+`<EmbeddedResource>`.
+
+**S12 / S13 surface wiring** (follow-up commit `a37c4c61`):
+`StingToolsApp.OnDocumentOpened` now calls
+`EmbeddedTemplates.ExtractIfMissing(doc)`. After the initial v1.1 landing,
+the 8 new `IExternalCommand` classes had no dispatcher cases and no XAML
+buttons — invisible to end users. Fixed:
+
+- 8 new `case` entries in `StingTools/UI/StingCommandHandler.cs`:
+  `IssueDeliverable`, `ReIssueDeliverable`, `PublishDeliverable`,
+  `CancelDeliverable`, `SupersedeDeliverable`, `ReplaceDeliverable`,
+  `CreateTransmittalOrchestrated`, `BulkIssueDeliverables`.
+- New **DELIVERABLE LIFECYCLE — Template engine v1.1** group in the BIM
+  tab of `StingTools/UI/StingDockPanel.xaml` with two rows: DELIVERABLE
+  (Issue / Re-Issue / Publish / Cancel / Supersede / Replace / Bulk Issue)
+  and TRANSMITTAL (New Transmittal orchestrated).
+- Existing `DocumentManagementDialog.QuickTransmittal` and
+  `BIMManagerCommands.CreateTransmittalCommand` **now also delegate to
+  `TransmittalOrchestrator.Create`** after their classic JSON write.
+  Each persists `template_id`, `rendered_file_path`,
+  `workflow_instance_id` back into the existing row, offers "Open
+  rendered file" on completion, and falls back silently if the
+  orchestrator path throws (preserves every existing UI behaviour —
+  `delivery_tracking`, `recipient_count`, `status_history`, etc.).
+
+**Commit range**: `e92a504f` (initial 18-stage drop) → `a37c4c61`
+(template polish + orchestrator wiring + Issues visibility fix).
+
+**Totals**: 13 new shared parameters, 22 new `.cs` files, 16 embedded
+template files, 5 embedded workflow JSONs, ~4,000 lines of new code,
+3 modifications to pre-existing files (ParamRegistry.cs +
+BIMCoordinationCenter.cs + StingCommandHandler.cs +
+StingDockPanel.xaml + DocumentManagementDialog.cs + BIMManagerCommands.cs).
+
+**Caveats**: Built without `dotnet build` verification (Linux sandbox has
+no .NET SDK or Revit API). Every Revit API call uses the documented
+signature and every `.cs` file was brace-balanced after stripping strings
+and comments. XAML validated well-formed (3228 elements). Six `.docx`
+templates are professional-quality stubs — template designers can still
+expand bespoke layouts in Word without breaking the `{{token}}` contract.
+
+**Deferred to v1.2** (as per runner PDF): S19 signature-provider
+abstraction and S20 AI-assisted PDF metadata extraction. Both require
+server-side key management / Python service respectively. Design is
+complete; implementation deferred.

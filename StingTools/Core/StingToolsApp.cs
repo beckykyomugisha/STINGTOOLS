@@ -552,6 +552,17 @@ namespace StingTools.Core
                 {
                     StingLog.Warn($"Morning briefing defer: {mbEx.Message}");
                 }
+
+                // Template engine v1.1 (S11/S15): extract default templates,
+                // workflows, and manifest on first open per project.
+                try
+                {
+                    Planscape.Docs.Templates.EmbeddedTemplates.ExtractIfMissing(doc);
+                }
+                catch (Exception tEx)
+                {
+                    StingLog.Warn($"DocumentOpened template extraction: {tEx.Message}");
+                }
             }
             catch (Exception ex)
             {
