@@ -279,6 +279,7 @@ namespace StingTools.UI
                     case "Calc_ConduitFill":  RunCommand<Commands.Routing.CalcConduitFillCommand>(app); break;
                     case "Calc_DuctFriction": RunCommand<Commands.Routing.CalcDuctFrictionCommand>(app); break;
                     case "Calc_SlopeCorrect": RunCommand<Commands.Routing.CalcSlopeCorrectCommand>(app); break;
+                    case "Calc_HardyCross":  RunCommand<Commands.Routing.HardyCrossCommand>(app); break;
 
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
