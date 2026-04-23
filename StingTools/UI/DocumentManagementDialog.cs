@@ -1780,14 +1780,77 @@ namespace StingTools.UI
                 ProjectFolderEngine.LogActivity(doc, "CREATE_TRANSMITTAL", transId,
                     $"{selected.Count} docs to {recipientNames.Count} recipients ({string.Join(", ", recipientNames)})");
 
+                // Template engine v1.1 (S10/S13): fan the same transmittal through
+                // the orchestrator so the .docx renders, the workflow starts, and
+                // the audit log chain records the event. Failure here is logged
+                // but never blocks the classic transmittal flow below.
+                string renderedPath = null;
+                string templateId   = null;
+                string workflowInst = null;
+                try
+                {
+                    var req = new Planscape.Docs.Templates.TransmittalRequest
+                    {
+                        TransmittalId = transId,
+                        Subject = $"Transmittal {transId}",
+                        Reason = notesBox.Text,
+                        Method = "Email",
+                        IssueDate = DateTime.UtcNow,
+                        IssuedBy = Environment.UserName,
+                        TemplateFamily = "B",
+                        Recipients = recipientNames,
+                        CoveringNote = notesBox.Text,
+                        Documents = selected.Select(s => new Planscape.Docs.Templates.TransmittalDocumentRef
+                        {
+                            Number = s.Title, Title = s.Title, Revision = s.Revision,
+                            Suitability = suitCode, FilePath = s.FilePath, Type = "DOCUMENT"
+                        }).ToList()
+                    };
+                    var res = Planscape.Docs.Templates.TransmittalOrchestrator.Create(doc, req);
+                    if (res?.Ok == true)
+                    {
+                        renderedPath = res.DocxPath;
+                        templateId   = res.TemplateId;
+                        workflowInst = res.WorkflowInstanceId;
+                        trans["template_id"]         = templateId;
+                        trans["rendered_file_path"]  = renderedPath;
+                        trans["workflow_instance_id"]= workflowInst;
+                        File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    }
+                    else
+                    {
+                        StingLog.Warn($"QuickTransmittal orchestrator: {res?.Error}");
+                    }
+                }
+                catch (Exception orchEx)
+                {
+                    StingLog.Warn($"QuickTransmittal orchestrator delegation failed: {orchEx.Message}");
+                }
+
                 // Generate notification queue entry
                 LogNotification(doc, "transmittal_created", transId,
                     $"Transmittal {transId}: {selected.Count} docs sent to {recipientNames.Count} recipients",
                     recipientNames);
 
-                MessageBox.Show($"Transmittal {transId} created:\n{selected.Count} documents → {recipientNames.Count} recipients\n\n" +
-                    $"Recipients: {string.Join(", ", recipientNames)}\nSuitability: {suitCode}\nStatus: {trans["status"]}",
-                    "STING Transmittal", MessageBoxButton.OK, MessageBoxImage.Information);
+                string renderBlurb = string.IsNullOrEmpty(renderedPath)
+                    ? ""
+                    : $"\n\nRendered: {renderedPath}" +
+                      (string.IsNullOrEmpty(templateId) ? "" : $"\nTemplate: {templateId}") +
+                      (string.IsNullOrEmpty(workflowInst) ? "" : $"\nWorkflow instance: {workflowInst}");
+                var completion = MessageBox.Show(
+                    $"Transmittal {transId} created:\n{selected.Count} documents → {recipientNames.Count} recipients\n\n" +
+                    $"Recipients: {string.Join(", ", recipientNames)}\nSuitability: {suitCode}\nStatus: {trans["status"]}" +
+                    renderBlurb +
+                    (string.IsNullOrEmpty(renderedPath) ? "" : "\n\nOpen rendered file now?"),
+                    "STING Transmittal",
+                    string.IsNullOrEmpty(renderedPath) ? MessageBoxButton.OK : MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+                if (!string.IsNullOrEmpty(renderedPath) && completion == MessageBoxResult.Yes)
+                {
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    { FileName = renderedPath, UseShellExecute = true }); }
+                    catch (Exception openEx) { StingLog.Warn($"Open rendered: {openEx.Message}"); }
+                }
                 RefreshData();
             }
             catch (Exception ex2) { StingLog.Warn($"QuickTransmittal: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }

@@ -2737,6 +2737,28 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Template engine v1.1 — Deliverable lifecycle (S12) + orchestrator transmittals (S13) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DELIVERABLE LIFECYCLE — Template engine v1.1"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1F4E79">
+                            <StackPanel>
+                                <TextBlock Text="Render ISO 19650 deliverables / transmittals through MiniWord templates and start their workflow instances." FontSize="9" Foreground="#888" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="DELIVERABLE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="Issue"      Tag="IssueDeliverable"     Click="Cmd_Click" ToolTip="Issue the selected deliverable — renders A01 and starts deliverable_issue_default workflow"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Re-Issue"   Tag="ReIssueDeliverable"   Click="Cmd_Click" ToolTip="Bump revision and re-issue"/>
+                                    <Button Style="{StaticResource BlueBtn}"   Content="Publish"    Tag="PublishDeliverable"   Click="Cmd_Click" ToolTip="Publish to CDE (stage 3: S4 / PUBLISHED)"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Cancel"     Tag="CancelDeliverable"    Click="Cmd_Click" ToolTip="Cancel the deliverable — renders A02 cancellation notice"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Supersede"  Tag="SupersedeDeliverable" Click="Cmd_Click" ToolTip="Supersede by a new document number — renders A03"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Replace"    Tag="ReplaceDeliverable"   Click="Cmd_Click" ToolTip="Replace with a new deliverable — renders A04"/>
+                                    <Button Style="{StaticResource GreenBtn}"  Content="Bulk Issue" Tag="BulkIssueDeliverables" Click="Cmd_Click" ToolTip="Issue every deliverable currently selected in BCC"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TRANSMITTAL (orchestrated)"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}"   Content="New Transmittal"  Tag="CreateTransmittalOrchestrated" Click="Cmd_Click" ToolTip="Create a transmittal through the v1.1 orchestrator: render B06 MiniWord template, start transmittal_default workflow, chain into AuditLog"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- COBie and HANDOVER -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="COBie V2.4 — FM HANDOVER"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">

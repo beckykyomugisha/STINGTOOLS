@@ -5657,6 +5657,52 @@ namespace StingTools.BIMManager
             transmittals.Add(transmittal);
             BIMManagerEngine.SaveJsonFile(txPath, transmittals);
 
+            // Template engine v1.1 (S10): run the same transmittal through the
+            // orchestrator so MiniWord renders the B06 template, WorkflowEngine
+            // starts a transmittal_default instance, and AuditLog records
+            // doc.rendered. Existing behaviour (text summary + TB stamping
+            // below) is untouched; failures here are logged and ignored.
+            string orchestratedRenderPath = null;
+            string orchestratedTemplateId = null;
+            string orchestratedWorkflowId = null;
+            try
+            {
+                var req = new Planscape.Docs.Templates.TransmittalRequest
+                {
+                    TransmittalId   = transmittal["transmittal_id"]?.ToString(),
+                    TemplateFamily  = "B",
+                    Subject         = $"Transmittal {transmittal["transmittal_id"]}",
+                    Reason          = "Model drop per MIDP schedule",
+                    Method          = "Email",
+                    IssueDate       = DateTime.UtcNow,
+                    IssuedBy        = Environment.UserName,
+                    CoveringNote    = $"Suitability {suitability} — {BIMManagerEngine.SuitabilityCodes[suitability]}",
+                    Documents       = outgoingIds.Select(id => new Planscape.Docs.Templates.TransmittalDocumentRef
+                    {
+                        Number = id?.ToString(), Title = id?.ToString(), Suitability = suitability, Type = "DR"
+                    }).ToList()
+                };
+                var orchResult = Planscape.Docs.Templates.TransmittalOrchestrator.Create(doc, req);
+                if (orchResult?.Ok == true)
+                {
+                    orchestratedRenderPath = orchResult.DocxPath;
+                    orchestratedTemplateId = orchResult.TemplateId;
+                    orchestratedWorkflowId = orchResult.WorkflowInstanceId;
+                    transmittal["template_id"]          = orchestratedTemplateId;
+                    transmittal["rendered_file_path"]   = orchestratedRenderPath;
+                    transmittal["workflow_instance_id"] = orchestratedWorkflowId;
+                    BIMManagerEngine.SaveJsonFile(txPath, transmittals);
+                }
+                else
+                {
+                    StingLog.Warn($"CreateTransmittalCommand orchestrator: {orchResult?.Error}");
+                }
+            }
+            catch (Exception orchEx)
+            {
+                StingLog.Warn($"CreateTransmittalCommand orchestrator delegation failed: {orchEx.Message}");
+            }
+
             var pi = doc.ProjectInformation;
             var note = new StringBuilder();
             note.AppendLine("╔══════════════════════════════════════════════════════╗");
@@ -5672,6 +5718,14 @@ namespace StingTools.BIMManager
             note.AppendLine($"  Documents:       {outgoingIds.Count} attached from register");
             note.AppendLine();
             note.AppendLine($"  Edit: {txPath}");
+            if (!string.IsNullOrEmpty(orchestratedRenderPath))
+            {
+                note.AppendLine();
+                note.AppendLine($"  Rendered:        {orchestratedRenderPath}");
+                note.AppendLine($"  Template:        {orchestratedTemplateId}");
+                if (!string.IsNullOrEmpty(orchestratedWorkflowId))
+                    note.AppendLine($"  Workflow ID:     {orchestratedWorkflowId}");
+            }
 
             // Save text version
             string txtPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
