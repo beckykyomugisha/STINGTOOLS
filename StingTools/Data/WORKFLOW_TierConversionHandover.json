@@ -1,0 +1,57 @@
+{
+  "name": "Tier Conversion Handover",
+  "description": "Apply the active PARAGRAPH_PRESETS.json preset (Handover or DesignConstruction) across T4..T10 containers, validate, then optionally export the FM/handover package. Switch mode in Tag Studio > Tokens & Depth > Handover Mode.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    {
+      "commandTag": "ApplyParagraphPreset",
+      "label": "1. Apply active paragraph preset to ASS_TAG_7A..F containers",
+      "optional": false
+    },
+    {
+      "commandTag": "SetParagraphDepth",
+      "label": "2. Set TAG_PARA_STATE_N_BOOL on types to match active depth",
+      "optional": true
+    },
+    {
+      "commandTag": "ValidateTags",
+      "label": "3. Validate tags after paragraph update",
+      "optional": false
+    },
+    {
+      "commandTag": "ResolveAllIssues",
+      "label": "4. Auto-resolve ISO 19650 placeholders (GEN/XX/ZZ)",
+      "optional": true,
+      "maxCompliancePct": 95
+    },
+    {
+      "commandTag": "AuditTagsCSV",
+      "label": "5. Export tag audit CSV",
+      "optional": true
+    },
+    {
+      "commandTag": "COBieHandoverExport",
+      "label": "6. COBie 2.4 handover export (18 sheets) — Handover mode only",
+      "optional": true,
+      "condition": "HANDOVER_MODE=Handover"
+    },
+    {
+      "commandTag": "HandoverManual",
+      "label": "7. FM handover manual — Handover mode only",
+      "optional": true,
+      "condition": "HANDOVER_MODE=Handover"
+    },
+    {
+      "commandTag": "PreTagAudit",
+      "label": "8. Pre-tag audit — DesignConstruction mode only",
+      "optional": true,
+      "condition": "HANDOVER_MODE=DesignConstruction"
+    },
+    {
+      "commandTag": "FullComplianceDashboard",
+      "label": "9. Full compliance dashboard — final review",
+      "optional": false
+    }
+  ]
+}

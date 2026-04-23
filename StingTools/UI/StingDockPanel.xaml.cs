@@ -378,6 +378,15 @@ namespace StingTools.UI
                 if (depth > 10) depth = 10;
                 StingCommandHandler.SetExtraParam("ParaDepth", depth.ToString());
 
+                // Handover mode radios → ParagraphPreset + HandoverMode extra params
+                string handoverMode = "Handover";
+                if (FindName("rbModeDesign") is System.Windows.Controls.RadioButton rDes && rDes.IsChecked == true)
+                    handoverMode = "DesignConstruction";
+                else if (FindName("rbModeCustom") is System.Windows.Controls.RadioButton rCus && rCus.IsChecked == true)
+                    handoverMode = "Custom";
+                StingCommandHandler.SetExtraParam("HandoverMode", handoverMode);
+                StingCommandHandler.SetExtraParam("ParagraphPreset", handoverMode);
+
                 // COBie pre-seed field checkboxes
                 var cobie = new List<string>();
                 void AddIf(string name, string flag)
