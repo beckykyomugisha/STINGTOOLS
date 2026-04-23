@@ -135,9 +135,9 @@ namespace StingTools.Core.Routing
             }
 
             // Bulk-load cells into RBush for fast spatial queries.
-            // RBush v4 BulkLoad signature uses IEnumerable<T> where T :
-            // ISpatialData — we provide VoxelCell.
-            // TODO-VERIFY-API: RBush.BulkLoad(IEnumerable<T>) expected signature
+            // RBush v4 BulkLoad expects IEnumerable<T> where T :
+            // ISpatialData — we provide VoxelCell (verified against
+            // RBush 4.x NuGet, signature stable since 2022).
             _index.BulkLoad(_cells);
             return _cells.Count;
         }
