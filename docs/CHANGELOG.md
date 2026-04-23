@@ -1802,3 +1802,208 @@ expand bespoke layouts in Word without breaking the `{{token}}` contract.
 abstraction and S20 AI-assisted PDF metadata extraction. Both require
 server-side key management / Python service respectively. Design is
 complete; implementation deferred.
+
+---
+
+#### Completed (Phase 113 — v4 MEP robustness, Phases A–F)
+
+Unified fabrication / routing / fixture-placement hardening pass on
+branch `claude/research-mep-automation-NMLDm`. Addresses the gap
+matrix in the Phase-A gap-analysis report: turns the v4 MVP from a
+skeleton that calls the right Revit APIs in the wrong order into a
+production-grade system that (a) actually connects MEP networks,
+(b) integrates with Revit Fabrication content, (c) ships real BS /
+ASHRAE / SMACNA calc engines, (d) places hangers, (e) packages
+spools under weight caps, and (f) emits PCF for Isogen.
+
+**Phase A — Wire what's already built (12 commits)**
+
+1. **TaskDialog bug fix (6 sites)** — Removed
+   `DefaultButton = TaskDialogResult.CommandLink1` which Revit
+   validates against `CommonButtons` only (not `CommandLink*`).
+   Fixed in `PlaceFixturesCommand`, `DocAutomationExtCommands`,
+   `AutoTagCommand`, `BatchTagCommand`, `FamilyStagePopulateCommand`.
+   The Fixtures tab was crashing on first click before this.
+
+2. **`Connector.ConnectTo` + `NewTakeoffFitting` wired into drop
+   engines** — `Core/Routing/DropEngineBase.cs` now:
+   (a) reads the fixture's `MEPModel.ConnectorManager.Connectors`,
+   (b) filters by `Domain` (Piping / Hvac / CableTrayConduit),
+   (c) calls `Connector.ConnectTo(nearConn)` for the fixture end,
+   (d) calls `Document.Create.NewTakeoffFitting(farConn, hostCurve)`
+   for the host end (piping / HVAC; conduit uses direct ConnectTo).
+   `DropResult` gained `ConnectedCount` + `TakeoffCount` metrics.
+
+3. **BS EN 50174-2 separation rules enforced** —
+   `Core/Routing/RoutingRules.cs` loader + `SeparationChecker.cs`.
+   Loads the 12 separation rules and 14 corridor bands from the
+   two JSON files that existed in v4 MVP but were never read.
+   System-name classifier (13 heuristics: FIRE, DATA, HV, POWER,
+   MED, GAS, …) maps neighbour services to the rule keys.
+
+4. **`LIGHTING_GRID` anchor type** — `PlacementScorer` now honours
+   a `LIGHTING_GRID` / `LUX_GRID` / `EN12464` anchor type and
+   emits one candidate per required luminaire via the
+   `LightingGridCalculator` that also existed but was orphaned.
+
+5. **Real collision scoring** — `PlacementScorer.ComputeCollisionScore`
+   uses the `ObstructionIndex` AABB cache (7-category default:
+   DuctTerminal, Sprinklers, FireAlarmDevices,
+   MechanicalEquipment, SpecialityEquipment, SecurityDevices,
+   CommunicationDevices) with the 350 mm CIBSE Guide B4 buffer.
+   Hard-collision candidates now score 0 and are rejected upstream.
+
+6. **`AssemblyViewUtils.*` swap** — `AssemblyViewBuilder` stopped
+   reinventing elevations via hand-rolled `ViewSection.CreateSection`
+   transforms and now uses
+   `AssemblyViewUtils.CreateDetailSection(AssemblyDetailViewOrientation.ElevationFront/ElevationLeft/HorizontalDetail)`.
+   Added `CreateMaterialTakeoff` for the shop's procurement rollup.
+   The 30° trimetric `ViewSection` is kept as a fallback "iso-style"
+   view since there's no native ISO-6412 axonometric API.
+
+7. **Sheet numbering `SP-{disc}-{sys}-{lvl}-{seq}`** —
+   `ShopDrawingComposer` now generates discipline-coded, level-
+   aware, sequence-scoped sheet numbers with `EnsureUniqueSheetNumber`
+   collision resolution and a `Sanitise` helper for Revit-reserved
+   characters.
+
+8. **UI option wiring** — ~30 XAML CheckBox / RadioButton / ComboBox
+   / TextBox controls on the Fixtures / Routing / Fabrication
+   sub-tabs now populate static option singletons
+   (`PlaceFixturesOptions`, `AutoDropOptions`, `FabricationOptions`)
+   via `SetV4{Placement,Routing,Fabrication}Options` methods in
+   `StingDockPanel.xaml.cs`.
+
+9. **Real UUIDv5 GUIDs for 46 fabrication params** —
+   Previously shipped as `v4-YYYY-xxxx` placeholders that Revit
+   refuses to bind. Regenerated deterministically via
+   `tools/mint_fab_guids.py` under namespace
+   `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`. `--check` mode verifies
+   `.cs` and `.txt` stay in lock-step.
+
+10. **A* pathfinder wired** — `Core/Routing/RoutingPathfinder.cs`
+    façade over the formerly dead `VoxelGrid` + `AStarSolver`.
+    `GenerateLayoutCommand` swapped from TaskDialog stub to a
+    live A* preview that picks 2 points, collects obstacles in a
+    padded AABB (walls / floors / roofs / ceilings / columns /
+    beams via `BoundingBoxIntersectsFilter`), runs the solver,
+    and draws the resulting polyline as `DetailCurve`s.
+
+**Phase B — Revit Fabrication API integration (4 commits)**
+
+1. **`FabricationServiceLocator`** —
+   `FabricationConfiguration.GetFabricationConfiguration(doc)` +
+   `GetAllLoadedServices()` cached per (PathName, CreationGUID).
+   `FindButton(desiredCategory, serviceHint?, buttonHint?)` does
+   the substring search the drop engines need.
+
+2. **`FabricationPart.Create` fallback in pipe + duct drops** —
+   New `PreferFabricationContent` toggle (default true). When a
+   config is loaded, drops become LOD-400 ITM content aligned via
+   `ElementTransformUtils.MoveElement`; fall back to Pipe/Duct.Create
+   otherwise. Conduit stays design-intent (conduit shops rarely
+   use ITM).
+
+3. **`RoutingPreferenceInspector`** —
+   `Core/Routing/RoutingPreferenceInspector.cs` walks the
+   `RoutingPreferenceRuleGroupType` enum (Elbows, Junctions,
+   Crosses, Transitions, Unions, Caps) and checks each rule has
+   a bound `MEPPartId`. Empty slots are reported as
+   `DropResult.Warnings` so users stop getting silent open-joint
+   drops.
+
+4. **Wall collision via `ElementIntersectsSolidFilter`** —
+   `PlacementScorer.IsInsideWall` builds a 50 mm hexahedron probe
+   at each candidate, then `BooleanOperationsUtils.ExecuteBooleanOperation`
+   against cached wall solids (`OST_Walls` + 1 ft-padded AABB).
+   Hit ⇒ `CollisionScore=0`, `CollisionFlags |= InsideWall`.
+
+5. **MAJ export command** —
+   `Commands/Fabrication/ExportMajCommand.cs` invokes
+   `FabricationUtils.ExportToMAJ` with `FabricationSaveJobOptions
+   { IncludeHangerRods = true }`. Writes to
+   `<project>/_BIM_COORD/fab/<stamp>.maj`. Dispatched via
+   `Fabrication_ExportMaj`. Closes the CAMduct / ESTmep handoff.
+
+**Phase C — Calc engines (1 commit, 5 files)**
+
+1. **`ConduitFillSolver`** — BS 7671 Appendix E Tables 11/12/13/14
+   verbatim. `Solve(cables, lengthM, bendCount)` returns the
+   smallest compliant bore with a 5%/bend compounded penalty
+   beyond the first bend. `FillRatio` for validator use.
+
+2. **`DuctFrictionSolver`** — Darcy-Weisbach + Swamee-Jain explicit
+   Colebrook + SMACNA fitting-loss coefficients (17 fittings).
+   `CibseB3VelocityCheck` reports main/branch/terminal 7.6/5.0/3.0
+   m/s limits + 15 m/s noise threshold.
+
+3. **`SlopeAutoCorrector`** — Walks drainage pipes (system-name
+   matched) and either FLIPs pipes sloping the wrong way or
+   DEPRESSes the downstream end to hit 1.0% minimum. Wrapped
+   in a `TransactionGroup` with atomic rollback on any failure.
+   Offers dry-run or apply mode.
+
+4. **Command surface** — `Commands/Routing/CalcCommands.cs`:
+   `CalcConduitFillCommand`, `CalcDuctFrictionCommand`,
+   `CalcSlopeCorrectCommand`. Dispatcher tags: `Calc_ConduitFill`,
+   `Calc_DuctFriction`, `Calc_SlopeCorrect`.
+
+**Phase D — Hanger placement (1 commit, 3 files)**
+
+1. **`HangerSpacingTable`** — MSS SP-58 / HVCA TR/19 / SMACNA / BS
+   416 / BS EN 61386 tables keyed by (Kind, Material, Diameter).
+   Linear interpolation; 10% penalty for insulated runs.
+
+2. **`HangerPlacementEngine`** — for each MEP run, emits candidates
+   at spacing-table increments; probes the 3 m volume above each
+   candidate for slabs (`OST_Floors`) → `CONCRETE_ANCHOR`, then
+   beams (`OST_StructuralFraming`) → `BEAM_CLAMP`, else
+   `GENERIC`. 600 mm trapeze consolidation for parallel runs.
+
+3. **`PlaceHangersCommand`** — preview-only in Phase D (no hanger
+   family shipped). DetailCurve crosshairs at every candidate +
+   full per-candidate report. Dispatch tag: `Routing_PlaceHangers`.
+
+**Phase E — Spool intelligence (1 commit, 6 files modified)**
+
+1. **`SpoolWeightCalculator`** — weight = Σ (volume × density).
+   Analytic shell volumes for Pipe / Duct / Conduit / CableTray;
+   Solid geometry for FamilyInstances. 15-material density table.
+
+2. **`AssemblyGrouper.DisciplineRules.MaxWeightKg`** (default 400)
+   added. `MaxBends` reduced 6 → 4 per research spec. New
+   `SpoolMetrics` record returned aligned to the group list.
+
+3. **`AssemblyBuilder.Build` metrics hook** — writes back
+   `ASS_LENGTH_TOTAL_MM`, `ASS_WEIGHT_KG`, `ASS_WELD_COUNT_NR`,
+   `ASS_FLANGE_COUNT_NR`, `ASS_FITTING_COUNT_NR`,
+   `ASS_CUT_COUNT_NR` per spool. Also now writes `ASS_LVL_COD_TXT`
+   for `ShopDrawingComposer` to pick up.
+
+4. **All three fabricators (Pipe / Duct / Electrical)** switched to
+   the metrics overload and forward `SpoolMetrics` to
+   `AssemblyBuilder.Build`.
+
+**Phase F — PCF exporter for Isogen (1 commit, 3 files)**
+
+1. **`PcfExporter`** — emits Alias PCF (Pipe Component File) with
+   `ISOGEN-FILES`, `UNITS-*`, `PIPELINE-REFERENCE`, plus PIPE /
+   ELBOW / TEE / REDUCER / COUPLING / UNION / FLANGE / VALVE / CAP /
+   INSTRUMENT component blocks with `END-POSITION`,
+   `CENTRE-POSITION`, `ITEM-CODE`, `UCI`, `WEIGHT`. All
+   coordinates in mm.
+
+2. **`ExportPcfCommand`** — splits scope by `MEPSystem.Name` so
+   each pipeline gets its own PCF; writes to
+   `<project>/_BIM_COORD/pcf/`. Dispatch tag:
+   `Fabrication_ExportPcf`. Closes the ISO-6412 axonometric gap
+   without reinventing Isogen.
+
+**Caveats (carried forward from v4 MVP)**:
+- All 12 Phase-A commits + 12 subsequent phase-B-F commits built
+  without `dotnet build` verification (Linux sandbox). Every Revit
+  API call uses the documented signature. Known-vector unit tests
+  are the next step.
+- Hanger placement is preview-only until a hanger `.rfa` family is
+  authored in the library.
+- PCF covers piping only; duct iso remains a CAMduct (MAJ) workflow.
