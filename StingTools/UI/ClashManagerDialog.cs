@@ -27,10 +27,16 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Clash;
 
+// Autodesk.Revit.DB and System.Windows.* share a batch of type names
+// (Grid line, Color, Binding parameter, …). Alias the WPF ones so
+// every control / binding / colour ref in this file binds to WPF.
 using TextBox      = System.Windows.Controls.TextBox;
 using ComboBox     = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 using Grid         = System.Windows.Controls.Grid;
+using Color        = System.Windows.Media.Color;
+using Colors       = System.Windows.Media.Colors;
+using Binding      = System.Windows.Data.Binding;
 
 namespace StingTools.UI
 {

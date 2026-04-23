@@ -29,13 +29,15 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 
-// Autodesk.Revit.DB ships Grid / TextBox / ComboBox names that collide
-// with System.Windows.Controls equivalents. Alias the WPF types so
-// the dialog's layout + control references bind correctly.
+// Autodesk.Revit.DB and System.Windows.* share a batch of type names
+// (Grid line, Color, Binding parameter, …). Alias the WPF ones so
+// every control / binding / colour ref in this file binds to WPF.
 using TextBox      = System.Windows.Controls.TextBox;
 using ComboBox     = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 using Grid         = System.Windows.Controls.Grid;
+using Color        = System.Windows.Media.Color;
+using Colors       = System.Windows.Media.Colors;
 
 namespace StingTools.UI
 {
