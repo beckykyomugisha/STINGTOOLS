@@ -211,35 +211,30 @@ namespace StingTools.Tags
             };
         }
 
-        /// <summary>Configurable maximum offset cap in feet (default 30.0).</summary>
-        public static double MaxOffsetCapFt { get; set; } = 30.0;
+        /// <summary>
+        /// Back-compat shim. Reads the cap from <see cref="Core.ScaleTiers.OffsetCapFt"/>,
+        /// which is driven by <c>Data/SCALE_TIERS.json</c> or a per-project
+        /// <c>project_config.json:SCALE_TIERS.offset_cap_ft</c> override. Writing
+        /// to the setter is ignored — use <c>ScaleTiers.SaveProjectOverride</c>.
+        /// </summary>
+        public static double MaxOffsetCapFt
+        {
+            get => Core.ScaleTiers.OffsetCapFt;
+            set { /* cap is config-driven now; setter kept for API back-compat */ }
+        }
 
         /// <summary>
-        /// Scale-tier-aware offset: uses mm-based tiers that scale with view scale.
-        /// Tiers: 1:1–1:50 = 2mm, 1:50–1:100 = 5mm, 1:100–1:200 = 8mm,
-        ///        1:200–1:500 = 12mm, 1:500+ = 20mm.
-        /// Result is converted to feet and multiplied by viewScale, capped at MaxOffsetCapFt.
+        /// Scale-tier-aware offset. Tier mm and cap come from
+        /// <see cref="Core.ScaleTiers"/>, which resolves per-project
+        /// overrides then the bundled SCALE_TIERS.json then a hardcoded
+        /// fallback. Result is mm → ft × viewScale, clamped to the cap.
         /// </summary>
         public static double GetModelOffset(View view, double baseOffset = 0.01)
         {
-            int viewScale = view.Scale > 0 ? view.Scale : 100;
-
-            // Determine base mm from scale tier
-            double baseMm;
-            if (viewScale <= 50)
-                baseMm = 2.0;
-            else if (viewScale <= 100)
-                baseMm = 5.0;
-            else if (viewScale <= 200)
-                baseMm = 8.0;
-            else if (viewScale <= 500)
-                baseMm = 12.0;
-            else
-                baseMm = 20.0;
-
-            // Convert mm to feet, then multiply by view scale for model-space distance
-            double offsetFt = (baseMm / 304.8) * viewScale;
-            return Math.Min(offsetFt, MaxOffsetCapFt);
+            int viewScale = (view != null && view.Scale > 0) ? view.Scale : 100;
+            Core.ScaleTiers.Tier tier = Core.ScaleTiers.ForView(view);
+            double offsetFt = (tier.OffsetMm / 304.8) * viewScale;
+            return Math.Min(offsetFt, Core.ScaleTiers.OffsetCapFt);
         }
 
         /// <summary>Get element center point in view coordinates.</summary>

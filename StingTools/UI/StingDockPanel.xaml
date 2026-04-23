@@ -4095,6 +4095,22 @@
                                             </StackPanel>
                                         </Border>
 
+                                        <!-- APPLY -->
+                                        <TextBlock Text="APPLY" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Button Content="Save tiers to project"
+                                                        Tag="Scale_ApplyTiers"
+                                                        Click="Cmd_Click"
+                                                        Margin="0,0,0,4"
+                                                        ToolTip="Persist slider values to project_config.json:SCALE_TIERS. SmartTagPlacement picks them up live."/>
+                                                <Button Content="Apply size to tags in view"
+                                                        Tag="Scale_ApplyTagSize"
+                                                        Click="Cmd_Click"
+                                                        ToolTip="Flip the TAG_{size}{style}_{colour}_BOOL matrix on every tag type used in the active view so size matches the view's scale tier."/>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- VIEW SCALE INFO -->
                                         <TextBlock Text="CURRENT VIEW" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">

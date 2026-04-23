@@ -2213,6 +2213,10 @@ namespace StingTools.UI
                     case "TagStudio_ApplyScheme": RunCommand<Tags.ApplyColorSchemeCommand>(app); break;
                     case "TagStudio_ClearOverrides": RunCommand<Tags.ClearColorSchemeCommand>(app); break;
 
+                    // Tag Studio > Scale tab
+                    case "Scale_ApplyTiers":   RunCommand<Tags.ApplyScaleTiersCommand>(app); break;
+                    case "Scale_ApplyTagSize": RunCommand<Tags.SetScaleAwareTagSizeCommand>(app); break;
+
                     // ════════════════════════════════════════════════════════
                     // TIE-IN POINT COMMANDS (TI-01, TI-03)
                     // ════════════════════════════════════════════════════════
