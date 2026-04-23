@@ -2554,3 +2554,21 @@ PARAM	v6-0001-0000-0000-000000000018	COMM_DATE_TXT	TEXT		25	1	ISO 8601 date of c
 PARAM	v6-0001-0000-0000-000000000019	COMM_OPERATIVE_TXT	TEXT		25	1	Commissioning operative name or ID who performed the test	1
 PARAM	v6-0001-0000-0000-00000000001a	COMM_WITNESS_TXT	TEXT		25	1	Commissioning witness name or ID (client / CA representative)	1
 PARAM	v6-0001-0000-0000-00000000001b	COMM_NOTES_TXT	TEXT		25	1	Free-text commissioning notes captured from the QR workflow	1
+PARAM	cbd94272-6db5-557c-8e6d-2f254888afc6	STR_BAR_MARK_TXT	TEXT		16	1	Rebar bar mark from bending schedule [BS 8666:2020]	1
+PARAM	6dfe3811-0d82-500a-a10a-ac51225576c6	STR_BEND_SCHEDULE_REF_TXT	TEXT		16	1	Rebar bending schedule document reference [BS 8666:2020]	1
+PARAM	dbc0b581-2741-5a76-82bc-7956cef3af86	STR_CUTTING_LIST_REF_TXT	TEXT		16	1	Rebar cutting list drawing reference [BS 8666:2020]	1
+PARAM	e182a84b-a159-567f-a62d-fd0c3765f618	STR_WELD_PROCEDURE_REF_TXT	TEXT		16	1	Welding procedure specification reference [BS EN ISO 15609-1:2019]	1
+PARAM	87cca4d2-1a8c-57a0-a31b-ab78a308fbe5	STR_BOLT_TORQUE_NM_NR	NUMBER		16	1	Bolt installation tightening torque in Nm [BS EN 1090-2:2018]	1
+PARAM	aff8756c-b7b5-5c7a-aaab-65efe622a7d4	HVC_REFRIGERANT_CHARGE_KG_NR	NUMBER		5	1	Equipment refrigerant charge mass in kg [BS EN 378-2:2016]	1
+PARAM	74d83fbc-1edc-5aa9-8edd-de412bfdf921	HVC_FACTORY_FLASH_TEST_DATE_TXT	TEXT		5	1	Factory flash test date for refrigerant equipment [BS EN 378-2:2016]	1
+PARAM	5ebe500d-983b-5a41-97ba-312b62882f28	HVC_FACTORY_QR_TXT	TEXT		5	1	Mechanical factory QR code label reference [ISO 19650-3:2020]	1
+PARAM	b04373ec-3a97-5c0e-a13b-b72450d52eff	ELC_PANEL_SCHEDULE_REF_TXT	TEXT		4	1	Electrical panel schedule document reference [BS 7671:2018+A2:2022]	1
+PARAM	37ac83fc-80c9-5a43-a03b-6365d5424731	ELC_FAT_CERT_REF_TXT	TEXT		4	1	Factory Acceptance Test certificate reference [IEC 61439-1:2020]	1
+PARAM	a4257dba-e2fb-5890-96f8-80a14ad0d8c2	ELC_FACTORY_QR_TXT	TEXT		4	1	Electrical factory QR code label reference [ISO 19650-3:2020]	1
+PARAM	477afe7a-6b97-5de8-90c9-2786042dd5e9	PLM_PRESSURE_TEST_REF_TXT	TEXT		6	1	Hydrostatic pressure test certificate reference [BS EN 806-4:2010]	1
+PARAM	daff6888-aead-51d4-b7ea-fa004def0eb5	PLM_WELD_MAP_REF_TXT	TEXT		6	1	Pipe weld map drawing reference [BS EN ISO 15609-1:2019]	1
+PARAM	273b9909-16b4-5c49-8c96-ff59f2e5ea40	ARC_FACTORY_ORDER_REF_TXT	TEXT		10	1	Joinery factory order reference [BS 8000-5:1990]	1
+PARAM	18208fa9-2926-51ec-b44c-96ebd6c2e6c7	ARC_GLAZING_SPEC_TXT	TEXT		10	1	Glazing specification reference [BS 6262-1:2022]	1
+PARAM	65a3cf4e-6dc8-5095-9664-575a96101272	CBN_RUNTIME_HRS_YR_NR	NUMBER		9	1	Equivalent annual operating hours for operational carbon calc [BS EN 16798-1:2019]	1
+PARAM	84428fa6-2f50-5b11-a1ea-db12a58c45e9	CBN_REFRIGERANT_GWP_KG_CO2E	NUMBER		9	1	Refrigerant global warming potential contribution in kgCO2e [BS EN 378-2:2016]	1
+PARAM	973e1eb4-6aac-53e4-85ea-a35f4e8d8aec	ASBUILT_COVER_DEVIATION_MM	NUMBER		24	1	As-built concrete cover deviation from design in mm [BS EN 13670:2009]	1
