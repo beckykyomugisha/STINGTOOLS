@@ -17,6 +17,65 @@ using StingTools.UI;
 
 namespace StingTools.Commands.Placement
 {
+    /// <summary>
+    /// Static option surface for Place Fixtures, populated by the
+    /// TAGS → Fixtures sub-tab before Execute runs. Each property
+    /// maps 1:1 to a CheckBox in StingDockPanel.xaml. Defaults match
+    /// the XAML IsChecked="True" initial state.
+    /// </summary>
+    public static class PlaceFixturesOptions
+    {
+        public static bool DryRunPreference { get; set; } = true;
+        public static bool SnapTo300mmGrid  { get; set; } = true;
+
+        // Category filters (from the Fixtures panel).
+        public static bool IncludeElectricalFixtures  { get; set; } = true;
+        public static bool IncludeLightingDevices     { get; set; } = true;
+        public static bool IncludeLightingFixtures    { get; set; } = true;
+        public static bool IncludeCommunicationDevices{ get; set; } = true;
+        public static bool IncludeDataDevices         { get; set; } = true;
+        public static bool IncludeSecurityDevices     { get; set; } = true;
+        public static bool IncludeFireAlarmDevices    { get; set; } = true;
+        public static bool IncludePlumbingFixtures    { get; set; } = true;
+        public static bool IncludeAirTerminals        { get; set; } = true;
+        public static bool IncludeSprinklers          { get; set; } = true;
+
+        // Standards toggles (advisory; rules carry the standard in their ids).
+        public static bool EnforceDocM    { get; set; } = true;
+        public static bool EnforceBS7671  { get; set; } = true;
+        public static bool EnforceBS5266  { get; set; } = true;
+        public static bool EnforceBS5839  { get; set; } = true;
+        public static bool EnforceBS6465  { get; set; } = true;
+        public static bool EnforceEN12464 { get; set; } = true;
+
+        // Collision constraints.
+        public static bool RejectInsideWall       { get; set; } = true;
+        public static bool RejectOutsideRoom      { get; set; } = true;
+        public static bool MinDoorClearance300    { get; set; } = true;
+        public static bool MinWindowClearance100  { get; set; } = true;
+
+        /// <summary>
+        /// Return the set of Revit category names this command should
+        /// consider, based on the discipline checkboxes. Used by
+        /// FixturePlacementEngine to filter PlacementRule.CategoryFilter.
+        /// </summary>
+        public static HashSet<string> AllowedCategoryNames()
+        {
+            var s = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (IncludeElectricalFixtures)   s.Add("Electrical Fixtures");
+            if (IncludeLightingDevices)      s.Add("Lighting Devices");
+            if (IncludeLightingFixtures)     s.Add("Lighting Fixtures");
+            if (IncludeCommunicationDevices) s.Add("Communication Devices");
+            if (IncludeDataDevices)          s.Add("Data Devices");
+            if (IncludeSecurityDevices)      s.Add("Security Devices");
+            if (IncludeFireAlarmDevices)     s.Add("Fire Alarm Devices");
+            if (IncludePlumbingFixtures)     s.Add("Plumbing Fixtures");
+            if (IncludeAirTerminals)         s.Add("Air Terminals");
+            if (IncludeSprinklers)           s.Add("Sprinklers");
+            return s;
+        }
+    }
+
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class PlaceFixturesCommand : IExternalCommand
@@ -35,14 +94,73 @@ namespace StingTools.Commands.Placement
                 if (doc.GetElement(id) is Room) selectedRoomIds.Add(id);
             }
 
-            bool dryRun = PromptDryRunChoice(selectedRoomIds.Count);
-            if (dryRun == false && !ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
+            // Fixtures sub-tab: "Dry-run preview first" checkbox decides
+            // whether we prompt. When unchecked, go straight to a
+            // confirm-only dialog.
+            bool dryRun;
+            if (PlaceFixturesOptions.DryRunPreference)
+            {
+                dryRun = PromptDryRunChoice(selectedRoomIds.Count);
+            }
+            else
+            {
+                if (!ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
+                dryRun = false;
+            }
+            if (dryRun == false
+                && PlaceFixturesOptions.DryRunPreference == false
+                && !ConfirmPlacement(selectedRoomIds.Count)) return Result.Cancelled;
+
+            // Category filter: discipline checkboxes from the Fixtures
+            // panel restrict which PlacementRule.CategoryFilter values
+            // the engine evaluates. Null/empty set means "all".
+            var allowedCats = PlaceFixturesOptions.AllowedCategoryNames();
+            if (allowedCats.Count == 0)
+            {
+                TaskDialog.Show("STING v4 — Place Fixtures",
+                    "All category checkboxes are off — nothing to place. " +
+                    "Enable at least one category in the Fixtures tab.");
+                return Result.Cancelled;
+            }
+
+            // Load rules and filter down to the categories whose
+            // checkboxes are on. The engine itself takes IList<PlacementRule>,
+            // so filtering here keeps the engine signature unchanged.
+            List<PlacementRule> rules = null;
+            try
+            {
+                rules = PlacementRuleLoader.Load(doc.PathName);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlaceFixturesCommand: rule load failed: {ex.Message}");
+            }
+
+            List<PlacementRule> filtered = null;
+            if (rules != null && rules.Count > 0)
+            {
+                filtered = rules
+                    .Where(r => allowedCats.Contains(r.CategoryFilter ?? ""))
+                    .ToList();
+                if (filtered.Count == 0)
+                {
+                    TaskDialog.Show("STING v4 — Place Fixtures",
+                        "No placement rules match the selected categories. " +
+                        "Either enable more categories in the Fixtures tab, " +
+                        "or add a rule for the target category to " +
+                        "STING_PLACEMENT_RULES.json.");
+                    return Result.Cancelled;
+                }
+            }
 
             PlacementResult res;
             try
             {
                 res = FixturePlacementEngine.PlaceFixturesInScope(
-                    doc, selectedRoomIds.Count > 0 ? selectedRoomIds : null, null, dryRun);
+                    doc,
+                    selectedRoomIds.Count > 0 ? selectedRoomIds : null,
+                    filtered,
+                    dryRun);
             }
             catch (Exception ex)
             {
