@@ -296,6 +296,25 @@ namespace StingTools.UI
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
                     case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
+                    case "Fabrication_ConfigureShopDrawing":
+                    {
+                        var doc = app?.ActiveUIDocument?.Document;
+                        if (doc == null) { TaskDialog.Show("STING v4", "Open a project first."); break; }
+                        var dlg = new UI.ShopDrawingOptionsDialog(doc);
+                        try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                        if (dlg.ShowDialog() == true)
+                        {
+                            Commands.Fabrication.FabricationOptions.ShopDrawing = dlg.Result;
+                            UI.StingDockPanel.LastInstance?.UpdateFabShopDrawingStatus(doc, dlg.Result);
+                        }
+                        break;
+                    }
+                    case "Fabrication_ClearShopDrawing":
+                    {
+                        Commands.Fabrication.FabricationOptions.ShopDrawing = null;
+                        UI.StingDockPanel.LastInstance?.UpdateFabShopDrawingStatus(null, null);
+                        break;
+                    }
 
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;

@@ -4409,10 +4409,22 @@
                                                 </StackPanel>
                                             </Border>
 
-                                            <TextBlock Text="TITLE BLOCK" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
+                                            <TextBlock Text="TITLE BLOCK &amp; VIEW TEMPLATE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,8,0,4"/>
                                             <Border Style="{StaticResource GroupBorder}">
                                                 <StackPanel>
-                                                    <TextBlock Text="Auto-resolved per discipline (STING_TB_ASSEMBLY_*).&#x0A;Falls back to first available title block when missing." FontSize="9" TextWrapping="Wrap"/>
+                                                    <TextBlock x:Name="txtFabShopDrawingStatus"
+                                                               Text="Auto-resolved per discipline (STING_TB_ASSEMBLY_*).&#x0A;Falls back to first available title block when missing."
+                                                               FontSize="9" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                                    <WrapPanel>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Configure…"
+                                                                Tag="Fabrication_ConfigureShopDrawing" Click="Cmd_Click"
+                                                                Width="90" Height="22" Margin="0,0,4,0"
+                                                                ToolTip="Pick a specific title block + view template + sheet name/number pattern. Saved for the Revit session — applies to every Generate package run until cleared."/>
+                                                        <Button Style="{StaticResource ActionBtn}" Content="Clear"
+                                                                Tag="Fabrication_ClearShopDrawing" Click="Cmd_Click"
+                                                                Width="55" Height="22"
+                                                                ToolTip="Reset to auto-resolve (per-discipline STING_TB_ASSEMBLY_*)."/>
+                                                    </WrapPanel>
                                                 </StackPanel>
                                             </Border>
 

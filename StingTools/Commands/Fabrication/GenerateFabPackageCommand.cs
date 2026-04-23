@@ -89,7 +89,12 @@ namespace StingTools.Commands.Fabrication
             // specific title block + view template + sheet-number
             // pattern instead of the per-discipline STING_TB_ASSEMBLY_*
             // default. Cancelling the dialog aborts the command.
-            if (FabricationOptions.GenerateSheets)
+            //
+            // Skipped when the Fabrication tab's "Configure…" button has
+            // already populated FabricationOptions.ShopDrawing — that
+            // inline picker is the persistent path; the popup is only the
+            // one-shot fallback when no panel choice exists.
+            if (FabricationOptions.GenerateSheets && FabricationOptions.ShopDrawing == null)
             {
                 var dlg = new StingTools.UI.ShopDrawingOptionsDialog(doc);
                 try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
