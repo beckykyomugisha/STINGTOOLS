@@ -373,7 +373,6 @@ namespace StingTools.Tags
             mfScopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
                 "Entire project", "Migrate all tagged elements in the model");
             mfScopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            mfScopeDlg.DefaultButton = TaskDialogResult.CommandLink3;
 
             IEnumerable<Element> mfScanSource;
             string mfScopeLabel;

@@ -69,6 +69,9 @@ namespace StingTools.Commands.Placement
                 ? $"{selectedRoomCount} selected room(s)"
                 : "ALL rooms in project";
 
+            // Revit's TaskDialog.DefaultButton must refer to a button in CommonButtons —
+            // it cannot point at a CommandLink. Leave DefaultButton unset so Revit picks
+            // the first-added CommandLink as the default.
             var td = new TaskDialog("STING v4 — Place Fixtures")
             {
                 MainInstruction = "Run preview first?",
@@ -77,7 +80,6 @@ namespace StingTools.Commands.Placement
                     "PREVIEW: score candidates and show the result without placing anything.\n" +
                     "PLACE: execute placement in a single transaction.",
                 CommonButtons = TaskDialogCommonButtons.Cancel,
-                DefaultButton = TaskDialogResult.CommandLink1,
             };
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Preview (dry run)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Place now");
