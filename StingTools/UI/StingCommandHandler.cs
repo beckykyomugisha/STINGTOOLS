@@ -273,6 +273,11 @@ namespace StingTools.UI
                     case "Fabrication_ExportIsometrics":RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
                     case "Fabrication_ExportWeldMap":   RunCommand<Commands.Fabrication.ExportWeldMapCommand>(app); break;
                     case "Fabrication_ExportMaj":       RunCommand<Commands.Fabrication.ExportMajCommand>(app); break;
+
+                    // ── v4 Phase C: calc engines ──
+                    case "Calc_ConduitFill":  RunCommand<Commands.Routing.CalcConduitFillCommand>(app); break;
+                    case "Calc_DuctFriction": RunCommand<Commands.Routing.CalcDuctFrictionCommand>(app); break;
+                    case "Calc_SlopeCorrect": RunCommand<Commands.Routing.CalcSlopeCorrectCommand>(app); break;
                     case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
 
                     // ── Selection scope ──
