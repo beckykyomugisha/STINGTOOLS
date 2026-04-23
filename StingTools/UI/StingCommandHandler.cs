@@ -287,6 +287,10 @@ namespace StingTools.UI
                     case "Mep_ExportPfvIfc":   RunCommand<Commands.Mep.ExportPfvIfcCommand>(app); break;
                     case "Mep_ExportSleeveBcf":RunCommand<Commands.Mep.ExportSleeveBcfCommand>(app); break;
 
+                    // ── v4 Phase J: cable-in-tray modelling ──
+                    case "Electrical_AddCable":    RunCommand<Commands.Electrical.AddCableCommand>(app); break;
+                    case "Electrical_ListCables":  RunCommand<Commands.Electrical.ListCablesCommand>(app); break;
+
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
                     case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
