@@ -1,15 +1,27 @@
 // StingTools v4 MVP — AssemblyViewBuilder.
 //
-// Creates the standard five-view set for a v4 fabrication assembly:
-//   1. 3D orthographic    via AssemblyViewUtils.Create3DOrthographic
-//   2. Plan / part list    via AssemblyViewUtils.CreatePartList
-//   3. ISO 6412 axonometric (30deg trimetric) via ViewSection.CreateSection
-//      with a transformed bounding box
-//   4. Two elevations rotated 0deg and 90deg via ViewSection.CreateSection
-//   5. BOM schedule         via AssemblyViewUtils.CreateSingleCategorySchedule
+// Creates the canonical view set for a v4 fabrication assembly,
+// preferring AssemblyViewUtils.* over hand-rolled ViewSection /
+// ViewSchedule reinvention.
 //
-// Returns AssemblyViewSet record with the five view ids and a
-// schedule id; ShopDrawingComposer (S5.6) places them on the sheet.
+// Views produced:
+//   1. 3D orthographic         AssemblyViewUtils.Create3DOrthographic
+//   2. Plan view               AssemblyViewUtils.CreatePartList
+//      (name is historical — Revit's PartList is actually a 2D plan
+//      view scoped to the assembly members)
+//   3. Elevation (front)       AssemblyViewUtils.CreateDetailSection
+//                               with AssemblyDetailViewOrientation.ElevationFront
+//   4. Elevation (side/left)   AssemblyViewUtils.CreateDetailSection
+//                               with AssemblyDetailViewOrientation.ElevationLeft
+//   5. Elevation (top)         AssemblyViewUtils.CreateDetailSection
+//                               with AssemblyDetailViewOrientation.HorizontalDetail
+//   6. ISO 6412 axonometric    hand-rolled ViewSection.CreateSection at
+//                               30° trimetric (no native API for ISO 6412)
+//   7. BOM schedule            AssemblyViewUtils.CreateSingleCategorySchedule
+//   8. Material takeoff        AssemblyViewUtils.CreateMaterialTakeoff
+//
+// Returns AssemblyViewSet record with every view id; ShopDrawingComposer
+// places them on the title-block sheet.
 
 using System;
 using System.Collections.Generic;
@@ -19,14 +31,16 @@ namespace StingTools.Core.Fabrication
 {
     public class AssemblyViewSet
     {
-        public ElementId AssemblyId   { get; set; }
-        public ElementId View3D       { get; set; }
-        public ElementId ViewPlan     { get; set; }
-        public ElementId ViewIso6412  { get; set; }
-        public ElementId Elevation0   { get; set; }
-        public ElementId Elevation90  { get; set; }
-        public ElementId BomSchedule  { get; set; }
-        public List<string> Warnings  { get; } = new List<string>();
+        public ElementId AssemblyId     { get; set; }
+        public ElementId View3D         { get; set; }
+        public ElementId ViewPlan       { get; set; }
+        public ElementId ViewIso6412    { get; set; }
+        public ElementId Elevation0     { get; set; } // Front
+        public ElementId Elevation90    { get; set; } // Left / side
+        public ElementId ElevationTop   { get; set; } // Top (plan-like)
+        public ElementId BomSchedule    { get; set; }
+        public ElementId MaterialTakeoff{ get; set; }
+        public List<string> Warnings    { get; } = new List<string>();
     }
 
     public static class AssemblyViewBuilder
@@ -46,78 +60,104 @@ namespace StingTools.Core.Fabrication
                 return set;
             }
 
-            // 1. 3D orthographic
+            bool allowsViews = false;
+            try { allowsViews = ai.AllowsAssemblyViewCreation(); }
+            catch (Exception ex) { set.Warnings.Add($"AllowsAssemblyViewCreation: {ex.Message}"); }
+            if (!allowsViews)
+            {
+                set.Warnings.Add("Assembly reports AllowsAssemblyViewCreation == false; skipping view creation.");
+                return set;
+            }
+
+            // 1. 3D orthographic — native API.
             try
             {
-                set.View3D = AssemblyViewUtils.Create3DOrthographic(doc, assemblyId)?.Id
-                             ?? ElementId.InvalidElementId;
+                var v3d = AssemblyViewUtils.Create3DOrthographic(doc, assemblyId);
+                set.View3D = v3d?.Id ?? ElementId.InvalidElementId;
             }
             catch (Exception ex) { set.Warnings.Add($"3D ortho: {ex.Message}"); }
 
-            // 2. Plan / part list
+            // 2. Plan / part list — native API. Revit creates a 2D plan
+            //    view scoped to the assembly, with the part list label
+            //    pre-bound to the schedule created in step 7.
             try
             {
-                set.ViewPlan = AssemblyViewUtils.CreatePartList(doc, assemblyId)?.Id
-                               ?? ElementId.InvalidElementId;
+                var vpl = AssemblyViewUtils.CreatePartList(doc, assemblyId);
+                set.ViewPlan = vpl?.Id ?? ElementId.InvalidElementId;
             }
             catch (Exception ex) { set.Warnings.Add($"Plan: {ex.Message}"); }
 
-            // 3. ISO 6412 axonometric — 30deg trimetric. Approximated by
-            //    a section view with the section box rotated to align
-            //    with the X+Y bisector and tilted to expose the assembly
-            //    from above. TODO-VERIFY-API: section transform geometry.
+            // 3, 4, 5. Elevations — native API.
+            set.Elevation0   = TryCreateDetailSection(doc, assemblyId,
+                AssemblyDetailViewOrientation.ElevationFront, "Elevation front", set);
+            set.Elevation90  = TryCreateDetailSection(doc, assemblyId,
+                AssemblyDetailViewOrientation.ElevationLeft,  "Elevation left",  set);
+            set.ElevationTop = TryCreateDetailSection(doc, assemblyId,
+                AssemblyDetailViewOrientation.HorizontalDetail, "Top detail",    set);
+
+            // 6. ISO 6412 axonometric — no native API.
+            //    Emit a 30° trimetric Section via ViewSection.CreateSection
+            //    with a rotated BoundingBoxXYZ. ISO 6412 isometrics
+            //    are a text-file-plus-Isogen workflow in industry; this
+            //    view is a best-effort axonometric for the shop package.
             try
             {
-                set.ViewIso6412 = CreateSectionAt(doc, ai, RotationDeg.Iso30);
+                set.ViewIso6412 = CreateIso6412Section(doc, ai);
             }
             catch (Exception ex) { set.Warnings.Add($"ISO 6412: {ex.Message}"); }
 
-            // 4. Two cardinal elevations
-            try { set.Elevation0  = CreateSectionAt(doc, ai, RotationDeg.Front); }
-            catch (Exception ex) { set.Warnings.Add($"Elevation 0: {ex.Message}"); }
-
-            try { set.Elevation90 = CreateSectionAt(doc, ai, RotationDeg.Side);  }
-            catch (Exception ex) { set.Warnings.Add($"Elevation 90: {ex.Message}"); }
-
-            // 5. BOM schedule
+            // 7. BOM schedule — native API, scoped to assembly category.
             try
             {
                 ElementId catId = ai.Category?.Id ?? new ElementId(BuiltInCategory.OST_GenericModel);
-                set.BomSchedule = AssemblyViewUtils.CreateSingleCategorySchedule(
-                    doc, assemblyId, catId)?.Id ?? ElementId.InvalidElementId;
+                var sch = AssemblyViewUtils.CreateSingleCategorySchedule(doc, assemblyId, catId);
+                set.BomSchedule = sch?.Id ?? ElementId.InvalidElementId;
             }
             catch (Exception ex) { set.Warnings.Add($"BOM schedule: {ex.Message}"); }
+
+            // 8. Material takeoff — native API. Provides a quantity /
+            //    material breakdown that the shop uses for procurement.
+            try
+            {
+                var mat = AssemblyViewUtils.CreateMaterialTakeoff(doc, assemblyId);
+                set.MaterialTakeoff = mat?.Id ?? ElementId.InvalidElementId;
+            }
+            catch (Exception ex) { set.Warnings.Add($"Material takeoff: {ex.Message}"); }
 
             return set;
         }
 
-        private enum RotationDeg { Front = 0, Side = 90, Iso30 = 30 }
-
-        private static ElementId CreateSectionAt(Document doc, AssemblyInstance ai, RotationDeg rot)
+        private static ElementId TryCreateDetailSection(
+            Document doc, ElementId assemblyId,
+            AssemblyDetailViewOrientation orientation, string label,
+            AssemblyViewSet set)
         {
-            // TODO-VERIFY-API:
-            //   ViewSection.CreateSection(doc, viewFamilyTypeId, BoundingBoxXYZ)
-            // The bounding box transform.Origin = assembly centre and
-            // BasisX = horizontal in-plane direction, BasisY = vertical
-            // (world Z), BasisZ = view-direction. Scale: 1/2 of largest
-            // assembly dimension.
+            try
+            {
+                var view = AssemblyViewUtils.CreateDetailSection(doc, assemblyId, orientation);
+                return view?.Id ?? ElementId.InvalidElementId;
+            }
+            catch (Exception ex)
+            {
+                set.Warnings.Add($"{label}: {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
 
+        private static ElementId CreateIso6412Section(Document doc, AssemblyInstance ai)
+        {
             var bb = ai.get_BoundingBox(null);
             if (bb == null) throw new InvalidOperationException("Assembly has no bounding box");
             var centre = (bb.Min + bb.Max) * 0.5;
 
-            double angleRad = (double)rot * Math.PI / 180.0;
-            // BasisZ rotated about world Z so view points horizontally
-            XYZ basisZ = new XYZ(Math.Sin(angleRad), -Math.Cos(angleRad), 0).Normalize();
+            // 30° trimetric: view direction is in the horizontal plane
+            // bisecting X and Y, tilted up 30° so Z is projected.
+            const double deg30 = Math.PI / 6.0;
+            XYZ horiz = new XYZ(Math.Cos(deg30), -Math.Sin(deg30), 0).Normalize();
+            // Tilt the view direction 30° upwards.
+            XYZ basisZ = new XYZ(horiz.X, horiz.Y, -Math.Tan(deg30)).Normalize();
             XYZ basisY = XYZ.BasisZ;
             XYZ basisX = basisY.CrossProduct(basisZ).Normalize();
-
-            // For the ISO 6412 axonometric, tilt 30deg upwards
-            if (rot == RotationDeg.Iso30)
-            {
-                basisZ = new XYZ(basisZ.X, basisZ.Y, -Math.Tan(Math.PI / 6.0)).Normalize();
-                basisX = basisY.CrossProduct(basisZ).Normalize();
-            }
 
             var t = Transform.Identity;
             t.Origin = centre;
@@ -128,7 +168,8 @@ namespace StingTools.Core.Fabrication
             double dx = bb.Max.X - bb.Min.X;
             double dy = bb.Max.Y - bb.Min.Y;
             double dz = bb.Max.Z - bb.Min.Z;
-            double half = Math.Max(Math.Max(dx, dy), dz);
+            double half = 0.5 * Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
             var sectionBb = new BoundingBoxXYZ
             {
                 Transform = t,
