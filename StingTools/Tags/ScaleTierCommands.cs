@@ -104,18 +104,39 @@ namespace StingTools.Tags
     }
 
     /// <summary>
-    /// Flips the <c>TAG_{size}{style}_{colour}_BOOL</c> visibility matrix on
-    /// every tag family type used in the active view so the active size row
-    /// matches the view's scale tier (per <see cref="ScaleTiers.ForView"/>).
-    /// Style and colour are preserved: whichever BOOL was currently true keeps
-    /// its style + colour, only the size letter swaps.
+    /// Makes tags in the active view render at the scale-tier size (per
+    /// <see cref="ScaleTiers.ForView"/>), preserving each tag's current style
+    /// and colour. Two operating modes, selected via extra-param
+    /// <c>ScaleSizeMode</c> ("Instance" / "Type" / "Auto" — default Auto):
     ///
-    /// When no BOOL is currently true on a type (fresh family), we default to
-    /// NOM / BLACK at the scale-tier size.
+    /// <list type="bullet">
+    /// <item><b>Instance</b>: for every <c>IndependentTag</c> in the view,
+    /// find a pre-existing family type named <c>{size}{style}_{colour}</c>
+    /// and call <c>tag.ChangeTypeId</c>. Side-effect free: another view that
+    /// uses the same family keeps its own tag types.</item>
+    /// <item><b>Type</b>: flips the <c>TAG_{size}{style}_{colour}_BOOL</c>
+    /// visibility matrix on each tag type used in the view. Simple but
+    /// project-wide — other views using the same type swap too.</item>
+    /// <item><b>Auto</b>: tries Instance per tag; any tag whose target type
+    /// is missing falls through to Type-mode for that type.</item>
+    /// </list>
+    ///
+    /// <para>Invokable programmatically via <see cref="ApplyToView"/>, which
+    /// is what <c>StingToolsApp.OnViewActivated</c> calls when
+    /// <c>TAG_SCALE_TIER_AUTO_BOOL</c> is set on Project Information.</para>
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class SetScaleAwareTagSizeCommand : IExternalCommand
     {
+        public sealed class Result_
+        {
+            public int InstanceSwitches { get; set; }
+            public int TypeMatrixFlips { get; set; }
+            public int ParamsChanged { get; set; }
+            public int TypesMissingTarget { get; set; }
+            public int Skipped { get; set; }
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -136,65 +157,129 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            var tagTypeIds = CollectTagTypeIdsInView(doc, view);
-            if (tagTypeIds.Count == 0)
+            string modeExtra = StingCommandHandler.GetExtraParam("ScaleSizeMode");
+            if (string.IsNullOrEmpty(modeExtra)) modeExtra = "Auto";
+
+            Result_ r = ApplyToView(doc, view, size, modeExtra);
+            int total = r.InstanceSwitches + r.TypeMatrixFlips;
+            if (total == 0 && r.Skipped == 0 && r.TypesMissingTarget == 0)
             {
                 TaskDialog.Show("Scale-Aware Tag Size",
                     "No tag annotations found in the active view.");
                 return Result.Cancelled;
             }
 
-            int typesUpdated = 0, paramsChanged = 0, typesSkipped = 0;
-            using (Transaction tx = new Transaction(doc, $"STING Scale-Aware Tag Size · {view.Scale}"))
-            {
-                tx.Start();
-                foreach (ElementId tid in tagTypeIds)
-                {
-                    Element typeEl = doc.GetElement(tid);
-                    if (typeEl == null) { typesSkipped++; continue; }
-
-                    (string curSize, string curStyle, string curColour) = DetectActiveStyle(typeEl);
-                    string newStyle  = curStyle  ?? "NOM";
-                    string newColour = curColour ?? "BLACK";
-                    string targetBool = ParamRegistry.TagStyleParamName(size, newStyle, newColour);
-
-                    int flipped = ApplySizeMatrix(typeEl, targetBool);
-                    if (flipped > 0) { typesUpdated++; paramsChanged += flipped; }
-                    else             typesSkipped++;
-                }
-                tx.Commit();
-            }
-
-            StingLog.Info(
-                $"ScaleAwareTagSize: view='{view.Name}' scale=1:{view.Scale} tier='{tier.Label}' " +
-                $"size={size}mm typesUpdated={typesUpdated} paramsChanged={paramsChanged} " +
-                $"typesSkipped={typesSkipped}");
-
             if (string.IsNullOrEmpty(StingCommandHandler.GetExtraParam("SuppressDialog")))
             {
                 TaskDialog.Show("Scale-Aware Tag Size",
                     $"View: {view.Name}  (1:{view.Scale}, tier '{tier.Label}')\n" +
-                    $"Target text size: {size} mm\n\n" +
-                    $"Tag types updated: {typesUpdated}\n" +
-                    $"Params flipped:    {paramsChanged}\n" +
-                    (typesSkipped > 0 ? $"Skipped (no matrix / read-only): {typesSkipped}" : ""));
+                    $"Target text size: {size} mm\n" +
+                    $"Mode: {modeExtra}\n\n" +
+                    $"Tag instances switched:  {r.InstanceSwitches}\n" +
+                    $"Tag types matrix-flipped: {r.TypeMatrixFlips}\n" +
+                    $"Params changed:           {r.ParamsChanged}\n" +
+                    (r.TypesMissingTarget > 0 ? $"Types missing target:     {r.TypesMissingTarget}\n" : "") +
+                    (r.Skipped > 0 ? $"Skipped:                  {r.Skipped}" : ""));
             }
             return Result.Succeeded;
         }
 
-        private static List<ElementId> CollectTagTypeIdsInView(Document doc, View view)
+        /// <summary>
+        /// Programmatic entry point — runs without UI. Caller is responsible
+        /// for the open Revit transaction context; this method starts its own
+        /// <see cref="Transaction"/>. Safe to call from event handlers.
+        /// </summary>
+        public static Result_ ApplyToView(Document doc, View view, string size, string mode)
         {
-            var set = new HashSet<ElementId>();
-            var tags = new FilteredElementCollector(doc, view.Id)
+            var r = new Result_();
+            if (doc == null || view == null) return r;
+
+            var tagsInView = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
                 .WhereElementIsNotElementType()
-                .ToElements();
-            foreach (Element e in tags)
+                .Cast<IndependentTag>()
+                .ToList();
+            if (tagsInView.Count == 0) return r;
+
+            Dictionary<string, ElementId> typeIndex =
+                TagStyleRuleEngine.BuildTagTypeIndex(doc);
+
+            bool allowInstance = mode != "Type";
+            bool allowType     = mode != "Instance";
+
+            using (Transaction tx = new Transaction(doc, $"STING Scale-Aware Tag Size · 1:{view.Scale}"))
             {
-                ElementId tid = e.GetTypeId();
-                if (tid != null && tid != ElementId.InvalidElementId) set.Add(tid);
+                tx.Start();
+
+                // Instance pass: one ChangeTypeId per tag. We track which
+                // source types couldn't be matched so the Type pass only
+                // touches those.
+                var needTypePass = new HashSet<ElementId>();
+                foreach (IndependentTag tag in tagsInView)
+                {
+                    ElementId srcTypeId = tag.GetTypeId();
+                    if (srcTypeId == null || srcTypeId == ElementId.InvalidElementId) { r.Skipped++; continue; }
+                    Element typeEl = doc.GetElement(srcTypeId);
+                    if (typeEl == null) { r.Skipped++; continue; }
+
+                    (string curSize, string curStyle, string curColour) = DetectActiveStyle(typeEl);
+                    string style  = curStyle  ?? "NOM";
+                    string colour = curColour ?? "BLACK";
+
+                    if (allowInstance)
+                    {
+                        string targetTypeName = $"{size}{style}_{colour}";
+                        if (typeIndex.TryGetValue(targetTypeName, out ElementId targetId)
+                            && targetId != srcTypeId)
+                        {
+                            try
+                            {
+                                tag.ChangeTypeId(targetId);
+                                r.InstanceSwitches++;
+                                continue;
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"ChangeTypeId failed on tag {tag.Id}: {ex.Message}");
+                            }
+                        }
+                        else if (typeIndex.ContainsKey(targetTypeName))
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            r.TypesMissingTarget++;
+                            if (allowType) needTypePass.Add(srcTypeId);
+                            else           r.Skipped++;
+                        }
+                    }
+                    else
+                    {
+                        needTypePass.Add(srcTypeId);
+                    }
+                }
+
+                foreach (ElementId tid in needTypePass)
+                {
+                    Element typeEl = doc.GetElement(tid);
+                    if (typeEl == null) { r.Skipped++; continue; }
+                    (string _, string curStyle, string curColour) = DetectActiveStyle(typeEl);
+                    string targetBool = ParamRegistry.TagStyleParamName(
+                        size, curStyle ?? "NOM", curColour ?? "BLACK");
+                    int flipped = ApplySizeMatrix(typeEl, targetBool);
+                    if (flipped > 0) { r.TypeMatrixFlips++; r.ParamsChanged += flipped; }
+                }
+
+                tx.Commit();
             }
-            return set.ToList();
+
+            StingLog.Info(
+                $"ScaleAwareTagSize: view='{view.Name}' scale=1:{view.Scale} size={size}mm " +
+                $"mode={mode} instances={r.InstanceSwitches} typeFlips={r.TypeMatrixFlips} " +
+                $"paramsChanged={r.ParamsChanged} missingTarget={r.TypesMissingTarget} " +
+                $"skipped={r.Skipped}");
+            return r;
         }
 
         private static (string size, string style, string colour) DetectActiveStyle(Element typeEl)

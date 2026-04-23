@@ -307,6 +307,23 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// Push the three Scale-tab info labels from
+        /// <c>StingToolsApp.OnViewActivated</c>. Must be called on the WPF
+        /// dispatcher thread; tolerates null controls when the tab is still
+        /// in its deferred-loading placeholder.
+        /// </summary>
+        public void UpdateScaleInfoLabels(string scaleText, string tierText, string offsetText)
+        {
+            try
+            {
+                if (txtViewScale  != null) txtViewScale.Text  = scaleText  ?? "Scale: —";
+                if (txtViewTier   != null) txtViewTier.Text   = tierText   ?? "Tier: —";
+                if (txtViewOffset != null) txtViewOffset.Text = offsetText ?? "Offset: — mm (— ft)";
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateScaleInfoLabels: {ex.Message}"); }
+        }
+
+        /// <summary>
         /// Read the Scale tab sliders and pass them as ExtraParams for
         /// <c>ApplyScaleTiersCommand</c>. Keyed to the JSON schema that
         /// <c>Core.ScaleTiers.SaveProjectOverride</c> writes.

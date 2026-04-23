@@ -395,10 +395,11 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex) { StingLog.Warn($"SetHandoverMode: preset mirror failed: {ex.Message}"); }
 
-                // Flip the two selector BOOLs on Project Information so
-                // dual-wired tag families switch pattern live. Exactly one is
-                // true; unknown modes (e.g. Custom) clear both so no default
-                // pattern is rendered until the user maps Custom to a gate.
+                // Flip the selector BOOLs on Project Information so dual-wired
+                // tag families switch pattern live. Exactly one is true
+                // (Handover / DesignConstruction / Custom); a mode with no
+                // entry in HandoverModeHelper.ModeSelectorBool clears all
+                // three so tier rows stay hidden.
                 int boolsSet = SetPatternSelectors(doc, mode);
 
                 // Reload TagConfig so category warnings (loaded from the

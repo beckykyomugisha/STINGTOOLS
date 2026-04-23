@@ -545,6 +545,8 @@ namespace StingTools.Core
         public static string MODE_HANDOVER { get; private set; } = "HANDOVER_MODE_HANDOVER_BOOL";
         /// <summary>Pattern selector — Design & Construction T4-T10 payload is visible.</summary>
         public static string MODE_DC { get; private set; } = "HANDOVER_MODE_DC_BOOL";
+        /// <summary>Pattern selector — Custom (user-defined) T4-T10 payload is visible.</summary>
+        public static string MODE_CUSTOM { get; private set; } = "HANDOVER_MODE_CUSTOM_BOOL";
 
         // ── Warning threshold definitions (v5.5) ─────────────────────────
         // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.

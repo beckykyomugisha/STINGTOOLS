@@ -23,19 +23,23 @@ namespace StingTools.Core
     {
         public const string DefaultMode = "Handover";
 
-        /// <summary>Handover (built-in universal CSV) + DC sibling. Others can be added.</summary>
-        public static readonly string[] BuiltInModes = { "Handover", "DesignConstruction" };
+        /// <summary>Handover (built-in universal CSV) + DC sibling. Custom is user-edited,
+        /// gated by <c>HANDOVER_MODE_CUSTOM_BOOL</c>; its label rows only live inside
+        /// dual-wired families if a Custom CSV variant ships on disk.</summary>
+        public static readonly string[] BuiltInModes = { "Handover", "DesignConstruction", "Custom" };
 
         /// <summary>
         /// Maps a built-in mode to the project-level YESNO selector BOOL that
-        /// gates its T4-T10 label rows inside dual-wired tag families. A mode
-        /// without an entry here is treated as "no gate" (single-mode fallback).
+        /// gates its T4-T10 label rows inside dual-wired tag families. Exactly
+        /// one is true at a time; a mode without an entry here is treated as
+        /// "no gate" (single-mode fallback).
         /// </summary>
         public static readonly IReadOnlyDictionary<string, string> ModeSelectorBool =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "Handover",           "HANDOVER_MODE_HANDOVER_BOOL" },
                 { "DesignConstruction", "HANDOVER_MODE_DC_BOOL" },
+                { "Custom",             "HANDOVER_MODE_CUSTOM_BOOL" },
             };
 
         private static readonly string[] Disciplines = { "ARCH", "GEN", "MEP", "STR" };

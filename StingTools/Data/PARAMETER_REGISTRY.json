@@ -271,6 +271,14 @@
       "required": false
     },
     {
+      "param_name": "HANDOVER_MODE_CUSTOM_BOOL",
+      "guid": "a1b2c3d4-0002-5a01-b001-000000001003",
+      "description": "Pattern selector — Custom (user-defined) T4-T10 payload is live. Exactly one of HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL / HANDOVER_MODE_CUSTOM_BOOL is true per project.",
+      "binding": "universal",
+      "param_type": "YESNO",
+      "required": false
+    },
+    {
       "param_name": "TAG_TEXT_COLOUR_TEXT",
       "guid": "867fb0db-88ea-4a3d-9c01-000000000001",
       "description": "Tag text colour (Integer code)",
