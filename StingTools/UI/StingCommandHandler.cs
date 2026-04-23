@@ -273,6 +273,7 @@ namespace StingTools.UI
                     case "Fabrication_ExportIsometrics":RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
                     case "Fabrication_ExportWeldMap":   RunCommand<Commands.Fabrication.ExportWeldMapCommand>(app); break;
                     case "Fabrication_ExportMaj":       RunCommand<Commands.Fabrication.ExportMajCommand>(app); break;
+                    case "Fabrication_ExportPcf":       RunCommand<Commands.Fabrication.ExportPcfCommand>(app); break;
 
                     // ── v4 Phase C: calc engines ──
                     case "Calc_ConduitFill":  RunCommand<Commands.Routing.CalcConduitFillCommand>(app); break;
