@@ -76,13 +76,17 @@ namespace StingTools.Core
     public static class PerFamilyTierMap
     {
         /// <summary>
-        /// Narrative-only mode: force T4..T10 to Omit across every family.
+        /// Narrative-only mode (opt-in). When true, Resolve() forces T4..T10
+        /// to Omit on every plan so tag families drop those label rows and all
         /// T4-T10 content lives in ASS_TAG_7_TXT (composed by
-        /// ApplyParagraphPresetCommand from PARAGRAPH_PRESETS.json), so tag
-        /// families only need T1..T3 label rows. Flip to false to restore
-        /// the per-family T4..T10 label-row behaviour (legacy v5 families).
+        /// ApplyParagraphPresetCommand from PARAGRAPH_PRESETS.json).
+        /// Default false — T4-T10 stay as real label rows so tags remain
+        /// live-bound to source parameters (schedules, IFC/COBie export, and
+        /// view filters all read the actual parameters). The Paragraph
+        /// Builder, presets, and Tag 7 updater are still available as an
+        /// additive surface for user-composed prose in ASS_TAG_7_TXT.
         /// </summary>
-        public const bool NarrativeOnlyTiers4To10 = true;
+        public const bool NarrativeOnlyTiers4To10 = false;
 
         /// <summary>Default plan = all tiers KEEP (applies to unrecognised families).</summary>
         public static TierPlan DefaultPlan { get; } = ApplyNarrativeMode(new TierPlan());
