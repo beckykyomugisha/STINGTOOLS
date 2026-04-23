@@ -27,9 +27,10 @@ using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Clash;
 
-using TextBox = System.Windows.Controls.TextBox;
-using ComboBox = System.Windows.Controls.ComboBox;
+using TextBox      = System.Windows.Controls.TextBox;
+using ComboBox     = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using Grid         = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {
