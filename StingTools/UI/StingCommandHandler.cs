@@ -282,6 +282,10 @@ namespace StingTools.UI
                     case "Calc_HardyCross":  RunCommand<Commands.Routing.HardyCrossCommand>(app); break;
                     case "Calc_CableSegregation": RunCommand<Commands.Routing.CableSegregationCommand>(app); break;
 
+                    // ── v4 Phase I: sleeve engine ──
+                    case "Mep_PlaceSleeves":   RunCommand<Commands.Mep.PlaceSleevesCommand>(app); break;
+                    case "Mep_ExportPfvIfc":   RunCommand<Commands.Mep.ExportPfvIfcCommand>(app); break;
+
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
                     case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
