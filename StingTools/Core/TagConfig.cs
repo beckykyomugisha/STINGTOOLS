@@ -2681,11 +2681,15 @@ namespace StingTools.Core
                                    : "";
             string seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
 
-            string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
+            // PERF: hoist the tag body ("[prefix-]disc-loc-zone-lvl-sys-func-prod-")
+            // and the suffix tail ("[-suffix]") outside the collision loop so only
+            // the SEQ segment needs to re-concatenate per collision iteration.
+            string tagBody = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod);
+            if (!string.IsNullOrEmpty(TagPrefix)) tagBody = TagPrefix + Separator + tagBody;
+            tagBody += Separator;
+            string tagSuffix = string.IsNullOrEmpty(TagSuffix) ? string.Empty : Separator + TagSuffix;
 
-            // TW-03: Apply optional tag prefix and suffix
-            if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
-            if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+            string tag = tagBody + seq + tagSuffix;
 
             // Collision detection: if this exact tag already exists, increment SEQ
             if (existingTags != null)
@@ -2706,10 +2710,7 @@ namespace StingTools.Core
                         return false; // Skip element to prevent duplicate tags
                     }
                     seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
-                    tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
-                    // TW-03: Re-apply prefix/suffix after collision rebuild
-                    if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
-                    if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+                    tag = tagBody + seq + tagSuffix;
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
