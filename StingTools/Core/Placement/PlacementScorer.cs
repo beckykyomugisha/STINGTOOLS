@@ -44,10 +44,30 @@ namespace StingTools.Core.Placement
         private const double SymmetryWeight  = 0.05;
 
         private readonly Document _doc;
+        private LightingGridCalculator _lightingGrid;
 
         public PlacementScorer(Document doc)
         {
             _doc = doc;
+        }
+
+        /// <summary>
+        /// Lazy-initialised BS EN 12464-1 lux calculator. Shared across
+        /// all rules scored in a single session so the classifier CSV
+        /// and lux-target table parse only once.
+        /// </summary>
+        private LightingGridCalculator LightingGrid
+        {
+            get
+            {
+                if (_lightingGrid == null)
+                {
+                    try { _lightingGrid = new LightingGridCalculator(); }
+                    catch (Exception ex)
+                    { StingLog.Warn($"PlacementScorer: LightingGridCalculator init failed: {ex.Message}"); }
+                }
+                return _lightingGrid;
+            }
         }
 
         /// <summary>
@@ -134,6 +154,36 @@ namespace StingTools.Core.Placement
                 case "CEILING_CENTRE":
                     // Mounting height treated as elevation above room floor
                     points.Add(new XYZ(roomPt.X, roomPt.Y, roomPt.Z + Math.Max(mountingFt, 2.8 / 0.3048)));
+                    break;
+                case "LIGHTING_GRID":
+                case "LUX_GRID":
+                case "EN12464":
+                    // BS EN 12464-1 lumen-method grid. The calculator
+                    // emits one point per required luminaire. Returns
+                    // no points when the room is too small or the
+                    // classifier yields zero target lux.
+                    var grid = LightingGrid?.Compute(room);
+                    if (grid != null && grid.Points.Count > 0)
+                    {
+                        foreach (var p in grid.Points)
+                        {
+                            // Respect the rule's mounting height instead
+                            // of the grid's default room-Z (the calculator
+                            // uses the room bounding box min-Z which is
+                            // the room floor, not the ceiling plane).
+                            points.Add(new XYZ(p.X, p.Y, roomPt.Z + mountingFt));
+                        }
+                        StingLog.Info(
+                            $"PlacementScorer: lighting grid for room {room.Id} — " +
+                            $"{grid.RoomTypeCode} target {grid.TargetLux:F0}lx, " +
+                            $"{grid.FixturesRequired} fixture(s) on {grid.SpacingXMm:F0}×{grid.SpacingYMm:F0}mm grid");
+                    }
+                    else
+                    {
+                        // Fallback: treat as CEILING_CENTRE so lux-gated
+                        // rules still produce a candidate.
+                        points.Add(new XYZ(roomPt.X, roomPt.Y, roomPt.Z + mountingFt));
+                    }
                     break;
                 case "WALL_MIDPOINT":
                 case "WALL_CORNER":
