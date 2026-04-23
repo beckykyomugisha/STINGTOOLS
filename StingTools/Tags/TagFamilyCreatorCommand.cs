@@ -451,6 +451,30 @@ namespace StingTools.Tags
         };
 
         /// <summary>
+        /// Resolve the PerFamilyTierMap plan and return the subset of VisibilityParams that
+        /// should be injected into this family. For every tier OMITted by the plan the
+        /// corresponding TAG_PARA_STATE_N_BOOL is dropped so the Revit family does not carry
+        /// an orphan visibility toggle (T1..T3 + WARN_VISIBLE are always kept).
+        /// Falls back to the full VisibilityParams list when both familyName and category
+        /// resolve to DefaultPlan (all Keep) — a no-op in that case.
+        /// </summary>
+        public static IEnumerable<string> VisibilityParamsFor(string familyName, string categoryDisplay)
+        {
+            var plan = PerFamilyTierMap.Resolve(familyName, categoryDisplay);
+            foreach (string p in VisibilityParams)
+            {
+                if (p == ParamRegistry.PARA_STATE_4  && plan.T4  == TierState.Omit) continue;
+                if (p == ParamRegistry.PARA_STATE_5  && plan.T5  == TierState.Omit) continue;
+                if (p == ParamRegistry.PARA_STATE_6  && plan.T6  == TierState.Omit) continue;
+                if (p == ParamRegistry.PARA_STATE_7  && plan.T7  == TierState.Omit) continue;
+                if (p == ParamRegistry.PARA_STATE_8  && plan.T8  == TierState.Omit) continue;
+                if (p == ParamRegistry.PARA_STATE_9  && plan.T9  == TierState.Omit) continue;
+                if (p == ParamRegistry.PARA_STATE_10 && plan.T10 == TierState.Omit) continue;
+                yield return p;
+            }
+        }
+
+        /// <summary>
         /// Style/appearance parameters — all 128 TAG_{size}{style}_{colour}_BOOL variants plus
         /// box colour/visibility/style, leader colour, scale-tier-auto, and depth-tier cache.
         /// Added to every tag family by Create/Migrate so the Tag Style Engine can switch
@@ -480,8 +504,11 @@ namespace StingTools.Tags
         /// Get all parameters that should be added to a tag family for a specific
         /// category. Includes TagParams + VisibilityParams + category-specific
         /// paragraph container and tier 2/3 display parameters from LABEL_DEFINITIONS.json.
+        /// When <paramref name="familyName"/> is supplied, the visibility params are
+        /// filtered through PerFamilyTierMap so OMITted tiers do not carry an orphan
+        /// TAG_PARA_STATE_N_BOOL.
         /// </summary>
-        public static List<string> GetAllFamilyParams(string categoryDisplayName)
+        public static List<string> GetAllFamilyParams(string categoryDisplayName, string familyName = null)
         {
             var result = new List<string>();
 
@@ -489,7 +516,8 @@ namespace StingTools.Tags
             result.AddRange(TagParams);
 
             // Always add visibility control params (PARA_STATE_1..10 + WARN_VISIBLE)
-            result.AddRange(VisibilityParams);
+            // — filtered per TierPlan when family is known, otherwise full list.
+            result.AddRange(VisibilityParamsFor(familyName, categoryDisplayName));
 
             // Always add style/appearance params (128 TAG_{size}{style}_{colour}_BOOL +
             // box colour/visible/style + leader colour + scale-tier-auto + depth-tier cache)
@@ -1002,8 +1030,8 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    // Add shared parameters: tag containers + visibility + category-specific
-                    var allParams = TagFamilyConfig.GetAllFamilyParams(catDisplay);
+                    // Add shared parameters: tag containers + visibility (filtered by TierPlan) + category-specific
+                    var allParams = TagFamilyConfig.GetAllFamilyParams(catDisplay, famName);
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, allParams);
 
                     // If no params were added, log detailed diagnostics
@@ -1124,7 +1152,7 @@ namespace StingTools.Tags
 
                     // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
                     var tieInParams = TagFamilyConfig.TagParams
-                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Concat(TagFamilyConfig.VisibilityParamsFor(famName, tiein.display))
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, tieInParams);
 
@@ -1229,7 +1257,7 @@ namespace StingTools.Tags
 
                     // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
                     var dsParams = TagFamilyConfig.TagParams
-                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Concat(TagFamilyConfig.VisibilityParamsFor(famName, ds.display))
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, dsParams);
 
@@ -1333,7 +1361,7 @@ namespace StingTools.Tags
 
                     // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
                     var svParams = TagFamilyConfig.TagParams
-                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Concat(TagFamilyConfig.VisibilityParamsFor(famName, sv.display))
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, svParams);
 
@@ -1437,7 +1465,7 @@ namespace StingTools.Tags
 
                     // Add shared parameters using resilient helper (isolates OpenSharedParameterFile errors)
                     var mvParams = TagFamilyConfig.TagParams
-                        .Concat(TagFamilyConfig.VisibilityParams)
+                        .Concat(TagFamilyConfig.VisibilityParamsFor(famName, mv.display))
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, mvParams);
 
