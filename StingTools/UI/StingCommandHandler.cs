@@ -285,6 +285,7 @@ namespace StingTools.UI
                     // ── v4 Phase I: sleeve engine ──
                     case "Mep_PlaceSleeves":   RunCommand<Commands.Mep.PlaceSleevesCommand>(app); break;
                     case "Mep_ExportPfvIfc":   RunCommand<Commands.Mep.ExportPfvIfcCommand>(app); break;
+                    case "Mep_ExportSleeveBcf":RunCommand<Commands.Mep.ExportSleeveBcfCommand>(app); break;
 
                     // ── v4 Phase D: hanger placement ──
                     case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
