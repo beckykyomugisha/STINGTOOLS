@@ -75,8 +75,21 @@ namespace StingTools.Core
     /// </summary>
     public static class PerFamilyTierMap
     {
+        /// <summary>
+        /// Narrative-only mode (opt-in). When true, Resolve() forces T4..T10
+        /// to Omit on every plan so tag families drop those label rows and all
+        /// T4-T10 content lives in ASS_TAG_7_TXT (composed by
+        /// ApplyParagraphPresetCommand from PARAGRAPH_PRESETS.json).
+        /// Default false — T4-T10 stay as real label rows so tags remain
+        /// live-bound to source parameters (schedules, IFC/COBie export, and
+        /// view filters all read the actual parameters). The Paragraph
+        /// Builder, presets, and Tag 7 updater are still available as an
+        /// additive surface for user-composed prose in ASS_TAG_7_TXT.
+        /// </summary>
+        public const bool NarrativeOnlyTiers4To10 = false;
+
         /// <summary>Default plan = all tiers KEEP (applies to unrecognised families).</summary>
-        public static TierPlan DefaultPlan { get; } = new TierPlan();
+        public static TierPlan DefaultPlan { get; } = ApplyNarrativeMode(new TierPlan());
 
         private static readonly Dictionary<string, TierPlan> ByFamilyName = BuildFamilyMap();
         private static readonly Dictionary<string, TierPlan> ByCategory = BuildCategoryMap();
@@ -84,9 +97,33 @@ namespace StingTools.Core
         /// <summary>Resolve a plan for a tag family. Tries family name first, falls back to Revit category, then DefaultPlan.</summary>
         public static TierPlan Resolve(string familyName, string revitCategory)
         {
-            if (!string.IsNullOrEmpty(familyName) && ByFamilyName.TryGetValue(familyName, out var p)) return p;
-            if (!string.IsNullOrEmpty(revitCategory) && ByCategory.TryGetValue(revitCategory, out var q)) return q;
-            return DefaultPlan;
+            TierPlan plan;
+            if (!string.IsNullOrEmpty(familyName) && ByFamilyName.TryGetValue(familyName, out var p))
+                plan = p;
+            else if (!string.IsNullOrEmpty(revitCategory) && ByCategory.TryGetValue(revitCategory, out var q))
+                plan = q;
+            else
+                plan = DefaultPlan;
+            return ApplyNarrativeMode(plan);
+        }
+
+        /// <summary>
+        /// Force every T4..T10 state on the supplied plan to Omit when
+        /// NarrativeOnlyTiers4To10 is on, regardless of what the per-family
+        /// matrix said. Leaves T1..T3 and the Rows lists untouched so legacy
+        /// consumers that still inspect them do not crash.
+        /// </summary>
+        private static TierPlan ApplyNarrativeMode(TierPlan plan)
+        {
+            if (!NarrativeOnlyTiers4To10 || plan == null) return plan;
+            plan.T4 = TierState.Omit;
+            plan.T5 = TierState.Omit;
+            plan.T6 = TierState.Omit;
+            plan.T7 = TierState.Omit;
+            plan.T8 = TierState.Omit;
+            plan.T9 = TierState.Omit;
+            plan.T10 = TierState.Omit;
+            return plan;
         }
 
         /// <summary>Enumerate all known family names (for diagnostics and smoke tests).</summary>

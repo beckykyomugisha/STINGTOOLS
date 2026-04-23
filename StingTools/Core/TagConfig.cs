@@ -1890,11 +1890,18 @@ namespace StingTools.Core
         /// </summary>
         private static void LoadCategoryWarningsFromTagConfigCsvs()
         {
+            // Routed through HandoverModeHelper so a DesignConstruction project
+            // picks up warnings from the DC-variant CSVs and a Handover project
+            // keeps using the default CSVs. Missing variants fall back to the
+            // Handover defaults, so this is safe in any install.
+            // Pass (Document)null so the helper falls through to the
+            // PARAGRAPH_PRESETS.json active_preset (mode set by the last user
+            // Apply); the string-mode overload would short-circuit to Handover.
             string[] csvFiles = new[]
             {
-                "STING_TAG_CONFIG_v5_0_ARCH.csv",
-                "STING_TAG_CONFIG_v5_0_MEP.csv",
-                "STING_TAG_CONFIG_v5_0_STR.csv"
+                HandoverModeHelper.GetTagConfigCsv("ARCH", (Document)null),
+                HandoverModeHelper.GetTagConfigCsv("MEP",  (Document)null),
+                HandoverModeHelper.GetTagConfigCsv("STR",  (Document)null),
             };
 
             int added = 0;

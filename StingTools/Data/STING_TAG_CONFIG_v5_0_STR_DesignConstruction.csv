@@ -1,0 +1,1096 @@
+#SCHEMA_VERSION=5.4,CREATED=2026-03-16,UPDATED=2026-04-23,FAMILIES=142,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.9(138_categories)+PARAMETER_REGISTRY.json_extended_params.tier_4_10(33_entries),VARIANT=DesignConstruction
+#
+# SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
+#   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
+#   Color  : BLACK | BLUE | GREEN | RED | ORANGE | PURPLE | GREY | WHITE  (default: BLACK)
+#   Size   : 2 | 2.5 | 3 | 3.5                              (default per tier: T1=2.5, T2=2.0, T3=2.0)
+#
+# Prescribed styles for TAG7 sub-sections (A-F) per ISO 19650 presentation convention:
+#   ASS_TAG_7A_TXT  Identity Header              BOLD    BLUE     (2.5)
+#   ASS_TAG_7B_TXT  System & Function            ITALIC  GREEN    (2.0)
+#   ASS_TAG_7C_TXT  Spatial Context              NOM     ORANGE   (2.0)
+#   ASS_TAG_7D_TXT  Lifecycle & Status           NOM     RED      (2.0)
+#   ASS_TAG_7E_TXT  Technical Specs              BOLD    PURPLE   (2.0)
+#   ASS_TAG_7F_TXT  Classification               ITALIC  GREY     (2.0)
+#
+# Tag Style Engine matrix: TAG_{SIZE}{STYLE}_{COLOR}_BOOL  (128 combos = 4 sizes x 4 styles x 8 colors).
+# ApplyTagStyleCommand sets exactly one BOOL true per element type; label rows gated by that BOOL become
+# visible. Blank Style/Color/Size fields in this CSV mean "inherit tier default" — values are picked up
+# by TagFamilyCreatorCommand when generating the label row and by ApplyTagStyleCommand when switching.
+#
+#
+# SCHEMA v5.3 (2026-04-22) — Paragraph tiers 1 to 10 (was 1 to 3)
+#   Every STING tag family now carries TAG_PARA_STATE_1_BOOL .. TAG_PARA_STATE_10_BOOL as
+#   type parameters. TagFamilyCreatorCommand injects all ten via VisibilityParams.
+#   SetParagraphDepthCommand supports cumulative depths (1=T1 only, 2=T1+T2, ... 10=T1..T10).
+#   Each tier beyond T3 uses the same Calculated Value pattern:
+#
+#     Tier row formula template (any Tier N row):
+#       if(TAG_PARA_STATE_N_BOOL, <Parameter>, "")
+#
+#   Recommended use of tiers 4 to 10:
+#     T4 — Commissioning & handover   (COMM_* params, asset serials, warranty)
+#     T5 — Cost & procurement         (CST_*, ASS_CST_* cost roll-ups)
+#     T6 — Carbon & sustainability    (CBN_A1_A3 .. CBN_C3_C4, embodied / operational)
+#     T7 — Fabrication & QC           (ASS_SPOOL_*, ASS_WELD/BOLT/FITTING_COUNT_NR, QC inspector)
+#     T8 — Clash & coordination       (CLASH_TRIAGE_*, CLASH_RESOLUTION_*)
+#     T9 — As-built & health          (ASBUILT_*, HEALTH_SCORE_*)
+#     T10 — Compliance / audit trail  (RGL_*, IFC_PSET_OVERRIDE_TXT, action log refs)
+#
+# Tier column accepts: T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8 | T9 | T10
+#
+# Full tag style parameter set injected into every family (TagFamilyCreatorCommand.StyleParams):
+#   128 text style BOOLs           TAG_{SIZE}{STYLE}_{COLOR}_BOOL
+#                                  SIZES: 2 / 2.5 / 3 / 3.5   STYLES: NOM / BOLD / ITALIC / BOLDITALIC
+#                                  COLORS: BLACK BLUE GREEN RED ORANGE PURPLE GREY WHITE
+#   Box colour (RGB 0-255)         TAG_BOX_COLOR_R_INT / _G_INT / _B_INT
+#   Box visibility / style         TAG_BOX_VISIBLE_BOOL / TAG_BOX_STYLE_TXT  (SOLID | DASHED | NONE | ROUND)
+#   Leader colour (RGB 0-255)      TAG_LEADER_COLOR_R_INT / _G_INT / _B_INT
+#   Scale / depth cache            TAG_SCALE_TIER_AUTO_BOOL / TAG_DEPTH_TIER_INT
+#   Warnings                       TAG_WARN_VISIBLE_BOOL / TAG_WARN_SEVERITY_FILTER_TXT
+#
+
+═══════════════════════════════════════════════════════════════════════════════
+TAG STYLE PARAMETER CATALOG (v5.3) — Type parameters injected into every family
+═══════════════════════════════════════════════════════════════════════════════
+# Source: StingTools/Core/ParamRegistry.cs — injected by TagFamilyCreatorCommand.StyleParams
+# Copy-paste this list when authoring a STING seed tag family by hand. Every
+# parameter below is bound as a TYPE parameter on the tag family. ApplyTagStyleCommand
+# (visibility BOOLs) and SetBoxColor / SetLeaderColor (RGB ints) flip them at runtime.
+#
+# Group breakdown (150 parameters per family):
+#   128  TAG_{size}{style}_{color}_BOOL   — text style switch matrix (4 × 4 × 8)
+#    10  TAG_PARA_STATE_N_BOOL            — paragraph-depth gates (N=1..10)
+#     1  TAG_WARN_VISIBLE_BOOL            — threshold warning toggle
+#     1  TAG_WARN_SEVERITY_FILTER_TXT     — warning severity filter
+#     3  TAG_BOX_COLOR_{R/G/B}_INT        — tag box colour RGB
+#     1  TAG_BOX_VISIBLE_BOOL             — tag box visibility
+#     1  TAG_BOX_STYLE_TXT                — tag box style (SOLID | DASHED | NONE | ROUND)
+#     3  TAG_LEADER_COLOR_{R/G/B}_INT     — leader colour RGB
+#     1  TAG_SCALE_TIER_AUTO_BOOL         — auto-scale tier cache
+#     1  TAG_DEPTH_TIER_INT               — current depth tier (cache)
+
+#,Group,Parameter,Datatype,Default,Category,Role,Description
+1,TextStyle,TAG_2NOM_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM BLACK
+2,TextStyle,TAG_2NOM_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM BLUE
+3,TextStyle,TAG_2NOM_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM GREEN
+4,TextStyle,TAG_2NOM_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM RED
+5,TextStyle,TAG_2NOM_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM ORANGE
+6,TextStyle,TAG_2NOM_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM PURPLE
+7,TextStyle,TAG_2NOM_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM GREY
+8,TextStyle,TAG_2NOM_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm NOM WHITE
+9,TextStyle,TAG_2BOLD_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD BLACK
+10,TextStyle,TAG_2BOLD_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD BLUE
+11,TextStyle,TAG_2BOLD_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD GREEN
+12,TextStyle,TAG_2BOLD_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD RED
+13,TextStyle,TAG_2BOLD_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD ORANGE
+14,TextStyle,TAG_2BOLD_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD PURPLE
+15,TextStyle,TAG_2BOLD_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD GREY
+16,TextStyle,TAG_2BOLD_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLD WHITE
+17,TextStyle,TAG_2ITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC BLACK
+18,TextStyle,TAG_2ITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC BLUE
+19,TextStyle,TAG_2ITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC GREEN
+20,TextStyle,TAG_2ITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC RED
+21,TextStyle,TAG_2ITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC ORANGE
+22,TextStyle,TAG_2ITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC PURPLE
+23,TextStyle,TAG_2ITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC GREY
+24,TextStyle,TAG_2ITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm ITALIC WHITE
+25,TextStyle,TAG_2BOLDITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC BLACK
+26,TextStyle,TAG_2BOLDITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC BLUE
+27,TextStyle,TAG_2BOLDITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC GREEN
+28,TextStyle,TAG_2BOLDITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC RED
+29,TextStyle,TAG_2BOLDITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC ORANGE
+30,TextStyle,TAG_2BOLDITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC PURPLE
+31,TextStyle,TAG_2BOLDITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC GREY
+32,TextStyle,TAG_2BOLDITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2mm BOLDITALIC WHITE
+33,TextStyle,TAG_2.5NOM_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM BLACK
+34,TextStyle,TAG_2.5NOM_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM BLUE
+35,TextStyle,TAG_2.5NOM_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM GREEN
+36,TextStyle,TAG_2.5NOM_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM RED
+37,TextStyle,TAG_2.5NOM_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM ORANGE
+38,TextStyle,TAG_2.5NOM_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM PURPLE
+39,TextStyle,TAG_2.5NOM_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM GREY
+40,TextStyle,TAG_2.5NOM_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm NOM WHITE
+41,TextStyle,TAG_2.5BOLD_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD BLACK
+42,TextStyle,TAG_2.5BOLD_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD BLUE
+43,TextStyle,TAG_2.5BOLD_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD GREEN
+44,TextStyle,TAG_2.5BOLD_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD RED
+45,TextStyle,TAG_2.5BOLD_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD ORANGE
+46,TextStyle,TAG_2.5BOLD_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD PURPLE
+47,TextStyle,TAG_2.5BOLD_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD GREY
+48,TextStyle,TAG_2.5BOLD_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLD WHITE
+49,TextStyle,TAG_2.5ITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC BLACK
+50,TextStyle,TAG_2.5ITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC BLUE
+51,TextStyle,TAG_2.5ITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC GREEN
+52,TextStyle,TAG_2.5ITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC RED
+53,TextStyle,TAG_2.5ITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC ORANGE
+54,TextStyle,TAG_2.5ITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC PURPLE
+55,TextStyle,TAG_2.5ITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC GREY
+56,TextStyle,TAG_2.5ITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm ITALIC WHITE
+57,TextStyle,TAG_2.5BOLDITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC BLACK
+58,TextStyle,TAG_2.5BOLDITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC BLUE
+59,TextStyle,TAG_2.5BOLDITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC GREEN
+60,TextStyle,TAG_2.5BOLDITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC RED
+61,TextStyle,TAG_2.5BOLDITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC ORANGE
+62,TextStyle,TAG_2.5BOLDITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC PURPLE
+63,TextStyle,TAG_2.5BOLDITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC GREY
+64,TextStyle,TAG_2.5BOLDITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 2.5mm BOLDITALIC WHITE
+65,TextStyle,TAG_3NOM_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM BLACK
+66,TextStyle,TAG_3NOM_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM BLUE
+67,TextStyle,TAG_3NOM_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM GREEN
+68,TextStyle,TAG_3NOM_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM RED
+69,TextStyle,TAG_3NOM_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM ORANGE
+70,TextStyle,TAG_3NOM_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM PURPLE
+71,TextStyle,TAG_3NOM_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM GREY
+72,TextStyle,TAG_3NOM_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm NOM WHITE
+73,TextStyle,TAG_3BOLD_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD BLACK
+74,TextStyle,TAG_3BOLD_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD BLUE
+75,TextStyle,TAG_3BOLD_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD GREEN
+76,TextStyle,TAG_3BOLD_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD RED
+77,TextStyle,TAG_3BOLD_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD ORANGE
+78,TextStyle,TAG_3BOLD_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD PURPLE
+79,TextStyle,TAG_3BOLD_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD GREY
+80,TextStyle,TAG_3BOLD_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLD WHITE
+81,TextStyle,TAG_3ITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC BLACK
+82,TextStyle,TAG_3ITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC BLUE
+83,TextStyle,TAG_3ITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC GREEN
+84,TextStyle,TAG_3ITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC RED
+85,TextStyle,TAG_3ITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC ORANGE
+86,TextStyle,TAG_3ITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC PURPLE
+87,TextStyle,TAG_3ITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC GREY
+88,TextStyle,TAG_3ITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm ITALIC WHITE
+89,TextStyle,TAG_3BOLDITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC BLACK
+90,TextStyle,TAG_3BOLDITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC BLUE
+91,TextStyle,TAG_3BOLDITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC GREEN
+92,TextStyle,TAG_3BOLDITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC RED
+93,TextStyle,TAG_3BOLDITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC ORANGE
+94,TextStyle,TAG_3BOLDITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC PURPLE
+95,TextStyle,TAG_3BOLDITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC GREY
+96,TextStyle,TAG_3BOLDITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3mm BOLDITALIC WHITE
+97,TextStyle,TAG_3.5NOM_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM BLACK
+98,TextStyle,TAG_3.5NOM_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM BLUE
+99,TextStyle,TAG_3.5NOM_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM GREEN
+100,TextStyle,TAG_3.5NOM_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM RED
+101,TextStyle,TAG_3.5NOM_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM ORANGE
+102,TextStyle,TAG_3.5NOM_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM PURPLE
+103,TextStyle,TAG_3.5NOM_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM GREY
+104,TextStyle,TAG_3.5NOM_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm NOM WHITE
+105,TextStyle,TAG_3.5BOLD_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD BLACK
+106,TextStyle,TAG_3.5BOLD_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD BLUE
+107,TextStyle,TAG_3.5BOLD_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD GREEN
+108,TextStyle,TAG_3.5BOLD_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD RED
+109,TextStyle,TAG_3.5BOLD_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD ORANGE
+110,TextStyle,TAG_3.5BOLD_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD PURPLE
+111,TextStyle,TAG_3.5BOLD_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD GREY
+112,TextStyle,TAG_3.5BOLD_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLD WHITE
+113,TextStyle,TAG_3.5ITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC BLACK
+114,TextStyle,TAG_3.5ITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC BLUE
+115,TextStyle,TAG_3.5ITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC GREEN
+116,TextStyle,TAG_3.5ITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC RED
+117,TextStyle,TAG_3.5ITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC ORANGE
+118,TextStyle,TAG_3.5ITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC PURPLE
+119,TextStyle,TAG_3.5ITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC GREY
+120,TextStyle,TAG_3.5ITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm ITALIC WHITE
+121,TextStyle,TAG_3.5BOLDITALIC_BLACK_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC BLACK
+122,TextStyle,TAG_3.5BOLDITALIC_BLUE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC BLUE
+123,TextStyle,TAG_3.5BOLDITALIC_GREEN_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC GREEN
+124,TextStyle,TAG_3.5BOLDITALIC_RED_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC RED
+125,TextStyle,TAG_3.5BOLDITALIC_ORANGE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC ORANGE
+126,TextStyle,TAG_3.5BOLDITALIC_PURPLE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC PURPLE
+127,TextStyle,TAG_3.5BOLDITALIC_GREY_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC GREY
+128,TextStyle,TAG_3.5BOLDITALIC_WHITE_BOOL,YESNO,0,Common,Switch,Gates label row rendered at 3.5mm BOLDITALIC WHITE
+129,TierGate,TAG_PARA_STATE_1_BOOL,YESNO,1,Common,Switch,Shows tier 1 rows when true (depth N enables 1..N cumulatively)
+130,TierGate,TAG_PARA_STATE_2_BOOL,YESNO,0,Common,Switch,Shows tier 2 rows when true (depth N enables 1..N cumulatively)
+131,TierGate,TAG_PARA_STATE_3_BOOL,YESNO,0,Common,Switch,Shows tier 3 rows when true (depth N enables 1..N cumulatively)
+132,TierGate,TAG_PARA_STATE_4_BOOL,YESNO,0,Common,Switch,Shows tier 4 rows when true (depth N enables 1..N cumulatively)
+133,TierGate,TAG_PARA_STATE_5_BOOL,YESNO,0,Common,Switch,Shows tier 5 rows when true (depth N enables 1..N cumulatively)
+134,TierGate,TAG_PARA_STATE_6_BOOL,YESNO,0,Common,Switch,Shows tier 6 rows when true (depth N enables 1..N cumulatively)
+135,TierGate,TAG_PARA_STATE_7_BOOL,YESNO,0,Common,Switch,Shows tier 7 rows when true (depth N enables 1..N cumulatively)
+136,TierGate,TAG_PARA_STATE_8_BOOL,YESNO,0,Common,Switch,Shows tier 8 rows when true (depth N enables 1..N cumulatively)
+137,TierGate,TAG_PARA_STATE_9_BOOL,YESNO,0,Common,Switch,Shows tier 9 rows when true (depth N enables 1..N cumulatively)
+138,TierGate,TAG_PARA_STATE_10_BOOL,YESNO,0,Common,Switch,Shows tier 10 rows when true (depth N enables 1..N cumulatively)
+139,Warning,TAG_WARN_VISIBLE_BOOL,YESNO,0,Common,Switch,Shows threshold warnings on the tag
+140,Warning,TAG_WARN_SEVERITY_FILTER_TXT,TEXT,HIGH,Common,Filter,Minimum warning severity to show (LOW | MEDIUM | HIGH | CRITICAL)
+141,Box,TAG_BOX_COLOR_R_INT,INTEGER,0,Common,Colour,Tag box colour — red channel 0-255
+142,Box,TAG_BOX_COLOR_G_INT,INTEGER,0,Common,Colour,Tag box colour — green channel 0-255
+143,Box,TAG_BOX_COLOR_B_INT,INTEGER,0,Common,Colour,Tag box colour — blue channel 0-255
+144,Box,TAG_BOX_VISIBLE_BOOL,YESNO,1,Common,Switch,Shows / hides the tag box
+145,Box,TAG_BOX_STYLE_TXT,TEXT,SOLID,Common,Style,Tag box style (SOLID | DASHED | NONE | ROUND)
+146,Leader,TAG_LEADER_COLOR_R_INT,INTEGER,0,Common,Colour,Leader colour — red channel 0-255
+147,Leader,TAG_LEADER_COLOR_G_INT,INTEGER,0,Common,Colour,Leader colour — green channel 0-255
+148,Leader,TAG_LEADER_COLOR_B_INT,INTEGER,0,Common,Colour,Leader colour — blue channel 0-255
+149,Scale,TAG_SCALE_TIER_AUTO_BOOL,YESNO,1,Common,Switch,Auto-compute depth tier from view scale
+150,Scale,TAG_DEPTH_TIER_INT,INTEGER,3,Common,Cache,Current depth tier (cached for fast redraw)
+
+# End of TAG STYLE PARAMETER CATALOG — 150 parameters
+═══════════════════════════════════════════════════════════════════════════════
+
+STING Tag Configuration v5.0 - STR (COMPLETE with Warnings)
+6B — Structural
+Tag Family #1: STING - Structural Column Tag
+TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Structural Columns
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_COL_SECTION_TXT,Sec:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_COL_SECTION_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_COL_SIZE_MM,,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_COL_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_COL_MATERIAL_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, STR_COL_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,BLE_STRUCT_STEEL_GRADE_TXT,| Gr:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_STEEL_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+8,T2,STR_COL_HEIGHT_MM,Ht:,mm,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, STR_COL_HEIGHT_MM, """")",NOM,BLACK,2.0,None,None
+9,T2,STR_LOAD_AXIAL_KN,Load:,kN,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_AXIAL_KN, """")",NOM,BLACK,2.0,None,None
+10,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")",NOM,BLACK,2.0,None,None
+11,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 11,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+12,T3,STR_TAG_7_PARA_COL_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_COL_TXT, """")",NOM,BLACK,2.0,None,None
+13,T3,STR_COL_GRID_REF_TXT,Grid:,,0,,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, STR_COL_GRID_REF_TXT, """")",NOM,BLACK,2.0,None,None
+14,T3,STR_COL_SPLICE_DETAIL_TXT,| Splice:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, STR_COL_SPLICE_DETAIL_TXT, """")",NOM,BLACK,2.0,None,None
+15,T3,STR_FIRE_PROTECTION_TYPE_TXT,FP:,,0,,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, STR_FIRE_PROTECTION_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+16,T3,STR_COL_BASE_PLATE_TXT,| BP:,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, STR_COL_BASE_PLATE_TXT, """")",NOM,BLACK,2.0,None,None
+17,T3,CST_S_REI_WEIGHT_KG,,kg,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+18,T3,STR_COL_MOMENT_CAPACITY_KNM,Mom:,kNm,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, STR_COL_MOMENT_CAPACITY_KNM, """")",NOM,BLACK,2.0,None,None
+19,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")",NOM,BLACK,2.0,None,None
+20,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+21,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+22,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+23,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+24,T3,RGL_QA_COMMISSIONING_REQ_TXT,Comm:,,0,✓,Common,Text,Show Tier 3 - 24,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999 Table 10,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS, """")"
+2,HIGH,WARN_STR_LOAD_AXIAL_KN_COLUMNS,Axial load exceeds section capacity,BS EN 1993-1-1 / EC3,Common,Text,⚠ Warning: Column Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_AXIAL_KN_COLUMNS, """")"
+3,HIGH,WARN_STR_COL_SLENDERNESS,Slenderness ratio exceeds limit for section,BS EN 1993-1-1 / EC3 6.3.1,Common,Text,⚠ Warning: Column Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_COL_SLENDERNESS, """")"
+4,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_STR,Carbon > 600 kgCO₂/m²,RIBA 2030 Climate Challenge (structural),Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_CO2_M2_STR, """")"
+5,MEDIUM,WARN_STR_COL_BASE_PLATE,Base plate connection not specified,BS EN 1993-1-8 / EC3,Common,Text,⚠ Warning: Base Plate Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_COL_BASE_PLATE, """")"
+
+Tag Family #2: STING - Structural Framing Tag
+TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_BEAM_SECTION_TXT,Sec:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_SECTION_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_BEAM_DEPTH_MM,,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_DEPTH_MM, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_BEAM_MATERIAL_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,BLE_STRUCT_STEEL_GRADE_TXT,| Gr:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_STEEL_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+8,T2,STR_BEAM_SPAN_MM,Span:,mm,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_SPAN_MM, """")",NOM,BLACK,2.0,None,None
+9,T2,STR_LOAD_UDL_KN_M,UDL:,kN/m,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_UDL_KN_M, """")",NOM,BLACK,2.0,None,None
+10,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")",NOM,BLACK,2.0,None,None
+11,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 11,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+12,T3,STR_TAG_7_PARA_BEAM_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_BEAM_TXT, """")",NOM,BLACK,2.0,None,None
+13,T3,STR_BEAM_CONNECTION_TYPE_TXT,Conn:,,0,,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_CONNECTION_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+14,T3,STR_BEAM_CAMBER_MM,| Camber:,mm,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_CAMBER_MM, """")",NOM,BLACK,2.0,None,None
+15,T3,STR_BEAM_DEFLECTION_LIM_TXT,Defl:,,0,,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_DEFLECTION_LIM_TXT, """")",NOM,BLACK,2.0,None,None
+16,T3,STR_FIRE_PROTECTION_TYPE_TXT,| FP:,,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, STR_FIRE_PROTECTION_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+17,T3,CST_S_REI_WEIGHT_KG,,kg,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+18,T3,STR_BEAM_MOMENT_CAPACITY_KNM,Mom:,kNm,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_MOMENT_CAPACITY_KNM, """")",NOM,BLACK,2.0,None,None
+19,T3,STR_BEAM_WEB_OPENING_TXT,Web:,,0,,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_WEB_OPENING_TXT, """")",NOM,BLACK,2.0,None,None
+20,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")",NOM,BLACK,2.0,None,None
+21,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+22,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+23,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+24,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 24,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+25,T3,RGL_QA_COMMISSIONING_REQ_TXT,| Comm:,,0,✓,Common,Text,Show Tier 3 - 25,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Beam Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS, """")"
+2,HIGH,WARN_STR_BEAM_DEFLECTION,Deflection exceeds L/360 (live) or L/240 (total),BS EN 1993-1-1 / EC3 NA.2.23,Common,Text,⚠ Warning: Beam Deflection,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, """")"
+3,HIGH,WARN_STR_BEAM_SPAN_DEPTH,Span/depth ratio exceeds guidance,SCI P363 / Steel Designer Manual,Common,Text,⚠ Warning: Span-Depth Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_SPAN_DEPTH, """")"
+4,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS,Carbon > 600 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Beam Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS, """")"
+5,MEDIUM,WARN_STR_BEAM_LATERAL_BRACING,Lateral bracing interval not specified,BS EN 1993-1-1 / EC3 6.3.2,Common,Text,⚠ Warning: Lateral Bracing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_LATERAL_BRACING, """")"
+
+Tag Family #3: STING - Structural Foundation Tag
+TAG7: STR_TAG_7_PARA_FDN_TXT  •  Category: Structural Foundations
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_FDN_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_FDN_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_FDN_SIZE_MM,,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_FDN_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_FDN_DEPTH_MM,D:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, STR_FDN_DEPTH_MM, """")",NOM,BLACK,2.0,None,None
+7,T2,STR_FDN_MATERIAL_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, STR_FDN_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
+8,T2,BLE_STRUCT_STEEL_GRADE_TXT,| Gr:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_STEEL_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+9,T2,STR_FDN_BEARING_KN_M2,Bearing:,kN/m²,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, STR_FDN_BEARING_KN_M2, """")",NOM,BLACK,2.0,None,None
+10,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 10,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,STR_TAG_7_PARA_FDN_TXT,,,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_FDN_TXT, """")",NOM,BLACK,2.0,None,None
+12,T3,STR_FDN_REBAR_TXT,Rebar:,,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+13,T3,STR_FDN_COVER_MM,| Cover:,mm,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_COVER_MM, """")",NOM,BLACK,2.0,None,None
+14,T3,STR_FDN_WATERPROOF_TXT,WP:,,0,,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_WATERPROOF_TXT, """")",NOM,BLACK,2.0,None,None
+15,T3,STR_FDN_EXPOSURE_CLASS_TXT,| Exp:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_EXPOSURE_CLASS_TXT, """")",NOM,BLACK,2.0,None,None
+16,T3,CST_S_REI_WEIGHT_KG,,kg,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+17,T3,STR_FDN_SETTLEMENT_MM,Settl:,mm,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_SETTLEMENT_MM, """")",NOM,BLACK,2.0,None,None
+18,T3,STR_FDN_PILE_TYPE_TXT,Pile:,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, STR_FDN_PILE_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+19,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,0,✓,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")",NOM,BLACK,2.0,None,None
+20,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+21,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 21,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+22,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 22,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+23,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 23,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+24,T3,RGL_QA_COMMISSIONING_REQ_TXT,| Comm:,,0,✓,Common,Text,Show Tier 3 - 24,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_COMMISSIONING_REQ_TXT, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_STR_FDN_BEARING_KN_M2,Bearing pressure exceeds soil capacity,BS EN 1997-1 / EC7,Common,Text,⚠ Warning: Foundation Bearing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_BEARING_KN_M2, """")"
+2,HIGH,WARN_STR_FDN_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N / EC2,Common,Text,⚠ Warning: Concrete Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_COVER_MM, """")"
+3,HIGH,WARN_STR_FDN_DEPTH_MM_FROST,Depth < 450mm (frost susceptible),BS EN 1997-1 / NHBC Standards Ch4.2,Common,Text,⚠ Warning: Foundation Depth,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_DEPTH_MM_FROST, """")"
+4,HIGH,WARN_STR_FDN_SETTLEMENT_MM,Settlement > 25mm,BS EN 1997-1 / EC7,Common,Text,⚠ Warning: Foundation Settlement,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_FDN_SETTLEMENT_MM, """")"
+
+Tag Family #4: STING - Structural Slab Tag
+TAG7: STR_TAG_7_PARA_SLAB_TXT  •  Category: Floors (Structural)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,BLE_STRUCT_SLAB_THICKNESS_MM,,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_SLAB_THICKNESS_MM, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_SLAB_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_SLAB_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,BLE_STRUCT_STEEL_GRADE_TXT,Gr:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_STEEL_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,STR_SLAB_LOAD_KN_M2,Load:,kN/m²,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, STR_SLAB_LOAD_KN_M2, """")",NOM,BLACK,2.0,None,None
+8,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")",NOM,BLACK,2.0,None,None
+9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,STR_TAG_7_PARA_SLAB_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_SLAB_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,STR_SLAB_REBAR_TXT,Rebar:,,0,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, STR_SLAB_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+12,T3,STR_SLAB_MESH_TXT,| Mesh:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_SLAB_MESH_TXT, """")",NOM,BLACK,2.0,None,None
+13,T3,STR_SLAB_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, STR_SLAB_COVER_MM, """")",NOM,BLACK,2.0,None,None
+14,T3,STR_SLAB_DEFLECTION_LIMIT_TXT,Defl:,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, STR_SLAB_DEFLECTION_LIMIT_TXT, """")",NOM,BLACK,2.0,None,None
+15,T3,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,STC:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR, """")",NOM,BLACK,2.0,None,None
+16,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")",NOM,BLACK,2.0,None,None
+17,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+18,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+19,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 19,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+20,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 20,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_SLABS,Fire rating < 1.0 hr,Building Regs Part B / BS EN 1992-1-2,Common,Text,⚠ Warning: Slab Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_SLABS, """")"
+2,HIGH,WARN_STR_BEAM_DEFLECTION,Deflection exceeds L/250 (total),BS EN 1992-1-1 / EC2 7.4.1,Common,Text,⚠ Warning: Slab Deflection,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, """")"
+3,HIGH,WARN_STR_SLAB_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1,Common,Text,⚠ Warning: Slab Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_SLAB_COVER_MM, """")"
+
+Tag Family #5: STING - Structural Wall Tag
+TAG7: STR_TAG_7_PARA_WALL_TXT  •  Category: Walls (Structural/Load-bearing)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,BLE_WALL_THICKNESS_MM,,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_THICKNESS_MM, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_WALL_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_WALL_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,BLE_STRUCT_STEEL_GRADE_TXT,Gr:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_STEEL_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,STR_LOAD_AXIAL_KN,Load:,kN/m,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_AXIAL_KN, """")",NOM,BLACK,2.0,None,None
+8,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")",NOM,BLACK,2.0,None,None
+9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,STR_TAG_7_PARA_WALL_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_WALL_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,STR_WALL_REBAR_TXT,Rebar:,,0,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, STR_WALL_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+12,T3,STR_WALL_COVER_MM,| Cover:,mm,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_WALL_COVER_MM, """")",NOM,BLACK,2.0,None,None
+13,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")",NOM,BLACK,2.0,None,None
+14,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+16,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+17,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_WALLS,Fire rating < 2.0 hr (loadbearing),Building Regs Part B / BS EN 1996-1-2,Common,Text,⚠ Warning: Struct Wall Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_WALLS, """")"
+2,HIGH,WARN_STR_WALL_SLENDERNESS,Slenderness ratio exceeds limit,BS EN 1996-1-1 / EC6,Common,Text,⚠ Warning: Wall Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WALL_SLENDERNESS, """")"
+
+Tag Family #6: STING - Brace / Truss Tag
+TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing (Bracing)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_BRACE_SECTION_TXT,Sec:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_BRACE_SECTION_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_BRACE_MATERIAL_TXT,Mat:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_BRACE_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,BLE_STRUCT_STEEL_GRADE_TXT,| Gr:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_STEEL_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,STR_BRACE_LENGTH_MM,L:,mm,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, STR_BRACE_LENGTH_MM, """")",NOM,BLACK,2.0,None,None
+8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,STR_TAG_7_PARA_BRACE_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_BRACE_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,STR_BRACE_CONNECTION_TXT,Conn:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_BRACE_CONNECTION_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,CST_S_REI_WEIGHT_KG,,kg,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+12,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+13,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+14,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+15,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_BRACE_SLENDERNESS,Slenderness ratio exceeds 200,BS EN 1993-1-1 / EC3 6.3.1.2,Common,Text,⚠ Warning: Brace Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BRACE_SLENDERNESS, """")"
+2,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_BRACES,Fire rating < 1.0 hr,Building Regs Part B,Common,Text,⚠ Warning: Brace Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_BRACES, """")"
+
+Tag Family #7: STING - Structural Rebar Tag
+TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_REBAR_SIZE_MM,Size:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+5,T2,CST_S_REI_GRADE_TXT,Gr:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,CST_S_REI_SPACING_MM,Spc:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
+7,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
+8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,STR_REBAR_SHAPE_TXT,Shape:,,0,,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_REBAR_SHAPE_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,CST_S_REI_OVERLAP_LENGTH_MM,| Lap:,mm,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_OVERLAP_LENGTH_MM, """")",NOM,BLACK,2.0,None,None
+12,T3,STR_REBAR_HOOK_TYPE_TXT,Hook:,,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_REBAR_HOOK_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+13,T3,CST_S_REI_WEIGHT_KG,,kg,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+14,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+16,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+17,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_STR_RBR_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, """")"
+2,HIGH,WARN_STR_RBR_LAP_LENGTH_MM,Lap length < required,BS EN 1992-1-1 / EC2 8.7,Common,Text,⚠ Warning: Rebar Lap Length,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_LAP_LENGTH_MM, """")"
+
+Tag Family #8: STING - Structural Connection Tag
+TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Structural Connections
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_CONN_TYPE_TXT,Type:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_CONN_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_CONN_CAPACITY_KN,Cap:,kN,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_CONN_CAPACITY_KN, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_CONN_BOLT_SIZE_TXT,Bolt:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, STR_CONN_BOLT_SIZE_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,STR_TAG_7_PARA_CONN_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_CONN_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,STR_CONN_WELD_TYPE_TXT,Weld:,,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_CONN_WELD_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,STR_CONN_PLATE_THICKNESS_MM,| Plt:,mm,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_CONN_PLATE_THICKNESS_MM, """")",NOM,BLACK,2.0,None,None
+11,T3,STR_CONN_ROTATION_CAPACITY_TXT,Rot:,,0,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, STR_CONN_ROTATION_CAPACITY_TXT, """")",NOM,BLACK,2.0,None,None
+12,T3,STR_FIRE_PROTECTION_TYPE_TXT,FP:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_FIRE_PROTECTION_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+13,T3,CST_S_REI_WEIGHT_KG,,kg,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+14,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+16,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+17,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_STR_CONN_CAPACITY_KN,Capacity < applied load,BS EN 1993-1-8 / EC3,Common,Text,⚠ Warning: Connection Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_CAPACITY_KN, """")"
+2,HIGH,WARN_STR_CONN_WELD_SIZE,Weld size < minimum,BS EN 1993-1-8 / EC3 4.5,Common,Text,⚠ Warning: Weld Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_CONN_WELD_SIZE, """")"
+
+Tag Family #9: STING - Columns Tag
+TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Columns (Architectural)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_COL_SECTION_TXT,Sec:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_COL_SECTION_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_COL_MATERIAL_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_COL_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")",NOM,BLACK,2.0,None,None
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,STR_TAG_7_PARA_COL_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_COL_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,STR_FIRE_PROTECTION_TYPE_TXT,FP:,,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_FIRE_PROTECTION_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+12,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+13,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS,Fire rating < 1.0 hr,Building Regs Part B,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_ARCH_COLUMNS, """")"
+
+Tag Family #10: STING - Structural Trusses Tag
+TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Trusses
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_BEAM_SECTION_TXT,Sec:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_SECTION_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_BEAM_SPAN_MM,Span:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_SPAN_MM, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_BEAM_MATERIAL_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,BLE_STRUCT_STEEL_GRADE_TXT,| Gr:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_STEEL_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+8,T2,PER_FIRE_RATING_HR,,hr,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PER_FIRE_RATING_HR, """")",NOM,BLACK,2.0,None,None
+9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,STR_TAG_7_PARA_BEAM_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_BEAM_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,STR_BEAM_DEFLECTION_LIM_TXT,Defl:,,0,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_DEFLECTION_LIM_TXT, """")",NOM,BLACK,2.0,None,None
+12,T3,STR_FIRE_PROTECTION_TYPE_TXT,| FP:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_FIRE_PROTECTION_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+13,T3,CST_S_REI_WEIGHT_KG,,kg,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+14,T3,PER_SUST_EMBODIED_CARBON_KG,,kgCO₂/m²,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EMBODIED_CARBON_KG, """")",NOM,BLACK,2.0,None,None
+15,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+16,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+17,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+18,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_PER_FIRE_RATING_HR_STR_TRUSSES,Fire rating < 1.0 hr,Building Regs Part B,Common,Text,⚠ Warning: Truss Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_STR_TRUSSES, """")"
+2,HIGH,WARN_STR_BEAM_DEFLECTION_TRUSSES,Deflection exceeds L/360,BS EN 1993-1-1 / EC3,Common,Text,⚠ Warning: Truss Deflection,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION_TRUSSES, """")"
+
+Tag Family #11: STING - Structural Stiffeners Tag
+TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Stiffeners
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_BEAM_SECTION_TXT,Sec:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_SECTION_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_BEAM_MATERIAL_TXT,Mat:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_MATERIAL_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,BLE_STRUCT_STEEL_GRADE_TXT,| Gr:,,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, BLE_STRUCT_STEEL_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,STR_TAG_7_PARA_BEAM_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_BEAM_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,CST_S_REI_WEIGHT_KG,,kg,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+10,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_GRADE_STIFFENERS,Stiffener grade not compatible with parent section,BS EN 1993-1-1 / EC3,Common,Text,⚠ Warning: Stiffener Grade,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_GRADE_STIFFENERS, """")"
+
+Tag Family #12: STING - Structural Beam Systems Tag
+TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Beam Systems
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_BEAM_SECTION_TXT,Sec:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_SECTION_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_BEAM_SPAN_MM,Span:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_BEAM_SPAN_MM, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_LOAD_UDL_KN_M,UDL:,kN/m,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_UDL_KN_M, """")",NOM,BLACK,2.0,None,None
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,STR_TAG_7_PARA_BEAM_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_BEAM_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,STR_BEAM_DEFLECTION_LIM_TXT,Defl:,,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_BEAM_DEFLECTION_LIM_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+12,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+13,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_LOAD_UDL_KN_M_BEAM_SYS,UDL exceeds beam system capacity,BS EN 1993-1-1 / EC3,Common,Text,⚠ Warning: Beam System UDL,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_UDL_KN_M_BEAM_SYS, """")"
+
+Tag Family #13: STING - Structural Rebar Couplers Tag
+TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar Couplers
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_REBAR_SIZE_MM,Size:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+5,T2,CST_S_REI_GRADE_TXT,Gr:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_STR_REBAR_GRADE_COUPLERS,Coupler grade incompatible with rebar grade,BS 8539 / BS EN 1992-1-1,Common,Text,⚠ Warning: Coupler Grade,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_GRADE_COUPLERS, """")"
+
+Tag Family #14: STING - Structural Fabric Reinforcement Tag
+TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_REBAR_SIZE_MM,Wire:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+5,T2,CST_S_REI_SPACING_MM,| Spc:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
+6,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,CST_S_REI_WEIGHT_KG,,kg/m²,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+10,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_STR_REBAR_COVER_MM_FABRIC,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Fabric Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_FABRIC, """")"
+
+Tag Family #15: STING - Structural Area Reinforcement Tag
+TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_REBAR_SIZE_MM,Bar:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+5,T2,CST_S_REI_SPACING_MM,| @,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
+6,T2,CST_S_REI_GRADE_TXT,Gr:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
+8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_STR_REBAR_COVER_MM_AREA,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Area Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_AREA, """")"
+2,HIGH,WARN_STR_REBAR_SPACING_MM_AREA,Bar spacing exceeds maximum for crack control,BS EN 1992-1-1 / EC2 7.3.3,Common,Text,⚠ Warning: Area Rebar Spacing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_SPACING_MM_AREA, """")"
+
+Tag Family #16: STING - Structural Path Reinforcement Tag
+TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_REBAR_SIZE_MM,Bar:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+5,T2,CST_S_REI_SPACING_MM,| @,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
+6,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,CST_S_REI_OVERLAP_LENGTH_MM,| Lap:,mm,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_OVERLAP_LENGTH_MM, """")",NOM,BLACK,2.0,None,None
+10,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+12,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+13,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_STR_REBAR_COVER_MM_PATH,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Path Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_PATH, """")"
+
+
+Tag Family #17: STING - Internal Point Loads Tag
+TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_POINT_LOAD_KN,,kN,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_POINT_LOAD_KN, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_LOAD_CASE_TXT,LC:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_CASE_TXT, """")",NOM,BLACK,2.0,None,None
+6,T3,STR_TAG_7_PARA_LOAD_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_LOAD_TXT, """")",NOM,BLACK,2.0,None,None
+7,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+9,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+10,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+11,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+12,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_PT,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_PT, """")"
+
+Tag Family #18: STING - Internal Line Loads Tag
+TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_LINE_LOAD_KN_M,,kN/m,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_LINE_LOAD_KN_M, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_LOAD_CASE_TXT,LC:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_CASE_TXT, """")",NOM,BLACK,2.0,None,None
+6,T3,STR_TAG_7_PARA_LOAD_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_LOAD_TXT, """")",NOM,BLACK,2.0,None,None
+7,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+9,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+10,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+11,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+12,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_LN,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_LN, """")"
+
+Tag Family #19: STING - Internal Area Loads Tag
+TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_AREA_LOAD_KN_M2,,kN/m²,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_AREA_LOAD_KN_M2, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_LOAD_CASE_TXT,LC:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_CASE_TXT, """")",NOM,BLACK,2.0,None,None
+6,T3,STR_TAG_7_PARA_LOAD_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_LOAD_TXT, """")",NOM,BLACK,2.0,None,None
+7,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+9,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+10,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+11,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+12,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_AR,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1991-1-1 / EC1,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_AR, """")"
+
+6G — Analytical Model
+Tag Family #20: STING - Analytical Members Tag
+TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,STR_SECTION_PROFILE_TXT,Section:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_SECTION_PROFILE_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,STR_MATERIAL_GRADE_TXT,Grade:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_MATERIAL_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+6,T3,STR_TAG_7_PARA_ANLYT_TXT,,,0,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_ANLYT_TXT, """")",NOM,BLACK,2.0,None,None
+7,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+9,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+10,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+11,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+12,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+13,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+14,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+15,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_ANLYT_NO_HOST,Analytical member has no physical host element,BS EN 1992-1-1 / BS EN 1993-1-1,Common,Text,⚠ Warning: No Physical Host,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_NO_HOST, """")"
+Tag Family #21: STING - Structural Sheet Tag
+TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Structural discipline
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")",NOM,BLACK,2.0,None,None
+3,T2,SHT_FORM_TXT,Form:,,0,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,SHT_LEVEL_TXT,Level:,,0,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, SHT_LEVEL_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,SHT_NUMBER_TXT,No:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, SHT_NUMBER_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,SHT_NAME_TXT,Name:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, SHT_NAME_TXT, """")",NOM,BLACK,2.0,None,None
+7,T3,SHT_TAG_7_TXT,,,0,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, SHT_TAG_7_TXT, """")",NOM,BLACK,2.0,None,None
+1,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+2,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+3,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_SHT_NAMING_STR,Sheet name does not match ISO 19650 naming convention for structural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_STR, """")"
