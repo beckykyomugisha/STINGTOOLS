@@ -2069,3 +2069,107 @@ cable/hanger software, wire-annotation repo audit).
  - Pull-tension solver (gap #7, effort M)
  - `Pset_ProvisionForVoid` IFC export option (sleeve research
    recommended quick win)
+
+---
+
+#### Completed (Phase 115 — v4 MEP parity sweep: Phases M / I / I.5 / J / K / L)
+
+Third hardening pass on branch `claude/research-mep-automation-NMLDm`,
+closing 9 of the 10 Top-5 gaps from the two research briefs in one
+sequence. 7 new commits on top of Phase 114.
+
+**Phase M — Point-load hanger sizing** (MSS SP-58 Table 4)
+ - `Core/Calc/RodSizeTable.cs` — 11-row M10→M56 SWL table with
+   temperature derate per §4.2. `StockLengthMm` = 3000 constant.
+ - `HangerPlacementEngine.PlanOneRun` computes per-metre load (shell
+   + water content π·D²/4·ρ_water + insulation π·D·thk × 30 kg/m³
+   mineral wool) and selects rod per candidate via `RodSizeTable.Select`.
+ - `STING_HANGER_PARAMS.txt` + 4 new UUIDv5 params:
+   `STING_HANGER_POINT_LOAD_KG`, `STING_HANGER_ROD_DIA_MM`,
+   `STING_HANGER_ROD_IMPERIAL`, `STING_HANGER_COUPLER_BOOL`.
+ - `PlaceHangersCommand` writes them per FamilyInstance; result
+   panel shows M10(3/8) / M12(1/2) / M20(3/4) style labels.
+
+**Phase I — Sleeve engine** (rule-driven sizing + cut + fire rating + IFC PfV)
+ - `Core/Mep/SleeveSizingRules.cs` + `Data/Routing/STING_SLEEVE_RULES.json`
+   (8 rules, insulation-aware, min-bore clamped).
+ - `Core/Mep/SleeveEngine.cs` — penetration scan via
+   `BoundingBoxIntersectsFilter` + `ElementIntersectsElementFilter`;
+   `FamilyInstance.Create` of `STING_SLEEVE_ROUND/RECT/PROVISION_VOID`
+   (3-tier family resolution); `InstanceVoidCutUtils.AddInstanceVoidCut`
+   with `CanBeCutWithVoid` gate; host-type `FIRE_RATING` inheritance;
+   deterministic SHA1-based UUIDv5 PFV keys.
+ - `Commands/Mep/PlaceSleevesCommand.cs` — Preview/Apply.
+ - `Commands/Mep/ExportPfvIfcCommand.cs` — IFC4 Reference View with
+   `ExportProvisionForVoids=true` option for Tekla Hole Reservation
+   Manager round-trip.
+
+**Phase I.5 — Sleeve → BCF 2.1 round-trip**
+ - `Commands/Mep/ExportSleeveBcfCommand.cs` — reuses
+   `Planscape.Shared.BCF.BcfEngine`; one topic per sleeve; PFV UUID
+   = BCF topic GUID so ACC Issues / BIMcollab / Solibri / Revizto /
+   Trimble Connect and Tekla all key off the same identifier.
+
+**Phase J — Cable-in-tray modelling** (MagiCAD parity)
+ - `Core/Electrical/CableManifest.cs` — `StingCable` record with
+   circuit id, phase, core count, CSA, OD, material, insulation,
+   segregation class; persisted to `_BIM_COORD/cables.json`.
+ - `Core/Electrical/CableRouter.cs` — graph over
+   `OST_CableTray` + `OST_Conduit` + fittings via
+   `ConnectorManager.Connectors.AllRefs`; Dijkstra from source→dest
+   equipment.
+ - `Core/Calc/VoltageDropSolver.cs` — BS 7671 Appendix 4 Table 4D1A
+   (Cu 70 °C two-core) with IEC 60364-5-52 Al correction and
+   three-phase √3 factor.
+ - `Commands/Electrical/AddCableCommand.cs` — PickObject source +
+   destination with `FixtureFilter`, routes, solves voltage drop,
+   appends to manifest.
+ - `Commands/Electrical/ListCablesCommand.cs` — manifest listing.
+
+**Phase K — Circuit schedule export** (ProDesign / EasyPower / ETAP)
+ - `Core/Electrical/CircuitScheduleExporter.cs` — walks
+   `FilteredElementCollector.OfClass(typeof(ElectricalSystem))` and
+   extracts 13 Revit BuiltInParameter fields
+   (`RBS_ELEC_NUMBER_OF_POLES` through
+   `RBS_ELEC_VOLTAGE_DROP_PARAM`). Emits three files to
+   `_BIM_COORD/electrical/`:
+     CSV (Excel), XML (ProDesign schema 1.0), JSON (EasyPower / ETAP
+     generic).
+ - `Commands/Electrical/ExportCircuitsCommand.cs` — dispatch tag
+   `Electrical_ExportCircuits`.
+
+**Phase L — Live tray fill-ratio widget**
+ - `Core/Electrical/TrayFillCalculator.cs` — reads tray geometry;
+   sums π·D²/4·N·coreCount with 10% packing waste for cables routed
+   through the tray (via `CableManifest.RouteTrayIds`); IEC 61537 /
+   BS 7671 App E / NEC 300.17 compliance:
+   40% covered tray, 45% perforated, 50% ladder, 40% conduit.
+ - `UI/TrayFillWindow.xaml.cs` — non-modal WPF canvas with tray
+   outline + colour-coded ellipses per cable (POWER red / UTP blue
+   / FTP cyan / SFTP mint / SWA grey / FIRE orange); header shows
+   fill% vs limit + PASS/OVERFILL.
+ - `Commands/Electrical/ShowTrayFillCommand.cs` — `PickObject` with
+   `TrayFilter`; renders cross-section.
+
+**Gap scoreboard after Phase 115**
+
+| Research gap | Status |
+|---|---|
+| Cable drawing / cable-in-tray modelling (MagiCAD) | DONE (Phase J) |
+| Circuit schedule export (ProDesign / EasyPower) | DONE (Phase K) |
+| Live tray fill-ratio widget (MagiCAD) | DONE (Phase L) |
+| BS EN 50174-2 segregation validator (novel) | DONE (Phase C.4) |
+| Point-load hanger sizing (MSUITE) | DONE (Phase M) |
+| Pset_ProvisionForVoid IFC4 export | DONE (Phase I.5) |
+| Rule-driven sleeve sizing, insulation-aware | DONE (Phase I) |
+| Host-aware cut (InstanceVoidCutUtils) | DONE (Phase I) |
+| Fire-rating inheritance (FIRE_RATING) | DONE (Phase I) |
+| BCF/ACC Issue round-trip | DONE (Phase I.5) |
+
+**Deferred for Phase 116+**
+ - Rod-coupler auto-insert (small, trivial — needs coupler family)
+ - Pull-tension solver (Polywater eqn — useful for conduit pulls)
+ - Seismic bracing content library (US-only)
+ - Cable-schedule round-trip import (ProDesign → Revit write-back)
+ - Hanger family library (no .rfa files shipped; Tier-1 resolver
+   finds vendor families when loaded).
