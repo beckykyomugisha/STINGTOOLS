@@ -59,6 +59,52 @@ namespace StingTools.Tags
         }
 
         /// <summary>
+        /// Load every built-in mode's tag-config CSVs and return a per-mode
+        /// family → <see cref="TierPlan"/> map. Used by the dual-wire authoring
+        /// path so a single family can be stamped with both Handover and
+        /// Design & Construction T4-T10 row sets, each row gated by its
+        /// mode selector BOOL (see <see cref="HandoverModeHelper.ModeSelectorBool"/>).
+        /// </summary>
+        /// <returns>
+        /// Outer dict keyed by mode name ("Handover", "DesignConstruction", …);
+        /// inner dict is the same shape <see cref="LoadAll"/> returns for a
+        /// single mode. Modes whose CSVs are missing from disk are omitted.
+        /// </returns>
+        public static Dictionary<string, Dictionary<string, TierPlan>> LoadAllPerMode(Document doc)
+        {
+            var result = new Dictionary<string, Dictionary<string, TierPlan>>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string[]> perModeCsvs;
+            try { perModeCsvs = HandoverModeHelper.GetAllTagConfigCsvsForAllModes(doc); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagConfigPlanResolver.LoadAllPerMode: {ex.Message}");
+                return result;
+            }
+
+            foreach (var modeKv in perModeCsvs)
+            {
+                var merged = new Dictionary<string, TierPlan>(StringComparer.Ordinal);
+                foreach (string name in modeKv.Value)
+                {
+                    if (string.IsNullOrEmpty(name)) continue;
+                    string path = StingToolsApp.FindDataFile(name);
+                    if (string.IsNullOrEmpty(path) || !File.Exists(path)) continue;
+                    try
+                    {
+                        var perFile = TagConfigCsvReader.LoadFile(path);
+                        foreach (var kv in perFile) merged[kv.Key] = kv.Value;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"TagConfigPlanResolver.LoadAllPerMode: parsing '{name}' failed — {ex.Message}");
+                    }
+                }
+                if (merged.Count > 0) result[modeKv.Key] = merged;
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Read the PRESERVE_HAND_EDITS flag from project_config.json next to
         /// the .rvt. Default false so a fresh project re-authors normally.
         /// When the key is absent or the file is missing we return false

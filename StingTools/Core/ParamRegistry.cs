@@ -536,6 +536,18 @@ namespace StingTools.Core
         /// <summary>Warning severity filter: CRITICAL, HIGH, MEDIUM, ALL.</summary>
         public static string WARN_SEVERITY_FILTER { get; private set; } = "TAG_WARN_SEVERITY_FILTER_TXT";
 
+        // ── Paragraph pattern selectors (2026-04, dual-wire T4-T10) ──
+        // Families carry BOTH the Handover and Design & Construction row sets.
+        // Each row's formula AND-gates TAG_PARA_STATE_N_BOOL with one of these so
+        // flipping the pattern is a project-level BOOL toggle instead of a
+        // family re-author pass.
+        /// <summary>Pattern selector — Handover / FM T4-T10 payload is visible.</summary>
+        public static string MODE_HANDOVER { get; private set; } = "HANDOVER_MODE_HANDOVER_BOOL";
+        /// <summary>Pattern selector — Design & Construction T4-T10 payload is visible.</summary>
+        public static string MODE_DC { get; private set; } = "HANDOVER_MODE_DC_BOOL";
+        /// <summary>Pattern selector — Custom (user-defined) T4-T10 payload is visible.</summary>
+        public static string MODE_CUSTOM { get; private set; } = "HANDOVER_MODE_CUSTOM_BOOL";
+
         // ── Warning threshold definitions (v5.5) ─────────────────────────
         // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.
         // Each entry defines a compliance check with threshold, unit, and severity.
