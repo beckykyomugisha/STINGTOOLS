@@ -21,7 +21,10 @@ namespace StingTools.Core.Routing
         public ElementId PipeTypeId       { get; set; }
         public ElementId PipingSystemTypeId { get; set; }
 
-        public AutoPipeDrop(Document doc) : base(doc) { }
+        public AutoPipeDrop(Document doc) : base(doc)
+        {
+            ConnectorDomain = Domain.DomainPiping;
+        }
 
         public DropResult Execute(IList<Element> fixtures)
         {
@@ -112,7 +115,10 @@ namespace StingTools.Core.Routing
             }
             try
             {
-                // TODO-VERIFY-API: Pipe.Create(doc, systemTypeId, pipeTypeId, levelId, from, to)
+                // Pipe.Create(doc, systemTypeId, pipeTypeId, levelId, from, to) —
+                // verified against Revit 2025 API. Returns a Pipe whose
+                // ConnectorManager exposes two end connectors that the
+                // DropEngineBase will wire up post-creation.
                 var pipe = Pipe.Create(Doc, PipingSystemTypeId, PipeTypeId, levelId, from, to);
                 if (pipe == null) return ElementId.InvalidElementId;
                 TrySetString(pipe, "PLM_PPE_FAB_METHOD_TXT",     FabMethod);

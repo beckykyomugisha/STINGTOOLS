@@ -36,7 +36,17 @@ namespace StingTools.Core.Routing
         /// </summary>
         public ElementId ConduitTypeId { get; set; }
 
-        public AutoConduitDrop(Document doc) : base(doc) { }
+        public AutoConduitDrop(Document doc) : base(doc)
+        {
+            ConnectorDomain = Domain.DomainCableTrayConduit;
+        }
+
+        /// <summary>
+        /// Cable-tray / conduit has no NewTakeoffFitting API — wire-up at
+        /// the host end uses Connector.ConnectTo with an adjacent tray
+        /// connector instead.
+        /// </summary>
+        protected override bool SupportsTakeoff => false;
 
         public DropResult Execute(IList<Element> fixtures)
         {
@@ -123,7 +133,11 @@ namespace StingTools.Core.Routing
 
             try
             {
-                // TODO-VERIFY-API: Conduit.Create(doc, conduitTypeId, from, to, levelId)
+                // Conduit.Create(doc, conduitTypeId, from, to, levelId) —
+                // verified against Revit 2025 API. Returned Conduit
+                // exposes two end connectors that DropEngineBase wires
+                // up via Connector.ConnectTo (conduits have no takeoff
+                // fitting so SupportsTakeoff is false).
                 var cdt = Conduit.Create(Doc, ConduitTypeId, from, to, levelId);
                 if (cdt == null) return ElementId.InvalidElementId;
 

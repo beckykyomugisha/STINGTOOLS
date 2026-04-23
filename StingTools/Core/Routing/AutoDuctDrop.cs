@@ -26,7 +26,10 @@ namespace StingTools.Core.Routing
         public ElementId DuctTypeId       { get; set; }
         public ElementId MechanicalSystemTypeId { get; set; }
 
-        public AutoDuctDrop(Document doc) : base(doc) { }
+        public AutoDuctDrop(Document doc) : base(doc)
+        {
+            ConnectorDomain = Domain.DomainHvac;
+        }
 
         public DropResult Execute(IList<Element> fixtures)
         {
@@ -117,7 +120,9 @@ namespace StingTools.Core.Routing
             }
             try
             {
-                // TODO-VERIFY-API: Duct.Create(doc, mechanicalSystemTypeId, ductTypeId, levelId, from, to)
+                // Duct.Create(doc, mechanicalSystemTypeId, ductTypeId, levelId, from, to) —
+                // verified against Revit 2025 API. Returned Duct exposes
+                // two end connectors that DropEngineBase wires up.
                 var duct = Duct.Create(Doc, MechanicalSystemTypeId, DuctTypeId, levelId, from, to);
                 if (duct == null) return ElementId.InvalidElementId;
                 TrySetString(duct, "HVC_DCT_FAB_METHOD_TXT", FabMethod);
