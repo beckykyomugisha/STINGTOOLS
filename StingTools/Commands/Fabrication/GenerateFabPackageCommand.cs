@@ -41,6 +41,14 @@ namespace StingTools.Commands.Fabrication
 
         // Content mode — ISO 6412 (workshop) vs Generic (geometry only)
         public static bool ContentModeIso6412  { get; set; } = true;
+
+        /// <summary>
+        /// Shop-drawing composition options captured from the
+        /// ShopDrawingOptionsDialog. Null = use engine defaults
+        /// (per-discipline STING_TB_ASSEMBLY_*, no view template,
+        /// SP-{disc}-{sys}-{lvl}-{seq} sheet numbering).
+        /// </summary>
+        public static StingTools.UI.ShopDrawingOptions ShopDrawing { get; set; }
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -75,6 +83,18 @@ namespace StingTools.Commands.Fabrication
                     "  4. Lay out shop drawing sheets with title block populated\n" +
                     "  5. Emit per-discipline CSV sidecars (bend / weld / seam)");
                 return Result.Cancelled;
+            }
+
+            // Shop-drawing composition dialog — lets users pick a
+            // specific title block + view template + sheet-number
+            // pattern instead of the per-discipline STING_TB_ASSEMBLY_*
+            // default. Cancelling the dialog aborts the command.
+            if (FabricationOptions.GenerateSheets)
+            {
+                var dlg = new StingTools.UI.ShopDrawingOptionsDialog(doc);
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                if (dlg.ShowDialog() != true) return Result.Cancelled;
+                FabricationOptions.ShopDrawing = dlg.Result;
             }
 
             FabricationResult res;
