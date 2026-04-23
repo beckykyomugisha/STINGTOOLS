@@ -272,6 +272,7 @@ namespace StingTools.UI
                     case "Fabrication_ExportCutList":   RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;
                     case "Fabrication_ExportIsometrics":RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
                     case "Fabrication_ExportWeldMap":   RunCommand<Commands.Fabrication.ExportWeldMapCommand>(app); break;
+                    case "Fabrication_ExportMaj":       RunCommand<Commands.Fabrication.ExportMajCommand>(app); break;
                     case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
 
                     // ── Selection scope ──
