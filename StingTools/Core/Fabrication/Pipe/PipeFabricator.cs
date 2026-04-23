@@ -65,6 +65,7 @@ namespace StingTools.Core.Fabrication.Pipe
             string path = Path.Combine(outDir, "STING_v4_pipe_welds.csv");
             using (var w = new StreamWriter(path, false))
             {
+                Core.Branding.BrandTokens.StampCsvHeader(w, doc, "pipe_weld_map");
                 w.WriteLine("element_id,category,name,weld_type,size_mm,schedule");
                 foreach (var id in ids)
                 {

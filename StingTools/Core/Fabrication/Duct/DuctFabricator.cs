@@ -65,6 +65,7 @@ namespace StingTools.Core.Fabrication.Duct
             string path = Path.Combine(outDir, "STING_v4_duct_seams.csv");
             using (var w = new StreamWriter(path, false))
             {
+                Core.Branding.BrandTokens.StampCsvHeader(w, doc, "duct_seam_tally");
                 w.WriteLine("element_id,category,name,seam_type_SMACNA,flange_count,material");
                 foreach (var id in ids)
                 {

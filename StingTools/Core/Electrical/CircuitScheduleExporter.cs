@@ -78,13 +78,13 @@ namespace StingTools.Core.Electrical
             result.XmlPath  = Path.Combine(outputDirectory, $"circuits_{stamp}.xml");
             result.JsonPath = Path.Combine(outputDirectory, $"circuits_{stamp}.json");
 
-            try { WriteCsv(rows, result.CsvPath); }
+            try { WriteCsv(rows, result.CsvPath, doc); }
             catch (Exception ex) { result.Warnings.Add($"csv: {ex.Message}"); }
 
-            try { WriteProDesignXml(rows, result.XmlPath); }
+            try { WriteProDesignXml(rows, result.XmlPath, doc); }
             catch (Exception ex) { result.Warnings.Add($"xml: {ex.Message}"); }
 
-            try { WriteJson(rows, result.JsonPath); }
+            try { WriteJson(rows, result.JsonPath, doc); }
             catch (Exception ex) { result.Warnings.Add($"json: {ex.Message}"); }
 
             return result;
@@ -131,10 +131,13 @@ namespace StingTools.Core.Electrical
             return rows;
         }
 
-        private static void WriteCsv(List<CircuitRow> rows, string path)
+        private static void WriteCsv(List<CircuitRow> rows, string path, Document doc)
         {
             using (var w = new StreamWriter(path, false, Encoding.UTF8))
             {
+                // Corporate masthead (2-5 comment rows) so the CSV
+                // opens in Excel with company + project context.
+                Core.Branding.BrandTokens.StampCsvHeader(w, doc, "circuit_schedule");
                 w.WriteLine("CircuitId,PanelName,LoadName,Poles,RatingA,LoadVA,VoltageV,Phase," +
                             "LengthM,WireSize,VoltDropPct,ElementCount,SystemType");
                 foreach (var r in rows)
@@ -155,10 +158,11 @@ namespace StingTools.Core.Electrical
             }
         }
 
-        private static void WriteProDesignXml(List<CircuitRow> rows, string path)
+        private static void WriteProDesignXml(List<CircuitRow> rows, string path, Document rvtDoc)
         {
-            var doc = new XDocument(
+            var xdoc = new XDocument(
                 new XDeclaration("1.0", "utf-8", null),
+                new XComment(Core.Branding.BrandTokens.StampXmlComment(rvtDoc, "circuit_schedule")),
                 new XElement("ProDesignCircuits",
                     new XAttribute("schema",   "1.0"),
                     new XAttribute("source",   "STING-v4"),
@@ -176,16 +180,20 @@ namespace StingTools.Core.Electrical
                         new XElement("WireSize",    r.WireSize),
                         new XElement("VoltDropPct", r.VoltDropPct.ToString("F2", Inv)),
                         new XElement("SystemType",  r.SystemType)))));
-            doc.Save(path);
+            xdoc.Save(path);
         }
 
-        private static void WriteJson(List<CircuitRow> rows, string path)
+        private static void WriteJson(List<CircuitRow> rows, string path, Document rvtDoc)
         {
+            var brand = Core.Branding.CorporateBrand.For(rvtDoc);
             var payload = new
             {
-                schema   = "easypower-etap-generic",
-                source   = "STING-v4",
-                exported = DateTime.UtcNow,
+                schema    = "easypower-etap-generic",
+                source    = "STING-v4",
+                exported  = DateTime.UtcNow,
+                generated_by = brand.CompanyName,
+                disclaimer   = brand.Disclaimer,
+                project_code = rvtDoc?.ProjectInformation?.Number ?? "",
                 circuits = rows,
             };
             File.WriteAllText(path, JsonConvert.SerializeObject(payload, Formatting.Indented));
