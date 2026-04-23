@@ -1522,6 +1522,7 @@ namespace StingTools.UI
                     }
                     case "ApplyParagraphPreset": RunCommand<Tags.ApplyParagraphPresetCommand>(app); break;
                     case "SetHandoverMode": RunCommand<Tags.SetHandoverModeCommand>(app); break;
+                    case "Tag7NarrativeUpdaterToggle": RunCommand<Core.Tag7NarrativeUpdaterToggleCommand>(app); break;
 
                     // Briefcase — Reference Document Viewer
                     case "BriefcaseView": RunCommand<BIMManager.BriefcaseViewCommand>(app); break;

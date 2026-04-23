@@ -50,6 +50,11 @@ namespace StingTools.Core
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
 
+                // Register the Tag 7 narrative auto-updater (IUpdater) — starts disabled.
+                // Keeps ASS_TAG_7_TXT in sync with the active paragraph preset when
+                // source parameters change. Users enable it from Tag Studio.
+                StingTag7NarrativeUpdater.Register(application);
+
                 // Phase 106: reserve the Live Clash Updater id. Triggers are
                 // deferred to a follow-on phase so models that don't use clash
                 // detection pay zero cost at startup.
@@ -875,6 +880,7 @@ namespace StingTools.Core
 
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
+            StingTag7NarrativeUpdater.Unregister();
 
             // Clash rec-2: Unregister the live clash IUpdater. Safe against re-entry
             // and no-op if never registered.

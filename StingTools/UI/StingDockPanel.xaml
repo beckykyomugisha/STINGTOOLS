@@ -3730,6 +3730,8 @@
                                                             ToolTip="Write composed paragraphs into ASS_TAG_7_TXT on elements in scope"/>
                                                     <Button Style="{StaticResource ActionBtn}" Content="Run full workflow"   Tag="RunWorkflow_TierConversionHandover" Click="Cmd_Click" Width="110" Height="26"
                                                             ToolTip="Apply preset → Set depth → Validate → COBie/Handover export"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Live refresh"        Tag="Tag7NarrativeUpdaterToggle" Click="Cmd_Click" Width="90"  Height="26"
+                                                            ToolTip="Toggle IUpdater that keeps ASS_TAG_7_TXT in sync with parameter changes"/>
                                                 </WrapPanel>
                                                 <TextBlock Text="Switches T4–T10 default content between Handover (FM) and Design &amp; Construction. Custom lets you save your own." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                             </StackPanel>
