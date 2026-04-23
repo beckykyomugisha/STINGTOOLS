@@ -29,7 +29,8 @@ namespace StingTools.Core.Fabrication
             string discipline,
             IList<ElementId> elementIds,
             int sequenceNumber,
-            FabricationResult result)
+            FabricationResult result,
+            AssemblyGrouper.SpoolMetrics metrics = null)
         {
             if (doc == null || elementIds == null || elementIds.Count == 0)
                 return null;
@@ -45,10 +46,10 @@ namespace StingTools.Core.Fabrication
                 string seq  = sequenceNumber.ToString("D4");
                 string assyName = $"SP-{disc}-{sys}-{lvl}-{seq}";
 
-                // TODO-VERIFY-API:
-                //   AssemblyInstance.Create(doc, IList<ElementId>, ElementId categoryId)
-                // Category id taken from the first element so the assembly
-                // inherits the discipline. Caller's Transaction is required.
+                // AssemblyInstance.Create(doc, IList<ElementId>, ElementId categoryId) —
+                // verified against Revit 2025 API. Category id taken from
+                // the first element so the assembly inherits the
+                // discipline. Caller's Transaction is required.
                 ElementId catId = first?.Category?.Id ?? new ElementId(BuiltInCategory.OST_GenericModel);
                 AssemblyInstance ai = AssemblyInstance.Create(doc, elementIds, catId);
                 if (ai == null)
@@ -74,6 +75,26 @@ namespace StingTools.Core.Fabrication
                 TrySetString(ai, AssyParams.FAB_STATUS_TXT,  "DRAFT");
                 TrySetString(ai, AssyParams.BOM_REV_TXT,     "P01");
                 TrySetInt   (ai, AssyParams.FAB_SEQ_NR,      sequenceNumber);
+
+                // Level code for the SP-{disc}-{sys}-{lvl}-{seq}
+                // convention, duplicated onto the assembly so
+                // ShopDrawingComposer can read it without resolving
+                // the first member's Level each time.
+                TrySetString(ai, "ASS_LVL_COD_TXT", lvl);
+
+                // Phase E — spool metrics from the grouper. Written
+                // back to the 8 computed parameters so BOQ, cut-list
+                // and MAJ exports don't have to recompute volume,
+                // weight, or weld counts independently.
+                if (metrics != null)
+                {
+                    TrySetDouble(ai, AssyParams.LENGTH_TOTAL_MM, metrics.LengthTotalMm);
+                    TrySetDouble(ai, AssyParams.WEIGHT_KG,       metrics.WeightKg);
+                    TrySetInt   (ai, AssyParams.WELD_COUNT_NR,   metrics.WeldCount);
+                    TrySetInt   (ai, AssyParams.FLANGE_COUNT_NR, metrics.FlangeCount);
+                    TrySetInt   (ai, AssyParams.FITTING_COUNT_NR, metrics.FittingCount);
+                    TrySetInt   (ai, AssyParams.CUT_COUNT_NR,    metrics.CutCount);
+                }
 
                 return ai.Id;
             }
@@ -153,6 +174,16 @@ namespace StingTools.Core.Fabrication
                   if (p.StorageType == StorageType.Integer) p.Set(val);
                   else if (p.StorageType == StorageType.String) p.Set(val.ToString()); }
             catch (Exception ex) { StingLog.Warn($"AssemblyBuilder.SetInt {param}: {ex.Message}"); }
+        }
+        private static void TrySetDouble(Element el, string param, double val)
+        {
+            try { var p = el.LookupParameter(param);
+                  if (p == null || p.IsReadOnly) return;
+                  if (p.StorageType == StorageType.Double)
+                      p.Set(val);
+                  else if (p.StorageType == StorageType.String)
+                      p.Set(val.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)); }
+            catch (Exception ex) { StingLog.Warn($"AssemblyBuilder.SetDouble {param}: {ex.Message}"); }
         }
     }
 }

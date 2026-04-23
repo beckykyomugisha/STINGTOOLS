@@ -19,7 +19,8 @@ namespace StingTools.Core.Fabrication.Electrical
             if (doc == null || elementIds == null || elementIds.Count == 0) return;
 
             var grouper = new AssemblyGrouper();
-            var groups = grouper.GroupForDiscipline(doc, elementIds, "Electrical");
+            var groups = grouper.GroupForDiscipline(doc, elementIds, "Electrical",
+                out List<AssemblyGrouper.SpoolMetrics> metrics);
             int seq = 1;
 
             using (var tx = new Transaction(doc, "STING v4 Electrical fabrication"))
@@ -29,9 +30,11 @@ namespace StingTools.Core.Fabrication.Electrical
 
                 try
                 {
-                    foreach (var g in groups)
+                    for (int i = 0; i < groups.Count; i++)
                     {
-                        ElementId assyId = AssemblyBuilder.Build(doc, "Electrical", g, seq++, result);
+                        var g = groups[i];
+                        var m = i < metrics.Count ? metrics[i] : null;
+                        ElementId assyId = AssemblyBuilder.Build(doc, "Electrical", g, seq++, result, m);
                         if (assyId == null || assyId == ElementId.InvalidElementId) { result.FailedCount++; continue; }
                         result.AssemblyIds.Add(assyId);
                         var views = AssemblyViewBuilder.BuildViews(doc, assyId);

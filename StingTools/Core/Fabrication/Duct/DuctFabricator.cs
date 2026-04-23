@@ -19,7 +19,8 @@ namespace StingTools.Core.Fabrication.Duct
             if (doc == null || elementIds == null || elementIds.Count == 0) return;
 
             var grouper = new AssemblyGrouper();
-            var groups = grouper.GroupForDiscipline(doc, elementIds, "Duct");
+            var groups = grouper.GroupForDiscipline(doc, elementIds, "Duct",
+                out List<AssemblyGrouper.SpoolMetrics> metrics);
             int seq = 1;
 
             using (var tx = new Transaction(doc, "STING v4 Duct fabrication"))
@@ -29,9 +30,11 @@ namespace StingTools.Core.Fabrication.Duct
 
                 try
                 {
-                    foreach (var g in groups)
+                    for (int i = 0; i < groups.Count; i++)
                     {
-                        ElementId assyId = AssemblyBuilder.Build(doc, "Duct", g, seq++, result);
+                        var g = groups[i];
+                        var m = i < metrics.Count ? metrics[i] : null;
+                        ElementId assyId = AssemblyBuilder.Build(doc, "Duct", g, seq++, result, m);
                         if (assyId == null || assyId == ElementId.InvalidElementId) { result.FailedCount++; continue; }
                         result.AssemblyIds.Add(assyId);
                         var views = AssemblyViewBuilder.BuildViews(doc, assyId);
