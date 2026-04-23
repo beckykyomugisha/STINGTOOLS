@@ -1507,6 +1507,22 @@ namespace StingTools.UI
                     case "BulkBIMExport": RunCommand<BIMManager.BulkBIMExportCommand>(app); break;
                     // HandoverManual already wired above
 
+                    // Paragraph Builder / T4-T10 switchable defaults
+                    case "ParagraphBuilder":
+                    {
+                        var dlg = new UI.ParagraphBuilderDialog();
+                        dlg.ShowDialog();
+                        if (dlg.Result != null && dlg.Result.ApplyRequested)
+                        {
+                            SetExtraParam("ParagraphPreset", dlg.Result.PresetKey);
+                            SetExtraParam("ParagraphScope", dlg.Result.Scope);
+                            RunCommand<Tags.ApplyParagraphPresetCommand>(app);
+                        }
+                        break;
+                    }
+                    case "ApplyParagraphPreset": RunCommand<Tags.ApplyParagraphPresetCommand>(app); break;
+                    case "SetHandoverMode": RunCommand<Tags.SetHandoverModeCommand>(app); break;
+
                     // Briefcase — Reference Document Viewer
                     case "BriefcaseView": RunCommand<BIMManager.BriefcaseViewCommand>(app); break;
                     case "BriefcaseRead": RunCommand<BIMManager.BriefcaseReadCommand>(app); break;
@@ -1843,6 +1859,7 @@ namespace StingTools.UI
                     case "RunWorkflow_COBieReadiness":
                     case "RunWorkflow_DrawingIssue":
                     case "RunWorkflow_SpatialQA":
+                    case "RunWorkflow_TierConversionHandover":
                     {
                         // Phase 75: Robust name reconstruction — insert spaces before uppercase chars
                         // SCH-CRIT-01 FIX: Use local `tag` snapshot (captured under lock at line 77),

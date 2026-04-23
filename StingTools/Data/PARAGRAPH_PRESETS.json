@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0",
+  "description": "Switchable default paragraph configurations for Tag Studio > Tokens & Depth. Two built-in presets (Handover / DesignConstruction) plus user-saved Custom presets. Each preset defines T4..T10 rows (parameter + prefix + suffix + formatting). The active preset is written to project_config.json under HANDOVER_MODE.",
+  "active_preset": "Handover",
+  "presets": {
+    "Handover": {
+      "display_name": "Handover / FM",
+      "description": "Operational focus — commissioning, cost, carbon, fabrication, clash, as-built, compliance. Mirrors the XLSX reference (20260423_sting_tag_config_136_v5_3_T4_T10.xlsx).",
+      "readonly": true,
+      "source": "XLSX v5.3 universal default",
+      "tiers": {
+        "T4": {
+          "label": "Commissioning & handover",
+          "rows": [
+            { "parameter": "COMM_STATE_TXT",     "prefix": "Comm:", "suffix": "",  "break": false, "style": "BOLD",   "color": "BLUE",   "size": 2.0, "enabled": true },
+            { "parameter": "COMM_DATE_TXT",      "prefix": "on",    "suffix": "",  "break": false, "style": "BOLD",   "color": "BLUE",   "size": 2.0, "enabled": true },
+            { "parameter": "COMM_OPERATIVE_TXT", "prefix": "by",    "suffix": "",  "break": true,  "style": "BOLD",   "color": "BLUE",   "size": 2.0, "enabled": true }
+          ]
+        },
+        "T5": {
+          "label": "Cost & procurement",
+          "rows": [
+            { "parameter": "CST_UG_PRICE_UGX",   "prefix": "",       "suffix": "UGX", "break": false, "style": "NOM",    "color": "PURPLE", "size": 2.0, "enabled": true },
+            { "parameter": "CST_INTL_PRICE_USD", "prefix": "/",      "suffix": "USD", "break": false, "style": "NOM",    "color": "PURPLE", "size": 2.0, "enabled": true },
+            { "parameter": "CST_QUOTE_REF_TXT",  "prefix": "Quote:", "suffix": "",    "break": true,  "style": "NOM",    "color": "PURPLE", "size": 2.0, "enabled": true }
+          ]
+        },
+        "T6": {
+          "label": "Carbon & sustainability",
+          "rows": [
+            { "parameter": "CBN_A1_A3_KG_CO2E",  "prefix": "A1-A3:", "suffix": "kgCO₂e",    "break": false, "style": "ITALIC", "color": "GREEN",  "size": 2.0, "enabled": true },
+            { "parameter": "CBN_A4_KG_CO2E",     "prefix": "| A4:",  "suffix": "kgCO₂e",    "break": false, "style": "ITALIC", "color": "GREEN",  "size": 2.0, "enabled": true },
+            { "parameter": "CBN_B6_KG_CO2E_YR",  "prefix": "| B6:",  "suffix": "kgCO₂e/yr", "break": true,  "style": "ITALIC", "color": "GREEN",  "size": 2.0, "enabled": true }
+          ]
+        },
+        "T7": {
+          "label": "Fabrication & QC",
+          "rows": [
+            { "parameter": "ASS_SPOOL_NR_TXT",    "prefix": "Spool:", "suffix": "", "break": false, "style": "BOLD", "color": "ORANGE", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_FAB_STATUS_TXT",  "prefix": "Fab:",   "suffix": "", "break": false, "style": "BOLD", "color": "ORANGE", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_QC_INSPECTOR_TXT","prefix": "QC:",    "suffix": "", "break": true,  "style": "BOLD", "color": "ORANGE", "size": 2.0, "enabled": true }
+          ]
+        },
+        "T8": {
+          "label": "Clash & coordination",
+          "rows": [
+            { "parameter": "CLASH_TRIAGE_SEVERITY_NR",     "prefix": "Sev:", "suffix": "/5", "break": false, "style": "BOLD", "color": "RED", "size": 2.0, "enabled": true },
+            { "parameter": "CLASH_TRIAGE_CATEGORY_TXT",    "prefix": "",     "suffix": "",   "break": false, "style": "BOLD", "color": "RED", "size": 2.0, "enabled": true },
+            { "parameter": "CLASH_RESOLUTION_STATUS_TXT",  "prefix": "Res:", "suffix": "",   "break": true,  "style": "BOLD", "color": "RED", "size": 2.0, "enabled": true }
+          ]
+        },
+        "T9": {
+          "label": "As-built & health",
+          "rows": [
+            { "parameter": "ASBUILT_DEVIATION_MM",     "prefix": "Δ:",    "suffix": "mm",   "break": false, "style": "ITALIC", "color": "GREY", "size": 2.0, "enabled": true },
+            { "parameter": "ASBUILT_CAPTURE_DATE_TXT", "prefix": "on",         "suffix": "",     "break": false, "style": "ITALIC", "color": "GREY", "size": 2.0, "enabled": true },
+            { "parameter": "HEALTH_SCORE_LAST_NR",     "prefix": "Health:",    "suffix": "/100", "break": true,  "style": "ITALIC", "color": "GREY", "size": 2.0, "enabled": true }
+          ]
+        },
+        "T10": {
+          "label": "Compliance / audit",
+          "rows": [
+            { "parameter": "IFC_PSET_OVERRIDE_TXT", "prefix": "IFC:",  "suffix": "", "break": false, "style": "NOM", "color": "GREY", "size": 2.0, "enabled": true },
+            { "parameter": "ACC_ISSUE_ID_TXT",      "prefix": "ACC:",  "suffix": "", "break": false, "style": "NOM", "color": "GREY", "size": 2.0, "enabled": true },
+            { "parameter": "ACC_SYNC_STATUS_TXT",   "prefix": "Sync:", "suffix": "", "break": true,  "style": "NOM", "color": "GREY", "size": 2.0, "enabled": true }
+          ]
+        }
+      }
+    },
+    "DesignConstruction": {
+      "display_name": "Design & Construction",
+      "description": "Design/construction focus — design intent, performance, material, manufacturer, installation, quality, classification. Alternative to Handover preset for pre-handover project stages.",
+      "readonly": true,
+      "source": "STING defaults (2026)",
+      "tiers": {
+        "T4": {
+          "label": "Design intent",
+          "rows": [
+            { "parameter": "ASS_DESIGN_OPTION_TXT", "prefix": "Option:", "suffix": "", "break": false, "style": "BOLD",   "color": "BLUE", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_MODEL_REF_TXT",     "prefix": "Ref:",    "suffix": "", "break": false, "style": "BOLD",   "color": "BLUE", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_KEYNOTE_TXT",       "prefix": "Key:",    "suffix": "", "break": true,  "style": "BOLD",   "color": "BLUE", "size": 2.0, "enabled": true }
+          ]
+        },
+        "T5": {
+          "label": "Performance & capacity",
+          "rows": [
+            { "parameter": "ASS_CAPACITY_TXT",     "prefix": "Cap:",    "suffix": "", "break": false, "style": "NOM", "color": "PURPLE", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_POWER_RATING_TXT", "prefix": "Power:",  "suffix": "", "break": false, "style": "NOM", "color": "PURPLE", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_FLOW_RATE_TXT",    "prefix": "Flow:",   "suffix": "", "break": true,  "style": "NOM", "color": "PURPLE", "size": 2.0, "enabled": true }
+          ]
+        },
+        "T6": {
+          "label": "Material & finish",
+          "rows": [
+            { "parameter": "ASS_MANUFACTURER_TXT",         "prefix": "Mfr:",    "suffix": "",   "break": false, "style": "ITALIC", "color": "GREEN", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_MODEL_NR_TXT",             "prefix": "Model:",  "suffix": "",   "break": false, "style": "ITALIC", "color": "GREEN", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_EXPECTED_LIFE_YEARS_YRS",  "prefix": "Life:",   "suffix": "yr", "break": true,  "style": "ITALIC", "color": "GREEN", "size": 2.0, "enabled": true }
+          ]
+        },
+        "T7": {
+          "label": "Installation",
+          "rows": [
+            { "parameter": "ASS_INSTALL_DATE_TXT",    "prefix": "Installed:", "suffix": "",   "break": false, "style": "BOLD", "color": "ORANGE", "size": 2.0, "enabled": true },
+            { "parameter": "CST_INSTALL_HRS",         "prefix": "Hrs:",       "suffix": "h",  "break": false, "style": "BOLD", "color": "ORANGE", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_CST_INSTALL_UGX_NR",  "prefix": "@",          "suffix": "UGX", "break": true,  "style": "BOLD", "color": "ORANGE", "size": 2.0, "enabled": true }
+          ]
+        },
+        "T8": {
+          "label": "Coordination",
+          "rows": [
+            { "parameter": "ASS_CRITICALITY_RATING_NR", "prefix": "Crit:",  "suffix": "/5", "break": false, "style": "BOLD", "color": "RED", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_ZONE_TXT",              "prefix": "Zone:",  "suffix": "",   "break": false, "style": "BOLD", "color": "RED", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_LVL_COD_TXT",           "prefix": "Lvl:",   "suffix": "",   "break": true,  "style": "BOLD", "color": "RED", "size": 2.0, "enabled": true }
+          ]
+        },
+        "T9": {
+          "label": "Warranty & quality",
+          "rows": [
+            { "parameter": "ASS_WARRANTY_PARTS_TXT", "prefix": "Parts:", "suffix": "",     "break": false, "style": "ITALIC", "color": "GREY", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_WARRANTY_LABOR_TXT", "prefix": "Labor:", "suffix": "",     "break": false, "style": "ITALIC", "color": "GREY", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_WARRANTY_TXT",       "prefix": "Terms:", "suffix": "",     "break": true,  "style": "ITALIC", "color": "GREY", "size": 2.0, "enabled": true }
+          ]
+        },
+        "T10": {
+          "label": "Classification",
+          "rows": [
+            { "parameter": "ASS_UNICLASS_2015_TXT", "prefix": "Uniclass:", "suffix": "", "break": false, "style": "NOM", "color": "GREY", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_KEYNOTE_TXT",       "prefix": "Key:",      "suffix": "", "break": false, "style": "NOM", "color": "GREY", "size": 2.0, "enabled": true },
+            { "parameter": "ASS_MODEL_REF_TXT",     "prefix": "Ref:",      "suffix": "", "break": true,  "style": "NOM", "color": "GREY", "size": 2.0, "enabled": true }
+          ]
+        }
+      }
+    },
+    "Custom": {
+      "display_name": "Custom (blank template)",
+      "description": "Empty template — edit in Tag Studio > Tokens & Depth > Paragraph Builder, then Save As to persist under a new name.",
+      "readonly": false,
+      "source": "user",
+      "tiers": {
+        "T4":  { "label": "",  "rows": [] },
+        "T5":  { "label": "",  "rows": [] },
+        "T6":  { "label": "",  "rows": [] },
+        "T7":  { "label": "",  "rows": [] },
+        "T8":  { "label": "",  "rows": [] },
+        "T9":  { "label": "",  "rows": [] },
+        "T10": { "label": "",  "rows": [] }
+      }
+    }
+  }
+}

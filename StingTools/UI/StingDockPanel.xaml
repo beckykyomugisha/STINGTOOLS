@@ -3704,6 +3704,37 @@
                                             </StackPanel>
                                         </Border>
 
+                                        <!-- HANDOVER MODE TOGGLE + PARAGRAPH BUILDER -->
+                                        <TextBlock Text="HANDOVER MODE (T4–T10 DEFAULT CONTENT)" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
+                                        <Border Style="{StaticResource GroupBorder}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="80"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Mode" FontSize="9" VerticalAlignment="Center"/>
+                                                    <WrapPanel Grid.Column="1">
+                                                        <RadioButton x:Name="rbModeHandover"  Content="Handover / FM"         GroupName="HandoverMode" IsChecked="True" Margin="2" FontSize="9"
+                                                                     ToolTip="Commissioning · Cost · Carbon · Fab · Clash · As-built · Compliance"/>
+                                                        <RadioButton x:Name="rbModeDesign"    Content="Design &amp; Construction" GroupName="HandoverMode" Margin="2" FontSize="9"
+                                                                     ToolTip="Design intent · Performance · Material · Installation · Coordination · Warranty · Classification"/>
+                                                        <RadioButton x:Name="rbModeCustom"    Content="Custom"                 GroupName="HandoverMode" Margin="2" FontSize="9"
+                                                                     ToolTip="User-edited preset from PARAGRAPH_PRESETS.json"/>
+                                                    </WrapPanel>
+                                                </Grid>
+                                                <WrapPanel Margin="0,6,0,0">
+                                                    <Button Style="{StaticResource BlueBtn}"   Content="Paragraph Builder…"  Tag="ParagraphBuilder"        Click="Cmd_Click" Width="132" Height="26"
+                                                            ToolTip="Edit T4–T10 rows (parameter + prefix + suffix), save as preset"/>
+                                                    <Button Style="{StaticResource GreenBtn}"  Content="Apply preset"        Tag="ApplyParagraphPreset"    Click="Cmd_Click" Width="90"  Height="26"
+                                                            ToolTip="Write composed paragraphs into ASS_TAG_7_TXT on elements in scope"/>
+                                                    <Button Style="{StaticResource ActionBtn}" Content="Run full workflow"   Tag="RunWorkflow_TierConversionHandover" Click="Cmd_Click" Width="110" Height="26"
+                                                            ToolTip="Apply preset → Set depth → Validate → COBie/Handover export"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="Switches T4–T10 default content between Handover (FM) and Design &amp; Construction. Custom lets you save your own." FontSize="8" Foreground="#999" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- COBIE FIELD PRE-SEEDING -->
                                         <TextBlock Text="COBie FIELD PRE-SEEDING" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
