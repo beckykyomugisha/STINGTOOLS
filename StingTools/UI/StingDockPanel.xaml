@@ -973,6 +973,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Inspect" Tag="DrawingTypes_Inspect" Click="Cmd_Click" ToolTip="Read-only catalogue + routing table + validator report"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Reload JSON" Tag="DrawingTypes_Reload" Click="Cmd_Click" ToolTip="Clear registry cache so on-disk edits to STING_DRAWING_TYPES.json or _BIM_COORD/drawing_types.json take effect"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Group Browser" Tag="DrawingTypes_BrowserOrganize" Click="Cmd_Click" ToolTip="Set the Project Browser to group views and sheets by their STING_DRAWING_TYPE_ID_TXT stamp"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="Re-apply each stamped view's DrawingType profile (scale, template, style pack). Skips STYLE_LOCKED views"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

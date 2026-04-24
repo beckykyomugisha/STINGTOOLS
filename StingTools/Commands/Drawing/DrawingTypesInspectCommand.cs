@@ -64,6 +64,19 @@ namespace StingTools.Commands.Drawing
                 int errors   = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Error));
                 int warnings = reports.Sum(r => r.Issues.Count(i => i.Severity == ValidationSeverity.Warning));
                 sb.AppendLine($"Validation: {errors} error(s), {warnings} warning(s)");
+
+                // Drift summary (Week 4) — per-view check against profile
+                try
+                {
+                    var drifts = DrawingDriftDetector.Scan(doc);
+                    if (drifts.Count == 0)
+                        sb.AppendLine("Drift:      0 view(s) out of sync with their profile");
+                    else
+                        sb.AppendLine($"Drift:      {drifts.Count} view(s) drifted — run 'Sync Styles' to resync");
+                }
+                catch (Exception dex) { sb.AppendLine($"Drift scan failed: {dex.Message}"); }
+
+                sb.AppendLine();
                 foreach (var r in reports.Where(r => r.HasErrors || r.HasWarnings))
                 {
                     sb.AppendLine($"  [{r.DrawingTypeId}]");

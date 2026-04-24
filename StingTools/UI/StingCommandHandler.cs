@@ -321,6 +321,7 @@ namespace StingTools.UI
                     case "DrawingTypes_Reload":          RunCommand<Commands.Drawing.DrawingTypesReloadCommand>(app);         break;
                     case "DrawingTypes_Editor":          RunCommand<Commands.Drawing.DrawingTypeEditorCommand>(app);          break;
                     case "DrawingTypes_BrowserOrganize": RunCommand<Commands.Drawing.DrawingBrowserOrganizerCommand>(app);    break;
+                    case "DrawingTypes_SyncStyles":      RunCommand<Commands.Drawing.DrawingSyncStylesCommand>(app);          break;
 
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
