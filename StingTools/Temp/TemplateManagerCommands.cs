@@ -3003,73 +3003,55 @@ namespace StingTools.Temp
                 }
             }
 
-            // ── Step 3: Mode picker (mirrors FamilyParamCreator) ─────────────
-            // The Temp-tab processor now offers the same eight processing
-            // modes as the Create-tab FamilyParamCreator, so callers do
-            // not have to decide between the two commands. Add = additive;
-            // Clean = drop non-STING shared params first; Migrate = rewrite
-            // TAG_POS + position types; Purge = destructive factory reset.
-            var modeItems = new List<Select.StingListPicker.ListItem>
-            {
-                new Select.StingListPicker.ListItem
-                    { Label = "Single Family — Add Missing Params (recommended)", Detail = "Append any missing STING params + category bindings. Existing labels, formulas and types are left alone.", Tag = "add_single" },
-                new Select.StingListPicker.ListItem
-                    { Label = "Batch Folder — Add Missing Params (recommended)",  Detail = "Append missing params across every .rfa in the target folder.", Tag = "add_batch" },
-                new Select.StingListPicker.ListItem
-                    { Label = "Single Family — Clean Non-STING Params + Inject",  Detail = "Remove any shared parameters whose GUID is not in the STING registry, then inject STING's schema + category bindings. Use when adopting third-party families.", Tag = "clean_single" },
-                new Select.StingListPicker.ListItem
-                    { Label = "Batch Folder — Clean Non-STING Params + Inject",   Detail = "Clean + inject across every .rfa in the folder. Third-party / legacy shared params are removed by GUID.", Tag = "clean_batch" },
-                new Select.StingListPicker.ListItem
-                    { Label = "Single Family — Migrate (rewrite TAG_POS + position types)", Detail = "Adds TAG_POS, writes the 16-branch formula, creates position types, then applies all CSV bindings and formulas.", Tag = "migrate_single" },
-                new Select.StingListPicker.ListItem
-                    { Label = "Batch Folder — Migrate (rewrite TAG_POS + position types)",  Detail = "Migrate every .rfa in the target folder.", Tag = "migrate_batch" },
-                new Select.StingListPicker.ListItem
-                    { Label = "Single Family — Purge STING + Reinject (destructive)", Detail = "Remove every STING-registered shared param then re-inject the full schema + category bindings. Use only for schema migrations.", Tag = "purge_single" },
-                new Select.StingListPicker.ListItem
-                    { Label = "Batch Folder — Purge STING + Reinject (destructive)",  Detail = "Purge + reinject across folder. Use only for schema migrations.", Tag = "purge_batch" },
-            };
+            // ── Step 3: User selects single file or folder ──────────────────
+            var td = new TaskDialog("Family Parameter Processor");
+            td.MainContent = "Select families to process.\n\n" +
+                $"Available: {allBindings.Count} parameter bindings across " +
+                $"{bindingsByCategory.Count} categories\n" +
+                $"Formulas: {formulasByParam.Count} formula definitions\n\n" +
+                "Choose how to select families:";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Process a single .rfa file",
+                "Opens a file dialog to select one family file");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Process all .rfa files in a folder",
+                "Opens a folder browser to select a directory (processes all .rfa files recursively)");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
 
-            var selectedMode = Select.StingListPicker.Show(
-                "STING — Family Parameter Processor",
-                $"{allBindings.Count} bindings / {bindingsByCategory.Count} categories / " +
-                $"{formulasByParam.Count} formulas. Choose processing mode.",
-                modeItems);
-            if (selectedMode == null || selectedMode.Count == 0)
-                return Result.Cancelled;
-            string mode = selectedMode[0].Tag as string ?? "add_single";
-
-            bool cleanNonSting = mode.StartsWith("clean");
-            bool purgeSting    = mode.StartsWith("purge");
-            bool migrate       = mode.StartsWith("migrate") || purgeSting;
-            bool isBatch       = mode.Contains("batch");
-
-            // ── Step 3b: File picker (single / batch folder) ──────────────────
+            TaskDialogResult tdResult = td.Show();
             var familyPaths = new List<string>();
-            if (isBatch)
+
+            if (tdResult == TaskDialogResult.CommandLink1)
             {
-                var dlg = new Microsoft.Win32.OpenFileDialog
-                {
-                    Title = "Select any .rfa file in the target folder (all .rfa will be processed)",
-                    Filter = "Revit Family Files (*.rfa)|*.rfa",
-                    Multiselect = true,
-                    InitialDirectory = StingToolsApp.DataPath ?? ""
-                };
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
-                string folder = Path.GetDirectoryName(dlg.FileName);
-                if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
-                    familyPaths.AddRange(Directory.GetFiles(folder, "*.rfa", SearchOption.AllDirectories));
-            }
-            else
-            {
+                // Single file
                 var dlg = new Microsoft.Win32.OpenFileDialog
                 {
                     Title = "Select Revit Family File",
                     Filter = "Revit Family Files (*.rfa)|*.rfa",
-                    Multiselect = true,
-                    InitialDirectory = StingToolsApp.DataPath ?? ""
+                    Multiselect = true
                 };
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
-                familyPaths.AddRange(dlg.FileNames);
+                if (dlg.ShowDialog() == true)
+                    familyPaths.AddRange(dlg.FileNames);
+            }
+            else if (tdResult == TaskDialogResult.CommandLink2)
+            {
+                // Folder
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select any file inside the family folder",
+                    Filter = "Revit Family Files (*.rfa)|*.rfa",
+                    CheckFileExists = true
+                };
+                if (dlg.ShowDialog() == true)
+                {
+                    string folder = Path.GetDirectoryName(dlg.FileName);
+                    if (!string.IsNullOrEmpty(folder))
+                        familyPaths.AddRange(Directory.GetFiles(folder, "*.rfa", SearchOption.AllDirectories));
+                }
+            }
+            else
+            {
+                return Result.Cancelled;
             }
 
             if (familyPaths.Count == 0)
@@ -3079,19 +3061,10 @@ namespace StingTools.Temp
             }
 
             // ── Step 4: Process each family ─────────────────────────────────
-            // Delegates purge + param injection + (for Migrate / Purge modes)
-            // TAG_POS formula + position type creation to FamilyParamEngine,
-            // then applies FORMULAS_WITH_DEPENDENCIES.csv formulas in a
-            // second transaction. This keeps the CSV-binding behaviour the
-            // Temp processor has always had while matching the 8 modes of
-            // the Create-tab FamilyParamCreator.
             int totalFamilies = familyPaths.Count;
             int processed = 0;
             int paramsAdded = 0;
             int formulasApplied = 0;
-            int paramsPurged = 0;
-            int tagPosInjectedCount = 0;
-            int positionTypesCreated = 0;
             int skippedNoCategory = 0;
             int skippedExisting = 0;
             int failedParams = 0;
@@ -3104,6 +3077,7 @@ namespace StingTools.Temp
                 Document famDoc = null;
                 try
                 {
+                    // Open the family document
                     famDoc = app.OpenDocumentFile(familyPath);
                     if (famDoc == null || !famDoc.IsFamilyDocument)
                     {
@@ -3113,6 +3087,7 @@ namespace StingTools.Temp
                         continue;
                     }
 
+                    // Read family category
                     Family ownerFamily = famDoc.OwnerFamily;
                     string categoryName = ownerFamily?.FamilyCategory?.Name ?? "";
                     if (string.IsNullOrEmpty(categoryName))
@@ -3123,97 +3098,141 @@ namespace StingTools.Temp
                         continue;
                     }
 
+                    // Tag annotation families report category as "Door Tags",
+                    // "Room Tags", "Generic Model Tags" etc. Map back to the
+                    // host element category used in FAMILY_PARAMETER_BINDINGS.csv.
                     string lookupCategory = MapTagCategoryToHost(categoryName);
 
-                    // Build the union parameter list: CSV bindings for this
-                    // category (4,686-row master table) — the engine will
-                    // skip anything already present, so we do NOT pre-filter.
-                    List<string> paramList = null;
-                    if (bindingsByCategory.TryGetValue(lookupCategory, out var categoryBindings))
+                    // Find applicable parameter bindings for this category
+                    if (!bindingsByCategory.TryGetValue(lookupCategory, out var categoryBindings))
                     {
-                        paramList = categoryBindings
-                            .Select(b => b.name)
-                            .Where(n => !string.IsNullOrEmpty(n))
-                            .GroupBy(n => n, StringComparer.OrdinalIgnoreCase)
-                            .Select(g => g.Key)
-                            .ToList();
-                    }
-                    else
-                    {
-                        // No CSV binding row for the category: fall back to
-                        // the engine's default category param set (tokens +
-                        // tag containers + visibility + style matrix) so the
-                        // family still receives STING's tag schema.
-                        paramList = new List<string>();
-                    }
-
-                    var opts = new Tags.FamilyParamEngine.ProcessOptions
-                    {
-                        ParamNames          = paramList,
-                        InjectTagPos        = migrate,
-                        InjectFormulas      = migrate,
-                        CreatePositionTypes = migrate,
-                        Purge               = purgeSting    ? Tags.PurgeMode.StingOnly
-                                            : cleanNonSting ? Tags.PurgeMode.NonSting
-                                            : Tags.PurgeMode.None,
-                    };
-
-                    // Engine does purge + shared-param injection + TAG_POS +
-                    // position types + automation pack in one transaction.
-                    var r = Tags.FamilyParamEngine.ProcessFamilyDocument(
-                        app, famDoc, fileName, opts);
-
-                    if (!r.Success)
-                    {
-                        perFamilyResults.Add($"[FAIL] {fileName} — {r.ErrorMessage ?? "engine failed"}");
-                        failedParams++;
-                        try { famDoc.Close(false); } catch (Exception ex) { StingLog.Warn($"Close after engine failure: {ex.Message}"); }
+                        perFamilyResults.Add($"[SKIP] {fileName} ({categoryName}) — no bindings defined for this category");
+                        skippedNoCategory++;
+                        famDoc.Close(false);
                         continue;
                     }
 
-                    paramsAdded         += r.ParamsAdded;
-                    skippedExisting     += r.ParamsSkipped;
-                    paramsPurged        += r.ParamsPurged;
-                    if (r.TagPosInjected) tagPosInjectedCount++;
-                    positionTypesCreated += r.PositionTypesCreated;
-
-                    // Second pass — apply FORMULAS_WITH_DEPENDENCIES.csv
-                    // formulas to every param now present in the family.
-                    int familyFormulas = 0;
-                    int familyFailedFormulas = 0;
-                    using (Transaction ftx = new Transaction(famDoc, "STING Apply Family Formulas"))
+                    // Get existing family parameters
+                    FamilyManager fmgr = famDoc.FamilyManager;
+                    var existingParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (FamilyParameter fp in fmgr.Parameters)
                     {
-                        ftx.Start();
-                        FamilyManager fmgr = famDoc.FamilyManager;
-                        foreach (FamilyParameter fp in fmgr.Parameters)
+                        if (!string.IsNullOrEmpty(fp.Definition?.Name))
+                            existingParams.Add(fp.Definition.Name);
+                    }
+
+                    int familyAdded = 0;
+                    int familySkipped = 0;
+                    int familyFormulas = 0;
+                    int familyFailed = 0;
+
+                    using (Transaction tx = new Transaction(famDoc, "STING Add Family Parameters"))
+                    {
+                        tx.Start();
+
+                        // Deduplicate by parameter name (same param may appear for multiple categories)
+                        var uniqueParams = categoryBindings
+                            .GroupBy(b => b.name, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+
+                        foreach (var paramGroup in uniqueParams)
                         {
-                            string pname = fp.Definition?.Name;
-                            if (string.IsNullOrEmpty(pname)) continue;
-                            if (!formulasByParam.TryGetValue(pname, out string formula)) continue;
-                            if (!string.IsNullOrEmpty(fp.Formula)) continue;   // leave user formulas alone
+                            string paramName = paramGroup.Key;
+                            var entry = paramGroup.First();
+
+                            // Skip if already exists
+                            if (existingParams.Contains(paramName))
+                            {
+                                familySkipped++;
+                                skippedExisting++;
+                                continue;
+                            }
+
+                            // Find the shared parameter definition
+                            ExternalDefinition extDef = null;
+                            if (defByName.TryGetValue(paramName, out extDef))
+                            {
+                                // Found by name
+                            }
+                            else if (!string.IsNullOrEmpty(entry.sharedGuid) &&
+                                     Guid.TryParse(entry.sharedGuid, out Guid g) &&
+                                     defByGuid.TryGetValue(g, out extDef))
+                            {
+                                // Found by GUID fallback
+                            }
+                            else if (!string.IsNullOrEmpty(entry.guid) &&
+                                     Guid.TryParse(entry.guid, out Guid g2) &&
+                                     defByGuid.TryGetValue(g2, out extDef))
+                            {
+                                // Found by primary GUID
+                            }
+
+                            if (extDef == null)
+                            {
+                                familyFailed++;
+                                failedParams++;
+                                continue;
+                            }
+
                             try
                             {
-                                fmgr.SetFormula(fp, formula);
-                                familyFormulas++;
+                                // Determine instance vs type (default to Instance if not specified)
+                                bool isInstance = string.IsNullOrEmpty(entry.bindingType) ||
+                                    entry.bindingType.Equals("Instance", StringComparison.OrdinalIgnoreCase);
+
+                                fmgr.AddParameter(extDef, GroupTypeId.General, isInstance);
+                                familyAdded++;
+                                paramsAdded++;
+                                existingParams.Add(paramName); // Track for formula application
                             }
-                            catch (Exception fex)
+                            catch (Exception ex)
                             {
-                                // Typically a dependency param isn't in this family — expected.
-                                StingLog.Warn($"Suppressed formula '{pname}': {fex.Message}");
-                                familyFailedFormulas++;
+                                StingLog.Warn($"[{fileName}] Failed to add '{paramName}': {ex.Message}");
+                                familyFailed++;
+                                failedParams++;
                             }
                         }
-                        ftx.Commit();
-                    }
-                    formulasApplied += familyFormulas;
-                    failedFormulas  += familyFailedFormulas;
 
-                    // Backup + in-place save (same pattern as before).
-                    bool anyChange = r.ParamsAdded > 0 || r.ParamsPurged > 0 ||
-                                     r.TagPosInjected || r.PositionTypesCreated > 0 ||
-                                     familyFormulas > 0;
-                    if (anyChange)
+                        // ── Apply formulas ───────────────────────────────────
+                        // Only apply formulas to parameters that now exist in the family
+                        foreach (var paramName in existingParams)
+                        {
+                            if (!formulasByParam.TryGetValue(paramName, out string formula))
+                                continue;
+
+                            FamilyParameter famParam = null;
+                            foreach (FamilyParameter fp in fmgr.Parameters)
+                            {
+                                if (fp.Definition?.Name != null &&
+                                    fp.Definition.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    famParam = fp;
+                                    break;
+                                }
+                            }
+
+                            if (famParam == null) continue;
+
+                            // Skip if formula already set
+                            if (!string.IsNullOrEmpty(famParam.Formula)) continue;
+
+                            try
+                            {
+                                fmgr.SetFormula(famParam, formula);
+                                familyFormulas++;
+                                formulasApplied++;
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); // Formula may reference params not in this family — expected
+                                failedFormulas++; }
+                        }
+
+                        tx.Commit();
+                    }
+
+                    // ── Backup and save ──────────────────────────────────────
+                    if (familyAdded > 0 || familyFormulas > 0)
                     {
+                        // Save modified family to a temp path first, then backup original
                         string backupDir = Path.Combine(
                             Path.GetDirectoryName(familyPath), "_param_backups");
                         try
@@ -3224,11 +3243,12 @@ namespace StingTools.Temp
                             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                             string backupName = $"{Path.GetFileNameWithoutExtension(familyPath)}_{timestamp}.rfa";
                             string backupPath = Path.Combine(backupDir, backupName);
+                            // Save current (modified) to temp, close, copy original to backup, rename temp
                             string tempPath = familyPath + ".sting_tmp";
                             var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                             famDoc.SaveAs(tempPath, saveOpts);
                             famDoc.Close(false);
-                            famDoc = null;
+                            famDoc = null; // prevent double-close below
                             File.Copy(familyPath, backupPath, true);
                             File.Copy(tempPath, familyPath, true);
                             try { File.Delete(tempPath); } catch (Exception ex) { StingLog.Warn($"Delete temp file '{tempPath}': {ex.Message}"); }
@@ -3236,6 +3256,7 @@ namespace StingTools.Temp
                         catch (Exception ex)
                         {
                             StingLog.Warn($"[{fileName}] Backup failed: {ex.Message}");
+                            // If temp save worked but backup/rename failed, try direct save fallback
                             if (famDoc != null)
                             {
                                 try
@@ -3253,20 +3274,18 @@ namespace StingTools.Temp
 
                         perFamilyResults.Add(
                             $"[OK] {fileName} ({categoryName}) — " +
-                            $"{r.ParamsAdded} params added" +
-                            (r.ParamsPurged > 0 ? $", {r.ParamsPurged} purged" : "") +
-                            (r.TagPosInjected ? ", TAG_POS injected" : "") +
-                            (r.PositionTypesCreated > 0 ? $", {r.PositionTypesCreated} position types" : "") +
-                            $", {familyFormulas} formulas" +
-                            (r.ParamsSkipped > 0 ? $", {r.ParamsSkipped} existing" : ""));
+                            $"{familyAdded} params added, {familyFormulas} formulas applied" +
+                            (familySkipped > 0 ? $", {familySkipped} already existed" : "") +
+                            (familyFailed > 0 ? $", {familyFailed} failed" : ""));
                     }
                     else
                     {
                         perFamilyResults.Add(
                             $"[--] {fileName} ({categoryName}) — " +
-                            $"no changes needed ({r.ParamsSkipped} params already exist)");
+                            $"no changes needed ({familySkipped} params already exist)");
                     }
 
+                    // Close if not already closed during backup/save
                     if (famDoc != null)
                         famDoc.Close(false);
                 }
@@ -3282,16 +3301,8 @@ namespace StingTools.Temp
             var report = new StringBuilder();
             report.AppendLine("Family Parameter Processor");
             report.AppendLine(new string('\u2550', 50));
-            report.AppendLine($"Mode: {mode}");
             report.AppendLine($"\nFamilies processed: {processed} of {totalFamilies}");
             report.AppendLine($"Parameters added: {paramsAdded}");
-            if (paramsPurged > 0)
-                report.AppendLine($"Parameters purged: {paramsPurged} (" +
-                    (purgeSting ? "STING-registered" : cleanNonSting ? "non-STING" : "none") + ")");
-            if (tagPosInjectedCount > 0)
-                report.AppendLine($"TAG_POS injected: {tagPosInjectedCount}");
-            if (positionTypesCreated > 0)
-                report.AppendLine($"Position types created: {positionTypesCreated}");
             report.AppendLine($"Formulas applied: {formulasApplied}");
             report.AppendLine($"Already existed (skipped): {skippedExisting}");
             report.AppendLine($"No category match: {skippedNoCategory}");
@@ -3305,8 +3316,7 @@ namespace StingTools.Temp
                 report.AppendLine($"  {r}");
 
             TaskDialog.Show("Family Parameter Processor", report.ToString());
-            StingLog.Info($"Family Processor [{mode}]: {processed} families, {paramsAdded} params, " +
-                          $"{paramsPurged} purged, {formulasApplied} formulas");
+            StingLog.Info($"Family Processor: {processed} families, {paramsAdded} params, {formulasApplied} formulas");
 
             return processed > 0 ? Result.Succeeded : Result.Failed;
             }
