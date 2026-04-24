@@ -227,6 +227,7 @@ namespace StingTools.UI
             _formHost.Children.Add(BuildSectionMarkerCard());
             _formHost.Children.Add(BuildAnnotationCard());
             _formHost.Children.Add(BuildSlotsCard());
+            _formHost.Children.Add(BuildTitleBlockParamsCard());
 
             // Validation strip
             var report = DrawingTypeValidator.Validate(_doc, _current);
@@ -449,6 +450,65 @@ namespace StingTools.UI
                 RenderForm();
             }));
             return Card("Slots (0..1 normalised)", body);
+        }
+
+        // ─── Title-block params — declarative binding ────────────────
+        private UIElement BuildTitleBlockParamsCard()
+        {
+            _current.TitleBlockParams = _current.TitleBlockParams ?? new Dictionary<string, string>();
+            var body = new StackPanel();
+
+            body.Children.Add(new TextBlock
+            {
+                Text = "Parameter-name → value template. Supports ${PRJ_ORG_xxx} for Project Info, and {disc}/{lvl}/{sys}/{spool}/{mark}/{seq:Dn} tokens. Applied to the title-block FamilyInstance when a sheet is created.",
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, Margin = new Thickness(0, 0, 0, 6),
+            });
+
+            foreach (var kv in _current.TitleBlockParams.ToList())
+            {
+                var paramName = kv.Key;
+                var row = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
+
+                var k = new TextBox { Text = paramName, Height = 22 };
+                DarkDialogTheme.StyleInput(k, InputBg, InputFg, InputBorder);
+                k.LostFocus += (s, e) =>
+                {
+                    var newKey = (k.Text ?? "").Trim();
+                    if (string.IsNullOrEmpty(newKey) || newKey == paramName) return;
+                    _current.TitleBlockParams.Remove(paramName);
+                    _current.TitleBlockParams[newKey] = kv.Value ?? "";
+                    RenderForm();
+                };
+
+                var v = new TextBox { Text = kv.Value ?? "", Height = 22, Margin = new Thickness(6, 0, 0, 0) };
+                DarkDialogTheme.StyleInput(v, InputBg, InputFg, InputBorder);
+                v.LostFocus += (s, e) => _current.TitleBlockParams[paramName] = v.Text ?? "";
+
+                var rm = MakeSmallBtn("×", () =>
+                {
+                    _current.TitleBlockParams.Remove(paramName);
+                    RenderForm();
+                });
+                rm.Width = 22;
+
+                Grid.SetColumn(k, 0); Grid.SetColumn(v, 1); Grid.SetColumn(rm, 2);
+                row.Children.Add(k); row.Children.Add(v); row.Children.Add(rm);
+                body.Children.Add(row);
+            }
+
+            body.Children.Add(MakeSmallBtn("＋ Add title-block param", () =>
+            {
+                var baseKey = "New Parameter"; var key = baseKey; int i = 2;
+                while (_current.TitleBlockParams.ContainsKey(key)) key = $"{baseKey} {i++}";
+                _current.TitleBlockParams[key] = "";
+                RenderForm();
+            }));
+            return Card("Title-block parameter binding", body);
         }
 
         // ═══════════════════════════════════════════════════════════════

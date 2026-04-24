@@ -62,6 +62,19 @@
           "Windows": "STING_TAG_WINDOW"
         },
         "denseUntilScale": 100
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01",
+        "Sheet Number": "A-{lvl}-{seq:D3}"
       }
     },
     {
@@ -517,6 +530,21 @@
           "PipeAccessory": "STING_TAG_FIT"
         },
         "denseUntilScale": 100
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Discipline": "Pipe",
+        "Suitability": "A",
+        "Sheet Status": "FOR FABRICATION",
+        "Spool Number": "{spool}",
+        "System Code": "{sys}",
+        "Level Code": "{lvl}",
+        "Sheet Number": "SP-{disc}-{sys}-{lvl}-{seq:D4}"
       }
     },
     {
@@ -1561,6 +1589,18 @@
         "colourScheme": "PresentationRich",
         "halftoneLinks": false,
         "lineWeightScale": 0.8
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Discipline": "Presentation",
+        "Suitability": "S1",
+        "Sheet Status": "ISSUED FOR INFORMATION",
+        "Sheet Title": "3D AXONOMETRIC \u2014 {mark}"
       }
     },
     {

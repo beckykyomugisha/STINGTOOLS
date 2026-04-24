@@ -101,6 +101,17 @@ namespace StingTools.Core.Drawing
         [JsonProperty("extends", NullValueHandling = NullValueHandling.Ignore)]
         public string Extends { get; set; }
 
+        /// <summary>
+        /// Map of title-block instance parameter name → value template.
+        /// Applied to the title-block FamilyInstance at sheet-creation
+        /// time by <see cref="TitleBlockParamApplier"/>. Value template
+        /// supports <c>${ProjectInfoParam}</c> substitution and the
+        /// standard <c>{disc}/{lvl}/{seq:Dn}/{mark}</c> token set from
+        /// the caller's pattern context.
+        /// </summary>
+        [JsonProperty("titleBlockParams", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> TitleBlockParams { get; set; }
+
         // Numbering
         [JsonProperty("sheetNumberPattern")] public string SheetNumberPattern { get; set; } = "{disc}-{seq:D3}";
         [JsonProperty("sheetNamePattern")]   public string SheetNamePattern { get; set; }   = "{discipline} {purpose} - {lvl}";

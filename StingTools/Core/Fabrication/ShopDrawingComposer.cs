@@ -252,7 +252,12 @@ namespace StingTools.Core.Fabrication
 
             // Title-block instance parameters live on the title block
             // FamilyInstance, accessible via collector. We set the
-            // common ones if present.
+            // fabrication-specific ones here — spool, weight, fab
+            // location, status, BOM rev, discipline — then let the
+            // Drawing Type's TitleBlockParams payload layer on top so
+            // corporate profiles can declaratively bind more cells
+            // (client name, suitability, drawn-by, project code) via
+            // ${PRJ_ORG_*} and {disc}/{lvl}/{sys}/{seq:Dn} templates.
             try
             {
                 var tbInst = new FilteredElementCollector(doc, sheet.Id)
@@ -268,6 +273,33 @@ namespace StingTools.Core.Fabrication
                 }
             }
             catch (Exception ex) { result.Warnings.Add($"Title block populate: {ex.Message}"); }
+
+            // DrawingType.TitleBlockParams — declarative per-profile
+            // title-block binding. Pass the same token dict the sheet
+            // number / name pattern used so {disc}=discCode / {lvl}=
+            // levelCode / {sys}=sysCode / {spool}=spool / {seq:Dn}
+            // resolve consistently with the sheet number pattern.
+            try
+            {
+                if (drawingType?.TitleBlockParams != null && drawingType.TitleBlockParams.Count > 0)
+                {
+                    var tokens = new System.Collections.Generic.Dictionary<string, string>(
+                        System.StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "spool",      spool      ?? "" },
+                        { "disc",       discCode   ?? "" },
+                        { "discipline", discipline ?? "" },
+                        { "sys",        sysCode    ?? "" },
+                        { "lvl",        levelCode  ?? "" },
+                        { "seq",        seq.ToString("D4") },
+                    };
+                    var tbApply = StingTools.Core.Drawing.TitleBlockParamApplier
+                        .Apply(doc, sheet, drawingType, tokens);
+                    foreach (var w in tbApply.Warnings)
+                        result.Warnings.Add("TitleBlockParams: " + w);
+                }
+            }
+            catch (Exception ex) { result.Warnings.Add($"TitleBlockParams: {ex.Message}"); }
         }
 
         private static string ReadString(Element el, string param)
