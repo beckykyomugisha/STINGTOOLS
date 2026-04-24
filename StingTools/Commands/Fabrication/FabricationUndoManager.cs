@@ -43,11 +43,6 @@ namespace StingTools.Commands.Fabrication
     {
         private const string FileName = "fab_last_run.json";
 
-        // Keep the last result in-memory so single-arg Record(res) callers
-        // (which don't have a Document handy) still work end-to-end; the
-        // file-backed record is written lazily when a Document is known.
-        private static FabricationResult _lastResult;
-
         private static string ResolvePath(Document doc)
         {
             try
@@ -62,22 +57,15 @@ namespace StingTools.Commands.Fabrication
             catch (Exception ex) { StingLog.Warn($"FabricationUndoManager.ResolvePath: {ex.Message}"); return ""; }
         }
 
-        /// <summary>
-        /// Single-arg overload for callers that only have the
-        /// <see cref="FabricationResult"/> at hand (e.g.
-        /// GenerateFabPackageCommand). Stashes the result in-memory —
-        /// the two-arg overload is preferred when a Document is available.
-        /// </summary>
-        public static void Record(FabricationResult res)
-        {
-            if (res == null) return;
-            _lastResult = res;
-        }
+        // Single-arg overload for callers without a Document handle
+        // (e.g. GenerateFabPackageCommand). Delegates to the main
+        // Record(doc, res) with a null Document so the on-disk record
+        // is skipped but the contract holds.
+        public static void Record(FabricationResult res) => Record(null, res);
 
         public static void Record(Document doc, FabricationResult res)
         {
             if (res == null) return;
-            _lastResult = res;
             var path = ResolvePath(doc);
             if (string.IsNullOrEmpty(path)) return;
             var rec = new FabricationUndoRecord
