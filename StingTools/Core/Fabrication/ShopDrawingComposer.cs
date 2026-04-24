@@ -75,12 +75,26 @@ namespace StingTools.Core.Fabrication
 
             // Phase I options: user-picked title block and view template
             // flow through via FabricationOptions.ShopDrawing. When Auto
-            // (ElementId.InvalidElementId), fall back to the per-
-            // discipline STING_TB_ASSEMBLY_* lookup.
+            // (ElementId.InvalidElementId), consult the Drawing Type
+            // registry next (disc-specific "pipe-spool-A1-1to50" /
+            // "duct-spool-A1-1to50" profile) — if it names a title block
+            // family loaded in the project we use that; otherwise fall
+            // back to the per-discipline STING_TB_ASSEMBLY_* lookup.
+            // The three-tier resolution keeps today's behaviour as a
+            // last resort, so landing this wiring is zero-regression.
             var options = StingTools.Commands.Fabrication.FabricationOptions.ShopDrawing;
-            ElementId tbId = (options != null && options.TitleBlockSymbolId != ElementId.InvalidElementId)
-                ? options.TitleBlockSymbolId
-                : ResolveTitleBlock(doc, discipline);
+            var drawingType = ResolveDrawingType(doc, discipline);
+            ElementId tbId;
+            if (options != null && options.TitleBlockSymbolId != ElementId.InvalidElementId)
+            {
+                tbId = options.TitleBlockSymbolId;
+            }
+            else
+            {
+                tbId = ResolveTitleBlockFromDrawingType(doc, drawingType);
+                if (tbId == ElementId.InvalidElementId)
+                    tbId = ResolveTitleBlock(doc, discipline);
+            }
 
             ViewSheet sheet = null;
             try
@@ -94,7 +108,7 @@ namespace StingTools.Core.Fabrication
             }
             if (sheet == null) return null;
 
-            try { ApplySheetMetadata(doc, sheet, assemblyId, discipline, result); }
+            try { ApplySheetMetadata(doc, sheet, assemblyId, discipline, drawingType, result); }
             catch (Exception ex) { result.Warnings.Add($"Sheet metadata: {ex.Message}"); }
 
             // Apply user-selected view template to every non-schedule
@@ -176,7 +190,7 @@ namespace StingTools.Core.Fabrication
         }
 
         private static void ApplySheetMetadata(Document doc, ViewSheet sheet, ElementId assemblyId,
-            string discipline, FabricationResult result)
+            string discipline, StingTools.Core.Drawing.DrawingType drawingType, FabricationResult result)
         {
             var ai = doc.GetElement(assemblyId) as AssemblyInstance;
             if (ai == null) return;
@@ -205,15 +219,19 @@ namespace StingTools.Core.Fabrication
             }
 
             // Honour the user pattern when the ShopDrawingOptionsDialog
-            // captured one, otherwise fall back to the spool number
-            // (if minted by AssemblyBuilder) or the default
-            // SP-{disc}-{sys}-{lvl}-{seq} pattern.
+            // captured one; next, consult the resolved Drawing Type for
+            // a corporate pattern; otherwise fall back to the spool
+            // number (if minted by AssemblyBuilder) or the engine
+            // default SP-{disc}-{sys}-{lvl}-{seq}.
             var options = StingTools.Commands.Fabrication.FabricationOptions.ShopDrawing;
+            string registryNumPattern = drawingType?.SheetNumberPattern;
             string sheetNumber = !string.IsNullOrEmpty(options?.SheetNumberPattern)
-                ? SubstituteTokens(options.SheetNumberPattern, spool, discCode, sysCode, levelCode, seq)
-                : (!string.IsNullOrEmpty(spool)
-                    ? spool
-                    : $"SP-{discCode}-{sysCode}-{levelCode}-{seq:D4}");
+                ? SubstituteTokens(options.SheetNumberPattern, spool, discCode, sysCode, levelCode, seq, discipline)
+                : !string.IsNullOrEmpty(registryNumPattern)
+                    ? SubstituteTokens(registryNumPattern, spool, discCode, sysCode, levelCode, seq, discipline)
+                    : (!string.IsNullOrEmpty(spool)
+                        ? spool
+                        : $"SP-{discCode}-{sysCode}-{levelCode}-{seq:D4}");
 
             // Revit throws when two sheets share a number. Uniquify with
             // a monotonic suffix as a last resort.
@@ -222,11 +240,14 @@ namespace StingTools.Core.Fabrication
             catch (Exception ex)
             { result.Warnings.Add($"SheetNumber assign ('{unique}'): {ex.Message}"); }
 
+            string registryNamePattern = drawingType?.SheetNamePattern;
             string sheetName = !string.IsNullOrEmpty(options?.SheetNamePattern)
-                ? SubstituteTokens(options.SheetNamePattern, spool, discCode, sysCode, levelCode, seq)
-                : (!string.IsNullOrEmpty(spool)
-                    ? $"Spool {spool}"
-                    : $"{discipline} spool {unique}");
+                ? SubstituteTokens(options.SheetNamePattern, spool, discCode, sysCode, levelCode, seq, discipline)
+                : !string.IsNullOrEmpty(registryNamePattern)
+                    ? SubstituteTokens(registryNamePattern, spool, discCode, sysCode, levelCode, seq, discipline)
+                    : (!string.IsNullOrEmpty(spool)
+                        ? $"Spool {spool}"
+                        : $"{discipline} spool {unique}");
             try { sheet.Name = sheetName; } catch { }
 
             // Title-block instance parameters live on the title block
@@ -255,21 +276,34 @@ namespace StingTools.Core.Fabrication
         }
 
         /// <summary>
-        /// Substitute {spool}/{disc}/{sys}/{lvl}/{seq} tokens in the
-        /// user-supplied sheet-number or sheet-name pattern.
-        /// Unrecognised tokens are left as literal text so shops can
-        /// mix in extra markers like "REV {revision}" by hand later.
+        /// Substitute tokens in a sheet-number or sheet-name pattern —
+        /// {spool}/{disc}/{discipline}/{sys}/{lvl}/{mark} literal, plus
+        /// {seq} (defaults to D4 padding) and {seq:D2}/{seq:D3}/{seq:D4}
+        /// with explicit width. Unrecognised tokens are left as literal
+        /// text so shops can mix in extra markers like "REV {revision}"
+        /// by hand later.
         /// </summary>
         private static string SubstituteTokens(string pattern, string spool,
-            string disc, string sys, string lvl, int seq)
+            string disc, string sys, string lvl, int seq,
+            string disciplineFull = null, string mark = null)
         {
             if (string.IsNullOrEmpty(pattern)) return "";
-            return pattern
-                .Replace("{spool}", spool ?? "")
-                .Replace("{disc}",  disc  ?? "")
-                .Replace("{sys}",   sys   ?? "")
-                .Replace("{lvl}",   lvl   ?? "")
-                .Replace("{seq}",   seq.ToString("D4"));
+            var s = pattern
+                .Replace("{spool}",      spool ?? "")
+                .Replace("{disc}",       disc  ?? "")
+                .Replace("{discipline}", disciplineFull ?? disc ?? "")
+                .Replace("{sys}",        sys   ?? "")
+                .Replace("{lvl}",        lvl   ?? "")
+                .Replace("{mark}",       mark  ?? "");
+            // {seq:Dn} with explicit padding width — honour whatever the
+            // pattern asks for so A-{seq:D3} yields A-001 and
+            // SP-{seq:D4} yields SP-0001.
+            s = System.Text.RegularExpressions.Regex.Replace(
+                s, @"\{seq:D(\d+)\}",
+                m => seq.ToString("D" + m.Groups[1].Value));
+            // Bare {seq} keeps the historical default of 4 digits.
+            s = s.Replace("{seq}", seq.ToString("D4"));
+            return s;
         }
 
         /// <summary>
@@ -348,6 +382,53 @@ namespace StingTools.Core.Fabrication
             {
                 StingLog.Warn($"ShopDrawingComposer.TrySetString({param}) on {el?.Id}: {ex.Message}");
             }
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        //  Drawing Template Manager integration
+        //
+        //  Phase I keeps fabrication wired to its historic hard-coded
+        //  behaviour but layers the Drawing Type registry on top as an
+        //  additional fallback ahead of the per-discipline dict. Null
+        //  return = no profile found, caller keeps today's defaults —
+        //  so landing this is zero-regression by construction.
+        // ────────────────────────────────────────────────────────────────
+
+        private static StingTools.Core.Drawing.DrawingType ResolveDrawingType(Document doc, string discipline)
+        {
+            try
+            {
+                string discCode = DisciplineCode.TryGetValue(discipline ?? "", out var dc) ? dc : "G";
+                return StingTools.Core.Drawing.DrawingDispatcher.Resolve(
+                    doc, discCode, "*", StingTools.Core.Drawing.DrawingPurpose.Spool);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ShopDrawingComposer.ResolveDrawingType: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static ElementId ResolveTitleBlockFromDrawingType(
+            Document doc, StingTools.Core.Drawing.DrawingType dt)
+        {
+            if (dt == null || string.IsNullOrWhiteSpace(dt.TitleBlockFamily))
+                return ElementId.InvalidElementId;
+            try
+            {
+                var col = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .OfClass(typeof(FamilySymbol));
+                foreach (var el in col)
+                    if (el is FamilySymbol fs && string.Equals(
+                            fs.FamilyName, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase))
+                        return fs.Id;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ResolveTitleBlockFromDrawingType('{dt.TitleBlockFamily}'): {ex.Message}");
+            }
+            return ElementId.InvalidElementId;
         }
     }
 }
