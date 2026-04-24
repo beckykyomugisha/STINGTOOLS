@@ -805,7 +805,7 @@ namespace StingTools.Core
                 string dir = delta > 2 ? "improving" : delta < -2 ? "declining" : "stable";
                 return (dir, delta);
             }
-            catch (Exception ex) { StingLog.Warn($"Compliance trend calc: {ex.Message}"); return ("unknown", 0); }
+            catch (Exception ex) { StingLog.Error("Compliance trend calc failed", ex); return ("unknown", 0); }
         }
 
         private static List<TrendEntry> LoadEntries(string path)

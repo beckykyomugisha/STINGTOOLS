@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 
 namespace StingTools.Core.Fabrication
 {
@@ -338,9 +339,15 @@ namespace StingTools.Core.Fabrication
         }
         private static void TrySetString(Element el, string param, string val)
         {
-            try { var p = el.LookupParameter(param);
-                  if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(val); }
-            catch { }
+            try
+            {
+                var p = el.LookupParameter(param);
+                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(val);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ShopDrawingComposer.TrySetString({param}) on {el?.Id}: {ex.Message}");
+            }
         }
     }
 }

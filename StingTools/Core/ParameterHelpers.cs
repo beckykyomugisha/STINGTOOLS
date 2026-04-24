@@ -1461,8 +1461,12 @@ namespace StingTools.Core
                 }
                 if (allPopulated) return;
 
-                // Walk connectors to find tagged connected elements
-                foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                // Walk connectors to find tagged connected elements.
+                // MEPModel can be non-null while ConnectorManager is null on
+                // hosted fittings; guard the chain to avoid NRE.
+                var connSet = fi.MEPModel?.ConnectorManager?.Connectors;
+                if (connSet == null) return;
+                foreach (Connector conn in connSet)
                 {
                     if (conn == null || !conn.IsConnected) continue;
                     var allRefs = conn.AllRefs;

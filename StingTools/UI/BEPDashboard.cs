@@ -424,7 +424,7 @@ namespace StingTools.UI
                 .Where(kv => kv.Value.IsChecked == true)
                 .Select(kv =>
                 {
-                    string company = _disciplineCompanies.ContainsKey(kv.Key) ? _disciplineCompanies[kv.Key].Text : "";
+                    string company = _disciplineCompanies.TryGetValue(kv.Key, out var cmp) ? cmp.Text : "";
                     return string.IsNullOrWhiteSpace(company) ? kv.Key : $"{kv.Key}:{company}";
                 });
             opts["DisciplineTeam"] = string.Join(",", activeDisciplines);

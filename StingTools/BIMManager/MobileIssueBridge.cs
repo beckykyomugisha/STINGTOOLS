@@ -95,7 +95,7 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"MobileIssueBridge.Pull failed: {ex.Message}");
+                StingLog.Error("MobileIssueBridge.Pull failed", ex);
                 result.Error = ex.Message;
             }
 

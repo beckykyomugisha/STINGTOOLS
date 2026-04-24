@@ -715,7 +715,7 @@ namespace StingTools.Temp
             foreach (var room in rooms)
             {
                 long rid = room.Id.Value;
-                int doorCount = roomDoorCount.ContainsKey(rid) ? roomDoorCount[rid] : 0;
+                roomDoorCount.TryGetValue(rid, out int doorCount);
 
                 // Check for rooms without doors
                 if (doorCount == 0) noDoors.Add(room);

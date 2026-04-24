@@ -305,5 +305,67 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
+
+        /// <summary>
+        /// Atomic text write: writes to a temp file alongside, then uses
+        /// File.Replace to swap it into place. A crash partway through
+        /// leaves the previous file intact (or restored from the automatic
+        /// .bak sibling). Several command registers and config writers
+        /// previously did raw File.WriteAllText — losing the entire file
+        /// if Revit crashed during the write window.
+        /// </summary>
+        public static void WriteAllTextAtomic(string path, string content,
+            System.Text.Encoding encoding = null)
+        {
+            if (string.IsNullOrEmpty(path)) throw new ArgumentNullException(nameof(path));
+            encoding = encoding ?? new System.Text.UTF8Encoding(false);
+            string tmp = path + ".tmp";
+            string bak = path + ".bak";
+            File.WriteAllText(tmp, content ?? string.Empty, encoding);
+            try
+            {
+                if (File.Exists(path))
+                    File.Replace(tmp, path, bak);
+                else
+                    File.Move(tmp, path);
+            }
+            catch (Exception)
+            {
+                // Replace can fail across volumes / on locked files — fall
+                // back to a copy + delete so callers never end up with a
+                // missing destination. If even copy fails let it propagate.
+                File.Copy(tmp, path, true);
+                try { File.Delete(tmp); } catch { }
+            }
+        }
+
+        /// <summary>
+        /// Canonical "make filename safe" helper — replaces every
+        /// Path.GetInvalidFileNameChars() match (plus optional extras)
+        /// with a single replacement char, trims repeated replacements,
+        /// and clamps to maxLength. Three callers previously rolled their
+        /// own version with subtle differences (BOQTemplateLibrary also
+        /// replaced spaces + slashes; ParameterDiffEngine clamped at 50).
+        /// Pass <paramref name="extraInvalid"/> / <paramref name="maxLength"/>
+        /// to reproduce those behaviours when needed.
+        /// </summary>
+        public static string MakeSafeFileName(string name, char replacement = '_',
+            char[] extraInvalid = null, int maxLength = 0, string fallback = "item")
+        {
+            if (string.IsNullOrEmpty(name)) return fallback;
+            var invalid = Path.GetInvalidFileNameChars();
+            var arr = new char[name.Length];
+            for (int i = 0; i < name.Length; i++)
+            {
+                char c = name[i];
+                bool isInvalid = Array.IndexOf(invalid, c) >= 0
+                    || (extraInvalid != null && Array.IndexOf(extraInvalid, c) >= 0);
+                arr[i] = isInvalid ? replacement : c;
+            }
+            string r = new string(arr).Trim(replacement);
+            if (string.IsNullOrEmpty(r)) r = fallback;
+            if (maxLength > 0 && r.Length > maxLength) r = r.Substring(0, maxLength);
+            return r;
+        }
     }
 }

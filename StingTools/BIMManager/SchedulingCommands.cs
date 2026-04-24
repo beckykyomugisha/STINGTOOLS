@@ -275,14 +275,16 @@ namespace StingTools.BIMManager
             schedule["project_start"] = projectStart.ToString("yyyy-MM-dd");
             schedule["generated_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
 
-            // Get all levels ordered by elevation
+            // Get all levels ordered by elevation — iterated once, so an
+            // OrderedEnumerable is enough; .ToList() was allocating a list
+            // we never indexed into.
             var levels = new FilteredElementCollector(doc)
                 .OfClass(typeof(Level)).Cast<Level>()
-                .OrderBy(l => l.Elevation).ToList();
+                .OrderBy(l => l.Elevation);
 
-            // Get phases
+            // Get phases — same: single-pass iteration below.
             var phases = doc.Phases.Cast<Phase>()
-                .OrderBy(p => p.Id.Value).ToList();
+                .OrderBy(p => p.Id.Value);
 
             // Collect element counts by category and level
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);

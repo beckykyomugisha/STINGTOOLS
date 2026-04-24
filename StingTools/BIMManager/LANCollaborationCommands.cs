@@ -400,7 +400,8 @@ namespace StingTools.BIMManager
             try
             {
                 string path = Path.Combine(GetCollabDir(doc), $"{GetProjectKey(doc)}_team.json");
-                File.WriteAllText(path, JsonConvert.SerializeObject(roster, Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(path,
+                    JsonConvert.SerializeObject(roster, Formatting.Indented));
             }
             catch (Exception ex) { StingLog.Warn($"SaveTeamRoster: {ex.Message}"); }
         }
@@ -423,7 +424,8 @@ namespace StingTools.BIMManager
             try
             {
                 string path = Path.Combine(GetCollabDir(doc), $"{GetProjectKey(doc)}_changelog.json");
-                File.WriteAllText(path, JsonConvert.SerializeObject(log, Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(path,
+                    JsonConvert.SerializeObject(log, Formatting.Indented));
             }
             catch (Exception ex) { StingLog.Warn($"SaveChangeLog: {ex.Message}"); }
         }

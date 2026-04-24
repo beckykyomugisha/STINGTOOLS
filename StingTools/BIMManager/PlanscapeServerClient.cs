@@ -663,11 +663,11 @@ public sealed class PlanscapeServerClient : IDisposable
     //  Private helpers
     // ────────────────────────────────────────────────────────────────────────────
 
-    private void EnsureHttpClient(string baseUrl)
+    private HttpClient EnsureHttpClient(string baseUrl)
     {
         lock (_httpSem)
         {
-            if (_http != null && _http.BaseAddress?.ToString().TrimEnd('/') == baseUrl) return;
+            if (_http != null && _http.BaseAddress?.ToString().TrimEnd('/') == baseUrl) return _http;
             _http?.Dispose();
             _http = new HttpClient
             {
@@ -679,7 +679,16 @@ public sealed class PlanscapeServerClient : IDisposable
             if (!string.IsNullOrEmpty(_accessToken))
                 _http.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", _accessToken);
+            return _http;
         }
+    }
+
+    // Snapshot the current HttpClient under the lock so a concurrent
+    // EnsureHttpClient(different base URL) that disposes+replaces _http
+    // cannot race with an in-flight PostAsync/GetAsync.
+    private HttpClient SnapshotHttpClient()
+    {
+        lock (_httpSem) { return _http; }
     }
 
     private async Task<(bool ok, int status, string body)> PostJsonAsync(string path, object payload)
@@ -692,14 +701,18 @@ public sealed class PlanscapeServerClient : IDisposable
             }),
             Encoding.UTF8, "application/json");
 
-        var resp = await _http!.PostAsync(path, content).ConfigureAwait(false);
+        var http = SnapshotHttpClient();
+        if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
+        var resp = await http.PostAsync(path, content).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         return ((int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300, (int)resp.StatusCode, body);
     }
 
     private async Task<(bool ok, int status, string body)> GetAsync(string path)
     {
-        var resp = await _http!.GetAsync(path).ConfigureAwait(false);
+        var http = SnapshotHttpClient();
+        if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
+        var resp = await http.GetAsync(path).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         return ((int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300, (int)resp.StatusCode, body);
     }
