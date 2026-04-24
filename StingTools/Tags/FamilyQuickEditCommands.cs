@@ -207,21 +207,111 @@ namespace StingTools.Tags
         public bool AllowReference(Reference r, XYZ p) => true;
     }
 
+    /// <summary>ISelectionFilter for floor / ceiling / roof slab picks — the
+    /// three horizontal host kinds that share the single-host NewFamilyInstance
+    /// overload with a Wall.</summary>
+    internal class FloorCeilingRoofFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element e) =>
+            e is Floor || e is Ceiling || e is RoofBase;
+        public bool AllowReference(Reference r, XYZ p) => true;
+    }
+
+    /// <summary>ISelectionFilter for work-plane targets — reference planes and
+    /// levels. Both can host a WorkPlaneBased or OneLevelBased family when
+    /// passed via <c>NewFamilyInstance(Reference, XYZ, XYZ, FamilySymbol)</c>
+    /// or the level-based overload.</summary>
+    internal class WorkPlaneFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element e) => e is ReferencePlane || e is Level;
+        public bool AllowReference(Reference r, XYZ p) => true;
+    }
+
+    /// <summary>ISelectionFilter that accepts any face reference — used when
+    /// rehosting face-based families. The underlying element category is not
+    /// constrained because face-based families can sit on any solid surface.</summary>
+    internal class AnyFaceFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element e) => true;
+        public bool AllowReference(Reference r, XYZ p) => true;
+    }
+
     // ════════════════════════════════════════════════════════════════════════════
     //  CHANGE HOST COMMAND
     //
-    //  Rehost a wall-based family instance to a different wall. Preserves the
-    //  instance's symbol, location, and all writable parameters. Detach (convert
-    //  to free-standing) is intentionally NOT offered — it requires rebuilding
-    //  the family against a non-hosted template, which the EditFamily API cannot
-    //  do cleanly. Users who need that should use Swap Category → open in editor
-    //  → save as new .rfa against a non-hosted template.
+    //  Change the host of a family instance — or remove the instance entirely.
+    //  The command opens a mode picker covering every rehost target the Revit
+    //  API can satisfy without a family-template rebuild:
+    //    1. Wall               → NewFamilyInstance(XYZ, sym, Wall, Level, …)
+    //    2. Floor / Ceiling / Roof → NewFamilyInstance(XYZ, sym, Element, Level, …)
+    //    3. Face (any solid)   → NewFamilyInstance(Reference, XYZ, XYZ, sym)
+    //    4. Work Plane (ref plane / level) → NewFamilyInstance(Reference, XYZ, XYZ, sym)
+    //    5. Detach → free-standing → NewFamilyInstance(XYZ, sym, Level?, …) —
+    //       only succeeds when the family's FamilyPlacementType permits non-
+    //       hosted placement. WorkPlaneBased and OneLevelBased families are
+    //       typically eligible; hosted-template families are refused with a
+    //       clear "requires family rebuild" message.
+    //    6. Delete Instance    → doc.Delete(inst.Id), with a confirmation.
+    //
+    //  All rehost modes 1–5 snapshot writable parameters on the original
+    //  instance and replay them onto the replacement, so Mark / Comments /
+    //  phase / workset / STING tokens survive the delete+recreate cycle.
     // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>Snapshot of a family instance captured immediately before a
+    /// delete-and-recreate rehost. Carries everything the six
+    /// <see cref="ChangeHostCommand"/> modes need to reconstruct the instance
+    /// on a new host while preserving parameter values and orientation.</summary>
+    internal class InstanceRehostSnapshot
+    {
+        public ElementId OriginalId { get; set; }
+        public FamilySymbol Symbol { get; set; }
+        public Level Level { get; set; }
+        public XYZ LocationPoint { get; set; }
+        public double Rotation { get; set; }
+        public Dictionary<string, object> Params { get; set; }
+        public FamilyPlacementType PlacementType { get; set; }
+        public string OriginalHostDescription { get; set; }
+
+        /// <summary>Capture a snapshot from the live instance. Returns null only
+        /// when the location cannot be resolved even from the bounding box —
+        /// every rehost mode needs a location point to place the replacement.</summary>
+        public static InstanceRehostSnapshot Take(FamilyInstance inst)
+        {
+            if (inst == null) return null;
+            var snap = new InstanceRehostSnapshot
+            {
+                OriginalId = inst.Id,
+                Symbol = inst.Symbol,
+                Params = FamilyQuickEditHelpers.SnapshotInstanceParams(inst),
+                PlacementType = inst.Symbol?.Family?.FamilyPlacementType ?? FamilyPlacementType.Invalid,
+                OriginalHostDescription = FamilyQuickEditHelpers.DescribeHost(inst),
+            };
+
+            Document doc = inst.Document;
+            snap.Level = doc.GetElement(inst.LevelId) as Level;
+
+            if (inst.Location is LocationPoint lp)
+            {
+                snap.LocationPoint = lp.Point;
+                snap.Rotation = lp.Rotation;
+            }
+            else
+            {
+                BoundingBoxXYZ bb = inst.get_BoundingBox(null);
+                if (bb != null) snap.LocationPoint = (bb.Min + bb.Max) * 0.5;
+            }
+
+            return snap.LocationPoint == null ? null : snap;
+        }
+    }
 
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class ChangeHostCommand : IExternalCommand
     {
+        private enum Mode { Wall, FloorCeilingRoof, Face, WorkPlane, Detach, Delete }
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -230,138 +320,463 @@ namespace StingTools.Tags
                 TaskDialog.Show("STING — Change Host", "Open a Revit project first.");
                 return Result.Failed;
             }
-            Document doc = ctx.Doc;
-            UIDocument uidoc = ctx.UIDoc;
 
-            FamilyInstance inst = FamilyQuickEditHelpers.ResolveTargetInstance(uidoc, "Change Host");
+            FamilyInstance inst = FamilyQuickEditHelpers.ResolveTargetInstance(ctx.UIDoc, "Change Host");
             if (inst == null) return Result.Cancelled;
 
-            // Only wall-hosted instances are supported in v1. Face-based and
-            // free-standing placement types are filtered out so the recreate
-            // logic below doesn't have to branch on host geometry type.
-            Wall currentWall = inst.Host as Wall;
-            if (currentWall == null)
-            {
-                TaskDialog.Show("STING — Change Host",
-                    $"This command only rehosts wall-based families. The selected family " +
-                    $"is hosted on: {FamilyQuickEditHelpers.DescribeHost(inst)}.\n\n" +
-                    "For face-hosted, free-standing, or level-based families, use Swap " +
-                    "Category or open the family editor.");
-                return Result.Cancelled;
-            }
+            // Present the six modes. Each row carries a (Mode, bool enabled, detail)
+            // tuple in .Tag so the list picker itself stays agnostic about what
+            // the choices mean. The Wall and FCR rows are enabled iff the
+            // current host is one of those kinds (so the picker nudges users
+            // toward sensible swaps); Face and WorkPlane and Detach always show.
+            Element currentHost = inst.Host;
+            bool isWallHosted = currentHost is Wall;
+            bool isFCRHosted = currentHost is Floor || currentHost is Ceiling || currentHost is RoofBase;
+            var fpt = inst.Symbol?.Family?.FamilyPlacementType ?? FamilyPlacementType.Invalid;
+            bool detachEligible = fpt == FamilyPlacementType.WorkPlaneBased
+                               || fpt == FamilyPlacementType.OneLevelBased
+                               || fpt == FamilyPlacementType.TwoLevelsBased;
 
-            // Ask the user to pick a destination wall. This replaces the host —
-            // the instance's location point is preserved and projected onto the
-            // new wall during re-creation.
-            Wall newWall;
-            try
+            var modeItems = new List<StingListPicker.ListItem>
             {
-                var picked = uidoc.Selection.PickObject(
-                    ObjectType.Element,
-                    new WallSelectionFilter(),
-                    "Pick the destination wall (ESC to cancel)");
-                newWall = doc.GetElement(picked.ElementId) as Wall;
-            }
-            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+                new StingListPicker.ListItem {
+                    Label = "Rehost to Wall",
+                    Detail = isWallHosted ? "Pick a new wall. Preserves location + parameters." : "Best for wall-hosted families. May fail if the family's template isn't wall-based.",
+                    Tag = Mode.Wall },
+                new StingListPicker.ListItem {
+                    Label = "Rehost to Floor / Ceiling / Roof",
+                    Detail = isFCRHosted ? "Pick a new floor, ceiling, or roof." : "For horizontal-slab-hosted families (sprinklers, ceiling fixtures, etc.).",
+                    Tag = Mode.FloorCeilingRoof },
+                new StingListPicker.ListItem {
+                    Label = "Rehost to a Face",
+                    Detail = "Pick any face on any solid element. Best for face-based families.",
+                    Tag = Mode.Face },
+                new StingListPicker.ListItem {
+                    Label = "Rehost to a Work Plane",
+                    Detail = "Pick a reference plane or level datum. Best for work-plane-based families.",
+                    Tag = Mode.WorkPlane },
+                new StingListPicker.ListItem {
+                    Label = "Detach from Host — make free-standing",
+                    Detail = detachEligible
+                        ? $"Family placement type is {fpt} — can be placed without a host."
+                        : $"Family placement type is {fpt} — likely hosted-template only. Detach may fail (rebuild required).",
+                    Tag = Mode.Detach,
+                    IsInvalid = !detachEligible },
+                new StingListPicker.ListItem {
+                    Label = "Delete Instance (remove completely)",
+                    Detail = "Destructive — deletes the family instance from the model. Asks for confirmation.",
+                    Tag = Mode.Delete },
+            };
 
-            if (newWall == null)
-            {
-                TaskDialog.Show("STING — Change Host", "Destination must be a wall.");
-                return Result.Failed;
-            }
-            if (newWall.Id == currentWall.Id)
-            {
-                TaskDialog.Show("STING — Change Host", "Destination wall is the same as the current host — nothing to do.");
-                return Result.Cancelled;
-            }
+            var chosen = StingListPicker.Show(
+                "STING — Change Host",
+                $"Selected: {inst.Symbol?.Family?.Name} — {inst.Symbol?.Name}   |   Current host: {FamilyQuickEditHelpers.DescribeHost(inst)}",
+                modeItems);
+            if (chosen == null || chosen.Count == 0) return Result.Cancelled;
+            if (!(chosen[0].Tag is Mode mode)) return Result.Cancelled;
 
-            // Snapshot everything we need to recreate the instance on the new host.
-            var snap = FamilyQuickEditHelpers.SnapshotInstanceParams(inst);
-            FamilySymbol sym = inst.Symbol;
-            Level level = doc.GetElement(inst.LevelId) as Level;
-            // Fall back to the wall's base-constraint level — wall-hosted instances
-            // sometimes carry Invalid LevelId when the host wall is multi-story.
-            if (level == null)
-            {
-                try
-                {
-                    var wallLvlParam = newWall.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT);
-                    if (wallLvlParam != null && wallLvlParam.StorageType == StorageType.ElementId)
-                        level = doc.GetElement(wallLvlParam.AsElementId()) as Level;
-                }
-                catch (Exception ex) { StingLog.Warn($"ChangeHost level fallback: {ex.Message}"); }
-            }
-            XYZ locationPoint = null;
-            double rotation = 0;
-            if (inst.Location is LocationPoint lp) { locationPoint = lp.Point; rotation = lp.Rotation; }
-            if (locationPoint == null)
-            {
-                // Use the bounding-box centre as a fallback — better than aborting.
-                BoundingBoxXYZ bb = inst.get_BoundingBox(null);
-                if (bb != null) locationPoint = (bb.Min + bb.Max) * 0.5;
-            }
-            if (locationPoint == null)
+            // Delete is the only path that doesn't need a snapshot — skip the
+            // snapshot for that mode so we don't do unnecessary work.
+            if (mode == Mode.Delete) return ExecuteDelete(ctx, inst, ref message);
+
+            var snap = InstanceRehostSnapshot.Take(inst);
+            if (snap == null)
             {
                 TaskDialog.Show("STING — Change Host", "Could not determine the current instance location.");
                 return Result.Failed;
             }
 
+            switch (mode)
+            {
+                case Mode.Wall:              return ExecuteRehostToWall(ctx, snap, ref message);
+                case Mode.FloorCeilingRoof:  return ExecuteRehostToFloorCeilingRoof(ctx, snap, ref message);
+                case Mode.Face:              return ExecuteRehostToFace(ctx, snap, ref message);
+                case Mode.WorkPlane:         return ExecuteRehostToWorkPlane(ctx, snap, ref message);
+                case Mode.Detach:            return ExecuteDetach(ctx, snap, ref message);
+                default:                     return Result.Cancelled;
+            }
+        }
+
+        // ── Mode: Wall ──────────────────────────────────────────────────────
+        private static Result ExecuteRehostToWall(StingCommandContext ctx, InstanceRehostSnapshot snap, ref string message)
+        {
+            Wall newWall;
+            try
+            {
+                var picked = ctx.UIDoc.Selection.PickObject(
+                    ObjectType.Element, new WallSelectionFilter(),
+                    "Pick the destination wall (ESC to cancel)");
+                newWall = ctx.Doc.GetElement(picked.ElementId) as Wall;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+
+            if (newWall == null) { TaskDialog.Show("STING — Change Host", "Destination must be a wall."); return Result.Failed; }
+
+            // Level fallback from the destination wall — wall-hosted instances
+            // sometimes carry Invalid LevelId when the host wall spans stories.
+            Level level = snap.Level ?? ResolveLevelFromWall(ctx.Doc, newWall);
+
+            return CommitRehost(ctx, snap, "Wall",
+                $"Wall [id {newWall.Id.Value}] '{newWall.Name}'",
+                ref message,
+                (doc) => doc.Create.NewFamilyInstance(
+                    snap.LocationPoint, snap.Symbol, newWall, level, StructuralType.NonStructural));
+        }
+
+        // ── Mode: Floor / Ceiling / Roof ───────────────────────────────────
+        private static Result ExecuteRehostToFloorCeilingRoof(StingCommandContext ctx, InstanceRehostSnapshot snap, ref string message)
+        {
+            Element host;
+            try
+            {
+                var picked = ctx.UIDoc.Selection.PickObject(
+                    ObjectType.Element, new FloorCeilingRoofFilter(),
+                    "Pick the destination floor, ceiling, or roof (ESC to cancel)");
+                host = ctx.Doc.GetElement(picked.ElementId);
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+
+            if (host == null) { TaskDialog.Show("STING — Change Host", "Pick aborted."); return Result.Failed; }
+
+            Level level = snap.Level ?? ResolveLevelFromHost(ctx.Doc, host);
+
+            string hostKind = host.GetType().Name;
+            return CommitRehost(ctx, snap, hostKind,
+                $"{hostKind} [id {host.Id.Value}] '{host.Name}'",
+                ref message,
+                (doc) => doc.Create.NewFamilyInstance(
+                    snap.LocationPoint, snap.Symbol, host, level, StructuralType.NonStructural));
+        }
+
+        // ── Mode: Face ──────────────────────────────────────────────────────
+        private static Result ExecuteRehostToFace(StingCommandContext ctx, InstanceRehostSnapshot snap, ref string message)
+        {
+            Reference faceRef;
+            XYZ facePoint;
+            try
+            {
+                faceRef = ctx.UIDoc.Selection.PickObject(
+                    ObjectType.Face, new AnyFaceFilter(),
+                    "Pick the destination face (ESC to cancel)");
+                facePoint = faceRef.GlobalPoint;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+
+            if (faceRef == null || facePoint == null)
+            {
+                TaskDialog.Show("STING — Change Host", "Could not resolve the picked face.");
+                return Result.Failed;
+            }
+
+            // Build a reference direction. For face-based families, the second XYZ
+            // argument controls the family's X axis orientation on the face. A
+            // safe default is world X projected onto the face; otherwise fall
+            // back to Y or Z to avoid passing an axis perpendicular to the face.
+            XYZ refDir = ProjectNonParallelAxis(ctx.Doc, faceRef);
+
+            string targetName = "Face";
+            try
+            {
+                var hostEl = ctx.Doc.GetElement(faceRef.ElementId);
+                if (hostEl != null) targetName = $"{hostEl.Category?.Name ?? hostEl.GetType().Name} face [id {hostEl.Id.Value}]";
+            }
+            catch (Exception ex) { StingLog.Warn($"ChangeHost face element name: {ex.Message}"); }
+
+            return CommitRehost(ctx, snap, "Face", targetName, ref message,
+                (doc) => doc.Create.NewFamilyInstance(faceRef, facePoint, refDir, snap.Symbol));
+        }
+
+        // ── Mode: Work Plane ────────────────────────────────────────────────
+        private static Result ExecuteRehostToWorkPlane(StingCommandContext ctx, InstanceRehostSnapshot snap, ref string message)
+        {
+            // Pick a reference plane or level. For reference planes we use the
+            // Reference-based NewFamilyInstance overload; for levels we use the
+            // level-based overload (cleaner for OneLevelBased families).
+            Element picked;
+            try
+            {
+                var r = ctx.UIDoc.Selection.PickObject(
+                    ObjectType.Element, new WorkPlaneFilter(),
+                    "Pick a reference plane or level (ESC to cancel)");
+                picked = ctx.Doc.GetElement(r.ElementId);
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+
+            if (picked == null) { TaskDialog.Show("STING — Change Host", "Pick aborted."); return Result.Failed; }
+
+            if (picked is Level newLevel)
+            {
+                return CommitRehost(ctx, snap, "Level",
+                    $"Level '{newLevel.Name}' [id {newLevel.Id.Value}]",
+                    ref message,
+                    (doc) => doc.Create.NewFamilyInstance(
+                        snap.LocationPoint, snap.Symbol, newLevel, StructuralType.NonStructural));
+            }
+
+            if (picked is ReferencePlane refPlane)
+            {
+                // ReferencePlane.Reference is the Reference we need for the
+                // 4-arg NewFamilyInstance overload. It's a property, not a
+                // method — Revit API >= 2015.
+                Reference planeRef = refPlane.Reference;
+                if (planeRef == null)
+                {
+                    TaskDialog.Show("STING — Change Host", "Could not resolve a Reference from the picked reference plane.");
+                    return Result.Failed;
+                }
+                XYZ refDir = ProjectNonParallelAxis(ctx.Doc, planeRef);
+                return CommitRehost(ctx, snap, "Reference Plane",
+                    $"Reference Plane '{refPlane.Name}' [id {refPlane.Id.Value}]",
+                    ref message,
+                    (doc) => doc.Create.NewFamilyInstance(planeRef, snap.LocationPoint, refDir, snap.Symbol));
+            }
+
+            TaskDialog.Show("STING — Change Host", "Pick was not a Level or Reference Plane.");
+            return Result.Failed;
+        }
+
+        // ── Mode: Detach (make free-standing) ───────────────────────────────
+        private static Result ExecuteDetach(StingCommandContext ctx, InstanceRehostSnapshot snap, ref string message)
+        {
+            // Only eligible for placement types that support placing without
+            // a host. Hosted-template families cannot be detached — they need
+            // a family rebuild against a non-hosted template, which is out of
+            // scope for instance-level operations.
+            bool eligible = snap.PlacementType == FamilyPlacementType.WorkPlaneBased
+                         || snap.PlacementType == FamilyPlacementType.OneLevelBased
+                         || snap.PlacementType == FamilyPlacementType.TwoLevelsBased;
+            if (!eligible)
+            {
+                TaskDialog.Show("STING — Change Host",
+                    $"Cannot detach: family placement type is {snap.PlacementType}, which is hosted-template only.\n\n" +
+                    "To convert this family to free-standing, open it in the family editor and save a copy against " +
+                    "a non-hosted template (e.g., Metric Generic Model.rft), or use Swap Category to move to an " +
+                    "already-free-standing category.");
+                return Result.Cancelled;
+            }
+
+            var confirm = new TaskDialog("STING — Detach from Host")
+            {
+                MainInstruction = "Detach this instance from its host and place it free-standing?",
+                MainContent = $"Current host: {snap.OriginalHostDescription}\n" +
+                              $"Placement type: {snap.PlacementType}\n\n" +
+                              "The instance will be re-created at the same location without a host. " +
+                              "If Revit rejects free placement, the original is restored via rollback.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No,
+            };
+            if (confirm.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+            Level level = snap.Level;
+            return CommitRehost(ctx, snap, "Free-standing",
+                level != null ? $"Free-standing on level '{level.Name}'" : "Free-standing (no level)",
+                ref message,
+                (doc) =>
+                {
+                    // Prefer the level-based overload when we have a level —
+                    // gives the free instance a sensible host level for schedules.
+                    if (level != null)
+                        return doc.Create.NewFamilyInstance(snap.LocationPoint, snap.Symbol, level, StructuralType.NonStructural);
+                    return doc.Create.NewFamilyInstance(snap.LocationPoint, snap.Symbol, StructuralType.NonStructural);
+                });
+        }
+
+        // ── Mode: Delete ────────────────────────────────────────────────────
+        private static Result ExecuteDelete(StingCommandContext ctx, FamilyInstance inst, ref string message)
+        {
+            var confirm = new TaskDialog("STING — Delete Instance")
+            {
+                MainInstruction = "Delete this family instance?",
+                MainContent = $"Family: {inst.Symbol?.Family?.Name}\n" +
+                              $"Type: {inst.Symbol?.Name}\n" +
+                              $"Host: {FamilyQuickEditHelpers.DescribeHost(inst)}\n\n" +
+                              "The instance is removed from the model. The family itself is NOT deleted.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No,
+            };
+            if (confirm.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+            try
+            {
+                long instId = inst.Id.Value;
+                using (Transaction t = new Transaction(ctx.Doc, "STING Delete Family Instance"))
+                {
+                    t.Start();
+                    ctx.Doc.Delete(inst.Id);
+                    t.Commit();
+                }
+                TaskDialog.Show("STING — Delete Instance", $"Deleted instance [id {instId}].");
+                StingLog.Info($"ChangeHost(Delete): removed instance {instId}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ChangeHostCommand Delete", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        // ── Shared commit path used by every rehost mode ────────────────────
+        private static Result CommitRehost(
+            StingCommandContext ctx,
+            InstanceRehostSnapshot snap,
+            string modeLabel,
+            string newHostLabel,
+            ref string message,
+            Func<Document, FamilyInstance> createReplacement)
+        {
             int restored = 0;
             ElementId newInstId = ElementId.InvalidElementId;
             try
             {
-                using (Transaction t = new Transaction(doc, "STING Change Host"))
+                using (Transaction t = new Transaction(ctx.Doc, $"STING Change Host — {modeLabel}"))
                 {
                     t.Start();
-                    if (!sym.IsActive) sym.Activate();
-                    doc.Delete(inst.Id);
-                    FamilyInstance replacement = doc.Create.NewFamilyInstance(
-                        locationPoint, sym, newWall, level, StructuralType.NonStructural);
+                    if (!snap.Symbol.IsActive) snap.Symbol.Activate();
+                    ctx.Doc.Delete(snap.OriginalId);
+
+                    FamilyInstance replacement = null;
+                    try { replacement = createReplacement(ctx.Doc); }
+                    catch (Exception createEx)
+                    {
+                        t.RollBack();
+                        StingLog.Warn($"ChangeHost {modeLabel} create: {createEx.Message}");
+                        TaskDialog.Show("STING — Change Host",
+                            $"Revit refused to create the replacement ({modeLabel}).\n\n{createEx.Message}\n\n" +
+                            "The original instance has been restored.");
+                        return Result.Failed;
+                    }
+
                     if (replacement == null)
                     {
                         t.RollBack();
                         TaskDialog.Show("STING — Change Host",
-                            "Revit refused to create the replacement on the destination wall. " +
-                            "This usually means the family's template isn't compatible with " +
-                            "that wall kind (e.g., curtain vs basic). The original instance " +
-                            "has been restored.");
+                            $"Revit returned no replacement instance ({modeLabel}). " +
+                            "This usually means the family's template is incompatible with the chosen host kind. " +
+                            "The original instance has been restored.");
                         return Result.Failed;
                     }
-                    newInstId = replacement.Id;
-                    restored = FamilyQuickEditHelpers.RestoreInstanceParams(replacement, snap);
 
-                    // Restore rotation by rotating around vertical axis through the point.
+                    newInstId = replacement.Id;
+                    restored = FamilyQuickEditHelpers.RestoreInstanceParams(replacement, snap.Params);
+
+                    // Restore rotation around the vertical axis through the
+                    // location point. Skipped for near-zero rotations to avoid
+                    // adding tiny rounding errors.
                     try
                     {
-                        if (Math.Abs(rotation) > 1e-9 && replacement.Location is LocationPoint newLp)
+                        if (Math.Abs(snap.Rotation) > 1e-9 && replacement.Location is LocationPoint)
                         {
-                            Line axis = Line.CreateBound(locationPoint, locationPoint + XYZ.BasisZ);
-                            ElementTransformUtils.RotateElement(doc, replacement.Id, axis, rotation);
+                            Line axis = Line.CreateBound(snap.LocationPoint, snap.LocationPoint + XYZ.BasisZ);
+                            ElementTransformUtils.RotateElement(ctx.Doc, replacement.Id, axis, snap.Rotation);
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"ChangeHost rotation restore: {ex.Message}"); }
+                    catch (Exception ex) { StingLog.Warn($"ChangeHost rotation restore ({modeLabel}): {ex.Message}"); }
 
                     t.Commit();
                 }
 
                 if (newInstId != ElementId.InvalidElementId)
-                    uidoc.Selection.SetElementIds(new[] { newInstId });
+                    ctx.UIDoc.Selection.SetElementIds(new[] { newInstId });
 
                 TaskDialog.Show("STING — Change Host",
-                    $"Rehosted successfully.\n\n" +
-                    $"New host: Wall [id {newWall.Id.Value}] '{newWall.Name}'\n" +
+                    $"Rehosted successfully ({modeLabel}).\n\n" +
+                    $"New host:   {newHostLabel}\n" +
                     $"Parameters restored: {restored}");
-                StingLog.Info($"ChangeHost: moved instance to wall {newWall.Id.Value}, restored {restored} params");
+                StingLog.Info($"ChangeHost({modeLabel}): new id {newInstId.Value}, restored {restored} params");
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                StingLog.Error("ChangeHostCommand", ex);
+                StingLog.Error($"ChangeHostCommand {modeLabel}", ex);
                 message = ex.Message;
                 return Result.Failed;
             }
         }
+
+        // ── Small helpers shared by the mode handlers ──────────────────────
+        private static Level ResolveLevelFromWall(Document doc, Wall wall)
+        {
+            try
+            {
+                var p = wall.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT);
+                if (p != null && p.StorageType == StorageType.ElementId)
+                    return doc.GetElement(p.AsElementId()) as Level;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveLevelFromWall: {ex.Message}"); }
+            return null;
+        }
+
+        private static Level ResolveLevelFromHost(Document doc, Element host)
+        {
+            // Floors, ceilings, roofs all carry LEVEL_PARAM on at least one
+            // of: the instance, the type, or the SketchPlan. Best-effort only.
+            try
+            {
+                foreach (BuiltInParameter bip in new[] {
+                    BuiltInParameter.LEVEL_PARAM,
+                    BuiltInParameter.SCHEDULE_LEVEL_PARAM,
+                    BuiltInParameter.FAMILY_LEVEL_PARAM,
+                    BuiltInParameter.ROOF_BASE_LEVEL_PARAM })
+                {
+                    var p = host.get_Parameter(bip);
+                    if (p != null && p.StorageType == StorageType.ElementId)
+                    {
+                        var lvl = doc.GetElement(p.AsElementId()) as Level;
+                        if (lvl != null) return lvl;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveLevelFromHost: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>Return a world axis (X, then Y, then Z) that is reasonably
+        /// non-parallel to the picked face / reference plane. Used as the
+        /// <c>referenceDirection</c> argument in the Reference-based
+        /// NewFamilyInstance overload so face-based / work-plane families
+        /// orient predictably without requiring the caller to do geometry.</summary>
+        private static XYZ ProjectNonParallelAxis(Document doc, Reference r)
+        {
+            XYZ[] candidates = { XYZ.BasisX, XYZ.BasisY, XYZ.BasisZ };
+            try
+            {
+                // Try to sniff the face / plane normal to pick a non-parallel axis.
+                XYZ normal = null;
+                var el = doc.GetElement(r.ElementId);
+                if (el != null)
+                {
+                    var geomObj = el.GetGeometryObjectFromReference(r);
+                    if (geomObj is Face face)
+                    {
+                        // Sample the normal at the UV centre of the face domain.
+                        BoundingBoxUV bb = face.GetBoundingBox();
+                        if (bb != null)
+                        {
+                            UV mid = (bb.Min + bb.Max) * 0.5;
+                            normal = face.ComputeNormal(mid);
+                        }
+                    }
+                    else if (el is ReferencePlane rp)
+                    {
+                        normal = rp.Normal;
+                    }
+                }
+                if (normal != null)
+                {
+                    foreach (var axis in candidates)
+                    {
+                        if (Math.Abs(normal.DotProduct(axis)) < 0.98)
+                            return axis;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ProjectNonParallelAxis: {ex.Message}"); }
+            return XYZ.BasisX;
+        }
     }
+
 
     // ════════════════════════════════════════════════════════════════════════════
     //  SWAP CATEGORY COMMAND

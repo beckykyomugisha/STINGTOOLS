@@ -132,10 +132,10 @@ namespace StingTools.UI
 
             actionsStack.Children.Add(MakeSectionLabel("HOST & CATEGORY"));
             actionsStack.Children.Add(MakeActionButton(
-                "Change Host",
-                "Rehost this wall-based family instance to a different wall. Preserves parameters.",
+                "Change Host / Delete",
+                "Mode picker: rehost to Wall / Floor-Ceiling-Roof / Face / Work Plane, detach to free-standing, or delete the instance entirely. Preserves parameters on rehost.",
                 ActionChoice.ChangeHost,
-                enabled: _inst?.Host is Wall));
+                enabled: _inst != null));
             actionsStack.Children.Add(MakeActionButton(
                 "Swap Category",
                 "Change the family's category (Generic Model ↔ Furniture ↔ Equipment etc.) via EditFamily + reload.",
