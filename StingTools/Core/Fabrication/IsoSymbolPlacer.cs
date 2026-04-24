@@ -55,6 +55,11 @@ namespace StingTools.Core.Fabrication
 
                 try
                 {
+                    // Resolve + pre-activate every FamilySymbol we will use so
+                    // we can Regenerate ONCE after activation instead of calling
+                    // doc.Regenerate inside TryPlace for every single member.
+                    var memberPlan = new List<(Element member, FamilySymbol fs)>();
+                    bool anyActivated = false;
                     foreach (ElementId memberId in ai.GetMemberIds())
                     {
                         var member = doc.GetElement(memberId);
@@ -63,7 +68,14 @@ namespace StingTools.Core.Fabrication
                         if (entry == null) continue;
                         FamilySymbol fs = ResolveFamilySymbol(doc, entry, result);
                         if (fs == null) continue;
-                        if (TryPlace(doc, detailView, member, fs, result))
+                        if (!fs.IsActive) { fs.Activate(); anyActivated = true; }
+                        memberPlan.Add((member, fs));
+                    }
+                    if (anyActivated) doc.Regenerate();
+
+                    foreach (var (member, fs) in memberPlan)
+                    {
+                        if (TryPlace(detailView, member, fs, result))
                             placed++;
                     }
                     tx.Commit();
@@ -77,15 +89,16 @@ namespace StingTools.Core.Fabrication
             return placed;
         }
 
-        private static bool TryPlace(Document doc, View view, Element member, FamilySymbol fs, FabricationResult result)
+        private static bool TryPlace(View view, Element member, FamilySymbol fs, FabricationResult result)
         {
             try
             {
-                if (!fs.IsActive) { fs.Activate(); doc.Regenerate(); }
+                // Symbol pre-activated in PlaceSymbolsForAssembly; no per-call
+                // Regenerate needed here.
                 XYZ point = (member.Location as LocationPoint)?.Point
                          ?? (member.Location as LocationCurve)?.Curve?.GetEndPoint(0)
                          ?? XYZ.Zero;
-                doc.Create.NewFamilyInstance(point, fs, view);
+                view.Document.Create.NewFamilyInstance(point, fs, view);
                 return true;
             }
             catch (Exception ex)

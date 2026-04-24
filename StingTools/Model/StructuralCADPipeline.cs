@@ -1498,19 +1498,29 @@ namespace StingTools.Model
                 bool createColTypesC = cfgC == null || cfgC.CreateNewTypes_Column;
                 double fallbackCircleW = cfgC?.ColumnWidthMm ?? 300;
 
+                // PERF-R3: activate each unique FamilySymbol ONCE at the start of
+                // the batch, then Regenerate once. The previous per-element
+                // Activate+Regenerate was forcing the document to regenerate
+                // after every column created — O(N) full regens for N columns.
+                var pendingSymbols = new HashSet<ElementId>();
+                var circlePlans = new List<(DetectedCircle circle, FamilySymbol symbol)>(circles.Count);
                 foreach (var circle in circles)
+                {
+                    double dMm = detectColC ? circle.DiameterMm : fallbackCircleW;
+                    var typeMatch = _typeFactory.FindOrCreateColumnType(
+                        dMm, dMm, allowDuplicate: createColTypesC);
+                    if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
+                    var symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
+                    if (symbol == null) continue;
+                    if (!symbol.IsActive) { symbol.Activate(); pendingSymbols.Add(symbol.Id); }
+                    circlePlans.Add((circle, symbol));
+                }
+                if (pendingSymbols.Count > 0) _doc.Regenerate();
+
+                foreach (var (circle, symbol) in circlePlans)
                 {
                     try
                     {
-                        double dMm = detectColC ? circle.DiameterMm : fallbackCircleW;
-                        var typeMatch = _typeFactory.FindOrCreateColumnType(
-                            dMm, dMm, allowDuplicate: createColTypesC);
-                        if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
-
-                        var symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
-                        if (symbol == null) continue;
-                        if (!symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
-
                         var pt = new XYZ(circle.Center.X, circle.Center.Y,
                             level?.Elevation ?? 0);
                         var col = _doc.Create.NewFamilyInstance(
@@ -1550,20 +1560,27 @@ namespace StingTools.Model
                 double fallbackCRW = cfgCR?.ColumnWidthMm ?? 300;
                 double fallbackCRD = cfgCR?.ColumnDepthMm ?? 300;
 
+                // PERF-R3: batch-activate symbols + single Regenerate.
+                var pendingRectSymbols = new HashSet<ElementId>();
+                var rectPlans = new List<(DetectedRectangle rect, FamilySymbol symbol)>(rects.Count);
                 foreach (var rect in rects)
+                {
+                    double widthMm = detectColCR ? rect.WidthMm : fallbackCRW;
+                    double depthMm = detectColCR ? rect.DepthMm : fallbackCRD;
+                    var typeMatchR = _typeFactory.FindOrCreateColumnType(
+                        widthMm, depthMm, allowDuplicate: createColTypesCR);
+                    if (!typeMatchR.Success) { result.Warnings.Add(typeMatchR.Message); continue; }
+                    var symR = _doc.GetElement(typeMatchR.TypeId) as FamilySymbol;
+                    if (symR == null) continue;
+                    if (!symR.IsActive) { symR.Activate(); pendingRectSymbols.Add(symR.Id); }
+                    rectPlans.Add((rect, symR));
+                }
+                if (pendingRectSymbols.Count > 0) _doc.Regenerate();
+
+                foreach (var (rect, symbol) in rectPlans)
                 {
                     try
                     {
-                        double widthMm = detectColCR ? rect.WidthMm : fallbackCRW;
-                        double depthMm = detectColCR ? rect.DepthMm : fallbackCRD;
-                        var typeMatch = _typeFactory.FindOrCreateColumnType(
-                            widthMm, depthMm, allowDuplicate: createColTypesCR);
-                        if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
-
-                        var symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
-                        if (symbol == null) continue;
-                        if (!symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
-
                         var pt = new XYZ(rect.Center.X, rect.Center.Y,
                             level?.Elevation ?? 0);
                         var col = _doc.Create.NewFamilyInstance(
@@ -1616,31 +1633,39 @@ namespace StingTools.Model
                 bool createBeamTypes = cfgB == null || cfgB.CreateNewTypes_Beam;
                 double fallbackBeamW = cfgB?.BeamWidthMm ?? defaultDepthMm * 0.5;
 
+                // PERF-R3: two-pass — resolve every distinct beam type in pass 1
+                // (Activate but defer Regenerate), single Regenerate, then
+                // create every beam in pass 2. Cuts N regens down to 1.
+                var beamPlans = new List<(DetectedBeam bl, FamilySymbol symbol)>(beamLines.Count);
+                bool anyActivated = false;
                 foreach (var bl in beamLines)
+                {
+                    double widthMm = detectBeamSize && bl.WidthDetected
+                        ? bl.WidthMm
+                        : fallbackBeamW;
+                    string typeKey = $"{defaultDepthMm:F0}x{widthMm:F0}";
+                    if (!typeCache.TryGetValue(typeKey, out var symbol))
+                    {
+                        var typeMatch = _typeFactory.FindOrCreateBeamType(
+                            defaultDepthMm, widthMm,
+                            allowDuplicate: createBeamTypes);
+                        if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
+                        symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
+                        if (symbol == null) continue;
+                        if (!symbol.IsActive) { symbol.Activate(); anyActivated = true; }
+                        typeCache[typeKey] = symbol;
+                    }
+                    beamPlans.Add((bl, symbol));
+                }
+                if (anyActivated) _doc.Regenerate();
+
+                foreach (var (bl, symbol) in beamPlans)
                 {
                     try
                     {
                         var start = new XYZ(bl.Start.X, bl.Start.Y, z);
                         var end = new XYZ(bl.End.X, bl.End.Y, z);
                         if (start.DistanceTo(end) < 0.01) continue;
-
-                        double widthMm = detectBeamSize && bl.WidthDetected
-                            ? bl.WidthMm
-                            : fallbackBeamW;
-                        string typeKey = $"{defaultDepthMm:F0}x{widthMm:F0}";
-
-                        if (!typeCache.TryGetValue(typeKey, out var symbol))
-                        {
-                            var typeMatch = _typeFactory.FindOrCreateBeamType(
-                                defaultDepthMm, widthMm,
-                                allowDuplicate: createBeamTypes);
-                            if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
-                            symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
-                            if (symbol == null) continue;
-                            if (!symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
-                            typeCache[typeKey] = symbol;
-                        }
-
                         var line = Line.CreateBound(start, end);
                         var beam = _doc.Create.NewFamilyInstance(
                             line, symbol, level, StructuralType.Beam);
@@ -2198,18 +2223,26 @@ namespace StingTools.Model
                 tx.SetFailureHandlingOptions(opts);
                 tx.Start();
 
-                foreach (var circle in circles ?? new List<DetectedCircle>())
+                // PERF-R3: batch-activate symbols, single Regenerate before creating.
+                var soffitCircles = circles ?? new List<DetectedCircle>();
+                var soffitPlans = new List<(DetectedCircle c, FamilySymbol symbol)>(soffitCircles.Count);
+                bool soffitActivated = false;
+                foreach (var circle in soffitCircles)
+                {
+                    var tm = _typeFactory.FindOrCreateColumnType(
+                        circle.DiameterMm, circle.DiameterMm);
+                    if (!tm.Success) { result.Warnings.Add(tm.Message); continue; }
+                    var symbol = _doc.GetElement(tm.TypeId) as FamilySymbol;
+                    if (symbol == null) continue;
+                    if (!symbol.IsActive) { symbol.Activate(); soffitActivated = true; }
+                    soffitPlans.Add((circle, symbol));
+                }
+                if (soffitActivated) _doc.Regenerate();
+
+                foreach (var (circle, symbol) in soffitPlans)
                 {
                     try
                     {
-                        var typeMatch = _typeFactory.FindOrCreateColumnType(
-                            circle.DiameterMm, circle.DiameterMm);
-                        if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
-
-                        var symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
-                        if (symbol == null) continue;
-                        if (!symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
-
                         var pt = new XYZ(circle.Center.X, circle.Center.Y,
                             baseLevel?.Elevation ?? 0);
                         var col = _doc.Create.NewFamilyInstance(
@@ -2265,21 +2298,28 @@ namespace StingTools.Model
                 double fallbackW = cfg?.ColumnWidthMm ?? 300;
                 double fallbackD = cfg?.ColumnDepthMm ?? 300;
 
+                // PERF-R3: resolve + activate-once + Regenerate-once, then create.
+                var rectSoffitPlans = new List<(DetectedRectangle rect, FamilySymbol symbol)>(rects.Count);
+                bool rectSoffitActivated = false;
                 foreach (var rect in rects)
+                {
+                    double widthMm = detectCol ? rect.WidthMm : fallbackW;
+                    double depthMm = detectCol ? rect.DepthMm : fallbackD;
+                    var typeMatch = _typeFactory.FindOrCreateColumnType(
+                        widthMm, depthMm,
+                        allowDuplicate: createColTypes);
+                    if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
+                    var symR = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
+                    if (symR == null) continue;
+                    if (!symR.IsActive) { symR.Activate(); rectSoffitActivated = true; }
+                    rectSoffitPlans.Add((rect, symR));
+                }
+                if (rectSoffitActivated) _doc.Regenerate();
+
+                foreach (var (rect, symbol) in rectSoffitPlans)
                 {
                     try
                     {
-                        double widthMm = detectCol ? rect.WidthMm : fallbackW;
-                        double depthMm = detectCol ? rect.DepthMm : fallbackD;
-                        var typeMatch = _typeFactory.FindOrCreateColumnType(
-                            widthMm, depthMm,
-                            allowDuplicate: createColTypes);
-                        if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
-
-                        var symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
-                        if (symbol == null) continue;
-                        if (!symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
-
                         var pt = new XYZ(rect.Center.X, rect.Center.Y,
                             baseLevel?.Elevation ?? 0);
                         var col = _doc.Create.NewFamilyInstance(
