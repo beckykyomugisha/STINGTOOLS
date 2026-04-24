@@ -985,17 +985,11 @@ namespace StingTools.BIMManager
                 int cloudsCreated = 0;
                 int cloudsSkipped = 0;
 
-                // Phase 85: Build set of already-clouded element IDs to prevent duplicates on repeated runs
+                // Phase 85: Build set of already-clouded element IDs to prevent duplicates on repeated runs.
+                // RevisionCloud doesn't expose hosted elements directly, so we fingerprint by bounding-box origin.
                 var alreadyClouded = new HashSet<long>();
                 try
                 {
-                    foreach (var rc in new FilteredElementCollector(doc, view.Id)
-                        .OfClass(typeof(RevisionCloud))
-                        .Cast<RevisionCloud>())
-                    {
-                        // RevisionCloud doesn't expose hosted elements directly; track by bounding box center
-                    }
-                    // Track existing clouds by their host element references
                     foreach (RevisionCloud rc in new FilteredElementCollector(doc)
                         .OfClass(typeof(RevisionCloud)))
                     {

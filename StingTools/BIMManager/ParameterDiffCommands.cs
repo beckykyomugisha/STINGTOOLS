@@ -80,7 +80,16 @@ namespace StingTools.BIMManager
             return path;
         }
 
-        /// <summary>Load all available snapshots for the project.</summary>
+        // Deserialized-snapshot cache keyed by (path, mtime ticks) — LoadSnapshot is
+        // hit repeatedly by the dashboard + CompareSnapshots; avoid re-parsing
+        // multi-megabyte element arrays each time. Cleared when a snapshot is
+        // overwritten (mtime changes invalidate automatically).
+        private static readonly Dictionary<string, (long MTimeTicks, ParameterSnapshot Snap)> _snapCache
+            = new Dictionary<string, (long, ParameterSnapshot)>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Load all available snapshots for the project.
+        /// Uses streaming Json.NET parse so we skip the Elements array — the
+        /// summary only needs Label / Timestamp / element count.</summary>
         internal static List<SnapshotSummary> ListSnapshots(Document doc)
         {
             var summaries = new List<SnapshotSummary>();
@@ -91,29 +100,73 @@ namespace StingTools.BIMManager
             {
                 try
                 {
-                    var snap = JsonConvert.DeserializeObject<ParameterSnapshot>(File.ReadAllText(file));
-                    if (snap != null)
-                    {
-                        summaries.Add(new SnapshotSummary
-                        {
-                            FilePath = file,
-                            Label = snap.Label,
-                            Timestamp = snap.Timestamp,
-                            ElementCount = snap.Elements.Count
-                        });
-                    }
+                    var summary = ReadSnapshotSummaryStreaming(file);
+                    if (summary != null) summaries.Add(summary);
                 }
                 catch (Exception ex) { StingLog.Warn($"ListSnapshots: {ex.Message}"); }
             }
             return summaries;
         }
 
-        /// <summary>Load a specific snapshot from file.</summary>
+        /// <summary>Streaming-parse Label/Timestamp and count Elements without
+        /// materialising the full snapshot (snapshots can be many MB).</summary>
+        private static SnapshotSummary ReadSnapshotSummaryStreaming(string file)
+        {
+            using (var sr = new StreamReader(file))
+            using (var jr = new JsonTextReader(sr))
+            {
+                string label = null;
+                DateTime timestamp = default;
+                int elementCount = 0;
+
+                while (jr.Read())
+                {
+                    if (jr.TokenType != JsonToken.PropertyName) continue;
+                    string name = (string)jr.Value;
+                    jr.Read();
+                    if (name == "Label") label = jr.Value?.ToString();
+                    else if (name == "Timestamp")
+                    {
+                        if (jr.Value is DateTime dt) timestamp = dt;
+                        else if (jr.Value != null) DateTime.TryParse(jr.Value.ToString(), out timestamp);
+                    }
+                    else if (name == "Elements" && jr.TokenType == JsonToken.StartArray)
+                    {
+                        int depth = 1;
+                        while (depth > 0 && jr.Read())
+                        {
+                            if (jr.TokenType == JsonToken.StartObject && depth == 1) elementCount++;
+                            if (jr.TokenType == JsonToken.StartArray) depth++;
+                            else if (jr.TokenType == JsonToken.EndArray) depth--;
+                        }
+                    }
+                }
+
+                return new SnapshotSummary
+                {
+                    FilePath = file,
+                    Label = label ?? "",
+                    Timestamp = timestamp,
+                    ElementCount = elementCount
+                };
+            }
+        }
+
+        /// <summary>Load a specific snapshot from file. Cached by (path, mtime).</summary>
         internal static ParameterSnapshot LoadSnapshot(string filePath)
         {
             try
             {
-                return JsonConvert.DeserializeObject<ParameterSnapshot>(File.ReadAllText(filePath));
+                if (!File.Exists(filePath)) return null;
+                long mtime = File.GetLastWriteTimeUtc(filePath).Ticks;
+                lock (_snapCache)
+                {
+                    if (_snapCache.TryGetValue(filePath, out var hit) && hit.MTimeTicks == mtime)
+                        return hit.Snap;
+                }
+                var snap = JsonConvert.DeserializeObject<ParameterSnapshot>(File.ReadAllText(filePath));
+                lock (_snapCache) { _snapCache[filePath] = (mtime, snap); }
+                return snap;
             }
             catch (Exception ex)
             {

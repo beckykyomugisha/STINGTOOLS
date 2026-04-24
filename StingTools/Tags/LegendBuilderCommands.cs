@@ -795,11 +795,12 @@ namespace StingTools.Tags
                 }
             }
 
-            // Deduplicate by ElementId (same element may appear in multiple views)
-            var uniqueElements = sheetElements
-                .GroupBy(e => e.Id)
-                .Select(g => g.First())
-                .ToList();
+            // Deduplicate by ElementId (same element may appear in multiple views).
+            // HashSet dedup is O(n) vs GroupBy+First O(n log n) and avoids allocating a grouping.
+            var seen = new HashSet<ElementId>();
+            var uniqueElements = new List<Element>(sheetElements.Count);
+            foreach (var e in sheetElements)
+                if (seen.Add(e.Id)) uniqueElements.Add(e);
 
             if (uniqueElements.Count == 0) return new List<LegendEntry>();
 
@@ -1158,14 +1159,19 @@ namespace StingTools.Tags
                 }
             }
 
-            // Deduplicate
-            var uniqueElements = sheetElements.GroupBy(e => e.Id).Select(g => g.First()).ToList();
+            // Deduplicate — HashSet is O(n) vs GroupBy+First O(n log n).
+            var seenIds = new HashSet<ElementId>();
+            var uniqueElements = new List<Element>(sheetElements.Count);
+            foreach (var e in sheetElements)
+                if (seenIds.Add(e.Id)) uniqueElements.Add(e);
             if (uniqueElements.Count == 0) return new List<TagLegendEntry>();
 
-            // Group by category
+            // Group by category — materialize each group once so per-group Count()
+            // doesn't re-enumerate inside the entry-build loop below.
             var byCat = uniqueElements
                 .GroupBy(e => e.Category.Id)
-                .OrderByDescending(g => g.Count())
+                .Select(g => new { Key = g.Key, Items = g.ToList() })
+                .OrderByDescending(g => g.Items.Count)
                 .ToList();
 
             // Detect actual project LOC/ZONE
