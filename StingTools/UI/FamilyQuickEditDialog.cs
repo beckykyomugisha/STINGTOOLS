@@ -5,6 +5,10 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core;
 using StingTools.Tags;
+// CS0104 — both System.Windows.Controls and Autodesk.Revit.DB define Grid.
+// This dialog is WPF-only and never references Revit's Grid type, so alias
+// the bare name to the WPF control. Revit grids would be Autodesk.Revit.DB.Grid.
+using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {
