@@ -16,7 +16,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Architectural Plan",
       "viewportTypeName": "STING - Standard Viewport",
-      "sheetNumberPattern": "A-{lvl}-{seq:D3}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "ARCHITECTURAL PLAN \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -75,6 +75,13 @@
         "Sheet Status": "WIP",
         "Revision": "P01",
         "Sheet Number": "A-{lvl}-{seq:D3}"
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -135,7 +142,7 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Architectural Section",
-      "sheetNumberPattern": "A-SEC-{seq:D3}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "SECTION {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -163,6 +170,13 @@
         "autoDimLevels": true,
         "dimensionStrategy": "Linear",
         "denseUntilScale": 100
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -301,7 +315,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Structural Plan",
-      "sheetNumberPattern": "S-{lvl}-{seq:D3}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "STRUCTURAL PLAN \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -327,6 +341,13 @@
           "StructuralFraming": "STING_TAG_BEAM",
           "StructuralFoundations": "STING_TAG_FTG"
         }
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "S",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -379,7 +400,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - MEP Plan",
-      "sheetNumberPattern": "M-{lvl}-{seq:D3}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "MEP PLAN \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -414,6 +435,13 @@
           "ElectricalEquipment": "STING_TAG_ELEC"
         },
         "denseUntilScale": 100
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -464,7 +492,7 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Pipe Shop Drawing",
-      "sheetNumberPattern": "SP-{disc}-{sys}-{lvl}-{seq:D4}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "{discipline} spool {spool}",
       "crop": {
         "kind": "TightBbox",
@@ -545,6 +573,13 @@
         "System Code": "{sys}",
         "Level Code": "{lvl}",
         "Sheet Number": "SP-{disc}-{sys}-{lvl}-{seq:D4}"
+      },
+      "isoNaming": {
+        "volume": "02",
+        "type": "SP",
+        "role": "P",
+        "suitability": "A",
+        "revision": "C01"
       }
     },
     {
@@ -1266,7 +1301,7 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Power Layout",
-      "sheetNumberPattern": "E-PW-{lvl}-{seq:D3}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "POWER LAYOUT \u2014 {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -1297,6 +1332,13 @@
           "ElectricalEquipment": "STING_TAG_ELEC",
           "ElectricalFixtures": "STING_TAG_SOCKET"
         }
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
     {
@@ -1548,7 +1590,7 @@
       "scale": 100,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation 3D",
-      "sheetNumberPattern": "PR-3D-{seq:D2}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "3D AXONOMETRIC \u2014 {mark}",
       "crop": {
         "kind": "TightBbox",
@@ -1601,6 +1643,13 @@
         "Suitability": "S1",
         "Sheet Status": "ISSUED FOR INFORMATION",
         "Sheet Title": "3D AXONOMETRIC \u2014 {mark}"
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "VS",
+        "role": "A",
+        "suitability": "S1",
+        "revision": "P01"
       }
     },
     {
