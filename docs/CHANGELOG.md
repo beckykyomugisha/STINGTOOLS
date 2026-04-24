@@ -2337,3 +2337,165 @@ by `InjectAutomationPresentationPack` and contains one or more
  5. Run `LOD Validation` — the result panel should include the
     new "LOD SWITCHES (STING_LOD_*_VISIBLE)" section with
     switch-bearing type counts.
+
+
+---
+
+#### Completed (Phase 117 — automation Packs 2/3/4/5)
+
+Landed as a single commit (Phase 117 — automation Packs 2/3/4/5). See
+commit body for the file-by-file breakdown. Highlights:
+
+ - 24 new shared parameters injected by
+   `FamilyParamEngine.InjectAutomationPresentationPack` — all paired with
+   engine read-sites in the same commit.
+ - `MaintenanceClashValidator` projects the MNT_ENV envelope from the
+   declared MNT_ACCESS_DIR face and AABB-checks it against walls, MEP,
+   and structure.
+ - `FixturePlacementEngine:259` TODO resolved — `PlacementRule` now
+   carries `VariantHint`; `ResolveSymbol` prefers matching
+   `STING_FIXTURE_VARIANT_TXT` before falling back to first match.
+ - `TagPlacementEngine` gains 5 new read-sites:
+   `GetCandidateOffsetsWithAnchor`, `ReadTagPriority`,
+   `ReadTagClusterKey`, `ReadTagFamilyHint`, `ReadTagScaleRange`. The
+   anchor-aware variant wires into the primary SmartPlace loop so
+   families declaring `STING_TAG_ANCHOR_{X,Y}_MM` get correct tag
+   placement immediately.
+ - `StingTools.addin` gains `<UseRevitContext>false</UseRevitContext>` —
+   Revit 2026/2027 load STING into a private assembly load context;
+   Revit 2025 silently ignores the element.
+
+---
+
+#### Completed (Phase 118 — automation Packs 6/7/8/9/10)
+
+ - Pack 6 — AVF compliance heat-map. `Core/Visualization/AvfHeatmapEngine.cs`
+   wraps `SpatialFieldManager`; four adapters mirror
+   `ComplianceScan` / `FillValidator` / `SustainabilityEngine` /
+   `AcousticAnalysisEngine` outputs. Five commands:
+   `VisualiseComplianceHeatmap` / `Fill` / `Carbon` / `Acoustic` / `Clear`.
+ - Pack 7 — `Core/StingDocumentChangedHandler.cs`. DocumentChanged +
+   Idling dual-handler. Cascades (`RoomRenamed`, `ElementLevelChanged`,
+   `SheetRenumbered`) queue on DocumentChanged, drain inside a
+   `TransactionGroup` on the next Idling tick. Gated by
+   `StingOfflineConfig.RealtimeCascadesEnabled`.
+ - Pack 8 — `Core/StingIdlingScheduler.cs`. Priority queue of
+   `IIdlingJob` workers; per-tick budget 100 ms. `ComplianceRefreshJob`
+   is the pilot consumer — enqueued from `OnDocumentOpened` so the
+   dashboard is live within one tick.
+ - Pack 9 — `Core/Visualization/PreviewRenderer.cs`.
+   `IDirectContext3DServer` wrapper + `TagPreviewSource` mirroring
+   Smart Tag Placement's scoring. Zero transaction / zero mutation —
+   offline-safe.
+ - Pack 10 — `Core/Storage/StingSchemaBuilder.cs`. Extensible Storage
+   schema builder with `STING_STALE_BOOL` as the pilot. Dual-write +
+   ES-preferred-read during a transition window; legacy shared
+   parameter stays in place so pre-migration projects still work.
+
+---
+
+#### Completed (Phase 119 — automation Packs 11/12/13/14)
+
+Final four packs of the automation-enhancement programme.
+
+**Pack 11 — Generative Design placement study**
+
+ - `Data/GenerativeDesign/STING_FIXTURE_PLACEMENT.dyn` — Dynamo graph
+   wrapping the fixture-placement engine as an NSGA-II trial with three
+   objectives: spacing variance (minimise), coverage % (maximise),
+   clearance violations (minimise).
+ - `Core/Placement/GenerativeDesignBridge.cs` — `RunStudy(doc, rules,
+   spacingBias, coverageTarget, clearancePenalty)` partial class
+   extending `FixturePlacementEngine` with a `StudyResult` return
+   shape. Delegates clearance counting to the real
+   `ClearanceValidator` so the study output matches RunAllValidators
+   exactly.
+ - `FixturePlacementEngine` changed from `static class` to
+   `static partial class` so the bridge can extend it without
+   touching the original file.
+
+**Pack 12 — Revit 2027 MCP + .NET 10 multi-target**
+
+ - `Core/Mcp/McpToolDescriptorGenerator.cs` — #if REVIT_2027 guarded.
+   Reflection-based scan of every `IExternalCommand` in the assembly;
+   emits one `McpToolDescriptor` per class. Command tag + namespace
+   leaf become the tool name; class name becomes a terse synthesized
+   description. `McpServerRegistrar.RegisterAll(app)` is the startup
+   hook.
+ - .NET 10 multi-target held back from `StingTools.csproj` deliberately
+   — the Linux sandbox has no SDK access and landing it would risk
+   the existing net8.0-windows build. The `#if REVIT_2027` guard is
+   the split point; when the main project flips to
+   `<TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>`
+   the MCP bridge lights up for the net10 target only.
+
+**Pack 13 — APS webhooks receiver**
+
+ - `Planscape.Server/src/Planscape.API/Controllers/AutodeskWebhooksController.cs`
+   — `POST /api/webhooks/autodesk/event`. HMAC-SHA256 signature
+   validation via configured `Autodesk:WebhookSecret`. Three handlers:
+   `dm.version.added` (stamp `UpdatedAt`), `docs.approval.completed`
+   (CdeStatus transition → PUBLISHED, idempotent), `model.review.completed`
+   (SignalR broadcast).
+ - Anonymous auth — APS authenticates via HMAC header, not bearer
+   token, so the controller bypasses the normal JWT middleware.
+ - First-pass URN matching uses `StatusHistoryJson` substring search; a
+   dedicated indexed `AccUrn` column is on the followup list.
+ - Gating: server-side endpoint intentionally does NOT check client
+   offline state — the refusal surface lives in the plugin's
+   `ACCPublishCommand` / `PlatformSyncCommand` which won't configure
+   webhooks while `StingOfflineConfig.IsOffline == true`.
+
+**Pack 14 — Automation API headless project**
+
+ - `StingTools.Headless/StingTools.Headless.csproj` (NEW) — separate
+   assembly for Autodesk Design Automation work items. net8.0-windows,
+   library output, no WPF.
+ - `StingTools.Headless/HeadlessRunner.cs` — `IExternalDBApplication`
+   entry point. Reads `STING_HEADLESS_CMD`, `_RVT`, `_OUT` environment
+   variables, dispatches to four read-only engines: `VALIDATE`,
+   `COMPLIANCE`, `REGISTER`, `COBIE`. First-pass engine adapters emit
+   skeleton JSON / CSV artefacts; production version wires through to
+   the real engines once both DLLs co-ship.
+ - Not included in the main `StingTools.sln` — DA packages the
+   assembly separately.
+
+**Caveats (Phase 119)**
+
+ 1. Built without `dotnet build` verification (Linux sandbox). Revit
+    2027 API surfaces (MCP, Generative Design RunStudy API) use the
+    published documentation signatures but have not been compile-
+    checked.
+ 2. Pack 11 `RunStudy` is a first-pass scorer — real production
+    studies need per-trial caching so the Pareto front exposes the
+    actual placement seed, not just objective scalars.
+ 3. Pack 12 net10 multi-target deferred — add
+    `<TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>`
+    plus `<DefineConstants Condition="'$(TargetFramework)' == 'net10.0-windows'">REVIT_2027</DefineConstants>`
+    to flip the switch; requires net10 SDK.
+ 4. Pack 13 lacks a dedicated `AccUrn` column on `DocumentRecord`;
+    relies on `StatusHistoryJson` substring lookup for now.
+ 5. Pack 14 engine adapters are stubs that emit skeleton artefacts.
+    Production graduates the real validators by adding a project
+    reference from `StingTools.Headless.csproj` to `StingTools.csproj`
+    (or extracting the read-only engines into a shared library).
+
+**Smoke test (Phases 117–119)**
+
+ 1. Open a project with at least one family processed by the updated
+    `InjectAutomationPresentationPack`; verify Revit's Project
+    Parameters dialog shows the 24 new Pack 2/3/4 params.
+ 2. Run `Validation ▸ Run All` — the result panel shows new
+    `CLEARANCE VALIDATOR` + `MAINTENANCE CLASH VALIDATOR` sections.
+ 3. BIM tab ▸ Visualise Compliance — AVF paint appears on the active
+    view; `Clear Heat-map` wipes it.
+ 4. Rename a level; within one second the affected elements' `ASS_LVL`
+    + `ASS_TAG_1` update via the DocumentChanged cascade.
+ 5. Open `Data/GenerativeDesign/STING_FIXTURE_PLACEMENT.dyn` in
+    Dynamo; Generative Design ▸ Create Study ▸ pick STING Fixture
+    Placement; trial runs return the three objective scalars.
+ 6. Curl `POST /api/webhooks/autodesk/event` with a signed payload
+    and verify the SignalR broadcast fires.
+ 7. Run `Autodesk.Forge.DesignAutomation` work item against
+    `StingTools.Headless.dll` with `STING_HEADLESS_CMD=REGISTER`;
+    output bucket should contain a populated `drawing_register.csv`.

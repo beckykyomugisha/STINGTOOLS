@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Pack 14 — Automation API (headless) host for STING read-only engines.
+
+    Autodesk Design Automation runs without a desktop Revit licence —
+    .rvt in, artefacts out. Usable for nightly tenant-wide sweeps or
+    CI-style checks on every ACC upload. Gated by Pack 0 OfflineOnly:
+    the plugin must be online-configured to enqueue work items; the
+    headless host itself is a server-side long-running process that
+    reads STING config from Planscape.Server.
+
+    Only read-only engines graduate here (compliance, BEP, drawing
+    register, COBie export, validators). Anything that mutates the
+    document stays in the desktop plugin.
+
+    Not included in the main StingTools.sln by default — DA needs a
+    bespoke entry-point assembly per the Design Automation convention.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>StingTools.Headless</RootNamespace>
+    <AssemblyName>StingTools.Headless</AssemblyName>
+    <Version>2.2.0</Version>
+    <UseWPF>false</UseWPF>
+    <UseWindowsForms>false</UseWindowsForms>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RevitApiPath)' == ''">
+    <RevitApiPath Condition="Exists('C:\Program Files\Autodesk\Revit 2025\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2025</RevitApiPath>
+    <RevitApiPath Condition="'$(RevitApiPath)' == '' And Exists('C:\Program Files\Autodesk\Revit 2026\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2026</RevitApiPath>
+    <RevitApiPath Condition="'$(RevitApiPath)' == '' And Exists('C:\Program Files\Autodesk\Revit 2027\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2027</RevitApiPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitApiPath)\RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitApiPath)\RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

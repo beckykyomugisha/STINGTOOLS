@@ -36,7 +36,7 @@ namespace StingTools.Core.Placement
     /// Stateless engine. Reads the rule library via PlacementRuleLoader
     /// and delegates per-candidate scoring to PlacementScorer.
     /// </summary>
-    public static class FixturePlacementEngine
+    public static partial class FixturePlacementEngine
     {
         private const double MmToFt = 1.0 / 304.8;
 
