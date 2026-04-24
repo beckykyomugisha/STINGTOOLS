@@ -560,6 +560,11 @@ namespace StingTools.UI
                 Background = new SolidColorBrush(BgColor),
                 ResizeMode = ResizeMode.NoResize,
             };
+            // Sub-dialog is a separate Window — its Resources dictionary is
+            // not inherited from the parent, so the dark input theme must
+            // be applied here explicitly or the TextBox below renders
+            // white-on-white.
+            DarkDialogTheme.ApplyDarkInputTheme(dlg, CardBg, FgColor, CardBorder);
             var sp = new StackPanel { Margin = new Thickness(12) };
             sp.Children.Add(new TextBlock
             {
