@@ -36,12 +36,13 @@ namespace StingTools.UI
         private TextBlock _previewTier3;
         private HeadingStyleResult _result;
 
-        private static readonly Color BgColor = Color.FromRgb(0x2D, 0x2D, 0x30);
+        // Light, contrast-safe palette (was dark #2D2D30).
+        private static readonly Color BgColor = Color.FromRgb(0xFA, 0xFA, 0xFA);
         private static readonly Color AccentColor = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color CardBg = Color.FromRgb(0x3E, 0x3E, 0x42);
-        private static readonly Color CardBorder = Color.FromRgb(0x55, 0x55, 0x58);
-        private static readonly Color FgColor = Colors.White;
-        private static readonly Color SubtleColor = Color.FromRgb(0xAA, 0xAA, 0xAA);
+        private static readonly Color CardBg = Color.FromRgb(0xFF, 0xFF, 0xFF);
+        private static readonly Color CardBorder = Color.FromRgb(0xCF, 0xD8, 0xDC);
+        private static readonly Color FgColor = Color.FromRgb(0x22, 0x22, 0x22);
+        private static readonly Color SubtleColor = Color.FromRgb(0x66, 0x66, 0x66);
         private static readonly Color PreviewBg = Color.FromRgb(0x1E, 0x1E, 0x1E);
 
         private HeadingStyleDialog(string currentTier2Style, string currentTier3Style)

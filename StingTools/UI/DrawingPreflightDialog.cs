@@ -50,15 +50,17 @@ namespace StingTools.UI
 
     public sealed class DrawingPreflightDialog : Window
     {
-        private static readonly Color BgColor     = Color.FromRgb(0x2D, 0x2D, 0x30);
+        // Light, contrast-safe palette (was dark #2D2D30).
+        private static readonly Color BgColor     = Color.FromRgb(0xFA, 0xFA, 0xFA);
         private static readonly Color AccentColor = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color CardBg      = Color.FromRgb(0x3E, 0x3E, 0x42);
-        private static readonly Color CardBorder  = Color.FromRgb(0x55, 0x55, 0x58);
-        private static readonly Color FgColor     = Colors.White;
-        private static readonly Color SubtleColor = Color.FromRgb(0xAA, 0xAA, 0xAA);
-        private static readonly Color ErrorColor  = Color.FromRgb(0xE5, 0x5B, 0x3C);
-        private static readonly Color WarnColor   = Color.FromRgb(0xE8, 0xC8, 0x4A);
-        private static readonly Color OkColor     = Color.FromRgb(0x6F, 0xBE, 0x6F);
+        private static readonly Color CardBg      = Color.FromRgb(0xFF, 0xFF, 0xFF);
+        private static readonly Color CardBorder  = Color.FromRgb(0xCF, 0xD8, 0xDC);
+        private static readonly Color FgColor     = Color.FromRgb(0x22, 0x22, 0x22);
+        private static readonly Color SubtleColor = Color.FromRgb(0x66, 0x66, 0x66);
+        // Status colours darkened so they read on a white background.
+        private static readonly Color ErrorColor  = Color.FromRgb(0xC6, 0x28, 0x28);
+        private static readonly Color WarnColor   = Color.FromRgb(0xB7, 0x95, 0x0B);
+        private static readonly Color OkColor     = Color.FromRgb(0x2E, 0x7D, 0x32);
 
         public bool Proceed { get; private set; }
 
