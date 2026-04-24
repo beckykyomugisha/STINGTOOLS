@@ -32,6 +32,7 @@ namespace StingTools.Commands.Storage
                 var doc = ctx.Doc;
 
                 int scanned = 0, stale = 0, cluster = 0, position = 0, history = 0;
+                int workflowImported = 0, drawingTypesImported = 0;
                 using (var tg = new TransactionGroup(doc, "STING ES: migrate project"))
                 {
                     tg.Start();
@@ -45,6 +46,66 @@ namespace StingTools.Commands.Storage
                         StingPositionSchema.GetOrCreate();
                         StingTagHistorySchema.GetOrCreate();
                         StingTagLearnedSchema.GetOrCreate();
+                        StingWorkflowStateSchema.GetOrCreate();
+                        StingDrawingTypesSchema.GetOrCreate();
+
+                        // Pack 122 / Gap B — workflow log import. Tail the JSONL and
+                        // write the most recent record onto ProjectInformation.
+                        try
+                        {
+                            string projDir = System.IO.Path.GetDirectoryName(doc.PathName ?? "");
+                            string log = string.IsNullOrEmpty(projDir) ? null
+                                : System.IO.Path.Combine(projDir, "STING_WORKFLOW_LOG.jsonl");
+                            var existingState = StingWorkflowStateSchema.Read(doc);
+                            if (!string.IsNullOrEmpty(log) && System.IO.File.Exists(log) &&
+                                (existingState == null || existingState.LastRunUtcTicks == 0))
+                            {
+                                string[] lines = System.IO.File.ReadAllLines(log);
+                                if (lines.Length > 0)
+                                {
+                                    string tail = lines[lines.Length - 1];
+                                    var rec = Newtonsoft.Json.JsonConvert.DeserializeObject<WorkflowRunRecord>(tail);
+                                    if (rec != null)
+                                    {
+                                        long ticks = DateTime.TryParse(rec.Timestamp,
+                                            System.Globalization.CultureInfo.InvariantCulture,
+                                            System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                                            out var dtUtc) ? dtUtc.Ticks : 0;
+                                        int from = Math.Max(0, lines.Length - 100);
+                                        string runsJson = string.Join("\n", lines, from, lines.Length - from);
+                                        StingWorkflowStateSchema.Write(doc, new StingWorkflowStateSchema.State
+                                        {
+                                            LastRunUtcTicks = ticks,
+                                            LastRunPreset   = rec.PresetName ?? "",
+                                            LastRunStatus   = rec.Cancelled ? "Cancelled" : (rec.Failed > 0 ? "Failed" : "Succeeded"),
+                                            RunsJson        = runsJson,
+                                        });
+                                        workflowImported = 1;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception wEx) { StingLog.Warn($"Workflow ES import: {wEx.Message}"); }
+
+                        // Pack 122 / Gap C — drawing-types JSON import.
+                        try
+                        {
+                            string projDir = System.IO.Path.GetDirectoryName(doc.PathName ?? "");
+                            string dtPath = string.IsNullOrEmpty(projDir) ? null
+                                : System.IO.Path.Combine(projDir, "_BIM_COORD", "drawing_types.json");
+                            var existingDt = StingDrawingTypesSchema.Read(doc);
+                            if (!string.IsNullOrEmpty(dtPath) && System.IO.File.Exists(dtPath) &&
+                                (existingDt == null || string.IsNullOrEmpty(existingDt.OverridesJson)))
+                            {
+                                string jsonOnDisk = System.IO.File.ReadAllText(dtPath);
+                                if (!string.IsNullOrEmpty(jsonOnDisk))
+                                {
+                                    StingDrawingTypesSchema.Write(doc, jsonOnDisk);
+                                    drawingTypesImported = 1;
+                                }
+                            }
+                        }
+                        catch (Exception dtEx) { StingLog.Warn($"DrawingTypes ES import: {dtEx.Message}"); }
 
                         var col = new FilteredElementCollector(doc).WhereElementIsNotElementType();
                         foreach (var el in col)
@@ -74,6 +135,8 @@ namespace StingTools.Commands.Storage
                     .Metric("Cluster metadata → ES",    cluster.ToString())
                     .Metric("Tag position → ES",        position.ToString())
                     .Metric("Tag history → ES",         history.ToString())
+                    .Metric("Workflow log → ES",        workflowImported.ToString())
+                    .Metric("Drawing-types JSON → ES",  drawingTypesImported.ToString())
                     .AddSection("NOTES")
                     .Text("Legacy shared parameters remain in place — the migration is dual-surface until the transition window closes.")
                     .Text("Re-run safely: counters report only NEW imports per invocation.")

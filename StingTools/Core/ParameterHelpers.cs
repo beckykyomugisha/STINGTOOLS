@@ -3871,6 +3871,18 @@ namespace StingTools.Core
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
                         GetCachedTimestamp(), overwrite: true);
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", Environment.UserName, overwrite: true);
+
+                    // Pack 122 / Gap A — dual-write to Extensible Storage. Schema
+                    // landed in Phase 121; this is the deferred hot-path wire-up.
+                    // Reverse-diff and revision-compare can now read a typed
+                    // long ticks instead of parsing the legacy string timestamp.
+                    try
+                    {
+                        string revCode = ParameterHelpers.GetString(el, "ASS_REV_TXT");
+                        StingTools.Core.Storage.StingTagHistorySchema.Write(
+                            el, _prevTag ?? "", DateTime.UtcNow, revCode ?? "");
+                    }
+                    catch (Exception esEx) { StingLog.Warn($"Tag history ES dual-write: {esEx.Message}"); }
                 }
                 catch (Exception dtEx) { StingLog.Warn($"Tag audit trail write: {dtEx.Message}"); }
 
