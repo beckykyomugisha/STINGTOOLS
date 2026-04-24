@@ -26,8 +26,12 @@ namespace StingTools.Commands.Fabrication
                 string path = BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json");
                 var arr = BIMManagerEngine.LoadJsonArray(path);
 
+                // CreateDocumentEntry writes "doc_id" (not "id"); also
+                // accept rows authored pre-rename just in case.
                 var existingIds = new HashSet<string>(
-                    arr.OfType<JObject>().Select(j => (string)j["id"]).Where(s => !string.IsNullOrEmpty(s)),
+                    arr.OfType<JObject>()
+                       .Select(j => (string)(j["doc_id"] ?? j["id"]))
+                       .Where(s => !string.IsNullOrEmpty(s)),
                     StringComparer.OrdinalIgnoreCase);
 
                 var pi = doc.ProjectInformation;

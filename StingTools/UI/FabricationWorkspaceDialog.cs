@@ -824,9 +824,10 @@ namespace StingTools.UI
                         // Phase 5 — auto-create / refresh the spool schedule (#13).
                         try
                         {
-                            var schId = FabricationSpoolSchedule.CreateOrRefresh(_doc);
-                            if (schId != ElementId.InvalidElementId)
-                                summary += "\nSpool schedule refreshed.";
+                            var sch = FabricationSpoolSchedule.CreateOrRefresh(_doc);
+                            if (sch?.Ok == true) summary += "\n" + sch.Message;
+                            else if (sch != null && !string.IsNullOrWhiteSpace(sch.Message))
+                                summary += "\nSpool schedule skipped: " + sch.Message;
                         }
                         catch (Exception ex) { StingLog.Warn($"SpoolSchedule: {ex.Message}"); }
                         break;
