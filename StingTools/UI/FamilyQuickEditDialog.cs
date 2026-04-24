@@ -231,7 +231,7 @@ namespace StingTools.UI
             catch { return false; }
         }
 
-        private void AddInfoRow(Grid grid, int row, string key, string value)
+        private void AddInfoRow(System.Windows.Controls.Grid grid, int row, string key, string value)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var k = new TextBlock
