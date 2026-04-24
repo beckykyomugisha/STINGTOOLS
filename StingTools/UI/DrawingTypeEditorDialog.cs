@@ -46,6 +46,13 @@ namespace StingTools.UI
         private static readonly Color FgColor     = Colors.White;
         private static readonly Color SubtleColor = Color.FromRgb(0xAA, 0xAA, 0xAA);
 
+        // Inputs render black-on-white — readable regardless of whether
+        // Revit's WPF host honours our dark Background on input chrome.
+        // Labels / cards / checkboxes keep the FgColor (white) palette.
+        private static readonly Color InputBg     = Colors.White;
+        private static readonly Color InputFg     = Colors.Black;
+        private static readonly Color InputBorder = Color.FromRgb(0xBB, 0xBB, 0xBB);
+
         // ── state ──
         private readonly Document _doc;
         private readonly List<DrawingType> _types;       // working copy
@@ -115,7 +122,7 @@ namespace StingTools.UI
 
             // Search
             _tbSearch = new TextBox { Height = 26 };
-            DarkDialogTheme.StyleInput(_tbSearch, CardBg, FgColor, CardBorder);
+            DarkDialogTheme.StyleInput(_tbSearch, InputBg, InputFg, InputBorder);
             _tbSearch.TextChanged += (s, e) => RefreshList();
             DockPanel.SetDock(_tbSearch, Dock.Top);
             panel.Children.Add(new TextBlock {
@@ -368,14 +375,14 @@ namespace StingTools.UI
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
                 var k = new TextBox { Text = catKey, Height = 22 };
-                DarkDialogTheme.StyleInput(k, CardBg, FgColor, CardBorder);
+                DarkDialogTheme.StyleInput(k, InputBg, InputFg, InputBorder);
                 k.LostFocus += (s, e) =>
                 {
                     pack.TagFamilies.Remove(catKey);
                     pack.TagFamilies[k.Text.Trim()] = pack.TagFamilies.ContainsKey(catKey) ? pack.TagFamilies[catKey] : kv.Value;
                 };
                 var v = new TextBox { Text = kv.Value, Height = 22, Margin = new Thickness(6, 0, 0, 0) };
-                DarkDialogTheme.StyleInput(v, CardBg, FgColor, CardBorder);
+                DarkDialogTheme.StyleInput(v, InputBg, InputFg, InputBorder);
                 v.LostFocus += (s, e) => pack.TagFamilies[k.Text.Trim()] = v.Text.Trim();
                 var rm = MakeSmallBtn("×", () => { pack.TagFamilies.Remove(catKey); RenderForm(); });
                 rm.Width = 22;
@@ -601,7 +608,7 @@ namespace StingTools.UI
             DockPanel.SetDock(lbl, Dock.Left);
             row.Children.Add(lbl);
             var tb = new TextBox { Text = value ?? "", Height = 22, ToolTip = tooltip };
-            DarkDialogTheme.StyleInput(tb, CardBg, FgColor, CardBorder);
+            DarkDialogTheme.StyleInput(tb, InputBg, InputFg, InputBorder);
             tb.LostFocus += (s, e) => { setter?.Invoke(tb.Text); };
             row.Children.Add(tb);
             return row;
@@ -632,7 +639,7 @@ namespace StingTools.UI
             DockPanel.SetDock(lbl, Dock.Left);
             row.Children.Add(lbl);
             var cb = new ComboBox { Height = 22, IsEditable = true };
-            DarkDialogTheme.StyleInput(cb, CardBg, FgColor, CardBorder);
+            DarkDialogTheme.StyleInput(cb, InputBg, InputFg, InputBorder);
             foreach (var it in items) cb.Items.Add(it);
             cb.Text = value ?? "";
             cb.LostFocus += (s, e) => { setter?.Invoke(cb.Text?.Trim()); };
@@ -682,7 +689,7 @@ namespace StingTools.UI
         private TextBox SmallTb(string text, Action<string> setter)
         {
             var tb = new TextBox { Text = text ?? "", Height = 20, FontSize = 10 };
-            DarkDialogTheme.StyleInput(tb, CardBg, FgColor, CardBorder);
+            DarkDialogTheme.StyleInput(tb, InputBg, InputFg, InputBorder);
             tb.LostFocus += (s, e) => setter?.Invoke(tb.Text);
             return tb;
         }
