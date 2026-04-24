@@ -2050,9 +2050,13 @@ namespace StingTools.BIMManager
                     string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                     if (!string.IsNullOrEmpty(sys)) sysCodes.Add(sys);
                 }
-                modelData["element_counts_by_category"] = JObject.FromObject(
-                    countByCategory.OrderByDescending(kv => kv.Value)
-                    .Take(30).ToDictionary(kv => kv.Key, kv => kv.Value));
+                // Build JObject directly from the top-30 ordered pairs — the
+                // intermediate ToDictionary allocated a whole second dict just
+                // to hand JObject.FromObject something to serialize.
+                var topCategoriesObj = new JObject();
+                foreach (var kv in countByCategory.OrderByDescending(kv => kv.Value).Take(30))
+                    topCategoriesObj[kv.Key] = kv.Value;
+                modelData["element_counts_by_category"] = topCategoriesObj;
                 modelData["element_counts_by_discipline"] = JObject.FromObject(countByDisc);
                 modelData["system_codes_in_use"] = new JArray(sysCodes.OrderBy(s => s));
                 modelData["tagged_elements"] = totalTagged;
@@ -5413,7 +5417,7 @@ namespace StingTools.BIMManager
                     csv.AppendLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
                     foreach (var row in ws.Value)
                         csv.AppendLine(string.Join(",", headers.Select(h =>
-                            $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
+                            $"\"{(row.TryGetValue(h, out var v) ? v?.Replace("\"", "\"\"") : "")}\"")));
 
                     try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
                     catch (Exception ex) { StingLog.Warn($"COBie {ws.Key}: {ex.Message}"); }
@@ -5514,10 +5518,13 @@ namespace StingTools.BIMManager
                 }
             }
 
-            // Add missing resource types
-            string createdBy = resources.Count > 0 && resources[0].ContainsKey("CreatedBy") ? resources[0]["CreatedBy"] : Environment.UserName;
+            // Add missing resource types — TryGetValue avoids the
+            // ContainsKey+indexer double-lookup on every row.
+            string createdBy = Environment.UserName;
+            if (resources.Count > 0 && resources[0].TryGetValue("CreatedBy", out var cbv)) createdBy = cbv;
             string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
-            var existing = new HashSet<string>(resources.Select(r => r.ContainsKey("Name") ? r["Name"] : ""));
+            var existing = new HashSet<string>(resources.Select(r =>
+                r.TryGetValue("Name", out var nv) ? nv : ""));
 
             foreach (var kvp in enhancements)
             {
@@ -5536,9 +5543,11 @@ namespace StingTools.BIMManager
         /// <summary>Enhance Impact worksheet with lifecycle cost analysis, carbon per m², and energy benchmarks.</summary>
         private static void EnhanceImpactWorksheet(Document doc, List<Dictionary<string, string>> impacts)
         {
-            string createdBy = impacts.Count > 0 && impacts[0].ContainsKey("CreatedBy") ? impacts[0]["CreatedBy"] : Environment.UserName;
+            string createdBy = Environment.UserName;
+            if (impacts.Count > 0 && impacts[0].TryGetValue("CreatedBy", out var icbv)) createdBy = icbv;
             string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
-            var seen = new HashSet<string>(impacts.Select(i => i.ContainsKey("Name") ? i["Name"] : ""));
+            var seen = new HashSet<string>(impacts.Select(i =>
+                i.TryGetValue("Name", out var nv) ? nv : ""));
 
             // Add building-level energy benchmarks
             var benchmarks = new[]
@@ -6246,7 +6255,7 @@ namespace StingTools.BIMManager
                 csv.AppendLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
                 foreach (var row in ws.Value)
                     csv.AppendLine(string.Join(",", headers.Select(h =>
-                        $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
+                        $"\"{(row.TryGetValue(h, out var v) ? v?.Replace("\"", "\"\"") : "")}\"")));
                 try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
                 catch (Exception ex) { StingLog.Warn($"COBie CSV write failed for {ws.Key}: {ex.Message}"); }
             }
@@ -9195,21 +9204,30 @@ namespace StingTools.BIMManager
 
                 var now = DateTime.Now;
                 int total = issues.Count;
-                int open = issues.Count(i => i["status"]?.ToString() != "CLOSED" && i["status"]?.ToString() != "VOID");
-                int closed = issues.Count(i => i["status"]?.ToString() == "CLOSED");
-                int overdue = issues.Count(i =>
+                // Single-pass tally — previous impl enumerated `issues` five
+                // times (Count, two filtered Counts, three GroupBy+ToDictionary).
+                int open = 0, closed = 0, overdue = 0;
+                var byType = new Dictionary<string, int>();
+                var byPriority = new Dictionary<string, int>();
+                var byStatus = new Dictionary<string, int>();
+                foreach (var i in issues)
                 {
-                    string status = i["status"]?.ToString() ?? "";
-                    if (status == "CLOSED" || status == "VOID") return false;
-                    return DateTime.TryParse(i["date_due"]?.ToString(), out DateTime due) && due < now;
-                });
+                    string status = i["status"]?.ToString() ?? "?";
+                    string type = i["type"]?.ToString() ?? "?";
+                    string priority = i["priority"]?.ToString() ?? "?";
 
-                var byType = issues.GroupBy(i => i["type"]?.ToString() ?? "?")
-                    .ToDictionary(g => g.Key, g => g.Count());
-                var byPriority = issues.GroupBy(i => i["priority"]?.ToString() ?? "?")
-                    .ToDictionary(g => g.Key, g => g.Count());
-                var byStatus = issues.GroupBy(i => i["status"]?.ToString() ?? "?")
-                    .ToDictionary(g => g.Key, g => g.Count());
+                    if (status == "CLOSED") closed++;
+                    else if (status != "VOID") open++;
+
+                    if (status != "CLOSED" && status != "VOID"
+                        && DateTime.TryParse(i["date_due"]?.ToString(), out DateTime due)
+                        && due < now)
+                        overdue++;
+
+                    byType.TryGetValue(type, out int tc); byType[type] = tc + 1;
+                    byPriority.TryGetValue(priority, out int pc); byPriority[priority] = pc + 1;
+                    byStatus.TryGetValue(status, out int sc); byStatus[status] = sc + 1;
+                }
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"Issue Statistics — {total} total");

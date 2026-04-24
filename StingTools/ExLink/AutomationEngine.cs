@@ -402,10 +402,7 @@ namespace StingTools.ExLink
         // ── Helpers ─────────────────────────────────────────────────────────
 
         internal static string SanitizeFileName(string name)
-        {
-            var invalid = Path.GetInvalidFileNameChars();
-            return new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
-        }
+            => StingTools.Core.OutputLocationHelper.MakeSafeFileName(name);
 
         private static bool IsViewOnSheet(Document doc, View v)
         {

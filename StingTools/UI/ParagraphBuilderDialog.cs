@@ -214,9 +214,6 @@ namespace StingTools.UI
             var tbLabel = new TextBox
             {
                 Text = tier.Label, Height = 22, FontSize = 11,
-                Background = new SolidColorBrush(CardBg),
-                Foreground = new SolidColorBrush(FgColor),
-                BorderBrush = new SolidColorBrush(CardBorder),
                 IsReadOnly = readOnly,
             };
             tbLabel.TextChanged += (s, e) => { tier.Label = tbLabel.Text; RefreshHeader(expander, tierKey, tier); };
@@ -291,9 +288,6 @@ namespace StingTools.UI
             {
                 IsEditable = true, IsReadOnly = readOnly,
                 Height = 22, FontSize = 10, Margin = new Thickness(2, 1, 2, 1),
-                Background = new SolidColorBrush(CardBg),
-                Foreground = new SolidColorBrush(FgColor),
-                BorderBrush = new SolidColorBrush(CardBorder),
                 Text = row.Parameter,
             };
             foreach (var p in _paramCatalog) cmbParam.Items.Add(p);
@@ -309,9 +303,6 @@ namespace StingTools.UI
             {
                 Text = row.Prefix, IsReadOnly = readOnly,
                 Height = 22, FontSize = 10, Margin = new Thickness(2, 1, 2, 1),
-                Background = new SolidColorBrush(CardBg),
-                Foreground = new SolidColorBrush(FgColor),
-                BorderBrush = new SolidColorBrush(CardBorder),
             };
             tbPrefix.TextChanged += (s, e) => row.Prefix = tbPrefix.Text;
             Grid.SetColumn(tbPrefix, 2); Grid.SetRow(tbPrefix, rowIndex); tbl.Children.Add(tbPrefix);
@@ -320,9 +311,6 @@ namespace StingTools.UI
             {
                 Text = row.Suffix, IsReadOnly = readOnly,
                 Height = 22, FontSize = 10, Margin = new Thickness(2, 1, 2, 1),
-                Background = new SolidColorBrush(CardBg),
-                Foreground = new SolidColorBrush(FgColor),
-                BorderBrush = new SolidColorBrush(CardBorder),
             };
             tbSuffix.TextChanged += (s, e) => row.Suffix = tbSuffix.Text;
             Grid.SetColumn(tbSuffix, 3); Grid.SetRow(tbSuffix, rowIndex); tbl.Children.Add(tbSuffix);

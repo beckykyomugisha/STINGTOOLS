@@ -50,6 +50,20 @@ namespace StingTools.Tags
             public string FamilyName { get; set; }
         }
 
+        /// <summary>
+        /// A single pattern (Handover or DesignConstruction) paired with the
+        /// project-level YESNO selector BOOL that gates its T4-T10 rows when
+        /// the family is dual-wired. <see cref="GateParam"/> may be null/empty
+        /// for the single-mode back-compat path, in which case tier visibility
+        /// is gated on <c>TAG_PARA_STATE_N_BOOL</c> alone.
+        /// </summary>
+        public sealed class ModePlan
+        {
+            public string Mode { get; set; }
+            public string GateParam { get; set; }
+            public TierPlan Plan { get; set; }
+        }
+
         /// <summary>Per-family outcome, rolled up into the report by the command.</summary>
         public sealed class Result
         {
@@ -62,40 +76,60 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Author tier content into <paramref name="fdoc"/> per <paramref name="plan"/>.
-        /// Caller is responsible for saving (<see cref="Document.SaveAs(string, SaveAsOptions)"/>)
-        /// and closing the document.
+        /// Single-mode entry point (back-compat). Delegates to
+        /// <see cref="AuthorLabelsMulti"/> with a no-gate plan so existing
+        /// callers that only know about one mode keep working unchanged.
         /// </summary>
         public static Result AuthorLabels(Document fdoc, TierPlan plan, Options opts)
         {
-            if (fdoc == null) throw new ArgumentNullException(nameof(fdoc));
             if (plan == null) throw new ArgumentNullException(nameof(plan));
+            var one = new List<ModePlan> { new ModePlan { Mode = "", GateParam = null, Plan = plan } };
+            return AuthorLabelsMulti(fdoc, one, opts);
+        }
+
+        /// <summary>
+        /// Dual-wire entry point: stamps every <paramref name="modePlans"/>
+        /// entry into the same family document, AND-gating each row's
+        /// visibility formula with the entry's <see cref="ModePlan.GateParam"/>.
+        /// When a source parameter appears in more than one mode it gets a
+        /// single OR-merged formula of the shape
+        /// <c>if(or(and(stateN, gateA), and(stateM, gateB), …), PARAM, "")</c>.
+        /// </summary>
+        public static Result AuthorLabelsMulti(Document fdoc,
+            IEnumerable<ModePlan> modePlans, Options opts)
+        {
+            if (fdoc == null) throw new ArgumentNullException(nameof(fdoc));
+            if (modePlans == null) throw new ArgumentNullException(nameof(modePlans));
             if (opts == null) throw new ArgumentNullException(nameof(opts));
             if (!fdoc.IsFamilyDocument) throw new InvalidOperationException("AuthorLabels requires a family document.");
 
             var result = new Result();
 
-            // 1. Identify tiers whose rows should be skipped for hand-edit preservation.
             HashSet<int> preservedTiers = opts.PreserveHandEdits
                 ? DetectPreservedTiers(fdoc)
                 : new HashSet<int>();
             result.TiersPreserved = preservedTiers.Count;
 
-            // 2. Flatten all T4..T10 rows into a linear list the binding + formula
-            //    loops can iterate once. Omit tiers with empty row lists (TierState.Omit).
-            var flat = new List<(int Tier, TierRow Row)>();
-            void Accum(int t, List<TierRow> rows, TierState state)
+            // Flatten every (tier, row, gate) triple across every mode plan.
+            // One entry per row so same-parameter-across-modes is handled by
+            // the gate accumulator below, not by dedup here.
+            var flat = new List<(int Tier, TierRow Row, string Gate)>();
+            foreach (ModePlan mp in modePlans)
             {
-                if (state == TierState.Omit || rows == null) return;
-                foreach (var r in rows) flat.Add((t, r));
+                if (mp?.Plan == null) continue;
+                void Accum(int t, List<TierRow> rows, TierState state)
+                {
+                    if (state == TierState.Omit || rows == null) return;
+                    foreach (var r in rows) flat.Add((t, r, mp.GateParam));
+                }
+                Accum(4,  mp.Plan.T4Rows,  mp.Plan.T4);
+                Accum(5,  mp.Plan.T5Rows,  mp.Plan.T5);
+                Accum(6,  mp.Plan.T6Rows,  mp.Plan.T6);
+                Accum(7,  mp.Plan.T7Rows,  mp.Plan.T7);
+                Accum(8,  mp.Plan.T8Rows,  mp.Plan.T8);
+                Accum(9,  mp.Plan.T9Rows,  mp.Plan.T9);
+                Accum(10, mp.Plan.T10Rows, mp.Plan.T10);
             }
-            Accum(4, plan.T4Rows, plan.T4);
-            Accum(5, plan.T5Rows, plan.T5);
-            Accum(6, plan.T6Rows, plan.T6);
-            Accum(7, plan.T7Rows, plan.T7);
-            Accum(8, plan.T8Rows, plan.T8);
-            Accum(9, plan.T9Rows, plan.T9);
-            Accum(10, plan.T10Rows, plan.T10);
 
             if (flat.Count == 0)
             {
@@ -103,32 +137,19 @@ namespace StingTools.Tags
                 return result;
             }
 
-            // 3. Bind every distinct parameter name referenced by the rows.
+            // Bind every parameter referenced by any row PLUS each distinct
+            // mode gate BOOL, so a later SetFormula(gate=…) resolves.
             var distinctParams = flat
                 .Select(x => x.Row?.Parameter)
                 .Where(s => !string.IsNullOrEmpty(s))
+                .Concat(flat.Select(x => x.Gate).Where(s => !string.IsNullOrEmpty(s)))
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
             result.ParamsBound = BindSharedParameters(fdoc, distinctParams, opts, result);
 
-            // 4. Apply the per-row visibility formula. Same shape the CSV regenerator
-            //    emits: if(TAG_PARA_STATE_N_BOOL, PARAM, "").
             ApplyVisibilityFormulas(fdoc, flat, preservedTiers, result);
 
-            // 5. Best-effort label rebind: point the template's stub Label at
-            //    ASS_TAG_1_TXT so T1 display continues to work after re-author.
             result.LabelRebound = TryRebindPrimaryLabel(fdoc, result);
-
-            // 6. TODO-VERIFY-API: programmatic Label creation at tier-specific
-            //    positions. Revit 2025 exposes FamilyItemFactory.NewTextNote
-            //    (plain text) but NOT a Label-with-parameter binding for
-            //    annotation tag families. Revision 2026+ may expose more — when
-            //    it does, positioning code goes here, driven by plan rows and
-            //    TierRow.Size/Style/Color. Until then the .rft template's
-            //    pre-existing single Label is retargeted by TryRebindPrimaryLabel
-            //    and the additional tier rows stay manual.
-            // var factory = fdoc.FamilyCreate; // TODO-VERIFY-API: NewTextNote overloads vary per Revit year.
-
             return result;
         }
 
@@ -270,42 +291,64 @@ namespace StingTools.Tags
         }
 
         // ------------------------------------------------------------------
-        // Per-row formula: set Formula on a family calculated-value parameter
-        // matching the row's Parameter name, gating visibility via the tier's
-        // TAG_PARA_STATE_N_BOOL. Rows whose target tier is in preservedTiers
-        // are skipped.
+        // Per-row formula: visibility is gated by TAG_PARA_STATE_N_BOOL; when a
+        // mode gate is supplied the gate becomes and(stateN, modeGate). When
+        // the same source parameter is referenced by multiple (tier, gate)
+        // pairs — which happens when Handover and Design & Construction both
+        // list it — we OR-merge them into a single formula of shape
+        //   if(or(and(stateN, gateA), and(stateM, gateB), …), PARAM, "").
+        // Rows whose target tier is in preservedTiers are skipped.
         // ------------------------------------------------------------------
         private static void ApplyVisibilityFormulas(Document fdoc,
-            List<(int Tier, TierRow Row)> flat, HashSet<int> preservedTiers, Result result)
+            List<(int Tier, TierRow Row, string Gate)> flat,
+            HashSet<int> preservedTiers, Result result)
         {
             if (flat.Count == 0) return;
+
+            var gatesByParam = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+            int skippedRows = 0;
+            foreach (var (tier, row, modeGate) in flat)
+            {
+                if (preservedTiers.Contains(tier)) { skippedRows++; continue; }
+                if (row == null || string.IsNullOrEmpty(row.Parameter)) { skippedRows++; continue; }
+
+                string stateBool = "TAG_PARA_STATE_" + tier + "_BOOL";
+                string gateExpr = string.IsNullOrEmpty(modeGate)
+                    ? stateBool
+                    : "and(" + stateBool + ", " + modeGate + ")";
+
+                if (!gatesByParam.TryGetValue(row.Parameter, out var list))
+                {
+                    list = new List<string>();
+                    gatesByParam[row.Parameter] = list;
+                }
+                if (!list.Contains(gateExpr, StringComparer.Ordinal)) list.Add(gateExpr);
+            }
 
             FamilyManager fm = fdoc.FamilyManager;
             using (Transaction tx = new Transaction(fdoc, "STING AuthorLabels — tier formulas"))
             {
                 tx.Start();
-                foreach (var (tier, row) in flat)
+                result.FormulasSkipped += skippedRows;
+                foreach (var kv in gatesByParam)
                 {
-                    if (preservedTiers.Contains(tier)) { result.FormulasSkipped++; continue; }
-                    if (row == null || string.IsNullOrEmpty(row.Parameter)) { result.FormulasSkipped++; continue; }
+                    string paramName = kv.Key;
+                    List<string> gates = kv.Value;
 
-                    string gate = "TAG_PARA_STATE_" + tier + "_BOOL";
-                    // TODO-VERIFY-API: SetFormula only works on read-write family
-                    // params. AddParameter sets them read-write by default when
-                    // isInstance=true, which is what we passed. If a template
-                    // pre-binds a param as read-only this call throws — we log
-                    // and move on rather than abort the whole file.
                     FamilyParameter target = null;
                     foreach (FamilyParameter fp in fm.Parameters)
                     {
-                        if (string.Equals(fp.Definition?.Name, row.Parameter, StringComparison.Ordinal))
+                        if (string.Equals(fp.Definition?.Name, paramName, StringComparison.Ordinal))
                         {
                             target = fp; break;
                         }
                     }
                     if (target == null) { result.FormulasSkipped++; continue; }
 
-                    string formula = "if(" + gate + ", " + row.Parameter + ", \"\")";
+                    string combined = gates.Count == 1
+                        ? gates[0]
+                        : "or(" + string.Join(", ", gates) + ")";
+                    string formula = "if(" + combined + ", " + paramName + ", \"\")";
                     try
                     {
                         fm.SetFormula(target, formula);
@@ -314,7 +357,7 @@ namespace StingTools.Tags
                     catch (Exception ex)
                     {
                         result.FormulasSkipped++;
-                        result.Warnings.Add($"SetFormula('{row.Parameter}') failed: {ex.Message}");
+                        result.Warnings.Add($"SetFormula('{paramName}') failed: {ex.Message}");
                     }
                 }
                 tx.Commit();

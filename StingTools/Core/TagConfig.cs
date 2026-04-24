@@ -2049,6 +2049,8 @@ namespace StingTools.Core
                     File.WriteAllText(tmp, JsonConvert.SerializeObject(data, Formatting.Indented));
                     try { File.Replace(tmp, ConfigSource, ConfigSource + ".bak"); }
                     catch { File.Copy(tmp, ConfigSource, true); try { File.Delete(tmp); } catch { } }
+                    // Invalidate cached config — GetConfigValue will re-read on next hit.
+                    lock (_cfgCacheLock) { _cfgCached = null; _cfgCachedPath = null; _cfgCachedMTicks = 0; }
                 }
                 catch (Exception ex)
                 {
@@ -2057,14 +2059,52 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>AE-02: Read a single config key from project_config.json. Returns null if not found.</summary>
-        public static string GetConfigValue(string key)
+        // AE-02 cache — GetConfigValue was hit from dashboards / command
+        // entry points and re-read + re-parsed project_config.json on every
+        // call. Cache the deserialised dictionary keyed by (path, mtime)
+        // so repeated reads are zero I/O.
+        private static readonly object _cfgCacheLock = new object();
+        private static string _cfgCachedPath;
+        private static long _cfgCachedMTicks;
+        private static Dictionary<string, object> _cfgCached;
+
+        private static Dictionary<string, object> LoadConfigCached()
         {
             try
             {
                 if (string.IsNullOrEmpty(ConfigSource) || !File.Exists(ConfigSource)) return null;
+                long mtime = File.GetLastWriteTimeUtc(ConfigSource).Ticks;
+                lock (_cfgCacheLock)
+                {
+                    if (_cfgCached != null
+                        && string.Equals(_cfgCachedPath, ConfigSource, StringComparison.OrdinalIgnoreCase)
+                        && _cfgCachedMTicks == mtime)
+                        return _cfgCached;
+                }
                 string json = File.ReadAllText(ConfigSource);
                 var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
+                lock (_cfgCacheLock)
+                {
+                    _cfgCached = data;
+                    _cfgCachedPath = ConfigSource;
+                    _cfgCachedMTicks = mtime;
+                }
+                return data;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadConfigCached: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>AE-02: Read a single config key from project_config.json. Returns null if not found.
+        /// Uses a (path, mtime) cache so repeat reads never touch disk.</summary>
+        public static string GetConfigValue(string key)
+        {
+            try
+            {
+                var data = LoadConfigCached();
                 if (data != null && data.TryGetValue(key, out object val) && val != null)
                     return val.ToString();
             }
@@ -2681,11 +2721,15 @@ namespace StingTools.Core
                                    : "";
             string seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
 
-            string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
+            // PERF: hoist the tag body ("[prefix-]disc-loc-zone-lvl-sys-func-prod-")
+            // and the suffix tail ("[-suffix]") outside the collision loop so only
+            // the SEQ segment needs to re-concatenate per collision iteration.
+            string tagBody = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod);
+            if (!string.IsNullOrEmpty(TagPrefix)) tagBody = TagPrefix + Separator + tagBody;
+            tagBody += Separator;
+            string tagSuffix = string.IsNullOrEmpty(TagSuffix) ? string.Empty : Separator + TagSuffix;
 
-            // TW-03: Apply optional tag prefix and suffix
-            if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
-            if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+            string tag = tagBody + seq + tagSuffix;
 
             // Collision detection: if this exact tag already exists, increment SEQ
             if (existingTags != null)
@@ -2706,10 +2750,7 @@ namespace StingTools.Core
                         return false; // Skip element to prevent duplicate tags
                     }
                     seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
-                    tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
-                    // TW-03: Re-apply prefix/suffix after collision rebuild
-                    if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
-                    if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+                    tag = tagBody + seq + tagSuffix;
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);

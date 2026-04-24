@@ -117,5 +117,37 @@ namespace StingTools.Core
                 }
             }
         }
+
+        /// <summary>
+        /// Attach an <see cref="IFailuresPreprocessor"/> to a Transaction
+        /// in the 3-line boilerplate that would otherwise be copy-pasted
+        /// at 20+ call sites across Model/, CADToModel/, StructuralCAD/:
+        ///
+        ///   var opts = tx.GetFailureHandlingOptions();
+        ///   opts.SetFailuresPreprocessor(fh);
+        ///   tx.SetFailureHandlingOptions(opts);
+        ///
+        /// Callers: AttachFailureHandler(tx, fh).
+        /// </summary>
+        public static void AttachFailureHandler(Transaction tx, IFailuresPreprocessor fh)
+        {
+            if (tx == null || fh == null) return;
+            var opts = tx.GetFailureHandlingOptions();
+            opts.SetFailuresPreprocessor(fh);
+            tx.SetFailureHandlingOptions(opts);
+        }
+
+        /// <summary>
+        /// Suppress modal dialogs on a batch Transaction — essential for
+        /// unattended / workflow-driven operations so a stray warning
+        /// doesn't freeze the batch waiting for OK.
+        /// </summary>
+        public static void SuppressModalDialogs(Transaction tx)
+        {
+            if (tx == null) return;
+            var opts = tx.GetFailureHandlingOptions();
+            opts.SetForcedModalHandling(false);
+            tx.SetFailureHandlingOptions(opts);
+        }
     }
 }

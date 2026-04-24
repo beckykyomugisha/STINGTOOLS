@@ -573,13 +573,8 @@ namespace StingTools.Temp
         }
 
         private static string MakeSafeFileName(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return "item";
-            var chars = Path.GetInvalidFileNameChars().Concat(new[] { ' ', '/', '\\' }).ToArray();
-            var arr = s.Select(c => chars.Contains(c) ? '-' : c).ToArray();
-            string r = new string(arr).Trim('-');
-            return string.IsNullOrEmpty(r) ? "item" : r;
-        }
+            => StingTools.Core.OutputLocationHelper.MakeSafeFileName(
+                s, replacement: '-', extraInvalid: new[] { ' ', '/', '\\' });
 
         // ── Per-project resolvability audit (Gap 2) ─────────────────────
 

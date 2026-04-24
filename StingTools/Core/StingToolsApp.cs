@@ -686,7 +686,8 @@ namespace StingTools.Core
         {
             try
             {
-                Document currentDoc = e.CurrentActiveView?.Document;
+                Autodesk.Revit.DB.View view = e.CurrentActiveView;
+                Document currentDoc = view?.Document;
                 if (currentDoc != null && currentDoc != _lastActiveDoc)
                 {
                     _lastActiveDoc = currentDoc;
@@ -697,10 +698,78 @@ namespace StingTools.Core
                     ParameterHelpers.ClearParamCache();
                     StingLog.Info("ViewActivated: document switch detected — caches invalidated");
                 }
+
+                if (view != null) UpdateScaleTabInfo(view);
+                if (view != null && currentDoc != null) MaybeAutoApplyScaleSize(currentDoc, view);
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"ViewActivated handler: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Push the active view's scale, resolved tier, and offset to the
+        /// three Scale-tab info labels. Safe to call from any thread — marshals
+        /// onto the Dispatcher and tolerates a closed / detached panel.
+        /// </summary>
+        private static void UpdateScaleTabInfo(Autodesk.Revit.DB.View view)
+        {
+            try
+            {
+                var panel = UI.StingDockPanel.LastInstance;
+                if (panel == null || !panel.IsLoaded) return;
+                ScaleTiers.Tier tier = ScaleTiers.ForView(view);
+                int scale = view.Scale > 0 ? view.Scale : 100;
+                double offsetFt = (tier.OffsetMm / 304.8) * scale;
+                double cappedFt = System.Math.Min(offsetFt, ScaleTiers.OffsetCapFt);
+
+                string scaleTxt  = $"Scale: 1:{scale}";
+                string tierTxt   = $"Tier: {tier.Label}  (size {tier.TextSizeMm}mm)";
+                string offsetTxt = $"Offset: {tier.OffsetMm:F1} mm ({cappedFt:F2} ft)";
+
+                panel.Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    try { panel.UpdateScaleInfoLabels(scaleTxt, tierTxt, offsetTxt); }
+                    catch (Exception ex) { StingLog.Warn($"UpdateScaleTabInfo dispatch: {ex.Message}"); }
+                }));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"UpdateScaleTabInfo: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// When <c>TAG_SCALE_TIER_AUTO_BOOL</c> is set on Project Information,
+        /// auto-apply <see cref="Tags.SetScaleAwareTagSizeCommand"/> to the
+        /// activated view. Defaults to Instance mode so the switch is
+        /// side-effect free across views. Suppresses the task dialog.
+        /// </summary>
+        private static void MaybeAutoApplyScaleSize(Document doc, Autodesk.Revit.DB.View view)
+        {
+            try
+            {
+                Element projInfo = doc.ProjectInformation;
+                if (projInfo == null) return;
+                Parameter flag = projInfo.LookupParameter(ParamRegistry.TAG_SCALE_TIER_AUTO);
+                if (flag == null || flag.StorageType != StorageType.Integer) return;
+                if (flag.AsInteger() == 0) return;
+
+                ScaleTiers.Tier tier = ScaleTiers.ForView(view);
+                if (!ParamRegistry.TagStyleSizes.Contains(tier.TextSizeMm)) return;
+
+                var result = Tags.SetScaleAwareTagSizeCommand.ApplyToView(
+                    doc, view, tier.TextSizeMm, "Auto");
+                int total = result.InstanceSwitches + result.TypeMatrixFlips;
+                if (total > 0)
+                    StingLog.Info($"AutoScaleTagSize on view activation: view='{view.Name}' " +
+                                  $"changed={total} (instances={result.InstanceSwitches}, " +
+                                  $"typeFlips={result.TypeMatrixFlips})");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MaybeAutoApplyScaleSize: {ex.Message}");
             }
         }
 

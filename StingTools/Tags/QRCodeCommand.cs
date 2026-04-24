@@ -46,13 +46,26 @@ namespace StingTools.Tags
             // Project code from doc title
             string projectCode = Path.GetFileNameWithoutExtension(doc.Title) ?? "PRJ";
 
-            // Collect selected elements (or active view elements if nothing selected)
+            // Collect selected elements (or active view elements if nothing selected).
+            // Guard against ActiveView being null (family editor, dockable panel with
+            // no graphical view selected) so we fail gracefully rather than NRE.
             var selIds = uiDoc.Selection.GetElementIds();
-            ICollection<ElementId> targets = selIds.Count > 0
-                ? selIds
-                : new FilteredElementCollector(doc, doc.ActiveView.Id)
+            ICollection<ElementId> targets;
+            if (selIds.Count > 0)
+            {
+                targets = selIds;
+            }
+            else if (doc.ActiveView != null)
+            {
+                targets = new FilteredElementCollector(doc, doc.ActiveView.Id)
                     .WhereElementIsNotElementType()
                     .ToElementIds();
+            }
+            else
+            {
+                TaskDialog.Show("QR Code", "Select elements or switch to a graphical view first.");
+                return Result.Cancelled;
+            }
 
             int generated = 0, skipped = 0;
             var errors = new List<string>();

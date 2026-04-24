@@ -119,15 +119,24 @@ namespace StingTools.Tags
                 {
                     try { newLegend.Name = name; } catch (Exception ex) { StingLog.Warn($"Set legend view name '{name}': {ex.Message}"); }
 
-                    // Delete all existing elements from the duplicated legend (batch)
+                    // Delete all existing elements from the duplicated legend (batch).
+                    // ToElementIds() already returns ICollection<ElementId>, which is
+                    // what doc.Delete() takes — we don't need to re-materialise a List.
                     var existingElements = new FilteredElementCollector(doc, newLegend.Id)
                         .WhereElementIsNotElementType()
-                        .ToElementIds()
-                        .ToList();
+                        .ToElementIds();
                     if (existingElements.Count > 0)
                     {
                         try { doc.Delete(existingElements); }
-                        catch (Exception ex) { StingLog.Warn($"Batch delete legend elements: {ex.Message}"); foreach (var eid in existingElements) { try { doc.Delete(eid); } catch (Exception ex2) { StingLog.Warn($"Delete element {eid}: {ex2.Message}"); } } }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Batch delete legend elements: {ex.Message}");
+                            foreach (var eid in existingElements)
+                            {
+                                try { doc.Delete(eid); }
+                                catch (Exception ex2) { StingLog.Warn($"Delete element {eid}: {ex2.Message}"); }
+                            }
+                        }
                     }
                 }
                 return newLegend;
@@ -795,11 +804,12 @@ namespace StingTools.Tags
                 }
             }
 
-            // Deduplicate by ElementId (same element may appear in multiple views)
-            var uniqueElements = sheetElements
-                .GroupBy(e => e.Id)
-                .Select(g => g.First())
-                .ToList();
+            // Deduplicate by ElementId (same element may appear in multiple views).
+            // HashSet dedup is O(n) vs GroupBy+First O(n log n) and avoids allocating a grouping.
+            var seen = new HashSet<ElementId>();
+            var uniqueElements = new List<Element>(sheetElements.Count);
+            foreach (var e in sheetElements)
+                if (seen.Add(e.Id)) uniqueElements.Add(e);
 
             if (uniqueElements.Count == 0) return new List<LegendEntry>();
 
@@ -1158,14 +1168,19 @@ namespace StingTools.Tags
                 }
             }
 
-            // Deduplicate
-            var uniqueElements = sheetElements.GroupBy(e => e.Id).Select(g => g.First()).ToList();
+            // Deduplicate — HashSet is O(n) vs GroupBy+First O(n log n).
+            var seenIds = new HashSet<ElementId>();
+            var uniqueElements = new List<Element>(sheetElements.Count);
+            foreach (var e in sheetElements)
+                if (seenIds.Add(e.Id)) uniqueElements.Add(e);
             if (uniqueElements.Count == 0) return new List<TagLegendEntry>();
 
-            // Group by category
+            // Group by category — materialize each group once so per-group Count()
+            // doesn't re-enumerate inside the entry-build loop below.
             var byCat = uniqueElements
                 .GroupBy(e => e.Category.Id)
-                .OrderByDescending(g => g.Count())
+                .Select(g => new { Key = g.Key, Items = g.ToList() })
+                .OrderByDescending(g => g.Items.Count)
                 .ToList();
 
             // Detect actual project LOC/ZONE
