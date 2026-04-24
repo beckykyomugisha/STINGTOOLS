@@ -246,5 +246,26 @@ namespace StingTools.Core.Drawing
         [JsonProperty("phase")]         public string Phase { get; set; } = "*";
         [JsonProperty("docType")]       public string DocType { get; set; } = "*"; // matches DrawingPurpose values or user codes
         [JsonProperty("drawingTypeId")] public string DrawingTypeId { get; set; }
+
+        // Week 6 — predicate extensions. Each optional field narrows
+        // the match further. When null the field does not participate
+        // in matching. All set predicates must match for the rule to
+        // fire (logical AND). Field formats:
+        //
+        //   disciplineMatches / phaseMatches / docTypeMatches
+        //       regex — alternative to exact disc/phase/docType above
+        //   levelMatches
+        //       regex evaluated against the caller's level code, e.g.
+        //       "^B\d+" to match any basement level
+        //   projectCodeMatches
+        //       regex evaluated against doc's PRJ_ORG_PROJECT_CODE
+        //   hasScopeBox
+        //       true = only fires when the caller passes a scope box
+        //       with a matching discipline / doc type
+        [JsonProperty("disciplineMatches", NullValueHandling = NullValueHandling.Ignore)] public string DisciplineMatches { get; set; }
+        [JsonProperty("phaseMatches",      NullValueHandling = NullValueHandling.Ignore)] public string PhaseMatches { get; set; }
+        [JsonProperty("docTypeMatches",    NullValueHandling = NullValueHandling.Ignore)] public string DocTypeMatches { get; set; }
+        [JsonProperty("levelMatches",      NullValueHandling = NullValueHandling.Ignore)] public string LevelMatches { get; set; }
+        [JsonProperty("projectCodeMatches",NullValueHandling = NullValueHandling.Ignore)] public string ProjectCodeMatches { get; set; }
     }
 }
