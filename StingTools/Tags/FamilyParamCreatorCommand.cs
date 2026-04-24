@@ -624,6 +624,36 @@ namespace StingTools.Tags
                     ("STING_FIXTURE_VARIANT_TXT",  SpecTypeId.String.Text),
                     ("STING_ROOM_TYPE_FILTER_TXT", SpecTypeId.String.Text),
 
+                    // ─── §5.1 — remaining placement-intelligence params (PlacementParamReader) ───
+                    ("PLACE_HOST_TYPE_TXT",        SpecTypeId.String.Text),
+                    ("PLACE_MOUNT_HEIGHT_MM",      SpecTypeId.Length),
+                    ("PLACE_SPACING_RULE_TXT",     SpecTypeId.String.Text),
+                    ("PLACE_ORIENTATION_RULE_TXT", SpecTypeId.String.Text),
+                    ("PLACE_LEVEL_HINT_TXT",       SpecTypeId.String.Text),
+                    ("PLACE_GROUP_KEY_TXT",        SpecTypeId.String.Text),
+                    ("PLACE_WEIGHT_KG",            SpecTypeId.Number),
+
+                    // ─── §5.3 — routing / MEP hints (RoutingParamReader) ───
+                    ("CONN_COUNT_INT",             SpecTypeId.Int.Integer),
+                    ("CONN_TYPES_TXT",             SpecTypeId.String.Text),
+                    ("PREF_DROP_DIR_TXT",          SpecTypeId.String.Text),
+                    ("SLOPE_MIN_PCT",              SpecTypeId.Number),
+                    ("SLOPE_MAX_PCT",              SpecTypeId.Number),
+                    ("FILL_MAX_PCT",               SpecTypeId.Number),
+                    ("TERM_TYPE_TXT",              SpecTypeId.String.Text),
+                    ("SEGMENT_LEN_MAX_MM",         SpecTypeId.Length),
+                    ("SUPPORT_PITCH_MM",           SpecTypeId.Length),
+
+                    // ─── §5.5 — identity / classification (ClassificationReader) ───
+                    ("UNICLASS_PR_TXT",            SpecTypeId.String.Text),
+                    ("UNICLASS_SS_TXT",            SpecTypeId.String.Text),
+                    ("UNICLASS_EF_TXT",            SpecTypeId.String.Text),
+                    ("NBS_CODE_TXT",               SpecTypeId.String.Text),
+                    // ASSET_RFI_URL_TXT is Instance-bound per the brief — family-local
+                    // type injection suffices for now; Instance binding ships as part
+                    // of the §9 MR_PARAMETERS follow-up when GUIDs are assigned.
+                    ("ASSET_RFI_URL_TXT",          SpecTypeId.String.Text),
+
                     // ─── Pack 4 — tag anchor (TagPlacementEngine reads) ───
                     ("STING_TAG_ANCHOR_X_MM",      SpecTypeId.Length),
                     ("STING_TAG_ANCHOR_Y_MM",      SpecTypeId.Length),

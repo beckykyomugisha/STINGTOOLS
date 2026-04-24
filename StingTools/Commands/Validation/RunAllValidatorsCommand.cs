@@ -40,6 +40,8 @@ namespace StingTools.Commands.Validation
                 all.AddRange(new ClearanceValidator().Validate(doc));
                 // Pack 2 — reads MNT_ENV_{W,D,H}_MM + MNT_ACCESS_DIR_TXT.
                 all.AddRange(new MaintenanceClashValidator().Validate(doc));
+                // §5.5 — reads UNICLASS_* / NBS_CODE_TXT / ASSET_RFI_URL_TXT.
+                all.AddRange(new ClassificationAuditValidator().Validate(doc));
             }
             catch (Exception ex)
             {
@@ -59,7 +61,7 @@ namespace StingTools.Commands.Validation
             int infos    = all.Count(r => r.Severity == ValidationSeverity.Info);
 
             var panel = StingResultPanel.Create("v4 Validation Suite");
-            panel.SetSubtitle("ConnectivityValidator + FillValidator + SpecValidator + TerminationValidator + SlopeValidator + ClearanceValidator + MaintenanceClashValidator");
+            panel.SetSubtitle("ConnectivityValidator + FillValidator + SpecValidator + TerminationValidator + SlopeValidator + ClearanceValidator + MaintenanceClashValidator + ClassificationAuditValidator");
 
             panel.AddSection("SUMMARY")
                  .Metric("Total findings", all.Count.ToString())

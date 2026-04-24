@@ -2499,3 +2499,129 @@ Final four packs of the automation-enhancement programme.
  7. Run `Autodesk.Forge.DesignAutomation` work item against
     `StingTools.Headless.dll` with `STING_HEADLESS_CMD=REGISTER`;
     output bucket should contain a populated `drawing_register.csv`.
+
+
+---
+
+#### Completed (Phase 120 — online default + complete §9 schema delta)
+
+Two corrections in one commit:
+
+**Online is now the default posture** — STING ships with both environments
+first-class. A new install has every command working (including the four
+network-touching ones), and offline becomes a per-project opt-in flipped
+through the dock-panel badge or by editing `_BIM_COORD/sting_config.json`
+directly. The brief's original `OfflineOnly = true` default has been
+replaced with `false` so users aren't blocked by a refusal dialog the
+first time they click ACC Publish.
+
+ - `Core/StingOfflineConfig.cs` — `_offlineOnly` default flipped to
+   `false`. New `IsOnline` convenience property. `SaveToProject(bimDir)`
+   + `SetOffline(bool, bimDir)` persist the mode to the project's
+   `sting_config.json`. TaskDialog messaging reworded: "This project
+   has been set to offline mode" (past tense, project-scoped) instead
+   of "STING is configured offline" (machine-scoped).
+ - `UI/StingDockPanel.xaml` — indicator border is now a clickable badge
+   (`Cursor="Hand"`, `MouseLeftButtonUp="OfflineIndicator_Click"`).
+   Default text is "Online"; ToolTip explains that clicking toggles
+   the mode and persists.
+ - `UI/StingDockPanel.xaml.cs` — new `OfflineIndicator_Click` handler
+   flips `StingOfflineConfig.SetOffline`, refreshes the indicator,
+   and shows a short TaskDialog confirming the mode change. Uses
+   `StingCommandHandler.CurrentApp` to locate the project's `_BIM_COORD`
+   directory so the toggle persists.
+ - `RefuseIfOffline` is now a hot no-op in the default configuration —
+   no dialog, no log line, no overhead for the 99% of users who stay
+   online. Only fires when a project has explicitly opted into offline
+   mode.
+
+The Phase 116 caveat about offline-by-default is superseded by this
+phase; refer here for the canonical posture.
+
+**Complete §9 schema delta — 21 additional parameters + reader plumbing**
+
+Phase 117 landed 24 of the 45 parameters in the brief's §9 schema delta.
+This phase completes the remaining 21 and wires read-sites for each:
+
+ - §5.1 (7) — `PLACE_HOST_TYPE_TXT`, `PLACE_MOUNT_HEIGHT_MM`,
+   `PLACE_SPACING_RULE_TXT`, `PLACE_ORIENTATION_RULE_TXT`,
+   `PLACE_LEVEL_HINT_TXT`, `PLACE_GROUP_KEY_TXT`, `PLACE_WEIGHT_KG`.
+   Read-site: `PlacementScorer.ApplyPlacementHints` reads all seven
+   through `Core/Placement/PlacementParamReader.cs` and biases the
+   composite score by `LevelHintBias`. Families with no hints return
+   an empty `PlacementHints` struct and the scorer behaves exactly as
+   before.
+ - §5.3 (9) — `CONN_COUNT_INT`, `CONN_TYPES_TXT`, `PREF_DROP_DIR_TXT`,
+   `SLOPE_MIN_PCT`, `SLOPE_MAX_PCT`, `FILL_MAX_PCT`, `TERM_TYPE_TXT`,
+   `SEGMENT_LEN_MAX_MM`, `SUPPORT_PITCH_MM`. Read-sites:
+   `SlopeValidator` honours family-declared `SLOPE_MIN/MAX_PCT` over
+   global BS EN 12056-2 defaults; `FillValidator` honours per-family
+   `FILL_MAX_PCT` on electrical containment; `TerminationValidator`
+   honours `TERM_TYPE_TXT` ("Cap" / "Elbow90" / …) as an explicit
+   termination and cross-checks `CONN_COUNT_INT` against observed
+   connectors; `ConnectivityValidator` flags
+   `CONN.COUNT.MISMATCH` when the family count disagrees with the
+   model. All reads flow through `Core/Routing/RoutingParamReader.cs`.
+ - §5.5 (5) — `UNICLASS_PR_TXT`, `UNICLASS_SS_TXT`, `UNICLASS_EF_TXT`,
+   `NBS_CODE_TXT`, `ASSET_RFI_URL_TXT` (Instance-bound). Read-site:
+   new `Core/Validation/ClassificationAuditValidator.cs` walks family
+   types across 8 categories, summarises missing Uniclass / NBS / RFI
+   URL coverage as an Info-level `CLS.SCAN` finding.
+   `Core/Classification/ClassificationReader.cs` exposes a
+   `BoqGroupKey(element)` helper the BOQ / COBie / Handover commands
+   consume through a stable string key (Pr > Ss > Ef > OmniClass >
+   native family-type).
+
+**New files (Phase 120)**
+
+ - `Core/Placement/PlacementParamReader.cs` (111 lines)
+ - `Core/Routing/RoutingParamReader.cs` (84 lines)
+ - `Core/Classification/ClassificationReader.cs` (101 lines)
+ - `Core/Validation/ClassificationAuditValidator.cs` (73 lines)
+
+**Edits (Phase 120)**
+
+ - `Tags/FamilyParamCreatorCommand.cs` — `InjectAutomationPresentationPack`
+   extended by 21 entries. Pack array now ships 45 net-new parameters.
+ - `Core/StingOfflineConfig.cs` — online default, new save/toggle APIs.
+ - `UI/StingDockPanel.xaml(.cs)` — clickable badge, toggle handler.
+ - `Core/Placement/PlacementScorer.cs` — `ApplyPlacementHints` /
+   `ResolveSampleInstanceForRule`.
+ - `Core/Validation/SlopeValidator.cs` — family slope override.
+ - `Core/Validation/FillValidator.cs` — family FILL_MAX_PCT override.
+ - `Core/Validation/TerminationValidator.cs` — TERM_TYPE_TXT + CONN_COUNT.
+ - `Core/Validation/ConnectivityValidator.cs` — CONN.COUNT.MISMATCH.
+ - `Commands/Validation/RunAllValidatorsCommand.cs` —
+   `ClassificationAuditValidator` registered; subtitle updated.
+
+**§9 schema delta — final tally**
+
+45 net-new shared parameters injected by
+`FamilyParamEngine.InjectAutomationPresentationPack`, every one paired
+with an engine read-site in the programme:
+
+| Group  | Count | Read-site |
+|--------|-------|-----------|
+| §5.1   | 9     | PlacementScorer.ApplyPlacementHints, FixturePlacementEngine.ResolveSymbol |
+| §5.2   | 14    | ClearanceValidator, MaintenanceClashValidator |
+| §5.3   | 9     | Slope/Fill/Termination/Connectivity validators |
+| §5.4   | 8     | TagPlacementEngine.GetCandidateOffsetsWithAnchor et al. |
+| §5.5   | 5     | ClassificationAuditValidator + ClassificationReader |
+| **Tot**| **45**| —         |
+
+No more automation orphans — every parameter STING injects has a proof-
+of-life call-site in the same assembly.
+
+**Smoke test**
+
+ 1. Click the "Online" badge — confirm TaskDialog + status flip to
+    "Offline"; the four network commands refuse; click again and
+    flip back to "Online".
+ 2. Run `Validation ▸ Run All` on a project where at least one family
+    declares `SLOPE_MIN_PCT = 2.0` — confirm sanitary pipes with slope
+    < 2% now flag with "(family SLOPE_MIN_PCT)".
+ 3. Author a fixture family with `PLACE_LEVEL_HINT_TXT = "Plant*"` —
+    run `Place Fixtures` and confirm plant-room placements outscore
+    non-plant placements in `StingTools.log`.
+ 4. `Validation ▸ Run All` now includes a `CLS.SCAN` Info row
+    summarising Uniclass / NBS / RFI URL coverage.

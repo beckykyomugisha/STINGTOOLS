@@ -48,18 +48,38 @@ namespace StingTools.Core.Validation
                         if (!IsDrainagePipe(el)) continue;
                         double slope = ComputeSlopePct(el);
                         if (slope <= 0) continue;
-                        if (slope < MinSlopeErrorPct)
+
+                        // §5.3 — family-level override. When a family declares
+                        // SLOPE_MIN_PCT / SLOPE_MAX_PCT the validator honours
+                        // those bounds instead of the global BS EN 12056-2
+                        // defaults. Missing or zero values fall back to the
+                        // standard thresholds so existing projects behave
+                        // identically.
+                        var routing = Routing.RoutingParamReader.Read(el);
+                        double warnFloor = routing.SlopeMinPct > 0 ? routing.SlopeMinPct : MinSlopeWarnPct;
+                        double errorFloor = MinSlopeErrorPct;
+                        double errorCeiling = routing.SlopeMaxPct > 0 ? routing.SlopeMaxPct : double.PositiveInfinity;
+
+                        if (slope < errorFloor)
                         {
                             results.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
                                 "SLOPE.SAN.UNDER",
-                                $"Slope {slope:F2}% below {MinSlopeErrorPct:F2}% (BS EN 12056-2 hard floor)",
+                                $"Slope {slope:F2}% below {errorFloor:F2}% (BS EN 12056-2 hard floor)",
                                 ValidatorTag));
                         }
-                        else if (slope < MinSlopeWarnPct)
+                        else if (slope < warnFloor)
                         {
+                            string src = routing.SlopeMinPct > 0 ? "family SLOPE_MIN_PCT" : "BS EN 12056-2";
                             results.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
                                 "SLOPE.SAN.LOW",
-                                $"Slope {slope:F2}% below {MinSlopeWarnPct:F2}% recommended (BS EN 12056-2)",
+                                $"Slope {slope:F2}% below {warnFloor:F2}% recommended ({src})",
+                                ValidatorTag));
+                        }
+                        else if (slope > errorCeiling)
+                        {
+                            results.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
+                                "SLOPE.SAN.OVER",
+                                $"Slope {slope:F2}% above family SLOPE_MAX_PCT {errorCeiling:F2}%",
                                 ValidatorTag));
                         }
                     }

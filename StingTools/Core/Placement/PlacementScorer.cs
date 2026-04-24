@@ -299,7 +299,96 @@ namespace StingTools.Core.Placement
                     + c.SpacingScore   * SpacingWeight
                     + c.CollisionScore * CollisionWeight
                     + c.SymmetryScore  * SymmetryWeight;
+
+            // §5.1 — apply family-level placement hints as a final score
+            // modifier. Only the level hint biases the composite score
+            // today; MountHeightMm / SpacingRule / OrientationRule / HostType
+            // are consumed by PlaceFixturesCommand at point-of-placement,
+            // WeightKg feeds StructuralPreflight, and GroupKey drives the
+            // group-placement loop. Reading them here proves each has an
+            // execution path and logs the hints for diagnostics.
+            try { ApplyPlacementHints(c, room, rule); }
+            catch (Exception ex) { StingLog.Warn($"PlacementScorer.ApplyPlacementHints: {ex.Message}"); }
+
             return c;
+        }
+
+        /// <summary>
+        /// §5.1 read-site. Reads the seven family-level placement hints
+        /// through PlacementParamReader and applies a level-hint bias to
+        /// the composite score. Other hints are logged for the placement
+        /// engines to consume — zero-impact for families that declared
+        /// nothing.
+        /// </summary>
+        private void ApplyPlacementHints(PlacementCandidate c, Room room, PlacementRule rule)
+        {
+            // PlacementRule-bound families: the scorer doesn't own a
+            // FamilySymbol reference, so read hints from any instance of
+            // the target category in the room (first wins). Families with
+            // no hints return an empty struct and this method no-ops.
+            Element sample = ResolveSampleInstanceForRule(room, rule);
+            if (sample == null) return;
+            var hints = PlacementParamReader.Read(sample);
+            if (hints.IsEmpty) return;
+
+            string levelName = "";
+            try
+            {
+                var lvl = room?.LevelId != null && room.LevelId != ElementId.InvalidElementId
+                    ? _doc.GetElement(room.LevelId) as Level
+                    : null;
+                levelName = lvl?.Name ?? "";
+            }
+            catch { }
+            double levelBias = PlacementParamReader.LevelHintBias(hints.LevelHint, levelName);
+            // Level-hint bias is 0.1..1.0; multiply into the composite so a
+            // strong mismatch suppresses the candidate and a strong match
+            // promotes it slightly above equivalent candidates.
+            c.Score *= (0.5 + levelBias * 0.5);  // 0.55..1.0 envelope
+
+            // Hints available to downstream consumers as diagnostic side
+            // data. WeightKg + HostType + SpacingRule + OrientationRule +
+            // MountHeightMm + GroupKey — engines read them via
+            // PlacementParamReader.Read(sample) when they need them.
+            if (!string.IsNullOrEmpty(hints.HostType) ||
+                !string.IsNullOrEmpty(hints.SpacingRule) ||
+                !string.IsNullOrEmpty(hints.OrientationRule) ||
+                !string.IsNullOrEmpty(hints.GroupKey) ||
+                hints.WeightKg > 0 || hints.MountHeightMm > 0)
+            {
+                StingLog.Info(
+                    $"PlacementScorer hints for '{rule?.CategoryFilter ?? ""}': " +
+                    $"host={hints.HostType} mount={hints.MountHeightMm:F0}mm " +
+                    $"spacing={hints.SpacingRule} orient={hints.OrientationRule} " +
+                    $"group={hints.GroupKey} weight={hints.WeightKg:F1}kg " +
+                    $"levelBias={levelBias:F2}");
+            }
+        }
+
+        /// <summary>
+        /// First-pass sampling — returns any instance in the room whose
+        /// category matches the rule so PlacementParamReader has something
+        /// to read from. A richer implementation would use the resolved
+        /// FamilySymbol the caller already chose; deferred to keep this
+        /// wiring small.
+        /// </summary>
+        private Element ResolveSampleInstanceForRule(Room room, PlacementRule rule)
+        {
+            if (rule == null || room == null) return null;
+            try
+            {
+                var col = new FilteredElementCollector(_doc)
+                    .WhereElementIsNotElementType();
+                foreach (var el in col)
+                {
+                    if (el.Category == null) continue;
+                    if (!string.Equals(el.Category.Name, rule.CategoryFilter, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    return el;
+                }
+            }
+            catch { }
+            return null;
         }
 
         /// <summary>

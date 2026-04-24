@@ -117,11 +117,13 @@
                     <TextBlock x:Name="txtStatus" Text="Ready" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.7"/>
                 </StackPanel>
                 <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.7" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                <!-- Pack 0 offline/online indicator -->
+                <!-- Pack 0 online/offline mode indicator. Click toggles the project mode and persists to sting_config.json. -->
                 <Border Grid.Column="2" x:Name="bdrOffline" Background="#33000000" CornerRadius="3" Padding="4,1"
                         VerticalAlignment="Center" Margin="0,0,6,0"
-                        ToolTip="STING offline mode status — set OfflineOnly in &lt;project&gt;/_BIM_COORD/sting_config.json">
-                    <TextBlock x:Name="txtOffline" Text="Offline" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.85"/>
+                        Cursor="Hand"
+                        MouseLeftButtonUp="OfflineIndicator_Click"
+                        ToolTip="STING online / offline project mode. Click to toggle and persist to &lt;project&gt;/_BIM_COORD/sting_config.json. Offline disables only the four network-touching commands (ACC Publish, SharePoint Export, Platform Sync, Planscape Connect); everything else runs normally in both modes.">
+                    <TextBlock x:Name="txtOffline" Text="Online" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.85"/>
                 </Border>
                 <!-- INT-07 sync status indicator -->
                 <Border Grid.Column="3" x:Name="bdrSync" Background="#33000000" CornerRadius="3" Padding="4,1"
