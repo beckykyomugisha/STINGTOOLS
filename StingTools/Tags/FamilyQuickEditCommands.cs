@@ -44,7 +44,7 @@ namespace StingTools.Tags
             BuiltInCategory.OST_Furniture,
             BuiltInCategory.OST_FurnitureSystems,
             BuiltInCategory.OST_Casework,
-            BuiltInCategory.OST_SpecialtyEquipment,
+            BuiltInCategory.OST_SpecialityEquipment,
             BuiltInCategory.OST_MechanicalEquipment,
             BuiltInCategory.OST_ElectricalEquipment,
             BuiltInCategory.OST_ElectricalFixtures,
@@ -515,10 +515,11 @@ namespace StingTools.Tags
 
             if (picked is ReferencePlane refPlane)
             {
-                // ReferencePlane.Reference is the Reference we need for the
-                // 4-arg NewFamilyInstance overload. It's a property, not a
-                // method — Revit API >= 2015.
-                Reference planeRef = refPlane.Reference;
+                // Revit 2025 dropped ReferencePlane.Reference (the property);
+                // construct the Reference from the Element directly. The
+                // resulting Reference is valid for the 4-arg
+                // NewFamilyInstance overload and travels with the plane.
+                Reference planeRef = new Reference(refPlane);
                 if (planeRef == null)
                 {
                     TaskDialog.Show("STING — Change Host", "Could not resolve a Reference from the picked reference plane.");
@@ -1118,12 +1119,12 @@ namespace StingTools.Tags
                         $"'{fam.Name}' is not editable (likely a system family or in-place element).");
                     return Result.Cancelled;
                 }
-                // Post Revit's built-in Edit Family command with the instance
-                // selected. More reliable than EditFamily() + UI activation —
-                // Revit handles the tab switch and window focus itself.
+                // Revit 2025 removed PostableCommand.EditFamily; fall back to
+                // the API method Document.EditFamily(family) which opens the
+                // family for editing in a new tab. STING owns no UI focus
+                // logic so we trust Revit to bring the editor forward.
                 ctx.UIDoc.Selection.SetElementIds(new[] { inst.Id });
-                var cmdId = RevitCommandId.LookupPostableCommandId(PostableCommand.EditFamily);
-                ctx.UIDoc.Application.PostCommand(cmdId);
+                ctx.Doc.EditFamily(fam);
                 return Result.Succeeded;
             }
             catch (Exception ex)

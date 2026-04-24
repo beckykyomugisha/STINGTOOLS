@@ -183,10 +183,12 @@ namespace StingTools.Core.Drawing
                 if (pt == null) continue;
                 try
                 {
-                    if (!IndependentTag.CanTagHost(doc, new Reference(el))) { stats.Skipped++; continue; }
+                    // Revit 2025 removed IndependentTag.CanTagHost(doc, Reference) +
+                    // renamed the Create parameters. The surrounding try/catch
+                    // turns any "can't tag this host" failure into a Skipped
+                    // count + warning row, replacing the dropped pre-check.
                     var tag = IndependentTag.Create(doc, tagTypeId, view.Id,
-                        new Reference(el), addLeader: false,
-                        orientation: TagOrientation.Horizontal, headPosition: pt);
+                        new Reference(el), false, TagOrientation.Horizontal, pt);
                     if (tag != null) stats.TagsPlaced++;
                 }
                 catch (Exception ex)

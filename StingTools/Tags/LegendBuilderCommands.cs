@@ -1190,7 +1190,11 @@ namespace StingTools.Tags
             var entries = new List<TagLegendEntry>();
             foreach (var catGroup in byCat)
             {
-                Element sample = catGroup.First();
+                // CS1061 — byCat is a list of { Key, Items } anonymous tuples
+                // (see the .Select(...) on the GroupBy above), so the LINQ
+                // extension methods land on .Items not the tuple itself.
+                Element sample = catGroup.Items.FirstOrDefault();
+                if (sample == null) continue;
                 Category cat = sample.Category;
                 if (cat == null) continue;
 
@@ -1220,7 +1224,7 @@ namespace StingTools.Tags
                     TagSymbol = tagSym,
                     TagFamilyName = tagFamName,
                     SampleTag = sampleTag,
-                    ElementCount = catGroup.Count(),
+                    ElementCount = catGroup.Items.Count,
                     ProductCode = prodCode,
                 });
             }
