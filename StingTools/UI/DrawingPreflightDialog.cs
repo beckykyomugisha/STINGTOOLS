@@ -30,6 +30,12 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
 
+// WPF + Revit both declare Color — disambiguate once so CS0104 does
+// not fire on every colour reference in the file. UI code here always
+// wants the WPF types.
+using Color  = System.Windows.Media.Color;
+using Colors = System.Windows.Media.Colors;
+
 namespace StingTools.UI
 {
     public sealed class DrawingPreflightIntent
