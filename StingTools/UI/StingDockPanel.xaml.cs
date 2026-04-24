@@ -228,6 +228,9 @@ namespace StingTools.UI
                     SetTagStyleParams();
                 }
 
+                // Pass Scale tab slider values to the tier persistence command
+                if (cmdTag == "Scale_ApplyTiers") SetScaleTabParams();
+
                 // ORPHAN-FIX: Pass Tokens & Depth controls to commands that honour them.
                 // Covers the Combine / Stage populate / Full auto / tagging pipeline paths
                 // plus the paragraph-depth command and the Categories sub-tab filter.
@@ -301,6 +304,42 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("ArrowSize",  (sldArrowSize?.Value ?? 4).ToString("F0"));
             }
             catch (Exception ex) { StingLog.Warn($"Read leader/elbow params failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Push the three Scale-tab info labels from
+        /// <c>StingToolsApp.OnViewActivated</c>. Must be called on the WPF
+        /// dispatcher thread; tolerates null controls when the tab is still
+        /// in its deferred-loading placeholder.
+        /// </summary>
+        public void UpdateScaleInfoLabels(string scaleText, string tierText, string offsetText)
+        {
+            try
+            {
+                if (txtViewScale  != null) txtViewScale.Text  = scaleText  ?? "Scale: —";
+                if (txtViewTier   != null) txtViewTier.Text   = tierText   ?? "Tier: —";
+                if (txtViewOffset != null) txtViewOffset.Text = offsetText ?? "Offset: — mm (— ft)";
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateScaleInfoLabels: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Read the Scale tab sliders and pass them as ExtraParams for
+        /// <c>ApplyScaleTiersCommand</c>. Keyed to the JSON schema that
+        /// <c>Core.ScaleTiers.SaveProjectOverride</c> writes.
+        /// </summary>
+        private void SetScaleTabParams()
+        {
+            try
+            {
+                StingCommandHandler.SetExtraParam("Scale50Mm",   (sldScale50?.Value   ?? 2.0 ).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                StingCommandHandler.SetExtraParam("Scale100Mm",  (sldScale100?.Value  ?? 5.0 ).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                StingCommandHandler.SetExtraParam("Scale200Mm",  (sldScale200?.Value  ?? 8.0 ).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                StingCommandHandler.SetExtraParam("Scale500Mm",  (sldScale500?.Value  ?? 12.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                StingCommandHandler.SetExtraParam("Scale1000Mm", (sldScale1000?.Value ?? 20.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                StingCommandHandler.SetExtraParam("OffsetCapFt", (sldOffsetCap?.Value ?? 30.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            }
+            catch (Exception ex) { StingLog.Warn($"Read Scale tab sliders failed: {ex.Message}"); }
         }
 
         /// <summary>FIX-4.1: Read Style &amp; Color sliders for style commands.</summary>

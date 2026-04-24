@@ -815,11 +815,15 @@ namespace StingTools.Tags
             Document doc = uidoc.Document;
             var app = uiApp.Application;
 
-            // ── Wave-1 commit 3: resolve the mode-appropriate TierPlans from
-            //    the v5 CSVs so each family can be authored (bind shared
-            //    params + apply visibility formulas) in addition to being
-            //    created from its .rft template. Missing CSVs are tolerated —
-            //    families without a plan keep the existing behaviour.
+            // ── Dual-wire authoring: load every built-in mode's TierPlans so
+            //    each family gets stamped with both Handover and Design &
+            //    Construction T4-T10 rows in a single pass. Switching between
+            //    the two patterns at runtime is then a project-level BOOL flip
+            //    (HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL) instead
+            //    of a family re-author. Modes whose CSVs are missing on disk
+            //    are silently skipped — families keep whatever rows are live.
+            Dictionary<string, Dictionary<string, TierPlan>> plansByMode =
+                TagConfigPlanResolver.LoadAllPerMode(doc);
             Dictionary<string, TierPlan> plansByFamily = TagConfigPlanResolver.LoadAll(doc);
             bool preserveHandEdits = TagConfigPlanResolver.ReadPreserveHandEdits(doc);
             string activeMode = HandoverModeHelper.GetActiveMode(doc);
@@ -1068,7 +1072,7 @@ namespace StingTools.Tags
                     // bind T4..T10 shared params + apply visibility formulas
                     // before saving. No-op when plansByFamily does not contain
                     // the family (e.g. a category not yet listed in the CSVs).
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByFamily,
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
                         app, sharedParamFile, preserveHandEdits, report);
 
                     // Save the family document
@@ -1181,7 +1185,7 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, tieInParams);
 
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByFamily,
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
                         app, sharedParamFile, preserveHandEdits, report);
 
                     // Save and load — always proceeds even if params failed
@@ -1289,7 +1293,7 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, dsParams);
 
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByFamily,
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
                         app, sharedParamFile, preserveHandEdits, report);
 
                     string savePath = Path.Combine(outputDir, fileName);
@@ -1396,7 +1400,7 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, svParams);
 
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByFamily,
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
                         app, sharedParamFile, preserveHandEdits, report);
 
                     string savePath = Path.Combine(outputDir, fileName);
@@ -1503,7 +1507,7 @@ namespace StingTools.Tags
                         .Append("ASS_DESCRIPTION_TXT").ToList();
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, mvParams);
 
-                    AuthorFromPlanIfAvailable(famDoc, famName, plansByFamily,
+                    AuthorFromPlanIfAvailable(famDoc, famName, plansByMode, plansByFamily,
                         app, sharedParamFile, preserveHandEdits, report);
 
                     string savePath = Path.Combine(outputDir, fileName);
@@ -1568,21 +1572,49 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Wave-1 commit 3 hook. When <paramref name="plansByFamily"/> has a
-        /// <see cref="TierPlan"/> for <paramref name="famName"/>, invoke
-        /// <see cref="FamilyLabelAuthor.AuthorLabels"/> and append a short
-        /// line to the report. When no plan is available (e.g. the family is
-        /// not listed in the active-mode CSVs yet) this is a no-op so the
-        /// outer command behaves exactly as it did pre-wave-1.
+        /// Per-family author hook. When <paramref name="plansByMode"/> has at
+        /// least one mode that lists this family, stamps BOTH pattern row sets
+        /// into the family via <see cref="FamilyLabelAuthor.AuthorLabelsMulti"/>
+        /// so switching between Handover and Design & Construction at runtime
+        /// is a selector-BOOL flip. Falls back to the single-plan path via
+        /// <paramref name="plansByFamily"/> when the per-mode dict is empty
+        /// (e.g. only the active-mode CSVs are on disk). No-op when no plan
+        /// mentions the family.
         /// </summary>
         private void AuthorFromPlanIfAvailable(Document famDoc, string famName,
+            Dictionary<string, Dictionary<string, TierPlan>> plansByMode,
             Dictionary<string, TierPlan> plansByFamily,
             Autodesk.Revit.ApplicationServices.Application app,
             string sharedParamFile, bool preserveHandEdits,
             StringBuilder report)
         {
-            if (famDoc == null || string.IsNullOrEmpty(famName) || plansByFamily == null) return;
-            if (!plansByFamily.TryGetValue(famName, out TierPlan plan) || plan == null) return;
+            if (famDoc == null || string.IsNullOrEmpty(famName)) return;
+
+            var modePlans = new List<FamilyLabelAuthor.ModePlan>();
+            if (plansByMode != null)
+            {
+                foreach (var kv in plansByMode)
+                {
+                    if (kv.Value == null) continue;
+                    if (!kv.Value.TryGetValue(famName, out TierPlan plan) || plan == null) continue;
+                    modePlans.Add(new FamilyLabelAuthor.ModePlan
+                    {
+                        Mode = kv.Key,
+                        GateParam = HandoverModeHelper.GetSelectorBool(kv.Key),
+                        Plan = plan,
+                    });
+                }
+            }
+
+            if (modePlans.Count == 0)
+            {
+                if (plansByFamily == null) return;
+                if (!plansByFamily.TryGetValue(famName, out TierPlan plan) || plan == null) return;
+                modePlans.Add(new FamilyLabelAuthor.ModePlan
+                {
+                    Mode = "", GateParam = null, Plan = plan,
+                });
+            }
 
             try
             {
@@ -1593,10 +1625,13 @@ namespace StingTools.Tags
                     PreserveHandEdits = preserveHandEdits,
                     FamilyName = famName,
                 };
-                var r = FamilyLabelAuthor.AuthorLabels(famDoc, plan, opts);
+                var r = FamilyLabelAuthor.AuthorLabelsMulti(famDoc, modePlans, opts);
+                string modeTag = modePlans.Count > 1
+                    ? $"modes=[{string.Join(",", modePlans.ConvertAll(m => m.Mode))}]"
+                    : "";
                 report.AppendLine($"         author → bound={r.ParamsBound} " +
                     $"formulas={r.FormulasApplied} skipped={r.FormulasSkipped} " +
-                    $"preserved={r.TiersPreserved} label-rebound={r.LabelRebound}");
+                    $"preserved={r.TiersPreserved} label-rebound={r.LabelRebound} {modeTag}".TrimEnd());
                 foreach (var w in r.Warnings) StingLog.Warn($"{famName}: {w}");
             }
             catch (Exception ex)

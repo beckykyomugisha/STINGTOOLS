@@ -354,11 +354,14 @@ namespace StingTools.Tags
     }
 
     /// <summary>
-    /// Writes HANDOVER_MODE to project_config.json and invalidates compliance cache.
-    /// Triggered by the Handover Mode toggle in Tag Studio > Tokens & Depth.
-    /// Mode is passed via extra-param "HandoverMode" (values: Handover / DesignConstruction / Custom).
+    /// Writes HANDOVER_MODE to project_config.json, mirrors the active_preset
+    /// in PARAGRAPH_PRESETS.json, and flips the two pattern-selector BOOLs on
+    /// Project Information so dual-wired tag families switch their T4-T10
+    /// payload live. Triggered by the Handover Mode toggle in Tag Studio >
+    /// Tokens & Depth. Mode is passed via extra-param "HandoverMode"
+    /// (values: Handover / DesignConstruction / Custom).
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     public class SetHandoverModeCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
@@ -392,13 +395,20 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex) { StingLog.Warn($"SetHandoverMode: preset mirror failed: {ex.Message}"); }
 
+                // Flip the selector BOOLs on Project Information so dual-wired
+                // tag families switch pattern live. Exactly one is true
+                // (Handover / DesignConstruction / Custom); a mode with no
+                // entry in HandoverModeHelper.ModeSelectorBool clears all
+                // three so tier rows stay hidden.
+                int boolsSet = SetPatternSelectors(doc, mode);
+
                 // Reload TagConfig so category warnings (loaded from the
                 // mode-specific CSVs via HandoverModeHelper) refresh live
                 // instead of waiting for the next document open.
                 try { Core.TagConfig.LoadDefaults(); }
                 catch (Exception ex) { StingLog.Warn($"SetHandoverMode: TagConfig reload failed: {ex.Message}"); }
 
-                StingLog.Info($"Handover mode set to {mode}");
+                StingLog.Info($"Handover mode set to {mode} (pattern selectors updated: {boolsSet})");
                 if (string.IsNullOrEmpty(StingCommandHandler.GetExtraParam("SuppressDialog")))
                 {
                     TaskDialog.Show("Handover Mode",
@@ -413,6 +423,45 @@ namespace StingTools.Tags
                 StingLog.Error("SetHandoverMode failed", ex);
                 message = ex.Message;
                 return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// Writes HANDOVER_MODE_HANDOVER_BOOL / HANDOVER_MODE_DC_BOOL on the
+        /// Project Information element so dual-wired tag families flip their
+        /// T4-T10 payload live. Exactly one BOOL is set per call; unknown
+        /// modes clear both so tier rows stay hidden until a gate is mapped.
+        /// Returns the number of parameters actually updated.
+        /// </summary>
+        private static int SetPatternSelectors(Document doc, string mode)
+        {
+            try
+            {
+                Element projInfo = doc.ProjectInformation;
+                if (projInfo == null) return 0;
+
+                string activeBool = HandoverModeHelper.GetSelectorBool(mode);
+                int updated = 0;
+                using (Transaction tx = new Transaction(doc, "STING Handover Mode — pattern selectors"))
+                {
+                    tx.Start();
+                    foreach (string selBool in HandoverModeHelper.ModeSelectorBool.Values)
+                    {
+                        Parameter p = projInfo.LookupParameter(selBool);
+                        if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer) continue;
+                        int want = string.Equals(selBool, activeBool, StringComparison.Ordinal) ? 1 : 0;
+                        if (p.AsInteger() == want) continue;
+                        p.Set(want);
+                        updated++;
+                    }
+                    tx.Commit();
+                }
+                return updated;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetHandoverMode: SetPatternSelectors failed: {ex.Message}");
+                return 0;
             }
         }
     }

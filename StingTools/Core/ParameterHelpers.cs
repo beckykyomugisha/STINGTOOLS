@@ -305,9 +305,17 @@ namespace StingTools.Core
             if (existing.Length > 0 && !overwrite)
                 return false;
 
+            // PERF: skip the Parameter.Set round-trip (and undo-journal
+            // entry) when the value is already correct. Meaningful on the
+            // overwrite=true path that BatchTag / ReTag / TagAndCombine use
+            // — thousands of no-op Set() calls otherwise.
+            string newValue = value ?? string.Empty;
+            if (string.Equals(existing, newValue, StringComparison.Ordinal))
+                return true;
+
             try
             {
-                p.Set(value ?? string.Empty);
+                p.Set(newValue);
                 return true;
             }
             catch (Exception ex)
@@ -637,12 +645,49 @@ namespace StingTools.Core
     /// </summary>
     public static class SpatialAutoDetect
     {
+        // PERF: cache the per-document room index so five back-to-back
+        // tagging commands don't each do a fresh Rooms collector scan.
+        // Invalidated by StingAutoTagger when a Room is added / modified /
+        // deleted (see StingAutoTagger.Execute), and by TTL as a fallback
+        // for edits that bypass the updater (journal replay, API scripts).
+        private static readonly TimeSpan _roomCacheTtl = TimeSpan.FromSeconds(30);
+        private static readonly object _roomCacheLock = new object();
+        private static string _roomCacheDocKey;
+        private static DateTime _roomCacheStamp;
+        private static Dictionary<ElementId, Room> _roomCacheIndex;
+
+        /// <summary>
+        /// Invalidate the cached room index — called by
+        /// <c>StingAutoTagger</c> when a Room changes so the next spatial
+        /// auto-detect call rebuilds fresh.
+        /// </summary>
+        public static void InvalidateRoomIndex()
+        {
+            lock (_roomCacheLock)
+            {
+                _roomCacheDocKey = null;
+                _roomCacheIndex = null;
+            }
+        }
+
         /// <summary>
         /// Pre-scan all rooms in the project and build a lookup by ElementId.
-        /// Call once before a batch loop for performance.
+        /// Cached per-document with a 30-second TTL; use
+        /// <see cref="InvalidateRoomIndex"/> to force a rebuild.
         /// </summary>
         public static Dictionary<ElementId, Room> BuildRoomIndex(Document doc)
         {
+            string key = doc?.PathName ?? doc?.Title ?? "";
+            lock (_roomCacheLock)
+            {
+                if (_roomCacheIndex != null
+                    && string.Equals(_roomCacheDocKey, key, StringComparison.Ordinal)
+                    && (DateTime.UtcNow - _roomCacheStamp) < _roomCacheTtl)
+                {
+                    return _roomCacheIndex;
+                }
+            }
+
             var index = new Dictionary<ElementId, Room>();
             try
             {
@@ -663,6 +708,13 @@ namespace StingTools.Core
             // will fall back to project-level defaults instead of room-based spatial detection
             if (index.Count == 0)
                 StingLog.Info("BuildRoomIndex: no placed rooms found — spatial detection (LOC/ZONE) will use project-level defaults");
+
+            lock (_roomCacheLock)
+            {
+                _roomCacheIndex = index;
+                _roomCacheDocKey = key;
+                _roomCacheStamp = DateTime.UtcNow;
+            }
             return index;
         }
 
@@ -3653,85 +3705,102 @@ namespace StingTools.Core
                 // Plugin hook: notify third-party plugins before tagging
                 StingPluginHooks.FireBeforeTag(doc, el);
 
-                // P4: Inherit token values from family type before populating
-                TokenAutoPopulator.TypeTokenInherit(doc, el);
+                // PERF: skip the token-derivation block (TypeTokenInherit +
+                // locked-token snapshot/restore + PopulateAll + overrides)
+                // when the element already has a complete tag and the caller
+                // isn't overwriting. PopulateAll's writes would all short-
+                // circuit via SetIfEmpty anyway, but its detection logic
+                // (room lookup, family-aware PROD resolution, phase detect)
+                // runs regardless. NativeParamMapper + FormulaEngine + the
+                // BuildAndWriteTag / container / audit tail still run below
+                // so side-effect params (cost, carbon, grid-ref) stay fresh.
+                bool skipDerivation = !overwrite
+                    && skipComplete
+                    && TagConfig.TagIsComplete(_prevTag);
 
-                // FIX-DEEP01: Snapshot locked token values AFTER TypeTokenInherit so inherited
-                // values are preserved, but BEFORE PopulateAll/overrides can change them
-                // Phase 74d: Only allocate locked snapshot when token lock is non-empty (rare)
                 Dictionary<string, string> lockedSnapshot = null;
-                try
+
+                if (!skipDerivation)
                 {
-                    string preLockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
-                    if (!string.IsNullOrWhiteSpace(preLockStr))
+                    // P4: Inherit token values from family type before populating
+                    TokenAutoPopulator.TypeTokenInherit(doc, el);
+
+                    // FIX-DEEP01: Snapshot locked token values AFTER TypeTokenInherit so inherited
+                    // values are preserved, but BEFORE PopulateAll/overrides can change them
+                    // Phase 74d: Only allocate locked snapshot when token lock is non-empty (rare)
+                    try
                     {
-                        lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                        string[] lockKeys = preLockStr.Split(',')
-                            .Select(s => s.Trim().ToUpperInvariant()).ToArray();
-                        foreach (string lockKey in lockKeys)
+                        string preLockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                        if (!string.IsNullOrWhiteSpace(preLockStr))
                         {
-                            if (TokenParamMap.TryGetValue(lockKey, out string paramName))
+                            lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            string[] lockKeys = preLockStr.Split(',')
+                                .Select(s => s.Trim().ToUpperInvariant()).ToArray();
+                            foreach (string lockKey in lockKeys)
                             {
-                                string val = ParameterHelpers.GetString(el, paramName);
-                                if (!string.IsNullOrEmpty(val))
-                                    lockedSnapshot[lockKey] = val;
+                                if (TokenParamMap.TryGetValue(lockKey, out string paramName))
+                                {
+                                    string val = ParameterHelpers.GetString(el, paramName);
+                                    if (!string.IsNullOrEmpty(val))
+                                        lockedSnapshot[lockKey] = val;
+                                }
                             }
                         }
                     }
-                }
-                catch (Exception lockEx) { StingLog.Warn($"Token lock read: {lockEx.Message}"); }
+                    catch (Exception lockEx) { StingLog.Warn($"Token lock read: {lockEx.Message}"); }
 
-                // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
-                TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
+                    // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
+                    TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
 
-                // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
-                if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
-                    && !string.IsNullOrEmpty(forcedSys))
-                    ParameterHelpers.SetString(el, ParamRegistry.SYS, forcedSys, overwrite: true);
+                    // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
+                    if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
+                        && !string.IsNullOrEmpty(forcedSys))
+                        ParameterHelpers.SetString(el, ParamRegistry.SYS, forcedSys, overwrite: true);
 
-                // FE-06: Apply full per-category token overrides
-                if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))
-                {
-                    // Check SKIP flag FIRST — avoid writing tokens to skipped categories
-                    if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
-                        && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
-                        return false;
-
-                    foreach (var kv in tokenOverrides)
+                    // FE-06: Apply full per-category token overrides
+                    if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))
                     {
-                        if (kv.Key.Equals("SKIP", StringComparison.OrdinalIgnoreCase)) continue;
-                        string paramName = kv.Key.ToUpperInvariant() switch
-                        {
-                            "DISC" => ParamRegistry.DISC, "LOC" => ParamRegistry.LOC,
-                            "ZONE" => ParamRegistry.ZONE, "LVL" => ParamRegistry.LVL,
-                            "SYS" => ParamRegistry.SYS, "FUNC" => ParamRegistry.FUNC,
-                            "PROD" => ParamRegistry.PROD, "STATUS" => ParamRegistry.STATUS,
-                            _ => null
-                        };
-                        if (!string.IsNullOrEmpty(paramName))
-                            ParameterHelpers.SetString(el, paramName, kv.Value, overwrite: true);
-                    }
-                }
+                        // Check SKIP flag FIRST — avoid writing tokens to skipped categories
+                        if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
+                            && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
+                            return false;
 
-                // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
-                // Phase 74d: Use static TokenParamMap + null check (lockedSnapshot only allocated when lock exists)
-                if (lockedSnapshot != null && lockedSnapshot.Count > 0)
-                {
-                    foreach (var kvp in lockedSnapshot)
-                    {
-                        if (TokenParamMap.TryGetValue(kvp.Key, out string paramName))
+                        foreach (var kv in tokenOverrides)
                         {
-                            try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
-                            catch (Exception lockEx)
+                            if (kv.Key.Equals("SKIP", StringComparison.OrdinalIgnoreCase)) continue;
+                            string paramName = kv.Key.ToUpperInvariant() switch
                             {
-                                StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
-                            }
+                                "DISC" => ParamRegistry.DISC, "LOC" => ParamRegistry.LOC,
+                                "ZONE" => ParamRegistry.ZONE, "LVL" => ParamRegistry.LVL,
+                                "SYS" => ParamRegistry.SYS, "FUNC" => ParamRegistry.FUNC,
+                                "PROD" => ParamRegistry.PROD, "STATUS" => ParamRegistry.STATUS,
+                                _ => null
+                            };
+                            if (!string.IsNullOrEmpty(paramName))
+                                ParameterHelpers.SetString(el, paramName, kv.Value, overwrite: true);
                         }
                     }
-                    // Finding-5 FIX: Throttle locked token log — only log first 5 + every 100th
-                    _lockedTokenRestoreCount++;
-                    if (_lockedTokenRestoreCount <= 5 || _lockedTokenRestoreCount % 100 == 0)
-                        StingLog.Info($"TagPipeline: restored {lockedSnapshot.Count} locked tokens on {el.Id}: {string.Join(",", lockedSnapshot.Keys)} (#{_lockedTokenRestoreCount})");
+
+                    // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
+                    // Phase 74d: Use static TokenParamMap + null check (lockedSnapshot only allocated when lock exists)
+                    if (lockedSnapshot != null && lockedSnapshot.Count > 0)
+                    {
+                        foreach (var kvp in lockedSnapshot)
+                        {
+                            if (TokenParamMap.TryGetValue(kvp.Key, out string paramName))
+                            {
+                                try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
+                                catch (Exception lockEx)
+                                {
+                                    StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
+                                }
+                            }
+                        }
+                        // Finding-5 FIX: Throttle locked token log — only log first 5 + every 100th
+                        _lockedTokenRestoreCount++;
+                        if (_lockedTokenRestoreCount <= 5 || _lockedTokenRestoreCount % 100 == 0)
+                            StingLog.Info($"TagPipeline: restored {lockedSnapshot.Count} locked tokens on {el.Id}: {string.Join(",", lockedSnapshot.Keys)} (#{_lockedTokenRestoreCount})");
+                    }
                 }
 
                 // P2: Bridge Revit native params → STING shared params
