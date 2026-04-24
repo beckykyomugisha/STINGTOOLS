@@ -93,7 +93,10 @@ namespace StingTools.UI
             cb.Foreground      = fgBrush;
             cb.BorderBrush     = borderBrush;
             cb.BorderThickness = new Thickness(1);
-            TextElement.SetForeground(cb, fgBrush);
+            // TextElement lives in System.Windows.Documents; fully
+            // qualify rather than add a whole using just for this
+            // attached-property set.
+            System.Windows.Documents.TextElement.SetForeground(cb, fgBrush);
 
             // WPF's default ComboBox template hosts a PART_EditableTextBox
             // whose Style reference wins over our Foreground. Walk the

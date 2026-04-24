@@ -183,10 +183,18 @@ namespace StingTools.Core.Drawing
                 if (pt == null) continue;
                 try
                 {
-                    if (!IndependentTag.CanTagHost(doc, new Reference(el))) { stats.Skipped++; continue; }
-                    var tag = IndependentTag.Create(doc, tagTypeId, view.Id,
-                        new Reference(el), addLeader: false,
-                        orientation: TagOrientation.Horizontal, headPosition: pt);
+                    // IndependentTag.Create uses positional args —
+                    // parameter names in the API differ between Revit
+                    // versions, so the explicit names we used tripped
+                    // CS1739 on 2025. Create throws for unsupported
+                    // hosts; the surrounding try/catch covers the
+                    // equivalent of an up-front CanTag check.
+                    var tag = IndependentTag.Create(
+                        doc, tagTypeId, view.Id,
+                        new Reference(el),
+                        /* addLeader */ false,
+                        TagOrientation.Horizontal,
+                        pt);
                     if (tag != null) stats.TagsPlaced++;
                 }
                 catch (Exception ex)
