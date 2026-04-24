@@ -611,7 +611,8 @@ namespace StingTools.BIMManager
                     // Create default policy with current user as admin
                     _policy = CreateDefaultPolicy(doc);
                     Directory.CreateDirectory(bimDir);
-                    File.WriteAllText(path, JsonConvert.SerializeObject(_policy, Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(path,
+                        JsonConvert.SerializeObject(_policy, Formatting.Indented));
                 }
                 else
                 {
@@ -771,11 +772,11 @@ namespace StingTools.BIMManager
 
             // Build data JSON
             var data = BuildDashboardData(doc);
-            File.WriteAllText(dataPath, data.ToString(Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(dataPath, data.ToString(Formatting.Indented));
 
             // Build self-contained HTML
             string html = BuildHtml(doc.Title ?? "STING Project", data);
-            File.WriteAllText(htmlPath, html);
+            OutputLocationHelper.WriteAllTextAtomic(htmlPath, html);
 
             StingLog.Info($"Dashboard generated: {htmlPath}");
             return htmlPath;
@@ -1524,7 +1525,7 @@ render();
                         .GetMethod("BuildDashboardData", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
                         ?.Invoke(null, new object[] { doc });
                     if (data is JObject jdata)
-                        File.WriteAllText(dataPath, jdata.ToString(Formatting.Indented));
+                        OutputLocationHelper.WriteAllTextAtomic(dataPath, jdata.ToString(Formatting.Indented));
                     System.Windows.MessageBox.Show("Dashboard data refreshed. Reload the HTML file to see updates.",
                         "STING", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
                 }

@@ -307,6 +307,39 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Atomic text write: writes to a temp file alongside, then uses
+        /// File.Replace to swap it into place. A crash partway through
+        /// leaves the previous file intact (or restored from the automatic
+        /// .bak sibling). Several command registers and config writers
+        /// previously did raw File.WriteAllText — losing the entire file
+        /// if Revit crashed during the write window.
+        /// </summary>
+        public static void WriteAllTextAtomic(string path, string content,
+            System.Text.Encoding encoding = null)
+        {
+            if (string.IsNullOrEmpty(path)) throw new ArgumentNullException(nameof(path));
+            encoding = encoding ?? new System.Text.UTF8Encoding(false);
+            string tmp = path + ".tmp";
+            string bak = path + ".bak";
+            File.WriteAllText(tmp, content ?? string.Empty, encoding);
+            try
+            {
+                if (File.Exists(path))
+                    File.Replace(tmp, path, bak);
+                else
+                    File.Move(tmp, path);
+            }
+            catch (Exception)
+            {
+                // Replace can fail across volumes / on locked files — fall
+                // back to a copy + delete so callers never end up with a
+                // missing destination. If even copy fails let it propagate.
+                File.Copy(tmp, path, true);
+                try { File.Delete(tmp); } catch { }
+            }
+        }
+
+        /// <summary>
         /// Canonical "make filename safe" helper — replaces every
         /// Path.GetInvalidFileNameChars() match (plus optional extras)
         /// with a single replacement char, trims repeated replacements,
