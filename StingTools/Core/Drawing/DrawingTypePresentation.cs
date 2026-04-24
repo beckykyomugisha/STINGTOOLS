@@ -25,6 +25,7 @@ namespace StingTools.Core.Drawing
             public bool DetailLevelApplied { get; set; }
             public bool TemplateApplied    { get; set; }
             public bool PackApplied        { get; set; }
+            public bool CropApplied        { get; set; }
             public AnnotationRunStats Annotation { get; set; }
             public System.Collections.Generic.List<string> Warnings { get; } = new System.Collections.Generic.List<string>();
         }
@@ -100,6 +101,18 @@ namespace StingTools.Core.Drawing
                     }
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewTemplate: {ex.Message}"); }
+            }
+
+            // Crop strategy (bonus) -------------------------------------
+            if (dt.Crop != null)
+            {
+                try
+                {
+                    var cropWarns = DrawingCropApplier.Apply(doc, view, dt);
+                    r.Warnings.AddRange(cropWarns);
+                    r.CropApplied = true;
+                }
+                catch (Exception ex) { r.Warnings.Add($"CropApplier: {ex.Message}"); }
             }
 
             // View Style Pack (shared graphic overrides) ---------------
