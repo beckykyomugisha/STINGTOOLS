@@ -24,6 +24,7 @@ namespace StingTools.Core.Drawing
             public bool ScaleApplied       { get; set; }
             public bool DetailLevelApplied { get; set; }
             public bool TemplateApplied    { get; set; }
+            public bool PackApplied        { get; set; }
             public AnnotationRunStats Annotation { get; set; }
             public System.Collections.Generic.List<string> Warnings { get; } = new System.Collections.Generic.List<string>();
         }
@@ -87,6 +88,23 @@ namespace StingTools.Core.Drawing
                     }
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewTemplate: {ex.Message}"); }
+            }
+
+            // View Style Pack (shared graphic overrides) ---------------
+            if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            {
+                try
+                {
+                    var pack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
+                    if (pack != null)
+                    {
+                        var packStats = ViewStylePackApplier.Apply(doc, view, pack);
+                        r.PackApplied = true;
+                        r.Warnings.AddRange(packStats.Warnings);
+                    }
+                    else r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
+                }
+                catch (Exception ex) { r.Warnings.Add($"ViewStylePack: {ex.Message}"); }
             }
 
             // Annotation pass --------------------------------------------

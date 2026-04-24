@@ -84,6 +84,23 @@ namespace StingTools.Core.Drawing
         [JsonProperty("viewTemplateName")] public string ViewTemplateName { get; set; }
         [JsonProperty("viewportTypeName")] public string ViewportTypeName { get; set; }
 
+        /// <summary>
+        /// References a <see cref="ViewStylePack"/> by id. The pack
+        /// supplies shared graphic overrides / filters / VG overrides
+        /// / text + dim styles. Null = no pack applied (profile carries
+        /// its own appearance).
+        /// </summary>
+        [JsonProperty("viewStylePackId", NullValueHandling = NullValueHandling.Ignore)]
+        public string ViewStylePackId { get; set; }
+
+        /// <summary>
+        /// Profile inheritance — a child DrawingType's Extends names a
+        /// parent id; the registry walks the chain at load-time so
+        /// resolvers see a merged snapshot. Mirrors ViewStylePack.Extends.
+        /// </summary>
+        [JsonProperty("extends", NullValueHandling = NullValueHandling.Ignore)]
+        public string Extends { get; set; }
+
         // Numbering
         [JsonProperty("sheetNumberPattern")] public string SheetNumberPattern { get; set; } = "{disc}-{seq:D3}";
         [JsonProperty("sheetNamePattern")]   public string SheetNamePattern { get; set; }   = "{discipline} {purpose} - {lvl}";
