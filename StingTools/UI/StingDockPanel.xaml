@@ -2445,6 +2445,23 @@
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="COORDINATION CHECKS" Margin="0,8,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource RedBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click"
+                                            ToolTip="Rule-based MEP vs structural clash detection (category-pair matrix)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Clash Manager" Tag="ClashManager" Click="Cmd_Click"
+                                            ToolTip="Open Clash Manager — run detection, browse results, mark resolved, export BCF 2.1 for ACC / Navisworks / Solibri" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Run Clash" Tag="ClashRun" Click="Cmd_Click"
+                                            ToolTip="Execute full clash pipeline (mesh → OBB tree → classify → persist to clashes.json)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="X-Model Clash" Tag="CrossModelClash" Click="Cmd_Click"
+                                            ToolTip="Cross-model clash detection including linked Revit models"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clash BCF" Tag="ClashBcfExport" Click="Cmd_Click"
+                                            ToolTip="Export current clashes.json → BCF 2.1 ZIP"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Live" Tag="ClashSessionRefresh" Click="Cmd_Click"
+                                            ToolTip="Refresh live clash session from active 3D view"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Matrix" Tag="ClashMatrixEdit" Click="Cmd_Click"
+                                            ToolTip="Edit the category-pair matrix that drives clash detection"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
