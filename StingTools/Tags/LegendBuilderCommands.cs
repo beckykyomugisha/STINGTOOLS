@@ -119,15 +119,24 @@ namespace StingTools.Tags
                 {
                     try { newLegend.Name = name; } catch (Exception ex) { StingLog.Warn($"Set legend view name '{name}': {ex.Message}"); }
 
-                    // Delete all existing elements from the duplicated legend (batch)
+                    // Delete all existing elements from the duplicated legend (batch).
+                    // ToElementIds() already returns ICollection<ElementId>, which is
+                    // what doc.Delete() takes — we don't need to re-materialise a List.
                     var existingElements = new FilteredElementCollector(doc, newLegend.Id)
                         .WhereElementIsNotElementType()
-                        .ToElementIds()
-                        .ToList();
+                        .ToElementIds();
                     if (existingElements.Count > 0)
                     {
                         try { doc.Delete(existingElements); }
-                        catch (Exception ex) { StingLog.Warn($"Batch delete legend elements: {ex.Message}"); foreach (var eid in existingElements) { try { doc.Delete(eid); } catch (Exception ex2) { StingLog.Warn($"Delete element {eid}: {ex2.Message}"); } } }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Batch delete legend elements: {ex.Message}");
+                            foreach (var eid in existingElements)
+                            {
+                                try { doc.Delete(eid); }
+                                catch (Exception ex2) { StingLog.Warn($"Delete element {eid}: {ex2.Message}"); }
+                            }
+                        }
                     }
                 }
                 return newLegend;
