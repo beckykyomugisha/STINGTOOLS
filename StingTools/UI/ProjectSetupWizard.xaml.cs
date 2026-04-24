@@ -122,7 +122,7 @@ namespace StingTools.UI
                         ElevationText = elevM.ToString("F2", CultureInfo.InvariantCulture),
                         LevelType = GuessLevelType(lv.Name),
                         IsStory = IsStoryLevel(lv),
-                        ExistingId = lv.Id.IntegerValue
+                        ExistingId = lv.Id.Value
                     });
                 }
                 RenumberLevelRows();
@@ -151,7 +151,7 @@ namespace StingTools.UI
                         CurrentName = sb.Name,
                         NewName = sb.Name,
                         RotationDegrees = rotDeg,
-                        RevitIdValue = sb.Id.IntegerValue
+                        RevitIdValue = sb.Id.Value
                     });
                 }
                 lblScopeBoxEmpty.Visibility = ScopeBoxRows.Count == 0
@@ -1469,8 +1469,8 @@ namespace StingTools.UI
         private string _type = "Standard"; public string LevelType { get => _type; set { _type = value; Raise(nameof(LevelType)); } }
         private bool _story = true; public bool IsStory { get => _story; set { _story = value; Raise(nameof(IsStory)); } }
 
-        /// <summary>Revit ElementId.IntegerValue if this row came from an existing level; 0 for new.</summary>
-        public int ExistingId { get; set; }
+        /// <summary>Revit ElementId.Value (Int64) if this row came from an existing level; 0 for new.</summary>
+        public long ExistingId { get; set; }
     }
 
     /// <summary>Row bound to the Scope-Box DataGrid.</summary>
@@ -1484,8 +1484,8 @@ namespace StingTools.UI
         private string _newName; public string NewName { get => _newName; set { _newName = value; Raise(nameof(NewName)); } }
         public double RotationDegrees { get; set; }
         public string RotationText => RotationDegrees == 0 ? "0°" : $"{RotationDegrees:F1}°";
-        /// <summary>Revit ElementId.IntegerValue for the scope box.</summary>
-        public int RevitIdValue { get; set; }
+        /// <summary>Revit ElementId.Value (Int64) for the scope box.</summary>
+        public long RevitIdValue { get; set; }
     }
 
     /// <summary>
