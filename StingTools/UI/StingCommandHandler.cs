@@ -1069,7 +1069,9 @@ namespace StingTools.UI
                     case "CreateTagFamilies": RunCommand<Tags.CreateTagFamiliesCommand>(app); break;
                     case "LoadTagFamilies": RunCommand<Tags.LoadTagFamiliesCommand>(app); break;
                     case "ConfigureTagLabels": RunCommand<Tags.ConfigureTagLabelsCommand>(app); break;
+                    case "ConfigureLoadedFamilies": RunCommand<Tags.ConfigureLoadedFamiliesCommand>(app); break;
                     case "AuditTagFamilies": RunCommand<Tags.AuditTagFamiliesCommand>(app); break;
+                    case "RetrofitProject": RunCommand<Temp.RetrofitProjectCommand>(app); break;
                     case "MigrateTagFamilies": RunCommand<Commands.TagStudio.MigrateTagFamiliesCommand>(app); break;
                     case "StyleAudit": RunCommand<Commands.TagStudio.StyleAuditCommand>(app); break;
 

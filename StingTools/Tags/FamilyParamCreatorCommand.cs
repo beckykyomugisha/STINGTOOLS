@@ -20,6 +20,28 @@ namespace StingTools.Tags
     // ════════════════════════════════════════════════════════════════════════════
 
     /// <summary>
+    /// Scope of the pre-injection purge. STING identity is resolved by GUID against
+    /// <see cref="ParamRegistry.AllParamGuids"/> — any shared parameter whose GUID is
+    /// NOT in the registry is considered non-STING, regardless of prefix.
+    /// </summary>
+    public enum PurgeMode
+    {
+        /// <summary>No purge — additive only. Leaves every existing family parameter in place.</summary>
+        None = 0,
+        /// <summary>Remove shared parameters whose GUID is in the STING registry before re-injecting.
+        /// Used for schema-version migrations that need a clean slate. Destroys label bindings
+        /// on removed params — only use when also re-binding labels in the same run.</summary>
+        StingOnly = 1,
+        /// <summary>Remove shared parameters whose GUID is NOT in the STING registry. Cleans third-party
+        /// / legacy / stray shared params out of a family before injecting STING's schema, so the
+        /// family ends up carrying only STING-managed parameters + Revit built-ins.</summary>
+        NonSting = 2,
+        /// <summary>Remove every shared parameter in the family, STING or not. Most destructive —
+        /// only used for full factory-reset workflows.</summary>
+        All = 3,
+    }
+
+    /// <summary>
     /// Engine for processing Revit family files: detecting categories, injecting
     /// shared parameters, formulas, tag anchor planes, and position variant types.
     /// </summary>
@@ -40,8 +62,8 @@ namespace StingTools.Tags
 
         /// <summary>
         /// Returns true if the given parameter name starts with any STING prefix.
-        /// Case-insensitive. Used by PurgeFirst to scope deletions to STING params only,
-        /// leaving Revit built-ins and third-party params untouched.
+        /// Case-insensitive. Kept for non-shared / name-only checks — for shared
+        /// parameters prefer <see cref="IsStingSharedParam"/> which matches on GUID.
         /// </summary>
         public static bool IsStingPrefix(string paramName)
         {
@@ -52,6 +74,43 @@ namespace StingTools.Tags
                     return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// True iff the given family parameter is a shared parameter whose GUID is
+        /// registered in <see cref="ParamRegistry.AllParamGuids"/>. This is the
+        /// authoritative "is STING" check for purge scoping — a family parameter
+        /// that happens to have a STING-looking prefix but a foreign GUID is
+        /// treated as non-STING, and vice versa.
+        /// </summary>
+        public static bool IsStingSharedParam(FamilyParameter fp)
+        {
+            if (fp == null || !fp.IsShared) return false;
+            try
+            {
+                Guid g = fp.GUID;
+                if (g == Guid.Empty) return false;
+                // GetParamName returns null when the GUID is not in the registry.
+                return ParamRegistry.GetParamName(g) != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>Decide whether <paramref name="fp"/> should be removed under <paramref name="mode"/>.
+        /// Assumes the caller has already filtered to <c>IsShared == true</c>.</summary>
+        private static bool ShouldPurge(FamilyParameter fp, PurgeMode mode)
+        {
+            switch (mode)
+            {
+                case PurgeMode.None:      return false;
+                case PurgeMode.All:       return true;
+                case PurgeMode.StingOnly: return IsStingSharedParam(fp);
+                case PurgeMode.NonSting:  return !IsStingSharedParam(fp);
+                default:                  return false;
+            }
         }
 
         private static readonly (string Name, int Pos)[] AllPositionTypes = {
@@ -83,13 +142,37 @@ namespace StingTools.Tags
             /// <summary>When true, inject the TAG_POS parameter itself (independent of formulas).
             /// Default false — TAG_POS is already added via ParamNames if requested.</summary>
             public bool InjectTagPos { get; set; } = false;
-            /// <summary>When true, remove ALL pre-existing STING-prefixed shared parameters from the
-            /// family (ASS_, BLE_, CST_, ELC_, ELE_, FLS_, HVC_, ICT_, LTG_, MAT_, MEP_, NCL_, PER_,
-            /// PLM_, RGL_, SEC_, SLV_, STING_, STR_, TAG_, WARN_) before injecting a fresh set. This
-            /// destroys label bindings in the family and should stay OFF for routine "add missing
-            /// parameters" runs. Default false — only set true when migrating a family between
-            /// schema versions that needs a full reset.</summary>
-            public bool PurgeFirst { get; set; } = false;
+
+            /// <summary>Scope of the purge run before parameter injection. Default <see cref="PurgeMode.None"/>
+            /// (pure additive). <see cref="PurgeMode.NonSting"/> strips third-party / legacy shared parameters
+            /// whose GUID is not in <see cref="ParamRegistry.AllParamGuids"/> — intended for the
+            /// "clean a third-party family before adopting it into STING" workflow.</summary>
+            public PurgeMode Purge { get; set; } = PurgeMode.None;
+
+            /// <summary>Deprecated alias — kept so existing callers that set PurgeFirst=true continue
+            /// to behave as if they'd requested <see cref="PurgeMode.StingOnly"/>. New code should set
+            /// <see cref="Purge"/> directly.</summary>
+            public bool PurgeFirst
+            {
+                get => Purge == PurgeMode.StingOnly || Purge == PurgeMode.All;
+                set { if (value && Purge == PurgeMode.None) Purge = PurgeMode.StingOnly; }
+            }
+
+            /// <summary>When true, after saving the processed .rfa, load it into the supplied
+            /// <see cref="TargetProjectDoc"/>. No-op when <see cref="TargetProjectDoc"/> is null.
+            /// Used by batch workflows that want one click from "folder of .rfa" to "loaded in project".</summary>
+            public bool LoadAfterSave { get; set; } = false;
+
+            /// <summary>Target project document to <see cref="Document.LoadFamily(string, IFamilyLoadOptions, out Family)"/>
+            /// into when <see cref="LoadAfterSave"/> is true. When null and LoadAfterSave is true,
+            /// the load step is silently skipped. The project doc must belong to the same application
+            /// instance as the one opening the family docs — enforced by the caller.</summary>
+            public Document TargetProjectDoc { get; set; } = null;
+
+            /// <summary>Overwrite instance parameter values in the project when reloading.
+            /// Default false (preserve whatever the user already set on placed instances).</summary>
+            public bool LoadOverwriteParameterValues { get; set; } = false;
+
             public List<string> ParamNames { get; set; } = new List<string>();
         }
 
@@ -108,6 +191,10 @@ namespace StingTools.Tags
             public int PositionTypesCreated { get; set; }
             public int TokensSeeded { get; set; }
             public int CobiePropsWritten { get; set; }
+            /// <summary>Count of shared parameters removed by the pre-injection purge (0 when Purge=None).</summary>
+            public int ParamsPurged { get; set; }
+            /// <summary>True when LoadAfterSave succeeded. False when LoadAfterSave=false, TargetProjectDoc=null, or the load call threw.</summary>
+            public bool LoadedIntoProject { get; set; }
             public bool Success { get; set; }
             public string ErrorMessage { get; set; }
         }
@@ -738,26 +825,33 @@ namespace StingTools.Tags
                 {
                     tx.Start();
 
-                    // FIX-9.2: Purge all pre-existing STING shared parameters before injection.
-                    // Default: true. Scope covers all STING prefixes so families cannot carry
-                    // duplicates or stale bindings from earlier runs / prior schema versions.
-                    if (opts.PurgeFirst)
+                    // Pre-injection purge. Scope is set by opts.Purge:
+                    //   None      → skipped entirely (pure additive run).
+                    //   StingOnly → remove shared params whose GUID is in the STING registry.
+                    //   NonSting  → remove shared params whose GUID is NOT in the STING registry
+                    //               (cleans third-party / legacy strays before adopting a family).
+                    //   All       → remove every shared parameter.
+                    // Only the Purge property is read here — PurgeFirst is a deprecated shim
+                    // that sets Purge=StingOnly when true was passed in.
+                    if (opts.Purge != PurgeMode.None)
                     {
                         try
                         {
                             FamilyManager fmPurge = famDoc.FamilyManager;
                             var toRemove = fmPurge.GetParameters()
-                                .Where(p => p.IsShared && IsStingPrefix(p.Definition.Name))
+                                .Where(p => p.IsShared)
+                                .Where(p => ShouldPurge(p, opts.Purge))
                                 .ToList();
                             foreach (var fp in toRemove)
                             {
                                 try { fmPurge.RemoveParameter(fp); }
-                                catch (Exception rpEx) { StingLog.Warn($"PurgeFirst '{fp.Definition.Name}': {rpEx.Message}"); }
+                                catch (Exception rpEx) { StingLog.Warn($"Purge '{fp.Definition.Name}' ({opts.Purge}): {rpEx.Message}"); }
                             }
+                            result.ParamsPurged = toRemove.Count;
                             if (toRemove.Count > 0)
-                                StingLog.Info($"PurgeFirst: removed {toRemove.Count} shared params from '{Path.GetFileName(rfaPath)}'");
+                                StingLog.Info($"Purge {opts.Purge}: removed {toRemove.Count} shared params from '{Path.GetFileName(rfaPath)}'");
                         }
-                        catch (Exception purgeEx) { StingLog.Warn($"PurgeFirst: {purgeEx.Message}"); }
+                        catch (Exception purgeEx) { StingLog.Warn($"Purge {opts.Purge}: {purgeEx.Message}"); }
                     }
 
                     // Inject shared parameters
@@ -805,6 +899,7 @@ namespace StingTools.Tags
                 }
 
                 // Save
+                string savedPath = rfaPath;
                 if (!string.IsNullOrEmpty(outputPath))
                 {
                     var saveOpts = new SaveAsOptions
@@ -813,6 +908,7 @@ namespace StingTools.Tags
                         MaximumBackups = 1
                     };
                     famDoc.SaveAs(outputPath, saveOpts);
+                    savedPath = outputPath;
                 }
                 else
                 {
@@ -820,6 +916,28 @@ namespace StingTools.Tags
                 }
 
                 result.Success = true;
+
+                // Close before re-loading into the target project — Revit will refuse to
+                // load a family that's still open as a separate Document in the same session.
+                try { famDoc.Close(false); famDoc = null; }
+                catch (Exception closeEx) { StingLog.Warn($"Close before LoadAfterSave: {closeEx.Message}"); }
+
+                // Batch-load into project (optional). No-op if TargetProjectDoc is null.
+                if (opts.LoadAfterSave && opts.TargetProjectDoc != null && File.Exists(savedPath))
+                {
+                    try
+                    {
+                        var loadOpts = new StingFamilyLoadOptions(opts.LoadOverwriteParameterValues);
+                        Family loadedFam;
+                        bool ok = opts.TargetProjectDoc.LoadFamily(savedPath, loadOpts, out loadedFam);
+                        result.LoadedIntoProject = ok;
+                        if (!ok) StingLog.Warn($"LoadAfterSave '{Path.GetFileName(savedPath)}': LoadFamily returned false");
+                    }
+                    catch (Exception loadEx)
+                    {
+                        StingLog.Warn($"LoadAfterSave '{Path.GetFileName(savedPath)}': {loadEx.Message}");
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -1036,6 +1154,153 @@ namespace StingTools.Tags
 
             return list;
         }
+
+        /// <summary>
+        /// Process a family document that is already open (e.g. from
+        /// <see cref="Document.EditFamily(Family)"/>) without touching disk. Honors the same
+        /// <see cref="ProcessOptions"/> as <see cref="ProcessFamily"/> but skips Save / SaveAs
+        /// and never opens or closes the document — the caller owns the <paramref name="famDoc"/>
+        /// lifecycle and is responsible for loading it back into a project via
+        /// <see cref="Document.LoadFamily(IFamilyLoadOptions, out Family)"/>.
+        ///
+        /// <para><b>LoadAfterSave semantics:</b> in the document-overload the in-memory family is
+        /// loaded back into <c>opts.TargetProjectDoc</c> via the parameter-less LoadFamily overload
+        /// rather than from disk — so it works even when the family has no file path.</para>
+        /// </summary>
+        public static FamilyResult ProcessFamilyDocument(
+            Autodesk.Revit.ApplicationServices.Application app,
+            Document famDoc,
+            string familyDisplayName,
+            ProcessOptions opts)
+        {
+            var result = new FamilyResult
+            {
+                SourcePath = familyDisplayName ?? "<in-memory>",
+                OutputPath = "",
+            };
+
+            if (famDoc == null || !famDoc.IsFamilyDocument)
+            {
+                result.ErrorMessage = "Not a family document";
+                return result;
+            }
+
+            try
+            {
+                var (cat, catName, discCode) = DetectFamilyCategory(famDoc);
+                result.Category = catName;
+                result.DiscCode = discCode;
+
+                using (Transaction tx = new Transaction(famDoc, "STING Family Param Inject"))
+                {
+                    tx.Start();
+
+                    if (opts.Purge != PurgeMode.None)
+                    {
+                        try
+                        {
+                            FamilyManager fmPurge = famDoc.FamilyManager;
+                            var toRemove = fmPurge.GetParameters()
+                                .Where(p => p.IsShared)
+                                .Where(p => ShouldPurge(p, opts.Purge))
+                                .ToList();
+                            foreach (var fp in toRemove)
+                            {
+                                try { fmPurge.RemoveParameter(fp); }
+                                catch (Exception rpEx) { StingLog.Warn($"Purge '{fp.Definition.Name}' ({opts.Purge}): {rpEx.Message}"); }
+                            }
+                            result.ParamsPurged = toRemove.Count;
+                        }
+                        catch (Exception purgeEx) { StingLog.Warn($"Purge {opts.Purge}: {purgeEx.Message}"); }
+                    }
+
+                    string fileName = familyDisplayName ?? "";
+                    var paramList = opts.ParamNames.Count > 0
+                        ? opts.ParamNames
+                        : GetParamsForFamily(fileName)
+                          ?? GetDefaultParamsForCategory(catName, discCode);
+                    var (added, skipped) = InjectSharedParams(famDoc, app, paramList);
+                    result.ParamsAdded = added;
+                    result.ParamsSkipped = skipped;
+
+                    result.TokensSeeded = SeedDefaultTokens(famDoc, catName, discCode);
+                    result.CobiePropsWritten = SeedCobieTypeProperties(famDoc, fileName);
+
+                    if (opts.InjectTagPos)
+                    {
+                        try
+                        {
+                            var tagPosList = new List<string> { ParamRegistry.TAG_POS };
+                            var (tpAdded, _) = InjectSharedParams(famDoc, app, tagPosList);
+                            result.TagPosInjected = tpAdded > 0;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Inject TAG_POS shared param: {ex.Message}"); }
+                    }
+
+                    if (opts.InjectFormulas && result.TagPosInjected)
+                        result.FormulasInjected = InjectTagPosFormulas(famDoc);
+
+                    if (opts.CreatePositionTypes && result.TagPosInjected)
+                        result.PositionTypesCreated = InjectPositionTypes(famDoc);
+
+                    tx.Commit();
+                }
+
+                result.Success = true;
+
+                // Load back into the project. Uses the parameter-less LoadFamily overload —
+                // the familyDoc is already open in this app instance, so Revit can pull it
+                // directly without a file round-trip.
+                if (opts.LoadAfterSave && opts.TargetProjectDoc != null)
+                {
+                    try
+                    {
+                        var loadOpts = new StingFamilyLoadOptions(opts.LoadOverwriteParameterValues);
+                        Family loadedFam = famDoc.LoadFamily(opts.TargetProjectDoc, loadOpts);
+                        result.LoadedIntoProject = loadedFam != null;
+                    }
+                    catch (Exception loadEx)
+                    {
+                        StingLog.Warn($"LoadAfterSave (in-memory) '{familyDisplayName}': {loadEx.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                result.ErrorMessage = ex.Message;
+                StingLog.Error($"ProcessFamilyDocument '{familyDisplayName}'", ex);
+            }
+
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// <see cref="IFamilyLoadOptions"/> implementation used by <see cref="FamilyParamEngine.ProcessFamily"/>
+    /// and <see cref="FamilyParamEngine.ProcessFamilyDocument"/> when LoadAfterSave is enabled.
+    /// Default source is <see cref="FamilySource.Family"/> (prefer the newly-processed copy) and
+    /// overwriteParameterValues is caller-controlled via the constructor argument.
+    /// </summary>
+    internal class StingFamilyLoadOptions : IFamilyLoadOptions
+    {
+        private readonly bool _overwriteParameterValues;
+        public StingFamilyLoadOptions(bool overwriteParameterValues)
+        {
+            _overwriteParameterValues = overwriteParameterValues;
+        }
+
+        public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+        {
+            overwriteParameterValues = _overwriteParameterValues;
+            return true; // always overwrite the family definition itself
+        }
+
+        public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+        {
+            source = FamilySource.Family;
+            overwriteParameterValues = _overwriteParameterValues;
+            return true;
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -1083,13 +1348,17 @@ namespace StingTools.Tags
                 new StingListPicker.ListItem
                     { Label = "Batch Folder — Add Missing Params (recommended)", Detail = "Append missing params across every .rfa in the target folder.", Tag = "add_batch" },
                 new StingListPicker.ListItem
+                    { Label = "Single Family — Clean Non-STING Params + Inject", Detail = "Remove any shared parameters whose GUID is not in the STING registry, then inject STING's schema. Use when adopting third-party families.", Tag = "clean_single" },
+                new StingListPicker.ListItem
+                    { Label = "Batch Folder — Clean Non-STING Params + Inject", Detail = "Clean + inject across every .rfa in the folder. Third-party / legacy shared params are removed by GUID.", Tag = "clean_batch" },
+                new StingListPicker.ListItem
                     { Label = "Single Family — Migrate (rewrite TAG_POS + position types)", Detail = "Adds TAG_POS, writes the 16-branch formula, creates position types. Modifies label bindings.", Tag = "migrate_single" },
                 new StingListPicker.ListItem
                     { Label = "Batch Folder — Migrate (rewrite TAG_POS + position types)", Detail = "Migrate every .rfa in the target folder.", Tag = "migrate_batch" },
                 new StingListPicker.ListItem
-                    { Label = "Single Family — Purge + Reinject (destructive)", Detail = "Remove ALL STING-prefixed shared params then re-inject a fresh set. Use only for schema migrations.", Tag = "purge_single" },
+                    { Label = "Single Family — Purge STING + Reinject (destructive)", Detail = "Remove every STING-registered shared param then re-inject. Use only for schema migrations.", Tag = "purge_single" },
                 new StingListPicker.ListItem
-                    { Label = "Batch Folder — Purge + Reinject (destructive)", Detail = "Purge + reinject across folder. Use only for schema migrations.", Tag = "purge_batch" },
+                    { Label = "Batch Folder — Purge STING + Reinject (destructive)", Detail = "Purge + reinject across folder. Use only for schema migrations.", Tag = "purge_batch" },
             };
             var selected = StingListPicker.Show(
                 "STING — Family Param Creator",
@@ -1098,19 +1367,42 @@ namespace StingTools.Tags
             if (selected == null || selected.Count == 0) return Result.Cancelled;
             string mode = selected[0].Tag as string ?? "add_single";
 
-            bool purgeFirst = mode.StartsWith("purge");
-            bool migrate = mode.StartsWith("migrate") || purgeFirst;
-            bool isBatch = mode.Contains("batch");
+            bool cleanNonSting = mode.StartsWith("clean");
+            bool purgeSting    = mode.StartsWith("purge");
+            bool migrate       = mode.StartsWith("migrate") || purgeSting;
+            bool isBatch       = mode.Contains("batch");
 
-            // Options — Add mode is purely additive. Migrate mode rewrites
-            // TAG_POS / formulas / position types. Purge mode additionally
-            // deletes existing STING params before reinjection.
+            // Ask whether to load the processed families into the active project after saving.
+            // This turns "process folder of .rfa" into a one-click flow — useful during project
+            // retrofit where the user has the target project open and wants those families
+            // reloaded with the new schema.
+            bool loadAfterSave = false;
+            if (ctx.Doc != null && !ctx.Doc.IsFamilyDocument)
+            {
+                var td = new TaskDialog("STING — Load into project?")
+                {
+                    MainInstruction = "Load processed families into the active project?",
+                    MainContent = $"After each .rfa is saved, load it into '{ctx.Doc.Title}'. " +
+                                  "Instance parameter values on already-placed families are preserved.",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No,
+                };
+                loadAfterSave = (td.Show() == TaskDialogResult.Yes);
+            }
+
+            // Options — Add mode is purely additive. Clean mode removes non-STING shared params
+            // by GUID. Migrate mode rewrites TAG_POS / formulas / position types. Purge mode
+            // additionally removes STING-registered shared params before reinjection.
             var opts = new FamilyParamEngine.ProcessOptions
             {
                 InjectTagPos        = migrate,
                 InjectFormulas      = migrate,
                 CreatePositionTypes = migrate,
-                PurgeFirst          = purgeFirst,
+                Purge               = purgeSting    ? PurgeMode.StingOnly
+                                    : cleanNonSting ? PurgeMode.NonSting
+                                    : PurgeMode.None,
+                LoadAfterSave       = loadAfterSave,
+                TargetProjectDoc    = loadAfterSave ? ctx.Doc : null,
             };
 
             // Get file(s) to process using file/folder browser dialogs
@@ -1213,13 +1505,20 @@ namespace StingTools.Tags
                 .Select(g => $"  {g.Key}: {g.Count()}")
                 .ToList();
 
+            int totalParamsPurged = results.Sum(r => r.ParamsPurged);
+            int totalLoadedIntoProject = results.Count(r => r.LoadedIntoProject);
+
             var report = new StringBuilder();
             report.AppendLine($"Files: {processed} processed, {succeeded} succeeded, {failed} failed");
             if (cancelled) report.AppendLine($"  (cancelled — {rfaFiles.Count - processed} remaining)");
             report.AppendLine($"Parameters added: {totalParamsAdded}");
+            if (totalParamsPurged > 0)
+                report.AppendLine($"Parameters purged: {totalParamsPurged} (mode: {opts.Purge})");
             report.AppendLine($"Position types created: {results.Sum(r => r.PositionTypesCreated)}");
             report.AppendLine($"Tokens seeded: {totalTokensSeeded}");
             if (totalCobieProps > 0) report.AppendLine($"COBie properties written: {totalCobieProps}");
+            if (opts.LoadAfterSave)
+                report.AppendLine($"Loaded into '{ctx.Doc?.Title}': {totalLoadedIntoProject}/{succeeded}");
             if (catBreakdown.Count > 0)
             {
                 report.AppendLine("\nCategories:");
@@ -1234,13 +1533,13 @@ namespace StingTools.Tags
                 logPath = Path.Combine(outputDir,
                     $"STING_FamilyParamCreator_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 var csv = new StringBuilder();
-                csv.AppendLine("SourcePath,OutputPath,Category,DiscCode,ParamsAdded,ParamsSkipped," +
-                    "TagPosInjected,FormulasInjected,PositionTypesCreated,TokensSeeded,CobiePropsWritten,Status,ErrorMessage");
+                csv.AppendLine("SourcePath,OutputPath,Category,DiscCode,ParamsAdded,ParamsSkipped,ParamsPurged," +
+                    "TagPosInjected,FormulasInjected,PositionTypesCreated,TokensSeeded,CobiePropsWritten,LoadedIntoProject,Status,ErrorMessage");
                 foreach (var r in results)
                 {
                     csv.AppendLine($"\"{r.SourcePath}\",\"{r.OutputPath}\",\"{r.Category}\"," +
-                        $"{r.DiscCode},{r.ParamsAdded},{r.ParamsSkipped},{r.TagPosInjected}," +
-                        $"{r.FormulasInjected},{r.PositionTypesCreated},{r.TokensSeeded},{r.CobiePropsWritten}," +
+                        $"{r.DiscCode},{r.ParamsAdded},{r.ParamsSkipped},{r.ParamsPurged},{r.TagPosInjected}," +
+                        $"{r.FormulasInjected},{r.PositionTypesCreated},{r.TokensSeeded},{r.CobiePropsWritten},{r.LoadedIntoProject}," +
                         $"{(r.Success ? "OK" : "FAILED")},\"{r.ErrorMessage ?? ""}\"");
                 }
                 File.WriteAllText(logPath, csv.ToString());
