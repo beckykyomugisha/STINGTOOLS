@@ -198,15 +198,45 @@ Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json
 2. Drawing Type resolved by `DrawingDispatcher.Resolve(doc, disc, "*", Spool)` — `pipe-spool-A1-1to50` / `duct-spool-A1-1to50`
 3. Historic hard-coded per-discipline dict + session sequence counter
 
-Phase II will wire `DocAutomationExtCommands.BatchSectionsCommand` / `BatchElevationsCommand` / `BatchSheetsCommand` and `SheetManagerCommands.CreateFromTemplateCommand` into the same registry, retiring the hard-coded templates in `SheetTemplateEngine.cs` in favour of the JSON catalogue.
+Phase II (complete, commit `384a374b`) wired `DocAutomationExtCommands.BatchSectionsCommand` / `BatchElevationsCommand` / `BatchSheetsCommand` into the registry via `DrawingTypePresentation.Apply`; each falls back to its historic template search when no profile matches. `SheetManagerCommands.CreateFromTemplateCommand` still uses the hard-coded 6 C# templates in `SheetTemplateEngine.cs` — Phase III follow-up.
+
+### Week 2–6 enhancements (complete)
+
+**Week 2 — ViewStylePack shared-style layer** (`Core/Drawing/ViewStylePack.cs`, `ViewStylePackRegistry.cs`, `ViewStylePackApplier.cs`). Factors graphic overrides / filters / VG overrides / text+dim styles / tag-family maps out of `DrawingType` so the 40 profiles share ~11 visual packs. `DrawingType.ViewStylePackId` references a pack by id; `Extends` field on packs supports inheritance chains. Shipped as `Data/STING_VIEW_STYLE_PACKS.json`: `corp-base`, `corp-standard-plan`, `corp-standard-rcp`, `corp-standard-section`, `corp-standard-elevation`, `corp-standard-detail`, `corp-fabrication-shop`, `corp-presentation-rich`, `corp-presentation-mono`, `corp-coordination`, `corp-clarification`. Applier walks the extends chain, resolves category names / BIC strings / subcategory `<brackets>` → ElementId, writes `OverrideGraphicSettings` on categories + filters.
+
+**Week 3 — Parameter stamping + browser organizer** (`Core/Drawing/DrawingTypeStamper.cs`, `Commands/Drawing/DrawingBrowserOrganizerCommand.cs`). Two new shared parameters written onto every view/sheet a generator creates: `STING_DRAWING_TYPE_ID_TXT` and `STING_STYLE_LOCKED_BOOL`. Stamper is workshared-safe (`WorksharingUtils.GetCheckoutStatus` gate). Browser Organizer creates `'STING - by Drawing Type'` organizations for views + sheets, keyed off the shared param GUID via `FolderItemsParameter`. `DrawingTypes_BrowserOrganize` button in DOCS.
+
+**Week 4 — SyncStyles + drift detection** (`Core/Drawing/DrawingDriftDetector.cs`, `Commands/Drawing/DrawingSyncStylesCommand.cs`). Detector scans every stamped view, reports SCALE / DETAIL / TEMPLATE drift. SyncStyles shows first-10 preview, on confirm re-runs `DrawingTypePresentation.Apply` (annotation off to avoid re-dimensioning) against each drifted view. Skips `STING_STYLE_LOCKED_BOOL == 1`. Inspect command surfaces drift count in its headline. `DrawingTypes_SyncStyles` button in DOCS.
+
+**Week 5 — Scope-box auto-binding** (`Core/Drawing/ScopeBoxBinder.cs`, `Commands/Drawing/GenerateFromScopeBoxesCommand.cs`). Scope boxes named `STING::<drawing-type-id>::<level-code?>::<tag?>` auto-bind to a profile. One command creates views + applies the profile + crops to the scope box. Idempotent — re-run finds existing stamped views and re-applies rather than duplicating. `DrawingTypes_FromScopeBoxes` button in DOCS.
+
+**Week 6 — Conditional routing + profile inheritance**. `DrawingRoutingRule` gains 5 optional regex predicates: `disciplineMatches`, `phaseMatches`, `docTypeMatches`, `levelMatches`, `projectCodeMatches`; all set predicates must match (logical AND). `DrawingDispatcher.Resolve(doc, disc, phase, docType, levelCode)` new level-aware overload; existing 4-arg form delegates. `DrawingType.Extends` field + `DrawingTypeRegistry.ResolveExtends` fold parent → child at lookup time with loop detection, mirror of the pack extends chain.
+
+**Bonus — DrawingCropApplier**. Executes the previously-declarative `DrawingType.Crop`: `ScopeBox`, `ScopeBoxOrBbox`, `TightBbox`, `RoomBoundary`, `None`. mm margins, element-bbox unions, scope-box resolution by name. Wired into `DrawingTypePresentation.Apply` between view-template and style-pack steps.
+
+### Pipeline order (final)
+
+`DrawingTypePresentation.Apply(doc, view, dt)` runs:
+
+1. **Lock check** — `DrawingTypeStamper.IsLocked` → skip
+2. **Stamp** `STING_DRAWING_TYPE_ID_TXT`
+3. **Scale** `view.Scale = dt.Scale`
+4. **Detail level** `view.DetailLevel = dt.DetailLevel`
+5. **View template** lookup by name + apply
+6. **Crop strategy** via `DrawingCropApplier`
+7. **View style pack** resolve + `ViewStylePackApplier.Apply`
+8. **Annotation pass** via `AnnotationRunner` (auto-dim + auto-tag)
+
+Every step is try/catch-wrapped; warnings collect into `ApplyResult.Warnings`, the run continues on failures.
 
 ### Caveats (Drawing Template Manager)
 
 1. Built without `dotnet build` verification (Linux sandbox).
-2. Phase I only wires fabrication — `BatchSections` / `BatchElevations` / `BatchSheets` and the Sheet Manager's `CreateFromTemplate` keep their current behaviour until Phase II.
-3. No editor UI yet; users edit JSON by hand or via the `_BIM_COORD/drawing_types.json` project override, then run `DrawingTypes_Reload`.
-4. `AnnotationRulePack` is a declarative payload — the annotation pass that consumes it (auto-dim grids, tag-rooms, weld-tag runs) is out of scope for Phase I. The flags are honoured only by the profile validator today; generator consumption follows in the annotation-automation phase.
-5. The 15 built-ins reference title-block / view-template / tag-family names that projects must supply; the validator reports missing assets as Warnings (not Errors) so the JSON ships usable on a stock project.
+2. `SheetManagerCommands.CreateFromTemplateCommand` still uses the hard-coded 6 C# templates in `SheetTemplateEngine.cs` — Phase III follow-up to retire them in favour of the JSON catalogue.
+3. Editor UI covers Drawing Types; `ViewStylePack` editing still requires hand-editing the JSON + `DrawingTypes_Reload`. A second editor tab is Week 7 polish.
+4. The 40 corporate drawing types + 11 style packs reference title-block / view-template / tag-family names that projects must supply; the validator reports missing assets as Warnings (not Errors) so the JSON ships usable on a stock project.
+5. Crop strategy `RoomBoundary` falls back to `TightBbox` when no rooms are in the view; plan views that should be room-bounded need rooms placed first.
+6. `IUpdater`-based live style propagation (automatic re-apply when a profile / pack changes in-session) is not implemented — the manual `SyncStyles` command covers the same ground on demand.
 
 ## Template Engine v1.1 (Phase 112)
 
