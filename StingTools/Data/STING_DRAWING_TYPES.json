@@ -1507,6 +1507,462 @@
       "print": {
         "halftoneLinks": true
       }
+    },
+    {
+      "id": "pres-3d-axon-A1",
+      "name": "Presentation 3D Axonometric \u2014 A1",
+      "origin": "corporate",
+      "purpose": "3D",
+      "discipline": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 100,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Presentation 3D",
+      "sheetNumberPattern": "PR-3D-{seq:D2}",
+      "sheetNamePattern": "3D AXONOMETRIC \u2014 {mark}",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 500
+      },
+      "slots": [
+        {
+          "label": "3D Axon",
+          "viewType": "3D",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.78,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Plan",
+          "normX": 0.83,
+          "normY": 0.55,
+          "normW": 0.15,
+          "normH": 0.4
+        },
+        {
+          "label": "Caption",
+          "viewType": "Legend",
+          "normX": 0.83,
+          "normY": 0.05,
+          "normW": 0.15,
+          "normH": 0.45
+        }
+      ],
+      "annotation": {
+        "autoTagRooms": false,
+        "autoDimGrids": false
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": false,
+        "lineWeightScale": 0.8
+      }
+    },
+    {
+      "id": "pres-perspective-A1",
+      "name": "Presentation Perspective \u2014 A1",
+      "origin": "corporate",
+      "purpose": "3D",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 100,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Presentation Perspective",
+      "sheetNumberPattern": "PR-PV-{seq:D2}",
+      "sheetNamePattern": "PERSPECTIVE \u2014 {mark}",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Perspective",
+          "viewType": "3D",
+          "normX": 0.03,
+          "normY": 0.13,
+          "normW": 0.94,
+          "normH": 0.82,
+          "required": true
+        },
+        {
+          "label": "Caption",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.07
+        }
+      ],
+      "annotation": {},
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": false,
+        "lineWeightScale": 0.7
+      }
+    },
+    {
+      "id": "pres-exterior-elev-A1",
+      "name": "Presentation Exterior Elevation \u2014 A1",
+      "origin": "corporate",
+      "purpose": "Elevation",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 100,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Presentation Elevation",
+      "sheetNumberPattern": "PR-EL-{seq:D2}",
+      "sheetNamePattern": "EXTERIOR ELEVATION \u2014 {mark}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 300
+      },
+      "sectionMarker": {
+        "family": "STING_ELEV_MARKER",
+        "markPrefix": "PE",
+        "bubbleStyle": "Open",
+        "farClipMm": 10000
+      },
+      "slots": [
+        {
+          "label": "Main Elevation",
+          "viewType": "Elevation",
+          "normX": 0.03,
+          "normY": 0.13,
+          "normW": 0.94,
+          "normH": 0.82,
+          "required": true
+        },
+        {
+          "label": "Materials Key",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.07
+        }
+      ],
+      "annotation": {
+        "autoDimLevels": true,
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "Walls": "STING_TAG_MAT_CALLOUT"
+        }
+      },
+      "print": {
+        "colourScheme": "PresentationMono",
+        "halftoneLinks": true,
+        "lineWeightScale": 0.9
+      }
+    },
+    {
+      "id": "pres-render-board-A1",
+      "name": "Presentation Render Board \u2014 A1 (4-up)",
+      "origin": "corporate",
+      "purpose": "3D",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 100,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Presentation 3D",
+      "sheetNumberPattern": "PR-RB-{seq:D2}",
+      "sheetNamePattern": "RENDER BOARD {mark}",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Render NW",
+          "viewType": "3D",
+          "normX": 0.03,
+          "normY": 0.52,
+          "normW": 0.47,
+          "normH": 0.43
+        },
+        {
+          "label": "Render NE",
+          "viewType": "3D",
+          "normX": 0.52,
+          "normY": 0.52,
+          "normW": 0.45,
+          "normH": 0.43
+        },
+        {
+          "label": "Render SW",
+          "viewType": "3D",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.47,
+          "normH": 0.43
+        },
+        {
+          "label": "Render SE",
+          "viewType": "3D",
+          "normX": 0.52,
+          "normY": 0.05,
+          "normW": 0.45,
+          "normH": 0.43
+        }
+      ],
+      "annotation": {},
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": false,
+        "lineWeightScale": 0.7
+      }
+    },
+    {
+      "id": "pres-context-site-A1",
+      "name": "Presentation Context / Site \u2014 A1 @ 1:500",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 500,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Presentation Context",
+      "sheetNumberPattern": "PR-CX-{seq:D2}",
+      "sheetNamePattern": "CONTEXT PLAN \u2014 {mark}",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 3000
+      },
+      "slots": [
+        {
+          "label": "Context Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.13,
+          "normW": 0.76,
+          "normH": 0.82,
+          "required": true
+        },
+        {
+          "label": "Aerial Key",
+          "viewType": "3D",
+          "normX": 0.82,
+          "normY": 0.55,
+          "normW": 0.15,
+          "normH": 0.4
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.82,
+          "normY": 0.05,
+          "normW": 0.15,
+          "normH": 0.45
+        },
+        {
+          "label": "Caption",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.76,
+          "normH": 0.07
+        }
+      ],
+      "annotation": {
+        "tagFamilies": {
+          "Site": "STING_TAG_SITE_CALLOUT"
+        }
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": true,
+        "lineWeightScale": 0.8
+      }
+    },
+    {
+      "id": "clar-markup-A1",
+      "name": "Clarification / Markup Plan \u2014 A1",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Clarification Markup",
+      "sheetNumberPattern": "CL-MK-{lvl}-{seq:D3}",
+      "sheetNamePattern": "CLARIFICATION \u2014 {mark}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Markup Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.13,
+          "normW": 0.7,
+          "normH": 0.82,
+          "required": true
+        },
+        {
+          "label": "Query Log",
+          "viewType": "Schedule",
+          "normX": 0.75,
+          "normY": 0.13,
+          "normW": 0.22,
+          "normH": 0.82
+        },
+        {
+          "label": "Revision",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.07
+        }
+      ],
+      "annotation": {
+        "autoDimGrids": false,
+        "tagFamilies": {
+          "Rooms": "STING_TAG_ROOM"
+        }
+      },
+      "print": {
+        "colourScheme": "ClarificationRed",
+        "lineWeightScale": 1.0
+      }
+    },
+    {
+      "id": "clar-rfi-A3",
+      "name": "RFI Sketch \u2014 A3",
+      "origin": "corporate",
+      "purpose": "Detail",
+      "discipline": "*",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - RFI Sketch",
+      "sheetNumberPattern": "RFI-{seq:D4}",
+      "sheetNamePattern": "RFI {mark}",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 100
+      },
+      "sectionMarker": {
+        "family": "STING_CALLOUT_HEAD",
+        "markPrefix": "RFI",
+        "bubbleStyle": "Filled",
+        "farClipMm": 1000
+      },
+      "slots": [
+        {
+          "label": "Sketch",
+          "viewType": "Detail",
+          "normX": 0.05,
+          "normY": 0.25,
+          "normW": 0.9,
+          "normH": 0.7,
+          "required": true
+        },
+        {
+          "label": "Question",
+          "viewType": "Legend",
+          "normX": 0.05,
+          "normY": 0.13,
+          "normW": 0.9,
+          "normH": 0.1
+        },
+        {
+          "label": "Revision",
+          "viewType": "Legend",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.06
+        }
+      ],
+      "annotation": {
+        "autoDimLevels": true,
+        "autoDimGrids": true,
+        "dimensionStrategy": "Linear",
+        "denseUntilScale": 100
+      },
+      "print": {
+        "colourScheme": "ClarificationRed",
+        "lineWeightScale": 1.0
+      }
+    },
+    {
+      "id": "clar-design-intent-A1",
+      "name": "Design Intent Presentation \u2014 A1",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Design Intent",
+      "sheetNumberPattern": "DI-{seq:D3}",
+      "sheetNamePattern": "DESIGN INTENT \u2014 {mark}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 200
+      },
+      "slots": [
+        {
+          "label": "Concept Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.52,
+          "normW": 0.62,
+          "normH": 0.43
+        },
+        {
+          "label": "Illustrative 3D",
+          "viewType": "3D",
+          "normX": 0.68,
+          "normY": 0.52,
+          "normW": 0.29,
+          "normH": 0.43
+        },
+        {
+          "label": "Narrative",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.13,
+          "normW": 0.62,
+          "normH": 0.37
+        },
+        {
+          "label": "Materials Strip",
+          "viewType": "Legend",
+          "normX": 0.68,
+          "normY": 0.13,
+          "normW": 0.29,
+          "normH": 0.37
+        },
+        {
+          "label": "Caption",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.07
+        }
+      ],
+      "annotation": {
+        "autoTagRooms": false
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": false,
+        "lineWeightScale": 0.8
+      }
     }
   ],
   "routing": [
@@ -1719,6 +2175,54 @@
       "phase": "*",
       "docType": "CLASH",
       "drawingTypeId": "coord-clash-A1-1to50"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "3D",
+      "drawingTypeId": "pres-3d-axon-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "PERSPECTIVE",
+      "drawingTypeId": "pres-perspective-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "ELEVATION",
+      "drawingTypeId": "pres-exterior-elev-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "RENDER_BOARD",
+      "drawingTypeId": "pres-render-board-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "CONTEXT",
+      "drawingTypeId": "pres-context-site-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "DESIGN_INTENT",
+      "drawingTypeId": "clar-design-intent-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "CLARIFICATION",
+      "drawingTypeId": "clar-markup-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "RFI",
+      "drawingTypeId": "clar-rfi-A3"
     }
   ]
 }
