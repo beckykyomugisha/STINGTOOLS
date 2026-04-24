@@ -36,7 +36,7 @@ namespace StingTools.Core.Visualization
             var col = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             foreach (var el in col)
             {
-                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG_1);
+                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 double v = string.IsNullOrEmpty(tag) ? 0 :
                            (TagConfig.TagIsComplete(tag) ? 100 : 50);
                 yield return (el.Id, v);

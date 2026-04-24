@@ -1830,10 +1830,12 @@ namespace StingTools.Core
             // Pack 124 / Gap G — token lineage. Captures where LOC/ZONE/SYS
             // were derived from so audit panels can answer "why is this in
             // BLD2 not BLD3?" without combing StingLog. Best-effort write.
+            // Uses result.* booleans (in scope) rather than the per-token
+            // strings (which fall out of scope at this point in PopulateAll).
             try
             {
-                string locSrc  = result.LocDetected  ? "spatial-auto" : (string.IsNullOrEmpty(loc)  ? "" : "project-info");
-                string zoneSrc = result.ZoneDetected ? "spatial-auto" : (string.IsNullOrEmpty(zone) ? "" : "default");
+                string locSrc  = result.LocDetected  ? "spatial-auto" : "project-info";
+                string zoneSrc = result.ZoneDetected ? "spatial-auto" : "default";
                 string sysSrc  = sysLayer switch
                 {
                     1 => "category",

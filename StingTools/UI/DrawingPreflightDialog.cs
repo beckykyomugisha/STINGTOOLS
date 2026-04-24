@@ -32,12 +32,13 @@ using System.Windows.Shapes;
 using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
 
-// WPF + Revit both declare Color / Rectangle — disambiguate once so
+// WPF + Revit both declare Color / Rectangle / Grid — disambiguate once so
 // CS0104 does not fire on every reference. UI code here always wants
 // the WPF types.
 using Color     = System.Windows.Media.Color;
 using Colors    = System.Windows.Media.Colors;
 using Rectangle = System.Windows.Shapes.Rectangle;
+using Grid      = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {

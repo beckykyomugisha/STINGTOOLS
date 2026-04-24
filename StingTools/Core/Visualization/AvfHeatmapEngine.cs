@@ -96,7 +96,9 @@ namespace StingTools.Core.Visualization
                         {
                             new ValueAtPoint(new List<double> { sample.value })
                         });
-                        sfm.UpdateSpatialFieldPrimitive(primId, pts, vals);
+                        // Revit 2025: UpdateSpatialFieldPrimitive requires resultIndex (0-based).
+                        // STING uses a single result schema per manager so 0 is the only valid value.
+                        sfm.UpdateSpatialFieldPrimitive(primId, pts, vals, 0);
                         n++;
                     }
                     catch (Exception ex)
