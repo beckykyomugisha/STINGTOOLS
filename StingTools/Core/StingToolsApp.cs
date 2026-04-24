@@ -84,6 +84,12 @@ namespace StingTools.Core
                 try { ProjectFolderEngine.LoadRootFromConfig(); }
                 catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine config load: {ex.Message}"); }
 
+                // Route BcfEngine warnings into StingLog. BcfEngine.cs lives in
+                // Planscape.Shared.dll (server-compatible, no Revit dependency),
+                // so it can't reference StingLog directly — the hook bridges the
+                // two assemblies without creating a namespace dependency.
+                Planscape.Shared.BCF.BcfEngine.Warn = msg => StingLog.Warn(msg);
+
                 // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.
