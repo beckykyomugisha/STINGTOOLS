@@ -21,6 +21,8 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Placement;
+using StingTools.Core.Validation;
+using StingTools.Core.Visualization;
 
 namespace StingTools.UI.PlacementCenter
 {
@@ -31,7 +33,15 @@ namespace StingTools.UI.PlacementCenter
 
         public PlacementRulesViewModel VM { get; }
         private readonly Document _doc;
+        private readonly UIDocument _uiDoc;
+        private readonly UIApplication _uiApp;
         private bool _suppressUiSync;
+
+        // Phase 127-B — track the most recent placement run so Validate
+        // can scope its findings to "elements just placed" rather than
+        // re-scanning the whole project.
+        private DateTime? _lastRunUtc;
+        private List<ElementId> _lastPlacedIds = new List<ElementId>();
 
         public StingPlacementCenter(UIApplication uiApp)
         {
@@ -44,7 +54,9 @@ namespace StingTools.UI.PlacementCenter
             ThemeManager.InitialiseResources();
 
             VM = new PlacementRulesViewModel();
-            _doc = uiApp?.ActiveUIDocument?.Document;
+            _uiApp = uiApp;
+            _uiDoc = uiApp?.ActiveUIDocument;
+            _doc = _uiDoc?.Document;
 
             // Combo data sources
             cmbCategory.ItemsSource = VM.Categories;
@@ -133,12 +145,162 @@ namespace StingTools.UI.PlacementCenter
                 UpdateStatus();
         }
 
+        // ── Phase 127-B engine wiring ────────────────────────────────
+
         private void OnRunPlacement_Click(object sender, RoutedEventArgs e)
-            => DeferToPhase("Run Placement", "B");
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+
+            var rules = PlacementCenterBridge.ToRules(VM.Rules);
+            if (rules.Count == 0)
+            {
+                TaskDialog.Show("STING — Placement Centre",
+                    "No valid rules to run. Add at least one rule with a non-empty CategoryFilter.");
+                return;
+            }
+
+            var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
+            if (roomIds.Count == 0)
+            {
+                TaskDialog.Show("STING — Placement Centre",
+                    $"Scope '{VM.RunOpts.Scope}' resolved zero rooms. Switch scope or open a view that contains rooms.");
+                return;
+            }
+
+            // Confirm with a summary so the run isn't silently destructive.
+            var confirm = new TaskDialog("STING — Run Placement")
+            {
+                MainInstruction = $"Place fixtures in {roomIds.Count} room(s)?",
+                MainContent = $"Rules: {rules.Count}\nScope: {VM.RunOpts.Scope}\nValidators after: {VM.RunOpts.RunValidators}\n\nThe engine creates new FamilyInstance(s); use Undo or 'Undo last run' (Phase D) to revert.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No,
+            };
+            if (confirm.Show() != TaskDialogResult.Yes) return;
+
+            VM.Status = "Running placement…";
+            UpdateStatus();
+
+            DateTime startUtc = DateTime.UtcNow;
+            PlacementResult result = null;
+            try
+            {
+                using (var tg = new TransactionGroup(_doc, "STING Placement Centre — Run"))
+                {
+                    tg.Start();
+                    using (var t = new Transaction(_doc, "STING PlaceFixtures"))
+                    {
+                        t.Start();
+                        result = FixturePlacementEngine.PlaceFixturesInScope(_doc, roomIds, rules, dryRun: false);
+                        t.Commit();
+                    }
+                    tg.Assimilate();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnRunPlacement", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Run failed: {ex.Message}");
+                VM.Status = $"Run failed: {ex.Message}";
+                UpdateStatus();
+                return;
+            }
+
+            _lastRunUtc = startUtc;
+            _lastPlacedIds = result?.PlacedIds?.ToList() ?? new List<ElementId>();
+            int placed  = _lastPlacedIds.Count;
+            int skipped = result?.SkippedCount ?? 0;
+            int warns   = result?.Warnings?.Count ?? 0;
+
+            VM.Status = $"Placed {placed} · skipped {skipped} · warnings {warns}";
+            UpdateStatus();
+
+            // Optional: validators on what just happened
+            if (VM.RunOpts.RunValidators)
+                ShowFindings(scopeToProvenance: true, headline: "Run + post-validation");
+            else
+                TaskDialog.Show("STING — Placement Centre",
+                    $"Placement run complete.\n\n" +
+                    $"Placed: {placed}\nSkipped: {skipped}\nWarnings: {warns}\n\n" +
+                    "Run Validate now to audit the result, or click Undo last run (Phase D) to revert.");
+        }
+
         private void OnPreview_Click(object sender, RoutedEventArgs e)
-            => DeferToPhase("Preview", "B");
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+
+            var rules = PlacementCenterBridge.ToRules(VM.Rules);
+            if (rules.Count == 0)
+            {
+                TaskDialog.Show("STING — Placement Centre", "No valid rules to preview.");
+                return;
+            }
+            var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
+            if (roomIds.Count == 0)
+            {
+                TaskDialog.Show("STING — Placement Centre",
+                    $"Scope '{VM.RunOpts.Scope}' resolved zero rooms — preview cancelled.");
+                return;
+            }
+            try
+            {
+                var src = new PlacementPreviewSource(_doc, roomIds, rules);
+                PreviewController.Start(_doc.ActiveView, src);
+                VM.Status = $"Preview: {roomIds.Count} room(s) · ESC or click Preview again to clear";
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnPreview", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Preview failed: {ex.Message}");
+            }
+        }
+
         private void OnValidate_Click(object sender, RoutedEventArgs e)
-            => DeferToPhase("Validate", "B");
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            ShowFindings(scopeToProvenance: false, headline: "Project-wide validation");
+        }
+
+        private void ShowFindings(bool scopeToProvenance, string headline)
+        {
+            try
+            {
+                var findings = PlacementCenterBridge.RunValidators(_doc);
+                if (scopeToProvenance && _lastRunUtc.HasValue)
+                {
+                    findings = PlacementCenterBridge.FilterToProvenance(_doc, findings, _lastRunUtc.Value);
+                    headline += " · just-placed only";
+                }
+
+                int errs  = findings.Count(f => f.Severity == ValidationSeverity.Error);
+                int warns = findings.Count(f => f.Severity == ValidationSeverity.Warning);
+                int infos = findings.Count(f => f.Severity == ValidationSeverity.Info);
+
+                var panel = StingResultPanel.Create("STING — Placement Centre · Validation")
+                    .SetSubtitle(headline)
+                    .AddSection("SUMMARY")
+                    .Metric("Total findings", findings.Count.ToString())
+                    .Metric("Errors",   errs.ToString())
+                    .Metric("Warnings", warns.ToString())
+                    .Metric("Info",     infos.ToString());
+
+                if (findings.Count > 0)
+                {
+                    panel.AddSection("FINDINGS (top 40)");
+                    foreach (var f in findings.OrderByDescending(x => x.Severity).Take(40))
+                        panel.Text(f.ToString());
+                }
+                panel.Show();
+
+                VM.Status = $"Validate complete · {errs}e {warns}w {infos}i";
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.ShowFindings", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Validate failed: {ex.Message}");
+            }
+        }
         private void OnPushFamilies_Click(object sender, RoutedEventArgs e)
             => DeferToPhase("Push to Families", "C");
         private void OnHeatmap_Click(object sender, RoutedEventArgs e)
