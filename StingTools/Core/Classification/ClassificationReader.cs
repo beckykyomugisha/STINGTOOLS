@@ -46,28 +46,41 @@ namespace StingTools.Core.Classification
         }
 
         /// <summary>
-        /// BOQ grouping key — prefers the most-specific Uniclass table
-        /// available, falls back to STING_OMNICLASS_23, then the Revit family
-        /// + type name. Guarantees a non-empty key so BOQ rows never collide
-        /// on blank classification.
+        /// Pack 126 / Gap J — single canonical fallback chain used by BOQ /
+        /// COBie / handover / IFC export. Ordered by specificity:
+        ///   1. Uniclass.Pr  (Product)
+        ///   2. Uniclass.Ss  (Systems)
+        ///   3. Uniclass.Ef  (Elements / Functions)
+        ///   4. STING_OMNICLASS_23
+        ///   5. Category / FamilyName / TypeName
+        ///
+        /// Returns (key, source, value). Source is the bucket that won so
+        /// downstream reports can show "via: Uniclass.Pr". Guarantees a
+        /// non-empty key so BOQ rows never collide on blank classification.
         /// </summary>
-        public static string BoqGroupKey(Element el)
+        public static (string key, string source, string value) ResolveFallback(Element el)
         {
             var c = Read(el);
-            if (!string.IsNullOrEmpty(c.UniclassProduct)) return "PR:" + c.UniclassProduct;
-            if (!string.IsNullOrEmpty(c.UniclassSystem))  return "SS:" + c.UniclassSystem;
-            if (!string.IsNullOrEmpty(c.UniclassElement)) return "EF:" + c.UniclassElement;
+            if (!string.IsNullOrEmpty(c.UniclassProduct)) return ("PR:"   + c.UniclassProduct, "Uniclass.Pr",  c.UniclassProduct);
+            if (!string.IsNullOrEmpty(c.UniclassSystem))  return ("SS:"   + c.UniclassSystem,  "Uniclass.Ss",  c.UniclassSystem);
+            if (!string.IsNullOrEmpty(c.UniclassElement)) return ("EF:"   + c.UniclassElement, "Uniclass.Ef",  c.UniclassElement);
 
             Element type = null;
             try { type = el?.Document?.GetElement(el.GetTypeId()); } catch { }
             string omni = type?.LookupParameter("STING_OMNICLASS_23")?.AsString() ?? "";
-            if (!string.IsNullOrEmpty(omni)) return "OMNI:" + omni;
+            if (!string.IsNullOrEmpty(omni)) return ("OMNI:" + omni, "OmniClass23", omni);
 
             string famTypeKey = (type?.Category?.Name ?? "") + "/" +
                                 ((type as ElementType)?.FamilyName ?? "") + "/" +
                                 (type?.Name ?? "");
-            return "NATIVE:" + famTypeKey;
+            return ("NATIVE:" + famTypeKey, "Native.Family", famTypeKey);
         }
+
+        /// <summary>
+        /// BOQ grouping key — back-compat shim around <see cref="ResolveFallback"/>.
+        /// Returns just the key string for callers that don't need provenance.
+        /// </summary>
+        public static string BoqGroupKey(Element el) => ResolveFallback(el).key;
 
         private static string TypeFirst(Element instance, Element type, string name)
         {

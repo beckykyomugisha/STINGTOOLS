@@ -2731,3 +2731,97 @@ pack once the migration has run across at least one full project cycle.
     show an ES entity count with "Legacy shared-only" at zero.
  5. Run Organise ▸ Decluster Tags — behaviour unchanged (the read-site
     now goes through the ES-first path but falls back cleanly).
+
+
+---
+
+#### Completed (Phase 122–126 — Gap A–N follow-up)
+
+Five-pack push closing every gap from the pre-control-centre advisory.
+All offline-safe; pre-migration projects keep working unchanged.
+
+**Pack 122 — A/B/C: hot-path tag history + workflow + drawing-types on ES**
+ - A: TagPipelineHelper.RunFullPipeline dual-writes to
+   StingTagHistorySchema alongside the existing legacy params.
+ - B: StingWorkflowStateSchema on ProjectInformation; WorkflowEngine
+   stamps last-run after every preset; migration command imports the
+   STING_WORKFLOW_LOG.jsonl tail.
+ - C: StingDrawingTypesSchema on ProjectInformation;
+   DrawingTypeRegistry.LoadProjectOverride reads ES first, falls back
+   to _BIM_COORD/drawing_types.json. Migration imports the on-disk JSON.
+
+**Pack 123 — D/E: validator suppression + element-creation provenance**
+ - D: StingValidatorSuppressionSchema per-element ignored-codes list.
+   RunAllValidatorsCommand filters and surfaces the suppression count.
+ - E: StingProvenanceSchema captures Engine + RuleId + CreatedUtc +
+   Operator. FixturePlacementEngine stamps every auto-placed fixture
+   so cleanup / BOQ / "delete auto-created" commands can identify them.
+
+**Pack 124 — F/G/H: pack version + token lineage + connector ES**
+ - F: StingPackVersionSchema on family ProjectInfo;
+   InjectAutomationPresentationPack stamps CurrentPackVersion (=4).
+   Coordinators can run IsStale(doc) to find families needing
+   re-injection.
+ - G: StingTokenLineageSchema captures the source for LOC/ZONE/SYS.
+   TokenAutoPopulator stamps after detection so audit panels answer
+   "why is this in BLD2 not BLD3?" without log-spelunking.
+ - H: StingConnectorMetaSchema replaces CONN_TYPES_TXT comma string
+   with a typed IList<string>. RoutingParamReader prefers ES;
+   AutoDrop and SeparationValidator avoid string-split hot loops.
+
+**Pack 125 — L/M: compliance baseline + per-view preset**
+ - L: StingComplianceBaselineSchema on ProjectInformation;
+   ComplianceScan.Scan() persists the snapshot under its own
+   transaction so trends survive Revit restarts.
+ - M: StingViewPresetSchema per-View stores
+   PresetName + AppliedUtcTicks + OverridesJson for the control /
+   placement centre's "recall layout from L02 sheet" feature.
+
+**Pack 126 — I/J/K/N: JSON schemas + classification fallback + IFC + cost**
+ - I: Three JSON Schema files in Data/Schemas/ for IDE lint of the
+   placement, drawing-types, and fab rule packs. Zero code change.
+ - J: ClassificationReader.ResolveFallback returns
+   (key, source, value) — single canonical chain
+   (Uniclass.Pr → Ss → Ef → OmniClass23 → Native.Family) used by BOQ /
+   COBie / handover / IFC. BoqGroupKey now a back-compat shim.
+ - K: IfcPropertyMapper.Build emits Pset_ClassificationReference (IFC4
+   canonical Uniclass) + Pset_PlanscapeAsset (NBS clause + RFI URL +
+   classification source). Existing IFC export paths can call this to
+   wire §5.5 params into handover IFC files.
+ - N: StingCostRateOverrideSchema per-element override of the
+   cost_rates_5d.csv catalogue rate. Captures Rate + Unit + Note +
+   StampedBy + StampedUtcTicks for the cost report.
+
+**ES schema catalogue after Phases 121–126 (one source of truth)**
+
+| Schema | GUID suffix | Scope | Replaces |
+|---|---|---|---|
+| StingStaleSchema           | 1235 | Element  | STING_STALE_BOOL |
+| StingClusterSchema         | 1236 | Element  | STING_CLUSTER_COUNT/LABEL |
+| StingPositionSchema        | 1237 | Element  | STING_TAG_POS + presence cache |
+| StingTagHistorySchema      | 1238 | Element  | ASS_TAG_PREV_TXT + ASS_TAG_MODIFIED_DT |
+| StingTagLearnedSchema      | 1239 | ProjectInfo | learned_tag_offsets.json |
+| StingWorkflowStateSchema   | 123A | ProjectInfo | STING_WORKFLOW_LOG.jsonl tail |
+| StingDrawingTypesSchema    | 123B | ProjectInfo | _BIM_COORD/drawing_types.json |
+| StingValidatorSuppressionSchema | 123C | Element | (new — no legacy) |
+| StingProvenanceSchema      | 123D | Element  | (new — no legacy) |
+| StingPackVersionSchema     | 123E | ProjectInfo | (new — no legacy) |
+| StingTokenLineageSchema    | 123F | Element  | (new — no legacy) |
+| StingConnectorMetaSchema   | 1240 | Element  | CONN_TYPES_TXT etc. |
+| StingComplianceBaselineSchema | 1241 | ProjectInfo | static cache |
+| StingViewPresetSchema      | 1242 | View     | (new — no legacy) |
+| StingCostRateOverrideSchema | 1243 | Element | (new — no legacy) |
+
+15 schemas total, all under vendor-id "Planscape", all with stable
+deterministic GUIDs that will never rotate.
+
+**Caveats**
+ 1. Built without dotnet build verification (Linux sandbox).
+ 2. Pack 124/G stamps lineage via a sysLayer enum that only some
+    populate paths set; family-default and fallback layers may be
+    over-counted on first releases.
+ 3. Pack 125/L ring-buffer is empty until the next Phase ships the
+    daily-rollover job.
+ 4. Pack 126/K IfcPropertyMapper is a builder — the existing IFC
+    export code paths still need a one-line call-site to consume the
+    psets it produces.
