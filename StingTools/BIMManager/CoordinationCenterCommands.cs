@@ -295,7 +295,7 @@ namespace StingTools.BIMManager
                     smtp.Send(msg);
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Email send failed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Error("Email send failed", ex); }
         }
 
         // ── Generic Webhook ──
@@ -326,7 +326,7 @@ namespace StingTools.BIMManager
                 if (!response.IsSuccessStatusCode)
                     StingLog.Warn($"Webhook POST {url}: {response.StatusCode}");
             }
-            catch (Exception ex) { StingLog.Warn($"Webhook POST failed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Error($"Webhook POST {url} failed", ex); }
         }
     }
 

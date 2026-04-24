@@ -848,7 +848,8 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex)
             {
-                try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); } catch { }
+                try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); }
+                catch (Exception cleanupEx) { StingLog.Warn($"BCF extract-dir cleanup suppressed: {cleanupEx.Message}"); }
                 return $"Failed to extract BCF: {ex.Message}";
             }
 

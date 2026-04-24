@@ -45,14 +45,14 @@ namespace StingTools.BIMManager
         {
             if (!File.Exists(path)) return new JArray();
             try { return JArray.Parse(File.ReadAllText(path)); }
-            catch (Exception ex) { StingLog.Warn($"LoadJsonArray failed: {ex.Message}"); return new JArray(); }
+            catch (Exception ex) { StingLog.Error($"LoadJsonArray failed ({path})", ex); return new JArray(); }
         }
 
         internal static JObject LoadJsonObject(string path)
         {
             if (!File.Exists(path)) return new JObject();
             try { return JObject.Parse(File.ReadAllText(path)); }
-            catch (Exception ex) { StingLog.Warn($"LoadJsonObject failed: {ex.Message}"); return new JObject(); }
+            catch (Exception ex) { StingLog.Error($"LoadJsonObject failed ({path})", ex); return new JObject(); }
         }
 
         /// <summary>Atomic JSON write using temp file + replace. GF-001 FIX:
