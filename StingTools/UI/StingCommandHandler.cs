@@ -2267,6 +2267,13 @@ namespace StingTools.UI
                     // Family tooling (FamilyParamCreatorCommand.cs, StingTools.Tags)
                     case "FamilyParamCreator": RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
 
+                    // Family quick-edit (FamilyQuickEditCommands.cs, StingTools.Tags) —
+                    // rehost, swap category, inject automation pack, quick-edit dialog
+                    case "FamilyQuickEdit":          RunCommand<Tags.OpenFamilyQuickEditCommand>(app); break;
+                    case "FamilyChangeHost":         RunCommand<Tags.ChangeHostCommand>(app); break;
+                    case "FamilySwapCategory":       RunCommand<Tags.SwapCategoryCommand>(app); break;
+                    case "FamilyInjectAutomationPack": RunCommand<Tags.InjectAutomationPackCommand>(app); break;
+
                     // Compliance reporting (TokenWriterCommands.cs, StingTools.Tags)
                     case "DiscComplianceReport": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
 

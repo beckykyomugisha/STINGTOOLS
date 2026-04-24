@@ -2270,6 +2270,22 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- FAMILY QUICK EDIT — inline family fixes without opening the family editor -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="FAMILY QUICK EDIT"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#582C83">
+                            <StackPanel>
+                                <TextBlock Text="Select a family instance, then click." FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="★ Family Quick Edit" Tag="FamilyQuickEdit" Click="Cmd_Click" ToolTip="Open the family quick-edit dialog — launches host / category / param-pack actions on the selected instance" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Change Host" Tag="FamilyChangeHost" Click="Cmd_Click" ToolTip="Rehost this wall-based family instance to a different wall (delete + recreate, preserves parameters)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Swap Category" Tag="FamilySwapCategory" Click="Cmd_Click" ToolTip="Change the family's category via EditFamily + reload (Generic Model ↔ Furniture ↔ Equipment etc.)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Automation Pack" Tag="FamilyInjectAutomationPack" Click="Cmd_Click" ToolTip="Inject clearance, fire rating, acoustic, cost, CO₂, manufacturer, model, datasheet URL, warranty, LOD switches, workset hint, OmniClass"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Family Params" Tag="FamilyParamCreator" Click="Cmd_Click" ToolTip="Batch-inject STING shared parameters into .rfa files"/>
+                                </WrapPanel>
+                                <TextBlock Text="Rehost · recategorise · inject params — all without leaving the project." FontSize="8" Foreground="#AAA" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- DWG TO MODEL -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="DWG TO MODEL"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">

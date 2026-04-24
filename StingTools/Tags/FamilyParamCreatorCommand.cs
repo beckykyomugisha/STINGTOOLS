@@ -143,6 +143,12 @@ namespace StingTools.Tags
             /// Default false — TAG_POS is already added via ParamNames if requested.</summary>
             public bool InjectTagPos { get; set; } = false;
 
+            /// <summary>When true, inject the automation + presentation parameter pack
+            /// (clearance, fire rating, acoustic Rw, cost, CO2, manufacturer, model,
+            /// datasheet URL, warranty, LOD visibility switches, workset hint, OmniClass).
+            /// All family-local type parameters. See <see cref="InjectAutomationPresentationPack"/>.</summary>
+            public bool InjectAutomationPack { get; set; } = false;
+
             /// <summary>Scope of the purge run before parameter injection. Default <see cref="PurgeMode.None"/>
             /// (pure additive). <see cref="PurgeMode.NonSting"/> strips third-party / legacy shared parameters
             /// whose GUID is not in <see cref="ParamRegistry.AllParamGuids"/> — intended for the
@@ -191,6 +197,10 @@ namespace StingTools.Tags
             public int PositionTypesCreated { get; set; }
             public int TokensSeeded { get; set; }
             public int CobiePropsWritten { get; set; }
+            /// <summary>Count of automation/presentation pack params added (0 when InjectAutomationPack=false).</summary>
+            public int AutomationPackAdded { get; set; }
+            /// <summary>Count of automation/presentation pack params skipped because already present.</summary>
+            public int AutomationPackSkipped { get; set; }
             /// <summary>Count of shared parameters removed by the pre-injection purge (0 when Purge=None).</summary>
             public int ParamsPurged { get; set; }
             /// <summary>True when LoadAfterSave succeeded. False when LoadAfterSave=false, TargetProjectDoc=null, or the load call threw.</summary>
@@ -539,6 +549,93 @@ namespace StingTools.Tags
         /// rotates placed tags by swapping to other named types (1x-E, 1x-S, 1x-W, 1x-NE, etc.).
         /// </summary>
         public const string DefaultPositionTypeName = "2.5mm - 1x-N";
+
+        /// <summary>
+        /// Automation + Presentation parameter pack. Family-local (non-shared) type
+        /// parameters that don't require an entry in MR_PARAMETERS.txt. They complement
+        /// the shared STING schema with fields that drive scheduling, costing, carbon
+        /// tracking, LOD visibility, and O&amp;M handover without GUID overhead.
+        ///
+        /// All Type parameters. Idempotent (skip if already present). Failures on a
+        /// single parameter do not abort the pack — each Add is wrapped in its own try.
+        /// </summary>
+        public static (int added, int skipped) InjectAutomationPresentationPack(Document famDoc)
+        {
+            int added = 0, skipped = 0;
+            if (famDoc == null || !famDoc.IsFamilyDocument) return (0, 0);
+
+            try
+            {
+                FamilyManager fm = famDoc.FamilyManager;
+                var existing = fm.GetParameters()
+                    .Select(p => p.Definition.Name)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                // (name, spec, group) — all Type parameters (isInstance: false).
+                // Spec choices kept conservative: Length / Integer / Number / Text / YesNo.
+                // Currency, Url, Image intentionally avoided — API availability varies
+                // across 2025/2026/2027 and some require shared-param GUIDs to schedule.
+                // Using GroupTypeId.General uniformly — matches every other
+                // AddParameter call-site in STING and avoids group-name drift
+                // between Revit 2025 / 2026 / 2027 API versions.
+                var pack = new (string name, ForgeTypeId spec)[]
+                {
+                    // Automation / design
+                    ("STING_CLEARANCE_MM",         SpecTypeId.Length),
+                    ("STING_FIRE_RATING_MIN",      SpecTypeId.Int.Integer),
+                    ("STING_ACOUSTIC_RW_DB",       SpecTypeId.Int.Integer),
+                    // 5D + sustainability (feeds SchedulingCommands + SustainabilityEngine)
+                    ("STING_COST_UNIT",            SpecTypeId.Number),
+                    ("STING_CO2_KG",               SpecTypeId.Number),
+                    // O&M / handover (feeds COBie export)
+                    ("STING_MANUFACTURER",         SpecTypeId.String.Text),
+                    ("STING_MODEL_NR",             SpecTypeId.String.Text),
+                    ("STING_URL_DATASHEET",        SpecTypeId.String.Text),
+                    ("STING_WARRANTY_MO",          SpecTypeId.Int.Integer),
+                    // LOD visibility switches (drive single-family multi-LOD presentation)
+                    ("STING_LOD_COARSE_VISIBLE",   SpecTypeId.Boolean.YesNo),
+                    ("STING_LOD_MEDIUM_VISIBLE",   SpecTypeId.Boolean.YesNo),
+                    ("STING_LOD_FINE_VISIBLE",     SpecTypeId.Boolean.YesNo),
+                    // Coordination hints
+                    ("STING_WORKSET_HINT",         SpecTypeId.String.Text),
+                    ("STING_OMNICLASS_23",         SpecTypeId.String.Text),
+                };
+
+                foreach (var (name, spec) in pack)
+                {
+                    if (existing.Contains(name)) { skipped++; continue; }
+                    try
+                    {
+                        fm.AddParameter(name, GroupTypeId.General, spec, false); // type param
+                        added++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"InjectAutomationPresentationPack '{name}': {ex.Message}");
+                        skipped++;
+                    }
+                }
+
+                // Seed sensible defaults for the LOD switches — default to all visible
+                // so existing behaviour is preserved. Authors can then wire geometry
+                // groups to the three booleans and flip them per LOD.
+                foreach (string lodParam in new[] { "STING_LOD_COARSE_VISIBLE", "STING_LOD_MEDIUM_VISIBLE", "STING_LOD_FINE_VISIBLE" })
+                {
+                    try
+                    {
+                        var fp = fm.GetParameters().FirstOrDefault(p => p.Definition.Name == lodParam);
+                        if (fp != null && fm.CurrentType != null) fm.Set(fp, 1);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"InjectAutomationPresentationPack seed '{lodParam}': {ex.Message}"); }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("InjectAutomationPresentationPack", ex);
+            }
+
+            return (added, skipped);
+        }
 
         /// <summary>
         /// Seed default DISC, PROD, SYS, FUNC, TAG_POS type parameters into the family.
@@ -895,6 +992,14 @@ namespace StingTools.Tags
                         result.PositionTypesCreated = InjectPositionTypes(famDoc);
                     }
 
+                    // Automation + Presentation pack (family-local type parameters)
+                    if (opts.InjectAutomationPack)
+                    {
+                        var (apAdded, apSkipped) = InjectAutomationPresentationPack(famDoc);
+                        result.AutomationPackAdded = apAdded;
+                        result.AutomationPackSkipped = apSkipped;
+                    }
+
                     tx.Commit();
                 }
 
@@ -1242,6 +1347,13 @@ namespace StingTools.Tags
 
                     if (opts.CreatePositionTypes && result.TagPosInjected)
                         result.PositionTypesCreated = InjectPositionTypes(famDoc);
+
+                    if (opts.InjectAutomationPack)
+                    {
+                        var (apAdded, apSkipped) = InjectAutomationPresentationPack(famDoc);
+                        result.AutomationPackAdded = apAdded;
+                        result.AutomationPackSkipped = apSkipped;
+                    }
 
                     tx.Commit();
                 }
