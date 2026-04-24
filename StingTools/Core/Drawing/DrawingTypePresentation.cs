@@ -24,6 +24,8 @@ namespace StingTools.Core.Drawing
             public bool ScaleApplied       { get; set; }
             public bool DetailLevelApplied { get; set; }
             public bool TemplateApplied    { get; set; }
+            public bool PackApplied        { get; set; }
+            public bool CropApplied        { get; set; }
             public AnnotationRunStats Annotation { get; set; }
             public System.Collections.Generic.List<string> Warnings { get; } = new System.Collections.Generic.List<string>();
         }
@@ -33,6 +35,18 @@ namespace StingTools.Core.Drawing
             var r = new ApplyResult();
             if (doc == null || view == null || dt == null) return r;
             if (view.IsTemplate) return r;
+
+            // Week 3 — stamp the DrawingType id so the Project Browser
+            // organizer, the style-propagation IUpdater, and downstream
+            // audits all know which profile produced this view. No-op
+            // on projects where the shared param has not been bound;
+            // no-op when user has locked the view's style.
+            if (DrawingTypeStamper.IsLocked(view))
+            {
+                r.Warnings.Add($"View {view.Id} is style-locked; presentation skipped.");
+                return r;
+            }
+            DrawingTypeStamper.Stamp(view, dt.Id);
 
             // Scale -------------------------------------------------------
             if (dt.Scale > 0)
@@ -87,6 +101,35 @@ namespace StingTools.Core.Drawing
                     }
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewTemplate: {ex.Message}"); }
+            }
+
+            // Crop strategy (bonus) -------------------------------------
+            if (dt.Crop != null)
+            {
+                try
+                {
+                    var cropWarns = DrawingCropApplier.Apply(doc, view, dt);
+                    r.Warnings.AddRange(cropWarns);
+                    r.CropApplied = true;
+                }
+                catch (Exception ex) { r.Warnings.Add($"CropApplier: {ex.Message}"); }
+            }
+
+            // View Style Pack (shared graphic overrides) ---------------
+            if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            {
+                try
+                {
+                    var pack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
+                    if (pack != null)
+                    {
+                        var packStats = ViewStylePackApplier.Apply(doc, view, pack);
+                        r.PackApplied = true;
+                        r.Warnings.AddRange(packStats.Warnings);
+                    }
+                    else r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
+                }
+                catch (Exception ex) { r.Warnings.Add($"ViewStylePack: {ex.Message}"); }
             }
 
             // Annotation pass --------------------------------------------

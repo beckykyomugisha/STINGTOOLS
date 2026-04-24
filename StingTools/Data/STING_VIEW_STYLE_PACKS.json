@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "_comment": "STING View Style Packs. Shared visual style payloads referenced by DrawingType.viewStylePackId. Override per project via <project>/_BIM_COORD/view_style_packs.json. Project entries win by id. Extends resolved at load-time so consumers see a merged snapshot.",
+  "viewStylePacks": [
+    {
+      "id": "corp-base",
+      "name": "Corporate Base (root of extends chain)",
+      "description": "All other packs extend this. Only set fields here that are invariant across every corporate output.",
+      "origin": "corporate",
+      "lineWeightScale": 1.0,
+      "textStyle": "STING - 2.5mm",
+      "dimensionStyle": "STING - Linear",
+      "hatchPalette": "ISO 13567 monochrome",
+      "vgOverrides": {
+        "Grids":           { "halftone": true, "projectionLineWeight": 3 },
+        "Levels":          { "halftone": true, "projectionLineWeight": 3 },
+        "Scope Boxes":     { "halftone": true },
+        "<Room Separation>": { "halftone": true }
+      }
+    },
+    {
+      "id": "corp-standard-plan",
+      "name": "Corporate Standard Plan",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "tagFamilies": {
+        "Rooms":   "STING_TAG_ROOM",
+        "Doors":   "STING_TAG_DOOR",
+        "Windows": "STING_TAG_WINDOW"
+      },
+      "filters": [
+        { "filterName": "Fire-Rated Walls",    "projectionLineColor": "#D43A2F", "projectionLineWeight": 5 },
+        { "filterName": "Existing to Remain",  "halftone": true, "transparency": 50 },
+        { "filterName": "Demolished",          "projectionLineColor": "#888888", "halftone": true }
+      ]
+    },
+    {
+      "id": "corp-standard-rcp",
+      "name": "Corporate Standard RCP",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "vgOverrides": {
+        "Walls":   { "halftone": true, "transparency": 30 },
+        "Floors":  { "halftone": true }
+      },
+      "tagFamilies": {
+        "Rooms":            "STING_TAG_ROOM",
+        "Ceilings":         "STING_TAG_CEILING",
+        "LightingFixtures": "STING_TAG_LIGHT"
+      }
+    },
+    {
+      "id": "corp-standard-section",
+      "name": "Corporate Standard Section",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "lineWeightScale": 1.0,
+      "vgOverrides": {
+        "Grids":  { "halftone": true, "projectionLineWeight": 2 },
+        "Levels": { "halftone": false, "projectionLineWeight": 4 }
+      }
+    },
+    {
+      "id": "corp-standard-elevation",
+      "name": "Corporate Standard Elevation",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "vgOverrides": {
+        "Walls":           { "projectionLineWeight": 3 },
+        "<Reference Lines>": { "halftone": true }
+      }
+    },
+    {
+      "id": "corp-standard-detail",
+      "name": "Corporate Standard Detail (1:20 / 1:10 / 1:5)",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "lineWeightScale": 1.2,
+      "textStyle": "STING - 2.0mm",
+      "dimensionStyle": "STING - Ordinate"
+    },
+    {
+      "id": "corp-fabrication-shop",
+      "name": "Corporate Fabrication Shop Drawing",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "lineWeightScale": 1.1,
+      "textStyle": "STING - 2.0mm Shop",
+      "dimensionStyle": "STING - Ordinate",
+      "hatchPalette": "Fabrication high-contrast",
+      "tagFamilies": {
+        "PipeFitting":  "STING_TAG_WELD",
+        "PipeAccessory":"STING_TAG_FIT",
+        "DuctFitting":  "STING_TAG_DUCT_FIT"
+      }
+    },
+    {
+      "id": "corp-presentation-rich",
+      "name": "Corporate Presentation (colour, halftone links)",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "lineWeightScale": 0.8,
+      "textStyle": "STING - 3.0mm Presentation",
+      "hatchPalette": "Rich materials",
+      "vgOverrides": {
+        "Grids":  { "halftone": true, "projectionLineWeight": 1 },
+        "Levels": { "halftone": true, "projectionLineWeight": 1 },
+        "RVT Links": { "halftone": true, "transparency": 35 }
+      },
+      "filters": [
+        { "filterName": "Neighbour Buildings", "halftone": true, "transparency": 60 }
+      ]
+    },
+    {
+      "id": "corp-presentation-mono",
+      "name": "Corporate Presentation Mono (black + halftone)",
+      "extends": "corp-presentation-rich",
+      "origin": "corporate",
+      "hatchPalette": "Monochrome line",
+      "filters": [
+        { "filterName": "Context",            "halftone": true, "transparency": 70 },
+        { "filterName": "Neighbour Buildings","halftone": true, "transparency": 80 }
+      ]
+    },
+    {
+      "id": "corp-coordination",
+      "name": "Corporate Coordination Overlay",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "vgOverrides": {
+        "RVT Links": { "halftone": true, "transparency": 50 },
+        "Grids":     { "halftone": true, "projectionLineWeight": 1 }
+      }
+    },
+    {
+      "id": "corp-clarification",
+      "name": "Corporate Clarification / Markup (red)",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "textStyle": "STING - 2.5mm Red",
+      "filters": [
+        { "filterName": "Clarification",     "projectionLineColor": "#D43A2F", "projectionLineWeight": 6 },
+        { "filterName": "Query",             "projectionLineColor": "#D43A2F", "halftone": false }
+      ]
+    }
+  ]
+}

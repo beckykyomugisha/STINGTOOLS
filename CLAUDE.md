@@ -161,9 +161,30 @@ Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.Sub
 | `DrawingTypes_Inspect` | `DrawingTypesInspectCommand` | Read-only diagnostic: lists all types + routing + validation issues |
 | `DrawingTypes_Reload` | `DrawingTypesReloadCommand` | Force registry cache refresh after editing JSON on disk |
 
-### Built-in corporate catalogue (15)
+### Built-in corporate catalogue (40)
 
-Shipped in `Data/STING_DRAWING_TYPES.json`: `arch-plan-A1-1to100`, `arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `struct-plan-A1-1to100`, `struct-section-A1-1to50`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`, `pipe-spool-A1-1to50`, `duct-spool-A1-1to50`, `elec-riser-A2-1to100`, `door-schedule-A2`, `handover-A1`, `legend-A2`.
+Shipped in `Data/STING_DRAWING_TYPES.json`. Core 15 (phase 113 foundation): `arch-plan-A1-1to100`, `arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `struct-plan-A1-1to100`, `struct-section-A1-1to50`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`, `pipe-spool-A1-1to50`, `duct-spool-A1-1to50`, `elec-riser-A2-1to100`, `door-schedule-A2`, `handover-A1`, `legend-A2`.
+
+Week 1 expansion adds 17 production types covering the AEC/FM lifecycle:
+
+| Discipline | Added types |
+|---|---|
+| Architectural | `arch-site-A1-1to500`, `arch-roof-A1-1to100`, `arch-floor-finishes-A1-1to100`, `arch-fire-strategy-A1-1to100`, `arch-accessibility-A1-1to100`, `arch-interior-elev-A1-1to50`, `arch-window-schedule-A2` |
+| Structural    | `struct-foundation-A1-1to100`, `struct-rebar-detail-A3-1to20` |
+| Mechanical    | `mep-hvac-duct-A1-1to100`, `mep-plantroom-A1-1to50` |
+| Electrical    | `elec-power-A1-1to100`, `elec-lighting-A1-1to100`, `elec-fire-alarm-A1-1to100` |
+| Public Health | `plumb-drainage-A1-1to100` |
+| FM / handover | `fm-asset-location-A1-1to100` |
+| Coordination  | `coord-clash-A1-1to50` |
+
+Presentation + clarification pack adds 8 client-facing types (all print with `colourScheme: PresentationRich` or `ClarificationRed`, lighter line weights, minimal grid/room tagging):
+
+| Purpose | Types |
+|---|---|
+| Client presentation | `pres-3d-axon-A1` (3D + key plan + caption), `pres-perspective-A1` (full-bleed perspective), `pres-exterior-elev-A1` (material callouts, mono halftone), `pres-render-board-A1` (4-up renders), `pres-context-site-A1` (aerial + legend + caption) |
+| Clarification       | `clar-markup-A1` (plan + query log + revision strip), `clar-rfi-A3` (single-issue A3 sketch + question + revision), `clar-design-intent-A1` (plan + 3D + narrative + materials strip) |
+
+Routing table grew to 43 rules covering doc types: `SITE`, `ROOF_PLAN`, `FLOOR_FINISHES`, `FIRE_STRATEGY`, `ACCESSIBILITY`, `INTERIOR_ELEVATION`, `WIN_SCHEDULE`, `FOUNDATION`, `REBAR_DETAIL`, `HVAC_DUCT`, `PLANTROOM`, `POWER`, `LIGHTING`, `FIRE_ALARM`, `DRAINAGE`, `ASSET_LOCATION`, `CLASH`, `PERSPECTIVE`, `RENDER_BOARD`, `CONTEXT`, `DESIGN_INTENT`, `CLARIFICATION`, `RFI`; presentation rules match on `phase: PRESENTATION` so the same discipline can dispatch to production vs presentation types by phase.
 
 ### Project-scoped overrides
 
@@ -177,15 +198,61 @@ Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json
 2. Drawing Type resolved by `DrawingDispatcher.Resolve(doc, disc, "*", Spool)` — `pipe-spool-A1-1to50` / `duct-spool-A1-1to50`
 3. Historic hard-coded per-discipline dict + session sequence counter
 
-Phase II will wire `DocAutomationExtCommands.BatchSectionsCommand` / `BatchElevationsCommand` / `BatchSheetsCommand` and `SheetManagerCommands.CreateFromTemplateCommand` into the same registry, retiring the hard-coded templates in `SheetTemplateEngine.cs` in favour of the JSON catalogue.
+Phase II (complete, commit `384a374b`) wired `DocAutomationExtCommands.BatchSectionsCommand` / `BatchElevationsCommand` / `BatchSheetsCommand` into the registry via `DrawingTypePresentation.Apply`; each falls back to its historic template search when no profile matches. `SheetManagerCommands.CreateFromTemplateCommand` still uses the hard-coded 6 C# templates in `SheetTemplateEngine.cs` — Phase III follow-up.
+
+### Week 2–6 enhancements (complete)
+
+**Week 2 — ViewStylePack shared-style layer** (`Core/Drawing/ViewStylePack.cs`, `ViewStylePackRegistry.cs`, `ViewStylePackApplier.cs`). Factors graphic overrides / filters / VG overrides / text+dim styles / tag-family maps out of `DrawingType` so the 40 profiles share ~11 visual packs. `DrawingType.ViewStylePackId` references a pack by id; `Extends` field on packs supports inheritance chains. Shipped as `Data/STING_VIEW_STYLE_PACKS.json`: `corp-base`, `corp-standard-plan`, `corp-standard-rcp`, `corp-standard-section`, `corp-standard-elevation`, `corp-standard-detail`, `corp-fabrication-shop`, `corp-presentation-rich`, `corp-presentation-mono`, `corp-coordination`, `corp-clarification`. Applier walks the extends chain, resolves category names / BIC strings / subcategory `<brackets>` → ElementId, writes `OverrideGraphicSettings` on categories + filters.
+
+**Week 3 — Parameter stamping + browser organizer** (`Core/Drawing/DrawingTypeStamper.cs`, `Commands/Drawing/DrawingBrowserOrganizerCommand.cs`). Two new shared parameters written onto every view/sheet a generator creates: `STING_DRAWING_TYPE_ID_TXT` and `STING_STYLE_LOCKED_BOOL`. Stamper is workshared-safe (`WorksharingUtils.GetCheckoutStatus` gate). Browser Organizer creates `'STING - by Drawing Type'` organizations for views + sheets, keyed off the shared param GUID via `FolderItemsParameter`. `DrawingTypes_BrowserOrganize` button in DOCS.
+
+**Week 4 — SyncStyles + drift detection** (`Core/Drawing/DrawingDriftDetector.cs`, `Commands/Drawing/DrawingSyncStylesCommand.cs`). Detector scans every stamped view, reports SCALE / DETAIL / TEMPLATE drift. SyncStyles shows first-10 preview, on confirm re-runs `DrawingTypePresentation.Apply` (annotation off to avoid re-dimensioning) against each drifted view. Skips `STING_STYLE_LOCKED_BOOL == 1`. Inspect command surfaces drift count in its headline. `DrawingTypes_SyncStyles` button in DOCS.
+
+**Week 5 — Scope-box auto-binding** (`Core/Drawing/ScopeBoxBinder.cs`, `Commands/Drawing/GenerateFromScopeBoxesCommand.cs`). Scope boxes named `STING::<drawing-type-id>::<level-code?>::<tag?>` auto-bind to a profile. One command creates views + applies the profile + crops to the scope box. Idempotent — re-run finds existing stamped views and re-applies rather than duplicating. `DrawingTypes_FromScopeBoxes` button in DOCS.
+
+**Week 6 — Conditional routing + profile inheritance**. `DrawingRoutingRule` gains 5 optional regex predicates: `disciplineMatches`, `phaseMatches`, `docTypeMatches`, `levelMatches`, `projectCodeMatches`; all set predicates must match (logical AND). `DrawingDispatcher.Resolve(doc, disc, phase, docType, levelCode)` new level-aware overload; existing 4-arg form delegates. `DrawingType.Extends` field + `DrawingTypeRegistry.ResolveExtends` fold parent → child at lookup time with loop detection, mirror of the pack extends chain.
+
+**Bonus — DrawingCropApplier**. Executes the previously-declarative `DrawingType.Crop`: `ScopeBox`, `ScopeBoxOrBbox`, `TightBbox`, `RoomBoundary`, `None`. mm margins, element-bbox unions, scope-box resolution by name. Wired into `DrawingTypePresentation.Apply` between view-template and style-pack steps.
+
+**Bonus (4) — Title-block parameter binding**. `DrawingType.TitleBlockParams` (Dictionary<string,string>) binds title-block instance parameters declaratively. `Core/Drawing/TitleBlockParamApplier.cs` resolves the value template with two substitution kinds: `${PRJ_ORG_xxx}` (reads from `ProjectInformation` by parameter name) and `{disc}/{lvl}/{sys}/{spool}/{mark}/{seq:Dn}` (caller-supplied token dict). Unknown tokens pass through literal. Handles String / Integer / Double storage types; warns on unparsable numeric input. Wired into `ShopDrawingComposer.ApplySheetMetadata` so fabrication sheets get both hard-coded fab cells (spool, weight, FAB_LOC, status, BOM rev) and declarative corporate cells (client, project code, suitability, revision, sheet number). Editor gets a new 'Title-block parameter binding' card — row-per-param, rename-key-preserves-value. Three shipped profiles seeded with examples: `arch-plan-A1-1to100` (10 params), `pipe-spool-A1-1to50` (12 params), `pres-3d-axon-A1` (9 params).
+
+**Phase III — SheetManager integration (complete)**. `SheetManager.CreateFromTemplateCommand` picker now lists Drawing Type profiles alongside the 6 built-in SheetTemplates + user-saved ones. `Docs/DrawingTypeSheetAdapter.cs` converts `DrawingType → SheetTemplate` on pick (slot coords pass through verbatim; both use 0..1-over-drawable-zone). Title-block resolution prefers the profile's declared family when loaded, else falls through to the historic picker. Post-create step stamps `STING_DRAWING_TYPE_ID_TXT` and runs `TitleBlockParamApplier` so every sheet from the profile path is registry-tracked and title-block-populated. Retires the last non-registry drawing-production path — every sheet-creation entry point now routes through the same profile catalogue.
+
+### Pipeline order (final)
+
+`DrawingTypePresentation.Apply(doc, view, dt)` runs:
+
+1. **Lock check** — `DrawingTypeStamper.IsLocked` → skip
+2. **Stamp** `STING_DRAWING_TYPE_ID_TXT`
+3. **Scale** `view.Scale = dt.Scale`
+4. **Detail level** `view.DetailLevel = dt.DetailLevel`
+5. **View template** lookup by name + apply
+6. **Crop strategy** via `DrawingCropApplier`
+7. **View style pack** resolve + `ViewStylePackApplier.Apply`
+8. **Annotation pass** via `AnnotationRunner` (auto-dim + auto-tag)
+
+For sheet creation (fabrication composer, SheetManager CreateFromTemplate), an additional pair runs after the sheet is minted:
+
+9. **DrawingType stamp** via `DrawingTypeStamper.Stamp(sheet, dt.Id)`
+10. **Title-block param binding** via `TitleBlockParamApplier.Apply(doc, sheet, dt, tokens)` — `${PRJ_ORG_xxx}` + `{disc}/{lvl}/{sys}/{spool}/{mark}/{seq:Dn}` resolved against ProjectInformation + caller's token dict.
+
+Every step is try/catch-wrapped; warnings collect into `ApplyResult.Warnings`, the run continues on failures.
+
+### Week 7 — ViewStylePack editor tab
+
+`DrawingTypeEditorDialog` is now a two-tab editor. Tab 1 "Drawing Types" is the original content unchanged. Tab 2 "View Style Packs" mirrors the same shape — search-filtered list on the left with `＋ New / Clone / Delete`, scrollable form on the right with five cards: Identity (id / name / description / **extends parent id combo** / origin), Appearance (lineWeightScale, textStyle, dimensionStyle, hatchPalette), Filter rules (row-per-rule grid: name / Visible / Halftone / projection colour+weight / cut colour+weight / transparency / × delete), VG overrides (per-category row grid with same cells + rename-key-preserves-value), Tag families (category → family-name map).
+
+Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Edits to corporate packs silently flip `origin` to `project` via `ViewStylePackRegistry.ComputeChecksums` drift detection, same mechanism Drawing Types use.
+
+The tab is a pure UI layer on top of the Week 2 data model — no changes to `ViewStylePack` / `ViewStylePackRegistry` / `ViewStylePackApplier`.
 
 ### Caveats (Drawing Template Manager)
 
 1. Built without `dotnet build` verification (Linux sandbox).
-2. Phase I only wires fabrication — `BatchSections` / `BatchElevations` / `BatchSheets` and the Sheet Manager's `CreateFromTemplate` keep their current behaviour until Phase II.
-3. No editor UI yet; users edit JSON by hand or via the `_BIM_COORD/drawing_types.json` project override, then run `DrawingTypes_Reload`.
-4. `AnnotationRulePack` is a declarative payload — the annotation pass that consumes it (auto-dim grids, tag-rooms, weld-tag runs) is out of scope for Phase I. The flags are honoured only by the profile validator today; generator consumption follows in the annotation-automation phase.
-5. The 15 built-ins reference title-block / view-template / tag-family names that projects must supply; the validator reports missing assets as Warnings (not Errors) so the JSON ships usable on a stock project.
+2. The 40 corporate drawing types + 11 style packs reference title-block / view-template / tag-family names that projects must supply; the validator reports missing assets as Warnings (not Errors) so the JSON ships usable on a stock project.
+3. Crop strategy `RoomBoundary` falls back to `TightBbox` when no rooms are in the view; plan views that should be room-bounded need rooms placed first.
+4. `IUpdater`-based live style propagation (automatic re-apply when a profile / pack changes in-session) is not implemented — the manual `SyncStyles` command covers the same ground on demand. Runtime cost vs. always-on drift-zero trade-off means this stays deferred.
+5. `TitleBlockParamApplier` writes the first title-block instance found on a sheet. Sheets hosting multiple title blocks (unusual) only get the first one populated — the applier warns and moves on.
 
 ## Template Engine v1.1 (Phase 112)
 

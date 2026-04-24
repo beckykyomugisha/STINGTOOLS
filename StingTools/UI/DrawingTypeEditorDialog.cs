@@ -46,6 +46,13 @@ namespace StingTools.UI
         private static readonly Color FgColor     = Colors.White;
         private static readonly Color SubtleColor = Color.FromRgb(0xAA, 0xAA, 0xAA);
 
+        // Inputs render black-on-white — readable regardless of whether
+        // Revit's WPF host honours our dark Background on input chrome.
+        // Labels / cards / checkboxes keep the FgColor (white) palette.
+        private static readonly Color InputBg     = Colors.White;
+        private static readonly Color InputFg     = Colors.Black;
+        private static readonly Color InputBorder = Color.FromRgb(0xBB, 0xBB, 0xBB);
+
         // ── state ──
         private readonly Document _doc;
         private readonly List<DrawingType> _types;       // working copy
@@ -55,13 +62,26 @@ namespace StingTools.UI
         private StackPanel _formHost;                    // right-hand form container
         private TextBlock _validationStrip;
 
+        // ── pack-tab state (Week 7) ──
+        private readonly List<ViewStylePack> _packs;     // working copy
+        private ViewStylePack _currentPack;
+        private ListBox _lbPacks;
+        private TextBox _tbPackSearch;
+        private StackPanel _packFormHost;
+
         public DrawingTypeEditorDialog(Document doc)
         {
             _doc = doc;
-            // Deep-clone the registry entries so cancel reverts cleanly.
+            // Deep-clone registry entries so Cancel reverts cleanly.
             var lib = DrawingTypeRegistry.GetLibrary(doc);
             _types = (lib?.DrawingTypes ?? new List<DrawingType>())
                 .Select(Clone).ToList();
+
+            // Pack tab — load the raw library (pre-extends-merge) so the
+            // editor shows the authored hierarchy, not the flattened view.
+            var packLib = ViewStylePackRegistry.GetLibrary(doc);
+            _packs = (packLib?.Packs ?? new List<ViewStylePack>())
+                .Select(ClonePack).ToList();
 
             Title = "STING — Drawing Type Editor";
             Width = 1080; Height = 720;
@@ -80,33 +100,91 @@ namespace StingTools.UI
 
             Content = BuildLayout();
             if (_types.Count > 0) SelectType(_types[0]);
+            if (_packs.Count > 0) SelectPack(_packs[0]);
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  LAYOUT — 2-column: left = list, right = form
+        //  LAYOUT — TabControl wrapping two side-by-side editors:
+        //  tab 1 = Drawing Types (list + form + validation)
+        //  tab 2 = View Style Packs (list + form)
+        //  shared footer with Save / Close runs against whichever tab
+        //  is active; Save routes to drawing_types.json or
+        //  view_style_packs.json depending on selected tab.
         // ═══════════════════════════════════════════════════════════════
+
+        private TabControl _tabs;   // so Save() knows which side to persist
 
         private UIElement BuildLayout()
         {
             var root = new Grid { Margin = new Thickness(12) };
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            root.Children.Add(BuildLeftPanel());
-            Grid.SetColumn(root.Children[root.Children.Count - 1], 0);
-            Grid.SetRow(root.Children[root.Children.Count - 1], 0);
+            _tabs = new TabControl
+            {
+                Background = new SolidColorBrush(BgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+            };
 
-            var right = BuildRightPanel();
-            Grid.SetColumn(right, 1); Grid.SetRow(right, 0);
-            root.Children.Add(right);
+            var typesTab = new TabItem
+            {
+                Header = "Drawing Types",
+                Foreground = new SolidColorBrush(FgColor),
+                Background = new SolidColorBrush(CardBg),
+                Content = BuildTypesTab(),
+            };
+            var packsTab = new TabItem
+            {
+                Header = "View Style Packs",
+                Foreground = new SolidColorBrush(FgColor),
+                Background = new SolidColorBrush(CardBg),
+                Content = BuildPacksTab(),
+            };
+            _tabs.Items.Add(typesTab);
+            _tabs.Items.Add(packsTab);
+            Grid.SetRow(_tabs, 0);
+            root.Children.Add(_tabs);
 
             var footer = BuildFooter();
-            Grid.SetColumn(footer, 0); Grid.SetRow(footer, 1); Grid.SetColumnSpan(footer, 2);
+            Grid.SetRow(footer, 1);
             root.Children.Add(footer);
 
             return root;
+        }
+
+        private UIElement BuildTypesTab()
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var left = BuildLeftPanel();
+            Grid.SetColumn(left, 0);
+            grid.Children.Add(left);
+
+            var right = BuildRightPanel();
+            Grid.SetColumn(right, 1);
+            grid.Children.Add(right);
+
+            return grid;
+        }
+
+        private UIElement BuildPacksTab()
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var left = BuildPacksLeftPanel();
+            Grid.SetColumn(left, 0);
+            grid.Children.Add(left);
+
+            var right = BuildPacksRightPanel();
+            Grid.SetColumn(right, 1);
+            grid.Children.Add(right);
+
+            return grid;
         }
 
         private UIElement BuildLeftPanel()
@@ -115,7 +193,7 @@ namespace StingTools.UI
 
             // Search
             _tbSearch = new TextBox { Height = 26 };
-            DarkDialogTheme.StyleInput(_tbSearch, CardBg, FgColor, CardBorder);
+            DarkDialogTheme.StyleInput(_tbSearch, InputBg, InputFg, InputBorder);
             _tbSearch.TextChanged += (s, e) => RefreshList();
             DockPanel.SetDock(_tbSearch, Dock.Top);
             panel.Children.Add(new TextBlock {
@@ -220,6 +298,7 @@ namespace StingTools.UI
             _formHost.Children.Add(BuildSectionMarkerCard());
             _formHost.Children.Add(BuildAnnotationCard());
             _formHost.Children.Add(BuildSlotsCard());
+            _formHost.Children.Add(BuildTitleBlockParamsCard());
 
             // Validation strip
             var report = DrawingTypeValidator.Validate(_doc, _current);
@@ -368,14 +447,14 @@ namespace StingTools.UI
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
                 var k = new TextBox { Text = catKey, Height = 22 };
-                DarkDialogTheme.StyleInput(k, CardBg, FgColor, CardBorder);
+                DarkDialogTheme.StyleInput(k, InputBg, InputFg, InputBorder);
                 k.LostFocus += (s, e) =>
                 {
                     pack.TagFamilies.Remove(catKey);
                     pack.TagFamilies[k.Text.Trim()] = pack.TagFamilies.ContainsKey(catKey) ? pack.TagFamilies[catKey] : kv.Value;
                 };
                 var v = new TextBox { Text = kv.Value, Height = 22, Margin = new Thickness(6, 0, 0, 0) };
-                DarkDialogTheme.StyleInput(v, CardBg, FgColor, CardBorder);
+                DarkDialogTheme.StyleInput(v, InputBg, InputFg, InputBorder);
                 v.LostFocus += (s, e) => pack.TagFamilies[k.Text.Trim()] = v.Text.Trim();
                 var rm = MakeSmallBtn("×", () => { pack.TagFamilies.Remove(catKey); RenderForm(); });
                 rm.Width = 22;
@@ -444,6 +523,65 @@ namespace StingTools.UI
             return Card("Slots (0..1 normalised)", body);
         }
 
+        // ─── Title-block params — declarative binding ────────────────
+        private UIElement BuildTitleBlockParamsCard()
+        {
+            _current.TitleBlockParams = _current.TitleBlockParams ?? new Dictionary<string, string>();
+            var body = new StackPanel();
+
+            body.Children.Add(new TextBlock
+            {
+                Text = "Parameter-name → value template. Supports ${PRJ_ORG_xxx} for Project Info, and {disc}/{lvl}/{sys}/{spool}/{mark}/{seq:Dn} tokens. Applied to the title-block FamilyInstance when a sheet is created.",
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, Margin = new Thickness(0, 0, 0, 6),
+            });
+
+            foreach (var kv in _current.TitleBlockParams.ToList())
+            {
+                var paramName = kv.Key;
+                var row = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
+
+                var k = new TextBox { Text = paramName, Height = 22 };
+                DarkDialogTheme.StyleInput(k, InputBg, InputFg, InputBorder);
+                k.LostFocus += (s, e) =>
+                {
+                    var newKey = (k.Text ?? "").Trim();
+                    if (string.IsNullOrEmpty(newKey) || newKey == paramName) return;
+                    _current.TitleBlockParams.Remove(paramName);
+                    _current.TitleBlockParams[newKey] = kv.Value ?? "";
+                    RenderForm();
+                };
+
+                var v = new TextBox { Text = kv.Value ?? "", Height = 22, Margin = new Thickness(6, 0, 0, 0) };
+                DarkDialogTheme.StyleInput(v, InputBg, InputFg, InputBorder);
+                v.LostFocus += (s, e) => _current.TitleBlockParams[paramName] = v.Text ?? "";
+
+                var rm = MakeSmallBtn("×", () =>
+                {
+                    _current.TitleBlockParams.Remove(paramName);
+                    RenderForm();
+                });
+                rm.Width = 22;
+
+                Grid.SetColumn(k, 0); Grid.SetColumn(v, 1); Grid.SetColumn(rm, 2);
+                row.Children.Add(k); row.Children.Add(v); row.Children.Add(rm);
+                body.Children.Add(row);
+            }
+
+            body.Children.Add(MakeSmallBtn("＋ Add title-block param", () =>
+            {
+                var baseKey = "New Parameter"; var key = baseKey; int i = 2;
+                while (_current.TitleBlockParams.ContainsKey(key)) key = $"{baseKey} {i++}";
+                _current.TitleBlockParams[key] = "";
+                RenderForm();
+            }));
+            return Card("Title-block parameter binding", body);
+        }
+
         // ═══════════════════════════════════════════════════════════════
         //  FOOTER — Save / Save-As / Close
         // ═══════════════════════════════════════════════════════════════
@@ -454,8 +592,9 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 10, 0, 0), LastChildFill = false };
 
             var hint = new TextBlock {
-                Text = "Save writes to <project>/_BIM_COORD/drawing_types.json (project override). " +
-                       "Corporate baseline on disk is never mutated.",
+                Text = "Save writes the active tab to <project>/_BIM_COORD/drawing_types.json " +
+                       "or view_style_packs.json — project override only. Corporate baseline " +
+                       "on disk is never mutated.",
                 Foreground = new SolidColorBrush(SubtleColor),
                 FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
                 TextWrapping = TextWrapping.Wrap };
@@ -468,7 +607,15 @@ namespace StingTools.UI
             var btnClose  = MakeBigBtn("Close",          CardBg, false);
             var btnSave   = MakeBigBtn("Save",           AccentColor, true);
             btnClose.Click += (s, e) => { DialogResult = false; };
-            btnSave.Click  += (s, e) => { if (SaveToProjectOverride()) { DialogResult = true; } };
+            btnSave.Click  += (s, e) =>
+            {
+                // Route Save to whichever tab is active — the dialog
+                // edits two independent JSON libraries.
+                bool ok;
+                if (_tabs?.SelectedIndex == 1) ok = SavePacksToProjectOverride();
+                else                           ok = SaveToProjectOverride();
+                if (ok) DialogResult = true;
+            };
             right.Children.Add(btnClose);
             right.Children.Add(btnSave);
             row.Children.Add(right);
@@ -601,7 +748,7 @@ namespace StingTools.UI
             DockPanel.SetDock(lbl, Dock.Left);
             row.Children.Add(lbl);
             var tb = new TextBox { Text = value ?? "", Height = 22, ToolTip = tooltip };
-            DarkDialogTheme.StyleInput(tb, CardBg, FgColor, CardBorder);
+            DarkDialogTheme.StyleInput(tb, InputBg, InputFg, InputBorder);
             tb.LostFocus += (s, e) => { setter?.Invoke(tb.Text); };
             row.Children.Add(tb);
             return row;
@@ -632,7 +779,7 @@ namespace StingTools.UI
             DockPanel.SetDock(lbl, Dock.Left);
             row.Children.Add(lbl);
             var cb = new ComboBox { Height = 22, IsEditable = true };
-            DarkDialogTheme.StyleInput(cb, CardBg, FgColor, CardBorder);
+            DarkDialogTheme.StyleInput(cb, InputBg, InputFg, InputBorder);
             foreach (var it in items) cb.Items.Add(it);
             cb.Text = value ?? "";
             cb.LostFocus += (s, e) => { setter?.Invoke(cb.Text?.Trim()); };
@@ -682,7 +829,7 @@ namespace StingTools.UI
         private TextBox SmallTb(string text, Action<string> setter)
         {
             var tb = new TextBox { Text = text ?? "", Height = 20, FontSize = 10 };
-            DarkDialogTheme.StyleInput(tb, CardBg, FgColor, CardBorder);
+            DarkDialogTheme.StyleInput(tb, InputBg, InputFg, InputBorder);
             tb.LostFocus += (s, e) => setter?.Invoke(tb.Text);
             return tb;
         }
@@ -722,6 +869,13 @@ namespace StingTools.UI
         private static double Parse(string s)
             => double.TryParse(s, out var d) ? d : 0.0;
 
+        private static ViewStylePack ClonePack(ViewStylePack src)
+        {
+            if (src == null) return null;
+            var json = JsonConvert.SerializeObject(src);
+            return JsonConvert.DeserializeObject<ViewStylePack>(json);
+        }
+
         private static DrawingType Clone(DrawingType src)
         {
             // Deep-clone via JSON so form edits don't mutate the cached
@@ -729,6 +883,453 @@ namespace StingTools.UI
             if (src == null) return null;
             var json = JsonConvert.SerializeObject(src);
             return JsonConvert.DeserializeObject<DrawingType>(json);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  PACK-TAB — LEFT PANEL (list + search + New/Clone/Delete)
+        // ═══════════════════════════════════════════════════════════════
+
+        private UIElement BuildPacksLeftPanel()
+        {
+            var panel = new DockPanel { Margin = new Thickness(0, 8, 8, 0), LastChildFill = true };
+
+            panel.Children.Add(new TextBlock
+            {
+                Text = "Search", Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, Margin = new Thickness(0, 0, 0, 2),
+            });
+            DockPanel.SetDock(panel.Children[0], Dock.Top);
+
+            _tbPackSearch = new TextBox { Height = 26 };
+            DarkDialogTheme.StyleInput(_tbPackSearch, InputBg, InputFg, InputBorder);
+            _tbPackSearch.TextChanged += (s, e) => RefreshPackList();
+            DockPanel.SetDock(_tbPackSearch, Dock.Top);
+            panel.Children.Add(_tbPackSearch);
+
+            var actions = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 8, 0, 8),
+            };
+            actions.Children.Add(MakeSmallBtn("＋ New",  () => ActionNewPack()));
+            actions.Children.Add(MakeSmallBtn("Clone",   () => ActionClonePack()));
+            actions.Children.Add(MakeSmallBtn("Delete",  () => ActionDeletePack()));
+            DockPanel.SetDock(actions, Dock.Top);
+            panel.Children.Add(actions);
+
+            _lbPacks = new ListBox
+            {
+                Background = new SolidColorBrush(CardBg),
+                Foreground = new SolidColorBrush(FgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+            };
+            _lbPacks.SelectionChanged += (s, e) =>
+            {
+                if (_lbPacks.SelectedItem is PackListItem it) SelectPack(it.Pack);
+            };
+            panel.Children.Add(_lbPacks);
+
+            RefreshPackList();
+            return panel;
+        }
+
+        private void RefreshPackList()
+        {
+            var q = (_tbPackSearch?.Text ?? "").Trim().ToLowerInvariant();
+            _lbPacks.Items.Clear();
+            foreach (var p in _packs.OrderBy(p => p.Origin).ThenBy(p => p.Id))
+            {
+                if (!string.IsNullOrEmpty(q))
+                {
+                    var hay = $"{p.Id} {p.Name} {p.Extends} {p.Origin}".ToLowerInvariant();
+                    if (!hay.Contains(q)) continue;
+                }
+                _lbPacks.Items.Add(new PackListItem { Pack = p });
+            }
+        }
+
+        private class PackListItem
+        {
+            public ViewStylePack Pack { get; set; }
+            public override string ToString()
+            {
+                if (Pack == null) return "";
+                var originTag = string.Equals(Pack.Origin, "project", StringComparison.OrdinalIgnoreCase)
+                    ? " ·project" : "";
+                var extendsTag = string.IsNullOrEmpty(Pack.Extends) ? "" : $"  ⟵ {Pack.Extends}";
+                return $"{Pack.Id}{originTag}{extendsTag}";
+            }
+        }
+
+        private void SelectPack(ViewStylePack p)
+        {
+            _currentPack = p;
+            for (int i = 0; i < _lbPacks.Items.Count; i++)
+            {
+                if (_lbPacks.Items[i] is PackListItem it && it.Pack == p)
+                { _lbPacks.SelectedIndex = i; break; }
+            }
+            RenderPackForm();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  PACK-TAB — RIGHT PANEL (form cards)
+        // ═══════════════════════════════════════════════════════════════
+
+        private UIElement BuildPacksRightPanel()
+        {
+            var scroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility   = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Margin = new Thickness(8, 8, 0, 0),
+            };
+            _packFormHost = new StackPanel();
+            scroll.Content = _packFormHost;
+            return scroll;
+        }
+
+        private void RenderPackForm()
+        {
+            if (_packFormHost == null) return;
+            _packFormHost.Children.Clear();
+
+            if (_currentPack == null)
+            {
+                _packFormHost.Children.Add(new TextBlock
+                {
+                    Text = "Select a View Style Pack on the left, or press ＋ New.",
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(8),
+                });
+                return;
+            }
+
+            _packFormHost.Children.Add(BuildPackIdentityCard());
+            _packFormHost.Children.Add(BuildPackAppearanceCard());
+            _packFormHost.Children.Add(BuildPackFiltersCard());
+            _packFormHost.Children.Add(BuildPackVgOverridesCard());
+            _packFormHost.Children.Add(BuildPackTagFamiliesCard());
+        }
+
+        // ─── Cards ───────────────────────────────────────────────────────
+
+        private UIElement BuildPackIdentityCard()
+        {
+            var body = new StackPanel();
+            body.Children.Add(LabeledTextBox("Id",          _currentPack.Id,          v => _currentPack.Id = v));
+            body.Children.Add(LabeledTextBox("Name",        _currentPack.Name,        v => _currentPack.Name = v));
+            body.Children.Add(LabeledTextBox("Description", _currentPack.Description, v => _currentPack.Description = v));
+            var parentIds = new List<string> { "" };
+            parentIds.AddRange(_packs.Where(p => p != _currentPack).Select(p => p.Id ?? ""));
+            body.Children.Add(LabeledCombo("Extends (parent pack id)",
+                parentIds.ToArray(),
+                _currentPack.Extends,
+                v => _currentPack.Extends = string.IsNullOrWhiteSpace(v) ? null : v));
+            body.Children.Add(LabeledTextBlock("Origin", _currentPack.Origin ?? "project"));
+            return Card("Identity", body);
+        }
+
+        private UIElement BuildPackAppearanceCard()
+        {
+            var body = new StackPanel();
+            body.Children.Add(LabeledDouble("Line-weight scale",
+                _currentPack.LineWeightScale,
+                v => _currentPack.LineWeightScale = v));
+            body.Children.Add(LabeledTextBox("Text style name",
+                _currentPack.TextStyle, v => _currentPack.TextStyle = v));
+            body.Children.Add(LabeledTextBox("Dimension style name",
+                _currentPack.DimensionStyle, v => _currentPack.DimensionStyle = v));
+            body.Children.Add(LabeledTextBox("Hatch palette (informational)",
+                _currentPack.HatchPalette, v => _currentPack.HatchPalette = v));
+            return Card("Appearance", body);
+        }
+
+        private UIElement BuildPackFiltersCard()
+        {
+            var body = new StackPanel();
+            _currentPack.Filters = _currentPack.Filters ?? new List<StyleFilterRule>();
+
+            body.Children.Add(new TextBlock
+            {
+                Text = "Per-filter graphic overrides. Filters must already exist in the project (ParameterFilterElement). Colours in #RRGGBB.",
+                TextWrapping = TextWrapping.Wrap, FontSize = 11,
+                Foreground = new SolidColorBrush(SubtleColor),
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+
+            var hdr = new TextBlock
+            {
+                Text = "Filter name          Visible Halftone Proj-Col Proj-Wt Cut-Col Cut-Wt Trans%",
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 10, Foreground = new SolidColorBrush(SubtleColor),
+                Margin = new Thickness(0, 0, 0, 2),
+            };
+            body.Children.Add(hdr);
+
+            foreach (var rule in _currentPack.Filters.ToList())
+            {
+                var row = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+                for (int c = 0; c < 9; c++)
+                    row.ColumnDefinitions.Add(new ColumnDefinition
+                    {
+                        Width = c == 0 ? new GridLength(1, GridUnitType.Star)
+                              : c == 8 ? new GridLength(24)
+                              : c == 1 || c == 2 ? new GridLength(34)
+                              : new GridLength(68)
+                    });
+
+                var tbName = SmallTb(rule.FilterName, v => rule.FilterName = v);
+                var cbVis  = new CheckBox { IsChecked = rule.Visible,  Foreground = new SolidColorBrush(FgColor) };
+                cbVis.Checked   += (s, e) => rule.Visible  = true;
+                cbVis.Unchecked += (s, e) => rule.Visible  = false;
+                var cbHalf = new CheckBox { IsChecked = rule.Halftone, Foreground = new SolidColorBrush(FgColor) };
+                cbHalf.Checked   += (s, e) => rule.Halftone = true;
+                cbHalf.Unchecked += (s, e) => rule.Halftone = false;
+                var tbProjCol = SmallTb(rule.ProjectionLineColor,  v => rule.ProjectionLineColor = v);
+                var tbProjWt  = SmallTb(rule.ProjectionLineWeight?.ToString(),
+                                        v => rule.ProjectionLineWeight = int.TryParse(v, out var n) ? (int?)n : null);
+                var tbCutCol  = SmallTb(rule.CutLineColor,         v => rule.CutLineColor = v);
+                var tbCutWt   = SmallTb(rule.CutLineWeight?.ToString(),
+                                        v => rule.CutLineWeight = int.TryParse(v, out var n) ? (int?)n : null);
+                var tbTrans   = SmallTb(rule.Transparency?.ToString(),
+                                        v => rule.Transparency = int.TryParse(v, out var n) ? (int?)n : null);
+                var rm = MakeSmallBtn("×", () => { _currentPack.Filters.Remove(rule); RenderPackForm(); });
+                rm.Width = 22;
+
+                var ctrls = new UIElement[] { tbName, cbVis, cbHalf, tbProjCol, tbProjWt, tbCutCol, tbCutWt, tbTrans, rm };
+                for (int i = 0; i < ctrls.Length; i++)
+                {
+                    Grid.SetColumn(ctrls[i], i);
+                    if (ctrls[i] is FrameworkElement fe)
+                        fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
+                    row.Children.Add(ctrls[i]);
+                }
+                body.Children.Add(row);
+            }
+            body.Children.Add(MakeSmallBtn("＋ Add filter rule", () =>
+            {
+                _currentPack.Filters.Add(new StyleFilterRule
+                {
+                    FilterName = "NewFilter", Visible = true, Halftone = false,
+                });
+                RenderPackForm();
+            }));
+            return Card("Filter rules", body);
+        }
+
+        private UIElement BuildPackVgOverridesCard()
+        {
+            var body = new StackPanel();
+            _currentPack.VgOverrides = _currentPack.VgOverrides ?? new Dictionary<string, StyleVgOverride>();
+
+            body.Children.Add(new TextBlock
+            {
+                Text = "Per-category graphic overrides. Key = category name (Walls / Grids / Rooms), BuiltInCategory enum, or <Room Separation> for subcategories. Colours in #RRGGBB.",
+                TextWrapping = TextWrapping.Wrap, FontSize = 11,
+                Foreground = new SolidColorBrush(SubtleColor),
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+
+            foreach (var kv in _currentPack.VgOverrides.ToList())
+            {
+                var catKey = kv.Key;
+                var vgo = kv.Value ?? new StyleVgOverride();
+                var row = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+                for (int c = 0; c < 8; c++)
+                    row.ColumnDefinitions.Add(new ColumnDefinition
+                    {
+                        Width = c == 0 ? new GridLength(1, GridUnitType.Star)
+                              : c == 7 ? new GridLength(24)
+                              : c == 1 ? new GridLength(34)
+                              : new GridLength(68)
+                    });
+
+                var tbKey = SmallTb(catKey, v =>
+                {
+                    var newKey = (v ?? "").Trim();
+                    if (string.IsNullOrEmpty(newKey) || newKey == catKey) return;
+                    _currentPack.VgOverrides.Remove(catKey);
+                    _currentPack.VgOverrides[newKey] = vgo;
+                    RenderPackForm();
+                });
+                var cbHalf = new CheckBox
+                {
+                    IsChecked = vgo.Halftone == true,
+                    Foreground = new SolidColorBrush(FgColor),
+                };
+                cbHalf.Checked   += (s, e) => vgo.Halftone = true;
+                cbHalf.Unchecked += (s, e) => vgo.Halftone = null;
+                var tbProjCol = SmallTb(vgo.ProjectionLineColor,  v => vgo.ProjectionLineColor = v);
+                var tbProjWt  = SmallTb(vgo.ProjectionLineWeight?.ToString(),
+                                        v => vgo.ProjectionLineWeight = int.TryParse(v, out var n) ? (int?)n : null);
+                var tbCutCol  = SmallTb(vgo.CutLineColor,         v => vgo.CutLineColor = v);
+                var tbCutWt   = SmallTb(vgo.CutLineWeight?.ToString(),
+                                        v => vgo.CutLineWeight = int.TryParse(v, out var n) ? (int?)n : null);
+                var tbTrans   = SmallTb(vgo.Transparency?.ToString(),
+                                        v => vgo.Transparency = int.TryParse(v, out var n) ? (int?)n : null);
+                var rm = MakeSmallBtn("×", () =>
+                {
+                    _currentPack.VgOverrides.Remove(catKey);
+                    RenderPackForm();
+                });
+                rm.Width = 22;
+
+                var ctrls = new UIElement[] { tbKey, cbHalf, tbProjCol, tbProjWt, tbCutCol, tbCutWt, tbTrans, rm };
+                for (int i = 0; i < ctrls.Length; i++)
+                {
+                    Grid.SetColumn(ctrls[i], i);
+                    if (ctrls[i] is FrameworkElement fe)
+                        fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
+                    row.Children.Add(ctrls[i]);
+                }
+
+                // Persist dict entry with current vgo instance (in case
+                // it was defaulted above).
+                _currentPack.VgOverrides[catKey] = vgo;
+                body.Children.Add(row);
+            }
+            body.Children.Add(MakeSmallBtn("＋ Add VG override", () =>
+            {
+                var baseKey = "NewCategory"; var key = baseKey; int i = 2;
+                while (_currentPack.VgOverrides.ContainsKey(key)) key = $"{baseKey} {i++}";
+                _currentPack.VgOverrides[key] = new StyleVgOverride();
+                RenderPackForm();
+            }));
+            return Card("VG overrides (per category)", body);
+        }
+
+        private UIElement BuildPackTagFamiliesCard()
+        {
+            var body = new StackPanel();
+            _currentPack.TagFamilies = _currentPack.TagFamilies ?? new Dictionary<string, string>();
+
+            body.Children.Add(new TextBlock
+            {
+                Text = "Category → tag family. Consumed by AnnotationRunner when a DrawingType references this pack and the rule pack does not override the mapping.",
+                TextWrapping = TextWrapping.Wrap, FontSize = 11,
+                Foreground = new SolidColorBrush(SubtleColor),
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+
+            foreach (var kv in _currentPack.TagFamilies.ToList())
+            {
+                var catKey = kv.Key;
+                var row = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
+
+                var k = SmallTb(catKey, v =>
+                {
+                    var newKey = (v ?? "").Trim();
+                    if (string.IsNullOrEmpty(newKey) || newKey == catKey) return;
+                    _currentPack.TagFamilies.Remove(catKey);
+                    _currentPack.TagFamilies[newKey] = kv.Value ?? "";
+                    RenderPackForm();
+                });
+                var v = SmallTb(kv.Value, nv => _currentPack.TagFamilies[catKey] = nv ?? "");
+                var rm = MakeSmallBtn("×", () =>
+                {
+                    _currentPack.TagFamilies.Remove(catKey);
+                    RenderPackForm();
+                });
+                rm.Width = 22;
+
+                Grid.SetColumn(k, 0); Grid.SetColumn(v, 1); Grid.SetColumn(rm, 2);
+                row.Children.Add(k); row.Children.Add(v); row.Children.Add(rm);
+                body.Children.Add(row);
+            }
+            body.Children.Add(MakeSmallBtn("＋ Add tag family mapping", () =>
+            {
+                var baseKey = "NewCategory"; var key = baseKey; int i = 2;
+                while (_currentPack.TagFamilies.ContainsKey(key)) key = $"{baseKey} {i++}";
+                _currentPack.TagFamilies[key] = "STING_TAG_FAMILY";
+                RenderPackForm();
+            }));
+            return Card("Tag families (default map)", body);
+        }
+
+        // ─── Pack actions ────────────────────────────────────────────────
+
+        private void ActionNewPack()
+        {
+            var p = new ViewStylePack
+            {
+                Id = "new-style-pack-" + Guid.NewGuid().ToString("N").Substring(0, 6),
+                Name = "New Style Pack",
+                Origin = "project",
+                LineWeightScale = 1.0,
+            };
+            _packs.Add(p);
+            RefreshPackList();
+            SelectPack(p);
+        }
+
+        private void ActionClonePack()
+        {
+            if (_currentPack == null) return;
+            var copy = ClonePack(_currentPack);
+            copy.Id = _currentPack.Id + "-copy";
+            copy.Name = (_currentPack.Name ?? _currentPack.Id) + " (copy)";
+            copy.Origin = "project";
+            copy.Checksum = null;
+            _packs.Add(copy);
+            RefreshPackList();
+            SelectPack(copy);
+        }
+
+        private void ActionDeletePack()
+        {
+            if (_currentPack == null) return;
+            var keep = System.Windows.MessageBox.Show(
+                $"Delete '{_currentPack.Id}'?\nCorporate entries only vanish from the project override.",
+                "Confirm", MessageBoxButton.YesNo);
+            if (keep != MessageBoxResult.Yes) return;
+            _packs.Remove(_currentPack);
+            _currentPack = _packs.FirstOrDefault();
+            RefreshPackList();
+            if (_currentPack != null) SelectPack(_currentPack); else RenderPackForm();
+        }
+
+        // ─── Pack save (project override only) ───────────────────────────
+
+        private bool SavePacksToProjectOverride()
+        {
+            if (_doc == null || string.IsNullOrEmpty(_doc.PathName))
+            {
+                System.Windows.MessageBox.Show(
+                    "Save the Revit project first — project overrides live under the .rvt directory.",
+                    "STING — View Style Packs", MessageBoxButton.OK);
+                return false;
+            }
+            try
+            {
+                var dir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(_doc.PathName), "_BIM_COORD");
+                System.IO.Directory.CreateDirectory(dir);
+                var path = System.IO.Path.Combine(dir, "view_style_packs.json");
+
+                var lib = new ViewStylePackLibrary
+                {
+                    Version = 1,
+                    Packs = _packs.Where(p =>
+                        string.Equals(p.Origin, "project", StringComparison.OrdinalIgnoreCase)).ToList(),
+                };
+                System.IO.File.WriteAllText(path, JsonConvert.SerializeObject(lib, Formatting.Indented));
+                ViewStylePackRegistry.Reload(_doc);
+                System.Windows.MessageBox.Show(
+                    $"Saved {lib.Packs.Count} project-scoped pack(s) to\n{path}",
+                    "STING — View Style Packs", MessageBoxButton.OK);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("DrawingTypeEditorDialog.SavePacks", ex);
+                System.Windows.MessageBox.Show("Save failed: " + ex.Message,
+                    "STING", MessageBoxButton.OK);
+                return false;
+            }
         }
     }
 }
