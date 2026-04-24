@@ -84,6 +84,10 @@ namespace StingTools.UI
 
             BuildColorSwatches();
             _instance = this;
+
+            // Pack 0 — reflect current offline state the moment the panel is realised.
+            try { UpdateOfflineStatus(StingTools.Core.StingOfflineConfig.IsOffline, StingTools.Core.StingOfflineConfig.Source); }
+            catch { /* non-fatal */ }
         }
 
         /// <summary>
@@ -1266,6 +1270,66 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Pack 0 — update the header online / offline mode indicator. Safe
+        /// to call from any thread; no-ops silently if the panel isn't yet
+        /// realised. Online is the default posture and the normal badge.
+        /// </summary>
+        public static void UpdateOfflineStatus(bool isOffline, string source = null)
+        {
+            var inst = _instance;
+            if (inst == null) return;
+            try
+            {
+                inst.Dispatcher.InvokeAsync(() =>
+                {
+                    var current = _instance;
+                    if (current?.txtOffline == null) return;
+                    current.txtOffline.Text = isOffline ? "\U0001F512 Offline" : "\U0001F310 Online";
+                    if (current.bdrOffline != null)
+                    {
+                        current.bdrOffline.ToolTip = isOffline
+                            ? $"STING in offline mode for this project — the four network commands (ACC Publish, SharePoint Export, Platform Sync, Planscape Connect) are disabled. Click to switch back to online.\nSource: {source ?? "(defaults)"}"
+                            : $"STING in online mode — every command available. Click to switch this project to offline for air-gapped / secure-estate work.\nSource: {source ?? "(defaults)"}";
+                    }
+                });
+            }
+            catch { /* headless / early-startup contexts */ }
+        }
+
+        /// <summary>
+        /// Pack 0 — dock-panel badge click handler. Flips the project's
+        /// online/offline mode, persists to &lt;project&gt;/_BIM_COORD/sting_config.json,
+        /// and refreshes the indicator. Shows a short confirmation so users
+        /// notice the mode change.
+        /// </summary>
+        private void OfflineIndicator_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            try
+            {
+                var uiApp = StingCommandHandler.CurrentApp;
+                var doc = uiApp?.ActiveUIDocument?.Document;
+                bool newOffline = !StingTools.Core.StingOfflineConfig.IsOffline;
+                string bimDir = null;
+                if (doc != null)
+                {
+                    try { bimDir = StingTools.BIMManager.BIMManagerEngine.GetBIMManagerDir(doc); }
+                    catch { /* fall back to memory-only toggle */ }
+                }
+                StingTools.Core.StingOfflineConfig.SetOffline(newOffline, bimDir);
+                UpdateOfflineStatus(newOffline, StingTools.Core.StingOfflineConfig.Source);
+
+                Autodesk.Revit.UI.TaskDialog.Show("STING — project mode",
+                    newOffline
+                        ? "Project switched to OFFLINE.\n\nThe four network commands are disabled:\n  • Planscape Connect\n  • ACC Publish\n  • SharePoint Export\n  • Platform Sync\n\nEvery other STING command works normally."
+                        : "Project switched to ONLINE.\n\nAll commands available — including live server sync and ACC / SharePoint / Planscape integration.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"OfflineIndicator_Click: {ex.Message}");
+            }
         }
 
         /// <summary>

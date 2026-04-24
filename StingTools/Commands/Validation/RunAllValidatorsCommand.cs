@@ -36,6 +36,12 @@ namespace StingTools.Commands.Validation
                 all.AddRange(new SpecValidator().Validate(doc));
                 all.AddRange(new TerminationValidator().Validate(doc));
                 all.AddRange(new SlopeValidator().Validate(doc));
+                // Pack 1 — reads STING_CLEARANCE_MM (previously an orphan parameter).
+                all.AddRange(new ClearanceValidator().Validate(doc));
+                // Pack 2 — reads MNT_ENV_{W,D,H}_MM + MNT_ACCESS_DIR_TXT.
+                all.AddRange(new MaintenanceClashValidator().Validate(doc));
+                // §5.5 — reads UNICLASS_* / NBS_CODE_TXT / ASSET_RFI_URL_TXT.
+                all.AddRange(new ClassificationAuditValidator().Validate(doc));
             }
             catch (Exception ex)
             {
@@ -44,23 +50,37 @@ namespace StingTools.Commands.Validation
                 return Result.Failed;
             }
 
-            ShowResult(all);
+            // Pack 123 / Gap D — apply per-element suppressions before display.
+            // Coordinators dismiss "intentionally undefined" findings via the
+            // suppression schema; this filter honours their choices while
+            // keeping the count visible in the SUMMARY section.
+            int suppressed = 0;
+            try
+            {
+                var (kept, sup) = StingTools.Core.Storage.StingValidatorSuppressionSchema.Filter(doc, all);
+                all = kept;
+                suppressed = sup;
+            }
+            catch (Exception sx) { StingLog.Warn($"Suppression filter: {sx.Message}"); }
+
+            ShowResult(all, suppressed);
             return Result.Succeeded;
         }
 
-        private void ShowResult(List<ValidationResult> all)
+        private void ShowResult(List<ValidationResult> all, int suppressed = 0)
         {
             int errors   = all.Count(r => r.Severity == ValidationSeverity.Error);
             int warnings = all.Count(r => r.Severity == ValidationSeverity.Warning);
             int infos    = all.Count(r => r.Severity == ValidationSeverity.Info);
 
             var panel = StingResultPanel.Create("v4 Validation Suite");
-            panel.SetSubtitle("ConnectivityValidator + FillValidator + SpecValidator + TerminationValidator + SlopeValidator");
+            panel.SetSubtitle("ConnectivityValidator + FillValidator + SpecValidator + TerminationValidator + SlopeValidator + ClearanceValidator + MaintenanceClashValidator + ClassificationAuditValidator");
 
             panel.AddSection("SUMMARY")
                  .Metric("Total findings", all.Count.ToString())
                  .Metric("Errors",   errors.ToString())
                  .Metric("Warnings", warnings.ToString())
+                 .Metric("Suppressed", suppressed.ToString())
                  .Metric("Info",     infos.ToString());
 
             // Group by validator for legibility

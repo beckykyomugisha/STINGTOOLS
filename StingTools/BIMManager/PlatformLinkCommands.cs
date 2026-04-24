@@ -1109,6 +1109,11 @@ namespace StingTools.BIMManager
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
 
+                // Pack 0 — offline gate
+                if (StingOfflineConfig.RefuseIfOffline("ACC Publish",
+                    "CDE Package (BIM tab) creates a local ACC-ready bundle you can upload via the Autodesk web UI."))
+                    return Result.Cancelled;
+
                 StingLog.Info("PlatformLink: Starting ACC publish package creation...");
 
                 string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
@@ -1822,6 +1827,11 @@ namespace StingTools.BIMManager
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
 
+                // Pack 0 — offline gate
+                if (StingOfflineConfig.RefuseIfOffline("Platform Sync",
+                    "Transmittal bundle (BIM tab) produces a file-based handover that can be shared manually."))
+                    return Result.Cancelled;
+
                 StingLog.Info("PlatformLink: Starting platform sync...");
 
                 string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
@@ -2358,6 +2368,11 @@ namespace StingTools.BIMManager
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
 
+                // Pack 0 — offline gate
+                if (StingOfflineConfig.RefuseIfOffline("SharePoint / Teams Export",
+                    "Document Package (BIM tab) writes the same deliverables to a local folder for manual upload."))
+                    return Result.Cancelled;
+
                 StingLog.Info("PlatformLink: Starting SharePoint/Teams export...");
 
                 string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
@@ -2484,6 +2499,11 @@ namespace StingTools.BIMManager
         {
             try
             {
+                // Pack 0 — offline gate (this is the PlanscapeServerClient login entry point)
+                if (StingOfflineConfig.RefuseIfOffline("Planscape Connect",
+                    "Planscape login requires network access. Work offline with local BCF / transmittal flows."))
+                    return Result.Cancelled;
+
                 string serverUrl = StingCommandHandler.GetExtraParam("PlanscapeServerUrl") ?? "";
                 string email     = StingCommandHandler.GetExtraParam("PlanscapeEmail")     ?? "";
                 string password  = StingCommandHandler.GetExtraParam("PlanscapePassword")  ?? "";

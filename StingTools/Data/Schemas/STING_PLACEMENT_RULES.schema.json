@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://planscape.app/schemas/STING_PLACEMENT_RULES.schema.json",
+  "title": "STING Placement Rules",
+  "description": "Schema for Data/STING_PLACEMENT_RULES.json + per-project STING_PLACEMENT_RULES.project.json. Pack 126 / Gap I — IDE lint catches typos before runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "rules"],
+  "properties": {
+    "version":      { "type": "string", "default": "v4" },
+    "description":  { "type": "string" },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/PlacementRule" }
+    }
+  },
+  "$defs": {
+    "PlacementRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["categoryFilter"],
+      "properties": {
+        "categoryFilter":   { "type": "string", "description": "Revit category name; one rule per category" },
+        "variantHint":      { "type": "string", "description": "Family-type variant filter — STING_FIXTURE_VARIANT_TXT match" },
+        "roomFilter":       { "type": "string", "description": "Room-name regex (case-insensitive); empty matches any room" },
+        "anchorType":       { "type": "string", "enum": ["ROOM_CENTRE", "WALL_CENTRELINE", "DOOR_OPP_WALL", "RCP_GRID", "FLOOR_GRID", "USER_PICK"], "default": "ROOM_CENTRE" },
+        "offsetXMm":        { "type": "number", "default": 0 },
+        "mountingHeightMm": { "type": "number", "default": 300 },
+        "sideConstraint":   { "type": "string", "enum": ["EITHER", "LEFT", "RIGHT", "FRONT", "BACK"], "default": "EITHER" },
+        "minSpacingMm":     { "type": "number", "default": 1000, "minimum": 0 },
+        "maxPerRoom":       { "type": "integer", "minimum": 0 },
+        "priority":         { "type": "integer", "minimum": 0, "maximum": 10, "default": 5 },
+        "notes":            { "type": "string" }
+      }
+    }
+  }
+}

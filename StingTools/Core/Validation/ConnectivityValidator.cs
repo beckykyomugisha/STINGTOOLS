@@ -83,6 +83,26 @@ namespace StingTools.Core.Validation
                     $"{unconnected} of {total} connector(s) open",
                     ValidatorTag));
             }
+
+            // §5.3 — family-declared connector count sanity. When
+            // CONN_COUNT_INT says "2 connectors" but the element reports
+            // more, flag it so the discrepancy surfaces in the validator
+            // report. Families that don't declare anything read 0 and
+            // this check is a no-op.
+            try
+            {
+                var routing = Routing.RoutingParamReader.Read(el);
+                if (routing.ConnectorCount > 0 && total > 0 && total != routing.ConnectorCount)
+                {
+                    results.Add(new ValidationResult(
+                        el.Id,
+                        ValidationSeverity.Info,
+                        "CONN.COUNT.MISMATCH",
+                        $"Family CONN_COUNT_INT = {routing.ConnectorCount} but {total} connector(s) present",
+                        ValidatorTag));
+                }
+            }
+            catch { /* non-fatal */ }
         }
 
         private ConnectorManager ResolveConnectorManager(Element el)

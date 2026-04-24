@@ -63,9 +63,24 @@ namespace StingTools.Core.Validation
 
             if (IsExplicitlyCapped(el)) return;
 
+            // §5.3 — honour family-declared termination type. When
+            // TERM_TYPE_TXT declares Cap / Elbow90 / Transition / Blank we
+            // treat the element as explicitly terminated.
+            var routing = Routing.RoutingParamReader.Read(el);
+            string term = (routing.TerminationType ?? "").ToUpperInvariant();
+            if (term == "CAP" || term == "CAPPED" || term == "ELBOW90" ||
+                term == "TRANSITION" || term == "BLANK") return;
+
+            // §5.3 — family-declared connector count sanity check. When
+            // the family says "2 connectors" but the element reports more
+            // open ones, that's a flag regardless of the cap state.
+            string extra = "";
+            if (routing.ConnectorCount > 0 && open > routing.ConnectorCount)
+                extra = $" (family CONN_COUNT_INT = {routing.ConnectorCount}, observed {open})";
+
             results.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
                 "TERM.OPEN.UNCAPPED",
-                $"{open} open connector(s) without an explicit cap / blank / reducer",
+                $"{open} open connector(s) without an explicit cap / blank / reducer{extra}",
                 ValidatorTag));
         }
 

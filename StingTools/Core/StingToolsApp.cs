@@ -44,6 +44,19 @@ namespace StingTools.Core
                 // Pre-flight: log assembly environment for crash diagnostics
                 LogAssemblyEnvironment();
 
+                // Pack 0 — establish offline-first defaults. Per-project config
+                // loads later in OnDocumentOpened and can flip the flag off.
+                StingOfflineConfig.ApplyDefaults();
+
+                // Pack 7 — wire the DocumentChanged cascade handler (room
+                // renumbers, level changes, sheet ISO violations). Gated by
+                // StingOfflineConfig.RealtimeCascadesEnabled at callback time.
+                StingDocumentChangedHandler.Register(application);
+
+                // Pack 8 — wire the Idling scheduler. Commands enqueue jobs
+                // via StingIdlingScheduler.Enqueue(job).
+                StingIdlingScheduler.Register(application);
+
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
 
@@ -569,6 +582,24 @@ namespace StingTools.Core
                 {
                     StingLog.Warn($"DocumentOpened template extraction: {tEx.Message}");
                 }
+
+                // Pack 0 — project-scoped offline config override. File is at
+                // <project>/_BIM_COORD/sting_config.json. Missing file keeps defaults.
+                try
+                {
+                    string bimDir = BIMManager.BIMManagerEngine.GetBIMManagerDir(e.Document);
+                    StingOfflineConfig.LoadFromProject(bimDir);
+                    UI.StingDockPanel.UpdateOfflineStatus(StingOfflineConfig.IsOffline, StingOfflineConfig.Source);
+                }
+                catch (Exception ocEx)
+                {
+                    StingLog.Warn($"DocumentOpened offline-config reload: {ocEx.Message}");
+                }
+
+                // Pack 8 — drip-feed a compliance refresh through the Idling
+                // scheduler so the dashboard is live within a second of open.
+                try { StingIdlingScheduler.Enqueue(new ComplianceRefreshJob()); }
+                catch (Exception schEx) { StingLog.Warn($"DocumentOpened Idling enqueue: {schEx.Message}"); }
             }
             catch (Exception ex)
             {

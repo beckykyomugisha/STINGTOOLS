@@ -212,6 +212,139 @@ namespace StingTools.Tags
         }
 
         /// <summary>
+        /// Pack 4 — anchor-aware candidate generator. Reads STING_TAG_ANCHOR_X_MM
+        /// and STING_TAG_ANCHOR_Y_MM off the host element's family type and
+        /// shifts the whole 16-candidate ring by that vector. Families that
+        /// declare no anchor (the majority today) fall back to the zero-offset
+        /// ring. Pack 2 directional clearance and Pack 3 variant resolution
+        /// are independent — tag anchor only changes where the ring sits
+        /// relative to the element centroid.
+        /// </summary>
+        public static XYZ[] GetCandidateOffsetsWithAnchor(double offset, Element host)
+        {
+            var ring = GetCandidateOffsets(offset);
+            if (host == null) return ring;
+            double dxMm = ReadAnchorMm(host, "STING_TAG_ANCHOR_X_MM");
+            double dyMm = ReadAnchorMm(host, "STING_TAG_ANCHOR_Y_MM");
+            if (dxMm == 0 && dyMm == 0) return ring;
+            double dxFt = dxMm / 304.8;
+            double dyFt = dyMm / 304.8;
+            var shifted = new XYZ[ring.Length];
+            for (int i = 0; i < ring.Length; i++)
+                shifted[i] = new XYZ(ring[i].X + dxFt, ring[i].Y + dyFt, ring[i].Z);
+            return shifted;
+        }
+
+        /// <summary>
+        /// Pack 4 — reads an integer priority from TAG_PRIORITY_INT on the
+        /// element's type, falling back to 5 (mid-range). Higher wins when
+        /// two tags compete for the same location.
+        /// </summary>
+        public static int ReadTagPriority(Element host)
+        {
+            if (host == null) return 5;
+            try
+            {
+                Element type = null;
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch { }
+                var p = type?.LookupParameter("TAG_PRIORITY_INT");
+                if (p != null && p.HasValue && p.StorageType == StorageType.Integer)
+                {
+                    int v = p.AsInteger();
+                    if (v >= 0 && v <= 10) return v;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadTagPriority {host?.Id}: {ex.Message}"); }
+            return 5;
+        }
+
+        /// <summary>
+        /// Pack 4 — reads the clustering key that identifies tags which can
+        /// collapse into a single "group" annotation. Empty string means no
+        /// clustering. DeclusterTagsCommand reads this to decide merging.
+        /// </summary>
+        public static string ReadTagClusterKey(Element host)
+        {
+            if (host == null) return "";
+            try
+            {
+                Element type = null;
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch { }
+                return type?.LookupParameter("TAG_CLUSTER_KEY_TXT")?.AsString()
+                    ?? host.LookupParameter("TAG_CLUSTER_KEY_TXT")?.AsString()
+                    ?? "";
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>
+        /// Pack 4 — reads the family hint steering DrawingDispatcher to prefer a
+        /// particular tag family for this category. Returns empty when not set.
+        /// </summary>
+        public static string ReadTagFamilyHint(Element host)
+        {
+            if (host == null) return "";
+            try
+            {
+                Element type = null;
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch { }
+                return type?.LookupParameter("TAG_FAMILY_HINT_TXT")?.AsString()
+                    ?? host.LookupParameter("TAG_FAMILY_HINT_TXT")?.AsString()
+                    ?? "";
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>
+        /// Pack 4 — reads display-scale limits (1:N). Tags honour these in
+        /// view visibility filtering. Returns (min, max) or (0, 0) for
+        /// "no constraint".
+        /// </summary>
+        public static (int min, int max) ReadTagScaleRange(Element host)
+        {
+            if (host == null) return (0, 0);
+            try
+            {
+                Element type = null;
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch { }
+                int mn = ReadIntInternal(type, "TAG_DISPLAY_SCALE_MIN_INT");
+                int mx = ReadIntInternal(type, "TAG_DISPLAY_SCALE_MAX_INT");
+                return (mn, mx);
+            }
+            catch { return (0, 0); }
+        }
+
+        private static int ReadIntInternal(Element el, string paramName)
+        {
+            if (el == null) return 0;
+            try
+            {
+                var p = el.LookupParameter(paramName);
+                if (p == null || !p.HasValue || p.StorageType != StorageType.Integer) return 0;
+                return p.AsInteger();
+            }
+            catch { return 0; }
+        }
+
+        private static double ReadAnchorMm(Element host, string paramName)
+        {
+            try
+            {
+                Element type = null;
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch { }
+                var p = type?.LookupParameter(paramName) ?? host.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return 0;
+                if (p.StorageType == StorageType.Double) return p.AsDouble() * 304.8;  // feet → mm
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadAnchorMm({paramName}) {host?.Id}: {ex.Message}");
+            }
+            return 0;
+        }
+
+        /// <summary>
         /// Back-compat shim. Reads the cap from <see cref="Core.ScaleTiers.OffsetCapFt"/>,
         /// which is driven by <c>Data/SCALE_TIERS.json</c> or a per-project
         /// <c>project_config.json:SCALE_TIERS.offset_cap_ft</c> override. Writing
@@ -1513,7 +1646,10 @@ namespace StingTools.Tags
                         catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement (smart sel): {ex.Message}"); }
 
                         XYZ center = TagPlacementEngine.GetElementCenter(elem, view);
-                        var offsets = TagPlacementEngine.GetCandidateOffsets(offset);
+                        // Pack 4 — anchor-aware candidates. Reads STING_TAG_ANCHOR_{X,Y}_MM
+                        // off the host element's family type and shifts the whole 16-candidate
+                        // ring. Elements with no anchor behave exactly as before.
+                        var offsets = TagPlacementEngine.GetCandidateOffsetsWithAnchor(offset, elem);
                         string catName = elem.Category?.Name ?? "";
                         int preferred = TagPlacementEngine.GetPreferredSide(catName);
 
@@ -2635,6 +2771,24 @@ namespace StingTools.Tags
                         Element typeEl = doc.GetElement(typeId);
                         Parameter p = typeEl?.LookupParameter(ParamRegistry.TAG_POS);
                         if (p != null && !p.IsReadOnly) { p.Set(posValue); updated++; }
+
+                        // Gap 2 — dual-write to ES so post-migration reads see the
+                        // same value. ES write is best-effort; a failure here does
+                        // not abort the shared-parameter update above.
+                        try
+                        {
+                            if (typeEl != null)
+                            {
+                                var existing = StingTools.Core.Storage.StingPositionSchema.Read(typeEl);
+                                StingTools.Core.Storage.StingPositionSchema.Write(typeEl,
+                                    new StingTools.Core.Storage.StingPositionSchema.PositionData
+                                    {
+                                        TagPos        = posValue,
+                                        TokenPresence = existing?.TokenPresence ?? 0,
+                                    });
+                            }
+                        }
+                        catch (Exception esEx) { StingLog.Warn($"ES dual-write TAG_POS on {typeId}: {esEx.Message}"); }
                     }
                     catch (Exception ex) { StingLog.Warn($"Set TAG_POS on type {typeId}: {ex.Message}"); }
                 }

@@ -42,6 +42,12 @@ namespace StingTools.Core
                 var perCategoryFail = new Dictionary<string, int>();
                 var failList = new List<string>();
 
+                // Pack 1 — LOD-switch consumer state (STING_LOD_*_VISIBLE).
+                int switchBearingTypes = 0;
+                int switchMismatchTypes = 0;
+                int switchAllOff = 0;
+                var switchIssues = new List<string>();
+
                 // Heuristic LOD scoring per element — parameter-presence based.
                 var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
                 foreach (var el in collector)
@@ -65,6 +71,35 @@ namespace StingTools.Core
                     }
                 }
 
+                // Pack 1 — separate scan over family types to audit the LOD
+                // visibility switches the Automation Presentation Pack injects.
+                // Done as a type-level pass so we report once per family type
+                // instead of once per instance (InjectAutomationPresentationPack
+                // writes the three params at the type level).
+                var typePass = new FilteredElementCollector(doc).WhereElementIsElementType();
+                foreach (var t in typePass)
+                {
+                    int? c = ReadLodSwitch(t, "STING_LOD_COARSE_VISIBLE");
+                    int? m = ReadLodSwitch(t, "STING_LOD_MEDIUM_VISIBLE");
+                    int? f = ReadLodSwitch(t, "STING_LOD_FINE_VISIBLE");
+                    if (c == null && m == null && f == null) continue;
+                    switchBearingTypes++;
+
+                    int c0 = c ?? 0, m0 = m ?? 0, f0 = f ?? 0;
+                    if (c0 == 0 && m0 == 0 && f0 == 0)
+                    {
+                        switchAllOff++;
+                        if (switchIssues.Count < 10)
+                            switchIssues.Add($"• {t.Category?.Name} type '{t.Name}' [{t.Id}] — all LOD switches OFF, type is invisible at every detail level");
+                    }
+                    else if (c == null || m == null || f == null)
+                    {
+                        switchMismatchTypes++;
+                        if (switchIssues.Count < 10)
+                            switchIssues.Add($"• {t.Category?.Name} type '{t.Name}' [{t.Id}] — partial LOD-switch set (coarse={FmtBool(c)} medium={FmtBool(m)} fine={FmtBool(f)})");
+                    }
+                }
+
                 var rp = StingResultPanel.Create("LOD Validation")
                     .SetSubtitle($"Stage: {stage} → target LOD {targetLod}")
                     .AddSection("COVERAGE")
@@ -82,6 +117,16 @@ namespace StingTools.Core
                 {
                     rp.AddSection("FAILURES (first 20)");
                     foreach (var f in failList) rp.Text(f);
+                }
+
+                // Pack 1 — LOD-switch audit (STING_LOD_*_VISIBLE consumer).
+                if (switchBearingTypes > 0)
+                {
+                    rp.AddSection("LOD SWITCHES (STING_LOD_*_VISIBLE)")
+                      .Metric("Types carrying switches",  switchBearingTypes.ToString())
+                      .Metric("All-off (invisible)",      switchAllOff.ToString())
+                      .Metric("Partial (incomplete set)", switchMismatchTypes.ToString());
+                    foreach (var msg in switchIssues) rp.Text(msg);
                 }
                 rp.Show();
                 return failed == 0 ? Result.Succeeded : Result.Failed;
@@ -129,5 +174,28 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC))) missing.Add("LOC");
             return missing.Count == 0 ? "(unknown)" : "missing " + string.Join(", ", missing);
         }
+
+        /// <summary>
+        /// Pack 1 — reads one of the STING_LOD_*_VISIBLE YesNo type parameters.
+        /// Returns null when the parameter is absent (family was never processed
+        /// by InjectAutomationPresentationPack), 0/1 otherwise.
+        /// </summary>
+        private static int? ReadLodSwitch(Element type, string paramName)
+        {
+            if (type == null) return null;
+            try
+            {
+                var p = type.LookupParameter(paramName);
+                if (p == null) return null;
+                if (p.StorageType == StorageType.Integer) return p.AsInteger() == 0 ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LODValidationCommand.ReadLodSwitch({paramName}) {type?.Id}: {ex.Message}");
+            }
+            return null;
+        }
+
+        private static string FmtBool(int? v) => v == null ? "—" : (v.Value == 0 ? "off" : "on");
     }
 }

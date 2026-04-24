@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://planscape.app/schemas/STING_FAB_RULES.schema.json",
+  "title": "STING Fabrication Rules",
+  "description": "Schema for Data/STING_FAB_RULES.json. Pack 126 / Gap I.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["version", "disciplines"],
+  "properties": {
+    "version":     { "type": "string" },
+    "disciplines": { "type": "array", "items": { "$ref": "#/$defs/DisciplineRules" } }
+  },
+  "$defs": {
+    "DisciplineRules": {
+      "type": "object",
+      "required": ["discipline"],
+      "properties": {
+        "discipline":     { "type": "string", "enum": ["Pipe", "Duct", "Electrical", "Cable", "Steel", "Concrete"] },
+        "maxAssemblyKg":  { "type": "number", "minimum": 0 },
+        "maxAssemblyLenMm": { "type": "number", "minimum": 0 },
+        "spoolPrefix":    { "type": "string" },
+        "weldGapMm":      { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

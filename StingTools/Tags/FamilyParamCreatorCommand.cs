@@ -599,6 +599,70 @@ namespace StingTools.Tags
                     // Coordination hints
                     ("STING_WORKSET_HINT",         SpecTypeId.String.Text),
                     ("STING_OMNICLASS_23",         SpecTypeId.String.Text),
+
+                    // ─── Pack 2 — directional clearance (ClearanceValidator already reads these) ───
+                    ("STING_CLEARANCE_FRONT_MM",   SpecTypeId.Length),
+                    ("STING_CLEARANCE_BACK_MM",    SpecTypeId.Length),
+                    ("STING_CLEARANCE_SIDE_MM",    SpecTypeId.Length),
+                    ("STING_CLEARANCE_TOP_MM",     SpecTypeId.Length),
+                    // Pack 2 — maintenance / service envelope (MaintenanceClashValidator reads)
+                    ("MNT_ENV_W_MM",               SpecTypeId.Length),
+                    ("MNT_ENV_D_MM",               SpecTypeId.Length),
+                    ("MNT_ENV_H_MM",               SpecTypeId.Length),
+                    ("MNT_ACCESS_DIR_TXT",         SpecTypeId.String.Text),
+                    // Pack 2 — clash-only envelope (ConnectivityValidator/MaintenanceClashValidator)
+                    ("CLASH_ENV_W_MM",             SpecTypeId.Length),
+                    ("CLASH_ENV_D_MM",             SpecTypeId.Length),
+                    ("CLASH_ENV_H_MM",             SpecTypeId.Length),
+                    ("CLASH_PRIORITY_INT",         SpecTypeId.Int.Integer),
+                    ("CLASH_SOFT_TOLERANCE_MM",    SpecTypeId.Length),
+                    ("EXPANSION_ALLOW_MM",         SpecTypeId.Length),
+                    ("CONNECTOR_CLR_MM",           SpecTypeId.Length),
+                    ("FIRE_SEP_MM",                SpecTypeId.Length),
+
+                    // ─── Pack 3 — placement / variant (FixturePlacementEngine reads) ───
+                    ("STING_FIXTURE_VARIANT_TXT",  SpecTypeId.String.Text),
+                    ("STING_ROOM_TYPE_FILTER_TXT", SpecTypeId.String.Text),
+
+                    // ─── §5.1 — remaining placement-intelligence params (PlacementParamReader) ───
+                    ("PLACE_HOST_TYPE_TXT",        SpecTypeId.String.Text),
+                    ("PLACE_MOUNT_HEIGHT_MM",      SpecTypeId.Length),
+                    ("PLACE_SPACING_RULE_TXT",     SpecTypeId.String.Text),
+                    ("PLACE_ORIENTATION_RULE_TXT", SpecTypeId.String.Text),
+                    ("PLACE_LEVEL_HINT_TXT",       SpecTypeId.String.Text),
+                    ("PLACE_GROUP_KEY_TXT",        SpecTypeId.String.Text),
+                    ("PLACE_WEIGHT_KG",            SpecTypeId.Number),
+
+                    // ─── §5.3 — routing / MEP hints (RoutingParamReader) ───
+                    ("CONN_COUNT_INT",             SpecTypeId.Int.Integer),
+                    ("CONN_TYPES_TXT",             SpecTypeId.String.Text),
+                    ("PREF_DROP_DIR_TXT",          SpecTypeId.String.Text),
+                    ("SLOPE_MIN_PCT",              SpecTypeId.Number),
+                    ("SLOPE_MAX_PCT",              SpecTypeId.Number),
+                    ("FILL_MAX_PCT",               SpecTypeId.Number),
+                    ("TERM_TYPE_TXT",              SpecTypeId.String.Text),
+                    ("SEGMENT_LEN_MAX_MM",         SpecTypeId.Length),
+                    ("SUPPORT_PITCH_MM",           SpecTypeId.Length),
+
+                    // ─── §5.5 — identity / classification (ClassificationReader) ───
+                    ("UNICLASS_PR_TXT",            SpecTypeId.String.Text),
+                    ("UNICLASS_SS_TXT",            SpecTypeId.String.Text),
+                    ("UNICLASS_EF_TXT",            SpecTypeId.String.Text),
+                    ("NBS_CODE_TXT",               SpecTypeId.String.Text),
+                    // ASSET_RFI_URL_TXT is Instance-bound per the brief — family-local
+                    // type injection suffices for now; Instance binding ships as part
+                    // of the §9 MR_PARAMETERS follow-up when GUIDs are assigned.
+                    ("ASSET_RFI_URL_TXT",          SpecTypeId.String.Text),
+
+                    // ─── Pack 4 — tag anchor (TagPlacementEngine reads) ───
+                    ("STING_TAG_ANCHOR_X_MM",      SpecTypeId.Length),
+                    ("STING_TAG_ANCHOR_Y_MM",      SpecTypeId.Length),
+                    ("TAG_LEADER_LAND_EDGE_TXT",   SpecTypeId.String.Text),
+                    ("TAG_DISPLAY_SCALE_MIN_INT",  SpecTypeId.Int.Integer),
+                    ("TAG_DISPLAY_SCALE_MAX_INT",  SpecTypeId.Int.Integer),
+                    ("TAG_CLUSTER_KEY_TXT",        SpecTypeId.String.Text),
+                    ("TAG_PRIORITY_INT",           SpecTypeId.Int.Integer),
+                    ("TAG_FAMILY_HINT_TXT",        SpecTypeId.String.Text),
                 };
 
                 foreach (var (name, spec) in pack)
@@ -628,6 +692,18 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex) { StingLog.Warn($"InjectAutomationPresentationPack seed '{lodParam}': {ex.Message}"); }
                 }
+
+                // Pack 124 / Gap F — stamp pack version on the family's
+                // ProjectInformation. Lets coordinators see which families
+                // need re-injection when the next pack ships.
+                try
+                {
+                    StingTools.Core.Storage.StingPackVersionSchema.Write(
+                        famDoc,
+                        StingTools.Core.Storage.StingPackVersionSchema.CurrentPackVersion,
+                        added);
+                }
+                catch (Exception pvEx) { StingLog.Warn($"PackVersion stamp: {pvEx.Message}"); }
             }
             catch (Exception ex)
             {

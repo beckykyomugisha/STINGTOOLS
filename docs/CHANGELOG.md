@@ -2173,3 +2173,655 @@ sequence. 7 new commits on top of Phase 114.
  - Cable-schedule round-trip import (ProDesign → Revit write-back)
  - Hanger family library (no .rfa files shipped; Tier-1 resolver
    finds vendor families when loaded).
+
+---
+
+#### Completed (Phase 116 — Automation Pack 0 + Pack 1: offline gate + orphan-parameter wiring)
+
+First two packs of the automation-enhancement programme on branch
+`claude/sting-tools-automation-BUi4q`. Delivered strictly offline —
+neither pack adds, removes, or contacts any network surface. Every
+shared parameter created in a prior phase that had no consumer now
+has at least one engine read-site in the codebase.
+
+**Pack 0 — Offline-mode gate**
+
+ - `Core/StingOfflineConfig.cs` (NEW, 127 lines) — static config
+   singleton. `IsOffline` defaults to `true`; `ApplyDefaults()` runs
+   on `OnStartup` before any document is open; `LoadFromProject(bimDir)`
+   reads `<project>/_BIM_COORD/sting_config.json` on `DocumentOpened`
+   and overrides the global flag per project. `RefuseIfOffline(name,
+   localAlternative)` shows a TaskDialog explaining the flag, logs to
+   `StingLog`, and returns `true` when the gate is closed. Single
+   lock covers all reads/writes; source path exposed via `Source`.
+ - `Core/StingToolsApp.cs` — added `StingOfflineConfig.ApplyDefaults()`
+   to `OnStartup` right after `ValidateDataFiles()` +
+   `LogAssemblyEnvironment()`, and `LoadFromProject(bimDir)` +
+   `UI.StingDockPanel.UpdateOfflineStatus(...)` at the end of
+   `OnDocumentOpened` (adjacent to the template-engine extraction).
+ - `BIMManager/PlatformLinkCommands.cs` — four gates added, each
+   right after the `ParameterHelpers.GetContext` null-check so no
+   state is touched before the refusal. The four entry points (all
+   PlanscapeServerClient users or direct network callers) are:
+   - `ACCPublishCommand` (1101)
+   - `PlatformSyncCommand` (1814)
+   - `SharePointExportCommand` (2350)
+   - `PlanscapeConnectCommand` (2480)
+   `BCFExportCommand`, `BCFImportCommand`, `CDEPackageCommand`,
+   `BCFSyncCommand` are NOT gated — they are file-based and do not
+   touch the network.
+ - `UI/StingDockPanel.xaml` — header grid extended from 5 to 6
+   columns, new `bdrOffline` / `txtOffline` indicator inserted at
+   column 2; sync border shifted to column 3, `btnPin` to 4, theme
+   button to 5. Tooltip tells the user the exact JSON key to flip
+   and the file path.
+ - `UI/StingDockPanel.xaml.cs` — `UpdateOfflineStatus(bool, string)`
+   static setter, dispatched via `Dispatcher.InvokeAsync`. Shows
+   "🔒 Offline" (U+1F512) or "🌐 Online" (U+1F310). The constructor
+   invokes it once the panel is realised so the indicator reflects
+   the startup default even before any document is opened.
+
+**Pack 1 — Wire the four automation-orphan shared parameters**
+
+Every parameter below was injected by `FamilyParamEngine.
+InjectAutomationPresentationPack` in Phase 107 but had zero
+engine read-sites — the "orphan shared parameter" problem the
+Pack-discipline of the programme exists to prevent.
+
+ - `STING_CLEARANCE_MM` — read by new
+   `Core/Validation/ClearanceValidator.cs` (213 lines). Walks
+   `OST_ElectricalEquipment`, `OST_MechanicalEquipment`,
+   `OST_PlumbingFixtures`, `OST_ElectricalFixtures`,
+   `OST_LightingFixtures`, `OST_DuctTerminal`, `OST_FireProtection`,
+   `OST_SpecialityEquipment`. Only elements that declare a positive
+   clearance are scanned (sparse data → sparse work). Pairwise AABB
+   gap check using `Element.get_BoundingBox(null)`; reports
+   `CLR.NEIGHBOUR` when actual gap < `max(clrA, clrB)`. Forward-
+   compatible with Pack 2: the validator already reads the four
+   Pack 2 directional parameters (`STING_CLEARANCE_{FRONT,BACK,
+   SIDE,TOP}_MM`) first and falls back to the scalar. When both
+   are present the largest wins.
+   TODO-VERIFY-API: `get_BoundingBox(null)` per
+   https://www.revitapidocs.com/2025/abc7f9cd-1b7d-e3eb-4b24-89d7e3bc6b62.htm
+ - `STING_FIRE_RATING_MIN` — read by extended `SpecValidator.
+   CheckFireRating` (new method). Walks `OST_Walls`, `OST_Floors`,
+   `OST_Doors`, `OST_Ceilings`. Reports `SPEC.FIRE.STING.MISSING`
+   when native "Fire Rating" text parses to a minutes value but
+   the STING integer is zero (scheduling loses the data), and
+   `SPEC.FIRE.MISMATCH` when the STING integer is below the
+   parsed native value. `ParseNativeFireRatingMinutes` handles
+   "60", "60 min", "1 hr", "FD60s" etc.
+ - `STING_ACOUSTIC_RW_DB` — read by extended `SpecValidator.
+   CheckAcousticRating` (new method). Walks `OST_Walls`,
+   `OST_Doors`, `OST_Floors`; flags elements whose type name
+   looks acoustic (`LooksAcoustic` matches ACOUSTIC / STC / RW /
+   SOUND / SEPARAT) but carry no STING Rw value. Reports
+   `SPEC.ACOU.RW.MISSING` per element and `SPEC.ACOU.SCAN`
+   summary row.
+ - `STING_LOD_COARSE_VISIBLE` / `STING_LOD_MEDIUM_VISIBLE` /
+   `STING_LOD_FINE_VISIBLE` — read by extended
+   `Core/LODValidationCommand`. New type-level pass using
+   `FilteredElementCollector(doc).WhereElementIsElementType()`
+   counts `switchBearingTypes` (any of the three read
+   non-null), `switchAllOff` (all three zero — type is invisible
+   at every LOD band), `switchMismatchTypes` (partial set — some
+   null, some set). New "LOD SWITCHES (STING_LOD_*_VISIBLE)"
+   section appended to the result panel when at least one type
+   carries the switches.
+
+**Wiring**
+
+ - `Commands/Validation/RunAllValidatorsCommand.cs` —
+   `ClearanceValidator` registered in the validator sequence
+   after `SlopeValidator`; subtitle updated.
+
+**Files changed**
+
+ - NEW: `StingTools/Core/StingOfflineConfig.cs` (127 lines)
+ - NEW: `StingTools/Core/Validation/ClearanceValidator.cs` (213 lines)
+ - EDITED: `StingTools/Core/StingToolsApp.cs` (+17 lines across two
+   call-sites)
+ - EDITED: `StingTools/BIMManager/PlatformLinkCommands.cs` (+20
+   lines, 4 gates)
+ - EDITED: `StingTools/UI/StingDockPanel.xaml` (+7 lines — column
+   def + indicator border + Grid.Column shifts on 3 controls)
+ - EDITED: `StingTools/UI/StingDockPanel.xaml.cs` (+27 lines —
+   `UpdateOfflineStatus` static setter + constructor hook)
+ - EDITED: `StingTools/Core/Validation/SpecValidator.cs` (+192
+   lines — `CheckFireRating` + `CheckAcousticRating` + helpers)
+ - EDITED: `StingTools/Core/LODValidationCommand.cs` (+68 lines —
+   type-level LOD-switch pass + helpers + report section)
+ - EDITED: `StingTools/Commands/Validation/RunAllValidatorsCommand.cs`
+   (+2 lines — `ClearanceValidator` registered)
+
+**Caveats**
+
+ 1. Built without `dotnet build` verification (Linux sandbox, no
+    Revit API). Every Revit API call uses the documented 2025
+    signature but has not been compile-checked. The one
+    `// TODO-VERIFY-API` comment (in `ClearanceValidator`) marks
+    the only new API surface that needs a Windows reviewer's
+    confirmation.
+ 2. Clearance pairwise check is O(n²/2) on clearance-bearing
+    elements only. For the first production project with a lot
+    of clearance declarations this may become slow enough to
+    need a spatial index — out of scope for Pack 1.
+ 3. `CheckAcousticRating` heuristic matches type-name substrings
+    (ACOUSTIC, STC, RW, SOUND, SEPARAT) — projects using a
+    different naming convention will see zero findings until the
+    heuristic is tuned or replaced with a room-adjacency analysis.
+ 4. `STING_LOD_*_VISIBLE` switches are auditable but not yet
+    enforced at render-time (the visibility is a family-author
+    contract — geometry must be yoked to the booleans inside the
+    `.rfa`). `InjectAutomationPresentationPack` seeds them all to
+    1 so existing families behave unchanged.
+
+**Smoke test**
+
+Open a project with at least one family that has been processed
+by `InjectAutomationPresentationPack` and contains one or more
+`STING_ACOUSTIC_RW_DB` / `STING_FIRE_RATING_MIN` /
+`STING_LOD_*_VISIBLE` / `STING_CLEARANCE_MM` values:
+
+ 1. Click the dock-panel offline badge — should read "🔒 Offline".
+ 2. Run `BIM ▸ ACC Publish` — should refuse with the offline
+    TaskDialog; `StingTools.log` line: `StingOfflineConfig:
+    refused 'ACC Publish' — offline mode active (source: (defaults))`.
+ 3. Write `{"OfflineOnly": false}` to
+    `<project>/_BIM_COORD/sting_config.json`; close / reopen the
+    project; the badge switches to "🌐 Online" and the four
+    network commands run as before.
+ 4. Run `Validation ▸ Run All` — the result panel should include
+    a CLEARANCE VALIDATOR section with `CLR.NEIGHBOUR` findings
+    (if any clearances are declared) and a `CLR.SCAN` summary row.
+ 5. Run `LOD Validation` — the result panel should include the
+    new "LOD SWITCHES (STING_LOD_*_VISIBLE)" section with
+    switch-bearing type counts.
+
+
+---
+
+#### Completed (Phase 117 — automation Packs 2/3/4/5)
+
+Landed as a single commit (Phase 117 — automation Packs 2/3/4/5). See
+commit body for the file-by-file breakdown. Highlights:
+
+ - 24 new shared parameters injected by
+   `FamilyParamEngine.InjectAutomationPresentationPack` — all paired with
+   engine read-sites in the same commit.
+ - `MaintenanceClashValidator` projects the MNT_ENV envelope from the
+   declared MNT_ACCESS_DIR face and AABB-checks it against walls, MEP,
+   and structure.
+ - `FixturePlacementEngine:259` TODO resolved — `PlacementRule` now
+   carries `VariantHint`; `ResolveSymbol` prefers matching
+   `STING_FIXTURE_VARIANT_TXT` before falling back to first match.
+ - `TagPlacementEngine` gains 5 new read-sites:
+   `GetCandidateOffsetsWithAnchor`, `ReadTagPriority`,
+   `ReadTagClusterKey`, `ReadTagFamilyHint`, `ReadTagScaleRange`. The
+   anchor-aware variant wires into the primary SmartPlace loop so
+   families declaring `STING_TAG_ANCHOR_{X,Y}_MM` get correct tag
+   placement immediately.
+ - `StingTools.addin` gains `<UseRevitContext>false</UseRevitContext>` —
+   Revit 2026/2027 load STING into a private assembly load context;
+   Revit 2025 silently ignores the element.
+
+---
+
+#### Completed (Phase 118 — automation Packs 6/7/8/9/10)
+
+ - Pack 6 — AVF compliance heat-map. `Core/Visualization/AvfHeatmapEngine.cs`
+   wraps `SpatialFieldManager`; four adapters mirror
+   `ComplianceScan` / `FillValidator` / `SustainabilityEngine` /
+   `AcousticAnalysisEngine` outputs. Five commands:
+   `VisualiseComplianceHeatmap` / `Fill` / `Carbon` / `Acoustic` / `Clear`.
+ - Pack 7 — `Core/StingDocumentChangedHandler.cs`. DocumentChanged +
+   Idling dual-handler. Cascades (`RoomRenamed`, `ElementLevelChanged`,
+   `SheetRenumbered`) queue on DocumentChanged, drain inside a
+   `TransactionGroup` on the next Idling tick. Gated by
+   `StingOfflineConfig.RealtimeCascadesEnabled`.
+ - Pack 8 — `Core/StingIdlingScheduler.cs`. Priority queue of
+   `IIdlingJob` workers; per-tick budget 100 ms. `ComplianceRefreshJob`
+   is the pilot consumer — enqueued from `OnDocumentOpened` so the
+   dashboard is live within one tick.
+ - Pack 9 — `Core/Visualization/PreviewRenderer.cs`.
+   `IDirectContext3DServer` wrapper + `TagPreviewSource` mirroring
+   Smart Tag Placement's scoring. Zero transaction / zero mutation —
+   offline-safe.
+ - Pack 10 — `Core/Storage/StingSchemaBuilder.cs`. Extensible Storage
+   schema builder with `STING_STALE_BOOL` as the pilot. Dual-write +
+   ES-preferred-read during a transition window; legacy shared
+   parameter stays in place so pre-migration projects still work.
+
+---
+
+#### Completed (Phase 119 — automation Packs 11/12/13/14)
+
+Final four packs of the automation-enhancement programme.
+
+**Pack 11 — Generative Design placement study**
+
+ - `Data/GenerativeDesign/STING_FIXTURE_PLACEMENT.dyn` — Dynamo graph
+   wrapping the fixture-placement engine as an NSGA-II trial with three
+   objectives: spacing variance (minimise), coverage % (maximise),
+   clearance violations (minimise).
+ - `Core/Placement/GenerativeDesignBridge.cs` — `RunStudy(doc, rules,
+   spacingBias, coverageTarget, clearancePenalty)` partial class
+   extending `FixturePlacementEngine` with a `StudyResult` return
+   shape. Delegates clearance counting to the real
+   `ClearanceValidator` so the study output matches RunAllValidators
+   exactly.
+ - `FixturePlacementEngine` changed from `static class` to
+   `static partial class` so the bridge can extend it without
+   touching the original file.
+
+**Pack 12 — Revit 2027 MCP + .NET 10 multi-target**
+
+ - `Core/Mcp/McpToolDescriptorGenerator.cs` — #if REVIT_2027 guarded.
+   Reflection-based scan of every `IExternalCommand` in the assembly;
+   emits one `McpToolDescriptor` per class. Command tag + namespace
+   leaf become the tool name; class name becomes a terse synthesized
+   description. `McpServerRegistrar.RegisterAll(app)` is the startup
+   hook.
+ - .NET 10 multi-target held back from `StingTools.csproj` deliberately
+   — the Linux sandbox has no SDK access and landing it would risk
+   the existing net8.0-windows build. The `#if REVIT_2027` guard is
+   the split point; when the main project flips to
+   `<TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>`
+   the MCP bridge lights up for the net10 target only.
+
+**Pack 13 — APS webhooks receiver**
+
+ - `Planscape.Server/src/Planscape.API/Controllers/AutodeskWebhooksController.cs`
+   — `POST /api/webhooks/autodesk/event`. HMAC-SHA256 signature
+   validation via configured `Autodesk:WebhookSecret`. Three handlers:
+   `dm.version.added` (stamp `UpdatedAt`), `docs.approval.completed`
+   (CdeStatus transition → PUBLISHED, idempotent), `model.review.completed`
+   (SignalR broadcast).
+ - Anonymous auth — APS authenticates via HMAC header, not bearer
+   token, so the controller bypasses the normal JWT middleware.
+ - First-pass URN matching uses `StatusHistoryJson` substring search; a
+   dedicated indexed `AccUrn` column is on the followup list.
+ - Gating: server-side endpoint intentionally does NOT check client
+   offline state — the refusal surface lives in the plugin's
+   `ACCPublishCommand` / `PlatformSyncCommand` which won't configure
+   webhooks while `StingOfflineConfig.IsOffline == true`.
+
+**Pack 14 — Automation API headless project**
+
+ - `StingTools.Headless/StingTools.Headless.csproj` (NEW) — separate
+   assembly for Autodesk Design Automation work items. net8.0-windows,
+   library output, no WPF.
+ - `StingTools.Headless/HeadlessRunner.cs` — `IExternalDBApplication`
+   entry point. Reads `STING_HEADLESS_CMD`, `_RVT`, `_OUT` environment
+   variables, dispatches to four read-only engines: `VALIDATE`,
+   `COMPLIANCE`, `REGISTER`, `COBIE`. First-pass engine adapters emit
+   skeleton JSON / CSV artefacts; production version wires through to
+   the real engines once both DLLs co-ship.
+ - Not included in the main `StingTools.sln` — DA packages the
+   assembly separately.
+
+**Caveats (Phase 119)**
+
+ 1. Built without `dotnet build` verification (Linux sandbox). Revit
+    2027 API surfaces (MCP, Generative Design RunStudy API) use the
+    published documentation signatures but have not been compile-
+    checked.
+ 2. Pack 11 `RunStudy` is a first-pass scorer — real production
+    studies need per-trial caching so the Pareto front exposes the
+    actual placement seed, not just objective scalars.
+ 3. Pack 12 net10 multi-target deferred — add
+    `<TargetFrameworks>net8.0-windows;net10.0-windows</TargetFrameworks>`
+    plus `<DefineConstants Condition="'$(TargetFramework)' == 'net10.0-windows'">REVIT_2027</DefineConstants>`
+    to flip the switch; requires net10 SDK.
+ 4. Pack 13 lacks a dedicated `AccUrn` column on `DocumentRecord`;
+    relies on `StatusHistoryJson` substring lookup for now.
+ 5. Pack 14 engine adapters are stubs that emit skeleton artefacts.
+    Production graduates the real validators by adding a project
+    reference from `StingTools.Headless.csproj` to `StingTools.csproj`
+    (or extracting the read-only engines into a shared library).
+
+**Smoke test (Phases 117–119)**
+
+ 1. Open a project with at least one family processed by the updated
+    `InjectAutomationPresentationPack`; verify Revit's Project
+    Parameters dialog shows the 24 new Pack 2/3/4 params.
+ 2. Run `Validation ▸ Run All` — the result panel shows new
+    `CLEARANCE VALIDATOR` + `MAINTENANCE CLASH VALIDATOR` sections.
+ 3. BIM tab ▸ Visualise Compliance — AVF paint appears on the active
+    view; `Clear Heat-map` wipes it.
+ 4. Rename a level; within one second the affected elements' `ASS_LVL`
+    + `ASS_TAG_1` update via the DocumentChanged cascade.
+ 5. Open `Data/GenerativeDesign/STING_FIXTURE_PLACEMENT.dyn` in
+    Dynamo; Generative Design ▸ Create Study ▸ pick STING Fixture
+    Placement; trial runs return the three objective scalars.
+ 6. Curl `POST /api/webhooks/autodesk/event` with a signed payload
+    and verify the SignalR broadcast fires.
+ 7. Run `Autodesk.Forge.DesignAutomation` work item against
+    `StingTools.Headless.dll` with `STING_HEADLESS_CMD=REGISTER`;
+    output bucket should contain a populated `drawing_register.csv`.
+
+
+---
+
+#### Completed (Phase 120 — online default + complete §9 schema delta)
+
+Two corrections in one commit:
+
+**Online is now the default posture** — STING ships with both environments
+first-class. A new install has every command working (including the four
+network-touching ones), and offline becomes a per-project opt-in flipped
+through the dock-panel badge or by editing `_BIM_COORD/sting_config.json`
+directly. The brief's original `OfflineOnly = true` default has been
+replaced with `false` so users aren't blocked by a refusal dialog the
+first time they click ACC Publish.
+
+ - `Core/StingOfflineConfig.cs` — `_offlineOnly` default flipped to
+   `false`. New `IsOnline` convenience property. `SaveToProject(bimDir)`
+   + `SetOffline(bool, bimDir)` persist the mode to the project's
+   `sting_config.json`. TaskDialog messaging reworded: "This project
+   has been set to offline mode" (past tense, project-scoped) instead
+   of "STING is configured offline" (machine-scoped).
+ - `UI/StingDockPanel.xaml` — indicator border is now a clickable badge
+   (`Cursor="Hand"`, `MouseLeftButtonUp="OfflineIndicator_Click"`).
+   Default text is "Online"; ToolTip explains that clicking toggles
+   the mode and persists.
+ - `UI/StingDockPanel.xaml.cs` — new `OfflineIndicator_Click` handler
+   flips `StingOfflineConfig.SetOffline`, refreshes the indicator,
+   and shows a short TaskDialog confirming the mode change. Uses
+   `StingCommandHandler.CurrentApp` to locate the project's `_BIM_COORD`
+   directory so the toggle persists.
+ - `RefuseIfOffline` is now a hot no-op in the default configuration —
+   no dialog, no log line, no overhead for the 99% of users who stay
+   online. Only fires when a project has explicitly opted into offline
+   mode.
+
+The Phase 116 caveat about offline-by-default is superseded by this
+phase; refer here for the canonical posture.
+
+**Complete §9 schema delta — 21 additional parameters + reader plumbing**
+
+Phase 117 landed 24 of the 45 parameters in the brief's §9 schema delta.
+This phase completes the remaining 21 and wires read-sites for each:
+
+ - §5.1 (7) — `PLACE_HOST_TYPE_TXT`, `PLACE_MOUNT_HEIGHT_MM`,
+   `PLACE_SPACING_RULE_TXT`, `PLACE_ORIENTATION_RULE_TXT`,
+   `PLACE_LEVEL_HINT_TXT`, `PLACE_GROUP_KEY_TXT`, `PLACE_WEIGHT_KG`.
+   Read-site: `PlacementScorer.ApplyPlacementHints` reads all seven
+   through `Core/Placement/PlacementParamReader.cs` and biases the
+   composite score by `LevelHintBias`. Families with no hints return
+   an empty `PlacementHints` struct and the scorer behaves exactly as
+   before.
+ - §5.3 (9) — `CONN_COUNT_INT`, `CONN_TYPES_TXT`, `PREF_DROP_DIR_TXT`,
+   `SLOPE_MIN_PCT`, `SLOPE_MAX_PCT`, `FILL_MAX_PCT`, `TERM_TYPE_TXT`,
+   `SEGMENT_LEN_MAX_MM`, `SUPPORT_PITCH_MM`. Read-sites:
+   `SlopeValidator` honours family-declared `SLOPE_MIN/MAX_PCT` over
+   global BS EN 12056-2 defaults; `FillValidator` honours per-family
+   `FILL_MAX_PCT` on electrical containment; `TerminationValidator`
+   honours `TERM_TYPE_TXT` ("Cap" / "Elbow90" / …) as an explicit
+   termination and cross-checks `CONN_COUNT_INT` against observed
+   connectors; `ConnectivityValidator` flags
+   `CONN.COUNT.MISMATCH` when the family count disagrees with the
+   model. All reads flow through `Core/Routing/RoutingParamReader.cs`.
+ - §5.5 (5) — `UNICLASS_PR_TXT`, `UNICLASS_SS_TXT`, `UNICLASS_EF_TXT`,
+   `NBS_CODE_TXT`, `ASSET_RFI_URL_TXT` (Instance-bound). Read-site:
+   new `Core/Validation/ClassificationAuditValidator.cs` walks family
+   types across 8 categories, summarises missing Uniclass / NBS / RFI
+   URL coverage as an Info-level `CLS.SCAN` finding.
+   `Core/Classification/ClassificationReader.cs` exposes a
+   `BoqGroupKey(element)` helper the BOQ / COBie / Handover commands
+   consume through a stable string key (Pr > Ss > Ef > OmniClass >
+   native family-type).
+
+**New files (Phase 120)**
+
+ - `Core/Placement/PlacementParamReader.cs` (111 lines)
+ - `Core/Routing/RoutingParamReader.cs` (84 lines)
+ - `Core/Classification/ClassificationReader.cs` (101 lines)
+ - `Core/Validation/ClassificationAuditValidator.cs` (73 lines)
+
+**Edits (Phase 120)**
+
+ - `Tags/FamilyParamCreatorCommand.cs` — `InjectAutomationPresentationPack`
+   extended by 21 entries. Pack array now ships 45 net-new parameters.
+ - `Core/StingOfflineConfig.cs` — online default, new save/toggle APIs.
+ - `UI/StingDockPanel.xaml(.cs)` — clickable badge, toggle handler.
+ - `Core/Placement/PlacementScorer.cs` — `ApplyPlacementHints` /
+   `ResolveSampleInstanceForRule`.
+ - `Core/Validation/SlopeValidator.cs` — family slope override.
+ - `Core/Validation/FillValidator.cs` — family FILL_MAX_PCT override.
+ - `Core/Validation/TerminationValidator.cs` — TERM_TYPE_TXT + CONN_COUNT.
+ - `Core/Validation/ConnectivityValidator.cs` — CONN.COUNT.MISMATCH.
+ - `Commands/Validation/RunAllValidatorsCommand.cs` —
+   `ClassificationAuditValidator` registered; subtitle updated.
+
+**§9 schema delta — final tally**
+
+45 net-new shared parameters injected by
+`FamilyParamEngine.InjectAutomationPresentationPack`, every one paired
+with an engine read-site in the programme:
+
+| Group  | Count | Read-site |
+|--------|-------|-----------|
+| §5.1   | 9     | PlacementScorer.ApplyPlacementHints, FixturePlacementEngine.ResolveSymbol |
+| §5.2   | 14    | ClearanceValidator, MaintenanceClashValidator |
+| §5.3   | 9     | Slope/Fill/Termination/Connectivity validators |
+| §5.4   | 8     | TagPlacementEngine.GetCandidateOffsetsWithAnchor et al. |
+| §5.5   | 5     | ClassificationAuditValidator + ClassificationReader |
+| **Tot**| **45**| —         |
+
+No more automation orphans — every parameter STING injects has a proof-
+of-life call-site in the same assembly.
+
+**Smoke test**
+
+ 1. Click the "Online" badge — confirm TaskDialog + status flip to
+    "Offline"; the four network commands refuse; click again and
+    flip back to "Online".
+ 2. Run `Validation ▸ Run All` on a project where at least one family
+    declares `SLOPE_MIN_PCT = 2.0` — confirm sanitary pipes with slope
+    < 2% now flag with "(family SLOPE_MIN_PCT)".
+ 3. Author a fixture family with `PLACE_LEVEL_HINT_TXT = "Plant*"` —
+    run `Place Fixtures` and confirm plant-room placements outscore
+    non-plant placements in `StingTools.log`.
+ 4. `Validation ▸ Run All` now includes a `CLS.SCAN` Info row
+    summarising Uniclass / NBS / RFI URL coverage.
+
+
+---
+
+#### Completed (Phase 121 — Gap 2: graduate Extensible Storage beyond the pilot)
+
+Pack 10 landed the STING_STALE_BOOL pilot on Extensible Storage. Phase 121
+extends that pattern to the next three per-element schemas and lands a
+document-scoped one for learned tag offsets. The brief's
+"start with STING_STALE_BOOL + compliance cache — proven pattern before
+touching the hot-path parameters" rule holds: the compliance cache
+(cluster + position + tag history) migrates here; the tagging pipeline
+itself stays on the shared-param hot path until a later pack.
+
+**New ES schemas (per-element, vendor-locked)**
+
+| Schema | GUID | Fields | Replaces |
+|---|---|---|---|
+| `StingClusterSchema`     | E1A7B2C4-1011-1236-8411-F6E5D4C3B2A2 | Count (int), Label (string), GroupKey (string) | STING_CLUSTER_COUNT, STING_CLUSTER_LABEL |
+| `StingPositionSchema`    | E1A7B2C4-1011-1237-8411-F6E5D4C3B2A3 | TagPos (int 1..4), TokenPresenceMask (int bitmask) | STING_TAG_POS + computed per-scan mask |
+| `StingTagHistorySchema`  | E1A7B2C4-1011-1238-8411-F6E5D4C3B2A4 | PreviousTag (string), ModifiedUtcTicks (long), RevisionCode (string) | ASS_TAG_PREV_TXT, ASS_TAG_MODIFIED_DT |
+| `StingTagLearnedSchema`  | E1A7B2C4-1011-1239-8411-F6E5D4C3B2A5 | OffsetsJson (string), UpdatedUtcTicks (long). Stored on `ProjectInformation`. | JSON in `_BIM_COORD/learned_tag_offsets.json` |
+
+All GUIDs deterministic, never to be rotated. Revit forbids field
+additions to an existing schema — new fields require a new GUID.
+
+**New facade — `Core/Storage/StingEsHelpers.cs`**
+
+Single entry point for every read-site that wants ES-first with
+shared-parameter fallback. Three operations per schema:
+
+ - `ReadFoo(element)` — ES-preferred; falls back to legacy shared
+   parameter when the ES entity is absent.
+ - `TryImportFoo(element)` — idempotent copy-up: shared → ES when
+   ES is empty, skip otherwise.
+ - `WriteFoo(...)` — new writes land in ES; call-sites dual-write
+   to the legacy shared parameter for safety during the transition
+   window.
+
+**New commands**
+
+| Command tag | Class | Purpose |
+|---|---|---|
+| `ES_Migrate`    | `Commands.Storage.MigrateToExtensibleStorageCommand` | One-click project-wide: every element + ProjectInformation imported into ES. Idempotent — counters report only new imports per invocation. |
+| `ES_Diagnostic` | `Commands.Storage.EsStorageDiagnosticCommand`        | Read-only coverage scan per schema (ES entity / legacy shared-only) with an action panel telling the coordinator whether to run `ES_Migrate`. |
+
+Both registered in `UI/StingCommandHandler.cs` (switch cases after
+`Validation_RunAll`).
+
+**Read-sites wired in this phase**
+
+ - `Organise/TagOperationCommands.cs::DeclusterTagsCommand` — reads
+   cluster count via `StingEsHelpers.ReadCluster(element)`. Post-
+   migration projects resolve from the ES entity; pre-migration keep
+   reading `STING_CLUSTER_COUNT` as before.
+ - `Tags/SmartTagPlacementCommand.cs::SwitchTagPositionCommand` —
+   dual-writes to the ES position schema when users flip `STING_TAG_POS`,
+   preserving the existing shared-parameter write for safety. Token
+   presence mask is co-persisted so the next compliance scan can skip
+   8 `LookupParameter` calls per element.
+
+Tag-history dual-write is deliberately NOT wired yet — that's the hot
+path (the tag pipeline fires on every single tag mutation). Phase 121
+ships the schema + facade + migration; hot-path dual-write is the next
+pack once the migration has run across at least one full project cycle.
+
+**Files**
+
+ - NEW: `StingTools/Core/Storage/StingClusterSchema.cs` (95 lines)
+ - NEW: `StingTools/Core/Storage/StingPositionSchema.cs` (88 lines)
+ - NEW: `StingTools/Core/Storage/StingTagHistorySchema.cs` (94 lines)
+ - NEW: `StingTools/Core/Storage/StingTagLearnedSchema.cs` (107 lines)
+ - NEW: `StingTools/Core/Storage/StingEsHelpers.cs` (148 lines)
+ - NEW: `StingTools/Commands/Storage/MigrateToExtensibleStorageCommand.cs` (79 lines)
+ - NEW: `StingTools/Commands/Storage/EsStorageDiagnosticCommand.cs` (113 lines)
+ - EDIT: `StingTools/Organise/TagOperationCommands.cs` — decluster ES-preferred read
+ - EDIT: `StingTools/Tags/SmartTagPlacementCommand.cs` — tag-pos dual-write
+ - EDIT: `StingTools/UI/StingCommandHandler.cs` — two new command cases
+
+**Caveats**
+
+ 1. Built without `dotnet build` verification (Linux sandbox).
+ 2. Legacy shared parameters are NOT deleted. The transition window
+    stays open until the migration command has been run across every
+    shipping project. A later pack will flip the legacy writes off
+    and bind the shared parameters as read-only.
+ 3. `StingTagLearnedSchema` writes one JSON blob into a single string
+    field on `ProjectInformation`. Lucene search against learned
+    offsets is out of scope — the category count is low (≤50) and a
+    linear walk is cheap.
+ 4. Tag-history dual-write is not wired; reads still prefer the legacy
+    surface. Ship the hot-path wiring only after `ES_Migrate` has
+    been exercised on at least one project.
+
+**Smoke test**
+
+ 1. Open a project with at least one clustered tag (run Organise ▸
+    Cluster Tags first if needed).
+ 2. Run BIM ▸ ES Diagnostic — should show non-zero "Legacy shared-only"
+    counts for STING_CLUSTER_COUNT + STING_TAG_POS.
+ 3. Run BIM ▸ ES Migrate — dialog should report those same counts as
+    "imported".
+ 4. Run BIM ▸ ES Diagnostic again — every non-zero row should now
+    show an ES entity count with "Legacy shared-only" at zero.
+ 5. Run Organise ▸ Decluster Tags — behaviour unchanged (the read-site
+    now goes through the ES-first path but falls back cleanly).
+
+
+---
+
+#### Completed (Phase 122–126 — Gap A–N follow-up)
+
+Five-pack push closing every gap from the pre-control-centre advisory.
+All offline-safe; pre-migration projects keep working unchanged.
+
+**Pack 122 — A/B/C: hot-path tag history + workflow + drawing-types on ES**
+ - A: TagPipelineHelper.RunFullPipeline dual-writes to
+   StingTagHistorySchema alongside the existing legacy params.
+ - B: StingWorkflowStateSchema on ProjectInformation; WorkflowEngine
+   stamps last-run after every preset; migration command imports the
+   STING_WORKFLOW_LOG.jsonl tail.
+ - C: StingDrawingTypesSchema on ProjectInformation;
+   DrawingTypeRegistry.LoadProjectOverride reads ES first, falls back
+   to _BIM_COORD/drawing_types.json. Migration imports the on-disk JSON.
+
+**Pack 123 — D/E: validator suppression + element-creation provenance**
+ - D: StingValidatorSuppressionSchema per-element ignored-codes list.
+   RunAllValidatorsCommand filters and surfaces the suppression count.
+ - E: StingProvenanceSchema captures Engine + RuleId + CreatedUtc +
+   Operator. FixturePlacementEngine stamps every auto-placed fixture
+   so cleanup / BOQ / "delete auto-created" commands can identify them.
+
+**Pack 124 — F/G/H: pack version + token lineage + connector ES**
+ - F: StingPackVersionSchema on family ProjectInfo;
+   InjectAutomationPresentationPack stamps CurrentPackVersion (=4).
+   Coordinators can run IsStale(doc) to find families needing
+   re-injection.
+ - G: StingTokenLineageSchema captures the source for LOC/ZONE/SYS.
+   TokenAutoPopulator stamps after detection so audit panels answer
+   "why is this in BLD2 not BLD3?" without log-spelunking.
+ - H: StingConnectorMetaSchema replaces CONN_TYPES_TXT comma string
+   with a typed IList<string>. RoutingParamReader prefers ES;
+   AutoDrop and SeparationValidator avoid string-split hot loops.
+
+**Pack 125 — L/M: compliance baseline + per-view preset**
+ - L: StingComplianceBaselineSchema on ProjectInformation;
+   ComplianceScan.Scan() persists the snapshot under its own
+   transaction so trends survive Revit restarts.
+ - M: StingViewPresetSchema per-View stores
+   PresetName + AppliedUtcTicks + OverridesJson for the control /
+   placement centre's "recall layout from L02 sheet" feature.
+
+**Pack 126 — I/J/K/N: JSON schemas + classification fallback + IFC + cost**
+ - I: Three JSON Schema files in Data/Schemas/ for IDE lint of the
+   placement, drawing-types, and fab rule packs. Zero code change.
+ - J: ClassificationReader.ResolveFallback returns
+   (key, source, value) — single canonical chain
+   (Uniclass.Pr → Ss → Ef → OmniClass23 → Native.Family) used by BOQ /
+   COBie / handover / IFC. BoqGroupKey now a back-compat shim.
+ - K: IfcPropertyMapper.Build emits Pset_ClassificationReference (IFC4
+   canonical Uniclass) + Pset_PlanscapeAsset (NBS clause + RFI URL +
+   classification source). Existing IFC export paths can call this to
+   wire §5.5 params into handover IFC files.
+ - N: StingCostRateOverrideSchema per-element override of the
+   cost_rates_5d.csv catalogue rate. Captures Rate + Unit + Note +
+   StampedBy + StampedUtcTicks for the cost report.
+
+**ES schema catalogue after Phases 121–126 (one source of truth)**
+
+| Schema | GUID suffix | Scope | Replaces |
+|---|---|---|---|
+| StingStaleSchema           | 1235 | Element  | STING_STALE_BOOL |
+| StingClusterSchema         | 1236 | Element  | STING_CLUSTER_COUNT/LABEL |
+| StingPositionSchema        | 1237 | Element  | STING_TAG_POS + presence cache |
+| StingTagHistorySchema      | 1238 | Element  | ASS_TAG_PREV_TXT + ASS_TAG_MODIFIED_DT |
+| StingTagLearnedSchema      | 1239 | ProjectInfo | learned_tag_offsets.json |
+| StingWorkflowStateSchema   | 123A | ProjectInfo | STING_WORKFLOW_LOG.jsonl tail |
+| StingDrawingTypesSchema    | 123B | ProjectInfo | _BIM_COORD/drawing_types.json |
+| StingValidatorSuppressionSchema | 123C | Element | (new — no legacy) |
+| StingProvenanceSchema      | 123D | Element  | (new — no legacy) |
+| StingPackVersionSchema     | 123E | ProjectInfo | (new — no legacy) |
+| StingTokenLineageSchema    | 123F | Element  | (new — no legacy) |
+| StingConnectorMetaSchema   | 1240 | Element  | CONN_TYPES_TXT etc. |
+| StingComplianceBaselineSchema | 1241 | ProjectInfo | static cache |
+| StingViewPresetSchema      | 1242 | View     | (new — no legacy) |
+| StingCostRateOverrideSchema | 1243 | Element | (new — no legacy) |
+
+15 schemas total, all under vendor-id "Planscape", all with stable
+deterministic GUIDs that will never rotate.
+
+**Caveats**
+ 1. Built without dotnet build verification (Linux sandbox).
+ 2. Pack 124/G stamps lineage via a sysLayer enum that only some
+    populate paths set; family-default and fallback layers may be
+    over-counted on first releases.
+ 3. Pack 125/L ring-buffer is empty until the next Phase ships the
+    daily-rollover job.
+ 4. Pack 126/K IfcPropertyMapper is a builder — the existing IFC
+    export code paths still need a one-line call-site to consume the
+    psets it produces.

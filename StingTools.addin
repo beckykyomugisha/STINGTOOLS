@@ -25,5 +25,13 @@
     <VendorId>Planscape</VendorId>
     <VendorDescription>Planscape - ISO 19650 BIM Automation</VendorDescription>
     <VendorEmail>support@planscape.app</VendorEmail>
+    <!--
+      Pack 5 — Assembly Load Context isolation (Revit 2026+).
+      Loads STING into a private ALC so Newtonsoft.Json, ClosedXML, Lucene and
+      other shared-dependency versions can't conflict with other add-ins that
+      pin a different version. Revit 2025 silently ignores this element — zero
+      behaviour change there; Revit 2026/2027 honour it.
+    -->
+    <UseRevitContext>false</UseRevitContext>
   </AddIn>
 </RevitAddIns>
