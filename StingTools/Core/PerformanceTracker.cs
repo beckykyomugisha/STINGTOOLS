@@ -114,7 +114,12 @@ namespace StingTools.Core
             string path = OutputLocationHelper.GetTimestampedPath(null, "STING_Performance", ".csv");
             try
             {
-                using (var sw = new StreamWriter(path))
+                // UTF-8 with BOM so Excel on non-English locales opens unicode
+                // operation names correctly. The default StreamWriter ctor uses
+                // the system ANSI code page, which mangles characters on EU /
+                // CJK machines.
+                using (var sw = new StreamWriter(path, append: false,
+                    encoding: new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
                 {
                     sw.WriteLine("Operation,Invocations,TotalMs,AvgMs,MaxMs,Elements,ElementsPerSec");
                     foreach (var stats in _operations.Values.OrderByDescending(s => s.TotalElapsed))
