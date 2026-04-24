@@ -40,16 +40,21 @@ namespace StingTools.UI
     /// </summary>
     public class BulkOperationDialog : Window
     {
-        // ── Theme colours ─────────────────────────────────────────────
-        private static readonly Color BgDark = Color.FromRgb(0x2D, 0x2D, 0x30);
-        private static readonly Color BgMedium = Color.FromRgb(0x3E, 0x3E, 0x42);
-        private static readonly Color BgLight = Color.FromRgb(0x4A, 0x4A, 0x4E);
+        // ── Theme colours (light, contrast-safe; flipped from the old
+        //                  dark #2D2D30 palette so text is always
+        //                  readable even when a control falls back to
+        //                  system chrome). BrBgDark / BrFgWhite / etc.
+        //                  are kept as names for a minimal-diff swap —
+        //                  the values are light now. ─────────────────
+        private static readonly Color BgDark = Color.FromRgb(0xFA, 0xFA, 0xFA);       // window bg
+        private static readonly Color BgMedium = Color.FromRgb(0xFF, 0xFF, 0xFF);      // card bg
+        private static readonly Color BgLight = Color.FromRgb(0xF0, 0xF0, 0xF0);       // zebra / alt row
         private static readonly Color AccentOrange = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color FgWhite = Color.FromRgb(0xF0, 0xF0, 0xF0);
-        private static readonly Color FgDim = Color.FromRgb(0xA0, 0xA0, 0xA0);
-        private static readonly Color WarningRed = Color.FromRgb(0xE0, 0x50, 0x50);
-        private static readonly Color SuccessGreen = Color.FromRgb(0x4C, 0xAF, 0x50);
-        private static readonly Color BorderDark = Color.FromRgb(0x55, 0x55, 0x58);
+        private static readonly Color FgWhite = Color.FromRgb(0x22, 0x22, 0x22);       // body text
+        private static readonly Color FgDim = Color.FromRgb(0x66, 0x66, 0x66);         // muted text
+        private static readonly Color WarningRed = Color.FromRgb(0xC6, 0x28, 0x28);    // darkened for white bg
+        private static readonly Color SuccessGreen = Color.FromRgb(0x2E, 0x7D, 0x32);  // darkened for white bg
+        private static readonly Color BorderDark = Color.FromRgb(0xCF, 0xD8, 0xDC);    // subtle border
 
         private static SolidColorBrush FZ(SolidColorBrush b) { b.Freeze(); return b; }
         private static SolidColorBrush FZA(byte a, byte r, byte g, byte b) { var br = new SolidColorBrush(Color.FromArgb(a, r, g, b)); br.Freeze(); return br; }
@@ -62,7 +67,7 @@ namespace StingTools.UI
         private static readonly SolidColorBrush BrWarning = FZ(new(WarningRed));
         private static readonly SolidColorBrush BrSuccess = FZ(new(SuccessGreen));
         private static readonly SolidColorBrush BrBorder = FZ(new(BorderDark));
-        private static readonly SolidColorBrush BrDark25 = FZ(new(Color.FromRgb(0x25, 0x25, 0x28)));
+        private static readonly SolidColorBrush BrDark25 = FZ(new(Color.FromRgb(0xF0, 0xF0, 0xF0))); // was very dark → now zebra row
         private static readonly SolidColorBrush BrWarnBg = FZA(0x30, 0xE0, 0x50, 0x50);
         private static readonly SolidColorBrush BrRetagBg = FZA(0x30, 0xE8, 0x91, 0x2D);
         private static readonly SolidColorBrush BrWhite = FZ(new SolidColorBrush(Colors.White));

@@ -28,13 +28,13 @@ namespace StingTools.UI
     /// </summary>
     public class ParagraphBuilderDialog : Window
     {
-        // ── colour palette (matches HeadingStyleDialog) ──
-        private static readonly Color BgColor     = Color.FromRgb(0x2D, 0x2D, 0x30);
-        private static readonly Color AccentColor = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color CardBg      = Color.FromRgb(0x3E, 0x3E, 0x42);
-        private static readonly Color CardBorder  = Color.FromRgb(0x55, 0x55, 0x58);
-        private static readonly Color FgColor     = Colors.White;
-        private static readonly Color SubtleColor = Color.FromRgb(0xAA, 0xAA, 0xAA);
+        // ── colour palette (light, contrast-safe — matches rest of app) ──
+        private static readonly Color BgColor     = Color.FromRgb(0xFA, 0xFA, 0xFA); // window bg
+        private static readonly Color AccentColor = Color.FromRgb(0xE8, 0x91, 0x2D); // STING orange
+        private static readonly Color CardBg      = Color.FromRgb(0xFF, 0xFF, 0xFF); // input / card bg
+        private static readonly Color CardBorder  = Color.FromRgb(0xCF, 0xD8, 0xDC); // subtle border
+        private static readonly Color FgColor     = Color.FromRgb(0x22, 0x22, 0x22); // body text
+        private static readonly Color SubtleColor = Color.FromRgb(0x66, 0x66, 0x66); // muted text
 
         // ── state ──
         private ParagraphPresets _presets;
@@ -512,7 +512,7 @@ namespace StingTools.UI
                 Content = text, Width = width, Height = 26,
                 Margin = new Thickness(3, 0, 3, 0), FontSize = 11,
                 Background = accent ? new SolidColorBrush(AccentColor) : new SolidColorBrush(CardBg),
-                Foreground = new SolidColorBrush(accent ? Colors.Black : (Color)FgColor),
+                Foreground = new SolidColorBrush(accent ? Colors.White : (Color)FgColor),
                 BorderBrush = new SolidColorBrush(CardBorder),
                 Cursor = Cursors.Hand,
             };
