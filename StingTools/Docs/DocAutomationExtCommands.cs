@@ -209,8 +209,13 @@ namespace StingTools.Docs
         }
 
         // ── Title block helpers ──
+        /// <summary>Returns the preferred title block for sheet creation.
+        /// Defers to <see cref="StingTools.Core.TitleBlockRouter"/> (Project Setup Wizard
+        /// selections), falling back to the first loaded OST_TitleBlocks symbol.</summary>
         internal static FamilySymbol GetFirstTitleBlock(Document doc)
         {
+            var routed = StingTools.Core.TitleBlockRouter.Resolve(doc, null);
+            if (routed != null) return routed;
             return new FilteredElementCollector(doc)
                 .OfClass(typeof(FamilySymbol))
                 .OfCategory(BuiltInCategory.OST_TitleBlocks)
@@ -785,13 +790,15 @@ namespace StingTools.Docs
                 return Result.Succeeded;
             }
 
-            FamilySymbol titleBlock = titleBlocks[0];
-            if (!titleBlock.IsActive)
+            // Default title block comes from TitleBlockRouter (populated by Project Setup Wizard).
+            // Per-view resolution happens inside the loop so per-discipline overrides can apply.
+            FamilySymbol defaultTitleBlock = StingTools.Core.TitleBlockRouter.Resolve(doc, null) ?? titleBlocks[0];
+            if (!defaultTitleBlock.IsActive)
             {
                 using (Transaction activateTx = new Transaction(doc, "STING Activate Title Block"))
                 {
                     activateTx.Start();
-                    titleBlock.Activate();
+                    defaultTitleBlock.Activate();
                     activateTx.Commit();
                 }
             }
@@ -800,6 +807,23 @@ namespace StingTools.Docs
             int sheetsCreated = 0;
             int viewsPlaced = 0;
             int errors = 0;
+
+            // Maps "A/S/M/E/..." sheet prefix → ISO 19650 discipline code used by the router.
+            static string PrefixToDisciplineCode(string prefix)
+            {
+                switch ((prefix ?? "").ToUpperInvariant())
+                {
+                    case "A": return "A";
+                    case "S": return "S";
+                    case "M": return "M";
+                    case "E": return "E";
+                    case "P": return "P";
+                    case "FP": return "FP";
+                    case "LV": return "LV";
+                    case "G": return "G";
+                    default: return null;
+                }
+            }
 
             using (Transaction tx = new Transaction(doc, "STING Batch Create Sheets"))
             {
@@ -816,6 +840,9 @@ namespace StingTools.Docs
                             int startNum = DocAutomationHelper.SheetStartNumbers.TryGetValue(prefix, out int sn) ? sn + 1 : 1;
                             string sheetNum = DocAutomationHelper.NextSheetNumber(prefix, startNum, existingNums);
 
+                            // Per-discipline title block (falls back to default inside Resolve()).
+                            FamilySymbol titleBlock = StingTools.Core.TitleBlockRouter
+                                .Resolve(doc, PrefixToDisciplineCode(prefix)) ?? defaultTitleBlock;
                             ViewSheet sheet = ViewSheet.Create(doc, titleBlock.Id);
                             sheet.SheetNumber = sheetNum;
                             sheet.Name = v.Name.Replace("STING - ", "");
@@ -863,6 +890,8 @@ namespace StingTools.Docs
                                 int startNum = DocAutomationHelper.SheetStartNumbers.TryGetValue(prefix, out int sn) ? sn + 1 : 1;
                                 string sheetNum = DocAutomationHelper.NextSheetNumber(prefix, startNum, existingNums);
 
+                                FamilySymbol titleBlock = StingTools.Core.TitleBlockRouter
+                                    .Resolve(doc, PrefixToDisciplineCode(prefix)) ?? defaultTitleBlock;
                                 ViewSheet sheet = ViewSheet.Create(doc, titleBlock.Id);
                                 sheet.SheetNumber = sheetNum;
                                 string suffix = sheetsNeeded > 1 ? $" ({s + 1}/{sheetsNeeded})" : "";
