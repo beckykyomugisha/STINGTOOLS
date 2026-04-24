@@ -162,7 +162,8 @@ namespace StingTools.Core.Fabrication
                 var p1 = curve.GetEndPoint(1);
                 double boreMm = pipe.Diameter * FtToMm;
                 double weightKg = 0;
-                try { weightKg = SpoolWeightCalculator.WeightKg(pipe.Document, new[] { pipe.Id }); } catch { }
+                try { weightKg = SpoolWeightCalculator.WeightKg(pipe.Document, new[] { pipe.Id }); }
+                catch (Exception wEx) { StingTools.Core.StingLog.Warn($"PcfExporter.WeightKg pipe {pipe?.Id}: {wEx.Message}"); }
 
                 w.WriteLine("PIPE");
                 w.WriteLine($"    END-POSITION       {FmtXYZ(p0)} {boreMm.ToString("F1", Inv)}");

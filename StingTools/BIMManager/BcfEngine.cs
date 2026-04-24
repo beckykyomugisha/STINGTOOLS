@@ -280,8 +280,8 @@ namespace Planscape.Shared.BCF
                 }
             }
             catch (InvalidDataException) { /* not a ZIP — return whatever we parsed */ }
-            catch (IOException)          { }
-            catch (Exception)            { }
+            catch (IOException ioEx)     { StingTools.Core.StingLog.Warn($"BcfEngine.Import I/O: {ioEx.Message}"); }
+            catch (Exception ex)         { StingTools.Core.StingLog.Warn($"BcfEngine.Import: {ex.Message}"); }
 
             return result;
         }

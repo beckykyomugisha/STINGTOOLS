@@ -123,7 +123,8 @@ namespace StingTools.Core
             {
                 var matIds = el.GetMaterialIds(false);
                 if (matIds == null || matIds.Count == 0) missing.Add("material");
-            } catch { }
+            }
+            catch (Exception ex) { StingLog.Warn($"LOD.MissingFor.GetMaterialIds {el?.Id}: {ex.Message}"); }
             if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.DISC))) missing.Add("DISC");
             if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC))) missing.Add("LOC");
             return missing.Count == 0 ? "(unknown)" : "missing " + string.Join(", ", missing);
