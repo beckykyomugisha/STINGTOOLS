@@ -114,6 +114,7 @@ namespace StingTools.Commands.Fabrication
                 return Result.Failed;
             }
 
+            FabricationUndoManager.Record(res);
             ShowResult(res);
 
             // Open first generated sheet for instant feedback
