@@ -31,6 +31,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -966,19 +967,7 @@ namespace StingTools.Model
                 FontWeight = FontWeights.Bold, FontSize = 10,
                 Foreground = DarkBlue, Margin = new Thickness(0, 12, 0, 4),
             });
-            _repeatLevelCheckboxesCad.Clear();
-            var repeatWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
-            foreach (var lvl in levels)
-            {
-                var cb = new CheckBox
-                {
-                    Content = lvl.Name, Tag = lvl.Name,
-                    Margin = new Thickness(0, 0, 8, 4), FontSize = 10,
-                };
-                _repeatLevelCheckboxesCad.Add(cb);
-                repeatWrap.Children.Add(cb);
-            }
-            levelStack.Children.Add(repeatWrap);
+            levelStack.Children.Add(BuildRepeatLevelsDropdown(levels));
             _chkColumnsContinuousCad = new CheckBox
             {
                 Content = "Columns continuous through repeat levels",
@@ -1033,6 +1022,15 @@ namespace StingTools.Model
             var wallSlabStack = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
 
             wallSlabStack.Children.Add(MakeDimRow2("Wall:", "Height:", "3000", out _txtWallHeight, "Thick:", "200", out _txtWallThick));
+            _chkStructuralWall = new CheckBox
+            {
+                Content = "Wall is structural (unchecked = architectural)",
+                IsChecked = true, FontSize = 11,
+                Margin = new Thickness(0, 0, 0, 4),
+                ToolTip = "Controls whether detected walls are created as " +
+                    "Structural Walls (load-bearing) or Architectural Walls.",
+            };
+            wallSlabStack.Children.Add(_chkStructuralWall);
             wallSlabStack.Children.Add(MakeDimRow("Slab Thick:", "200", out _txtSlabThick));
             wallSlabStack.Children.Add(MakeDimRow("Fdn Depth:", "600", out _txtFdnDepth));
 
@@ -1080,17 +1078,10 @@ namespace StingTools.Model
                 Margin = new Thickness(0, 2, 0, 2), FontSize = 11,
                 Foreground = GreenFg,
             };
-            _chkStructuralWall = new CheckBox
-            {
-                Content = "Create as Structural Walls (not architectural)", IsChecked = true,
-                Margin = new Thickness(0, 2, 0, 2), FontSize = 11,
-                Foreground = GreenFg,
-            };
 
             leftStack.Children.Add(_chkBeamsOnWalls);
             leftStack.Children.Add(_chkBeamsConnectSlabs);
             leftStack.Children.Add(_chkColumnsStopAtSoffit);
-            leftStack.Children.Add(_chkStructuralWall);
 
             leftStack.Children.Add(new TextBlock
             {
@@ -1354,7 +1345,7 @@ namespace StingTools.Model
 
         private FrameworkElement BuildSectionEaseBitDetection()
         {
-            var section = MakeSection("DETECTION — EaseBit-style controls");
+            var section = MakeSection("DETECTION");
             var stack = (StackPanel)((Border)section).Child;
 
             // Top row: three toggle checkboxes (Dry-Run, Explode, Detect Openings)
@@ -2144,6 +2135,107 @@ namespace StingTools.Model
             txt2 = new TextBox { Text = val2, Width = 55, Margin = new Thickness(2, 0, 0, 0) };
             row.Children.Add(txt2);
             return row;
+        }
+
+        // Multi-select dropdown of project levels. Populates
+        // _repeatLevelCheckboxesCad so BuildConfig() can read the picked
+        // names without changing its loop.
+        private FrameworkElement BuildRepeatLevelsDropdown(List<Level> levels)
+        {
+            _repeatLevelCheckboxesCad.Clear();
+
+            var btn = new ToggleButton
+            {
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Padding = new Thickness(6, 3, 6, 3),
+                Margin = new Thickness(0, 0, 0, 4),
+                MinHeight = 22,
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xAB, 0xAD, 0xB3)),
+                BorderThickness = new Thickness(1),
+                Cursor = Cursors.Hand,
+            };
+            var btnGrid = new Grid();
+            btnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            btnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var summary = new TextBlock
+            {
+                Text = "(none selected)", FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            Grid.SetColumn(summary, 0); btnGrid.Children.Add(summary);
+            var glyph = new TextBlock
+            {
+                Text = "▾", FontSize = 10, Margin = new Thickness(6, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.Gray,
+            };
+            Grid.SetColumn(glyph, 1); btnGrid.Children.Add(glyph);
+            btn.Content = btnGrid;
+
+            var list = new StackPanel { Margin = new Thickness(6) };
+            foreach (var lvl in levels)
+            {
+                var cb = new CheckBox
+                {
+                    Content = lvl.Name, Tag = lvl.Name,
+                    Margin = new Thickness(0, 2, 0, 2), FontSize = 11,
+                };
+                _repeatLevelCheckboxesCad.Add(cb);
+                list.Children.Add(cb);
+            }
+
+            var popup = new Popup
+            {
+                PlacementTarget = btn,
+                Placement = PlacementMode.Bottom,
+                StaysOpen = false,
+                AllowsTransparency = true,
+                PopupAnimation = PopupAnimation.Fade,
+            };
+            var popupBorder = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xAB, 0xAD, 0xB3)),
+                BorderThickness = new Thickness(1),
+                MinWidth = 180,
+            };
+            var scroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                MaxHeight = 220,
+                Content = list,
+            };
+            popupBorder.Child = scroll;
+            popup.Child = popupBorder;
+
+            void UpdateSummary()
+            {
+                var picked = _repeatLevelCheckboxesCad
+                    .Where(c => c.IsChecked == true)
+                    .Select(c => c.Tag as string)
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .ToList();
+                if (picked.Count == 0) summary.Text = "(none selected)";
+                else if (picked.Count == _repeatLevelCheckboxesCad.Count) summary.Text = "All levels";
+                else if (picked.Count <= 3) summary.Text = string.Join(", ", picked);
+                else summary.Text = $"{picked.Count} levels selected";
+            }
+            foreach (var cb in _repeatLevelCheckboxesCad)
+            {
+                cb.Checked += (_, __) => UpdateSummary();
+                cb.Unchecked += (_, __) => UpdateSummary();
+            }
+
+            btn.Checked   += (_, __) => popup.IsOpen = true;
+            btn.Unchecked += (_, __) => popup.IsOpen = false;
+            popup.Closed  += (_, __) => btn.IsChecked = false;
+
+            UpdateSummary();
+
+            var host = new StackPanel();
+            host.Children.Add(btn);
+            host.Children.Add(popup);
+            return host;
         }
     }
 
