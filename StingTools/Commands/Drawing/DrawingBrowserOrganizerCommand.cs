@@ -1,21 +1,26 @@
 // StingTools — Drawing Template Manager · Week 3
 //
-// DrawingBrowserOrganizer writes a Project Browser Organization
-// preset that groups views and sheets by
-// STING_DRAWING_TYPE_ID_TXT. Effect: as soon as the preset is
-// activated, every view stamped by a STING generator collapses
-// under its Drawing Type node — all arch-plan-A1-1to100 views in
-// one group, all pipe-spool-A1-1to50 in another.
+// DrawingBrowserOrganizer activates a Project Browser Organization
+// that groups views and sheets by STING_DRAWING_TYPE_ID_TXT. The
+// Revit public API does NOT expose BrowserOrganization creation
+// (that lives in the UI), so this command's job is:
 //
-// Revit API: BrowserOrganization is read via
-// BrowserOrganization.GetCurrentBrowserOrganizationForViews /
-// ForSheets, and set via .SetCurrent(id). We construct two new
-// organizations ("STING - by Drawing Type" for Views and for
-// Sheets) if they don't already exist, then activate them.
+//   1. Find existing BrowserOrganization(s) named 'STING - by
+//      Drawing Type' — both the Views and Sheets variants share
+//      the same name in their respective lists.
+//   2. Activate whichever are found via SetAsCurrent().
+//   3. Report stamped-vs-total counts so the user sees how many
+//      views still need a DrawingType stamp.
+//
+// If the organizations don't yet exist the command shows step-by-
+// step instructions for creating them once in Revit's Browser
+// Organization dialog — a one-time manual setup per project
+// template. Re-running after that setup flips them to current.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -37,23 +42,66 @@ namespace StingTools.Commands.Drawing
                 var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
-                using (var tx = new Transaction(doc, "STING — Browser Organization by Drawing Type"))
+                // Enumerate BrowserOrganization instances — the Views
+                // variant and the Sheets variant are both derived
+                // BrowserOrganization elements, distinguishable only by
+                // which active slot they sit in. Match by name.
+                var matches = new List<BrowserOrganization>();
+                try
                 {
-                    tx.Start();
+                    foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(BrowserOrganization)))
+                        if (el is BrowserOrganization bo
+                            && string.Equals(bo.Name, ORG_NAME, StringComparison.OrdinalIgnoreCase))
+                            matches.Add(bo);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BrowserOrganizer: enumerate failed — {ex.Message}");
+                }
 
-                    var viewsOrg  = EnsureOrganization(doc, forSheets: false);
-                    var sheetsOrg = EnsureOrganization(doc, forSheets: true);
-                    if (viewsOrg != null)  BrowserOrganization.SetCurrentBrowserOrganizationForViews(doc, viewsOrg.Id);
-                    if (sheetsOrg != null) BrowserOrganization.SetCurrentBrowserOrganizationForSheets(doc, sheetsOrg.Id);
-
-                    tx.Commit();
+                int activated = 0;
+                if (matches.Count > 0)
+                {
+                    using (var tx = new Transaction(doc, "STING — Activate Browser Organization"))
+                    {
+                        tx.Start();
+                        foreach (var bo in matches)
+                        {
+                            try { bo.SetAsCurrent(); activated++; }
+                            catch (Exception ex) { StingLog.Warn($"SetAsCurrent '{bo.Name}': {ex.Message}"); }
+                        }
+                        tx.Commit();
+                    }
                 }
 
                 var (stamped, total) = CountStamped(doc);
-                TaskDialog.Show("STING — Browser Organizer",
-                    $"Project Browser now grouped by '{ORG_NAME}'.\n\n" +
-                    $"{stamped} of {total} views/sheets currently carry a DrawingType stamp.\n\n" +
-                    "Run Sync Styles (Week 4) on unstamped items to populate them.");
+                var body = new StringBuilder();
+
+                if (activated > 0)
+                {
+                    body.AppendLine($"Activated {activated} '{ORG_NAME}' organization(s).");
+                    body.AppendLine();
+                }
+                else
+                {
+                    body.AppendLine($"No BrowserOrganization named '{ORG_NAME}' found.");
+                    body.AppendLine();
+                    body.AppendLine("One-time setup — create it in Revit's UI:");
+                    body.AppendLine("  1. Right-click the Project Browser → Browser Organization…");
+                    body.AppendLine("  2. Click 'New…' on the Views tab; name it");
+                    body.AppendLine($"     '{ORG_NAME}'.");
+                    body.AppendLine("  3. Grouping and Sorting tab → add field");
+                    body.AppendLine("     STING_DRAWING_TYPE_ID_TXT.");
+                    body.AppendLine("  4. Repeat on the Sheets tab with the same name.");
+                    body.AppendLine("  5. Click OK; then re-run this command to activate both.");
+                    body.AppendLine();
+                }
+
+                body.AppendLine($"DrawingType stamps: {stamped} / {total} views carry STING_DRAWING_TYPE_ID_TXT.");
+                if (stamped < total)
+                    body.AppendLine("Run 'Sync Styles' after stamping new views to populate the remainder.");
+
+                TaskDialog.Show("STING — Browser Organizer", body.ToString());
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -64,46 +112,6 @@ namespace StingTools.Commands.Drawing
             }
         }
 
-        private static BrowserOrganization EnsureOrganization(Document doc, bool forSheets)
-        {
-            // Reuse existing if present.
-            var existing = new FilteredElementCollector(doc)
-                .OfClass(typeof(BrowserOrganization))
-                .Cast<BrowserOrganization>()
-                .FirstOrDefault(b => string.Equals(b.Name, ORG_NAME, StringComparison.OrdinalIgnoreCase));
-            if (existing != null) return existing;
-
-            // Create new organization keyed off STING_DRAWING_TYPE_ID_TXT.
-            try
-            {
-                var org = forSheets
-                    ? BrowserOrganization.CreateSheetOrganization(doc, ORG_NAME)
-                    : BrowserOrganization.CreateViewOrganization(doc, ORG_NAME);
-                if (org == null) return null;
-
-                // Build a single grouping folder field bound to the shared parameter
-                var guid = StingTools.Core.SharedParamGuids.ParamGuids
-                    .TryGetValue(DrawingTypeStamper.PARAM_DRAWING_TYPE_ID, out var g) ? g : Guid.Empty;
-                if (guid == Guid.Empty)
-                {
-                    StingLog.Warn($"BrowserOrganizer: '{DrawingTypeStamper.PARAM_DRAWING_TYPE_ID}' not in SharedParamGuids — organization created but ungrouped.");
-                    return org;
-                }
-
-                var folderField = new FolderItemsParameter(guid);
-                var settings = org.GetFolderItems().ToList();
-                settings.Clear();
-                settings.Add(folderField);
-                org.SetFolderItems(settings);
-                return org;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"BrowserOrganizer.Create({(forSheets ? "sheets" : "views")}): {ex.Message}");
-                return null;
-            }
-        }
-
         private static (int stamped, int total) CountStamped(Document doc)
         {
             int stamped = 0, total = 0;
@@ -111,11 +119,14 @@ namespace StingTools.Commands.Drawing
             {
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
                 {
-                    if (el is View v && !v.IsTemplate) { total++;
-                        if (!string.IsNullOrEmpty(DrawingTypeStamper.Read(v))) stamped++; }
+                    if (el is View v && !v.IsTemplate)
+                    {
+                        total++;
+                        if (!string.IsNullOrEmpty(DrawingTypeStamper.Read(v))) stamped++;
+                    }
                 }
             }
-            catch { }
+            catch { /* best-effort */ }
             return (stamped, total);
         }
     }
