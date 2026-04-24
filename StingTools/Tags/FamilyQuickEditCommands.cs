@@ -44,7 +44,7 @@ namespace StingTools.Tags
             BuiltInCategory.OST_Furniture,
             BuiltInCategory.OST_FurnitureSystems,
             BuiltInCategory.OST_Casework,
-            BuiltInCategory.OST_SpecialtyEquipment,
+            BuiltInCategory.OST_SpecialityEquipment,
             BuiltInCategory.OST_MechanicalEquipment,
             BuiltInCategory.OST_ElectricalEquipment,
             BuiltInCategory.OST_ElectricalFixtures,
@@ -493,12 +493,13 @@ namespace StingTools.Tags
             // Reference-based NewFamilyInstance overload; for levels we use the
             // level-based overload (cleaner for OneLevelBased families).
             Element picked;
+            Reference pickedRef;
             try
             {
-                var r = ctx.UIDoc.Selection.PickObject(
+                pickedRef = ctx.UIDoc.Selection.PickObject(
                     ObjectType.Element, new WorkPlaneFilter(),
                     "Pick a reference plane or level (ESC to cancel)");
-                picked = ctx.Doc.GetElement(r.ElementId);
+                picked = ctx.Doc.GetElement(pickedRef.ElementId);
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
 
@@ -515,10 +516,10 @@ namespace StingTools.Tags
 
             if (picked is ReferencePlane refPlane)
             {
-                // ReferencePlane.Reference is the Reference we need for the
-                // 4-arg NewFamilyInstance overload. It's a property, not a
-                // method — Revit API >= 2015.
-                Reference planeRef = refPlane.Reference;
+                // Reuse the Reference returned from PickObject — the Revit API
+                // doesn't expose a public ReferencePlane.Reference property, and
+                // this is the canonical way to get a Reference to the plane.
+                Reference planeRef = pickedRef;
                 if (planeRef == null)
                 {
                     TaskDialog.Show("STING — Change Host", "Could not resolve a Reference from the picked reference plane.");
@@ -1118,12 +1119,18 @@ namespace StingTools.Tags
                         $"'{fam.Name}' is not editable (likely a system family or in-place element).");
                     return Result.Cancelled;
                 }
-                // Post Revit's built-in Edit Family command with the instance
-                // selected. More reliable than EditFamily() + UI activation —
-                // Revit handles the tab switch and window focus itself.
-                ctx.UIDoc.Selection.SetElementIds(new[] { inst.Id });
-                var cmdId = RevitCommandId.LookupPostableCommandId(PostableCommand.EditFamily);
-                ctx.UIDoc.Application.PostCommand(cmdId);
+                // Revit 2025+ PostableCommand enum no longer exposes EditFamily,
+                // so edit the family via Document.EditFamily, save to a temp
+                // .rfa, then activate that document in the UI.
+                string safeName = string.Concat((fam.Name ?? "family").Split(System.IO.Path.GetInvalidFileNameChars()));
+                string tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{safeName}_edit.rfa");
+                using (var famDoc = ctx.Doc.EditFamily(fam))
+                {
+                    var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                    famDoc.SaveAs(tempPath, saveOpts);
+                    famDoc.Close(false);
+                }
+                ctx.UIDoc.Application.OpenAndActivateDocument(tempPath);
                 return Result.Succeeded;
             }
             catch (Exception ex)
