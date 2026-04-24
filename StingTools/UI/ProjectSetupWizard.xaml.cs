@@ -9,8 +9,11 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.UI;
 using StingTools.Core;
+using TaskDialog = Autodesk.Revit.UI.TaskDialog;
+using TaskDialogCommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons;
+using TaskDialogCommandLinkId = Autodesk.Revit.UI.TaskDialogCommandLinkId;
+using TaskDialogResult = Autodesk.Revit.UI.TaskDialogResult;
 
 namespace StingTools.UI
 {
