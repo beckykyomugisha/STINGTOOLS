@@ -3029,6 +3029,10 @@ namespace StingTools.UI
                     case "ExportMilestones": RunCommand<BIMManager.MilestoneRegisterCommand>(app); break;
                     case "ExportCashFlow": RunCommand<BIMManager.CashFlow5DCommand>(app); break;
                     case "SaveWorkingCalendar": RunCommand<BIMManager.WorkingCalendarCommand>(app); break;
+                    case "ExportTimeline4DPNG":     ExportTimeline4DPng(app); break;
+
+                    // ── Reports ──
+                    case "ExportReport":            RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
 
                     // ── Model Health ──
                     case "FixContainers": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
@@ -7723,6 +7727,16 @@ namespace StingTools.UI
         {
             StingLog.Info("View snapshot captured for issue");
             SetExtraParam("IssueSnapshot", "captured");
+        }
+
+        private static void ExportTimeline4DPng(UIApplication app)
+        {
+            // Push result to BCC inline panel; file export via SchedulingCostDashboard
+            BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Export Timeline PNG",
+                "Timeline image export: open the 4D Timeline view, then use\n" +
+                "File → Export → Image to save as PNG.\n\n" +
+                "Automated PNG render will be available in a future phase.");
+            StingLog.Info("ExportTimeline4DPNG dispatched");
         }
 
         private static void ImportTeamFromCsv(UIApplication app)
