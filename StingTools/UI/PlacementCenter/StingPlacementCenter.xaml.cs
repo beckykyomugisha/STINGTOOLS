@@ -101,6 +101,12 @@ namespace StingTools.UI.PlacementCenter
             VM.AttachFilteredView();
             gridRules.ItemsSource = VM.FilteredRules;
             if (VM.Rules.Count > 0) gridRules.SelectedIndex = 0;
+
+            // Phase D — populate history grid on first open so the
+            // panel surface isn't a wall of empties.
+            try { gridHistory.ItemsSource = HistoryBridge.ReadHistory(_doc); }
+            catch (Exception hEx) { StingLog.Warn($"History first-load: {hEx.Message}"); }
+
             UpdateStatus();
         }
 
@@ -375,10 +381,145 @@ namespace StingTools.UI.PlacementCenter
                 TaskDialog.Show("STING — Placement Centre", $"Push failed: {ex.Message}");
             }
         }
+        // ── Phase 127-D — polish ─────────────────────────────────────
+
         private void OnHeatmap_Click(object sender, RoutedEventArgs e)
-            => DeferToPhase("Heat-map", "D");
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            try
+            {
+                using (var t = new Transaction(_doc, "STING — Placement Centre · AVF compliance heat-map"))
+                {
+                    t.Start();
+                    AvfHeatmapEngine.Clear(_doc.ActiveView);
+                    int n = AvfHeatmapEngine.Paint(_doc.ActiveView, new ComplianceHeatmapAdapter());
+                    t.Commit();
+                    VM.Status = $"Heat-map painted · {n} primitive(s) on '{_doc.ActiveView.Name}'";
+                    UpdateStatus();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnHeatmap", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Heat-map failed: {ex.Message}");
+            }
+        }
+
         private void OnGDStudy_Click(object sender, RoutedEventArgs e)
-            => DeferToPhase("Generative Design Study", "D");
+        {
+            string path = "Data\\GenerativeDesign\\STING_FIXTURE_PLACEMENT.dyn";
+            var td = new TaskDialog("STING — Generative Design Study")
+            {
+                MainInstruction = "Run the placement study in Generative Design",
+                MainContent =
+                    "STING ships a Generative Design study at\n  " + path + "\n\n" +
+                    "Open Manage ▸ Generative Design ▸ Create Study, pick STING Fixture Placement, " +
+                    "and tune SpacingBias / CoverageTarget / ClearancePenalty. The study reuses the " +
+                    "in-memory rule set this centre is editing.",
+                CommonButtons = TaskDialogCommonButtons.Close,
+            };
+            td.Show();
+        }
+
+        private void OnHistoryRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) return;
+            try
+            {
+                var rows = HistoryBridge.ReadHistory(_doc);
+                gridHistory.ItemsSource = rows;
+                int total = rows.Sum(r => r.Count);
+                VM.Status = $"History · {rows.Count} bucket(s), {total} placement(s) on record";
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnHistoryRefresh", ex);
+                TaskDialog.Show("STING — Placement Centre", $"History refresh failed: {ex.Message}");
+            }
+        }
+
+        private void OnUndoLast_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+
+            // Prefer the in-memory _lastPlacedIds when this centre instance ran a
+            // placement; fall back to the most-recent provenance bucket otherwise.
+            List<ElementId> ids;
+            string source;
+            if (_lastPlacedIds != null && _lastPlacedIds.Count > 0)
+            {
+                ids = _lastPlacedIds.ToList();
+                source = "this centre's last run";
+            }
+            else
+            {
+                var hist = HistoryBridge.MostRecent(_doc);
+                if (hist == null || hist.Ids.Count == 0)
+                {
+                    TaskDialog.Show("STING — Placement Centre",
+                        "No prior STING placements found in the model. Run Placement first.");
+                    return;
+                }
+                ids = hist.Ids;
+                source = $"provenance bucket {hist.CreatedUtc} · {hist.Engine}";
+            }
+
+            var confirm = new TaskDialog("STING — Undo last placement run")
+            {
+                MainInstruction = $"Delete {ids.Count} element(s)?",
+                MainContent =
+                    "Source: " + source + "\n\n" +
+                    "Deletion runs in a single Revit transaction so a manual Undo will " +
+                    "still restore the elements as one step.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No,
+            };
+            if (confirm.Show() != TaskDialogResult.Yes) return;
+
+            try
+            {
+                var (deleted, skipped) = HistoryBridge.DeleteIds(_doc, ids);
+                _lastPlacedIds.Clear();
+                _lastRunUtc = null;
+                VM.Status = $"Undo last · deleted {deleted}, skipped {skipped}";
+                UpdateStatus();
+                TaskDialog.Show("STING — Placement Centre",
+                    $"Deleted: {deleted}\nSkipped: {skipped}\n\n" +
+                    (skipped > 0 ? "Skipped elements were already removed or refused deletion (hosted, pinned)." : "All elements removed cleanly."));
+                OnHistoryRefresh_Click(sender, e);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnUndoLast", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Undo failed: {ex.Message}");
+            }
+        }
+
+        private void OnSaveViewPreset_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            var view = _doc.ActiveView;
+            if (view == null) { TaskDialog.Show("STING — Placement Centre", "No active view."); return; }
+
+            string presetName = $"PlacementCentre/{VM.RunOpts.Scope}/{DateTime.UtcNow:yyyyMMdd-HHmm}";
+            try
+            {
+                using (var t = new Transaction(_doc, "STING — Save view preset (Pack 125/M)"))
+                {
+                    t.Start();
+                    StingTools.Core.Storage.StingViewPresetSchema.Write(view, presetName, "");
+                    t.Commit();
+                }
+                VM.Status = $"Saved preset '{presetName}' on view '{view.Name}'";
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnSaveViewPreset", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Save preset failed: {ex.Message}");
+            }
+        }
 
         private void OnClose_Click(object sender, RoutedEventArgs e) => Close();
 
@@ -483,13 +624,6 @@ namespace StingTools.UI.PlacementCenter
         }
 
         // ── Helpers ──────────────────────────────────────────────────
-
-        private void DeferToPhase(string label, string phase)
-        {
-            TaskDialog.Show("STING — Placement Centre",
-                $"{label} wires in Phase 127-{phase}. Phase A ships the layout, edit, and persistence surface only.\n\n" +
-                "Track the wiring schedule in docs/CHANGELOG.md.");
-        }
 
         private static int ParseInt(string s, int fallback) =>
             int.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out int v) ? v : fallback;

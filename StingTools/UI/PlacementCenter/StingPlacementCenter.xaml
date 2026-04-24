@@ -241,9 +241,39 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <GroupBox Header="History &amp; Provenance (Phase D)" Style="{StaticResource GroupBoxStyle}">
-                        <TextBlock Foreground="#888" FontStyle="Italic"
-                                   Text="Phase 127-D will surface the last N runs from StingProvenanceSchema with 'Show on screen' / 'Undo last' actions."/>
+                    <GroupBox Header="History &amp; Provenance" Style="{StaticResource GroupBoxStyle}">
+                        <StackPanel>
+                            <DockPanel LastChildFill="False" Margin="0,0,0,6">
+                                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                                           Foreground="#666" FontStyle="Italic" FontWeight="Normal"
+                                           Text="StingProvenanceSchema — last 30 hourly buckets, newest first."/>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
+                                        Content="Refresh" Click="OnHistoryRefresh_Click" Margin="4,0"/>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
+                                        Content="Undo last run" Click="OnUndoLast_Click" Margin="4,0"/>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
+                                        Content="Save view preset" Click="OnSaveViewPreset_Click" Margin="4,0"/>
+                            </DockPanel>
+                            <DataGrid x:Name="gridHistory"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Single"
+                                      HeadersVisibility="Column"
+                                      GridLinesVisibility="Horizontal"
+                                      MaxHeight="220"
+                                      Background="{DynamicResource PrimaryBg}"
+                                      Foreground="{DynamicResource PrimaryFg}"
+                                      RowBackground="{DynamicResource PrimaryBg}"
+                                      AlternatingRowBackground="{DynamicResource SecondaryBg}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="When (UTC)" Binding="{Binding CreatedUtc}" Width="160"/>
+                                    <DataGridTextColumn Header="Engine"     Binding="{Binding Engine}"     Width="*"/>
+                                    <DataGridTextColumn Header="Rule"       Binding="{Binding RuleId}"     Width="*"/>
+                                    <DataGridTextColumn Header="Operator"   Binding="{Binding Operator}"   Width="100"/>
+                                    <DataGridTextColumn Header="Count"      Binding="{Binding Count}"      Width="60"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
                     </GroupBox>
 
                     <Border BorderBrush="#E2A04A" BorderThickness="1" Padding="6"
