@@ -38,6 +38,8 @@ namespace StingTools.Commands.Validation
                 all.AddRange(new SlopeValidator().Validate(doc));
                 // Pack 1 — reads STING_CLEARANCE_MM (previously an orphan parameter).
                 all.AddRange(new ClearanceValidator().Validate(doc));
+                // Pack 2 — reads MNT_ENV_{W,D,H}_MM + MNT_ACCESS_DIR_TXT.
+                all.AddRange(new MaintenanceClashValidator().Validate(doc));
             }
             catch (Exception ex)
             {
@@ -57,7 +59,7 @@ namespace StingTools.Commands.Validation
             int infos    = all.Count(r => r.Severity == ValidationSeverity.Info);
 
             var panel = StingResultPanel.Create("v4 Validation Suite");
-            panel.SetSubtitle("ConnectivityValidator + FillValidator + SpecValidator + TerminationValidator + SlopeValidator + ClearanceValidator");
+            panel.SetSubtitle("ConnectivityValidator + FillValidator + SpecValidator + TerminationValidator + SlopeValidator + ClearanceValidator + MaintenanceClashValidator");
 
             panel.AddSection("SUMMARY")
                  .Metric("Total findings", all.Count.ToString())

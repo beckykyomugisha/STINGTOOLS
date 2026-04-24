@@ -599,6 +599,40 @@ namespace StingTools.Tags
                     // Coordination hints
                     ("STING_WORKSET_HINT",         SpecTypeId.String.Text),
                     ("STING_OMNICLASS_23",         SpecTypeId.String.Text),
+
+                    // ─── Pack 2 — directional clearance (ClearanceValidator already reads these) ───
+                    ("STING_CLEARANCE_FRONT_MM",   SpecTypeId.Length),
+                    ("STING_CLEARANCE_BACK_MM",    SpecTypeId.Length),
+                    ("STING_CLEARANCE_SIDE_MM",    SpecTypeId.Length),
+                    ("STING_CLEARANCE_TOP_MM",     SpecTypeId.Length),
+                    // Pack 2 — maintenance / service envelope (MaintenanceClashValidator reads)
+                    ("MNT_ENV_W_MM",               SpecTypeId.Length),
+                    ("MNT_ENV_D_MM",               SpecTypeId.Length),
+                    ("MNT_ENV_H_MM",               SpecTypeId.Length),
+                    ("MNT_ACCESS_DIR_TXT",         SpecTypeId.String.Text),
+                    // Pack 2 — clash-only envelope (ConnectivityValidator/MaintenanceClashValidator)
+                    ("CLASH_ENV_W_MM",             SpecTypeId.Length),
+                    ("CLASH_ENV_D_MM",             SpecTypeId.Length),
+                    ("CLASH_ENV_H_MM",             SpecTypeId.Length),
+                    ("CLASH_PRIORITY_INT",         SpecTypeId.Int.Integer),
+                    ("CLASH_SOFT_TOLERANCE_MM",    SpecTypeId.Length),
+                    ("EXPANSION_ALLOW_MM",         SpecTypeId.Length),
+                    ("CONNECTOR_CLR_MM",           SpecTypeId.Length),
+                    ("FIRE_SEP_MM",                SpecTypeId.Length),
+
+                    // ─── Pack 3 — placement / variant (FixturePlacementEngine reads) ───
+                    ("STING_FIXTURE_VARIANT_TXT",  SpecTypeId.String.Text),
+                    ("STING_ROOM_TYPE_FILTER_TXT", SpecTypeId.String.Text),
+
+                    // ─── Pack 4 — tag anchor (TagPlacementEngine reads) ───
+                    ("STING_TAG_ANCHOR_X_MM",      SpecTypeId.Length),
+                    ("STING_TAG_ANCHOR_Y_MM",      SpecTypeId.Length),
+                    ("TAG_LEADER_LAND_EDGE_TXT",   SpecTypeId.String.Text),
+                    ("TAG_DISPLAY_SCALE_MIN_INT",  SpecTypeId.Int.Integer),
+                    ("TAG_DISPLAY_SCALE_MAX_INT",  SpecTypeId.Int.Integer),
+                    ("TAG_CLUSTER_KEY_TXT",        SpecTypeId.String.Text),
+                    ("TAG_PRIORITY_INT",           SpecTypeId.Int.Integer),
+                    ("TAG_FAMILY_HINT_TXT",        SpecTypeId.String.Text),
                 };
 
                 foreach (var (name, spec) in pack)
