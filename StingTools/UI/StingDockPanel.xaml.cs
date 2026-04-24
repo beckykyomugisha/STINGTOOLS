@@ -750,6 +750,52 @@ namespace StingTools.UI
             return t.Length >= 1 ? t.Substring(0, 1).ToUpperInvariant() : "A";
         }
 
+        /// <summary>
+        /// Refreshes the "TITLE BLOCK &amp; VIEW TEMPLATE" status line on the
+        /// Fabrication tab after the user picks / clears a ShopDrawingOptions
+        /// bundle via Fabrication_ConfigureShopDrawing. Called from
+        /// StingCommandHandler on the Revit API thread — marshals to WPF.
+        /// Pass null for both args to show the Auto fallback message.
+        /// </summary>
+        public void UpdateFabShopDrawingStatus(Autodesk.Revit.DB.Document doc, UI.ShopDrawingOptions opts)
+        {
+            try
+            {
+                string msg;
+                if (opts == null)
+                {
+                    msg = "Auto-resolved per discipline (STING_TB_ASSEMBLY_*).\nFalls back to first available title block when missing.";
+                }
+                else
+                {
+                    string tb = "Auto (per-discipline)";
+                    if (doc != null && opts.TitleBlockSymbolId != null
+                        && opts.TitleBlockSymbolId != Autodesk.Revit.DB.ElementId.InvalidElementId)
+                    {
+                        var fs = doc.GetElement(opts.TitleBlockSymbolId) as Autodesk.Revit.DB.FamilySymbol;
+                        if (fs != null) tb = $"{fs.FamilyName} : {fs.Name}";
+                    }
+                    string vt = "None";
+                    if (doc != null && opts.ViewTemplateId != null
+                        && opts.ViewTemplateId != Autodesk.Revit.DB.ElementId.InvalidElementId)
+                    {
+                        var v = doc.GetElement(opts.ViewTemplateId) as Autodesk.Revit.DB.View;
+                        if (v != null) vt = v.Name;
+                    }
+                    msg = $"Title block: {tb}\nView template: {vt}";
+                    if (!string.IsNullOrWhiteSpace(opts.SheetNumberPattern))
+                        msg += $"\nSheet #: {opts.SheetNumberPattern}";
+                    if (!string.IsNullOrWhiteSpace(opts.SheetNamePattern))
+                        msg += $"\nSheet name: {opts.SheetNamePattern}";
+                }
+                Dispatcher.Invoke(() =>
+                {
+                    if (FindName("txtFabShopDrawingStatus") is TextBlock tb) tb.Text = msg;
+                });
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateFabShopDrawingStatus failed: {ex.Message}"); }
+        }
+
         private void SetV4FabricationOptions()
         {
             try
