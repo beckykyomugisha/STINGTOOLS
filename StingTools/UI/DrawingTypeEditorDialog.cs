@@ -69,9 +69,14 @@ namespace StingTools.UI
         private TextBox _tbPackSearch;
         private StackPanel _packFormHost;
 
+        // ── document-sourced dropdown cache (one-shot at open) ──
+        private readonly DocumentLookups _lookups;
+
         public DrawingTypeEditorDialog(Document doc)
         {
             _doc = doc;
+            _lookups = DocumentLookups.Build(doc);
+
             // Deep-clone registry entries so Cancel reverts cleanly.
             var lib = DrawingTypeRegistry.GetLibrary(doc);
             _types = (lib?.DrawingTypes ?? new List<DrawingType>())
@@ -331,8 +336,8 @@ namespace StingTools.UI
                 DrawingPurpose.Spool, DrawingPurpose.Coordination, DrawingPurpose.Legend,
                 DrawingPurpose.ThreeD },
                 _current.Purpose, v => _current.Purpose = v));
-            body.Children.Add(LabeledTextBox("Discipline (A/S/M/E/P or *)",
-                _current.Discipline, v => _current.Discipline = v));
+            body.Children.Add(LabeledCombo("Discipline",
+                _lookups.DisciplineCodes, _current.Discipline, v => _current.Discipline = v));
             body.Children.Add(LabeledTextBox("Phase (or *)",
                 _current.Phase,      v => _current.Phase = v));
             body.Children.Add(LabeledTextBlock("Origin", _current.Origin ?? "project"));
@@ -345,8 +350,9 @@ namespace StingTools.UI
             body.Children.Add(LabeledCombo("Paper size",
                 new[] { "A0", "A1", "A2", "A3", "A4" },
                 _current.PaperSize, v => _current.PaperSize = v));
-            body.Children.Add(LabeledTextBox("Title block family",
-                _current.TitleBlockFamily, v => _current.TitleBlockFamily = v));
+            body.Children.Add(LabeledCombo("Title block family",
+                _lookups.TitleBlockFamilies, _current.TitleBlockFamily,
+                v => _current.TitleBlockFamily = v));
             body.Children.Add(LabeledCombo("Orientation",
                 new[] { "Landscape", "Portrait" },
                 _current.Orientation, v => _current.Orientation = v));
@@ -360,10 +366,12 @@ namespace StingTools.UI
             body.Children.Add(LabeledCombo("Detail level",
                 new[] { "Coarse", "Medium", "Fine" },
                 _current.DetailLevel, v => _current.DetailLevel = v));
-            body.Children.Add(LabeledTextBox("View template name",
-                _current.ViewTemplateName, v => _current.ViewTemplateName = v));
-            body.Children.Add(LabeledTextBox("Viewport type name",
-                _current.ViewportTypeName, v => _current.ViewportTypeName = v));
+            body.Children.Add(LabeledCombo("View template name",
+                _lookups.ViewTemplates, _current.ViewTemplateName,
+                v => _current.ViewTemplateName = v));
+            body.Children.Add(LabeledCombo("Viewport type name",
+                _lookups.ViewportTypes, _current.ViewportTypeName,
+                v => _current.ViewportTypeName = v));
             return Card("Views", body);
         }
 
@@ -386,8 +394,9 @@ namespace StingTools.UI
             body.Children.Add(LabeledCombo("Kind",
                 new[] { "ScopeBox", "ScopeBoxOrBbox", "TightBbox", "RoomBoundary", "None" },
                 _current.Crop.Kind, v => _current.Crop.Kind = v));
-            body.Children.Add(LabeledTextBox("Scope box name (when Kind=ScopeBox)",
-                _current.Crop.ScopeBoxName, v => _current.Crop.ScopeBoxName = v));
+            body.Children.Add(LabeledCombo("Scope box name (when Kind=ScopeBox)",
+                _lookups.ScopeBoxes, _current.Crop.ScopeBoxName,
+                v => _current.Crop.ScopeBoxName = v));
             body.Children.Add(LabeledDouble("Margin (mm)",
                 _current.Crop.MarginMm, v => _current.Crop.MarginMm = v));
             return Card("Crop strategy", body);
@@ -397,8 +406,9 @@ namespace StingTools.UI
         {
             var body = new StackPanel();
             _current.SectionMarker = _current.SectionMarker ?? new SectionMarkerSpec();
-            body.Children.Add(LabeledTextBox("Family",
-                _current.SectionMarker.Family, v => _current.SectionMarker.Family = v));
+            body.Children.Add(LabeledCombo("Family",
+                _lookups.AnnotationFamilies, _current.SectionMarker.Family,
+                v => _current.SectionMarker.Family = v));
             body.Children.Add(LabeledTextBox("Mark prefix",
                 _current.SectionMarker.MarkPrefix, v => _current.SectionMarker.MarkPrefix = v));
             body.Children.Add(LabeledCombo("Bubble style",
@@ -427,8 +437,9 @@ namespace StingTools.UI
             body.Children.Add(LabeledCombo("Dimension strategy",
                 new[] { "Linear", "Ordinate", "Chain" },
                 pack.DimensionStrategy, v => pack.DimensionStrategy = v));
-            body.Children.Add(LabeledTextBox("Dimension style name",
-                pack.DimensionStyle, v => pack.DimensionStyle = v));
+            body.Children.Add(LabeledCombo("Dimension style name",
+                _lookups.DimensionStyles, pack.DimensionStyle,
+                v => pack.DimensionStyle = v));
             body.Children.Add(LabeledNullableNumber("Dense until scale (1:N)",
                 pack.DenseUntilScale,  v => pack.DenseUntilScale = v,
                 tooltip: "View scale ≤ this value → full annotation. Coarser → grid dims only. Empty = always full."));
@@ -826,6 +837,23 @@ namespace StingTools.UI
             return cb;
         }
 
+        private ComboBox SmallCombo(string[] items, string value, Action<string> setter)
+        {
+            var cb = new ComboBox
+            {
+                Height = 20, FontSize = 10, IsEditable = true,
+            };
+            DarkDialogTheme.StyleInput(cb, InputBg, InputFg, InputBorder);
+            foreach (var it in items ?? new string[] { "" }) cb.Items.Add(it ?? "");
+            cb.Text = value ?? "";
+            cb.LostFocus += (s, e) => setter?.Invoke(cb.Text?.Trim());
+            cb.SelectionChanged += (s, e) =>
+            {
+                if (cb.SelectedItem is string ss) setter?.Invoke(ss);
+            };
+            return cb;
+        }
+
         private TextBox SmallTb(string text, Action<string> setter)
         {
             var tb = new TextBox { Text = text ?? "", Height = 20, FontSize = 10 };
@@ -1037,12 +1065,14 @@ namespace StingTools.UI
             body.Children.Add(LabeledDouble("Line-weight scale",
                 _currentPack.LineWeightScale,
                 v => _currentPack.LineWeightScale = v));
-            body.Children.Add(LabeledTextBox("Text style name",
-                _currentPack.TextStyle, v => _currentPack.TextStyle = v));
-            body.Children.Add(LabeledTextBox("Dimension style name",
-                _currentPack.DimensionStyle, v => _currentPack.DimensionStyle = v));
-            body.Children.Add(LabeledTextBox("Hatch palette (informational)",
-                _currentPack.HatchPalette, v => _currentPack.HatchPalette = v));
+            body.Children.Add(LabeledCombo("Text style name",
+                _lookups.TextStyles, _currentPack.TextStyle, v => _currentPack.TextStyle = v));
+            body.Children.Add(LabeledCombo("Dimension style name",
+                _lookups.DimensionStyles, _currentPack.DimensionStyle,
+                v => _currentPack.DimensionStyle = v));
+            body.Children.Add(LabeledCombo("Hatch palette (informational)",
+                _lookups.HatchPalettes, _currentPack.HatchPalette,
+                v => _currentPack.HatchPalette = v));
             return Card("Appearance", body);
         }
 
@@ -1080,7 +1110,7 @@ namespace StingTools.UI
                               : new GridLength(68)
                     });
 
-                var tbName = SmallTb(rule.FilterName, v => rule.FilterName = v);
+                var tbName = SmallCombo(_lookups.FilterNames, rule.FilterName, v => rule.FilterName = v);
                 var cbVis  = new CheckBox { IsChecked = rule.Visible,  Foreground = new SolidColorBrush(FgColor) };
                 cbVis.Checked   += (s, e) => rule.Visible  = true;
                 cbVis.Unchecked += (s, e) => rule.Visible  = false;
@@ -1146,7 +1176,7 @@ namespace StingTools.UI
                               : new GridLength(68)
                     });
 
-                var tbKey = SmallTb(catKey, v =>
+                var tbKey = SmallCombo(_lookups.CategoryNames, catKey, v =>
                 {
                     var newKey = (v ?? "").Trim();
                     if (string.IsNullOrEmpty(newKey) || newKey == catKey) return;
