@@ -132,6 +132,13 @@ namespace StingTools.Core.Visualization
             => ExternalServices.BuiltInExternalServices.DirectContext3DService;
         public bool UseInTransparentPass(View view) => true;
         public bool UsesHandles()     => false;
+
+        // CS0535 fix — IDirectContext3DServer interface methods missing in the
+        // initial Pack 9 ship. ApplicationId is the STING addin GUID (matches
+        // <AddInId> in StingTools.addin); SourceId distinguishes per-instance
+        // rendering contexts (one PreviewServer per active preview).
+        public string GetApplicationId() => "A1B2C3D4-5678-9ABC-DEF0-123456789ABC";
+        public string GetSourceId()      => _id.ToString();
         public bool CanExecute(View view) => view != null && view.Id == _view.Id;
 
         public Outline GetBoundingBox(View view)
