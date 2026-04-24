@@ -1650,7 +1650,7 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚙ FAMILY &amp; DISPLAY"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
-                                <Button Style="{StaticResource ActionBtn}" Content="Family Param Creator" Tag="FamilyParamCreator" Click="Cmd_Click" ToolTip="Inject STING params into .rfa family files"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tag Family Param Creator" Tag="FamilyParamCreator" Click="Cmd_Click" ToolTip="Inject STING tag parameters (tokens, containers, TAG_POS, style matrix) into tag family .rfa files. For regular Revit families, use Temp › Family Parameter Processor."/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Display Mode..." Tag="SetDisplayMode" Click="Cmd_Click" ToolTip="Set tag display variant (SEQ only, PROD-SEQ, etc.)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Seq Scheme..." Tag="SetSeqScheme" Click="Cmd_Click" ToolTip="Configure numbering scheme"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Auto-Tag Visual" Tag="AutoTagVisual" Click="Cmd_Click" ToolTip="Toggle visual auto-tagging"/>
@@ -2292,7 +2292,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Change Host" Tag="FamilyChangeHost" Click="Cmd_Click" ToolTip="Mode picker: Wall / Floor-Ceiling-Roof / Face / Work Plane / Detach to free-standing / Delete instance. Preserves parameters on rehost."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Swap Category" Tag="FamilySwapCategory" Click="Cmd_Click" ToolTip="Change the family's category via EditFamily + reload (Generic Model ↔ Furniture ↔ Equipment etc.)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Automation Pack" Tag="FamilyInjectAutomationPack" Click="Cmd_Click" ToolTip="Inject clearance, fire rating, acoustic, cost, CO₂, manufacturer, model, datasheet URL, warranty, LOD switches, workset hint, OmniClass"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Family Params" Tag="FamilyParamCreator" Click="Cmd_Click" ToolTip="Batch-inject STING shared parameters into .rfa files"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Family Params" Tag="FamilyParamCreator" Click="Cmd_Click" ToolTip="Batch-inject STING tag parameters into tag family .rfa files. Regular families → Temp › Family Parameter Processor."/>
                                 </WrapPanel>
                                 <TextBlock Text="Rehost · recategorise · inject params — all without leaving the project." FontSize="8" Foreground="#AAA" Margin="0,4,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
@@ -3971,7 +3971,7 @@
                                         <TextBlock Text="TOKEN PIPELINE" FontWeight="Bold" FontSize="10" Foreground="#5D4037" Margin="0,6,0,4"/>
                                         <Border Style="{StaticResource GroupBorder}">
                                             <WrapPanel>
-                                                <Button Style="{StaticResource ActionBtn}" Content="Family params" Tag="FamilyParamCreator" Click="Cmd_Click" Width="82" Height="26"/>
+                                                <Button Style="{StaticResource ActionBtn}" Content="Tag family params" Tag="FamilyParamCreator" Click="Cmd_Click" Width="112" Height="26" ToolTip="Tag Family Parameter Creator — tag schema only. For regular families use Temp › Family Parameter Processor."/>
                                                 <Button Style="{StaticResource ActionBtn}" Content="Stage populate" Tag="FamilyStagePopulate" Click="Cmd_Click" Width="88" Height="26"/>
                                                 <Button Style="{StaticResource ActionBtn}" Content="Auto tag" Tag="AutoTag" Click="Cmd_Click" Width="62" Height="26"/>
                                                 <Button Style="{StaticResource ActionBtn}" Content="Batch tag" Tag="BatchTag" Click="Cmd_Click" Width="62" Height="26"/>
