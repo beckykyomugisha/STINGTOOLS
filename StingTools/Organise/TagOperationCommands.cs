@@ -6141,6 +6141,11 @@ namespace StingTools.Organise
                     }
                     break;
                 case Model.NumberingEngine.SelectionScope.AllFromActiveView:
+                    if (doc.ActiveView == null)
+                    {
+                        TaskDialog.Show("Numbering", "No active graphical view — switch to a view first.");
+                        return Result.Cancelled;
+                    }
                     elementIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
                         .OfCategory(config.Category)
                         .WhereElementIsNotElementType()
