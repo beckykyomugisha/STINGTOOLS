@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using StingTools.Core;
 
 namespace StingTools.UI
@@ -158,11 +159,20 @@ namespace StingTools.UI
                 StingLog.Warn($"ProjectSetup: could not read scope boxes: {ex.Message}");
             }
 
-            // Title blocks
+            // Title blocks — populate the default dropdown and every per-discipline dropdown.
             if (titleBlockNames != null && titleBlockNames.Count > 0)
             {
                 foreach (string name in titleBlockNames)
                     cmbTitleBlock.Items.Add(new ComboBoxItem { Content = name });
+
+                PopulateDisciplineTitleBlock(cmbTbArch,   titleBlockNames);
+                PopulateDisciplineTitleBlock(cmbTbStruct, titleBlockNames);
+                PopulateDisciplineTitleBlock(cmbTbMech,   titleBlockNames);
+                PopulateDisciplineTitleBlock(cmbTbElec,   titleBlockNames);
+                PopulateDisciplineTitleBlock(cmbTbPlumb,  titleBlockNames);
+                PopulateDisciplineTitleBlock(cmbTbFire,   titleBlockNames);
+                PopulateDisciplineTitleBlock(cmbTbLV,     titleBlockNames);
+                PopulateDisciplineTitleBlock(cmbTbGen,    titleBlockNames);
             }
 
             // Pre-check worksharing
@@ -174,6 +184,125 @@ namespace StingTools.UI
             {
                 StingLog.Warn($"ProjectSetup: could not read workshared state: {ex.Message}");
             }
+        }
+
+        /// <summary>Populate a per-discipline title block ComboBox with (Default) + all loaded title blocks.</summary>
+        private static void PopulateDisciplineTitleBlock(ComboBox combo, List<string> titleBlockNames)
+        {
+            if (combo == null) return;
+            combo.Items.Clear();
+            combo.Items.Add(new ComboBoxItem { Content = "(Default)", IsSelected = true });
+            foreach (string n in titleBlockNames)
+                combo.Items.Add(new ComboBoxItem { Content = n });
+        }
+
+        // ── ISO 19650 level naming ──────────────────────────────────
+
+        /// <summary>Valid ISO 19650 level code pattern: B##, GF, L##, MZ##, RF, UR, XX.</summary>
+        private static readonly System.Text.RegularExpressions.Regex IsoLevelRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"^(B\d{1,2}|GF|L\d{2,3}|MZ\d{1,2}|RF\d?|UR|XX)(\s*[-–_]\s*.+)?$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>True when the level name starts with an ISO 19650 code (B01, GF, L02, MZ01, RF, etc.).</summary>
+        internal static bool IsIsoLevelName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            return IsoLevelRegex.IsMatch(name.Trim());
+        }
+
+        /// <summary>Propose an ISO 19650 code from a level's current name + elevation.
+        /// Basements elevate below zero, ground floor ≈ 0, mezzanine hints via name.</summary>
+        internal static string ProposeIsoLevelCode(string currentName, double elevationMetres, int sequenceAboveGround)
+        {
+            string n = (currentName ?? "").ToUpperInvariant().Trim();
+
+            // Explicit keywords win
+            if (n.Contains("ROOF") || n.StartsWith("RF")) return "RF";
+            if (n.Contains("PARAPET")) return "UR";
+            if (n.Contains("MEZZANINE") || n.StartsWith("MZ")) return "MZ01";
+            if (n.Contains("BASEMENT") || n.StartsWith("B ") || n.StartsWith("B0"))
+            {
+                // Try to read the basement number from the name
+                var m = System.Text.RegularExpressions.Regex.Match(n, @"B[ _-]?0*(\d+)");
+                if (m.Success && int.TryParse(m.Groups[1].Value, out int bn) && bn > 0)
+                    return $"B{bn:D2}";
+            }
+            if (n.StartsWith("GROUND") || n == "GF" || Math.Abs(elevationMetres) < 0.01)
+                return "GF";
+
+            // Elevation-based fallback
+            if (elevationMetres < -0.1)
+            {
+                // Basement — deeper = higher number (B01 is top basement)
+                int bn = Math.Max(1, (int)Math.Round(-elevationMetres / Math.Max(3.0, 3.5)));
+                return $"B{bn:D2}";
+            }
+            if (elevationMetres > 0.1)
+            {
+                int ln = Math.Max(1, sequenceAboveGround);
+                return $"L{ln:D2}";
+            }
+            return "GF";
+        }
+
+        private void LevelIsoNormalize_Click(object sender, RoutedEventArgs e)
+        {
+            // Preserve any descriptive suffix after " - " but enforce an ISO prefix on each row.
+            var sorted = LevelRows
+                .Select((r, idx) => new { r, idx })
+                .OrderBy(x =>
+                {
+                    return double.TryParse(x.r.ElevationText, NumberStyles.Float,
+                        CultureInfo.InvariantCulture, out double v) ? v : 0.0;
+                })
+                .ToList();
+
+            // Number ground-up levels (L01, L02, ...) by ascending elevation above 0
+            int aboveGroundSeq = 0;
+            var proposed = new Dictionary<int, string>(); // original row index → ISO code
+            foreach (var item in sorted)
+            {
+                double elev = double.TryParse(item.r.ElevationText, NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out double v) ? v : 0.0;
+                if (elev > 0.1) aboveGroundSeq++;
+                proposed[item.idx] = ProposeIsoLevelCode(item.r.Name, elev, aboveGroundSeq);
+            }
+
+            // Ensure uniqueness (if two rows hash to the same code, suffix -2, -3, ...)
+            var taken = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            int changed = 0;
+            for (int i = 0; i < LevelRows.Count; i++)
+            {
+                string code = proposed.TryGetValue(i, out string c) ? c : "L01";
+                // Keep any nice descriptive suffix the user entered after " - "
+                string descriptive = "";
+                string originalName = LevelRows[i].Name ?? "";
+                int sep = originalName.IndexOf(" - ", StringComparison.Ordinal);
+                if (sep > 0) descriptive = originalName.Substring(sep); // includes " - "
+
+                string candidate = code + descriptive;
+
+                // Uniquify
+                string unique = candidate;
+                while (taken.ContainsKey(unique))
+                {
+                    taken[code] = taken.TryGetValue(code, out int n) ? n + 1 : 2;
+                    unique = $"{code}-{taken[code]}" + descriptive;
+                }
+                taken[unique] = 1;
+
+                if (!string.Equals(LevelRows[i].Name, unique, StringComparison.Ordinal))
+                {
+                    LevelRows[i].Name = unique;
+                    changed++;
+                }
+            }
+
+            MessageBox.Show(
+                $"ISO 19650 normalization applied to {changed} level(s).\n" +
+                $"Codes used: B## (basement), GF (ground), L## (above ground), MZ## (mezzanine), RF (roof), UR (upper roof/parapet).",
+                "STING Setup", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         /// <summary>Best-effort guess of a level's type from its name.</summary>
@@ -478,6 +607,42 @@ namespace StingTools.UI
                                 $"Duplicate level names: {string.Join(", ", dupNames)}.\nEach level must have a unique name.",
                                 "STING Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
                             return false;
+                        }
+
+                        // ISO 19650 name audit — non-blocking. Offer the user a one-click fix.
+                        var nonIso = LevelRows
+                            .Where(r => !string.IsNullOrWhiteSpace(r.Name) && !IsIsoLevelName(r.Name))
+                            .Select(r => r.Name)
+                            .ToList();
+                        if (nonIso.Count > 0)
+                        {
+                            var dlg = new TaskDialog("ISO 19650 Level Naming")
+                            {
+                                MainInstruction = $"{nonIso.Count} level(s) do not follow ISO 19650 codes",
+                                MainContent =
+                                    "ISO 19650 expects level codes like B01 (basement), GF (ground), L01/L02 (above ground), MZ01 (mezzanine), RF (roof).\n\n" +
+                                    "Non-conformant: " + string.Join(", ", nonIso.Take(5)) +
+                                    (nonIso.Count > 5 ? $" (+{nonIso.Count - 5} more)" : "") + "\n\n" +
+                                    "Descriptive suffixes after ' - ' are preserved (e.g. 'L02 - Office Level').",
+                                CommonButtons = TaskDialogCommonButtons.Cancel
+                            };
+                            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                                "Auto-fix with ISO codes (recommended)",
+                                "Rewrites level names to ISO 19650 codes. Descriptive suffixes are preserved.");
+                            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                                "Continue with non-conformant names",
+                                "Names are left as-is. Downstream ISO-19650 checks may flag them.");
+
+                            var res = dlg.Show();
+                            if (res == TaskDialogResult.CommandLink1)
+                            {
+                                LevelIsoNormalize_Click(null, null);
+                                // Re-run duplicate check since names changed
+                                return false; // stay on page — user will click Next again to accept
+                            }
+                            if (res == TaskDialogResult.Cancel)
+                                return false;
+                            // CommandLink2 → continue
                         }
                         return true;
                     }
@@ -812,6 +977,24 @@ namespace StingTools.UI
             data.TitleBlockName = GetComboValue(cmbTitleBlock);
             if (data.TitleBlockName == "(Use first available)" || string.IsNullOrEmpty(data.TitleBlockName))
                 data.TitleBlockName = null;
+
+            // Per-discipline title blocks (override the default above when set).
+            data.TitleBlockByDiscipline.Clear();
+            void CollectTb(string disc, ComboBox combo)
+            {
+                string v = GetComboValue(combo);
+                if (!string.IsNullOrEmpty(v) && v != "(Default)")
+                    data.TitleBlockByDiscipline[disc] = v;
+            }
+            CollectTb("A",  cmbTbArch);
+            CollectTb("S",  cmbTbStruct);
+            CollectTb("M",  cmbTbMech);
+            CollectTb("E",  cmbTbElec);
+            CollectTb("P",  cmbTbPlumb);
+            CollectTb("FP", cmbTbFire);
+            CollectTb("LV", cmbTbLV);
+            CollectTb("G",  cmbTbGen);
+
             data.EnableWorksharing = chkWorksharing.IsChecked == true;
 
             // Units & orientation
@@ -828,6 +1011,8 @@ namespace StingTools.UI
             CollectDisciplineConfig(data);
 
             // Page 6: Automation
+            data.FastMode = chkFastMode?.IsChecked == true;
+            data.SuspendUIUpdates = chkSuspendUIUpdates?.IsChecked == true;
             data.UseLatestTemplateSetup = chkUseLatestTemplateSetup.IsChecked == true;
             data.LoadParams = chkLoadParams.IsChecked == true;
             data.CreateMaterials = chkCreateMaterials.IsChecked == true;
@@ -857,8 +1042,10 @@ namespace StingTools.UI
                 mc.IncludeHWS = chkMechHWS.IsChecked == true;
                 mc.IncludeDHW = chkMechDHW.IsChecked == true;
                 mc.IncludeGAS = chkMechGAS.IsChecked == true;
-                mc.DuctMaterial = GetComboValue(cmbMechDuctMat);
-                mc.PipeMaterial = GetComboValue(cmbMechPipeMat);
+                mc.HVACDuctMaterial = GetComboValue(cmbMechDuctMat);
+                mc.HWSPipeMaterial = GetComboValue(cmbMechHWSPipeMat);
+                mc.DHWPipeMaterial = GetComboValue(cmbMechDHWPipeMat);
+                mc.GASPipeMaterial = GetComboValue(cmbMechGASPipeMat);
                 if (int.TryParse(txtMechInsulation.Text, out int insul)) mc.InsulationMm = insul;
             }
 
@@ -872,6 +1059,8 @@ namespace StingTools.UI
                 ec.PhaseSystem = GetComboValue(cmbElecPhases);
                 ec.Containment = GetComboValue(cmbElecContain);
                 ec.IPRating = GetComboValue(cmbElecIP);
+                ec.PowerCable = GetComboValue(cmbElecPowerCable);
+                ec.LightingCable = GetComboValue(cmbElecLightingCable);
             }
 
             // Plumbing
@@ -881,7 +1070,9 @@ namespace StingTools.UI
                 pc.IncludeDCW = chkPlumbDCW.IsChecked == true;
                 pc.IncludeSAN = chkPlumbSAN.IsChecked == true;
                 pc.IncludeRWD = chkPlumbRWD.IsChecked == true;
-                pc.PipeMaterial = GetComboValue(cmbPlumbPipeMat);
+                pc.DCWPipeMaterial = GetComboValue(cmbPlumbDCWMat);
+                pc.SANPipeMaterial = GetComboValue(cmbPlumbSANMat);
+                pc.RWDPipeMaterial = GetComboValue(cmbPlumbRWDMat);
                 pc.FixtureStandard = GetComboValue(cmbPlumbStd);
             }
 
@@ -913,6 +1104,9 @@ namespace StingTools.UI
                 fc.IncludeAlarm = chkFireAlarm.IsChecked == true;
                 fc.IncludeSuppression = chkFireSuppress.IsChecked == true;
                 fc.FireRating = GetComboValue(cmbFireRating);
+                fc.SprinklerPipeMaterial = GetComboValue(cmbFireSprinklerMat);
+                fc.AlarmCable = GetComboValue(cmbFireAlarmCable);
+                fc.SuppressionPipeMaterial = GetComboValue(cmbFireSuppressMat);
             }
 
             // Low Voltage
@@ -1019,6 +1213,12 @@ namespace StingTools.UI
                 sb.AppendLine($"  Title block:   {data.TitleBlockName}");
             else
                 sb.AppendLine("  Title block:   (first available)");
+            if (data.TitleBlockByDiscipline != null && data.TitleBlockByDiscipline.Count > 0)
+            {
+                sb.AppendLine("  Per-discipline overrides:");
+                foreach (var kv in data.TitleBlockByDiscipline)
+                    sb.AppendLine($"      [{kv.Key}] → {kv.Value}");
+            }
 
             // Discipline-specific details
             sb.AppendLine();
@@ -1168,35 +1368,28 @@ namespace StingTools.UI
                 {
                     case "M":
                         var mc = data.MechConfig;
-                        var sysList = new List<string>();
-                        if (mc.IncludeHVAC) sysList.Add("HVAC");
-                        if (mc.IncludeHWS) sysList.Add("HWS");
-                        if (mc.IncludeDHW) sysList.Add("DHW");
-                        if (mc.IncludeGAS) sysList.Add("GAS");
-                        sb.AppendLine($"      Systems: {string.Join(", ", sysList)}");
-                        sb.AppendLine($"      Duct: {mc.DuctMaterial}, Pipe: {mc.PipeMaterial}");
+                        if (mc.IncludeHVAC) sb.AppendLine($"      HVAC  → Duct: {mc.HVACDuctMaterial}");
+                        if (mc.IncludeHWS)  sb.AppendLine($"      HWS   → Pipe: {mc.HWSPipeMaterial}");
+                        if (mc.IncludeDHW)  sb.AppendLine($"      DHW   → Pipe: {mc.DHWPipeMaterial}");
+                        if (mc.IncludeGAS)  sb.AppendLine($"      GAS   → Pipe: {mc.GASPipeMaterial}");
                         if (mc.InsulationMm > 0)
                             sb.AppendLine($"      Insulation: {mc.InsulationMm}mm");
                         break;
 
                     case "E":
                         var ec = data.ElecConfig;
-                        var eSys = new List<string>();
-                        if (ec.IncludePower) eSys.Add("Power");
-                        if (ec.IncludeLighting) eSys.Add("Lighting");
-                        sb.AppendLine($"      Systems: {string.Join(", ", eSys)}");
+                        if (ec.IncludePower)    sb.AppendLine($"      Power    → Cable: {ec.PowerCable}");
+                        if (ec.IncludeLighting) sb.AppendLine($"      Lighting → Cable: {ec.LightingCable}");
                         sb.AppendLine($"      {ec.Voltage}, {ec.PhaseSystem}");
                         sb.AppendLine($"      Containment: {ec.Containment}, {ec.IPRating}");
                         break;
 
                     case "P":
                         var pc = data.PlumbConfig;
-                        var pSys = new List<string>();
-                        if (pc.IncludeDCW) pSys.Add("DCW");
-                        if (pc.IncludeSAN) pSys.Add("SAN");
-                        if (pc.IncludeRWD) pSys.Add("RWD");
-                        sb.AppendLine($"      Systems: {string.Join(", ", pSys)}");
-                        sb.AppendLine($"      Pipe: {pc.PipeMaterial}, Fixtures: {pc.FixtureStandard}");
+                        if (pc.IncludeDCW) sb.AppendLine($"      DCW → Pipe: {pc.DCWPipeMaterial}");
+                        if (pc.IncludeSAN) sb.AppendLine($"      SAN → Pipe: {pc.SANPipeMaterial}");
+                        if (pc.IncludeRWD) sb.AppendLine($"      RWD → Pipe: {pc.RWDPipeMaterial}");
+                        sb.AppendLine($"      Fixtures: {pc.FixtureStandard}");
                         break;
 
                     case "A":
@@ -1217,11 +1410,9 @@ namespace StingTools.UI
 
                     case "FP":
                         var fc = data.FireConfig;
-                        var fSys = new List<string>();
-                        if (fc.IncludeSprinkler) fSys.Add("Sprinkler");
-                        if (fc.IncludeAlarm) fSys.Add("Alarm");
-                        if (fc.IncludeSuppression) fSys.Add("Suppression");
-                        sb.AppendLine($"      Systems: {string.Join(", ", fSys)}");
+                        if (fc.IncludeSprinkler)   sb.AppendLine($"      Sprinkler   → Pipe: {fc.SprinklerPipeMaterial}");
+                        if (fc.IncludeAlarm)       sb.AppendLine($"      Alarm       → Cable: {fc.AlarmCable}");
+                        if (fc.IncludeSuppression) sb.AppendLine($"      Suppression → Pipe: {fc.SuppressionPipeMaterial}");
                         sb.AppendLine($"      Fire rating: {fc.FireRating}");
                         break;
 
@@ -1343,6 +1534,12 @@ namespace StingTools.UI
         // Page 4: Disciplines
         public List<string> Disciplines { get; set; } = new List<string>();
         public string TitleBlockName { get; set; }
+
+        /// <summary>Per-discipline title block overrides ("A"/"S"/"M"/"E"/"P"/"FP"/"LV"/"G" → "Family : Type").
+        /// Missing entries fall back to <see cref="TitleBlockName"/>, then to first available.</summary>
+        public Dictionary<string, string> TitleBlockByDiscipline { get; set; }
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         public bool EnableWorksharing { get; set; }
         public string UnitSystem { get; set; } = "Millimeters";
         public double TrueNorthAngle { get; set; }
@@ -1373,6 +1570,14 @@ namespace StingTools.UI
         public bool CreateSheets { get; set; }
         public bool CreateSections { get; set; }
         public bool CreateElevations { get; set; }
+
+        /// <summary>Fast setup mode — scan document first, skip bulk steps (materials, schedules, templates)
+        /// when ≥80% of target already exists. Typically reduces 30+ min re-runs to under 5 min.</summary>
+        public bool FastMode { get; set; } = true;
+
+        /// <summary>Switch to a blank drafting view during setup so Revit skips active-view regen
+        /// on every transaction. Restored to the original view when setup finishes.</summary>
+        public bool SuspendUIUpdates { get; set; } = true;
 
         /// <summary>Get all active system codes from discipline configs.</summary>
         public List<string> GetActiveSystemCodes()
@@ -1423,9 +1628,39 @@ namespace StingTools.UI
         public bool IncludeHWS { get; set; } = true;
         public bool IncludeDHW { get; set; }
         public bool IncludeGAS { get; set; }
-        public string DuctMaterial { get; set; } = "Galvanised Steel";
-        public string PipeMaterial { get; set; } = "Copper";
+
+        // Per-system materials — picked from the Disc. Config page dropdowns.
+        // HVAC uses ducts; HWS/DHW/GAS use pipes. Each system can have its own material.
+        public string HVACDuctMaterial { get; set; } = "Galvanised Steel";
+        public string HWSPipeMaterial { get; set; } = "Steel (Black)";
+        public string DHWPipeMaterial { get; set; } = "Copper";
+        public string GASPipeMaterial { get; set; } = "Steel (Black)";
         public int InsulationMm { get; set; } = 25;
+
+        // Back-compat: old single-material props delegate to the primary HVAC duct/HWS pipe.
+        public string DuctMaterial
+        {
+            get => HVACDuctMaterial;
+            set => HVACDuctMaterial = value;
+        }
+        public string PipeMaterial
+        {
+            get => HWSPipeMaterial;
+            set => HWSPipeMaterial = value;
+        }
+
+        /// <summary>Get the material for a given system code (HVAC / HWS / DHW / GAS).</summary>
+        public string GetMaterialFor(string systemCode)
+        {
+            switch ((systemCode ?? "").ToUpperInvariant())
+            {
+                case "HVAC": return HVACDuctMaterial;
+                case "HWS":  return HWSPipeMaterial;
+                case "DHW":  return DHWPipeMaterial;
+                case "GAS":  return GASPipeMaterial;
+                default:     return "";
+            }
+        }
     }
 
     public class ElectricalConfig
@@ -1436,6 +1671,10 @@ namespace StingTools.UI
         public string PhaseSystem { get; set; } = "Single Phase";
         public string Containment { get; set; } = "Cable Tray + Conduit";
         public string IPRating { get; set; } = "IP20";
+
+        // Per-system cable type (BS 7671-aware).
+        public string PowerCable { get; set; } = "XLPE/SWA (LSZH)";
+        public string LightingCable { get; set; } = "Twin & Earth (6242Y)";
     }
 
     public class PlumbingConfig
@@ -1443,8 +1682,32 @@ namespace StingTools.UI
         public bool IncludeDCW { get; set; } = true;
         public bool IncludeSAN { get; set; } = true;
         public bool IncludeRWD { get; set; }
-        public string PipeMaterial { get; set; } = "Copper";
+
+        // Per-system pipe materials.
+        public string DCWPipeMaterial { get; set; } = "Copper";
+        public string SANPipeMaterial { get; set; } = "Cast Iron";
+        public string RWDPipeMaterial { get; set; } = "uPVC";
+
         public string FixtureStandard { get; set; } = "Commercial Grade";
+
+        // Back-compat facade (delegates to DCW).
+        public string PipeMaterial
+        {
+            get => DCWPipeMaterial;
+            set => DCWPipeMaterial = value;
+        }
+
+        /// <summary>Get the pipe material for a given plumbing system code (DCW / SAN / RWD).</summary>
+        public string GetMaterialFor(string systemCode)
+        {
+            switch ((systemCode ?? "").ToUpperInvariant())
+            {
+                case "DCW": return DCWPipeMaterial;
+                case "SAN": return SANPipeMaterial;
+                case "RWD": return RWDPipeMaterial;
+                default:    return "";
+            }
+        }
     }
 
     public class ArchitecturalConfig
@@ -1469,6 +1732,11 @@ namespace StingTools.UI
         public bool IncludeAlarm { get; set; } = true;
         public bool IncludeSuppression { get; set; }
         public string FireRating { get; set; } = "60 min";
+
+        // Per-system materials.
+        public string SprinklerPipeMaterial { get; set; } = "Steel (Black, Welded)";
+        public string AlarmCable { get; set; } = "FP200 Gold (Std Fire)";
+        public string SuppressionPipeMaterial { get; set; } = "Steel (Galvanised)";
     }
 
     public class LowVoltageConfig
