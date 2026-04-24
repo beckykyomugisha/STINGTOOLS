@@ -50,11 +50,24 @@ namespace StingTools.Commands.Validation
                 return Result.Failed;
             }
 
-            ShowResult(all);
+            // Pack 123 / Gap D — apply per-element suppressions before display.
+            // Coordinators dismiss "intentionally undefined" findings via the
+            // suppression schema; this filter honours their choices while
+            // keeping the count visible in the SUMMARY section.
+            int suppressed = 0;
+            try
+            {
+                var (kept, sup) = StingTools.Core.Storage.StingValidatorSuppressionSchema.Filter(doc, all);
+                all = kept;
+                suppressed = sup;
+            }
+            catch (Exception sx) { StingLog.Warn($"Suppression filter: {sx.Message}"); }
+
+            ShowResult(all, suppressed);
             return Result.Succeeded;
         }
 
-        private void ShowResult(List<ValidationResult> all)
+        private void ShowResult(List<ValidationResult> all, int suppressed = 0)
         {
             int errors   = all.Count(r => r.Severity == ValidationSeverity.Error);
             int warnings = all.Count(r => r.Severity == ValidationSeverity.Warning);
@@ -67,6 +80,7 @@ namespace StingTools.Commands.Validation
                  .Metric("Total findings", all.Count.ToString())
                  .Metric("Errors",   errors.ToString())
                  .Metric("Warnings", warnings.ToString())
+                 .Metric("Suppressed", suppressed.ToString())
                  .Metric("Info",     infos.ToString());
 
             // Group by validator for legibility
