@@ -2089,6 +2089,40 @@ namespace StingTools.Tags
     [Regeneration(RegenerationOption.Manual)]
     public class ConfigureTagLabelsCommand : IExternalCommand
     {
+        /// <summary>Parameters whose presence on the family's first FamilySymbol indicates the
+        /// family has already been through ConfigureTagLabels / CreateTagFamilies — used to
+        /// decide whether to skip it in merge-only mode.</summary>
+        private static readonly string[] ConfiguredMarkerParams = new[]
+        {
+            ParamRegistry.TAG1,           // ASS_TAG_1_TXT — the primary 8-segment display target
+            ParamRegistry.PARA_STATE_1,   // TAG_PARA_STATE_1_BOOL — tier visibility gate
+            ParamRegistry.WARN_VISIBLE,   // TAG_WARN_VISIBLE_BOOL
+        };
+
+        /// <summary>True iff a loaded family carries the full STING marker-parameter set on
+        /// its first FamilySymbol. Cheap — does NOT open the family in the Family Editor,
+        /// just inspects one symbol via <see cref="Element.LookupParameter"/>.</summary>
+        private static bool IsFamilyConfigured(Document doc, Family fam)
+        {
+            try
+            {
+                var symbolIds = fam.GetFamilySymbolIds();
+                if (symbolIds == null || symbolIds.Count == 0) return false;
+                var firstSym = doc.GetElement(symbolIds.First()) as FamilySymbol;
+                if (firstSym == null) return false;
+                foreach (string markerName in ConfiguredMarkerParams)
+                {
+                    if (firstSym.LookupParameter(markerName) == null) return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IsFamilyConfigured '{fam?.Name}': {ex.Message}");
+                return false;
+            }
+        }
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -2117,6 +2151,68 @@ namespace StingTools.Tags
 
             // Sort alphabetically for consistent order
             stingFamilies = stingFamilies.OrderBy(f => f.Name).ToList();
+
+            // Merge-only pre-scan: split into already-configured vs. needs-attention by checking
+            // marker params on the first FamilySymbol. Default behaviour is to skip the
+            // already-configured bucket so re-runs only prompt for families that actually need
+            // work. Force rewrite re-iterates everything and is an explicit opt-in.
+            var alreadyConfigured = new List<Family>();
+            var needsAttention = new List<Family>();
+            foreach (var fam in stingFamilies)
+            {
+                if (IsFamilyConfigured(doc, fam)) alreadyConfigured.Add(fam);
+                else                               needsAttention.Add(fam);
+            }
+
+            bool forceRewrite = false;
+            if (alreadyConfigured.Count > 0 && needsAttention.Count > 0)
+            {
+                var modeDlg = new TaskDialog("STING — Configure Tag Labels");
+                modeDlg.MainInstruction =
+                    $"{alreadyConfigured.Count} of {stingFamilies.Count} tag families already have " +
+                    "the STING parameter set — how should those be handled?";
+                modeDlg.MainContent =
+                    "Merge-only (recommended): skip the already-configured families and only " +
+                    $"prompt for the {needsAttention.Count} that still need attention.\n\n" +
+                    "Force rewrite: re-prompt for every family including ones already configured — " +
+                    "use this when the tier spec itself changed and every family must be re-checked.";
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Merge-only — skip already-configured",
+                    $"Prompt only for the {needsAttention.Count} family(ies) missing STING markers.");
+                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Force rewrite — re-prompt every family",
+                    $"Re-prompt for all {stingFamilies.Count} families.");
+                modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var res = modeDlg.Show();
+                if (res == TaskDialogResult.Cancel) return Result.Cancelled;
+                forceRewrite = (res == TaskDialogResult.CommandLink2);
+            }
+            else if (alreadyConfigured.Count == stingFamilies.Count)
+            {
+                // Every family appears configured — ask once whether the user wants to force.
+                var allOk = new TaskDialog("STING — Configure Tag Labels");
+                allOk.MainInstruction = "All loaded tag families already carry the STING markers.";
+                allOk.MainContent =
+                    "Nothing to merge — every family already has TAG1 / TAG_PARA_STATE_1 / " +
+                    "TAG_WARN_VISIBLE on its first symbol.\n\n" +
+                    "Use Force rewrite only if the tier spec itself has changed and every " +
+                    "family must be re-verified.";
+                allOk.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Close — nothing to do");
+                allOk.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Force rewrite — re-prompt every family");
+                allOk.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var res = allOk.Show();
+                if (res != TaskDialogResult.CommandLink2) return Result.Succeeded;
+                forceRewrite = true;
+            }
+
+            // Re-slice the working set per the chosen mode.
+            stingFamilies = forceRewrite ? stingFamilies : needsAttention;
+            if (stingFamilies.Count == 0)
+            {
+                TaskDialog.Show("STING — Configure Tag Labels",
+                    "Nothing to do — every loaded tag family already carries the STING markers.");
+                return Result.Succeeded;
+            }
 
             // Load label definitions for exact Edit Label instructions
             var catLabels = LabelDefinitionHelper.LoadCategoryLabels();
