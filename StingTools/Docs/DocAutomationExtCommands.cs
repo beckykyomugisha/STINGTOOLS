@@ -1858,11 +1858,23 @@ namespace StingTools.Docs
                             name = DocAutomationHelper.GetUniqueViewName(doc, name);
                             section.Name = name;
 
-                            // Auto-assign template
-                            View template = DocAutomationHelper.FindViewTemplate(doc, "STING - Section");
-                            if (template == null) template = DocAutomationHelper.FindViewTemplate(doc, "STING - Working Section");
-                            if (template != null)
-                                section.ViewTemplateId = template.Id;
+                            // Prefer a Drawing Type profile when one matches
+                            // this (discipline × phase × docType). The
+                            // profile carries scale, view template, detail
+                            // level and the annotation rule pack in one
+                            // record. Fall back to the historic hard-coded
+                            // "STING - Section" template lookup so projects
+                            // that have not authored a profile still get
+                            // the current behaviour.
+                            var dt = StingTools.Core.Drawing.DrawingDispatcher.Resolve(
+                                doc, "*", "*", StingTools.Core.Drawing.DrawingPurpose.Section);
+                            var applied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, section, dt);
+                            if (!applied.TemplateApplied)
+                            {
+                                View template = DocAutomationHelper.FindViewTemplate(doc, "STING - Section");
+                                if (template == null) template = DocAutomationHelper.FindViewTemplate(doc, "STING - Working Section");
+                                if (template != null) section.ViewTemplateId = template.Id;
+                            }
 
                             created++;
                         }
@@ -1967,11 +1979,22 @@ namespace StingTools.Docs
                                     name = DocAutomationHelper.GetUniqueViewName(doc, name);
                                     elev.Name = name;
 
-                                    View template = DocAutomationHelper.FindViewTemplate(doc, "STING - Elevation");
-                                    if (template == null)
-                                        template = DocAutomationHelper.FindViewTemplate(doc, "STING - Presentation Elevation");
-                                    if (template != null)
-                                        elev.ViewTemplateId = template.Id;
+                                    // Prefer a Drawing Type profile for this
+                                    // (discipline × phase × ELEVATION).
+                                    // Profile supplies scale, view template,
+                                    // detail level and annotation pack.
+                                    // Fall back to historic template search.
+                                    var dt = StingTools.Core.Drawing.DrawingDispatcher.Resolve(
+                                        doc, "*", "*", StingTools.Core.Drawing.DrawingPurpose.Elevation);
+                                    var applied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, elev, dt);
+                                    if (!applied.TemplateApplied)
+                                    {
+                                        View template = DocAutomationHelper.FindViewTemplate(doc, "STING - Elevation");
+                                        if (template == null)
+                                            template = DocAutomationHelper.FindViewTemplate(doc, "STING - Presentation Elevation");
+                                        if (template != null)
+                                            elev.ViewTemplateId = template.Id;
+                                    }
 
                                     created++;
                                 }
