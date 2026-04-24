@@ -85,6 +85,108 @@ When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than exten
 2. The 8 title block `.rfa` families are NOT shipped — only their parameter specs. `ShopDrawingComposer.ResolveTitleBlock` falls back to the first available title block in the project.
 3. ISO 6412 detail families (180 entries) are referenced by name in `STING_ISO_SYMBOLS_INDEX.csv`; `IsoSymbolPlacer` lazy-loads from `Families/ISO6412/` and warns once per missing family.
 
+## Drawing Template Manager (Phase 113)
+
+**Status**: Foundation landed on `claude/fix-text-visibility-layouts-OsiY9`. A single-source engine for how every drawing is produced — sheet size, title block, scale, view template, slot layout, annotation rule pack, crop strategy, section-marker family, viewport type, sheet numbering — replacing four scattered configuration surfaces (SheetTemplateEngine, ShopDrawingComposer hard-codes, DocAutomation TaskDialog prompts, SheetManager presets).
+
+### New folders
+
+| Path | Purpose |
+|---|---|
+| `StingTools/Core/Drawing/` | Drawing Type engine: POCO model, loader with 15 built-ins, routing dispatcher, pre-flight validator |
+| `StingTools/Commands/Drawing/` | Diagnostic commands (Inspect + Reload) |
+| `StingTools/Data/STING_DRAWING_TYPES.json` | Corporate baseline: 15 drawing types + routing table, extracted to `data/` at build |
+
+### New namespaces
+
+`StingTools.Core.Drawing`, `StingTools.Commands.Drawing`.
+
+### Concept
+
+A **DrawingType** is a named JSON bundle that answers every presentation question for a single produced drawing:
+
+| Field | Purpose |
+|---|---|
+| `id` / `name` | Stable identifier + human label |
+| `purpose` | Plan / RCP / Section / Elevation / Detail / Schedule / Spool / Coordination / Legend / 3D |
+| `discipline`, `phase` | Routing keys (wildcarded with `*`) |
+| `paperSize`, `titleBlockFamily`, `orientation` | Sheet identity |
+| `scale`, `detailLevel` | View appearance basics |
+| `viewTemplateName`, `viewportTypeName` | Graphic standards binding |
+| `sheetNumberPattern`, `sheetNamePattern` | Token-substituted (see below) |
+| `crop` | `ScopeBox` / `ScopeBoxOrBbox` / `TightBbox` / `RoomBoundary` / `None` + margin |
+| `sectionMarker` | Family + mark prefix + bubble style + far-clip offset |
+| `slots[]` | Normalised 0..1 positions on the drawable zone (paper-size independent) |
+| `annotation` | `AnnotationRulePack` — what to auto-dim / auto-tag, dimension strategy, per-category tag families, `denseUntilScale` modifier |
+| `print` | Colour scheme, line-weight scale, halftone links |
+| `origin` | `corporate` (SHA-256 checksum-locked) vs `project` (editable) |
+
+Rules live in the same JSON as `routing[]` — first-match-wins rules of the shape `(discipline, phase, docType) → drawingTypeId`.
+
+### Token patterns
+
+Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.SubstituteTokens`:
+
+| Token | Replaced with |
+|---|---|
+| `{spool}` | Spool number from `AssyParams.SPOOL_NR_TXT` |
+| `{disc}` | ISO single-letter discipline code |
+| `{discipline}` | Full discipline name (e.g. "Pipe", "Electrical") |
+| `{sys}` | Sanitised system code |
+| `{lvl}` | Level code |
+| `{mark}` | Section / elevation / detail mark |
+| `{seq}` | Zero-padded 4-digit sequence (default) |
+| `{seq:D2}` / `{seq:D3}` / `{seq:D4}` | Zero-padded sequence with explicit width |
+
+### New classes
+
+| Class | Purpose |
+|---|---|
+| `Core.Drawing.DrawingType` | Root POCO — all 15 fields above |
+| `Core.Drawing.DrawingSlot` | Normalised viewport slot with optional per-slot scale / detailLevel / viewTemplate / viewportType override |
+| `Core.Drawing.AnnotationRulePack` | Auto-dim / auto-tag flags, dimension style, per-category `tagFamilies`, scale-aware density |
+| `Core.Drawing.DrawingCropStrategy` | Crop mode + margin + optional scope-box name |
+| `Core.Drawing.SectionMarkerSpec` | Section / elevation / callout marker family + mark prefix |
+| `Core.Drawing.PrintOverride` | Colour scheme + line-weight scale + halftone links |
+| `Core.Drawing.DrawingRoutingRule` | `(discipline, phase, docType) → drawingTypeId` |
+| `Core.Drawing.DrawingTypeLibrary` | Root JSON document (`drawingTypes[]` + `routing[]`) |
+| `Core.Drawing.DrawingTypeRegistry` | Loader + SHA-256 corporate-lock + project-override merge; cached per-document |
+| `Core.Drawing.DrawingDispatcher` | `Resolve(doc, disc, phase, docType)` + `CandidatesForDiscipline` |
+| `Core.Drawing.DrawingTypeValidator` | Pre-flight: missing title block / view template / viewport type / section-marker / tag family + slot geometry sanity |
+
+### New commands (2)
+
+| Tag | Class | Purpose |
+|---|---|---|
+| `DrawingTypes_Inspect` | `DrawingTypesInspectCommand` | Read-only diagnostic: lists all types + routing + validation issues |
+| `DrawingTypes_Reload` | `DrawingTypesReloadCommand` | Force registry cache refresh after editing JSON on disk |
+
+### Built-in corporate catalogue (15)
+
+Shipped in `Data/STING_DRAWING_TYPES.json`: `arch-plan-A1-1to100`, `arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `struct-plan-A1-1to100`, `struct-section-A1-1to50`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`, `pipe-spool-A1-1to50`, `duct-spool-A1-1to50`, `elec-riser-A2-1to100`, `door-schedule-A2`, `handover-A1`, `legend-A2`.
+
+### Project-scoped overrides
+
+Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json` on top of the corporate baseline. Project entries win by `id`; project routing rules are **prepended** (first-match-wins). Mutating a corporate entry on disk flips its `origin` to `project` via SHA-256 checksum drift detection (see `DrawingTypeRegistry.ComputeChecksums`).
+
+### Wiring — fabrication is the Phase I proof point
+
+`ShopDrawingComposer` consults the registry via a 3-tier fallback chain (no regression):
+
+1. User-picked `FabricationOptions.ShopDrawing.TitleBlockSymbolId` / `SheetNumberPattern` / `SheetNamePattern` (win)
+2. Drawing Type resolved by `DrawingDispatcher.Resolve(doc, disc, "*", Spool)` — `pipe-spool-A1-1to50` / `duct-spool-A1-1to50`
+3. Historic hard-coded per-discipline dict + session sequence counter
+
+Phase II will wire `DocAutomationExtCommands.BatchSectionsCommand` / `BatchElevationsCommand` / `BatchSheetsCommand` and `SheetManagerCommands.CreateFromTemplateCommand` into the same registry, retiring the hard-coded templates in `SheetTemplateEngine.cs` in favour of the JSON catalogue.
+
+### Caveats (Drawing Template Manager)
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. Phase I only wires fabrication — `BatchSections` / `BatchElevations` / `BatchSheets` and the Sheet Manager's `CreateFromTemplate` keep their current behaviour until Phase II.
+3. No editor UI yet; users edit JSON by hand or via the `_BIM_COORD/drawing_types.json` project override, then run `DrawingTypes_Reload`.
+4. `AnnotationRulePack` is a declarative payload — the annotation pass that consumes it (auto-dim grids, tag-rooms, weld-tag runs) is out of scope for Phase I. The flags are honoured only by the profile validator today; generator consumption follows in the annotation-automation phase.
+5. The 15 built-ins reference title-block / view-template / tag-family names that projects must supply; the validator reports missing assets as Warnings (not Errors) so the JSON ships usable on a stock project.
+
 ## Template Engine v1.1 (Phase 112)
 
 **Status**: S01–S18 landed on `claude/implement-template-engine-COd9n`
