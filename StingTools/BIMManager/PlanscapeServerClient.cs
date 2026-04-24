@@ -685,8 +685,9 @@ public sealed class PlanscapeServerClient : IDisposable
 
     // Snapshot the current HttpClient under the lock so a concurrent
     // EnsureHttpClient(different base URL) that disposes+replaces _http
-    // cannot race with an in-flight PostAsync/GetAsync.
-    private HttpClient SnapshotHttpClient()
+    // cannot race with an in-flight PostAsync/GetAsync. Callers must
+    // null-check before use (null = LoginAsync hasn't run yet).
+    private HttpClient? SnapshotHttpClient()
     {
         lock (_httpSem) { return _http; }
     }

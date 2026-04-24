@@ -57,7 +57,6 @@ namespace Planscape.Docs.Search
         private const LuceneVersion Version = LuceneVersion.LUCENE_48;
         private readonly LuceneDirectory _dir;
         private readonly StandardAnalyzer _analyzer;
-        private IndexWriter _writer;
         private DirectoryReader _reader;
 
         private DocumentIndex(LuceneDirectory d)
@@ -241,7 +240,6 @@ namespace Planscape.Docs.Search
         public void Dispose()
         {
             _reader?.Dispose();
-            _writer?.Dispose();
             _analyzer?.Dispose();
             _dir?.Dispose();
         }
