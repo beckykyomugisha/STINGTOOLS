@@ -7,30 +7,118 @@ using System.Windows.Media;
 namespace StingTools.UI
 {
     /// <summary>
-    /// Fixes white-on-white text in ComboBox / TextBox dropdowns on dialogs
-    /// that use a custom dark Background + inherited white Foreground. WPF
-    /// popups render with default (light) chrome and do not inherit
-    /// Window.Background, so items in the dropdown become unreadable.
+    /// Fixes white-on-white text in WPF dialogs that paint a custom dark
+    /// Background and rely on an inherited white Foreground. Input controls
+    /// (TextBox, ComboBox) do not inherit Window.Background — they render
+    /// with default (light) chrome, which makes white text invisible.
     ///
-    /// Installs implicit Window-level styles for <see cref="ComboBoxItem"/>
-    /// (with a minimal ControlTemplate that actually honours Background) so
-    /// dropdown rows paint dark and keep white text readable.
+    /// Two complementary entry points:
+    ///
+    /// 1. <see cref="ApplyComboBoxFix"/> — installs a window-level implicit
+    ///    style for <see cref="ComboBoxItem"/>. This alone fixes the
+    ///    dropdown rows but not the combo edit field or standalone
+    ///    TextBoxes (WPF default templates bind those to
+    ///    SystemColors.WindowBrushKey, which wins over implicit styles).
+    ///
+    /// 2. <see cref="StyleInput(TextBox)"/> / <see cref="StyleInput(ComboBox)"/>
+    ///    — explicit per-control styling that sets Background / Foreground /
+    ///    BorderBrush directly on the instance. This is the proven pattern
+    ///    (see ShopDrawingOptionsDialog) and is the one to reach for when
+    ///    the implicit-style approach does not land.
+    ///
+    /// Call ApplyComboBoxFix(...) once per Window and StyleInput(...) on
+    /// every input control created procedurally; the two cover both the
+    /// dropdown rows and the input body/edit field.
     /// </summary>
     internal static class DarkDialogTheme
     {
+        // ─── Default palette (matches the dark dialogs already in the codebase) ───
+        private static readonly Color DefaultBg     = Color.FromRgb(0x3E, 0x3E, 0x42);
+        private static readonly Color DefaultFg     = Colors.White;
+        private static readonly Color DefaultBorder = Color.FromRgb(0x55, 0x55, 0x58);
+
+        // ═════════════════════════════════════════════════════════════════
+        //  Window-level fix (dropdown rows)
+        // ═════════════════════════════════════════════════════════════════
+
         public static void ApplyComboBoxFix(Window window, Color itemBg, Color itemFg, Color hoverBg)
+            => ApplyDarkInputTheme(window, itemBg, itemFg, hoverBg);
+
+        public static void ApplyDarkInputTheme(Window window, Color inputBg, Color inputFg, Color hoverBg)
         {
             if (window == null) return;
-            var style = BuildComboBoxItemStyle(itemBg, itemFg, hoverBg);
-            window.Resources[typeof(ComboBoxItem)] = style;
+
+            var bg     = Freeze(new SolidColorBrush(inputBg));
+            var fg     = Freeze(new SolidColorBrush(inputFg));
+            var hover  = Freeze(new SolidColorBrush(hoverBg));
+
+            // Install the ComboBoxItem style — this is the one piece of
+            // implicit-style wiring that reliably paints (because the
+            // ControlTemplate supplied below binds Background via
+            // TemplateBinding, not via a system resource key).
+            window.Resources[typeof(ComboBoxItem)] = BuildComboBoxItemStyle(bg, fg, hover);
         }
 
-        private static Style BuildComboBoxItemStyle(Color itemBg, Color itemFg, Color hoverBg)
-        {
-            var itemBrush  = Freeze(new SolidColorBrush(itemBg));
-            var textBrush  = Freeze(new SolidColorBrush(itemFg));
-            var hoverBrush = Freeze(new SolidColorBrush(hoverBg));
+        // ═════════════════════════════════════════════════════════════════
+        //  Explicit per-control styling (reliable path)
+        // ═════════════════════════════════════════════════════════════════
 
+        public static void StyleInput(TextBox tb)
+            => StyleInput(tb, DefaultBg, DefaultFg, DefaultBorder);
+
+        public static void StyleInput(TextBox tb, Color bg, Color fg, Color border)
+        {
+            if (tb == null) return;
+            tb.Background       = Freeze(new SolidColorBrush(bg));
+            tb.Foreground       = Freeze(new SolidColorBrush(fg));
+            tb.BorderBrush      = Freeze(new SolidColorBrush(border));
+            tb.CaretBrush       = tb.Foreground;
+            tb.SelectionBrush   = Freeze(new SolidColorBrush(border));
+            tb.BorderThickness  = new Thickness(1);
+            if (tb.Padding.Left + tb.Padding.Right + tb.Padding.Top + tb.Padding.Bottom == 0)
+                tb.Padding = new Thickness(4, 1, 4, 1);
+        }
+
+        public static void StyleInput(ComboBox cb)
+            => StyleInput(cb, DefaultBg, DefaultFg, DefaultBorder);
+
+        public static void StyleInput(ComboBox cb, Color bg, Color fg, Color border)
+        {
+            if (cb == null) return;
+            var bgBrush     = Freeze(new SolidColorBrush(bg));
+            var fgBrush     = Freeze(new SolidColorBrush(fg));
+            var borderBrush = Freeze(new SolidColorBrush(border));
+
+            cb.Background      = bgBrush;
+            cb.Foreground      = fgBrush;
+            cb.BorderBrush     = borderBrush;
+            cb.BorderThickness = new Thickness(1);
+            TextElement.SetForeground(cb, fgBrush);
+
+            // WPF's default ComboBox template hosts a PART_EditableTextBox
+            // whose Style reference wins over our Foreground. Walk the
+            // visual tree once Loaded fires and style that TextBox
+            // directly — same pattern as TextBox above.
+            cb.Loaded += (s, e) =>
+            {
+                var part = cb.Template?.FindName("PART_EditableTextBox", cb) as TextBox;
+                if (part != null)
+                {
+                    part.Background     = bgBrush;
+                    part.Foreground     = fgBrush;
+                    part.BorderBrush    = borderBrush;
+                    part.CaretBrush     = fgBrush;
+                    part.SelectionBrush = borderBrush;
+                }
+            };
+        }
+
+        // ═════════════════════════════════════════════════════════════════
+        //  Internals
+        // ═════════════════════════════════════════════════════════════════
+
+        private static Style BuildComboBoxItemStyle(Brush bg, Brush fg, Brush hover)
+        {
             // Minimal ControlTemplate where the Border's Background is
             // TemplateBound, so Style/trigger Background actually paints.
             var template = new ControlTemplate(typeof(ComboBoxItem));
@@ -49,8 +137,8 @@ namespace StingTools.UI
             template.VisualTree = border;
 
             var style = new Style(typeof(ComboBoxItem));
-            style.Setters.Add(new Setter(Control.BackgroundProperty, itemBrush));
-            style.Setters.Add(new Setter(Control.ForegroundProperty, textBrush));
+            style.Setters.Add(new Setter(Control.BackgroundProperty, bg));
+            style.Setters.Add(new Setter(Control.ForegroundProperty, fg));
             style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(6, 3, 6, 3)));
             style.Setters.Add(new Setter(Control.TemplateProperty, template));
             style.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty,
@@ -58,12 +146,12 @@ namespace StingTools.UI
             style.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty,
                 VerticalAlignment.Center));
 
-            var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-            hover.Setters.Add(new Setter(Control.BackgroundProperty, hoverBrush));
-            style.Triggers.Add(hover);
+            var hoverTrigger = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(Control.BackgroundProperty, hover));
+            style.Triggers.Add(hoverTrigger);
 
             var selected = new Trigger { Property = ListBoxItem.IsSelectedProperty, Value = true };
-            selected.Setters.Add(new Setter(Control.BackgroundProperty, hoverBrush));
+            selected.Setters.Add(new Setter(Control.BackgroundProperty, hover));
             style.Triggers.Add(selected);
 
             return style;

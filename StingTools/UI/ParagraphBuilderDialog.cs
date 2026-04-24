@@ -102,6 +102,7 @@ namespace StingTools.UI
 
             AddLabel(presetGrid, 0, "Preset");
             _cmbPreset = new ComboBox { Height = 24, Margin = new Thickness(4, 0, 8, 0) };
+            DarkDialogTheme.StyleInput(_cmbPreset, CardBg, FgColor, CardBorder);
             foreach (var kv in _presets.Entries) _cmbPreset.Items.Add(kv.Key);
             _cmbPreset.SelectedItem = _presets.ActivePreset;
             _cmbPreset.SelectionChanged += (s, e) => OnPresetChanged();
@@ -134,6 +135,7 @@ namespace StingTools.UI
             var actionBar = new DockPanel { Margin = new Thickness(0, 8, 0, 0), LastChildFill = false };
             AddLabel(actionBar, null, "Scope");
             _cmbScope = new ComboBox { Height = 24, Width = 140, Margin = new Thickness(4, 0, 12, 0) };
+            DarkDialogTheme.StyleInput(_cmbScope, CardBg, FgColor, CardBorder);
             _cmbScope.Items.Add("Selection (fallback: Active view)");
             _cmbScope.Items.Add("Active view");
             _cmbScope.Items.Add("Entire project");
@@ -217,6 +219,7 @@ namespace StingTools.UI
                 Text = tier.Label, Height = 22, FontSize = 11,
                 IsReadOnly = readOnly,
             };
+            DarkDialogTheme.StyleInput(tbLabel, CardBg, FgColor, CardBorder);
             tbLabel.TextChanged += (s, e) => { tier.Label = tbLabel.Text; RefreshHeader(expander, tierKey, tier); };
             labelRow.Children.Add(tbLabel);
             body.Children.Add(labelRow);
@@ -291,6 +294,7 @@ namespace StingTools.UI
                 Height = 22, FontSize = 10, Margin = new Thickness(2, 1, 2, 1),
                 Text = row.Parameter,
             };
+            DarkDialogTheme.StyleInput(cmbParam, CardBg, FgColor, CardBorder);
             foreach (var p in _paramCatalog) cmbParam.Items.Add(p);
             cmbParam.Text = row.Parameter;
             cmbParam.LostFocus += (s, e) => { row.Parameter = cmbParam.Text?.Trim() ?? ""; };
@@ -305,6 +309,7 @@ namespace StingTools.UI
                 Text = row.Prefix, IsReadOnly = readOnly,
                 Height = 22, FontSize = 10, Margin = new Thickness(2, 1, 2, 1),
             };
+            DarkDialogTheme.StyleInput(tbPrefix, CardBg, FgColor, CardBorder);
             tbPrefix.TextChanged += (s, e) => row.Prefix = tbPrefix.Text;
             Grid.SetColumn(tbPrefix, 2); Grid.SetRow(tbPrefix, rowIndex); tbl.Children.Add(tbPrefix);
 
@@ -313,6 +318,7 @@ namespace StingTools.UI
                 Text = row.Suffix, IsReadOnly = readOnly,
                 Height = 22, FontSize = 10, Margin = new Thickness(2, 1, 2, 1),
             };
+            DarkDialogTheme.StyleInput(tbSuffix, CardBg, FgColor, CardBorder);
             tbSuffix.TextChanged += (s, e) => row.Suffix = tbSuffix.Text;
             Grid.SetColumn(tbSuffix, 3); Grid.SetRow(tbSuffix, rowIndex); tbl.Children.Add(tbSuffix);
 
@@ -560,6 +566,11 @@ namespace StingTools.UI
                 Background = new SolidColorBrush(BgColor),
                 ResizeMode = ResizeMode.NoResize,
             };
+            // Sub-dialog is a separate Window — its Resources dictionary is
+            // not inherited from the parent, so the dark input theme must
+            // be applied here explicitly or the TextBox below renders
+            // white-on-white.
+            DarkDialogTheme.ApplyDarkInputTheme(dlg, CardBg, FgColor, CardBorder);
             var sp = new StackPanel { Margin = new Thickness(12) };
             sp.Children.Add(new TextBlock
             {
@@ -568,6 +579,7 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 0, 0, 6),
             });
             var tb = new TextBox { Text = defaultValue, Height = 24 };
+            DarkDialogTheme.StyleInput(tb, CardBg, FgColor, CardBorder);
             sp.Children.Add(tb);
             var btnRow = new StackPanel
             {
