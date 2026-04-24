@@ -55,6 +55,7 @@ namespace StingTools.UI
             Background = new SolidColorBrush(BgColor);
             FontFamily = new FontFamily("Segoe UI");
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            DarkDialogTheme.ApplyComboBoxFix(this, CardBg, FgColor, CardBorder);
             try
             {
                 var helper = new System.Windows.Interop.WindowInteropHelper(this);

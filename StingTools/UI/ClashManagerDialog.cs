@@ -62,6 +62,10 @@ namespace StingTools.UI
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Background = new SolidColorBrush(Color.FromRgb(0x2D, 0x2D, 0x30));
             Foreground = Brushes.White;
+            DarkDialogTheme.ApplyComboBoxFix(this,
+                Color.FromRgb(0x3E, 0x3E, 0x42),
+                Colors.White,
+                Color.FromRgb(0x55, 0x55, 0x58));
 
             BuildUi();
             LoadClashFile();
