@@ -408,6 +408,17 @@ namespace StingTools.Core
                     return;
                 }
 
+                // Cache per-event properties we'd otherwise resolve for every
+                // element: Application.Username crosses a P/Invoke boundary and
+                // IsWorkshared walks the document state.
+                string currentUser = null;
+                bool isWorkshared = false;
+                try { isWorkshared = doc.IsWorkshared; } catch { }
+                if (isWorkshared)
+                {
+                    try { currentUser = doc.Application.Username; } catch { }
+                }
+
                 foreach (ElementId id in addedIds)
                 {
                     // Skip recently processed (avoid re-trigger loops)
@@ -429,7 +440,7 @@ namespace StingTools.Core
                     }
 
                     // Workset filter — R-02: defer elements on unowned worksets instead of dropping
-                    if (doc.IsWorkshared)
+                    if (isWorkshared)
                     {
                         try
                         {
@@ -438,11 +449,11 @@ namespace StingTools.Core
                             {
                                 var wsInfo = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
                                 if (!string.IsNullOrEmpty(wsInfo.Owner)
-                                    && wsInfo.Owner != doc.Application.Username
+                                    && wsInfo.Owner != currentUser
                                     && wsInfo.Owner != "")
                                 {
                                     EnqueueDeferred(id);
-                                    StingLog.Info($"AutoTagger: deferred {id.Value} (workset not owned by {doc.Application.Username}) — will retry after sync");
+                                    StingLog.Info($"AutoTagger: deferred {id.Value} (workset not owned by {currentUser}) — will retry after sync");
                                     continue;
                                 }
                             }

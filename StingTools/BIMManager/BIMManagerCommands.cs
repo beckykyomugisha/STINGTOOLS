@@ -5417,7 +5417,7 @@ namespace StingTools.BIMManager
                     csv.AppendLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
                     foreach (var row in ws.Value)
                         csv.AppendLine(string.Join(",", headers.Select(h =>
-                            $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
+                            $"\"{(row.TryGetValue(h, out var v) ? v?.Replace("\"", "\"\"") : "")}\"")));
 
                     try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
                     catch (Exception ex) { StingLog.Warn($"COBie {ws.Key}: {ex.Message}"); }
@@ -5518,10 +5518,13 @@ namespace StingTools.BIMManager
                 }
             }
 
-            // Add missing resource types
-            string createdBy = resources.Count > 0 && resources[0].ContainsKey("CreatedBy") ? resources[0]["CreatedBy"] : Environment.UserName;
+            // Add missing resource types — TryGetValue avoids the
+            // ContainsKey+indexer double-lookup on every row.
+            string createdBy = Environment.UserName;
+            if (resources.Count > 0 && resources[0].TryGetValue("CreatedBy", out var cbv)) createdBy = cbv;
             string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
-            var existing = new HashSet<string>(resources.Select(r => r.ContainsKey("Name") ? r["Name"] : ""));
+            var existing = new HashSet<string>(resources.Select(r =>
+                r.TryGetValue("Name", out var nv) ? nv : ""));
 
             foreach (var kvp in enhancements)
             {
@@ -5540,9 +5543,11 @@ namespace StingTools.BIMManager
         /// <summary>Enhance Impact worksheet with lifecycle cost analysis, carbon per m², and energy benchmarks.</summary>
         private static void EnhanceImpactWorksheet(Document doc, List<Dictionary<string, string>> impacts)
         {
-            string createdBy = impacts.Count > 0 && impacts[0].ContainsKey("CreatedBy") ? impacts[0]["CreatedBy"] : Environment.UserName;
+            string createdBy = Environment.UserName;
+            if (impacts.Count > 0 && impacts[0].TryGetValue("CreatedBy", out var icbv)) createdBy = icbv;
             string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
-            var seen = new HashSet<string>(impacts.Select(i => i.ContainsKey("Name") ? i["Name"] : ""));
+            var seen = new HashSet<string>(impacts.Select(i =>
+                i.TryGetValue("Name", out var nv) ? nv : ""));
 
             // Add building-level energy benchmarks
             var benchmarks = new[]
@@ -6250,7 +6255,7 @@ namespace StingTools.BIMManager
                 csv.AppendLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
                 foreach (var row in ws.Value)
                     csv.AppendLine(string.Join(",", headers.Select(h =>
-                        $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
+                        $"\"{(row.TryGetValue(h, out var v) ? v?.Replace("\"", "\"\"") : "")}\"")));
                 try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
                 catch (Exception ex) { StingLog.Warn($"COBie CSV write failed for {ws.Key}: {ex.Message}"); }
             }
