@@ -299,6 +299,7 @@ namespace StingTools.UI
             _formHost.Children.Add(BuildSheetCard());
             _formHost.Children.Add(BuildViewCard());
             _formHost.Children.Add(BuildNumberingCard());
+            _formHost.Children.Add(BuildIsoNamingCard());
             _formHost.Children.Add(BuildCropCard());
             _formHost.Children.Add(BuildSectionMarkerCard());
             _formHost.Children.Add(BuildAnnotationCard());
@@ -385,6 +386,68 @@ namespace StingTools.UI
                 _current.SheetNamePattern, v => _current.SheetNamePattern = v,
                 tooltip: "Same token set as sheet number."));
             return Card("Numbering", body);
+        }
+
+        private UIElement BuildIsoNamingCard()
+        {
+            _current.IsoNaming = _current.IsoNaming ?? new IsoNaming();
+            var iso = _current.IsoNaming;
+            var body = new StackPanel();
+
+            body.Children.Add(new TextBlock
+            {
+                Text = "ISO 19650 sheet-numbering payload. {project} and {originator} " +
+                       "are read from ProjectInformation.PRJ_ORG_*. Other codes feed the " +
+                       "{vol}/{type}/{role}/{suit}/{rev} tokens used in sheet number + name " +
+                       "patterns and title-block cells.",
+                TextWrapping = TextWrapping.Wrap, FontSize = 11,
+                Foreground = new SolidColorBrush(SubtleColor),
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+
+            body.Children.Add(LabeledTextBox("Volume (e.g. 01, ZZ)",
+                iso.Volume, v => iso.Volume = v));
+            body.Children.Add(LabeledCombo("Type (DR / SH / M3 / VS …)",
+                _lookups.DocumentTypeCodes, iso.Type, v => iso.Type = v));
+            body.Children.Add(LabeledCombo("Role (discipline code)",
+                _lookups.DisciplineCodes, iso.Role, v => iso.Role = v));
+            body.Children.Add(LabeledCombo("Suitability (S0–S7 / A1–A5 / …)",
+                _lookups.SuitabilityCodes, iso.Suitability, v => iso.Suitability = v));
+            body.Children.Add(LabeledCombo("Revision prefix",
+                _lookups.RevisionPrefixes, iso.Revision, v => iso.Revision = v));
+
+            // Generate pattern button — writes a BS EN 19650 pattern
+            // into SheetNumberPattern so the user doesn't have to
+            // assemble the token string by hand.
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 6, 0, 0),
+            };
+            row.Children.Add(MakeSmallBtn("Generate ISO SheetNumberPattern", () =>
+            {
+                _current.SheetNumberPattern =
+                    "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}";
+                RenderForm();
+            }));
+            row.Children.Add(MakeSmallBtn("Generate ISO SheetNamePattern", () =>
+            {
+                _current.SheetNamePattern = "{discipline} — {lvl} — {mark}";
+                RenderForm();
+            }));
+            body.Children.Add(row);
+
+            body.Children.Add(new TextBlock
+            {
+                Text = "Current SheetNumberPattern preview token set: " +
+                       "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+                FontFamily = new FontFamily("Consolas"), FontSize = 10,
+                Foreground = new SolidColorBrush(SubtleColor),
+                Margin = new Thickness(0, 6, 0, 0),
+                TextWrapping = TextWrapping.Wrap,
+            });
+
+            return Card("ISO 19650 naming", body);
         }
 
         private UIElement BuildCropCard()

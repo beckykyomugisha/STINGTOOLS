@@ -112,6 +112,19 @@ namespace StingTools.Core.Drawing
         [JsonProperty("titleBlockParams", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, string> TitleBlockParams { get; set; }
 
+        /// <summary>
+        /// ISO 19650 naming — optional per-profile convention payload.
+        /// When set, the editor's Numbering card's "Generate ISO
+        /// pattern" button assembles SheetNumberPattern from these
+        /// fields using the standard
+        ///   {project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}
+        /// template. Values also flow through into the
+        /// TitleBlockParams map so title-block cells read the same
+        /// codes the sheet number does.
+        /// </summary>
+        [JsonProperty("isoNaming", NullValueHandling = NullValueHandling.Ignore)]
+        public IsoNaming IsoNaming { get; set; }
+
         // Numbering
         [JsonProperty("sheetNumberPattern")] public string SheetNumberPattern { get; set; } = "{disc}-{seq:D3}";
         [JsonProperty("sheetNamePattern")]   public string SheetNamePattern { get; set; }   = "{discipline} {purpose} - {lvl}";
@@ -136,6 +149,21 @@ namespace StingTools.Core.Drawing
         // compares on save to detect out-of-band edits.
         [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
         public string Checksum { get; set; }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  ISO 19650 NAMING — per-profile convention payload used to
+    //  build a compliant SheetNumberPattern and flow the matching
+    //  codes into TitleBlockParams.
+    // ─────────────────────────────────────────────────────────────────────
+
+    public sealed class IsoNaming
+    {
+        [JsonProperty("volume",      NullValueHandling = NullValueHandling.Ignore)] public string Volume { get; set; }       // e.g. "01", "ZZ"
+        [JsonProperty("type",        NullValueHandling = NullValueHandling.Ignore)] public string Type { get; set; }         // DR / SH / M3 / VS / CA / SP
+        [JsonProperty("role",        NullValueHandling = NullValueHandling.Ignore)] public string Role { get; set; }         // A / S / M / E / P / FP
+        [JsonProperty("suitability", NullValueHandling = NullValueHandling.Ignore)] public string Suitability { get; set; }  // S0..S7 / A1..A5 / B1..B5 / C1..C3
+        [JsonProperty("revision",    NullValueHandling = NullValueHandling.Ignore)] public string Revision { get; set; }     // P01, P02, C01
     }
 
     // ─────────────────────────────────────────────────────────────────────
