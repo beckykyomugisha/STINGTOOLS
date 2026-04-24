@@ -301,8 +301,80 @@ namespace StingTools.UI.PlacementCenter
                 TaskDialog.Show("STING — Placement Centre", $"Validate failed: {ex.Message}");
             }
         }
+        // ── Phase 127-C — Family-side ────────────────────────────────
+
+        private void OnInspectFamily_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (VM.Selected == null || string.IsNullOrEmpty(VM.Selected.CategoryFilter))
+            {
+                gridFamilyHints.ItemsSource = null;
+                VM.Status = "Pick a rule with a non-empty CategoryFilter first.";
+                UpdateStatus();
+                return;
+            }
+            try
+            {
+                var rows = FamilyHintsBridge.Inspect(_doc, VM.Selected.CategoryFilter);
+                gridFamilyHints.ItemsSource = rows;
+                int populated = rows.Count(r => !string.IsNullOrEmpty(r.Value));
+                VM.Status = $"Inspected {VM.Selected.CategoryFilter} · {populated} of {rows.Count} hint param(s) populated";
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnInspectFamily", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Inspect failed: {ex.Message}");
+            }
+        }
+
         private void OnPushFamilies_Click(object sender, RoutedEventArgs e)
-            => DeferToPhase("Push to Families", "C");
+        {
+            if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
+            if (VM.Selected == null)
+            {
+                TaskDialog.Show("STING — Placement Centre", "Pick a rule first.");
+                return;
+            }
+            if (string.IsNullOrEmpty(VM.Selected.CategoryFilter))
+            {
+                TaskDialog.Show("STING — Placement Centre", "Selected rule has no CategoryFilter.");
+                return;
+            }
+            var confirm = new TaskDialog("STING — Push placement hints to family types")
+            {
+                MainInstruction = $"Write rule values to every family type in '{VM.Selected.CategoryFilter}'?",
+                MainContent =
+                    "Writes the following parameters on each matching FamilySymbol:\n" +
+                    "  • PLACE_ORIENTATION_RULE_TXT (cleared so the rule's anchor takes priority)\n" +
+                    "  • PLACE_MOUNT_HEIGHT_MM\n" +
+                    "  • STING_FIXTURE_VARIANT_TXT\n" +
+                    "  • STING_ROOM_TYPE_FILTER_TXT\n\n" +
+                    "Use Undo to reverse all writes as a single transaction.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No,
+            };
+            if (confirm.Show() != TaskDialogResult.Yes) return;
+
+            try
+            {
+                var (types, writes) = FamilyHintsBridge.PushRuleToFamilyTypes(_doc, VM.Selected);
+                VM.Status = $"Pushed to {types} family type(s) · {writes} parameter write(s)";
+                UpdateStatus();
+                TaskDialog.Show("STING — Placement Centre",
+                    $"Push complete.\n\nFamily types updated: {types}\nParameters written: {writes}\n\n" +
+                    (types == 0
+                        ? "No family types matched the category. Confirm the CategoryFilter exactly matches the Revit category name."
+                        : "Re-run Inspect to confirm the new values."));
+                // Refresh inspect grid if a category is on screen
+                if (VM.Selected != null) OnInspectFamily_Click(sender, e);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementCenter.OnPushFamilies", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Push failed: {ex.Message}");
+            }
+        }
         private void OnHeatmap_Click(object sender, RoutedEventArgs e)
             => DeferToPhase("Heat-map", "D");
         private void OnGDStudy_Click(object sender, RoutedEventArgs e)

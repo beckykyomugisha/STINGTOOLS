@@ -190,13 +190,33 @@
                         </Grid>
                     </GroupBox>
 
-                    <GroupBox Header="Family Defaults &amp; Clearance (Phase C)" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Family Defaults &amp; Clearance" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
-                            <TextBlock Foreground="#888" FontStyle="Italic" Margin="0,0,0,4"
-                                       Text="Phase 127-C will surface PLACE_HOST_TYPE_TXT / PLACE_MOUNT_HEIGHT_MM / STING_CLEARANCE_*_MM read directly from a sample family in this category."/>
-                            <Button HorizontalAlignment="Left" Padding="8,3"
-                                    Background="#666" Foreground="White" BorderThickness="0"
-                                    Content="Inspect family — Phase C" IsEnabled="False"/>
+                            <DockPanel LastChildFill="False" Margin="0,0,0,6">
+                                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                                           Foreground="#666" FontStyle="Italic" FontWeight="Normal"
+                                           Text="Reads from the first sample family in this category. 'type' source wins over 'instance'."/>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
+                                        Content="Inspect" Click="OnInspectFamily_Click" Margin="4,0"/>
+                            </DockPanel>
+                            <DataGrid x:Name="gridFamilyHints"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Single"
+                                      HeadersVisibility="Column"
+                                      GridLinesVisibility="Horizontal"
+                                      MaxHeight="220"
+                                      Background="{DynamicResource PrimaryBg}"
+                                      Foreground="{DynamicResource PrimaryFg}"
+                                      RowBackground="{DynamicResource PrimaryBg}"
+                                      AlternatingRowBackground="{DynamicResource SecondaryBg}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Parameter" Binding="{Binding Name}"  Width="*"/>
+                                    <DataGridTextColumn Header="Value"     Binding="{Binding Value}" Width="*"/>
+                                    <DataGridTextColumn Header="Unit"      Binding="{Binding Unit}"  Width="60"/>
+                                    <DataGridTextColumn Header="Source"    Binding="{Binding Source}" Width="80"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
                         </StackPanel>
                     </GroupBox>
 
