@@ -109,18 +109,48 @@ namespace StingTools.Temp
                     $"Create Levels ({data.Levels.Count} definitions)",
                     () => CreateLevels(doc, data.Levels));
 
+                // Step: Rename scope boxes (must run before grids so scoping uses new names)
+                if (data.RenameScopeBoxes && data.ScopeBoxRenames != null && data.ScopeBoxRenames.Count > 0)
+                {
+                    passed += RunStep(ref stepNum, report,
+                        $"Rename Scope Boxes ({data.ScopeBoxRenames.Count})",
+                        () => RenameScopeBoxes(doc, data));
+                }
+                else
+                {
+                    stepNum++;
+                    report.AppendLine($"  {stepNum,2}. Rename Scope Boxes — SKIPPED");
+                    skipped++;
+                }
+
                 // Step: Create Grids
                 if (data.CreateGrids && (data.GridHCount > 0 || data.GridVCount > 0))
                 {
                     int gridTotal = data.GridHCount + data.GridVCount;
-                    passed += RunStep(ref stepNum, report,
-                        $"Create Grids ({gridTotal} lines)",
+                    string label = $"Create Grids ({gridTotal} lines" +
+                        (data.AlignToScopeBoxOrientation ? ", scope-box aligned" : "") +
+                        (data.AssignGridsToScopeBoxes ? ", scoped" : "") + ")";
+                    passed += RunStep(ref stepNum, report, label,
                         () => CreateGrids(doc, data));
                 }
                 else
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Grids — SKIPPED (not selected)");
+                    skipped++;
+                }
+
+                // Step: Two sections per scope box (centred, both directions)
+                if (data.TwoSectionsPerScopeBox && data.ScopeBoxSelection != null && data.ScopeBoxSelection.Count > 0)
+                {
+                    passed += RunStep(ref stepNum, report,
+                        $"Scope-Box Sections ({data.ScopeBoxSelection.Count * 2} views)",
+                        () => CreateTwoSectionsPerScopeBox(doc, data));
+                }
+                else
+                {
+                    stepNum++;
+                    report.AppendLine($"  {stepNum,2}. Scope-Box Sections — SKIPPED");
                     skipped++;
                 }
 
@@ -259,57 +289,87 @@ namespace StingTools.Temp
                 // ════════════════════════════════════════════════════
                 report.AppendLine("\n── Phase 3: Standards ──");
 
-                // Step: Create Styles (fill patterns, line patterns, line styles, text/dim styles)
-                if (data.CreateStyles)
+                if (data.UseLatestTemplateSetup)
                 {
-                    passed += RunStep(ref stepNum, report, "Create Fill Patterns",
+                    // Latest 15-step TemplateSetupWizard ordering (matches TemplateManagerCommands.cs)
+                    report.AppendLine("  (latest Template Setup pipeline)");
+                    passed += RunStep(ref stepNum, report, "Fill Patterns (12 ISO)",
                         () => RunCommand(new CreateFillPatternsCommand(), commandData, elements));
-                    passed += RunStep(ref stepNum, report, "Create Line Patterns (10 ISO 128)",
+                    passed += RunStep(ref stepNum, report, "Line Patterns (10 ISO 128)",
                         () => RunCommand(new CreateLinePatternsCommand(), commandData, elements));
-                    passed += RunStep(ref stepNum, report, "Create Line Styles",
+                    passed += RunStep(ref stepNum, report, "Line Styles (16)",
                         () => RunCommand(new CreateLineStylesCommand(), commandData, elements));
-                    passed += RunStep(ref stepNum, report, "Create Object Styles",
+                    passed += RunStep(ref stepNum, report, "Object Styles (40)",
                         () => RunCommand(new CreateObjectStylesCommand(), commandData, elements));
-                    passed += RunStep(ref stepNum, report, "Create Text Styles",
+                    passed += RunStep(ref stepNum, report, "Text Styles (12 ISO 3098)",
                         () => RunCommand(new CreateTextStylesCommand(), commandData, elements));
-                    passed += RunStep(ref stepNum, report, "Create Dimension Styles",
+                    passed += RunStep(ref stepNum, report, "Dimension Styles (7)",
                         () => RunCommand(new CreateDimensionStylesCommand(), commandData, elements));
-                }
-                else
-                {
-                    stepNum++;
-                    report.AppendLine($"  {stepNum,2}. Create Styles — SKIPPED");
-                    skipped++;
-                }
-
-                // Step: Create View Filters
-                if (data.CreateFilters)
-                {
-                    passed += RunStep(ref stepNum, report, "Create View Filters (28+)",
+                    passed += RunStep(ref stepNum, report, "View Filters (28+)",
                         () => RunCommand(new CreateFiltersCommand(), commandData, elements));
-                }
-                else
-                {
-                    stepNum++;
-                    report.AppendLine($"  {stepNum,2}. Create Filters — SKIPPED");
-                    skipped++;
-                }
-
-                // Step: Create View Templates
-                if (data.CreateTemplates)
-                {
-                    passed += RunStep(ref stepNum, report, "Create View Templates (23)",
+                    passed += RunStep(ref stepNum, report, "View Templates (23 w/ VG)",
                         () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
                     passed += RunStep(ref stepNum, report, "Apply Filters to Templates",
                         () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
-                    passed += RunStep(ref stepNum, report, "Apply VG Overrides (5-layer)",
+                    passed += RunStep(ref stepNum, report, "VG Overrides (5-layer)",
                         () => RunCommand(new CreateVGOverridesCommand(), commandData, elements));
+                    passed += RunStep(ref stepNum, report, "Batch Family Parameters (CSV)",
+                        () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
+                    passed += RunStep(ref stepNum, report, "Template Metadata Schedules",
+                        () => RunCommand(new CreateTemplateSchedulesCommand(), commandData, elements));
                 }
                 else
                 {
-                    stepNum++;
-                    report.AppendLine($"  {stepNum,2}. Create Templates — SKIPPED");
-                    skipped++;
+                    // Legacy granular steps — user unchecked "Use latest Template Setup"
+                    if (data.CreateStyles)
+                    {
+                        passed += RunStep(ref stepNum, report, "Create Fill Patterns",
+                            () => RunCommand(new CreateFillPatternsCommand(), commandData, elements));
+                        passed += RunStep(ref stepNum, report, "Create Line Patterns (10 ISO 128)",
+                            () => RunCommand(new CreateLinePatternsCommand(), commandData, elements));
+                        passed += RunStep(ref stepNum, report, "Create Line Styles",
+                            () => RunCommand(new CreateLineStylesCommand(), commandData, elements));
+                        passed += RunStep(ref stepNum, report, "Create Object Styles",
+                            () => RunCommand(new CreateObjectStylesCommand(), commandData, elements));
+                        passed += RunStep(ref stepNum, report, "Create Text Styles",
+                            () => RunCommand(new CreateTextStylesCommand(), commandData, elements));
+                        passed += RunStep(ref stepNum, report, "Create Dimension Styles",
+                            () => RunCommand(new CreateDimensionStylesCommand(), commandData, elements));
+                    }
+                    else
+                    {
+                        stepNum++;
+                        report.AppendLine($"  {stepNum,2}. Create Styles — SKIPPED");
+                        skipped++;
+                    }
+
+                    if (data.CreateFilters)
+                    {
+                        passed += RunStep(ref stepNum, report, "Create View Filters (28+)",
+                            () => RunCommand(new CreateFiltersCommand(), commandData, elements));
+                    }
+                    else
+                    {
+                        stepNum++;
+                        report.AppendLine($"  {stepNum,2}. Create Filters — SKIPPED");
+                        skipped++;
+                    }
+
+                    if (data.CreateTemplates)
+                    {
+                        passed += RunStep(ref stepNum, report, "Create View Templates (23)",
+                            () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
+                        passed += RunStep(ref stepNum, report, "Apply Filters to Templates",
+                            () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
+                        passed += RunStep(ref stepNum, report, "Apply VG Overrides (5-layer)",
+                            () => RunCommand(new CreateVGOverridesCommand(), commandData, elements));
+                    }
+                    else
+                    {
+                        stepNum++;
+                        report.AppendLine($"  {stepNum,2}. Create Templates — SKIPPED");
+                        skipped++;
+                    }
                 }
 
                 // Step: Create Phases (report only — API limitation)
@@ -426,12 +486,15 @@ namespace StingTools.Temp
                 // ════════════════════════════════════════════════════
                 report.AppendLine("\n── Phase 5: Intelligence ──");
 
-                // Auto-assign templates to all views
-                if (data.CreateTemplates)
+                // Auto-assign + auto-fix templates — runs whenever templates are in scope
+                bool doTemplatePost = data.UseLatestTemplateSetup || data.CreateTemplates;
+                if (doTemplatePost)
                 {
-                    passed += RunStep(ref stepNum, report, "Auto-Assign Templates (5-layer)",
+                    passed += RunStep(ref stepNum, report,
+                        "Auto-Assign Templates to Views (by view type + name + phase + level)",
                         () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
-                    passed += RunStep(ref stepNum, report, "Auto-Fix Template Health",
+                    passed += RunStep(ref stepNum, report,
+                        "Auto-Fix Template Health (fill missing settings per view type)",
                         () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
                 }
                 else
@@ -446,8 +509,13 @@ namespace StingTools.Temp
                 {
                     passed += RunStep(ref stepNum, report, "Full Auto-Populate (tokens+dims+MEP+formulas+tags)",
                         () => RunCommand(new FullAutoPopulateCommand(), commandData, elements));
-                    passed += RunStep(ref stepNum, report, "Batch Family Parameters (CSV)",
-                        () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
+
+                    // Avoid running BatchAddFamilyParamsCommand twice — Phase 3 already ran it in latest mode.
+                    if (!data.UseLatestTemplateSetup)
+                    {
+                        passed += RunStep(ref stepNum, report, "Batch Family Parameters (CSV)",
+                            () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
+                    }
                 }
 
                 // Set starting view
@@ -823,10 +891,11 @@ namespace StingTools.Temp
                     {
                         Level newLevel = Level.Create(doc, elevFeet);
                         newLevel.Name = def.Name;
+                        ApplyLevelStoryFlag(newLevel, def.IsStory);
                         created++;
                         existingByName[def.Name] = newLevel;
                         existingByElev[roundedM] = newLevel;
-                        StingLog.Info($"Created level '{def.Name}' at {def.ElevationMeters:F2}m");
+                        StingLog.Info($"Created level '{def.Name}' at {def.ElevationMeters:F2}m (type={def.LevelType}, story={def.IsStory})");
                     }
                     catch (Exception ex)
                     {
@@ -841,7 +910,237 @@ namespace StingTools.Temp
             return (created + renamed > 0 || skipped > 0) ? Result.Succeeded : Result.Failed;
         }
 
-        /// <summary>Create structural grids from wizard data.</summary>
+        /// <summary>Set LEVEL_IS_BUILDING_STORY on a level (best-effort).</summary>
+        private static void ApplyLevelStoryFlag(Level level, bool isStory)
+        {
+            try
+            {
+                Parameter p = level.get_Parameter(BuiltInParameter.LEVEL_IS_BUILDING_STORY);
+                if (p != null && !p.IsReadOnly)
+                    p.Set(isStory ? 1 : 0);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Could not set story flag on '{level.Name}': {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Rename scope boxes according to the wizard's rename map.
+        /// Skips entries where the target name already exists on a different scope box.
+        /// </summary>
+        private static Result RenameScopeBoxes(Document doc, ProjectSetupData data)
+        {
+            try
+            {
+                var scopeBoxes = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+
+                var byCurrent = scopeBoxes
+                    .GroupBy(e => e.Name, StringComparer.Ordinal)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+                var takenNames = new HashSet<string>(scopeBoxes.Select(e => e.Name), StringComparer.Ordinal);
+
+                int renamed = 0, skipped = 0;
+                using (Transaction tx = new Transaction(doc, "STING Rename Scope Boxes"))
+                {
+                    tx.Start();
+                    foreach (var kv in data.ScopeBoxRenames)
+                    {
+                        if (!byCurrent.TryGetValue(kv.Key, out Element sb))
+                        {
+                            skipped++;
+                            continue;
+                        }
+                        string newName = kv.Value?.Trim();
+                        if (string.IsNullOrEmpty(newName) || string.Equals(newName, sb.Name, StringComparison.Ordinal))
+                        {
+                            skipped++;
+                            continue;
+                        }
+                        // Prevent collisions
+                        if (takenNames.Contains(newName))
+                        {
+                            StingLog.Warn($"Scope-box rename skipped: '{newName}' already used.");
+                            skipped++;
+                            continue;
+                        }
+                        try
+                        {
+                            string old = sb.Name;
+                            sb.Name = newName;
+                            takenNames.Remove(old);
+                            takenNames.Add(newName);
+                            renamed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Scope-box rename '{kv.Key}' → '{newName}' failed: {ex.Message}");
+                            skipped++;
+                        }
+                    }
+                    tx.Commit();
+                }
+
+                // Patch the wizard's selection list so subsequent steps use the new names
+                if (data.ScopeBoxSelection != null && data.ScopeBoxRenames.Count > 0)
+                {
+                    for (int i = 0; i < data.ScopeBoxSelection.Count; i++)
+                    {
+                        if (data.ScopeBoxRenames.TryGetValue(data.ScopeBoxSelection[i], out string n))
+                            data.ScopeBoxSelection[i] = n;
+                    }
+                }
+
+                StingLog.Info($"Scope boxes: {renamed} renamed, {skipped} skipped");
+                return renamed > 0 ? Result.Succeeded : (skipped > 0 ? Result.Succeeded : Result.Failed);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RenameScopeBoxes failed", ex);
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// Create two building sections per checked scope box — one through the centre in each
+        /// principal direction of the box (handles tilted scope boxes via BoundingBox.Transform).
+        /// </summary>
+        private static Result CreateTwoSectionsPerScopeBox(Document doc, ProjectSetupData data)
+        {
+            // Find the section ViewFamilyType
+            ViewFamilyType sectionVft = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewFamilyType))
+                .Cast<ViewFamilyType>()
+                .FirstOrDefault(v => v.ViewFamily == ViewFamily.Section);
+            if (sectionVft == null)
+            {
+                StingLog.Error("No Section ViewFamilyType in project");
+                return Result.Failed;
+            }
+
+            // Collect checked scope boxes by name
+            var selected = new HashSet<string>(data.ScopeBoxSelection ?? new List<string>(), StringComparer.Ordinal);
+            var scopeBoxes = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                .WhereElementIsNotElementType()
+                .Where(e => selected.Contains(e.Name))
+                .ToList();
+            if (scopeBoxes.Count == 0)
+                return Result.Failed;
+
+            // Existing view-name cache to avoid duplicates
+            var viewNames = new HashSet<string>(
+                new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .Where(v => !v.IsTemplate)
+                    .Select(v => v.Name),
+                StringComparer.Ordinal);
+
+            int created = 0;
+            using (Transaction tx = new Transaction(doc, "STING Scope-Box Sections"))
+            {
+                tx.Start();
+                foreach (var sb in scopeBoxes)
+                {
+                    BoundingBoxXYZ box = sb.get_BoundingBox(null);
+                    if (box == null) continue;
+
+                    Transform boxT = box.Transform ?? Transform.Identity;
+                    XYZ boxBX = Normalise(boxT.BasisX);
+                    XYZ boxBY = Normalise(boxT.BasisY);
+
+                    // Centre in world coordinates (BB.Min/Max are in the box's local frame when a Transform is set)
+                    XYZ localCentre = (box.Min + box.Max) * 0.5;
+                    XYZ worldCentre = boxT.OfPoint(localCentre);
+
+                    // Extents along each local axis
+                    double halfX = (box.Max.X - box.Min.X) * 0.5;
+                    double halfY = (box.Max.Y - box.Min.Y) * 0.5;
+                    double halfZ = (box.Max.Z - box.Min.Z) * 0.5;
+
+                    // Two sections: one looking along −BoxY (cuts perpendicular to Y), one along −BoxX
+                    // Section 1: section line runs along BoxX, view looks towards −BoxY
+                    created += TryCreateSection(
+                        doc, sectionVft, $"Section - {sb.Name} - A", worldCentre,
+                        viewRight: boxBX, viewUp: XYZ.BasisZ, viewDir: -boxBY,
+                        halfWidth: halfX, halfHeight: halfZ, halfDepth: halfY,
+                        scopeBoxId: sb.Id, viewNames: viewNames) ? 1 : 0;
+
+                    // Section 2: section line runs along BoxY, view looks towards −BoxX
+                    created += TryCreateSection(
+                        doc, sectionVft, $"Section - {sb.Name} - B", worldCentre,
+                        viewRight: boxBY, viewUp: XYZ.BasisZ, viewDir: -boxBX,
+                        halfWidth: halfY, halfHeight: halfZ, halfDepth: halfX,
+                        scopeBoxId: sb.Id, viewNames: viewNames) ? 1 : 0;
+                }
+                tx.Commit();
+            }
+
+            StingLog.Info($"Scope-box sections: {created} created");
+            return created > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        private static bool TryCreateSection(Document doc, ViewFamilyType vft, string name,
+            XYZ origin, XYZ viewRight, XYZ viewUp, XYZ viewDir,
+            double halfWidth, double halfHeight, double halfDepth,
+            ElementId scopeBoxId, HashSet<string> viewNames)
+        {
+            // Guard against degenerate geometry
+            halfWidth = Math.Max(halfWidth, 1.0);
+            halfHeight = Math.Max(halfHeight, 1.0);
+            halfDepth = Math.Max(halfDepth, 1.0);
+
+            string unique = name;
+            int i = 2;
+            while (viewNames.Contains(unique)) { unique = $"{name} ({i++})"; }
+
+            try
+            {
+                var sectionBox = new BoundingBoxXYZ();
+                var t = Transform.Identity;
+                t.Origin = origin;
+                t.BasisX = Normalise(viewRight);
+                t.BasisY = Normalise(viewUp);
+                t.BasisZ = Normalise(viewDir);
+                sectionBox.Transform = t;
+                sectionBox.Min = new XYZ(-halfWidth, -halfHeight, 0);
+                sectionBox.Max = new XYZ(halfWidth, halfHeight, halfDepth * 2);
+
+                ViewSection view = ViewSection.CreateSection(doc, vft.Id, sectionBox);
+                if (view == null) return false;
+                try { view.Name = unique; viewNames.Add(unique); } catch { }
+
+                // Assign scope box to the section view
+                try
+                {
+                    Parameter p = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                    if (p != null && !p.IsReadOnly) p.Set(scopeBoxId);
+                }
+                catch { }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Section '{name}': {ex.Message}");
+                return false;
+            }
+        }
+
+        private static XYZ Normalise(XYZ v)
+        {
+            if (v == null || v.IsZeroLength()) return XYZ.BasisX;
+            return v.Normalize();
+        }
+
+        /// <summary>
+        /// Create structural grids from wizard data. When scope-box integration is enabled,
+        /// grids are rotated to the primary scope box's orientation (handles tilted boxes),
+        /// origined at that scope box's centre, and optionally scoped to the checked boxes.
+        /// </summary>
         private static Result CreateGrids(Document doc, ProjectSetupData data)
         {
             // Build index of existing grids
@@ -862,26 +1161,60 @@ namespace StingTools.Temp
             double vSpacingFt = UnitUtils.ConvertToInternalUnits(
                 data.GridVSpacing > 0 ? data.GridVSpacing : 6.0, UnitTypeId.Meters);
 
+            // Default grid frame (world-aligned at origin)
+            XYZ origin = XYZ.Zero;
+            XYZ axisX = XYZ.BasisX;
+            XYZ axisY = XYZ.BasisY;
+
+            // Resolve scope boxes to align to + scope into
+            var selectedNames = new HashSet<string>(
+                data.ScopeBoxSelection ?? new List<string>(), StringComparer.Ordinal);
+            var selectedScopeBoxes = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                .WhereElementIsNotElementType()
+                .Where(e => selectedNames.Contains(e.Name))
+                .ToList();
+
+            // Use first checked scope box as the alignment reference
+            if (data.AlignToScopeBoxOrientation && selectedScopeBoxes.Count > 0)
+            {
+                Element refSb = selectedScopeBoxes[0];
+                BoundingBoxXYZ bb = refSb.get_BoundingBox(null);
+                if (bb != null)
+                {
+                    Transform bt = bb.Transform ?? Transform.Identity;
+                    axisX = Normalise(bt.BasisX);
+                    axisY = Normalise(bt.BasisY);
+                    XYZ localCentre = (bb.Min + bb.Max) * 0.5;
+                    origin = bt.OfPoint(localCentre);
+                    StingLog.Info($"Grids aligned to scope box '{refSb.Name}' " +
+                                  $"(X={axisX.X:F3},{axisX.Y:F3}, centre={origin.X:F2},{origin.Y:F2})");
+                }
+            }
+
+            // Compute overhang so grids extend past the grid block
+            double hHalf = (data.GridHCount > 1 ? (data.GridHCount - 1) * hSpacingFt : 0) * 0.5;
+            double vHalf = (data.GridVCount > 1 ? (data.GridVCount - 1) * vSpacingFt : 0) * 0.5;
+
             using (Transaction tx = new Transaction(doc, "STING Create Grids"))
             {
                 tx.Start();
 
-                // Horizontal grids (lettered A, B, C...) — lines running in X direction
+                // Horizontal grids (lettered A, B, C...) — run along axisX, stepped along axisY
                 for (int i = 0; i < data.GridHCount; i++)
                 {
                     string name = GetGridLetter(i);
-                    if (existingNames.Contains(name))
-                        continue;
+                    if (existingNames.Contains(name)) continue;
 
-                    double y = i * hSpacingFt;
-                    XYZ start = new XYZ(-vLengthFt * 0.1, y, 0);
-                    XYZ end = new XYZ(vLengthFt * 1.1, y, 0);
+                    double offsetY = i * hSpacingFt - hHalf;
+                    XYZ start = origin + axisY * offsetY + axisX * (-vLengthFt * 0.55);
+                    XYZ end   = origin + axisY * offsetY + axisX * ( vLengthFt * 0.55);
 
                     try
                     {
-                        Line line = Line.CreateBound(start, end);
-                        Grid grid = Grid.Create(doc, line);
+                        Grid grid = Grid.Create(doc, Line.CreateBound(start, end));
                         grid.Name = name;
+                        AssignScopeBoxToGrid(grid, selectedScopeBoxes, data.AssignGridsToScopeBoxes);
                         created++;
                     }
                     catch (Exception ex)
@@ -890,22 +1223,21 @@ namespace StingTools.Temp
                     }
                 }
 
-                // Vertical grids (numbered 1, 2, 3...) — lines running in Y direction
+                // Vertical grids (numbered 1, 2, 3...) — run along axisY, stepped along axisX
                 for (int i = 0; i < data.GridVCount; i++)
                 {
                     string name = (i + 1).ToString();
-                    if (existingNames.Contains(name))
-                        continue;
+                    if (existingNames.Contains(name)) continue;
 
-                    double x = i * vSpacingFt;
-                    XYZ start = new XYZ(x, -hLengthFt * 0.1, 0);
-                    XYZ end = new XYZ(x, hLengthFt * 1.1, 0);
+                    double offsetX = i * vSpacingFt - vHalf;
+                    XYZ start = origin + axisX * offsetX + axisY * (-hLengthFt * 0.55);
+                    XYZ end   = origin + axisX * offsetX + axisY * ( hLengthFt * 0.55);
 
                     try
                     {
-                        Line line = Line.CreateBound(start, end);
-                        Grid grid = Grid.Create(doc, line);
+                        Grid grid = Grid.Create(doc, Line.CreateBound(start, end));
                         grid.Name = name;
+                        AssignScopeBoxToGrid(grid, selectedScopeBoxes, data.AssignGridsToScopeBoxes);
                         created++;
                     }
                     catch (Exception ex)
@@ -917,8 +1249,29 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
-            StingLog.Info($"Grids: {created} created");
+            StingLog.Info($"Grids: {created} created" +
+                          (data.AlignToScopeBoxOrientation ? " (scope-box aligned)" : "") +
+                          (data.AssignGridsToScopeBoxes ? ", scoped" : ""));
             return created > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>
+        /// Set a grid's scope box (DATUM_VOLUME_OF_INTEREST). When multiple boxes are checked,
+        /// the first one is used — scope boxes are 1:1 with datums in Revit.
+        /// </summary>
+        private static void AssignScopeBoxToGrid(Grid grid, List<Element> selectedScopeBoxes, bool enabled)
+        {
+            if (!enabled || selectedScopeBoxes == null || selectedScopeBoxes.Count == 0) return;
+            try
+            {
+                Parameter p = grid.get_Parameter(BuiltInParameter.DATUM_VOLUME_OF_INTEREST);
+                if (p != null && !p.IsReadOnly)
+                    p.Set(selectedScopeBoxes[0].Id);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Could not scope grid '{grid.Name}': {ex.Message}");
+            }
         }
 
         /// <summary>Enable worksharing on the document.</summary>

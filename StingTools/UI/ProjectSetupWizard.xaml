@@ -217,15 +217,50 @@
 
                         <Border Style="{StaticResource WizGroupBox}">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Level Definitions"/>
-                                <TextBlock Text="Name | Elevation (m) | Type (one per line)"
-                                           FontSize="10" Foreground="#777" Margin="0,0,0,4"/>
-                                <TextBox x:Name="txtLevels" AcceptsReturn="True" TextWrapping="Wrap"
-                                         Height="220" FontSize="11" FontFamily="Consolas"
-                                         VerticalScrollBarVisibility="Auto"
-                                         Padding="6" BorderBrush="#CCC"/>
-                                <TextBlock Text="Format: Name | Elevation(m)   Example: Ground Floor | 0.0"
-                                           FontSize="9" Foreground="#999" Margin="0,4,0,0"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Style="{StaticResource WizSubHeader}" Text="Level Definitions"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <Button Content="+ Add" Click="LevelAdd_Click" Padding="8,2" Margin="2,0" FontSize="10"
+                                                ToolTip="Insert a new level row below the selection"/>
+                                        <Button Content="Delete" Click="LevelDelete_Click" Padding="8,2" Margin="2,0" FontSize="10"
+                                                ToolTip="Delete selected rows"/>
+                                        <Button Content="▲" Click="LevelMoveUp_Click" Padding="6,2" Margin="2,0" FontSize="10"
+                                                ToolTip="Move selection up"/>
+                                        <Button Content="▼" Click="LevelMoveDown_Click" Padding="6,2" Margin="2,0" FontSize="10"
+                                                ToolTip="Move selection down"/>
+                                        <Button Content="Sort by Elev." Click="LevelSort_Click" Padding="8,2" Margin="2,0" FontSize="10"
+                                                ToolTip="Sort rows by elevation ascending"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="Edit any cell inline. Name must be unique; elevation in metres."
+                                           FontSize="10" Foreground="#777" Margin="0,2,0,4"/>
+                                <DataGrid x:Name="dgLevels"
+                                          Height="240" FontSize="11"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="True"
+                                          CanUserDeleteRows="True"
+                                          HeadersVisibility="Column"
+                                          GridLinesVisibility="Horizontal"
+                                          AlternatingRowBackground="#F7F3FA"
+                                          RowHeaderWidth="0"
+                                          SelectionMode="Extended" SelectionUnit="FullRow"
+                                          BorderBrush="#CCC">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding Index, Mode=OneWay}" Width="30" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+                                        <DataGridTextColumn Header="Elevation (m)" Binding="{Binding ElevationText, UpdateSourceTrigger=PropertyChanged}" Width="110"/>
+                                        <DataGridComboBoxColumn x:Name="colLevelType" Header="Type"
+                                                                SelectedValueBinding="{Binding LevelType}" Width="140"/>
+                                        <DataGridCheckBoxColumn Header="Story" Binding="{Binding IsStory}" Width="60"
+                                                                ElementStyle="{x:Null}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <TextBlock Text="Tip: the 'Story' checkbox marks the level as a building story (affects rooms, views, scheduling). Untick for sub-levels/reference planes."
+                                           FontSize="9" Foreground="#999" Margin="0,4,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
@@ -295,6 +330,67 @@
                                     <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Length (m):"/>
                                     <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtGridVLength" Style="{StaticResource WizInput}" Width="80" Text="30" HorizontalAlignment="Left"/>
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ─── Scope Box Integration ─── -->
+                        <TextBlock Style="{StaticResource WizSubHeader}" Text="Scope Box Integration" Margin="0,10,0,2"/>
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Text="Keep drawings clean on tilted scope boxes: grids, sections and elevations align to the box direction, and grids can be scoped to selected boxes only."
+                                           FontSize="10" Foreground="#777" Margin="0,0,0,6" TextWrapping="Wrap"/>
+
+                                <CheckBox x:Name="chkAlignToScopeBoxes" Style="{StaticResource WizCheck}"
+                                          Content="Align grids / sections / elevations to scope-box orientation (handles tilted boxes)"/>
+                                <CheckBox x:Name="chkAssignGridsToScopeBoxes" Style="{StaticResource WizCheck}"
+                                          Content="Scope created grids to the ticked scope boxes (uses the checked rows below)"/>
+                                <CheckBox x:Name="chkTwoSectionsPerScopeBox" Style="{StaticResource WizCheck}"
+                                          Content="Create two building sections per scope box (through centre, both directions)"/>
+                                <CheckBox x:Name="chkRenameScopeBoxes" Style="{StaticResource WizCheck}"
+                                          Content="Rename scope boxes to the standard pattern on Run"/>
+
+                                <TextBlock x:Name="lblScopeBoxEmpty"
+                                           Text="No scope boxes in this project yet. Create scope boxes first, or skip this section."
+                                           FontSize="10" Foreground="#B71C1C" FontStyle="Italic"
+                                           Margin="0,6,0,2" Visibility="Collapsed"/>
+
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Scope Boxes in Project" FontWeight="Normal" Margin="0,6,0,2"/>
+                                <DataGrid x:Name="dgScopeBoxes"
+                                          Height="130" FontSize="11"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          CanUserDeleteRows="False"
+                                          HeadersVisibility="Column"
+                                          GridLinesVisibility="Horizontal"
+                                          AlternatingRowBackground="#F7F3FA"
+                                          RowHeaderWidth="0"
+                                          SelectionMode="Extended" SelectionUnit="FullRow"
+                                          BorderBrush="#CCC">
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn Header="Use" Binding="{Binding Include}" Width="40"/>
+                                        <DataGridTextColumn Header="Current Name" Binding="{Binding CurrentName, Mode=OneWay}" Width="*" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Rename To" Binding="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+                                        <DataGridTextColumn Header="Angle" Binding="{Binding RotationText, Mode=OneWay}" Width="60" IsReadOnly="True"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <Grid Margin="0,6,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="140"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Style="{StaticResource WizLabel}" Text="Rename pattern:"
+                                               ToolTip="Supported tokens: {BLD}, {LOC}, {ZONE}, {INDEX}, {NAME}"/>
+                                    <TextBox Grid.Column="1" x:Name="txtScopeBoxPattern" Style="{StaticResource WizInput}"
+                                             Text="{}{BLD}-{ZONE}-{INDEX}"/>
+                                    <Button Grid.Column="2" Content="Apply to checked"
+                                            Click="ScopeBoxPatternApply_Click"
+                                            Padding="8,2" Margin="4,2,0,2" FontSize="10"
+                                            ToolTip="Regenerate the 'Rename To' column from the pattern for ticked rows"/>
+                                </Grid>
+                                <TextBlock Text="Tokens: {BLD}=first LOC code · {LOC}=location code (cycles) · {ZONE}=zone code (cycles) · {INDEX}=1,2,3… · {NAME}=current name"
+                                           FontSize="9" Foreground="#999" Margin="0,2,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -709,6 +805,10 @@
                         <Border Style="{StaticResource WizGroupBox}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource WizSubHeader}" Text="Styles &amp; Templates"/>
+                                <CheckBox x:Name="chkUseLatestTemplateSetup" Style="{StaticResource WizCheck}"
+                                          Content="Use latest Template Setup pipeline (15-step: fill/line/object/text/dim styles + filters + 23 templates + VG + family params + schedules)"
+                                          IsChecked="True"
+                                          ToolTip="Runs the full TemplateSetupWizard ordering. Overrides the individual steps below when checked."/>
                                 <CheckBox x:Name="chkCreateStyles" Style="{StaticResource WizCheck}"
                                           Content="Create styles (fill/line patterns, line/text/dimension/object styles)" IsChecked="True"/>
                                 <CheckBox x:Name="chkCreateFilters" Style="{StaticResource WizCheck}"
