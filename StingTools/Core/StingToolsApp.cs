@@ -44,6 +44,10 @@ namespace StingTools.Core
                 // Pre-flight: log assembly environment for crash diagnostics
                 LogAssemblyEnvironment();
 
+                // Pack 0 — establish offline-first defaults. Per-project config
+                // loads later in OnDocumentOpened and can flip the flag off.
+                StingOfflineConfig.ApplyDefaults();
+
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
 
@@ -568,6 +572,19 @@ namespace StingTools.Core
                 catch (Exception tEx)
                 {
                     StingLog.Warn($"DocumentOpened template extraction: {tEx.Message}");
+                }
+
+                // Pack 0 — project-scoped offline config override. File is at
+                // <project>/_BIM_COORD/sting_config.json. Missing file keeps defaults.
+                try
+                {
+                    string bimDir = BIMManager.BIMManagerEngine.GetBIMManagerDir(e.Document);
+                    StingOfflineConfig.LoadFromProject(bimDir);
+                    UI.StingDockPanel.UpdateOfflineStatus(StingOfflineConfig.IsOffline, StingOfflineConfig.Source);
+                }
+                catch (Exception ocEx)
+                {
+                    StingLog.Warn($"DocumentOpened offline-config reload: {ocEx.Message}");
                 }
             }
             catch (Exception ex)

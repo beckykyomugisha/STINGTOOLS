@@ -84,6 +84,10 @@ namespace StingTools.UI
 
             BuildColorSwatches();
             _instance = this;
+
+            // Pack 0 — reflect current offline state the moment the panel is realised.
+            try { UpdateOfflineStatus(StingTools.Core.StingOfflineConfig.IsOffline, StingTools.Core.StingOfflineConfig.Source); }
+            catch { /* non-fatal */ }
         }
 
         /// <summary>
@@ -1266,6 +1270,31 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Pack 0 — update the header offline/online indicator. Safe to call
+        /// from any thread; no-ops silently if the panel isn't yet realised.
+        /// </summary>
+        public static void UpdateOfflineStatus(bool isOffline, string source = null)
+        {
+            var inst = _instance;
+            if (inst == null) return;
+            try
+            {
+                inst.Dispatcher.InvokeAsync(() =>
+                {
+                    var current = _instance;
+                    if (current?.txtOffline == null) return;
+                    current.txtOffline.Text = isOffline ? "\U0001F512 Offline" : "\U0001F310 Online";
+                    if (!string.IsNullOrEmpty(source) && current.bdrOffline != null)
+                    {
+                        current.bdrOffline.ToolTip =
+                            $"STING offline mode: {(isOffline ? "ON" : "OFF")}\nSource: {source}";
+                    }
+                });
+            }
+            catch { /* headless / early-startup contexts */ }
         }
 
         /// <summary>

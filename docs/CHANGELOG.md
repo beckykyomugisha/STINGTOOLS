@@ -2173,3 +2173,167 @@ sequence. 7 new commits on top of Phase 114.
  - Cable-schedule round-trip import (ProDesign → Revit write-back)
  - Hanger family library (no .rfa files shipped; Tier-1 resolver
    finds vendor families when loaded).
+
+---
+
+#### Completed (Phase 116 — Automation Pack 0 + Pack 1: offline gate + orphan-parameter wiring)
+
+First two packs of the automation-enhancement programme on branch
+`claude/sting-tools-automation-BUi4q`. Delivered strictly offline —
+neither pack adds, removes, or contacts any network surface. Every
+shared parameter created in a prior phase that had no consumer now
+has at least one engine read-site in the codebase.
+
+**Pack 0 — Offline-mode gate**
+
+ - `Core/StingOfflineConfig.cs` (NEW, 127 lines) — static config
+   singleton. `IsOffline` defaults to `true`; `ApplyDefaults()` runs
+   on `OnStartup` before any document is open; `LoadFromProject(bimDir)`
+   reads `<project>/_BIM_COORD/sting_config.json` on `DocumentOpened`
+   and overrides the global flag per project. `RefuseIfOffline(name,
+   localAlternative)` shows a TaskDialog explaining the flag, logs to
+   `StingLog`, and returns `true` when the gate is closed. Single
+   lock covers all reads/writes; source path exposed via `Source`.
+ - `Core/StingToolsApp.cs` — added `StingOfflineConfig.ApplyDefaults()`
+   to `OnStartup` right after `ValidateDataFiles()` +
+   `LogAssemblyEnvironment()`, and `LoadFromProject(bimDir)` +
+   `UI.StingDockPanel.UpdateOfflineStatus(...)` at the end of
+   `OnDocumentOpened` (adjacent to the template-engine extraction).
+ - `BIMManager/PlatformLinkCommands.cs` — four gates added, each
+   right after the `ParameterHelpers.GetContext` null-check so no
+   state is touched before the refusal. The four entry points (all
+   PlanscapeServerClient users or direct network callers) are:
+   - `ACCPublishCommand` (1101)
+   - `PlatformSyncCommand` (1814)
+   - `SharePointExportCommand` (2350)
+   - `PlanscapeConnectCommand` (2480)
+   `BCFExportCommand`, `BCFImportCommand`, `CDEPackageCommand`,
+   `BCFSyncCommand` are NOT gated — they are file-based and do not
+   touch the network.
+ - `UI/StingDockPanel.xaml` — header grid extended from 5 to 6
+   columns, new `bdrOffline` / `txtOffline` indicator inserted at
+   column 2; sync border shifted to column 3, `btnPin` to 4, theme
+   button to 5. Tooltip tells the user the exact JSON key to flip
+   and the file path.
+ - `UI/StingDockPanel.xaml.cs` — `UpdateOfflineStatus(bool, string)`
+   static setter, dispatched via `Dispatcher.InvokeAsync`. Shows
+   "🔒 Offline" (U+1F512) or "🌐 Online" (U+1F310). The constructor
+   invokes it once the panel is realised so the indicator reflects
+   the startup default even before any document is opened.
+
+**Pack 1 — Wire the four automation-orphan shared parameters**
+
+Every parameter below was injected by `FamilyParamEngine.
+InjectAutomationPresentationPack` in Phase 107 but had zero
+engine read-sites — the "orphan shared parameter" problem the
+Pack-discipline of the programme exists to prevent.
+
+ - `STING_CLEARANCE_MM` — read by new
+   `Core/Validation/ClearanceValidator.cs` (213 lines). Walks
+   `OST_ElectricalEquipment`, `OST_MechanicalEquipment`,
+   `OST_PlumbingFixtures`, `OST_ElectricalFixtures`,
+   `OST_LightingFixtures`, `OST_DuctTerminal`, `OST_FireProtection`,
+   `OST_SpecialityEquipment`. Only elements that declare a positive
+   clearance are scanned (sparse data → sparse work). Pairwise AABB
+   gap check using `Element.get_BoundingBox(null)`; reports
+   `CLR.NEIGHBOUR` when actual gap < `max(clrA, clrB)`. Forward-
+   compatible with Pack 2: the validator already reads the four
+   Pack 2 directional parameters (`STING_CLEARANCE_{FRONT,BACK,
+   SIDE,TOP}_MM`) first and falls back to the scalar. When both
+   are present the largest wins.
+   TODO-VERIFY-API: `get_BoundingBox(null)` per
+   https://www.revitapidocs.com/2025/abc7f9cd-1b7d-e3eb-4b24-89d7e3bc6b62.htm
+ - `STING_FIRE_RATING_MIN` — read by extended `SpecValidator.
+   CheckFireRating` (new method). Walks `OST_Walls`, `OST_Floors`,
+   `OST_Doors`, `OST_Ceilings`. Reports `SPEC.FIRE.STING.MISSING`
+   when native "Fire Rating" text parses to a minutes value but
+   the STING integer is zero (scheduling loses the data), and
+   `SPEC.FIRE.MISMATCH` when the STING integer is below the
+   parsed native value. `ParseNativeFireRatingMinutes` handles
+   "60", "60 min", "1 hr", "FD60s" etc.
+ - `STING_ACOUSTIC_RW_DB` — read by extended `SpecValidator.
+   CheckAcousticRating` (new method). Walks `OST_Walls`,
+   `OST_Doors`, `OST_Floors`; flags elements whose type name
+   looks acoustic (`LooksAcoustic` matches ACOUSTIC / STC / RW /
+   SOUND / SEPARAT) but carry no STING Rw value. Reports
+   `SPEC.ACOU.RW.MISSING` per element and `SPEC.ACOU.SCAN`
+   summary row.
+ - `STING_LOD_COARSE_VISIBLE` / `STING_LOD_MEDIUM_VISIBLE` /
+   `STING_LOD_FINE_VISIBLE` — read by extended
+   `Core/LODValidationCommand`. New type-level pass using
+   `FilteredElementCollector(doc).WhereElementIsElementType()`
+   counts `switchBearingTypes` (any of the three read
+   non-null), `switchAllOff` (all three zero — type is invisible
+   at every LOD band), `switchMismatchTypes` (partial set — some
+   null, some set). New "LOD SWITCHES (STING_LOD_*_VISIBLE)"
+   section appended to the result panel when at least one type
+   carries the switches.
+
+**Wiring**
+
+ - `Commands/Validation/RunAllValidatorsCommand.cs` —
+   `ClearanceValidator` registered in the validator sequence
+   after `SlopeValidator`; subtitle updated.
+
+**Files changed**
+
+ - NEW: `StingTools/Core/StingOfflineConfig.cs` (127 lines)
+ - NEW: `StingTools/Core/Validation/ClearanceValidator.cs` (213 lines)
+ - EDITED: `StingTools/Core/StingToolsApp.cs` (+17 lines across two
+   call-sites)
+ - EDITED: `StingTools/BIMManager/PlatformLinkCommands.cs` (+20
+   lines, 4 gates)
+ - EDITED: `StingTools/UI/StingDockPanel.xaml` (+7 lines — column
+   def + indicator border + Grid.Column shifts on 3 controls)
+ - EDITED: `StingTools/UI/StingDockPanel.xaml.cs` (+27 lines —
+   `UpdateOfflineStatus` static setter + constructor hook)
+ - EDITED: `StingTools/Core/Validation/SpecValidator.cs` (+192
+   lines — `CheckFireRating` + `CheckAcousticRating` + helpers)
+ - EDITED: `StingTools/Core/LODValidationCommand.cs` (+68 lines —
+   type-level LOD-switch pass + helpers + report section)
+ - EDITED: `StingTools/Commands/Validation/RunAllValidatorsCommand.cs`
+   (+2 lines — `ClearanceValidator` registered)
+
+**Caveats**
+
+ 1. Built without `dotnet build` verification (Linux sandbox, no
+    Revit API). Every Revit API call uses the documented 2025
+    signature but has not been compile-checked. The one
+    `// TODO-VERIFY-API` comment (in `ClearanceValidator`) marks
+    the only new API surface that needs a Windows reviewer's
+    confirmation.
+ 2. Clearance pairwise check is O(n²/2) on clearance-bearing
+    elements only. For the first production project with a lot
+    of clearance declarations this may become slow enough to
+    need a spatial index — out of scope for Pack 1.
+ 3. `CheckAcousticRating` heuristic matches type-name substrings
+    (ACOUSTIC, STC, RW, SOUND, SEPARAT) — projects using a
+    different naming convention will see zero findings until the
+    heuristic is tuned or replaced with a room-adjacency analysis.
+ 4. `STING_LOD_*_VISIBLE` switches are auditable but not yet
+    enforced at render-time (the visibility is a family-author
+    contract — geometry must be yoked to the booleans inside the
+    `.rfa`). `InjectAutomationPresentationPack` seeds them all to
+    1 so existing families behave unchanged.
+
+**Smoke test**
+
+Open a project with at least one family that has been processed
+by `InjectAutomationPresentationPack` and contains one or more
+`STING_ACOUSTIC_RW_DB` / `STING_FIRE_RATING_MIN` /
+`STING_LOD_*_VISIBLE` / `STING_CLEARANCE_MM` values:
+
+ 1. Click the dock-panel offline badge — should read "🔒 Offline".
+ 2. Run `BIM ▸ ACC Publish` — should refuse with the offline
+    TaskDialog; `StingTools.log` line: `StingOfflineConfig:
+    refused 'ACC Publish' — offline mode active (source: (defaults))`.
+ 3. Write `{"OfflineOnly": false}` to
+    `<project>/_BIM_COORD/sting_config.json`; close / reopen the
+    project; the badge switches to "🌐 Online" and the four
+    network commands run as before.
+ 4. Run `Validation ▸ Run All` — the result panel should include
+    a CLEARANCE VALIDATOR section with `CLR.NEIGHBOUR` findings
+    (if any clearances are declared) and a `CLR.SCAN` summary row.
+ 5. Run `LOD Validation` — the result panel should include the
+    new "LOD SWITCHES (STING_LOD_*_VISIBLE)" section with
+    switch-bearing type counts.
