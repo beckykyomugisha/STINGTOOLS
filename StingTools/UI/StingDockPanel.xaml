@@ -969,9 +969,10 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Edit Types" Tag="DrawingTypes_Editor" Click="Cmd_Click" ToolTip="Open the Drawing Type editor — corporate baseline + project overrides, 15 built-in types"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Edit Types" Tag="DrawingTypes_Editor" Click="Cmd_Click" ToolTip="Open the Drawing Type editor — corporate baseline + project overrides, 40 built-in types"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Inspect" Tag="DrawingTypes_Inspect" Click="Cmd_Click" ToolTip="Read-only catalogue + routing table + validator report"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Reload JSON" Tag="DrawingTypes_Reload" Click="Cmd_Click" ToolTip="Clear registry cache so on-disk edits to STING_DRAWING_TYPES.json or _BIM_COORD/drawing_types.json take effect"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Group Browser" Tag="DrawingTypes_BrowserOrganize" Click="Cmd_Click" ToolTip="Set the Project Browser to group views and sheets by their STING_DRAWING_TYPE_ID_TXT stamp"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

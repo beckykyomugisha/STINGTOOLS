@@ -35,6 +35,18 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || dt == null) return r;
             if (view.IsTemplate) return r;
 
+            // Week 3 — stamp the DrawingType id so the Project Browser
+            // organizer, the style-propagation IUpdater, and downstream
+            // audits all know which profile produced this view. No-op
+            // on projects where the shared param has not been bound;
+            // no-op when user has locked the view's style.
+            if (DrawingTypeStamper.IsLocked(view))
+            {
+                r.Warnings.Add($"View {view.Id} is style-locked; presentation skipped.");
+                return r;
+            }
+            DrawingTypeStamper.Stamp(view, dt.Id);
+
             // Scale -------------------------------------------------------
             if (dt.Scale > 0)
             {
