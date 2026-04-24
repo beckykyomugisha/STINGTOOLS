@@ -103,6 +103,24 @@ namespace StingTools.Core.Drawing
         }
 
         // ── Rendering ──
+        //
+        // Hermetic per-export subfolder + deterministic ISO-style final
+        // name eliminates the race condition that the scan-by-creation-
+        // time approach suffered from. Layout:
+        //
+        //   %TEMP%/sting_drawing_thumbs/              <- session root
+        //     <dt.Id>__<sheetNumber>.png              <- final (cache key)
+        //     _export_<guid>/                         <- per-export sandbox
+        //       whatever-revit-named-it.png
+        //
+        // Revit fabricates a filename by appending
+        //   " - Sheet - <number> - <name>.png"
+        // to ImageExportOptions.FilePath. We can't predict it, but by
+        // pointing FilePath into an empty sandbox dir we guarantee the
+        // sandbox contains exactly one file after the export — then we
+        // move it to the deterministic ISO-style name and delete the
+        // sandbox. Multiple concurrent exports are safe because each
+        // gets its own sandbox.
 
         private BitmapSource RenderOne(Document doc, DrawingType dt)
         {
@@ -111,24 +129,26 @@ namespace StingTools.Core.Drawing
             var sheet = FindMatchingSheet(doc, dt);
             if (sheet == null) return null;
 
-            // Export to a per-session temp folder. Cleanup is best-effort —
-            // Revit will hold the file handle open until the export
-            // completes, so we don't try to delete after reading.
-            var tempDir = Path.Combine(Path.GetTempPath(), "sting_drawing_thumbs");
-            try { Directory.CreateDirectory(tempDir); } catch { }
+            var sessionDir = Path.Combine(Path.GetTempPath(), "sting_drawing_thumbs");
+            var sandbox    = Path.Combine(sessionDir, "_export_" + Guid.NewGuid().ToString("N"));
+            try { Directory.CreateDirectory(sandbox); }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"Thumbnail sandbox create: {ex.Message}");
+                return null;
+            }
 
-            var fileBase = $"{dt.Id ?? "dt"}_{DateTime.Now.Ticks}";
-            var filePath = Path.Combine(tempDir, fileBase + ".png");
-
+            // Sandbox FilePath — Revit suffixes its own junk, we don't
+            // care what the in-sandbox name ends up being.
             var opts = new ImageExportOptions
             {
                 ZoomType = ZoomFitType.FitToPage,
                 PixelSize = 360,
                 ImageResolution = ImageResolution.DPI_150,
                 HLRandWFViewsFileType = ImageFileType.PNG,
-                ShadowViewsFileType = ImageFileType.PNG,
+                ShadowViewsFileType   = ImageFileType.PNG,
                 ExportRange = ExportRange.SetOfViews,
-                FilePath = filePath,
+                FilePath    = Path.Combine(sandbox, "thumb.png"),
             };
             opts.SetViewsAndSheets(new List<ElementId> { sheet.Id });
 
@@ -136,17 +156,89 @@ namespace StingTools.Core.Drawing
             catch (Exception ex)
             {
                 StingTools.Core.StingLog.Warn($"ExportImage for {sheet.SheetNumber}: {ex.Message}");
+                TryDelete(sandbox);
                 return null;
             }
 
-            // Revit appends " - Sheet - <number> - <name>.png" to FilePath
-            // before the extension, so the actual file rarely matches the
-            // requested name verbatim. Scan the dir for the freshest match.
-            var candidates = Directory.GetFiles(tempDir, fileBase + "*.png");
-            var actual = candidates.OrderByDescending(File.GetCreationTime).FirstOrDefault();
-            if (string.IsNullOrEmpty(actual) || !File.Exists(actual)) return null;
+            // The sandbox should now contain exactly one .png — pick it
+            // up without guessing at the filename Revit synthesised.
+            string exported;
+            try
+            {
+                var pngs = Directory.GetFiles(sandbox, "*.png");
+                if (pngs.Length == 0)
+                {
+                    StingTools.Core.StingLog.Warn(
+                        $"Thumbnail sandbox empty after export for {sheet.SheetNumber}.");
+                    TryDelete(sandbox);
+                    return null;
+                }
+                exported = pngs[0];
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"Sandbox scan: {ex.Message}");
+                TryDelete(sandbox);
+                return null;
+            }
 
-            return LoadFrozenBitmap(actual);
+            // Deterministic final name — ISO-style segments joined with
+            // double-underscore so the cache-key is sortable, unique
+            // per (DrawingType × source sheet), and readable on disk.
+            var finalPath = Path.Combine(sessionDir, BuildCacheFileName(dt, sheet));
+            try
+            {
+                if (File.Exists(finalPath)) File.Delete(finalPath);
+                File.Move(exported, finalPath);
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn(
+                    $"Thumbnail rename to '{finalPath}': {ex.Message}");
+                // Fall back to reading from the sandbox before cleanup
+                try { return LoadFrozenBitmap(exported); }
+                finally { TryDelete(sandbox); }
+            }
+            TryDelete(sandbox);
+            return LoadFrozenBitmap(finalPath);
+        }
+
+        /// <summary>
+        /// ISO-style deterministic name:
+        ///   {dt.Id}__{sanitisedSheetNumber}.png
+        /// Each segment sanitised to the ISO 19650 filesystem-safe set
+        /// (A-Z, 0-9, -, _); spaces collapse to single underscores.
+        /// Collision-proof within a project because the pair
+        /// (DrawingType id, sheet number) is unique.
+        /// </summary>
+        private static string BuildCacheFileName(DrawingType dt, ViewSheet sheet)
+        {
+            var typeSeg  = Sanitise(dt?.Id ?? "dt");
+            var sheetSeg = Sanitise(sheet?.SheetNumber ?? "unknown");
+            return $"{typeSeg}__{sheetSeg}.png";
+        }
+
+        private static string Sanitise(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var sb = new System.Text.StringBuilder(s.Length);
+            foreach (var ch in s)
+            {
+                if (char.IsLetterOrDigit(ch) || ch == '-' || ch == '_') sb.Append(ch);
+                else if (char.IsWhiteSpace(ch) || ch == '.') sb.Append('_');
+                // else: drop (colons, slashes, quotes etc.)
+            }
+            var outStr = sb.ToString();
+            // Collapse consecutive underscores to a single underscore.
+            while (outStr.Contains("__"))
+                outStr = outStr.Replace("__", "_");
+            return outStr.Trim('_').Length == 0 ? "x" : outStr.Trim('_');
+        }
+
+        private static void TryDelete(string dir)
+        {
+            try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+            catch { /* best-effort */ }
         }
 
         private static ViewSheet FindMatchingSheet(Document doc, DrawingType dt)
