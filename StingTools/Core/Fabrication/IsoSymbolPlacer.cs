@@ -85,7 +85,27 @@ namespace StingTools.Core.Fabrication
                 XYZ point = (member.Location as LocationPoint)?.Point
                          ?? (member.Location as LocationCurve)?.Curve?.GetEndPoint(0)
                          ?? XYZ.Zero;
-                doc.Create.NewFamilyInstance(point, fs, view);
+                var inst = doc.Create.NewFamilyInstance(point, fs, view);
+
+                // Phase 4 #15 — scale-aware sizing. Detail symbols are
+                // drawn at paper-space size; if the family exposes a
+                // "Symbol Scale" instance parameter we set it to match
+                // the host view's current scale so a 1:50 spool and a
+                // 1:25 detail both show symbols at the same plotted mm.
+                try
+                {
+                    int vs = (view?.Scale ?? 50);
+                    var p = inst?.LookupParameter("Symbol Scale");
+                    if (p != null && !p.IsReadOnly)
+                    {
+                        if (p.StorageType == StorageType.Double)      p.Set((double)vs);
+                        else if (p.StorageType == StorageType.Integer) p.Set(vs);
+                    }
+                    var pAss = inst?.LookupParameter("STING_ISO_SYMBOL_SCALE_IN");
+                    if (pAss != null && !pAss.IsReadOnly && pAss.StorageType == StorageType.Double)
+                        pAss.Set((double)vs);
+                }
+                catch (Exception sx) { StingLog.Warn($"IsoSymbolPlacer scale: {sx.Message}"); }
                 return true;
             }
             catch (Exception ex)
