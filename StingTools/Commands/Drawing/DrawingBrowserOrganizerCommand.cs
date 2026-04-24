@@ -1,21 +1,18 @@
 // StingTools — Drawing Template Manager · Week 3
 //
-// DrawingBrowserOrganizer activates a Project Browser Organization
-// that groups views and sheets by STING_DRAWING_TYPE_ID_TXT. The
-// Revit public API does NOT expose BrowserOrganization creation
-// (that lives in the UI), so this command's job is:
+// DrawingBrowserOrganizer is a diagnostic command — Revit's public
+// API neither creates nor activates BrowserOrganization records
+// (both operations live in the UI layer). What the command CAN do:
 //
-//   1. Find existing BrowserOrganization(s) named 'STING - by
-//      Drawing Type' — both the Views and Sheets variants share
-//      the same name in their respective lists.
-//   2. Activate whichever are found via SetAsCurrent().
-//   3. Report stamped-vs-total counts so the user sees how many
-//      views still need a DrawingType stamp.
-//
-// If the organizations don't yet exist the command shows step-by-
-// step instructions for creating them once in Revit's Browser
-// Organization dialog — a one-time manual setup per project
-// template. Re-running after that setup flips them to current.
+//   1. Scan for a BrowserOrganization named 'STING - by Drawing
+//      Type' and report whether it's already the current
+//      organization for views and sheets.
+//   2. Report how many views carry a STING_DRAWING_TYPE_ID_TXT
+//      stamp so the user sees propagation progress.
+//   3. If the organization is not set up or not current, show the
+//      manual steps — right-click Project Browser → Browser
+//      Organization → pick it — so the one-time-per-template task
+//      is clearly documented inline.
 
 using System;
 using System.Collections.Generic;
@@ -29,7 +26,7 @@ using StingTools.Core.Drawing;
 
 namespace StingTools.Commands.Drawing
 {
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class DrawingBrowserOrganizerCommand : IExternalCommand
     {
@@ -42,49 +39,64 @@ namespace StingTools.Commands.Drawing
                 var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
-                // Enumerate BrowserOrganization instances — the Views
-                // variant and the Sheets variant are both derived
-                // BrowserOrganization elements, distinguishable only by
-                // which active slot they sit in. Match by name.
-                var matches = new List<BrowserOrganization>();
+                // Enumerate all BrowserOrganization records; find the
+                // ones matching our name (one for Views and one for
+                // Sheets both carry the same user-set name).
+                var named = new List<BrowserOrganization>();
                 try
                 {
                     foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(BrowserOrganization)))
                         if (el is BrowserOrganization bo
                             && string.Equals(bo.Name, ORG_NAME, StringComparison.OrdinalIgnoreCase))
-                            matches.Add(bo);
+                            named.Add(bo);
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"BrowserOrganizer: enumerate failed — {ex.Message}");
                 }
 
-                int activated = 0;
-                if (matches.Count > 0)
+                // Read current orgs for views + sheets to show the user
+                // what's presently active, so they can see whether a
+                // manual switch is needed.
+                string currentViewsName = "(none)";
+                string currentSheetsName = "(none)";
+                try
                 {
-                    using (var tx = new Transaction(doc, "STING — Activate Browser Organization"))
-                    {
-                        tx.Start();
-                        foreach (var bo in matches)
-                        {
-                            try { bo.SetAsCurrent(); activated++; }
-                            catch (Exception ex) { StingLog.Warn($"SetAsCurrent '{bo.Name}': {ex.Message}"); }
-                        }
-                        tx.Commit();
-                    }
+                    var vOrg = BrowserOrganization.GetCurrentBrowserOrganizationForViews(doc);
+                    if (vOrg != null) currentViewsName = vOrg.Name;
                 }
+                catch { /* ignore */ }
+                try
+                {
+                    var sOrg = BrowserOrganization.GetCurrentBrowserOrganizationForSheets(doc);
+                    if (sOrg != null) currentSheetsName = sOrg.Name;
+                }
+                catch { /* ignore */ }
 
                 var (stamped, total) = CountStamped(doc);
                 var body = new StringBuilder();
 
-                if (activated > 0)
+                if (named.Count > 0)
                 {
-                    body.AppendLine($"Activated {activated} '{ORG_NAME}' organization(s).");
+                    body.AppendLine($"Found {named.Count} '{ORG_NAME}' organization(s) in this project.");
                     body.AppendLine();
+                    body.AppendLine($"Currently active:");
+                    body.AppendLine($"  Views:  {currentViewsName}");
+                    body.AppendLine($"  Sheets: {currentSheetsName}");
+                    if (!string.Equals(currentViewsName, ORG_NAME, StringComparison.OrdinalIgnoreCase)
+                        || !string.Equals(currentSheetsName, ORG_NAME, StringComparison.OrdinalIgnoreCase))
+                    {
+                        body.AppendLine();
+                        body.AppendLine($"To switch to '{ORG_NAME}':");
+                        body.AppendLine("  1. Right-click the Views or Sheets node in the Project Browser.");
+                        body.AppendLine("  2. Choose 'Browser Organization…'.");
+                        body.AppendLine($"  3. Tick '{ORG_NAME}' → OK.");
+                        body.AppendLine("     (The Revit public API does not expose activation.)");
+                    }
                 }
                 else
                 {
-                    body.AppendLine($"No BrowserOrganization named '{ORG_NAME}' found.");
+                    body.AppendLine($"No BrowserOrganization named '{ORG_NAME}' exists yet.");
                     body.AppendLine();
                     body.AppendLine("One-time setup — create it in Revit's UI:");
                     body.AppendLine("  1. Right-click the Project Browser → Browser Organization…");
@@ -93,10 +105,10 @@ namespace StingTools.Commands.Drawing
                     body.AppendLine("  3. Grouping and Sorting tab → add field");
                     body.AppendLine("     STING_DRAWING_TYPE_ID_TXT.");
                     body.AppendLine("  4. Repeat on the Sheets tab with the same name.");
-                    body.AppendLine("  5. Click OK; then re-run this command to activate both.");
-                    body.AppendLine();
+                    body.AppendLine("  5. Tick it on each tab → OK.");
                 }
 
+                body.AppendLine();
                 body.AppendLine($"DrawingType stamps: {stamped} / {total} views carry STING_DRAWING_TYPE_ID_TXT.");
                 if (stamped < total)
                     body.AppendLine("Run 'Sync Styles' after stamping new views to populate the remainder.");
