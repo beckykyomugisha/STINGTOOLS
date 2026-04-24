@@ -44,6 +44,20 @@ namespace StingTools.Commands.Fabrication
         public Dictionary<string, List<ElementId>> ByDiscipline { get; }
             = new Dictionary<string, List<ElementId>>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>Element → system token (PLM_SYS_TXT / MEC_SYS_TXT / ELC_SYS_TXT).</summary>
+        public Dictionary<long, string> SystemByElement { get; }
+            = new Dictionary<long, string>();
+
+        /// <summary>Element → level code (ASS_LVL_COD_TXT).</summary>
+        public Dictionary<long, string> LevelByElement { get; }
+            = new Dictionary<long, string>();
+
+        public IEnumerable<string> DistinctSystems =>
+            SystemByElement.Values.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s, StringComparer.OrdinalIgnoreCase);
+
+        public IEnumerable<string> DistinctLevels =>
+            LevelByElement.Values.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s, StringComparer.OrdinalIgnoreCase);
+
         public List<ElementId> AllIds => ByCategory.SelectMany(kv => kv.Value).ToList();
         public int TotalCount => ByCategory.Sum(kv => kv.Value.Count);
 
@@ -171,6 +185,20 @@ namespace StingTools.Commands.Fabrication
             if (!res.ByDiscipline.TryGetValue(entry.Discipline, out var dlist))
                 res.ByDiscipline[entry.Discipline] = dlist = new List<ElementId>();
             dlist.Add(el.Id);
+
+            // System & level lookup so the workspace dialog can render
+            // per-system / per-level filter pills without re-scanning.
+            try
+            {
+                string sys = el.LookupParameter("PLM_SYS_TXT")?.AsString()
+                          ?? el.LookupParameter("MEC_SYS_TXT")?.AsString()
+                          ?? el.LookupParameter("ELC_SYS_TXT")?.AsString()
+                          ?? "";
+                res.SystemByElement[el.Id.Value] = sys ?? "";
+                string lvl = el.LookupParameter("ASS_LVL_COD_TXT")?.AsString() ?? "";
+                res.LevelByElement[el.Id.Value] = lvl ?? "";
+            }
+            catch { }
         }
 
         /// <summary>
@@ -181,15 +209,45 @@ namespace StingTools.Commands.Fabrication
         /// </summary>
         public static List<ElementId> FilterByRulesAndCategoryMask(
             FabScopeResult res, IReadOnlyDictionary<string, bool> categoryMask)
+            => FilterFull(res, categoryMask, null, null);
+
+        /// <summary>
+        /// Full filter honouring category mask + per-system + per-level
+        /// pill filters. Null means "do not filter on that axis".
+        /// </summary>
+        public static List<ElementId> FilterFull(
+            FabScopeResult res,
+            IReadOnlyDictionary<string, bool> categoryMask,
+            IReadOnlyCollection<string> systemAllow,
+            IReadOnlyCollection<string> levelAllow)
         {
             var keep = new List<ElementId>();
+            if (res == null) return keep;
+            bool sysActive = systemAllow != null && systemAllow.Count > 0;
+            bool lvlActive = levelAllow != null && levelAllow.Count > 0;
+            var sysSet = sysActive ? new HashSet<string>(systemAllow, StringComparer.OrdinalIgnoreCase) : null;
+            var lvlSet = lvlActive ? new HashSet<string>(levelAllow, StringComparer.OrdinalIgnoreCase) : null;
+
             foreach (var kv in res.ByCategory)
             {
                 if (categoryMask != null && categoryMask.TryGetValue(kv.Key, out var on) && !on)
                     continue;
                 var disc = CatMap.FirstOrDefault(t => string.Equals(t.CatName, kv.Key, StringComparison.OrdinalIgnoreCase)).Discipline;
                 if (!DisciplineEnabled(disc)) continue;
-                keep.AddRange(kv.Value);
+                foreach (var id in kv.Value)
+                {
+                    if (sysActive)
+                    {
+                        res.SystemByElement.TryGetValue(id.Value, out var s);
+                        if (!sysSet.Contains(s ?? "")) continue;
+                    }
+                    if (lvlActive)
+                    {
+                        res.LevelByElement.TryGetValue(id.Value, out var l);
+                        if (!lvlSet.Contains(l ?? "")) continue;
+                    }
+                    keep.Add(id);
+                }
             }
             return keep;
         }

@@ -68,6 +68,24 @@ namespace StingTools.Commands.Fabrication
         public string Name { get; set; } = "";
     }
 
+    public class PcfSystemRow
+    {
+        public bool Include { get; set; } = true;
+        public string System { get; set; } = "";
+        public int PipeCount { get; set; }
+        public int FittingCount { get; set; }
+        public int AccessoryCount { get; set; }
+    }
+
+    public class MajFabRow
+    {
+        public bool Include { get; set; } = true;
+        public long ElementId { get; set; }
+        public string Category { get; set; } = "";
+        public string ServiceName { get; set; } = "";
+        public string PartName { get; set; } = "";
+    }
+
     // ── Runner ────────────────────────────────────────────────
 
     public static class FabricationActionRunner
@@ -202,6 +220,8 @@ namespace StingTools.Commands.Fabrication
         {
             var doc = uidoc.Document;
             var res = FabricationEngine.GenerateFabricationPackage(doc, ids);
+            // Record for Undo last run (#6)
+            try { FabricationUndoManager.Record(doc, res); } catch (Exception ex) { StingLog.Warn($"UndoRecord: {ex.Message}"); }
             // Open first generated sheet for immediate feedback
             if (res.SheetIds.Count > 0)
             {
@@ -213,6 +233,89 @@ namespace StingTools.Commands.Fabrication
                 catch (Exception ex) { StingLog.Warn($"GenerateFabPackage open sheet failed: {ex.Message}"); }
             }
             return $"{res.AssemblyIds.Count} assemblies, {res.SheetIds.Count} sheets, {res.FailedCount} failed.";
+        }
+
+        /// <summary>
+        /// Incremental variant (#11) — hashes each (discipline,system,
+        /// level) group and skips groups whose content is unchanged
+        /// since the last run. Returns a descriptive summary.
+        /// </summary>
+        public static string RunGeneratePackageIncremental(UIDocument uidoc, IList<ElementId> ids)
+        {
+            var doc = uidoc.Document;
+            var groups = FabricationGrouper.Pack(doc, ids)
+                .Select(g => (g.Key, g.ElementIds))
+                .ToList();
+            var state = FabricationIncrementalTracker.Load(doc);
+            var changed = FabricationIncrementalTracker.FilterChanged(doc, groups, state);
+            int skipped = groups.Count - changed.Count;
+            if (changed.Count == 0)
+                return $"Incremental run: nothing changed ({groups.Count} groups up-to-date).";
+            var keepIds = changed.SelectMany(g => g.Ids).Distinct().ToList();
+            var res = FabricationEngine.GenerateFabricationPackage(doc, keepIds);
+            try { FabricationUndoManager.Record(doc, res); } catch { }
+            FabricationIncrementalTracker.RecordHashes(doc, changed);
+            return $"Incremental: rebuilt {changed.Count} group(s), skipped {skipped} unchanged; " +
+                   $"{res.AssemblyIds.Count} assemblies / {res.SheetIds.Count} sheets.";
+        }
+
+        /// <summary>Consolidated BOM (#10) emitted alongside CSV sidecars.</summary>
+        public static string RunBomRollup(UIDocument uidoc, IList<ElementId> ids)
+        {
+            var doc = uidoc.Document;
+            var pkg  = BuildPackageRows(doc, ids);
+            var cut  = BuildCutListRows(doc, ids);
+            var weld = BuildWeldMapRows(doc, ids);
+            string path = FabricationXlsxExporter.ExportConsolidatedBom(doc, pkg, cut, weld);
+            return string.IsNullOrEmpty(path) ? "BOM roll-up failed (see log)." : $"BOM roll-up saved to:\n{path}";
+        }
+
+        // ── PCF / MAJ preview + run (#14) ─────────────────────
+
+        public static List<PcfSystemRow> BuildPcfRows(Document doc, IList<ElementId> ids)
+        {
+            return ids
+                .Select(id => doc.GetElement(id))
+                .Where(e => e != null && e.Category != null)
+                .Where(e =>
+                {
+                    int bic = (int)e.Category.Id.Value;
+                    return bic == (int)BuiltInCategory.OST_PipeCurves
+                        || bic == (int)BuiltInCategory.OST_PipeFitting
+                        || bic == (int)BuiltInCategory.OST_PipeAccessory;
+                })
+                .GroupBy(e =>
+                {
+                    try { return (e as Autodesk.Revit.DB.Plumbing.Pipe)?.MEPSystem?.Name ?? "UNKNOWN"; }
+                    catch { return "UNKNOWN"; }
+                })
+                .Select(g => new PcfSystemRow
+                {
+                    System         = g.Key,
+                    PipeCount      = g.Count(e => (int)e.Category.Id.Value == (int)BuiltInCategory.OST_PipeCurves),
+                    FittingCount   = g.Count(e => (int)e.Category.Id.Value == (int)BuiltInCategory.OST_PipeFitting),
+                    AccessoryCount = g.Count(e => (int)e.Category.Id.Value == (int)BuiltInCategory.OST_PipeAccessory),
+                })
+                .OrderBy(r => r.System, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public static List<MajFabRow> BuildMajRows(Document doc, IList<ElementId> ids)
+        {
+            var rows = new List<MajFabRow>();
+            foreach (var id in ids)
+            {
+                var el = doc.GetElement(id);
+                if (el == null) continue;
+                rows.Add(new MajFabRow
+                {
+                    ElementId   = id.Value,
+                    Category    = el.Category?.Name ?? "",
+                    ServiceName = ReadString(el, "PLM_SYS_TXT") + ReadString(el, "MEC_SYS_TXT"),
+                    PartName    = el.Name ?? "",
+                });
+            }
+            return rows;
         }
 
         // ── Isometrics (existing SP-... sheets) ───────────────
