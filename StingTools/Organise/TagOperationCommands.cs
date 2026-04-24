@@ -5523,8 +5523,12 @@ namespace StingTools.Organise
                         {
                             try
                             {
-                                Parameter p = e.LookupParameter(ParamRegistry.CLUSTER_COUNT);
-                                return p != null && p.AsInteger() > 1;
+                                // Gap 2 — ES-preferred read. Pre-migration projects
+                                // fall back to the legacy shared-parameter read inside
+                                // StingEsHelpers.ReadCluster; post-migration projects
+                                // resolve the cluster count from the ES entity.
+                                var cluster = StingTools.Core.Storage.StingEsHelpers.ReadCluster(e);
+                                return cluster != null && cluster.Count > 1;
                             }
                             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                         })

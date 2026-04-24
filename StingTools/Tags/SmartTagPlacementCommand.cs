@@ -2771,6 +2771,24 @@ namespace StingTools.Tags
                         Element typeEl = doc.GetElement(typeId);
                         Parameter p = typeEl?.LookupParameter(ParamRegistry.TAG_POS);
                         if (p != null && !p.IsReadOnly) { p.Set(posValue); updated++; }
+
+                        // Gap 2 — dual-write to ES so post-migration reads see the
+                        // same value. ES write is best-effort; a failure here does
+                        // not abort the shared-parameter update above.
+                        try
+                        {
+                            if (typeEl != null)
+                            {
+                                var existing = StingTools.Core.Storage.StingPositionSchema.Read(typeEl);
+                                StingTools.Core.Storage.StingPositionSchema.Write(typeEl,
+                                    new StingTools.Core.Storage.StingPositionSchema.PositionData
+                                    {
+                                        TagPos        = posValue,
+                                        TokenPresence = existing?.TokenPresence ?? 0,
+                                    });
+                            }
+                        }
+                        catch (Exception esEx) { StingLog.Warn($"ES dual-write TAG_POS on {typeId}: {esEx.Message}"); }
                     }
                     catch (Exception ex) { StingLog.Warn($"Set TAG_POS on type {typeId}: {ex.Message}"); }
                 }

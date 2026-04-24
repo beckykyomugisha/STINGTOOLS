@@ -2625,3 +2625,109 @@ of-life call-site in the same assembly.
     non-plant placements in `StingTools.log`.
  4. `Validation ▸ Run All` now includes a `CLS.SCAN` Info row
     summarising Uniclass / NBS / RFI URL coverage.
+
+
+---
+
+#### Completed (Phase 121 — Gap 2: graduate Extensible Storage beyond the pilot)
+
+Pack 10 landed the STING_STALE_BOOL pilot on Extensible Storage. Phase 121
+extends that pattern to the next three per-element schemas and lands a
+document-scoped one for learned tag offsets. The brief's
+"start with STING_STALE_BOOL + compliance cache — proven pattern before
+touching the hot-path parameters" rule holds: the compliance cache
+(cluster + position + tag history) migrates here; the tagging pipeline
+itself stays on the shared-param hot path until a later pack.
+
+**New ES schemas (per-element, vendor-locked)**
+
+| Schema | GUID | Fields | Replaces |
+|---|---|---|---|
+| `StingClusterSchema`     | E1A7B2C4-1011-1236-8411-F6E5D4C3B2A2 | Count (int), Label (string), GroupKey (string) | STING_CLUSTER_COUNT, STING_CLUSTER_LABEL |
+| `StingPositionSchema`    | E1A7B2C4-1011-1237-8411-F6E5D4C3B2A3 | TagPos (int 1..4), TokenPresenceMask (int bitmask) | STING_TAG_POS + computed per-scan mask |
+| `StingTagHistorySchema`  | E1A7B2C4-1011-1238-8411-F6E5D4C3B2A4 | PreviousTag (string), ModifiedUtcTicks (long), RevisionCode (string) | ASS_TAG_PREV_TXT, ASS_TAG_MODIFIED_DT |
+| `StingTagLearnedSchema`  | E1A7B2C4-1011-1239-8411-F6E5D4C3B2A5 | OffsetsJson (string), UpdatedUtcTicks (long). Stored on `ProjectInformation`. | JSON in `_BIM_COORD/learned_tag_offsets.json` |
+
+All GUIDs deterministic, never to be rotated. Revit forbids field
+additions to an existing schema — new fields require a new GUID.
+
+**New facade — `Core/Storage/StingEsHelpers.cs`**
+
+Single entry point for every read-site that wants ES-first with
+shared-parameter fallback. Three operations per schema:
+
+ - `ReadFoo(element)` — ES-preferred; falls back to legacy shared
+   parameter when the ES entity is absent.
+ - `TryImportFoo(element)` — idempotent copy-up: shared → ES when
+   ES is empty, skip otherwise.
+ - `WriteFoo(...)` — new writes land in ES; call-sites dual-write
+   to the legacy shared parameter for safety during the transition
+   window.
+
+**New commands**
+
+| Command tag | Class | Purpose |
+|---|---|---|
+| `ES_Migrate`    | `Commands.Storage.MigrateToExtensibleStorageCommand` | One-click project-wide: every element + ProjectInformation imported into ES. Idempotent — counters report only new imports per invocation. |
+| `ES_Diagnostic` | `Commands.Storage.EsStorageDiagnosticCommand`        | Read-only coverage scan per schema (ES entity / legacy shared-only) with an action panel telling the coordinator whether to run `ES_Migrate`. |
+
+Both registered in `UI/StingCommandHandler.cs` (switch cases after
+`Validation_RunAll`).
+
+**Read-sites wired in this phase**
+
+ - `Organise/TagOperationCommands.cs::DeclusterTagsCommand` — reads
+   cluster count via `StingEsHelpers.ReadCluster(element)`. Post-
+   migration projects resolve from the ES entity; pre-migration keep
+   reading `STING_CLUSTER_COUNT` as before.
+ - `Tags/SmartTagPlacementCommand.cs::SwitchTagPositionCommand` —
+   dual-writes to the ES position schema when users flip `STING_TAG_POS`,
+   preserving the existing shared-parameter write for safety. Token
+   presence mask is co-persisted so the next compliance scan can skip
+   8 `LookupParameter` calls per element.
+
+Tag-history dual-write is deliberately NOT wired yet — that's the hot
+path (the tag pipeline fires on every single tag mutation). Phase 121
+ships the schema + facade + migration; hot-path dual-write is the next
+pack once the migration has run across at least one full project cycle.
+
+**Files**
+
+ - NEW: `StingTools/Core/Storage/StingClusterSchema.cs` (95 lines)
+ - NEW: `StingTools/Core/Storage/StingPositionSchema.cs` (88 lines)
+ - NEW: `StingTools/Core/Storage/StingTagHistorySchema.cs` (94 lines)
+ - NEW: `StingTools/Core/Storage/StingTagLearnedSchema.cs` (107 lines)
+ - NEW: `StingTools/Core/Storage/StingEsHelpers.cs` (148 lines)
+ - NEW: `StingTools/Commands/Storage/MigrateToExtensibleStorageCommand.cs` (79 lines)
+ - NEW: `StingTools/Commands/Storage/EsStorageDiagnosticCommand.cs` (113 lines)
+ - EDIT: `StingTools/Organise/TagOperationCommands.cs` — decluster ES-preferred read
+ - EDIT: `StingTools/Tags/SmartTagPlacementCommand.cs` — tag-pos dual-write
+ - EDIT: `StingTools/UI/StingCommandHandler.cs` — two new command cases
+
+**Caveats**
+
+ 1. Built without `dotnet build` verification (Linux sandbox).
+ 2. Legacy shared parameters are NOT deleted. The transition window
+    stays open until the migration command has been run across every
+    shipping project. A later pack will flip the legacy writes off
+    and bind the shared parameters as read-only.
+ 3. `StingTagLearnedSchema` writes one JSON blob into a single string
+    field on `ProjectInformation`. Lucene search against learned
+    offsets is out of scope — the category count is low (≤50) and a
+    linear walk is cheap.
+ 4. Tag-history dual-write is not wired; reads still prefer the legacy
+    surface. Ship the hot-path wiring only after `ES_Migrate` has
+    been exercised on at least one project.
+
+**Smoke test**
+
+ 1. Open a project with at least one clustered tag (run Organise ▸
+    Cluster Tags first if needed).
+ 2. Run BIM ▸ ES Diagnostic — should show non-zero "Legacy shared-only"
+    counts for STING_CLUSTER_COUNT + STING_TAG_POS.
+ 3. Run BIM ▸ ES Migrate — dialog should report those same counts as
+    "imported".
+ 4. Run BIM ▸ ES Diagnostic again — every non-zero row should now
+    show an ES entity count with "Legacy shared-only" at zero.
+ 5. Run Organise ▸ Decluster Tags — behaviour unchanged (the read-site
+    now goes through the ES-first path but falls back cleanly).
