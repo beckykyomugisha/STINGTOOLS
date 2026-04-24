@@ -27,8 +27,17 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
+
+// WPF + Revit both declare Color / Rectangle — disambiguate once so
+// CS0104 does not fire on every reference. UI code here always wants
+// the WPF types.
+using Color     = System.Windows.Media.Color;
+using Colors    = System.Windows.Media.Colors;
+using Rectangle = System.Windows.Shapes.Rectangle;
 
 namespace StingTools.UI
 {
@@ -161,26 +170,64 @@ namespace StingTools.UI
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 Margin = new Thickness(0, 0, 12, 12),
-                Width = 340, MinHeight = 150,
+                Width = 410, MinHeight = 190,
                 Padding = new Thickness(10, 8, 10, 8),
             };
 
-            var stack = new StackPanel();
-            stack.Children.Add(new TextBlock
+            // Two-column layout: thumbnail left | info right ------------
+            var root = new Grid();
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Thumbnail box — vector preview by default, swapped for
+            // a real Revit ImageExport when the service callback fires.
+            var thumbHost = new Border
+            {
+                Background = new SolidColorBrush(BgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+                Width = 150, Height = 170,
+                Margin = new Thickness(0, 0, 8, 0),
+            };
+            thumbHost.Child = BuildVectorLayoutPreview(dt);
+            Grid.SetColumn(thumbHost, 0);
+            root.Children.Add(thumbHost);
+
+            // Request a real Revit-rendered thumbnail — fires async on
+            // the API thread. Callback swaps the vector Canvas for an
+            // Image once a PNG is ready. Falls through silently when no
+            // matching sheet exists in the project.
+            DrawingThumbnailService.Instance.Enqueue(new DrawingThumbnailService.Request
+            {
+                DrawingType = dt,
+                OnComplete = bmp =>
+                {
+                    if (bmp == null) return; // keep vector preview
+                    thumbHost.Child = new Image
+                    {
+                        Source = bmp,
+                        Stretch = Stretch.Uniform,
+                        Margin = new Thickness(2),
+                    };
+                },
+            });
+
+            // Info column -----------------------------------------------
+            var info = new StackPanel();
+            Grid.SetColumn(info, 1);
+            info.Children.Add(new TextBlock
             {
                 Text = dt.Name ?? dt.Id, FontWeight = FontWeights.SemiBold, FontSize = 13,
                 Foreground = new SolidColorBrush(FgColor),
                 TextWrapping = TextWrapping.Wrap,
             });
-            stack.Children.Add(new TextBlock
+            info.Children.Add(new TextBlock
             {
                 Text = $"{dt.Discipline} · {dt.Purpose} · {dt.PaperSize} · 1:{dt.Scale} · {dt.DetailLevel ?? "Medium"}",
                 FontSize = 11, Foreground = new SolidColorBrush(SubtleColor),
                 Margin = new Thickness(0, 2, 0, 8),
             });
-
-            // Count row
-            stack.Children.Add(new TextBlock
+            info.Children.Add(new TextBlock
             {
                 Text = $"Sheets using this profile: {usingIt.Count}",
                 FontSize = 11, Foreground = new SolidColorBrush(FgColor),
@@ -194,7 +241,7 @@ namespace StingTools.UI
                 var color = issue.Severity == ValidationSeverity.Error   ? ErrorColor
                           : issue.Severity == ValidationSeverity.Warning ? WarnColor
                                                                          : SubtleColor;
-                stack.Children.Add(new TextBlock
+                info.Children.Add(new TextBlock
                 {
                     Text = $"● {issue.Severity,-7} {issue.Code}  {issue.Message}",
                     TextWrapping = TextWrapping.Wrap,
@@ -205,7 +252,7 @@ namespace StingTools.UI
             }
             if (report.Issues.Count == 0)
             {
-                stack.Children.Add(new TextBlock
+                info.Children.Add(new TextBlock
                 {
                     Text = "● OK — all referenced assets present.",
                     Foreground = new SolidColorBrush(OkColor),
@@ -214,9 +261,95 @@ namespace StingTools.UI
                 });
             }
 
-            card.Child = stack;
+            root.Children.Add(info);
+            card.Child = root;
             return card;
         }
+
+        /// <summary>
+        /// Paint a paper-proportioned rectangle with the DrawingType's
+        /// slot layout as inner rectangles. Zero Revit calls — always
+        /// renders, even when the real sheet export fails or the project
+        /// hasn't produced a sheet using this profile yet.
+        /// </summary>
+        private Canvas BuildVectorLayoutPreview(DrawingType dt)
+        {
+            var canvas = new Canvas
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF5, 0xF0)), // paper white-ish
+                Width = 148, Height = 168,
+                ClipToBounds = true,
+            };
+
+            // Paper proportion — A1/A2/A3 landscape default ~ 1.414:1
+            double aspect = IsPortrait(dt) ? 1.0 / 1.414 : 1.414;
+            double paperH = 155, paperW = paperH * aspect;
+            if (paperW > 148) { paperW = 146; paperH = paperW / aspect; }
+            double x0 = (148 - paperW) / 2.0, y0 = (168 - paperH) / 2.0;
+
+            // Paper sheet
+            var paper = new Rectangle
+            {
+                Width = paperW, Height = paperH,
+                Fill = new SolidColorBrush(Color.FromRgb(0xFA, 0xFA, 0xF3)),
+                Stroke = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33)),
+                StrokeThickness = 1,
+            };
+            Canvas.SetLeft(paper, x0); Canvas.SetTop(paper, y0);
+            canvas.Children.Add(paper);
+
+            // Title block strip along bottom (~8% of height)
+            double tbH = paperH * 0.08;
+            var tb = new Rectangle
+            {
+                Width = paperW, Height = tbH,
+                Fill = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xD8)),
+                Stroke = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
+                StrokeThickness = 0.5,
+            };
+            Canvas.SetLeft(tb, x0); Canvas.SetTop(tb, y0 + paperH - tbH);
+            canvas.Children.Add(tb);
+
+            // Draw slots. Normalised 0..1 in DrawingSlot map onto the
+            // drawable zone, which excludes the title-block strip.
+            double zoneX = x0, zoneY = y0, zoneW = paperW, zoneH = paperH - tbH;
+            if (dt.Slots != null)
+            {
+                foreach (var slot in dt.Slots)
+                {
+                    var rect = new Rectangle
+                    {
+                        Width  = Math.Max(4, slot.NormW * zoneW),
+                        Height = Math.Max(4, slot.NormH * zoneH),
+                        Fill   = new SolidColorBrush(Color.FromArgb(0x30, 0xE8, 0x91, 0x2D)),
+                        Stroke = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D)),
+                        StrokeThickness = 0.7,
+                    };
+                    Canvas.SetLeft(rect, zoneX + slot.NormX * zoneW);
+                    // DrawingSlot Y=0 is conventionally bottom; WPF Y=0
+                    // is top, so flip before adding.
+                    Canvas.SetTop(rect, zoneY + (1 - slot.NormY - slot.NormH) * zoneH);
+                    canvas.Children.Add(rect);
+                }
+            }
+
+            // Scale caption in the title block strip
+            var caption = new TextBlock
+            {
+                Text = $"{dt.PaperSize}  1:{dt.Scale}",
+                FontSize = 9,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0x22, 0x22)),
+            };
+            Canvas.SetLeft(caption, x0 + 4);
+            Canvas.SetTop(caption, y0 + paperH - tbH + 2);
+            canvas.Children.Add(caption);
+
+            return canvas;
+        }
+
+        private static bool IsPortrait(DrawingType dt)
+            => !string.IsNullOrEmpty(dt?.Orientation)
+               && dt.Orientation.Trim().Equals("Portrait", StringComparison.OrdinalIgnoreCase);
 
         private Button MakeButton(string label, Color bg, bool isDefault)
         {

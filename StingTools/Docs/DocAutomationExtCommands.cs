@@ -627,8 +627,22 @@ namespace StingTools.Docs
                                 viewsCreated++;
                                 createdViews.Add((newView.Name, disc.Code, shortLevel));
 
+                                // Drawing Type profile wins if one matches
+                                // (discipline × phase × docType). Falls
+                                // through to the 7-layer historic search
+                                // when no profile matches or has no
+                                // viewTemplateName set.
+                                var dtView = StingTools.Core.Drawing.DrawingDispatcher.Resolve(
+                                    doc, disc.Code, "*",
+                                    family == ViewFamily.Section   ? StingTools.Core.Drawing.DrawingPurpose.Section   :
+                                    family == ViewFamily.Elevation ? StingTools.Core.Drawing.DrawingPurpose.Elevation :
+                                    family == ViewFamily.CeilingPlan ? StingTools.Core.Drawing.DrawingPurpose.Rcp     :
+                                                                     StingTools.Core.Drawing.DrawingPurpose.Plan);
+                                var dtApplied = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, newView, dtView);
+                                if (dtApplied.TemplateApplied) templatesAssigned++;
+
                                 // Auto-assign template (7-layer intelligence)
-                                if (autoTemplate)
+                                if (autoTemplate && !dtApplied.TemplateApplied)
                                 {
                                     View template = DocAutomationHelper.FindBestTemplate(
                                         doc, disc.Name, family, level.Name);
@@ -1607,12 +1621,24 @@ namespace StingTools.Docs
                                     if (newView == null) continue;
                                     viewsCreated++;
 
-                                    // Auto template
-                                    View template = DocAutomationHelper.FindBestTemplate(doc, disc.Name, family, level.Name);
-                                    if (template != null)
+                                    // Drawing Type profile first; falls
+                                    // back to the 7-layer template search
+                                    // when the profile has no template.
+                                    var dtPkg = StingTools.Core.Drawing.DrawingDispatcher.Resolve(
+                                        doc, disc.Code, "*",
+                                        family == ViewFamily.CeilingPlan ? StingTools.Core.Drawing.DrawingPurpose.Rcp
+                                                                         : StingTools.Core.Drawing.DrawingPurpose.Plan);
+                                    var dtApp = StingTools.Core.Drawing.DrawingTypePresentation.Apply(doc, newView, dtPkg);
+                                    if (dtApp.TemplateApplied) templatesAssigned++;
+
+                                    if (!dtApp.TemplateApplied)
                                     {
-                                        newView.ViewTemplateId = template.Id;
-                                        templatesAssigned++;
+                                        View template = DocAutomationHelper.FindBestTemplate(doc, disc.Name, family, level.Name);
+                                        if (template != null)
+                                        {
+                                            newView.ViewTemplateId = template.Id;
+                                            templatesAssigned++;
+                                        }
                                     }
 
                                     // Dependents from scope boxes
