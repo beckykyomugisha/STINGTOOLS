@@ -64,76 +64,7 @@ namespace StingTools.UI
 
             LoadPresetsSafe();
             _paramCatalog = BuildParamCatalog();
-            RegisterDarkComboResources();
             Content = BuildLayout();
-        }
-
-        /// <summary>
-        /// Window-level styles that make ComboBox dropdown items render
-        /// dark-on-white-text to match the rest of the dialog. Without this
-        /// the popup's <see cref="ComboBoxItem"/> instances inherit the
-        /// system theme (black on white) — fine when the outer ComboBox
-        /// has no explicit <c>Foreground</c>, but the parameter dropdowns
-        /// set <c>Foreground=white</c> so the closed-state selected text
-        /// and the popup items render white-on-white and disappear.
-        /// </summary>
-        private void RegisterDarkComboResources()
-        {
-            var cardBg     = new SolidColorBrush(CardBg);     cardBg.Freeze();
-            var fg         = new SolidColorBrush(FgColor);    fg.Freeze();
-            var border     = new SolidColorBrush(CardBorder); border.Freeze();
-            var hoverBg    = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x58)); hoverBg.Freeze();
-            var selectedBg = new SolidColorBrush(AccentColor); selectedBg.Freeze();
-            var selectedFg = new SolidColorBrush(Colors.Black); selectedFg.Freeze();
-
-            var itemStyle = new Style(typeof(ComboBoxItem));
-            itemStyle.Setters.Add(new Setter(ComboBoxItem.BackgroundProperty, cardBg));
-            itemStyle.Setters.Add(new Setter(ComboBoxItem.ForegroundProperty, fg));
-            itemStyle.Setters.Add(new Setter(ComboBoxItem.PaddingProperty, new Thickness(4, 2, 4, 2)));
-
-            var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-            hover.Setters.Add(new Setter(ComboBoxItem.BackgroundProperty, hoverBg));
-            itemStyle.Triggers.Add(hover);
-
-            var selected = new Trigger { Property = ComboBoxItem.IsSelectedProperty, Value = true };
-            selected.Setters.Add(new Setter(ComboBoxItem.BackgroundProperty, selectedBg));
-            selected.Setters.Add(new Setter(ComboBoxItem.ForegroundProperty, selectedFg));
-            itemStyle.Triggers.Add(selected);
-
-            Resources[typeof(ComboBoxItem)] = itemStyle;
-        }
-
-        /// <summary>
-        /// Ensure a ComboBox renders with the dialog's dark palette:
-        /// background, foreground, border, and — for editable combos —
-        /// the internal <c>PART_EditableTextBox</c> whose colours are
-        /// independent of the outer <c>Foreground</c>. Must be called
-        /// after instantiation; the editable-textbox hook defers until
-        /// <c>Loaded</c> so the template has been applied.
-        /// </summary>
-        private void ApplyComboTheme(ComboBox cb)
-        {
-            if (cb == null) return;
-            cb.Background  = new SolidColorBrush(CardBg);
-            cb.Foreground  = new SolidColorBrush(FgColor);
-            cb.BorderBrush = new SolidColorBrush(CardBorder);
-
-            if (cb.IsEditable)
-            {
-                cb.Loaded += (s, e) =>
-                {
-                    try
-                    {
-                        if (cb.Template?.FindName("PART_EditableTextBox", cb) is TextBox inner)
-                        {
-                            inner.Background = new SolidColorBrush(CardBg);
-                            inner.Foreground = new SolidColorBrush(FgColor);
-                            inner.CaretBrush = new SolidColorBrush(FgColor);
-                        }
-                    }
-                    catch (Exception ex) { StingLog.Warn($"ApplyComboTheme editable-textbox: {ex.Message}"); }
-                };
-            }
         }
 
         // ------------------------------------------------------------------
@@ -170,7 +101,6 @@ namespace StingTools.UI
 
             AddLabel(presetGrid, 0, "Preset");
             _cmbPreset = new ComboBox { Height = 24, Margin = new Thickness(4, 0, 8, 0) };
-            ApplyComboTheme(_cmbPreset);
             foreach (var kv in _presets.Entries) _cmbPreset.Items.Add(kv.Key);
             _cmbPreset.SelectedItem = _presets.ActivePreset;
             _cmbPreset.SelectionChanged += (s, e) => OnPresetChanged();
@@ -203,7 +133,6 @@ namespace StingTools.UI
             var actionBar = new DockPanel { Margin = new Thickness(0, 8, 0, 0), LastChildFill = false };
             AddLabel(actionBar, null, "Scope");
             _cmbScope = new ComboBox { Height = 24, Width = 140, Margin = new Thickness(4, 0, 12, 0) };
-            ApplyComboTheme(_cmbScope);
             _cmbScope.Items.Add("Selection (fallback: Active view)");
             _cmbScope.Items.Add("Active view");
             _cmbScope.Items.Add("Entire project");
@@ -285,9 +214,6 @@ namespace StingTools.UI
             var tbLabel = new TextBox
             {
                 Text = tier.Label, Height = 22, FontSize = 11,
-                Background = new SolidColorBrush(CardBg),
-                Foreground = new SolidColorBrush(FgColor),
-                BorderBrush = new SolidColorBrush(CardBorder),
                 IsReadOnly = readOnly,
             };
             tbLabel.TextChanged += (s, e) => { tier.Label = tbLabel.Text; RefreshHeader(expander, tierKey, tier); };
@@ -364,7 +290,6 @@ namespace StingTools.UI
                 Height = 22, FontSize = 10, Margin = new Thickness(2, 1, 2, 1),
                 Text = row.Parameter,
             };
-            ApplyComboTheme(cmbParam);
             foreach (var p in _paramCatalog) cmbParam.Items.Add(p);
             cmbParam.Text = row.Parameter;
             cmbParam.LostFocus += (s, e) => { row.Parameter = cmbParam.Text?.Trim() ?? ""; };
@@ -378,9 +303,6 @@ namespace StingTools.UI
             {
                 Text = row.Prefix, IsReadOnly = readOnly,
                 Height = 22, FontSize = 10, Margin = new Thickness(2, 1, 2, 1),
-                Background = new SolidColorBrush(CardBg),
-                Foreground = new SolidColorBrush(FgColor),
-                BorderBrush = new SolidColorBrush(CardBorder),
             };
             tbPrefix.TextChanged += (s, e) => row.Prefix = tbPrefix.Text;
             Grid.SetColumn(tbPrefix, 2); Grid.SetRow(tbPrefix, rowIndex); tbl.Children.Add(tbPrefix);
@@ -389,9 +311,6 @@ namespace StingTools.UI
             {
                 Text = row.Suffix, IsReadOnly = readOnly,
                 Height = 22, FontSize = 10, Margin = new Thickness(2, 1, 2, 1),
-                Background = new SolidColorBrush(CardBg),
-                Foreground = new SolidColorBrush(FgColor),
-                BorderBrush = new SolidColorBrush(CardBorder),
             };
             tbSuffix.TextChanged += (s, e) => row.Suffix = tbSuffix.Text;
             Grid.SetColumn(tbSuffix, 3); Grid.SetRow(tbSuffix, rowIndex); tbl.Children.Add(tbSuffix);
