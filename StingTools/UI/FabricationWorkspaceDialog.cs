@@ -35,6 +35,7 @@ using Grid         = System.Windows.Controls.Grid;
 using RadioButton  = System.Windows.Controls.RadioButton;
 using TextBox      = System.Windows.Controls.TextBox;
 using Color        = System.Windows.Media.Color;
+using Binding      = System.Windows.Data.Binding;
 
 namespace StingTools.UI
 {

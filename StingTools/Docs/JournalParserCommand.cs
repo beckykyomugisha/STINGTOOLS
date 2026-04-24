@@ -25,34 +25,34 @@ namespace StingTools.Docs
         // so we pay the Regex-compile cost once at type init rather than on
         // every RunParser invocation. RegexOptions.Compiled gives ~2-3x match
         // throughput for the tight per-line loop below.
-        private static readonly Regex TimestampRx = new Regex(
+        internal static readonly Regex TimestampRx = new Regex(
             @"'[HCE]\s+(\d{2}-\w{3}-\d{4}\s+\d{2}:\d{2}:\d{2}\.\d+)",
             RegexOptions.Compiled);
-        private static readonly Regex AddinLoadRx = new Regex(
+        internal static readonly Regex AddinLoadRx = new Regex(
             @"API_SUCCESS\s*\{\s*Starting External Application:\s*(.+?),\s*Class:\s*(.+?),.*?Assembly:\s*(.+?\.dll)",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex AddinBtnRx = new Regex(
+        internal static readonly Regex AddinBtnRx = new Regex(
             @"API_SUCCESS\s*\{\s*Added pushbutton.*?name:\s*(.+?),.*?class:\s*(.+?),.*?assembly:\s*(.+?\.dll)",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex AddinManifestRx = new Regex(
+        internal static readonly Regex AddinManifestRx = new Regex(
             @"\[Jrn\.AddInManifest\].*?AddInName:\s*(.+?)\s+.*?AddInVersion:\s*(\S+).*?AddInLoadFailureMessage:\s*(\S+)",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex ErrorRx = new Regex(
+        internal static readonly Regex ErrorRx = new Regex(
             @"API_ERROR|FATAL|Exception|StackOverflow|AccessViolation|NullReference|OutOfMemory|assembly.*version.*conflict",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex RibbonEventRx = new Regex(
+        internal static readonly Regex RibbonEventRx = new Regex(
             @"Jrn\.RibbonEvent\s+""Execute external command:(.+?)""",
             RegexOptions.Compiled);
-        private static readonly Regex MemoryRx = new Regex(
+        internal static readonly Regex MemoryRx = new Regex(
             @"RAM.*?Avail\s+(\d+).*?Used\s+(\d+).*?Peak\s+(\d+)",
             RegexOptions.Compiled);
-        private static readonly Regex TaskDialogRx = new Regex(
+        internal static readonly Regex TaskDialogRx = new Regex(
             @"TaskDialog\s+""(.+?)""", RegexOptions.Compiled);
-        private static readonly Regex VersionRx = new Regex(
+        internal static readonly Regex VersionRx = new Regex(
             @"Build:\s*(\S+).*?Branch:\s*(\S+)", RegexOptions.Compiled);
-        private static readonly Regex UserRx = new Regex(
+        internal static readonly Regex UserRx = new Regex(
             @"""Username""\s*,\s*""(.+?)""", RegexOptions.Compiled);
-        private static readonly Regex CrashRx = new Regex(
+        internal static readonly Regex CrashRx = new Regex(
             @"JRNABC|Jrn\.Abort|fatal|unhandled|crash|access violation",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -198,18 +198,18 @@ namespace StingTools.Docs
 
             report.TotalLines = lines.Length;
 
-            // Regex patterns hoisted to static readonly — see class-level fields.
-            var timestampRx = TimestampRx;
-            var addinLoadRx = AddinLoadRx;
-            var addinBtnRx = AddinBtnRx;
-            var addinManifestRx = AddinManifestRx;
-            var errorRx = ErrorRx;
-            var ribbonEventRx = RibbonEventRx;
-            var memoryRx = MemoryRx;
-            var taskDialogRx = TaskDialogRx;
-            var versionRx = VersionRx;
-            var userRx = UserRx;
-            var crashRx = CrashRx;
+            // Regex patterns hoisted to static readonly — see class-level fields on JournalParserCommand.
+            var timestampRx = JournalParserCommand.TimestampRx;
+            var addinLoadRx = JournalParserCommand.AddinLoadRx;
+            var addinBtnRx = JournalParserCommand.AddinBtnRx;
+            var addinManifestRx = JournalParserCommand.AddinManifestRx;
+            var errorRx = JournalParserCommand.ErrorRx;
+            var ribbonEventRx = JournalParserCommand.RibbonEventRx;
+            var memoryRx = JournalParserCommand.MemoryRx;
+            var taskDialogRx = JournalParserCommand.TaskDialogRx;
+            var versionRx = JournalParserCommand.VersionRx;
+            var userRx = JournalParserCommand.UserRx;
+            var crashRx = JournalParserCommand.CrashRx;
 
             DateTime? firstTimestamp = null;
             DateTime? lastTimestamp = null;
@@ -300,8 +300,11 @@ namespace StingTools.Docs
                     string cmdText = cmdMatch.Groups[1].Value;
                     // Extract timestamp if available
                     DateTime? cmdTime = null;
-                    if (tsMatch.Success && DateTime.TryParse(tsMatch.Groups[1].Value, out DateTime ct))
-                        cmdTime = ct;
+                    if (tsMatch.Success)
+                    {
+                        if (DateTime.TryParse(tsMatch.Groups[1].Value, out DateTime ct))
+                            cmdTime = ct;
+                    }
 
                     report.CommandsExecuted.Add(new CommandEntry
                     {

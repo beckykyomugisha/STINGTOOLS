@@ -151,7 +151,7 @@ namespace StingTools.UI
                     });
                 }
                 lblScopeBoxEmpty.Visibility = ScopeBoxRows.Count == 0
-                    ? Visibility.Visible : Visibility.Collapsed;
+                    ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             }
             catch (Exception ex)
             {
@@ -212,7 +212,7 @@ namespace StingTools.UI
             {
                 BoundingBoxXYZ bb = scopeBox.get_BoundingBox(null);
                 if (bb == null) return 0.0;
-                Transform t = bb.Transform ?? Transform.Identity;
+                Autodesk.Revit.DB.Transform t = bb.Transform ?? Autodesk.Revit.DB.Transform.Identity;
                 XYZ bx = t.BasisX;
                 if (bx == null || bx.IsZeroLength()) return 0.0;
                 double angleRad = Math.Atan2(bx.Y, bx.X);

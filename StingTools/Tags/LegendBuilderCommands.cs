@@ -1190,7 +1190,7 @@ namespace StingTools.Tags
             var entries = new List<TagLegendEntry>();
             foreach (var catGroup in byCat)
             {
-                Element sample = catGroup.First();
+                Element sample = catGroup.Items.First();
                 Category cat = sample.Category;
                 if (cat == null) continue;
 
@@ -1220,7 +1220,7 @@ namespace StingTools.Tags
                     TagSymbol = tagSym,
                     TagFamilyName = tagFamName,
                     SampleTag = sampleTag,
-                    ElementCount = catGroup.Count(),
+                    ElementCount = catGroup.Items.Count,
                     ProductCode = prodCode,
                 });
             }
