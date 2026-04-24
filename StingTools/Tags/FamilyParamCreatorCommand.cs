@@ -692,6 +692,18 @@ namespace StingTools.Tags
                     }
                     catch (Exception ex) { StingLog.Warn($"InjectAutomationPresentationPack seed '{lodParam}': {ex.Message}"); }
                 }
+
+                // Pack 124 / Gap F — stamp pack version on the family's
+                // ProjectInformation. Lets coordinators see which families
+                // need re-injection when the next pack ships.
+                try
+                {
+                    StingTools.Core.Storage.StingPackVersionSchema.Write(
+                        famDoc,
+                        StingTools.Core.Storage.StingPackVersionSchema.CurrentPackVersion,
+                        added);
+                }
+                catch (Exception pvEx) { StingLog.Warn($"PackVersion stamp: {pvEx.Message}"); }
             }
             catch (Exception ex)
             {

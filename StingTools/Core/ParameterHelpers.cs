@@ -1827,6 +1827,27 @@ namespace StingTools.Core
             try { ParameterHelpers.SetInt(el, ParamRegistry.SYS_DETECT_LAYER, sysLayer); }
             catch (Exception ex) { StingLog.Warn($"advisory — parameter may not be bound yet: {ex.Message}"); }
 
+            // Pack 124 / Gap G — token lineage. Captures where LOC/ZONE/SYS
+            // were derived from so audit panels can answer "why is this in
+            // BLD2 not BLD3?" without combing StingLog. Best-effort write.
+            try
+            {
+                string locSrc  = result.LocDetected  ? "spatial-auto" : (string.IsNullOrEmpty(loc)  ? "" : "project-info");
+                string zoneSrc = result.ZoneDetected ? "spatial-auto" : (string.IsNullOrEmpty(zone) ? "" : "default");
+                string sysSrc  = sysLayer switch
+                {
+                    1 => "category",
+                    2 => "mep-system",
+                    3 => "connector",
+                    4 => "name-keyword",
+                    5 => "type-name",
+                    6 => "family-default",
+                    _ => "fallback",
+                };
+                StingTools.Core.Storage.StingTokenLineageSchema.Stamp(el, locSrc, zoneSrc, sysSrc);
+            }
+            catch (Exception lnEx) { StingLog.Warn($"Token lineage stamp: {lnEx.Message}"); }
+
             // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
             // Guaranteed default: derive from SYS via FuncMap when smart detection is empty
             string func = TagConfig.GetSmartFuncCode(el, sys);

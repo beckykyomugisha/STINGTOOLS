@@ -33,9 +33,28 @@ namespace StingTools.Core.Routing
             try { type = el.Document.GetElement(el.GetTypeId()); } catch { }
             Element primary = type ?? el;
 
-            r.ConnectorCount   = ReadInt(primary, "CONN_COUNT_INT");
-            r.ConnectorTypes   = ReadString(primary, "CONN_TYPES_TXT");
-            r.PreferredDropDir = ReadString(primary, "PREF_DROP_DIR_TXT");
+            // Pack 124 / Gap H — Extensible Storage first for connector meta.
+            // Typed list + count + drop-direction in a single Entity read; falls
+            // back to the legacy CONN_*_TXT shared parameters when ES is empty.
+            try
+            {
+                var meta = StingTools.Core.Storage.StingConnectorMetaSchema.Read(primary)
+                        ?? StingTools.Core.Storage.StingConnectorMetaSchema.Read(el);
+                if (meta != null)
+                {
+                    if (meta.Count > 0) r.ConnectorCount = meta.Count;
+                    if (meta.Types != null && meta.Types.Count > 0)
+                        r.ConnectorTypes = string.Join(",", meta.Types);
+                    if (!string.IsNullOrEmpty(meta.PreferredDropDir))
+                        r.PreferredDropDir = meta.PreferredDropDir;
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"RoutingParamReader.ES connector-meta: {ex.Message}"); }
+
+            if (r.ConnectorCount == 0)                       r.ConnectorCount   = ReadInt(primary, "CONN_COUNT_INT");
+            if (string.IsNullOrEmpty(r.ConnectorTypes))      r.ConnectorTypes   = ReadString(primary, "CONN_TYPES_TXT");
+            if (string.IsNullOrEmpty(r.PreferredDropDir))    r.PreferredDropDir = ReadString(primary, "PREF_DROP_DIR_TXT");
+
             r.SlopeMinPct      = ReadNumber(primary, "SLOPE_MIN_PCT");
             r.SlopeMaxPct      = ReadNumber(primary, "SLOPE_MAX_PCT");
             r.FillMaxPct       = ReadNumber(primary, "FILL_MAX_PCT");
