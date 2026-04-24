@@ -63,19 +63,16 @@ namespace StingTools.Commands.Fabrication
             var uidoc = ctx.UIDoc;
 
             // Scope resolution — Fabrication sub-tab radio buttons drive
-            // which MEP elements feed the engine. Selection (default)
-            // means "current uidoc selection"; Active view means "all
-            // MEP curves visible in the active view"; Project means
-            // "every MEP curve in the document".
-            var ids = CollectScope(doc, uidoc);
+            // which MEP elements feed the engine. Delegated to the
+            // shared FabricationScope resolver so the smart fallback
+            // (Selection empty → Active view) applies consistently across
+            // Generate Package, Cut List, Weld Map, and Isometrics.
+            var scope = FabricationScope.Resolve(doc, uidoc);
+            var ids = FabricationScope.FilterByRulesAndCategoryMask(scope, null);
             if (ids == null || ids.Count == 0)
             {
-                string scopeLabel =
-                    FabricationOptions.ScopeProject    ? "project"       :
-                    FabricationOptions.ScopeActiveView ? "active view"   :
-                                                         "current selection";
                 TaskDialog.Show("STING v4 — Generate Fabrication Package",
-                    $"Scope '{scopeLabel}' contains no MEP elements to package.\n\n" +
+                    $"Scope '{scope.ScopeLabel}' contains no MEP elements to package.\n\n" +
                     "FabricationEngine will:\n" +
                     "  1. Group elements per discipline rules (STING_FAB_RULES.json)\n" +
                     "  2. Create AssemblyInstances with SP-{DISC}-{SYS}-{LVL}-{SEQ} naming\n" +
@@ -129,69 +126,6 @@ namespace StingTools.Commands.Fabrication
             }
 
             return Result.Succeeded;
-        }
-
-        private static List<ElementId> CollectScope(Document doc, Autodesk.Revit.UI.UIDocument uidoc)
-        {
-            var ids = new List<ElementId>();
-            var mepCats = new[]
-            {
-                BuiltInCategory.OST_PipeCurves,
-                BuiltInCategory.OST_FlexPipeCurves,
-                BuiltInCategory.OST_PipeFitting,
-                BuiltInCategory.OST_PipeAccessory,
-                BuiltInCategory.OST_DuctCurves,
-                BuiltInCategory.OST_FlexDuctCurves,
-                BuiltInCategory.OST_DuctFitting,
-                BuiltInCategory.OST_DuctAccessory,
-                BuiltInCategory.OST_Conduit,
-                BuiltInCategory.OST_ConduitFitting,
-                BuiltInCategory.OST_CableTray,
-                BuiltInCategory.OST_CableTrayFitting,
-            };
-            try
-            {
-                if (FabricationOptions.ScopeProject)
-                {
-                    var col = new FilteredElementCollector(doc)
-                        .WherePasses(new ElementMulticategoryFilter(mepCats))
-                        .WhereElementIsNotElementType();
-                    foreach (var e in col) ids.Add(e.Id);
-                }
-                else if (FabricationOptions.ScopeActiveView)
-                {
-                    var view = doc.ActiveView;
-                    if (view != null)
-                    {
-                        var col = new FilteredElementCollector(doc, view.Id)
-                            .WherePasses(new ElementMulticategoryFilter(mepCats))
-                            .WhereElementIsNotElementType();
-                        foreach (var e in col) ids.Add(e.Id);
-                    }
-                }
-                else
-                {
-                    var sel = uidoc.Selection.GetElementIds();
-                    if (sel != null)
-                    {
-                        foreach (var id in sel)
-                        {
-                            var el = doc.GetElement(id);
-                            if (el?.Category == null) continue;
-                            int bic = (int)el.Category.Id.Value;
-                            foreach (var c in mepCats)
-                            {
-                                if ((int)c == bic) { ids.Add(id); break; }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"GenerateFabPackage.CollectScope: {ex.Message}");
-            }
-            return ids;
         }
 
         private void ShowResult(FabricationResult res)
