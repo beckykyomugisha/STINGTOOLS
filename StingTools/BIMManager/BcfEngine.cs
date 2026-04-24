@@ -93,6 +93,19 @@ namespace Planscape.Shared.BCF
     /// </summary>
     public static class BcfEngine
     {
+        // ── Logging hook ───────────────────────────────────────────────────
+        //
+        // BcfEngine.cs is compiled into Planscape.Shared.dll (via linked
+        // <Compile Include>), which has no reference to the StingTools
+        // namespace. So we can't call StingTools.Core.StingLog.Warn directly
+        // from here without breaking the server/shared build.
+        //
+        // Instead, expose a nullable Action<string> that the plugin sets once
+        // at app startup (StingToolsApp.OnStartup wires it to StingLog.Warn).
+        // Server-side callers can leave it null — the silent-catch contract
+        // is preserved because Invoke is guarded by the null-conditional.
+        public static Action<string>? Warn { get; set; }
+
         // ── Priority / status / type mappings (kept here so server + plugin share them) ──
 
         internal static readonly Dictionary<string, string> StingToBcfType = new(StringComparer.OrdinalIgnoreCase)
@@ -280,8 +293,8 @@ namespace Planscape.Shared.BCF
                 }
             }
             catch (InvalidDataException) { /* not a ZIP — return whatever we parsed */ }
-            catch (IOException ioEx)     { StingTools.Core.StingLog.Warn($"BcfEngine.Import I/O: {ioEx.Message}"); }
-            catch (Exception ex)         { StingTools.Core.StingLog.Warn($"BcfEngine.Import: {ex.Message}"); }
+            catch (IOException ioEx)     { Warn?.Invoke($"BcfEngine.Import I/O: {ioEx.Message}"); }
+            catch (Exception ex)         { Warn?.Invoke($"BcfEngine.Import: {ex.Message}"); }
 
             return result;
         }
