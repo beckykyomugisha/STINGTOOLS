@@ -305,5 +305,34 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
+
+        /// <summary>
+        /// Canonical "make filename safe" helper — replaces every
+        /// Path.GetInvalidFileNameChars() match (plus optional extras)
+        /// with a single replacement char, trims repeated replacements,
+        /// and clamps to maxLength. Three callers previously rolled their
+        /// own version with subtle differences (BOQTemplateLibrary also
+        /// replaced spaces + slashes; ParameterDiffEngine clamped at 50).
+        /// Pass <paramref name="extraInvalid"/> / <paramref name="maxLength"/>
+        /// to reproduce those behaviours when needed.
+        /// </summary>
+        public static string MakeSafeFileName(string name, char replacement = '_',
+            char[] extraInvalid = null, int maxLength = 0, string fallback = "item")
+        {
+            if (string.IsNullOrEmpty(name)) return fallback;
+            var invalid = Path.GetInvalidFileNameChars();
+            var arr = new char[name.Length];
+            for (int i = 0; i < name.Length; i++)
+            {
+                char c = name[i];
+                bool isInvalid = Array.IndexOf(invalid, c) >= 0
+                    || (extraInvalid != null && Array.IndexOf(extraInvalid, c) >= 0);
+                arr[i] = isInvalid ? replacement : c;
+            }
+            string r = new string(arr).Trim(replacement);
+            if (string.IsNullOrEmpty(r)) r = fallback;
+            if (maxLength > 0 && r.Length > maxLength) r = r.Substring(0, maxLength);
+            return r;
+        }
     }
 }

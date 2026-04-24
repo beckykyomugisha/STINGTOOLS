@@ -259,11 +259,7 @@ namespace StingTools.BIMManager
         }
 
         private static string SanitizeFileName(string name)
-        {
-            foreach (char c in Path.GetInvalidFileNameChars())
-                name = name.Replace(c, '_');
-            return name.Length > 50 ? name.Substring(0, 50) : name;
-        }
+            => OutputLocationHelper.MakeSafeFileName(name, maxLength: 50);
     }
 
     // ── Data types ──
