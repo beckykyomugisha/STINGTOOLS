@@ -79,10 +79,26 @@ namespace StingTools.Temp
 
             // ── Execute automation pipeline ──────────────────────────
 
-            StingLog.Info("Project Setup Wizard: starting comprehensive automation");
+            StingLog.Info("Project Setup Wizard: starting comprehensive automation" +
+                          (data.FastMode ? " (FAST mode)" : "") +
+                          (data.SuspendUIUpdates ? " + UI-suspend" : ""));
             var report = new StringBuilder();
             report.AppendLine("STING Project Setup Wizard Results");
             report.AppendLine(new string('═', 55));
+
+            // Apply title block selections to TagConfig BEFORE any sheet/template step reads them.
+            ApplyTitleBlockSelections(doc, data);
+
+            // Pre-scan document for fast-mode skip decisions (counts of existing materials/schedules/templates).
+            var preScan = data.FastMode ? PreScan(doc) : null;
+            if (preScan != null)
+                report.AppendLine($"  Fast-mode pre-scan: {preScan.Materials} materials, {preScan.Schedules} schedules, {preScan.Templates} templates, {preScan.Views} views");
+
+            // Suspend UI: switch to a lightweight drafting view so Revit does not regen the active
+            // view on every transaction (single biggest win on heavy models).
+            View originalView = null;
+            if (data.SuspendUIUpdates)
+                originalView = TrySuspendUI(uidoc);
 
             int stepNum = 0;
             int passed = 0;
@@ -230,10 +246,22 @@ namespace StingTools.Temp
                 // Step: Create BLE + MEP Materials
                 if (data.CreateMaterials)
                 {
-                    passed += RunStep(ref stepNum, report, "Create BLE Materials (815)",
-                        () => RunCommand(new CreateBLEMaterialsCommand(), commandData, elements));
-                    passed += RunStep(ref stepNum, report, "Create MEP Materials (464)",
-                        () => RunCommand(new CreateMEPMaterialsCommand(), commandData, elements));
+                    // Fast-mode: if materials already populated (>=1000 of expected 1,279), skip the
+                    // bulk imports. These two steps alone dominate setup time on empty projects.
+                    if (preScan != null && preScan.Materials >= 1000)
+                    {
+                        stepNum += 2;
+                        report.AppendLine($"  {stepNum - 1,2}. Create BLE Materials — SKIPPED (fast: {preScan.Materials} materials present)");
+                        report.AppendLine($"  {stepNum,2}. Create MEP Materials — SKIPPED (fast)");
+                        skipped += 2;
+                    }
+                    else
+                    {
+                        passed += RunStep(ref stepNum, report, "Create BLE Materials (815)",
+                            () => RunCommand(new CreateBLEMaterialsCommand(), commandData, elements));
+                        passed += RunStep(ref stepNum, report, "Create MEP Materials (464)",
+                            () => RunCommand(new CreateMEPMaterialsCommand(), commandData, elements));
+                    }
                 }
                 else
                 {
@@ -272,10 +300,21 @@ namespace StingTools.Temp
                 // Step: Batch Create Schedules
                 if (data.CreateSchedules)
                 {
-                    passed += RunStep(ref stepNum, report, "Batch Create Schedules (168)",
-                        () => RunCommand(new BatchSchedulesCommand(), commandData, elements));
-                    passed += RunStep(ref stepNum, report, "Create Template Schedules (13)",
-                        () => RunCommand(new CreateTemplateSchedulesCommand(), commandData, elements));
+                    // Fast-mode: if >=140 schedules already exist (out of 168 target), skip the bulk import.
+                    if (preScan != null && preScan.Schedules >= 140)
+                    {
+                        stepNum += 2;
+                        report.AppendLine($"  {stepNum - 1,2}. Batch Create Schedules — SKIPPED (fast: {preScan.Schedules} schedules present)");
+                        report.AppendLine($"  {stepNum,2}. Create Template Schedules — SKIPPED (fast)");
+                        skipped += 2;
+                    }
+                    else
+                    {
+                        passed += RunStep(ref stepNum, report, "Batch Create Schedules (168)",
+                            () => RunCommand(new BatchSchedulesCommand(), commandData, elements));
+                        passed += RunStep(ref stepNum, report, "Create Template Schedules (13)",
+                            () => RunCommand(new CreateTemplateSchedulesCommand(), commandData, elements));
+                    }
                 }
                 else
                 {
@@ -289,7 +328,12 @@ namespace StingTools.Temp
                 // ════════════════════════════════════════════════════
                 report.AppendLine("\n── Phase 3: Standards ──");
 
-                if (data.UseLatestTemplateSetup)
+                // Fast-mode: if templates are already populated (≥20 STING templates), skip the whole pipeline.
+                bool skipTemplatePipeline = preScan != null && preScan.Templates >= 20;
+                if (skipTemplatePipeline)
+                    report.AppendLine($"  (fast mode: {preScan.Templates} view templates present — skipping Phase 3 standards)");
+
+                if (data.UseLatestTemplateSetup && !skipTemplatePipeline)
                 {
                     // Latest 15-step TemplateSetupWizard ordering (matches TemplateManagerCommands.cs)
                     report.AppendLine("  (latest Template Setup pipeline)");
@@ -317,6 +361,12 @@ namespace StingTools.Temp
                         () => RunCommand(new BatchAddFamilyParamsCommand(), commandData, elements));
                     passed += RunStep(ref stepNum, report, "Template Metadata Schedules",
                         () => RunCommand(new CreateTemplateSchedulesCommand(), commandData, elements));
+                }
+                else if (skipTemplatePipeline)
+                {
+                    stepNum++;
+                    report.AppendLine($"  {stepNum,2}. Template Pipeline — SKIPPED (fast: templates already populated)");
+                    skipped++;
                 }
                 else
                 {
@@ -409,6 +459,13 @@ namespace StingTools.Temp
                     passed += RunStep(ref stepNum, report,
                         $"Create Views ({data.Disciplines.Count} disciplines x {data.Levels.Count} levels)",
                         () => CreateDisciplineViews(doc, data));
+
+                    // Immediately auto-assign view templates to the newly-created views so
+                    // sheet/viewport creation below uses the correct filters, detail level, VG overrides.
+                    // Runs even when UseLatestTemplateSetup=false — existing templates may already match.
+                    passed += RunStep(ref stepNum, report,
+                        "Apply Templates to New Views (auto-match by type/name/phase/level)",
+                        () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
                 }
                 else
                 {
@@ -486,13 +543,33 @@ namespace StingTools.Temp
                 // ════════════════════════════════════════════════════
                 report.AppendLine("\n── Phase 5: Intelligence ──");
 
-                // Auto-assign + auto-fix templates — runs whenever templates are in scope
+                // Second-pass template assignment — catches views that were created later in Phase 4
+                // (sections, elevations, dependents). Auto-fix is always run for template health.
                 bool doTemplatePost = data.UseLatestTemplateSetup || data.CreateTemplates;
-                if (doTemplatePost)
+                // Only run the second pass when Phase 4 actually produced secondary views that
+                // wouldn't have been covered by the first-pass AutoAssign.
+                bool needsSecondPass = data.CreateSections || data.CreateElevations || data.CreateDependents;
+                if (doTemplatePost && needsSecondPass)
                 {
+                    passed += RunStep(ref stepNum, report,
+                        "Second-Pass Template Assignment (sections, elevations, dependents)",
+                        () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
+                }
+                else if (doTemplatePost && !data.CreateViews)
+                {
+                    // Phase 4 didn't create views, so no first pass ran — do it now.
                     passed += RunStep(ref stepNum, report,
                         "Auto-Assign Templates to Views (by view type + name + phase + level)",
                         () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
+                }
+                else
+                {
+                    stepNum++;
+                    report.AppendLine($"  {stepNum,2}. Auto-Assign Templates — SKIPPED (already applied in Phase 4)");
+                    skipped++;
+                }
+                if (doTemplatePost)
+                {
                     passed += RunStep(ref stepNum, report,
                         "Auto-Fix Template Health (fill missing settings per view type)",
                         () => RunCommand(new AutoFixTemplateCommand(), commandData, elements));
@@ -500,15 +577,27 @@ namespace StingTools.Temp
                 else
                 {
                     stepNum++;
-                    report.AppendLine($"  {stepNum,2}. Auto-Assign Templates — SKIPPED");
+                    report.AppendLine($"  {stepNum,2}. Auto-Fix Template Health — SKIPPED");
                     skipped++;
                 }
 
-                // Full auto-populate: tokens + dimensions + MEP + formulas + tags + combine
+                // Full auto-populate: tokens + dimensions + MEP + formulas + tags + combine.
+                // Fast-mode: skip when the model is essentially empty (no taggable instances yet) —
+                // the user will re-run this from the dock panel after modelling.
                 if (data.LoadParams)
                 {
-                    passed += RunStep(ref stepNum, report, "Full Auto-Populate (tokens+dims+MEP+formulas+tags)",
-                        () => RunCommand(new FullAutoPopulateCommand(), commandData, elements));
+                    bool emptyModel = data.FastMode && HasNoTaggableInstances(doc);
+                    if (emptyModel)
+                    {
+                        stepNum++;
+                        report.AppendLine($"  {stepNum,2}. Full Auto-Populate — SKIPPED (fast: no taggable instances yet)");
+                        skipped++;
+                    }
+                    else
+                    {
+                        passed += RunStep(ref stepNum, report, "Full Auto-Populate (tokens+dims+MEP+formulas+tags)",
+                            () => RunCommand(new FullAutoPopulateCommand(), commandData, elements));
+                    }
 
                     // Avoid running BatchAddFamilyParamsCommand twice — Phase 3 already ran it in latest mode.
                     if (!data.UseLatestTemplateSetup)
@@ -521,6 +610,13 @@ namespace StingTools.Temp
                 // Set starting view
                 passed += RunStep(ref stepNum, report, "Set Starting View",
                     () => SetStartingView(doc));
+
+                // Restore original active view (reverse of TrySuspendUI at the top of Execute).
+                if (originalView != null)
+                {
+                    try { uidoc.ActiveView = originalView; }
+                    catch (Exception ex) { StingLog.Warn($"Restore active view failed: {ex.Message}"); }
+                }
 
                 // ── Finalize ─────────────────────────────────────────
 
@@ -1478,6 +1574,188 @@ namespace StingTools.Temp
         {
             string msg = "";
             return cmd.Execute(data, ref msg, elems);
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // Title block + performance helpers
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Quick check: does the document contain any instances of the primary
+        /// taggable MEP/architectural categories? Used to short-circuit the very expensive
+        /// FullAutoPopulate step on a fresh project.</summary>
+        private static bool HasNoTaggableInstances(Document doc)
+        {
+            try
+            {
+                // Sample a handful of representative categories — full list is 22 BuiltInCategories
+                // but any one of these is a good signal the model has real content.
+                var bics = new[]
+                {
+                    BuiltInCategory.OST_Walls,
+                    BuiltInCategory.OST_Doors,
+                    BuiltInCategory.OST_DuctCurves,
+                    BuiltInCategory.OST_PipeCurves,
+                    BuiltInCategory.OST_LightingFixtures,
+                    BuiltInCategory.OST_ElectricalFixtures,
+                    BuiltInCategory.OST_Rooms
+                };
+                foreach (var bic in bics)
+                {
+                    int count = new FilteredElementCollector(doc)
+                        .OfCategory(bic)
+                        .WhereElementIsNotElementType()
+                        .GetElementCount();
+                    if (count > 0) return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"HasNoTaggableInstances: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>Snapshot of existing document state for fast-mode skip decisions.</summary>
+        private class DocPreScan
+        {
+            public int Materials;
+            public int Schedules;
+            public int Templates;
+            public int Views;
+        }
+
+        /// <summary>Quick scan of the document so fast-mode can skip steps that are already done.</summary>
+        private static DocPreScan PreScan(Document doc)
+        {
+            try
+            {
+                var scan = new DocPreScan
+                {
+                    Materials = new FilteredElementCollector(doc).OfClass(typeof(Material)).GetElementCount(),
+                    Schedules = new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule))
+                        .Cast<ViewSchedule>().Count(vs => !vs.IsTemplate && !vs.IsTitleblockRevisionSchedule),
+                    Templates = new FilteredElementCollector(doc).OfClass(typeof(View))
+                        .Cast<View>().Count(v => v.IsTemplate),
+                    Views = new FilteredElementCollector(doc).OfClass(typeof(View))
+                        .Cast<View>().Count(v => !v.IsTemplate)
+                };
+                StingLog.Info($"ProjectSetup pre-scan: materials={scan.Materials}, schedules={scan.Schedules}, templates={scan.Templates}, views={scan.Views}");
+                return scan;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ProjectSetup pre-scan failed: {ex.Message}");
+                return new DocPreScan();
+            }
+        }
+
+        /// <summary>Apply wizard title block selections to the document + TagConfig so
+        /// downstream sheet-creation commands honour the user's choice. Activates selected
+        /// title block symbols so they are ready to place.</summary>
+        private static void ApplyTitleBlockSelections(Document doc, ProjectSetupData data)
+        {
+            try
+            {
+                var allTbs = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol))
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .Cast<FamilySymbol>()
+                    .ToList();
+
+                // Resolve "Family : Type" (from wizard dropdowns) → FamilySymbol.
+                FamilySymbol Resolve(string familyAndType)
+                {
+                    if (string.IsNullOrEmpty(familyAndType)) return null;
+                    return allTbs.FirstOrDefault(fs =>
+                        string.Equals($"{fs.FamilyName} : {fs.Name}", familyAndType, StringComparison.OrdinalIgnoreCase));
+                }
+
+                // Build a disc → FamilySymbol map to activate + publish.
+                var discMap = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
+                if (data.TitleBlockByDiscipline != null)
+                {
+                    foreach (var kv in data.TitleBlockByDiscipline)
+                    {
+                        var fs = Resolve(kv.Value);
+                        if (fs != null) discMap[kv.Key] = fs;
+                    }
+                }
+                var defaultTb = Resolve(data.TitleBlockName);
+
+                // Activate selected symbols so sheet creation can use them immediately.
+                using (Transaction tx = new Transaction(doc, "STING Activate Title Blocks"))
+                {
+                    tx.Start();
+                    foreach (var fs in discMap.Values.Concat(new[] { defaultTb }).Where(x => x != null).Distinct())
+                    {
+                        try { if (!fs.IsActive) fs.Activate(); }
+                        catch (Exception ex) { StingLog.Warn($"Activate title block '{fs.FamilyName}': {ex.Message}"); }
+                    }
+                    tx.Commit();
+                }
+
+                // Publish to TagConfig for downstream sheet-creation commands.
+                if (defaultTb != null)
+                    TagConfig.PreferredTitleBlockFamily = defaultTb.FamilyName;
+                TitleBlockRouter.ByDiscipline = discMap.ToDictionary(
+                    kv => kv.Key,
+                    kv => kv.Value.Id,
+                    StringComparer.OrdinalIgnoreCase);
+                TitleBlockRouter.DefaultId = defaultTb?.Id ?? ElementId.InvalidElementId;
+
+                StingLog.Info($"Title block routing: default='{defaultTb?.FamilyName ?? "(first available)"}', " +
+                              $"disc-overrides={discMap.Count}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ApplyTitleBlockSelections failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>Switch the active view to a lightweight drafting view so Revit does not
+        /// regenerate the active view on every transaction. Returns the original view so
+        /// it can be restored at the end of Execute.</summary>
+        private static View TrySuspendUI(UIDocument uidoc)
+        {
+            try
+            {
+                Document doc = uidoc.Document;
+                View original = uidoc.ActiveView;
+                if (original == null || original is ViewSchedule) return original;
+
+                // Find or create a hidden drafting view to park on during setup.
+                ViewDrafting parking = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewDrafting))
+                    .Cast<ViewDrafting>()
+                    .FirstOrDefault(v => !v.IsTemplate && string.Equals(v.Name, "STING_Setup_Parking", StringComparison.OrdinalIgnoreCase));
+
+                if (parking == null)
+                {
+                    ViewFamilyType vft = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ViewFamilyType))
+                        .Cast<ViewFamilyType>()
+                        .FirstOrDefault(v => v.ViewFamily == ViewFamily.Drafting);
+                    if (vft == null) return original;
+
+                    using (Transaction tx = new Transaction(doc, "STING Create Setup Parking View"))
+                    {
+                        tx.Start();
+                        parking = ViewDrafting.Create(doc, vft.Id);
+                        try { parking.Name = "STING_Setup_Parking"; } catch { }
+                        tx.Commit();
+                    }
+                }
+
+                uidoc.ActiveView = parking;
+                StingLog.Info($"UI suspended: parked on '{parking.Name}', will restore '{original.Name}' at end");
+                return original;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TrySuspendUI failed: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>Execute a step with timing and error handling.</summary>
