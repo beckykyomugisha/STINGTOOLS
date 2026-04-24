@@ -268,10 +268,19 @@ namespace StingTools.UI
                     case "Mep_NamingAudit":     RunCommand<Commands.Mep.MepNamingAuditCommand>(app); break;
 
                     // ── v4 MVP: fabrication (Phase 5) ──
-                    case "Fabrication_GeneratePackage": RunCommand<Commands.Fabrication.GenerateFabPackageCommand>(app); break;
-                    case "Fabrication_ExportCutList":   RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;
-                    case "Fabrication_ExportIsometrics":RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
-                    case "Fabrication_ExportWeldMap":   RunCommand<Commands.Fabrication.ExportWeldMapCommand>(app); break;
+                    // All four tab buttons now open the unified Fabrication
+                    // Workspace dialog — scope preview + per-category
+                    // include/exclude + per-row DataGrid preview + inline
+                    // title block / view template picker. The dialog's
+                    // action buttons run the old engine paths via
+                    // FabricationActionRunner so behaviour is identical to
+                    // the legacy commands below (still registered for any
+                    // shortcut / ribbon binding that targets them directly).
+                    case "Fabrication_GeneratePackage": OpenFabWorkspace(app, UI.FabAction.GeneratePackage); break;
+                    case "Fabrication_ExportCutList":   OpenFabWorkspace(app, UI.FabAction.CutList);        break;
+                    case "Fabrication_ExportIsometrics":OpenFabWorkspace(app, UI.FabAction.Isometrics);     break;
+                    case "Fabrication_ExportWeldMap":   OpenFabWorkspace(app, UI.FabAction.WeldMap);        break;
+                    case "Fabrication_OpenWorkspace":   OpenFabWorkspace(app, UI.FabAction.GeneratePackage); break;
                     case "Fabrication_ExportMaj":       RunCommand<Commands.Fabrication.ExportMajCommand>(app); break;
                     case "Fabrication_ExportPcf":       RunCommand<Commands.Fabrication.ExportPcfCommand>(app); break;
 
@@ -3029,6 +3038,10 @@ namespace StingTools.UI
                     case "ExportMilestones": RunCommand<BIMManager.MilestoneRegisterCommand>(app); break;
                     case "ExportCashFlow": RunCommand<BIMManager.CashFlow5DCommand>(app); break;
                     case "SaveWorkingCalendar": RunCommand<BIMManager.WorkingCalendarCommand>(app); break;
+                    case "ExportTimeline4DPNG":     ExportTimeline4DPng(app); break;
+
+                    // ── Reports ──
+                    case "ExportReport":            RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
 
                     // ── Model Health ──
                     case "FixContainers": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
@@ -3310,6 +3323,25 @@ namespace StingTools.UI
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"SM refresh dispatch failed: {ex.Message}"); }
+            }
+        }
+
+        // ── Fabrication workspace launcher ────────────────────────────
+
+        private static void OpenFabWorkspace(UIApplication app, UI.FabAction initial)
+        {
+            try
+            {
+                var uidoc = app?.ActiveUIDocument;
+                if (uidoc?.Document == null) { TaskDialog.Show("STING v4", "Open a project first."); return; }
+                var dlg = new UI.FabricationWorkspaceDialog(uidoc, initial);
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                dlg.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OpenFabWorkspace failed", ex);
+                TaskDialog.Show("STING v4 — Fabrication", $"Workspace failed to open:\n{ex.Message}");
             }
         }
 
@@ -7723,6 +7755,16 @@ namespace StingTools.UI
         {
             StingLog.Info("View snapshot captured for issue");
             SetExtraParam("IssueSnapshot", "captured");
+        }
+
+        private static void ExportTimeline4DPng(UIApplication app)
+        {
+            // Push result to BCC inline panel; file export via SchedulingCostDashboard
+            BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Export Timeline PNG",
+                "Timeline image export: open the 4D Timeline view, then use\n" +
+                "File → Export → Image to save as PNG.\n\n" +
+                "Automated PNG render will be available in a future phase.");
+            StingLog.Info("ExportTimeline4DPNG dispatched");
         }
 
         private static void ImportTeamFromCsv(UIApplication app)
