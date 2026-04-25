@@ -1,0 +1,101 @@
+{
+  "Version": "v4",
+  "Description": "PC-18 / PC-20 — healthcare & education baseline (Specialty / Medical equipment, Nurse Call, classroom IFP, BB103 fixtures). Cited against HTM 02-01, HTM 06-01, HTM 08-03, HBN 04-01, BB103, WELL v2.",
+  "Rules": [
+    {
+      "RuleId": "hc-bedhead-trunking",
+      "CategoryFilter": "Specialty Equipment",
+      "RoomFilter": "(?i)ward|bedroom|patient",
+      "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1400.0,
+      "OffsetXMm": 0.0, "MaxPerRoom": 1, "Priority": 80,
+      "VariantHint": "BEDHEAD,TRUNKING",
+      "StandardRef": "HTM 02-01 / HTM 08-03",
+      "Notes": "Bedhead trunking centred above bed; 4-gas medical services."
+    },
+    {
+      "RuleId": "hc-oxygen-suction-outlet",
+      "CategoryFilter": "Specialty Equipment",
+      "RoomFilter": "(?i)ward|patient|treatment",
+      "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1500.0,
+      "OffsetXMm": -300.0, "SideConstraint": "RIGHT",
+      "DependsOn": "hc-bedhead-trunking", "RelativeTo": "previous",
+      "MaxPerRoom": 1, "Priority": 75,
+      "VariantHint": "O2,SUCTION,4GAS",
+      "StandardRef": "HTM 02-01",
+      "Notes": "Oxygen + suction outlets at 1500 mm AFF beside bedhead."
+    },
+    {
+      "RuleId": "hc-ceiling-pendant",
+      "CategoryFilter": "Specialty Equipment",
+      "RoomFilter": "(?i)theatre|operating|recovery|treatment",
+      "AnchorType": "ROOM_CENTRE", "MountingHeightMm": 0.0,
+      "OffsetXMm": 0.0, "MaxPerRoom": 1, "Priority": 90,
+      "VariantHint": "PENDANT",
+      "StandardRef": "HTM 02-01 / HBN 26", "Notes": "Surgical ceiling pendant at theatre centre."
+    },
+    {
+      "RuleId": "hc-nurse-call-reset",
+      "CategoryFilter": "Nurse Call Devices",
+      "RoomFilter": "(?i)ward|patient",
+      "AnchorType": "DOOR_JAMB", "MountingHeightMm": 1400.0,
+      "OffsetXMm": -200.0, "SideConstraint": "RIGHT",
+      "MaxPerRoom": 1, "Priority": 75, "StandardRef": "HTM 08-03",
+      "VariantHint": "RESET",
+      "Notes": "Reset / over-door indicator beside ward-room door."
+    },
+    {
+      "RuleId": "hc-furniture-bed-clearance",
+      "CategoryFilter": "Furniture",
+      "RoomFilter": "(?i)ward|bedroom|patient",
+      "AnchorType": "ROOM_CENTRE", "MinSpacingMm": 600.0,
+      "MaxPerRoom": 1, "Priority": 70, "StandardRef": "HBN 04-01",
+      "VariantHint": "BED",
+      "Notes": "Hospital bed centred with 600 mm transfer clearance both sides."
+    },
+    {
+      "RuleId": "ed-classroom-ifp",
+      "CategoryFilter": "Specialty Equipment",
+      "RoomFilter": "(?i)classroom|teaching", "AnchorType": "WALL_MIDPOINT",
+      "MountingHeightMm": 1100.0, "OffsetXMm": 0.0,
+      "SideConstraint": "FRONT", "MaxPerRoom": 1, "Priority": 70,
+      "VariantHint": "IFP,WHITEBOARD",
+      "StandardRef": "BB103",
+      "Notes": "Interactive flat panel front-of-room, 1100 mm AFF (KS3+)."
+    },
+    {
+      "RuleId": "ed-classroom-ifp-ks1",
+      "CategoryFilter": "Specialty Equipment",
+      "RoomFilter": "(?i)classroom.*(reception|year *1|year *2|ks1|infant)",
+      "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 800.0,
+      "SideConstraint": "FRONT", "MaxPerRoom": 1, "Priority": 80,
+      "VariantHint": "IFP,WHITEBOARD",
+      "StandardRef": "BB103 KS1",
+      "Notes": "Lower IFP for KS1 — 800 mm AFF."
+    },
+    {
+      "RuleId": "ed-casework-cloak",
+      "CategoryFilter": "Casework",
+      "RoomFilter": "(?i)cloak|cloakroom", "AnchorType": "PERIMETER_OFFSET",
+      "RuleKind": "Linear", "PerLinearMetre": 0.4, "MountingHeightMm": 1500.0,
+      "MaxPerRoom": 0, "Priority": 55, "StandardRef": "BB103",
+      "Notes": "Coat / locker run at 400 mm centres."
+    },
+    {
+      "RuleId": "ed-data-teacher-wallplate",
+      "CategoryFilter": "Data Devices",
+      "RoomFilter": "(?i)classroom|lecture|teaching",
+      "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1200.0,
+      "DependsOn": "ed-classroom-ifp", "RelativeTo": "previous",
+      "OffsetXMm": -1500.0, "SideConstraint": "FRONT",
+      "MaxPerRoom": 1, "Priority": 65, "StandardRef": "BB103 / BICSI",
+      "Notes": "Teacher wall-plate (HDMI + RJ45) beside IFP."
+    },
+    {
+      "RuleId": "ed-furniture-canteen-density",
+      "CategoryFilter": "Furniture", "RuleKind": "Density",
+      "RoomFilter": "(?i)dining|canteen", "AnchorType": "ROOM_CENTRE",
+      "PerOccupant": 1.0, "MaxPerRoom": 0, "Priority": 60, "StandardRef": "BB103",
+      "Notes": "1 dining seat per pupil at peak sitting."
+    }
+  ]
+}
