@@ -309,32 +309,76 @@ namespace StingTools.UI
             return host;
         }
 
+        // Single source of truth for every title-block action surfaced
+        // anywhere in the plugin. Consolidates Phase-97 commands, repair
+        // utilities, sheet-context revision tools, transmittal stamps and
+        // pre-export gating — so the user never has to leave this dialog
+        // to operate on title blocks.
         private UIElement BuildTitleBlockTab()
         {
             var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var stack = new StackPanel { Margin = new Thickness(8) };
-            stack.Children.Add(SectionCard("Title Block (Phase 97)", new (string,string)[]
+
+            // ── Authoring (Phase 97 STING TB System v1.0) ──
+            stack.Children.Add(SectionCard("Authoring (Phase 97 — TITLE_BLOCK.csv)", new (string,string)[]
             {
                 ("Edit CSV…",      "TitleBlockEditCsv"),
                 ("Populate",       "TitleBlockPopulate"),
                 ("Validate",       "TitleBlockValidate"),
                 ("Set Variant",    "TitleBlockSetVariant"),
                 ("Legend Bind",    "DisciplineLegendBind"),
-                ("Count Sheets",   "SheetCountAutoUpdate"),
-                ("Revision Sync",  "RevisionSync"),
-                ("Stamp TX",       "TransmittalAutoIssue"),
                 ("Pre-Export",     "PreExportValidate"),
             }));
-            stack.Children.Add(SectionCard("Repair", new (string,string)[]
+
+            // ── Sheet identity (counts, transmittals, swap) ──
+            stack.Children.Add(SectionCard("Sheet identity & transmittal", new (string,string)[]
             {
-                ("Reset Position", "TitleBlockReset"),
-                ("Rescue",         "TitleBlockRescue"),
+                ("Count Sheets",   "SheetCountAutoUpdate"),
+                ("Stamp TX",       "TransmittalAutoIssue"),
+                ("Transmittal",    "Transmittal"),
+                ("Swap Title Block","SwapTitleBlock"),
+                ("Set Variant",    "TitleBlockSetVariant"),
             }));
+
+            // ── Revision tools that stamp the title block ──
+            stack.Children.Add(SectionCard("Revision (writes to PRJ_TB_REVISION_*)", new (string,string)[]
+            {
+                ("Revision Sync",        "RevisionSync"),
+                ("Auto Rev Cloud",       "RevisionCloudAuto"),
+                ("Show Clouds",          "RevShowClouds"),
+                ("Show Tags",            "RevShowTags"),
+                ("Rev Naming Check",     "RevisionNamingEnforce"),
+                ("Rev Tag Integration",  "RevisionTagIntegration"),
+                ("Rev Schedule",         "RevisionSchedule"),
+                ("Rev Dashboard",        "RevisionDashboard"),
+                ("Rev Compare",          "RevisionCompare"),
+                ("Rev Export",           "RevisionExport"),
+            }));
+
+            // ── Repair / first-aid ──
+            stack.Children.Add(SectionCard("Repair & first-aid", new (string,string)[]
+            {
+                ("Reset Position",   "TitleBlockReset"),
+                ("Rescue",           "TitleBlockRescue"),
+                ("Transmittal Gate", "TransmittalGateCheck"),
+            }));
+
+            // ── Author kit (file map + nested-family pointers) ──
             stack.Children.Add(InfoCard(
-                "Tip — for the layered author guide (cover page, start-up page, fabrication, " +
-                "technical / client / IFC / IFT / as-built / authority / marketing variants, plus " +
-                "every TB_/PRJ_TB_ shared parameter explained) see " +
-                "docs/guides/TITLE_BLOCK_CREATION_GUIDE.md."));
+                "Author kit (15 .rfa families): COVER_A3 · STARTUP_A3 · ASSEMBLY_PIPE · " +
+                "ASSEMBLY_DUCT · ASSEMBLY_COND · ASSEMBLY_HANGER · TECHNICAL_A1 · CLIENT_A1 · " +
+                "IFC_A1 · IFT_A1 · AS_BUILT_A1 · SUBMISSION_KCCA · SUBMISSION_ERA · " +
+                "SUBMISSION_NEMA · MARKETING_A2.\n\n" +
+                "Each family carries 37 TB_ family parameters (drawable zone, slots, reserved " +
+                "regions, nested-family pointers, visibility toggles, authority code, version " +
+                "stamp). The project carries 37 PRJ_TB_ project-info parameters that the kit " +
+                "auto-fills.\n\n" +
+                "Step-by-step layman guide → docs/guides/TITLE_BLOCK_CREATION_GUIDE.md\n" +
+                "Per-discipline default values → StingTools/Data/TITLE_BLOCK.csv\n" +
+                "Visual style packs (corp-base, fabrication-shop, technical-presentation, " +
+                "client-presentation, construction-issue, tender-issue, as-built, " +
+                "authority-submission, marketing-render) → StingTools/Data/STING_VIEW_STYLE_PACKS.json"));
+
             host.Content = stack;
             return host;
         }
