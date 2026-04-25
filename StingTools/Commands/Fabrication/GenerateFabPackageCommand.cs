@@ -85,22 +85,16 @@ namespace StingTools.Commands.Fabrication
             }
             StingLog.Info($"GenerateFabPackage: collected {ids.Count} element(s) via {scopeLabelUsed} scope.");
 
-            // Shop-drawing composition dialog — lets users pick a
-            // specific title block + view template + sheet-number
-            // pattern instead of the per-discipline STING_TB_ASSEMBLY_*
-            // default. Cancelling the dialog aborts the command.
-            //
-            // Skipped when the Fabrication tab's "Configure…" button has
-            // already populated FabricationOptions.ShopDrawing — that
-            // inline picker is the persistent path; the popup is only the
-            // one-shot fallback when no panel choice exists.
-            if (FabricationOptions.GenerateSheets && FabricationOptions.ShopDrawing == null)
-            {
-                var dlg = new StingTools.UI.ShopDrawingOptionsDialog(doc);
-                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
-                FabricationOptions.ShopDrawing = dlg.Result;
-            }
+            // Shop-drawing composition is now configured up front via the
+            // Fabrication Workspace (Configure… button on the Title Block
+            // strip) or the dock panel's Configure… button — both
+            // populate FabricationOptions.ShopDrawing for the Revit
+            // session. When ShopDrawing is null the engine falls back to
+            // per-discipline STING_TB_ASSEMBLY_* auto-resolution, so we
+            // no longer pop a one-shot picker mid-command (which used to
+            // surface the basic Shop Drawing Composition dialog every
+            // time the user clicked Generate Package without first
+            // configuring).
 
             FabricationResult res;
             try

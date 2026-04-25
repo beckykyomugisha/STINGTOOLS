@@ -1,20 +1,17 @@
-// StingTools v4 MVP — Fabrication Workspace dialog.
+// StingTools v4 MVP — Fabrication Workspace dialog (light-themed, rich).
 //
-// Light-themed corporate workspace mirroring the DrawingTypeEditorDialog
-// pattern: 2-column grid (left = preset / scope / filter cards;
-// right = output / content-mode / title-block cards), plus a footer
-// row of action buttons (Generate package, Cut list, Weld map,
-// Isometrics, PCF, MAJ, BOM roll-up, Doc Register link, Close).
+// Replaces the old single-pane "Configure" dialog with the full
+// workspace from the spec: PRESET row, SCOPE row with live category
+// breakdown + per-discipline summary + system / level filters, a
+// tabbed body (Package / Cut list / Weld map / Isometrics / PCF /
+// MAJ) and a footer strip wiring every fabrication export.
 //
-// All state is funnelled through StingTools.Commands.Fabrication.
-// FabricationOptions before the underlying commands are dispatched
-// via the IExternalEventHandler / Cmd_Click pipeline. Pressing an
-// action button raises the matching Fabrication_* tag on the dock
-// panel command handler so the existing IExternalCommand wiring is
-// reused without duplication.
+// All state still flows through StingTools.Commands.Fabrication.
+// FabricationOptions; every action button raises the matching
+// Fabrication_* tag through StingDockPanel.DispatchCommand so the
+// existing IExternalCommand pipeline is reused without duplication.
 //
-// Palette is the same LightPalette used by DrawingTypeEditorDialog
-// — no dark mode anywhere.
+// Light palette only — DarkDialogTheme.LightPalette throughout.
 
 using System;
 using System.Collections.Generic;
@@ -39,48 +36,78 @@ namespace StingTools.UI
 {
     public sealed class FabricationWorkspaceDialog : Window
     {
-        // ── palette (light, contrast-safe — same as DrawingTypeEditorDialog) ──
-        private static readonly Color BgColor     = Color.FromRgb(0xFA, 0xFA, 0xFA);
-        private static readonly Color AccentColor = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color CardBg      = Color.FromRgb(0xFF, 0xFF, 0xFF);
-        private static readonly Color CardBorder  = Color.FromRgb(0xCF, 0xD8, 0xDC);
-        private static readonly Color FgColor     = Color.FromRgb(0x22, 0x22, 0x22);
-        private static readonly Color SubtleColor = Color.FromRgb(0x66, 0x66, 0x66);
-        private static readonly Color GreenBtn    = Color.FromRgb(0x4C, 0xAF, 0x50);
-        private static readonly Color OrangeBtn   = Color.FromRgb(0xFF, 0x98, 0x00);
-        private static readonly Color NeutralBtn  = Color.FromRgb(0xE8, 0xE8, 0xE8);
+        // ── palette (light, contrast-safe) ──
+        private static readonly Color BgColor      = Color.FromRgb(0xFA, 0xFA, 0xFA);
+        private static readonly Color AccentColor  = Color.FromRgb(0xE8, 0x91, 0x2D);
+        private static readonly Color CardBg       = Color.FromRgb(0xFF, 0xFF, 0xFF);
+        private static readonly Color CardBorder   = Color.FromRgb(0xCF, 0xD8, 0xDC);
+        private static readonly Color FgColor      = Color.FromRgb(0x22, 0x22, 0x22);
+        private static readonly Color SubtleColor  = Color.FromRgb(0x66, 0x66, 0x66);
+        private static readonly Color GreenBtn     = Color.FromRgb(0x4C, 0xAF, 0x50);
+        private static readonly Color OrangeBtn    = Color.FromRgb(0xFF, 0x98, 0x00);
+        private static readonly Color NeutralBtn   = Color.FromRgb(0xE8, 0xE8, 0xE8);
+        private static readonly Color AltRowBg     = Color.FromRgb(0xF5, 0xF7, 0xF9);
 
         // ── state ──
         private readonly Document _doc;
 
-        // Preset
-        private ComboBox  _cmbPreset;
+        // PRESET row
+        private ComboBox _cmbPreset;
 
-        // Scope
-        private RadioButton _rbScopeSel;
-        private RadioButton _rbScopeView;
-        private RadioButton _rbScopeProj;
+        // SCOPE row
+        private RadioButton _rbScopeSel, _rbScopeView, _rbScopeProj;
         private TextBlock   _txtScopeStatus;
 
-        // Filter (discipline rules)
+        // CATEGORY breakdown
+        private StackPanel _categoryListHost;
+        private TextBlock  _txtDisciplineSummary;
+        private readonly Dictionary<BuiltInCategory, CategoryRow> _catRows
+            = new Dictionary<BuiltInCategory, CategoryRow>();
+
+        // FILTER (system / level text)
+        private TextBox _txtSystemFilter, _txtLevelFilter;
+
+        // RULES card (collapsed into the filter strip)
         private CheckBox _chkPipe, _chkPipeLB, _chkDuct, _chkDuctPitt, _chkConduit;
 
-        // Output
+        // OUTPUT card
         private CheckBox _chkAssy, _chkViews, _chkSheets, _chkSymbols, _chkCsv;
 
-        // Content mode
+        // CONTENT MODE
         private RadioButton _rbIso6412, _rbGeneric;
 
-        // Title block / view template
+        // Tabs
+        private TabControl _tabs;
+        private StackPanel _packageGridHost;
+        private TextBlock  _packageHeader;
+
+        // Title block strip
         private TextBlock _txtShopDrawingStatus;
+
+        // ── MEP categories — single source of truth ──
+        private static readonly (BuiltInCategory bic, string label, string disc)[] MepCategories =
+        {
+            (BuiltInCategory.OST_PipeCurves,        "Pipes",              "Pipe"),
+            (BuiltInCategory.OST_FlexPipeCurves,    "Flex pipes",         "Pipe"),
+            (BuiltInCategory.OST_PipeFitting,       "Pipe fittings",      "Pipe"),
+            (BuiltInCategory.OST_PipeAccessory,     "Pipe accessories",   "Pipe"),
+            (BuiltInCategory.OST_DuctCurves,        "Ducts",              "Duct"),
+            (BuiltInCategory.OST_FlexDuctCurves,    "Flex ducts",         "Duct"),
+            (BuiltInCategory.OST_DuctFitting,       "Duct fittings",      "Duct"),
+            (BuiltInCategory.OST_DuctAccessory,     "Duct accessories",   "Duct"),
+            (BuiltInCategory.OST_Conduit,           "Conduit",            "Electrical"),
+            (BuiltInCategory.OST_ConduitFitting,    "Conduit fittings",   "Electrical"),
+            (BuiltInCategory.OST_CableTray,         "Cable trays",        "Electrical"),
+            (BuiltInCategory.OST_CableTrayFitting,  "Tray fittings",      "Electrical"),
+        };
 
         public FabricationWorkspaceDialog(Document doc)
         {
             _doc = doc;
 
             Title = "STING v4 — Fabrication Workspace";
-            Width = 1080; Height = 720;
-            MinWidth = 900; MinHeight = 560;
+            Width = 1100; Height = 760;
+            MinWidth = 920; MinHeight = 600;
             Background = new SolidColorBrush(BgColor);
             FontFamily = new FontFamily("Segoe UI");
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -95,262 +122,420 @@ namespace StingTools.UI
 
             Content = BuildLayout();
             HydrateFromOptions();
-            RefreshScopeStatus();
+            RefreshScopeAndCategories();
             RefreshShopDrawingStatus();
+            RefreshPackagePreview();
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  LAYOUT — 2-column grid + footer
+        //  LAYOUT — top header strip + tab body + footer
         // ═══════════════════════════════════════════════════════════════
 
         private UIElement BuildLayout()
         {
-            var root = new Grid { Margin = new Thickness(12) };
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var root = new DockPanel { Margin = new Thickness(12), LastChildFill = true };
 
-            var left = BuildLeftPanel();
-            Grid.SetColumn(left, 0); Grid.SetRow(left, 0);
-            root.Children.Add(left);
-
-            var right = BuildRightPanel();
-            Grid.SetColumn(right, 1); Grid.SetRow(right, 0);
-            root.Children.Add(right);
-
-            var footer = BuildFooter();
-            Grid.SetColumn(footer, 0); Grid.SetRow(footer, 1); Grid.SetColumnSpan(footer, 2);
-            root.Children.Add(footer);
+            var header   = BuildHeaderStrip();    DockPanel.SetDock(header,   Dock.Top);    root.Children.Add(header);
+            var scope    = BuildScopeStrip();     DockPanel.SetDock(scope,    Dock.Top);    root.Children.Add(scope);
+            var cats     = BuildCategoryCard();   DockPanel.SetDock(cats,     Dock.Top);    root.Children.Add(cats);
+            var filters  = BuildFiltersCard();    DockPanel.SetDock(filters,  Dock.Top);    root.Children.Add(filters);
+            var footer   = BuildFooter();         DockPanel.SetDock(footer,   Dock.Bottom); root.Children.Add(footer);
+            var shop     = BuildShopDrawingStrip();DockPanel.SetDock(shop,    Dock.Bottom); root.Children.Add(shop);
+            root.Children.Add(BuildTabBody()); // last child fills remainder
 
             return root;
         }
 
-        // ─── Left panel ─────────────────────────────────────────────────
+        // ─── Top: PRESET row ────────────────────────────────────────────
 
-        private UIElement BuildLeftPanel()
+        private UIElement BuildHeaderStrip()
         {
-            var scroll = new ScrollViewer
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var lbl = new TextBlock
             {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Margin = new Thickness(0, 0, 8, 0),
+                Text = "PRESET",
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(AccentColor),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
             };
-            var stack = new StackPanel();
-            stack.Children.Add(BuildPresetCard());
-            stack.Children.Add(BuildScopeCard());
-            stack.Children.Add(BuildFilterCard());
-            scroll.Content = stack;
-            return scroll;
-        }
+            Grid.SetColumn(lbl, 0);
+            grid.Children.Add(lbl);
 
-        private UIElement BuildPresetCard()
-        {
-            var body = new StackPanel();
-
-            _cmbPreset = new ComboBox { Height = 24, IsEditable = true };
+            _cmbPreset = new ComboBox { Height = 24, IsEditable = true, Margin = new Thickness(0, 0, 8, 0) };
             DarkDialogTheme.StyleInput(_cmbPreset, CardBg, FgColor, CardBorder);
             foreach (var name in ListPresetNames()) _cmbPreset.Items.Add(name);
+            Grid.SetColumn(_cmbPreset, 1);
+            grid.Children.Add(_cmbPreset);
 
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            row.Children.Add(LabelInline("Preset", 60));
-            _cmbPreset.Width = 180;
-            row.Children.Add(_cmbPreset);
-            row.Children.Add(MakeSmallBtn("Load",   () => LoadPreset()));
-            row.Children.Add(MakeSmallBtn("Save…",  () => SavePreset()));
-            row.Children.Add(MakeSmallBtn("Delete", () => DeletePreset()));
-            body.Children.Add(row);
+            var actions = new StackPanel { Orientation = Orientation.Horizontal };
+            actions.Children.Add(MakeSmallBtn("Load",   () => LoadPreset()));
+            actions.Children.Add(MakeSmallBtn("Save…",  () => SavePreset()));
+            actions.Children.Add(MakeSmallBtn("Delete", () => DeletePreset()));
+            Grid.SetColumn(actions, 2);
+            grid.Children.Add(actions);
 
-            return Card("Preset", body);
+            return grid;
         }
 
-        private UIElement BuildScopeCard()
-        {
-            var body = new StackPanel();
+        // ─── SCOPE row ──────────────────────────────────────────────────
 
+        private UIElement BuildScopeStrip()
+        {
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var lbl = new TextBlock
+            {
+                Text = "SCOPE",
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(AccentColor),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(lbl, 0); Grid.SetRow(lbl, 0);
+            grid.Children.Add(lbl);
+
+            var radios = new StackPanel { Orientation = Orientation.Horizontal };
             _rbScopeSel  = MakeRadio("Selection",   "FabScope", FabricationOptions.ScopeSelection);
             _rbScopeView = MakeRadio("Active view", "FabScope", FabricationOptions.ScopeActiveView);
             _rbScopeProj = MakeRadio("Project",     "FabScope", FabricationOptions.ScopeProject);
-            _rbScopeSel.Checked  += (s, e) => { CommitScope(); RefreshScopeStatus(); };
-            _rbScopeView.Checked += (s, e) => { CommitScope(); RefreshScopeStatus(); };
-            _rbScopeProj.Checked += (s, e) => { CommitScope(); RefreshScopeStatus(); };
+            _rbScopeSel.Checked  += (s, e) => { CommitScope(); RefreshScopeAndCategories(); RefreshPackagePreview(); };
+            _rbScopeView.Checked += (s, e) => { CommitScope(); RefreshScopeAndCategories(); RefreshPackagePreview(); };
+            _rbScopeProj.Checked += (s, e) => { CommitScope(); RefreshScopeAndCategories(); RefreshPackagePreview(); };
+            radios.Children.Add(_rbScopeSel);
+            radios.Children.Add(_rbScopeView);
+            radios.Children.Add(_rbScopeProj);
+            Grid.SetColumn(radios, 1); Grid.SetRow(radios, 0);
+            grid.Children.Add(radios);
 
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            row.Children.Add(_rbScopeSel);
-            row.Children.Add(_rbScopeView);
-            row.Children.Add(_rbScopeProj);
-            row.Children.Add(MakeSmallBtn("Refresh", RefreshScopeStatus));
-            body.Children.Add(row);
+            var refresh = MakeSmallBtn("Refresh", () => { RefreshScopeAndCategories(); RefreshPackagePreview(); });
+            Grid.SetColumn(refresh, 2); Grid.SetRow(refresh, 0);
+            grid.Children.Add(refresh);
 
             _txtScopeStatus = new TextBlock
             {
                 Text = "Scope: …",
                 Foreground = new SolidColorBrush(SubtleColor),
                 FontSize = 11,
+                Margin = new Thickness(0, 4, 0, 0),
                 TextWrapping = TextWrapping.Wrap,
+            };
+            Grid.SetColumn(_txtScopeStatus, 0); Grid.SetRow(_txtScopeStatus, 1); Grid.SetColumnSpan(_txtScopeStatus, 4);
+            grid.Children.Add(_txtScopeStatus);
+
+            return grid;
+        }
+
+        // ─── CATEGORY breakdown card ────────────────────────────────────
+
+        private UIElement BuildCategoryCard()
+        {
+            var body = new StackPanel();
+
+            _categoryListHost = new StackPanel();
+            body.Children.Add(_categoryListHost);
+
+            _txtDisciplineSummary = new TextBlock
+            {
+                Text = "By discipline: …",
+                Foreground = new SolidColorBrush(AccentColor),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
                 Margin = new Thickness(0, 6, 0, 0),
             };
-            body.Children.Add(_txtScopeStatus);
+            body.Children.Add(_txtDisciplineSummary);
 
-            return Card("Scope", body);
+            // Build one row per category — populated/refreshed in
+            // RefreshScopeAndCategories.
+            foreach (var info in MepCategories)
+            {
+                var row = new CategoryRow(info.bic, info.label, info.disc, NeutralBtn, FgColor, AccentColor, AltRowBg, CardBorder);
+                _catRows[info.bic] = row;
+                _categoryListHost.Children.Add(row.RowElement);
+            }
+
+            return Card("Categories in scope", body);
         }
 
-        private UIElement BuildFilterCard()
+        // ─── FILTERS / RULES / OUTPUT / CONTENT ─────────────────────────
+
+        private UIElement BuildFiltersCard()
         {
-            var body = new StackPanel();
-            body.Children.Add(new TextBlock
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Filter (System / Level)
+            var filterBody = new StackPanel();
+            filterBody.Children.Add(new TextBlock
             {
-                Text = "Discipline rules from STING_FAB_RULES.json",
-                Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 11,
+                Text = "Free-text filters; blank = no filter.",
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 10,
                 Margin = new Thickness(0, 0, 0, 4),
             });
+            _txtSystemFilter = new TextBox { Height = 22 };
+            DarkDialogTheme.StyleInput(_txtSystemFilter, CardBg, FgColor, CardBorder);
+            _txtSystemFilter.LostFocus += (s, e) => RefreshPackagePreview();
+            filterBody.Children.Add(LabelInline("System", 70));
+            filterBody.Children.Add(_txtSystemFilter);
+            _txtLevelFilter = new TextBox { Height = 22, Margin = new Thickness(0, 4, 0, 0) };
+            DarkDialogTheme.StyleInput(_txtLevelFilter, CardBg, FgColor, CardBorder);
+            _txtLevelFilter.LostFocus += (s, e) => RefreshPackagePreview();
+            filterBody.Children.Add(LabelInline("Level", 70));
+            filterBody.Children.Add(_txtLevelFilter);
+            var filterCard = Card("Filter", filterBody);
+            Grid.SetColumn(filterCard, 0);
+            grid.Children.Add(filterCard);
 
-            _chkPipe     = CheckRow("Pipe (max 6 m / 4 bends)",                   FabricationOptions.RulePipe,     v => FabricationOptions.RulePipe     = v);
-            _chkPipeLB   = CheckRow("Pipe large bore (max 3 m)",                  FabricationOptions.RulePipeLB,   v => FabricationOptions.RulePipeLB   = v);
-            _chkDuct     = CheckRow("Duct TDF (max 3 m / 3 bends)",               FabricationOptions.RuleDuct,     v => FabricationOptions.RuleDuct     = v);
-            _chkDuctPitt = CheckRow("Duct Pittsburgh (max 2.4 m)",                FabricationOptions.RuleDuctPitt, v => FabricationOptions.RuleDuctPitt = v);
-            _chkConduit  = CheckRow("Conduit (max 6 m / 3 bends, BS 7671)",       FabricationOptions.RuleConduit,  v => FabricationOptions.RuleConduit  = v);
+            // Rules
+            var rulesBody = new StackPanel();
+            _chkPipe     = CheckRow("Pipe (max 6 m / 4 bends)",                FabricationOptions.RulePipe,     v => FabricationOptions.RulePipe     = v);
+            _chkPipeLB   = CheckRow("Pipe large bore (max 3 m)",               FabricationOptions.RulePipeLB,   v => FabricationOptions.RulePipeLB   = v);
+            _chkDuct     = CheckRow("Duct TDF (max 3 m / 3 bends)",            FabricationOptions.RuleDuct,     v => FabricationOptions.RuleDuct     = v);
+            _chkDuctPitt = CheckRow("Duct Pittsburgh (max 2.4 m)",             FabricationOptions.RuleDuctPitt, v => FabricationOptions.RuleDuctPitt = v);
+            _chkConduit  = CheckRow("Conduit (max 6 m / 3 bends, BS 7671)",    FabricationOptions.RuleConduit,  v => FabricationOptions.RuleConduit  = v);
+            rulesBody.Children.Add(_chkPipe);
+            rulesBody.Children.Add(_chkPipeLB);
+            rulesBody.Children.Add(_chkDuct);
+            rulesBody.Children.Add(_chkDuctPitt);
+            rulesBody.Children.Add(_chkConduit);
+            var rulesCard = Card("Rules", rulesBody);
+            Grid.SetColumn(rulesCard, 1);
+            grid.Children.Add(rulesCard);
 
-            body.Children.Add(_chkPipe);
-            body.Children.Add(_chkPipeLB);
-            body.Children.Add(_chkDuct);
-            body.Children.Add(_chkDuctPitt);
-            body.Children.Add(_chkConduit);
-
-            return Card("Filter", body);
-        }
-
-        // ─── Right panel ────────────────────────────────────────────────
-
-        private UIElement BuildRightPanel()
-        {
-            var scroll = new ScrollViewer
-            {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Margin = new Thickness(8, 0, 0, 0),
-            };
-            var stack = new StackPanel();
-            stack.Children.Add(BuildOutputCard());
-            stack.Children.Add(BuildContentModeCard());
-            stack.Children.Add(BuildShopDrawingCard());
-            stack.Children.Add(BuildExportsCard());
-            scroll.Content = stack;
-            return scroll;
-        }
-
-        private UIElement BuildOutputCard()
-        {
-            var body = new StackPanel();
+            // Output + Content mode (combined)
+            var outBody = new StackPanel();
             _chkAssy    = CheckRow("Generate AssemblyInstances",  FabricationOptions.GenerateAssemblies,  v => FabricationOptions.GenerateAssemblies  = v);
             _chkViews   = CheckRow("Generate views (5 + BOM)",    FabricationOptions.GenerateViews,       v => FabricationOptions.GenerateViews       = v);
             _chkSheets  = CheckRow("Generate shop drawing sheets",FabricationOptions.GenerateSheets,      v => FabricationOptions.GenerateSheets      = v);
             _chkSymbols = CheckRow("Place ISO 6412 symbols",      FabricationOptions.PlaceISO6412Symbols, v => FabricationOptions.PlaceISO6412Symbols = v);
             _chkCsv     = CheckRow("Emit per-discipline CSVs",    FabricationOptions.EmitPerDisciplineCsv,v => FabricationOptions.EmitPerDisciplineCsv= v);
-            body.Children.Add(_chkAssy);
-            body.Children.Add(_chkViews);
-            body.Children.Add(_chkSheets);
-            body.Children.Add(_chkSymbols);
-            body.Children.Add(_chkCsv);
-            return Card("Output", body);
-        }
-
-        private UIElement BuildContentModeCard()
-        {
-            var body = new StackPanel { Orientation = Orientation.Horizontal };
-            _rbIso6412 = MakeRadio("ISO 6412 (workshop)",     "FabContent", FabricationOptions.ContentModeIso6412);
+            outBody.Children.Add(_chkAssy);
+            outBody.Children.Add(_chkViews);
+            outBody.Children.Add(_chkSheets);
+            outBody.Children.Add(_chkSymbols);
+            outBody.Children.Add(_chkCsv);
+            outBody.Children.Add(new TextBlock { Text = "Content mode",
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 10,
+                Margin = new Thickness(0, 6, 0, 2) });
+            var contentRow = new StackPanel { Orientation = Orientation.Horizontal };
+            _rbIso6412 = MakeRadio("ISO 6412 (workshop)",     "FabContent",  FabricationOptions.ContentModeIso6412);
             _rbGeneric = MakeRadio("Generic (geometry only)", "FabContent", !FabricationOptions.ContentModeIso6412);
             _rbIso6412.Checked += (s, e) => FabricationOptions.ContentModeIso6412 = true;
             _rbGeneric.Checked += (s, e) => FabricationOptions.ContentModeIso6412 = false;
-            body.Children.Add(_rbIso6412);
-            body.Children.Add(_rbGeneric);
-            return Card("Content mode", body);
+            contentRow.Children.Add(_rbIso6412);
+            contentRow.Children.Add(_rbGeneric);
+            outBody.Children.Add(contentRow);
+            var outCard = Card("Output", outBody);
+            Grid.SetColumn(outCard, 2);
+            grid.Children.Add(outCard);
+
+            return grid;
         }
 
-        private UIElement BuildShopDrawingCard()
+        // ─── TAB body — Package / Cut list / Weld map / Iso / PCF / MAJ ─
+
+        private UIElement BuildTabBody()
         {
-            var body = new StackPanel();
+            var border = new Border
+            {
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(3),
+                Background = new SolidColorBrush(CardBg),
+                Margin = new Thickness(0, 4, 0, 4),
+            };
+            _tabs = new TabControl
+            {
+                Background = new SolidColorBrush(CardBg),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(6),
+            };
+            _tabs.Items.Add(BuildPackageTab());
+            _tabs.Items.Add(BuildExportTab("Cut list",   "Fabrication_ExportCutList",
+                "Re-emits STING_v4_pipe_cut_list.csv. Includes element id, system, size, length and material per pipe."));
+            _tabs.Items.Add(BuildExportTab("Weld map",   "Fabrication_ExportWeldMap",
+                "Re-emits STING_v4_weld_map.csv. Lists every weld with face id, joint type and discipline."));
+            _tabs.Items.Add(BuildExportTab("Isometrics", "Fabrication_ExportIsometrics",
+                "Indexes SP-… isometric sheets to STING_v4_isometric_index.csv for register intake."));
+            _tabs.Items.Add(BuildExportTab("PCF",        "Fabrication_ExportPcf",
+                "Exports SpoolGen-compatible PCF to STING_v4_export.pcf — pipe component file."));
+            _tabs.Items.Add(BuildExportTab("MAJ",        "Fabrication_ExportMaj",
+                "Exports MAJiC manufacturing-job XML for shop floor handover."));
+            border.Child = _tabs;
+            return border;
+        }
+
+        private TabItem BuildPackageTab()
+        {
+            var tab = new TabItem { Header = "Package" };
+
+            var dock = new DockPanel { LastChildFill = true };
+
+            // Toolbar — Tick all / Untick all / Smart group / Clash pre-flight / Undo
+            var toolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            DockPanel.SetDock(toolbar, Dock.Top);
+            _packageHeader = new TextBlock
+            {
+                Text = "0 assemblies will be created",
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(FgColor),
+                FontSize = 11,
+                Margin = new Thickness(0, 0, 12, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            toolbar.Children.Add(_packageHeader);
+            toolbar.Children.Add(MakeSmallBtn("Tick all",          () => TickAllAssemblies(true)));
+            toolbar.Children.Add(MakeSmallBtn("Untick all",        () => TickAllAssemblies(false)));
+            toolbar.Children.Add(MakeSmallBtn("Smart group",       () => Dispatch("Fabrication_SmartGroup")));
+            toolbar.Children.Add(MakeSmallBtn("Clash pre-flight",  () => Dispatch("Fabrication_ClashPreflight")));
+            toolbar.Children.Add(MakeSmallBtn("Undo last run",     () => Dispatch("Fabrication_UndoPackage")));
+            dock.Children.Add(toolbar);
+
+            // Assembly preview grid
+            var scroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Background = new SolidColorBrush(CardBg),
+            };
+            _packageGridHost = new StackPanel();
+
+            // Header row
+            var hdr = new Grid();
+            DefineAssemblyColumns(hdr);
+            AddCell(hdr, 0, "✓",          accent: true);
+            AddCell(hdr, 1, "DISC",       accent: true);
+            AddCell(hdr, 2, "SYS",        accent: true);
+            AddCell(hdr, 3, "LVL",        accent: true);
+            AddCell(hdr, 4, "Count",      accent: true, alignRight: true);
+            AddCell(hdr, 5, "Spool name", accent: true);
+            _packageGridHost.Children.Add(hdr);
+
+            scroll.Content = _packageGridHost;
+            dock.Children.Add(scroll);
+
+            tab.Content = dock;
+            return tab;
+        }
+
+        private TabItem BuildExportTab(string header, string commandTag, string description)
+        {
+            var tab = new TabItem { Header = header };
+            var stack = new StackPanel { Margin = new Thickness(8) };
+            stack.Children.Add(new TextBlock
+            {
+                Text = description,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(FgColor),
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 8),
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Click Run to dispatch this export against the current scope.",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11,
+                Margin = new Thickness(0, 0, 0, 8),
+            });
+            var btn = MakeAccentBtn("Run " + header, commandTag);
+            btn.HorizontalAlignment = HorizontalAlignment.Left;
+            stack.Children.Add(btn);
+            tab.Content = stack;
+            return tab;
+        }
+
+        private void DefineAssemblyColumns(Grid g)
+        {
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
+
+        private void AddCell(Grid g, int col, string text, bool accent = false, bool alignRight = false)
+        {
+            var t = new TextBlock
+            {
+                Text = text ?? "",
+                Foreground = new SolidColorBrush(accent ? AccentColor : FgColor),
+                FontWeight = accent ? FontWeights.SemiBold : FontWeights.Normal,
+                FontSize = accent ? 11 : 11,
+                Margin = new Thickness(4, 4, 8, 4),
+                TextAlignment = alignRight ? TextAlignment.Right : TextAlignment.Left,
+            };
+            Grid.SetColumn(t, col);
+            g.Children.Add(t);
+        }
+
+        // ─── SHOP-DRAWING strip ─────────────────────────────────────────
+
+        private UIElement BuildShopDrawingStrip()
+        {
+            var dock = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 4, 0, 4) };
+
+            var actions = new StackPanel { Orientation = Orientation.Horizontal };
+            DockPanel.SetDock(actions, Dock.Right);
+            actions.Children.Add(MakeSmallBtn("Configure…", ConfigureShopDrawing));
+            actions.Children.Add(MakeSmallBtn("Clear",      ClearShopDrawing));
+            dock.Children.Add(actions);
+
             _txtShopDrawingStatus = new TextBlock
             {
                 Foreground = new SolidColorBrush(FgColor),
                 FontSize = 11,
                 TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 6),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 12, 0),
             };
-            body.Children.Add(_txtShopDrawingStatus);
+            dock.Children.Add(_txtShopDrawingStatus);
 
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            row.Children.Add(MakeSmallBtn("Configure…", ConfigureShopDrawing));
-            row.Children.Add(MakeSmallBtn("Clear",      ClearShopDrawing));
-            body.Children.Add(row);
-
-            return Card("Title block & view template", body);
+            return Card("Title block & view template", dock);
         }
 
-        private UIElement BuildExportsCard()
-        {
-            var body = new StackPanel();
-            body.Children.Add(new TextBlock
-            {
-                Text = "Re-emit per-discipline sidecars without rebuilding the full package.",
-                Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 11,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 6),
-            });
-
-            var wrap = new WrapPanel();
-            wrap.Children.Add(MakeAccentBtn("Cut list",    "Fabrication_ExportCutList"));
-            wrap.Children.Add(MakeAccentBtn("Weld map",    "Fabrication_ExportWeldMap"));
-            wrap.Children.Add(MakeAccentBtn("Isometrics",  "Fabrication_ExportIsometrics"));
-            wrap.Children.Add(MakeAccentBtn("PCF",         "Fabrication_ExportPcf"));
-            wrap.Children.Add(MakeAccentBtn("MAJ",         "Fabrication_ExportMaj"));
-            wrap.Children.Add(MakeAccentBtn("ISO symbols", "Fabrication_PlaceISOSymbols"));
-            body.Children.Add(wrap);
-
-            return Card("Exports", body);
-        }
-
-        // ─── Footer ─────────────────────────────────────────────────────
+        // ─── FOOTER — every action surfaced ─────────────────────────────
 
         private UIElement BuildFooter()
         {
-            var row = new DockPanel
-            {
-                Margin = new Thickness(0, 10, 0, 0),
-                LastChildFill = false,
-            };
+            var outer = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
 
-            var hint = new TextBlock
-            {
-                Text = "Settings persist on FabricationOptions for the Revit session. " +
-                       "Generate package builds assemblies, views, sheets and (optionally) ISO 6412 symbols.",
-                Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 11,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 520,
-            };
-            DockPanel.SetDock(hint, Dock.Left);
-            row.Children.Add(hint);
+            // Top row: Generate package (primary) + main exports
+            var row1 = new WrapPanel();
+            row1.Children.Add(MakeBigBtn("Generate package", GreenBtn,  true,  () => Dispatch("Fabrication_GeneratePackage")));
+            row1.Children.Add(MakeBigBtn("Export cut list",  NeutralBtn,false, () => Dispatch("Fabrication_ExportCutList")));
+            row1.Children.Add(MakeBigBtn("Export weld map",  OrangeBtn, false, () => Dispatch("Fabrication_ExportWeldMap")));
+            row1.Children.Add(MakeBigBtn("Export iso index", NeutralBtn,false, () => Dispatch("Fabrication_ExportIsometrics")));
+            outer.Children.Add(row1);
 
-            var right = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Right,
-            };
-            DockPanel.SetDock(right, Dock.Right);
+            // Bottom row: secondary actions
+            var row2 = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            row2.Children.Add(MakeBigBtn("Incremental rebuild", NeutralBtn, false, () => Dispatch("Fabrication_IncrementalRebuild")));
+            row2.Children.Add(MakeBigBtn("BOM roll-up (XLSX)",  NeutralBtn, false, () => Dispatch("Fabrication_BomRollup")));
+            row2.Children.Add(MakeBigBtn("Export PCF",          NeutralBtn, false, () => Dispatch("Fabrication_ExportPcf")));
+            row2.Children.Add(MakeBigBtn("Export MAJ",          NeutralBtn, false, () => Dispatch("Fabrication_ExportMaj")));
+            row2.Children.Add(MakeBigBtn("Link → Doc Register", NeutralBtn, false, () => Dispatch("Fabrication_LinkDocRegister")));
+            row2.Children.Add(MakeBigBtn("Close",               NeutralBtn, false, () => { DialogResult = false; }));
+            outer.Children.Add(row2);
 
-            right.Children.Add(MakeBigBtn("Close",            NeutralBtn, false, () => { DialogResult = false; }));
-            right.Children.Add(MakeBigBtn("Generate package", GreenBtn,   true,  () => Dispatch("Fabrication_GeneratePackage")));
-            row.Children.Add(right);
-
-            return row;
+            return outer;
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  ACTIONS
+        //  SCOPE / CATEGORY refresh
         // ═══════════════════════════════════════════════════════════════
 
         private void CommitScope()
@@ -360,62 +545,304 @@ namespace StingTools.UI
             FabricationOptions.ScopeProject    = _rbScopeProj?.IsChecked == true;
         }
 
-        private void RefreshScopeStatus()
+        /// <summary>
+        /// Recompute element counts per category and per discipline,
+        /// honouring the selected scope (with auto-fallback hint).
+        /// </summary>
+        private void RefreshScopeAndCategories()
         {
             try
             {
-                int n = CountScopeElements();
-                string label =
-                    FabricationOptions.ScopeProject    ? "project"     :
-                    FabricationOptions.ScopeActiveView ? "active view" :
-                                                         "selection";
-                string msg = $"Scope: {label} — {n} MEP element(s) in scope.";
-                if (n == 0 && FabricationOptions.ScopeSelection)
-                    msg += " (Generate package will fall back to active view automatically.)";
-                if (_txtScopeStatus != null) _txtScopeStatus.Text = msg;
+                var ids = CollectScopeIds(out var scopeLabel, out var fellBack);
+
+                // Per-category counts (within the resolved id set).
+                var catCounts = new Dictionary<BuiltInCategory, int>();
+                foreach (var info in MepCategories) catCounts[info.bic] = 0;
+                if (_doc != null)
+                {
+                    foreach (var id in ids)
+                    {
+                        var el = _doc.GetElement(id);
+                        if (el?.Category == null) continue;
+                        var bic = (BuiltInCategory)(int)el.Category.Id.Value;
+                        if (catCounts.ContainsKey(bic)) catCounts[bic]++;
+                    }
+                }
+
+                // Apply to UI rows + collect discipline rollup.
+                var byDisc = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                foreach (var info in MepCategories)
+                {
+                    int n = catCounts[info.bic];
+                    if (_catRows.TryGetValue(info.bic, out var row)) row.SetCount(n);
+                    if (n == 0) continue;
+                    byDisc.TryGetValue(info.disc, out var sub);
+                    byDisc[info.disc] = sub + n;
+                }
+
+                int total = ids.Count;
+                if (_txtScopeStatus != null)
+                {
+                    _txtScopeStatus.Text = fellBack
+                        ? $"Scope: {scopeLabel} — {total} MEP element(s) in scope."
+                        : $"Scope: {scopeLabel} — {total} MEP element(s) in scope.";
+                }
+                if (_txtDisciplineSummary != null)
+                {
+                    _txtDisciplineSummary.Text = byDisc.Count == 0
+                        ? "By discipline: (none)"
+                        : "By discipline: " + string.Join(" · ",
+                            byDisc.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} = {kv.Value}"));
+                }
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"FabricationWorkspaceDialog.RefreshScopeStatus: {ex.Message}");
-                if (_txtScopeStatus != null) _txtScopeStatus.Text = "Scope: (refresh failed — see log)";
+                StingLog.Warn($"FabricationWorkspaceDialog.RefreshScopeAndCategories: {ex.Message}");
             }
         }
 
-        private int CountScopeElements()
+        /// <summary>
+        /// Resolve element ids honouring scope with the same auto-fallback
+        /// chain used by GenerateFabPackageCommand. Returns a friendly
+        /// scope label and a flag indicating whether the dialog had to
+        /// fall through to the next scope tier.
+        /// </summary>
+        private List<ElementId> CollectScopeIds(out string scopeLabel, out bool fellBack)
         {
-            if (_doc == null) return 0;
-            var cats = new[]
-            {
-                BuiltInCategory.OST_PipeCurves,    BuiltInCategory.OST_FlexPipeCurves,
-                BuiltInCategory.OST_PipeFitting,   BuiltInCategory.OST_PipeAccessory,
-                BuiltInCategory.OST_DuctCurves,    BuiltInCategory.OST_FlexDuctCurves,
-                BuiltInCategory.OST_DuctFitting,   BuiltInCategory.OST_DuctAccessory,
-                BuiltInCategory.OST_Conduit,       BuiltInCategory.OST_ConduitFitting,
-                BuiltInCategory.OST_CableTray,     BuiltInCategory.OST_CableTrayFitting,
-            };
+            scopeLabel = "selection"; fellBack = false;
+            var ids = new List<ElementId>();
+            if (_doc == null) return ids;
+
+            var bics = MepCategories.Select(c => c.bic).ToArray();
+            var filter = new ElementMulticategoryFilter(bics);
+
             try
             {
                 if (FabricationOptions.ScopeProject)
                 {
-                    return new FilteredElementCollector(_doc)
-                        .WherePasses(new ElementMulticategoryFilter(cats))
-                        .WhereElementIsNotElementType()
-                        .GetElementCount();
+                    scopeLabel = "project";
+                    foreach (var e in new FilteredElementCollector(_doc)
+                        .WherePasses(filter).WhereElementIsNotElementType()) ids.Add(e.Id);
+                    return ids;
                 }
                 if (FabricationOptions.ScopeActiveView)
                 {
+                    scopeLabel = "active view";
                     var view = _doc.ActiveView;
-                    if (view == null) return 0;
-                    return new FilteredElementCollector(_doc, view.Id)
-                        .WherePasses(new ElementMulticategoryFilter(cats))
-                        .WhereElementIsNotElementType()
-                        .GetElementCount();
+                    if (view == null) return ids;
+                    foreach (var e in new FilteredElementCollector(_doc, view.Id)
+                        .WherePasses(filter).WhereElementIsNotElementType()) ids.Add(e.Id);
+                    return ids;
                 }
-                // Selection scope — no UIDocument here; the count is approximated.
-                return 0;
+
+                // Selection scope → mirror the dock-panel's current selection
+                // when accessible, otherwise fall back to active view.
+                var uidoc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument;
+                if (uidoc != null)
+                {
+                    var sel = uidoc.Selection?.GetElementIds();
+                    if (sel != null)
+                    {
+                        foreach (var id in sel)
+                        {
+                            var el = _doc.GetElement(id);
+                            if (el?.Category == null) continue;
+                            var bic = (BuiltInCategory)(int)el.Category.Id.Value;
+                            if (bics.Contains(bic)) ids.Add(id);
+                        }
+                    }
+                }
+                if (ids.Count > 0) { scopeLabel = "selection"; return ids; }
+
+                // Auto-fallback: active view.
+                fellBack = true;
+                var v2 = _doc.ActiveView;
+                if (v2 != null)
+                {
+                    foreach (var e in new FilteredElementCollector(_doc, v2.Id)
+                        .WherePasses(filter).WhereElementIsNotElementType()) ids.Add(e.Id);
+                }
+                if (ids.Count > 0) { scopeLabel = "active view (auto-fallback from empty selection)"; return ids; }
+
+                // Auto-fallback: project.
+                foreach (var e in new FilteredElementCollector(_doc)
+                    .WherePasses(filter).WhereElementIsNotElementType()) ids.Add(e.Id);
+                scopeLabel = "project (auto-fallback from empty selection)";
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"FabricationWorkspaceDialog.CollectScopeIds: {ex.Message}"); }
+            return ids;
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  PACKAGE preview — predicts the assemblies that will be created
+        // ═══════════════════════════════════════════════════════════════
+
+        private readonly List<AssemblyPreviewRow> _previewRows = new List<AssemblyPreviewRow>();
+
+        private void RefreshPackagePreview()
+        {
+            try
+            {
+                if (_packageGridHost == null) return;
+                _previewRows.Clear();
+
+                // Strip body rows (keep header).
+                while (_packageGridHost.Children.Count > 1)
+                    _packageGridHost.Children.RemoveAt(1);
+
+                if (_doc == null)
+                {
+                    _packageHeader.Text = "(no active document)";
+                    return;
+                }
+
+                var ids = CollectScopeIds(out _, out _);
+
+                // Build (DISC, SYS, LVL) groups using the engine's discipline
+                // mapping. Categories that are unticked in the rules card
+                // are excluded so the preview tracks what GeneratePackage
+                // would actually emit.
+                var groups = new Dictionary<(string disc, string sys, string lvl), int>();
+                string sysFilter = (_txtSystemFilter?.Text ?? "").Trim();
+                string lvlFilter = (_txtLevelFilter?.Text  ?? "").Trim();
+
+                foreach (var id in ids)
+                {
+                    var el = _doc.GetElement(id);
+                    if (el == null) continue;
+                    string disc = DisciplineFor(el);
+                    if (!RuleEnabledFor(disc)) continue;
+                    string sys = ParameterHelpers.GetString(el, "PLM_SYS_TXT");
+                    if (string.IsNullOrWhiteSpace(sys)) sys = ParameterHelpers.GetString(el, "HVC_SYS_TXT");
+                    if (string.IsNullOrWhiteSpace(sys)) sys = ParameterHelpers.GetString(el, "ELC_SYS_TXT");
+                    if (string.IsNullOrWhiteSpace(sys)) sys = "GEN";
+                    string lvl = ParameterHelpers.GetLevelCode(_doc, el);
+                    if (string.IsNullOrWhiteSpace(lvl)) lvl = "XX";
+                    if (!string.IsNullOrEmpty(sysFilter) && sys.IndexOf(sysFilter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    if (!string.IsNullOrEmpty(lvlFilter) && lvl.IndexOf(lvlFilter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                    var key = (disc, sys, lvl);
+                    groups.TryGetValue(key, out var n);
+                    groups[key] = n + 1;
+                }
+
+                int seq = 1;
+                foreach (var kv in groups.OrderBy(g => g.Key.disc).ThenBy(g => g.Key.sys).ThenBy(g => g.Key.lvl))
+                {
+                    var row = new AssemblyPreviewRow
+                    {
+                        Selected = true,
+                        Disc = ShortDiscCode(kv.Key.disc),
+                        System = kv.Key.sys,
+                        Level = kv.Key.lvl,
+                        Count = kv.Value,
+                        SpoolName = $"SP-{ShortDiscCode(kv.Key.disc)}-{kv.Key.sys}-{kv.Key.lvl}-{seq:D4}",
+                    };
+                    _previewRows.Add(row);
+                    _packageGridHost.Children.Add(BuildPreviewRow(row));
+                    seq++;
+                }
+
+                int active = _previewRows.Count(r => r.Selected);
+                _packageHeader.Text = $"{active} assembly(ies) will be created (of {_previewRows.Count} group(s))";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FabricationWorkspaceDialog.RefreshPackagePreview: {ex.Message}");
+            }
+        }
+
+        private UIElement BuildPreviewRow(AssemblyPreviewRow row)
+        {
+            var g = new Grid
+            {
+                Background = new SolidColorBrush((_packageGridHost.Children.Count % 2 == 0) ? AltRowBg : CardBg),
+            };
+            DefineAssemblyColumns(g);
+
+            var cb = new CheckBox
+            {
+                IsChecked = row.Selected,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(2),
+            };
+            cb.Checked   += (s, e) => { row.Selected = true;  UpdatePackageHeader(); };
+            cb.Unchecked += (s, e) => { row.Selected = false; UpdatePackageHeader(); };
+            Grid.SetColumn(cb, 0); g.Children.Add(cb);
+            AddCell(g, 1, row.Disc);
+            AddCell(g, 2, row.System);
+            AddCell(g, 3, row.Level);
+            AddCell(g, 4, row.Count.ToString(), alignRight: true);
+            AddCell(g, 5, row.SpoolName);
+            return g;
+        }
+
+        private void TickAllAssemblies(bool selected)
+        {
+            foreach (var row in _previewRows) row.Selected = selected;
+            // Re-render so the checkboxes reflect the new state.
+            RefreshPackagePreview();
+        }
+
+        private void UpdatePackageHeader()
+        {
+            if (_packageHeader == null) return;
+            int active = _previewRows.Count(r => r.Selected);
+            _packageHeader.Text = $"{active} assembly(ies) will be created (of {_previewRows.Count} group(s))";
+        }
+
+        private static string DisciplineFor(Element el)
+        {
+            if (el?.Category == null) return "";
+            int bic = (int)el.Category.Id.Value;
+            switch ((BuiltInCategory)bic)
+            {
+                case BuiltInCategory.OST_PipeCurves:
+                case BuiltInCategory.OST_FlexPipeCurves:
+                case BuiltInCategory.OST_PipeFitting:
+                case BuiltInCategory.OST_PipeAccessory:
+                    return "Pipe";
+                case BuiltInCategory.OST_DuctCurves:
+                case BuiltInCategory.OST_FlexDuctCurves:
+                case BuiltInCategory.OST_DuctFitting:
+                case BuiltInCategory.OST_DuctAccessory:
+                    return "Duct";
+                case BuiltInCategory.OST_Conduit:
+                case BuiltInCategory.OST_ConduitFitting:
+                case BuiltInCategory.OST_CableTray:
+                case BuiltInCategory.OST_CableTrayFitting:
+                    return "Electrical";
+            }
+            return "";
+        }
+
+        private static string ShortDiscCode(string disc)
+        {
+            if (string.IsNullOrEmpty(disc)) return "X";
+            switch (disc)
+            {
+                case "Pipe":       return "P";
+                case "Duct":       return "D";
+                case "Electrical": return "E";
+            }
+            return disc.Substring(0, 1).ToUpperInvariant();
+        }
+
+        private static bool RuleEnabledFor(string disc)
+        {
+            switch (disc)
+            {
+                case "Pipe":       return FabricationOptions.RulePipe || FabricationOptions.RulePipeLB;
+                case "Duct":       return FabricationOptions.RuleDuct || FabricationOptions.RuleDuctPitt;
+                case "Electrical": return FabricationOptions.RuleConduit;
+            }
+            return true;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  SHOP-DRAWING actions
+        // ═══════════════════════════════════════════════════════════════
 
         private void ConfigureShopDrawing()
         {
@@ -449,7 +876,7 @@ namespace StingTools.UI
             if (opts == null)
             {
                 _txtShopDrawingStatus.Text =
-                    "Auto-resolved per discipline (STING_TB_ASSEMBLY_*).\n" +
+                    "Auto-resolved per discipline (STING_TB_ASSEMBLY_*). " +
                     "Falls back to first available title block when missing.";
                 return;
             }
@@ -467,15 +894,17 @@ namespace StingTools.UI
                 var v = _doc.GetElement(opts.ViewTemplateId) as Autodesk.Revit.DB.View;
                 if (v != null) vt = v.Name;
             }
-            string s = $"Title block: {tb}\nView template: {vt}";
+            string s = $"Title block: {tb}  ·  View template: {vt}";
             if (!string.IsNullOrWhiteSpace(opts.SheetNumberPattern))
-                s += $"\nSheet #: {opts.SheetNumberPattern}";
+                s += $"  ·  Sheet #: {opts.SheetNumberPattern}";
             if (!string.IsNullOrWhiteSpace(opts.SheetNamePattern))
-                s += $"\nSheet name: {opts.SheetNamePattern}";
+                s += $"  ·  Sheet name: {opts.SheetNamePattern}";
             _txtShopDrawingStatus.Text = s;
         }
 
-        // ─── Preset persistence ─────────────────────────────────────────
+        // ═══════════════════════════════════════════════════════════════
+        //  PRESET persistence
+        // ═══════════════════════════════════════════════════════════════
 
         private static string PresetPath()
         {
@@ -505,13 +934,11 @@ namespace StingTools.UI
             try
             {
                 string path = PresetPath();
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                var dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
                 File.WriteAllText(path, JsonConvert.SerializeObject(presets, Formatting.Indented));
             }
-            catch (Exception ex)
-            {
-                StingLog.Error("FabricationWorkspaceDialog.SaveAllPresets", ex);
-            }
+            catch (Exception ex) { StingLog.Error("FabricationWorkspaceDialog.SaveAllPresets", ex); }
         }
 
         private static IEnumerable<string> ListPresetNames()
@@ -529,7 +956,8 @@ namespace StingTools.UI
             }
             p.ApplyTo();
             HydrateFromOptions();
-            RefreshScopeStatus();
+            RefreshScopeAndCategories();
+            RefreshPackagePreview();
         }
 
         private void SavePreset()
@@ -563,10 +991,12 @@ namespace StingTools.UI
             if (_cmbPreset == null) return;
             _cmbPreset.Items.Clear();
             foreach (var name in ListPresetNames()) _cmbPreset.Items.Add(name);
-            if (!string.IsNullOrEmpty(select)) _cmbPreset.Text = select; else _cmbPreset.Text = "";
+            _cmbPreset.Text = string.IsNullOrEmpty(select) ? "" : select;
         }
 
-        // ─── Hydrate UI from FabricationOptions ─────────────────────────
+        // ═══════════════════════════════════════════════════════════════
+        //  Hydrate UI from FabricationOptions
+        // ═══════════════════════════════════════════════════════════════
 
         private void HydrateFromOptions()
         {
@@ -590,7 +1020,9 @@ namespace StingTools.UI
             if (_rbGeneric != null) _rbGeneric.IsChecked = !FabricationOptions.ContentModeIso6412;
         }
 
-        // ─── Dispatch to the dock-panel command handler ─────────────────
+        // ═══════════════════════════════════════════════════════════════
+        //  Dispatch
+        // ═══════════════════════════════════════════════════════════════
 
         private void Dispatch(string tag)
         {
@@ -612,7 +1044,7 @@ namespace StingTools.UI
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  UI PRIMITIVES — Card / inputs / buttons
+        //  UI primitives
         // ═══════════════════════════════════════════════════════════════
 
         private UIElement Card(string title, UIElement body)
@@ -705,7 +1137,7 @@ namespace StingTools.UI
             {
                 Content = label,
                 Height = 26,
-                MinWidth = 80,
+                MinWidth = 100,
                 Margin = new Thickness(0, 0, 6, 6),
                 Background = new SolidColorBrush(OrangeBtn),
                 Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF)),
@@ -725,21 +1157,96 @@ namespace StingTools.UI
             var b = new Button
             {
                 Content = label,
-                Width = 140,
+                MinWidth = 130,
                 Height = 32,
-                Margin = new Thickness(8, 0, 0, 0),
+                Margin = new Thickness(0, 0, 6, 0),
                 Background = new SolidColorBrush(bg),
                 Foreground = new SolidColorBrush(fg),
                 BorderBrush = new SolidColorBrush(CardBorder),
                 BorderThickness = new Thickness(1),
                 FontWeight = isDefault ? FontWeights.Bold : FontWeights.Normal,
                 IsDefault = isDefault,
-                IsCancel = !isDefault,
                 FontSize = 12,
+                Padding = new Thickness(8, 0, 8, 0),
             };
             b.Click += (s, e) => onClick?.Invoke();
             return b;
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Helper types
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>One row in the live category-breakdown card. The row is
+    /// just a presentation surface — the underlying selection always
+    /// flows from the SCOPE radio buttons + free-text filters.</summary>
+    internal sealed class CategoryRow
+    {
+        private readonly TextBlock _txtCount;
+        public BuiltInCategory Category { get; }
+        public Grid RowElement { get; }
+
+        public CategoryRow(BuiltInCategory bic, string label, string disc,
+            Color rowBg, Color fg, Color accent, Color altRowBg, Color border)
+        {
+            Category = bic;
+
+            RowElement = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            RowElement.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
+            RowElement.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            RowElement.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+
+            var dot = new Border
+            {
+                Width = 10, Height = 10,
+                CornerRadius = new CornerRadius(5),
+                Background = new SolidColorBrush(accent),
+                Margin = new Thickness(2, 4, 8, 4),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            Grid.SetColumn(dot, 0); RowElement.Children.Add(dot);
+
+            var lbl = new TextBlock
+            {
+                Text = $"{label}   ({disc})",
+                Foreground = new SolidColorBrush(fg),
+                FontSize = 11,
+                Margin = new Thickness(0, 4, 0, 4),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(lbl, 1); RowElement.Children.Add(lbl);
+
+            _txtCount = new TextBlock
+            {
+                Text = "0",
+                Foreground = new SolidColorBrush(fg),
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 11,
+                Margin = new Thickness(0, 4, 4, 4),
+                TextAlignment = TextAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(_txtCount, 2); RowElement.Children.Add(_txtCount);
+        }
+
+        public void SetCount(int n)
+        {
+            if (_txtCount != null) _txtCount.Text = n.ToString();
+            RowElement.Opacity = n == 0 ? 0.45 : 1.0;
+        }
+    }
+
+    /// <summary>Single row in the Package preview grid.</summary>
+    internal sealed class AssemblyPreviewRow
+    {
+        public bool   Selected  { get; set; }
+        public string Disc      { get; set; }
+        public string System    { get; set; }
+        public string Level     { get; set; }
+        public int    Count     { get; set; }
+        public string SpoolName { get; set; }
     }
 
     // ═══════════════════════════════════════════════════════════════════
