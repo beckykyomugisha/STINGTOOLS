@@ -120,6 +120,20 @@ namespace StingTools.UI.PlacementCenter
             set { if (_searchText != value) { _searchText = value ?? ""; OnPropertyChanged(); ApplyFilter(); } }
         }
 
+        private bool _showDirtyOnly;
+        public bool ShowDirtyOnly
+        {
+            get => _showDirtyOnly;
+            set { if (_showDirtyOnly != value) { _showDirtyOnly = value; OnPropertyChanged(); ApplyFilter(); } }
+        }
+
+        private bool _showInvalidOnly;
+        public bool ShowInvalidOnly
+        {
+            get => _showInvalidOnly;
+            set { if (_showInvalidOnly != value) { _showInvalidOnly = value; OnPropertyChanged(); ApplyFilter(); } }
+        }
+
         public ICollectionView FilteredRules { get; private set; }
 
         // ── Operations ───────────────────────────────────────────────
@@ -323,8 +337,13 @@ namespace StingTools.UI.PlacementCenter
             FilteredRules = System.Windows.Data.CollectionViewSource.GetDefaultView(Rules);
             FilteredRules.Filter = obj =>
             {
-                if (string.IsNullOrEmpty(_searchText)) return true;
                 if (obj is not PlacementRuleViewModel vm) return false;
+
+                // Chip filters short-circuit when active.
+                if (_showDirtyOnly   && !vm.IsDirty) return false;
+                if (_showInvalidOnly &&  vm.IsValid) return false;
+
+                if (string.IsNullOrEmpty(_searchText)) return true;
                 string q = _searchText.Trim();
                 return (vm.CategoryFilter?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
                     || (vm.VariantHint?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)

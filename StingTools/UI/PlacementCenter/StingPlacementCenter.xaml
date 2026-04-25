@@ -77,21 +77,28 @@
             <!-- LEFT: rule list + search + add/delete -->
             <Border Grid.Column="0" Background="{DynamicResource SecondaryBg}" Padding="6">
                 <DockPanel>
-                    <!-- Search -->
-                    <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox  Grid.Column="0" x:Name="txtSearch" Padding="3"
-                                  TextChanged="OnSearch_TextChanged"
-                                  ToolTip="Filter by category / variant / room / notes"/>
-                        <Button   Grid.Column="1" Style="{StaticResource ToolBtnSecondary}"
-                                  Content="+" Width="32" Click="OnAdd_Click" ToolTip="Add a new rule"/>
-                        <Button   Grid.Column="2" Style="{StaticResource ToolBtnSecondary}"
-                                  Content="−" Width="32" Click="OnDelete_Click" ToolTip="Delete selected rule"/>
-                    </Grid>
+                    <!-- Search + filter chips -->
+                    <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,4">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
+                                Content="−" Width="32" Click="OnDelete_Click" ToolTip="Delete selected rule"/>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
+                                Content="+" Width="32" Click="OnAdd_Click" ToolTip="Add a new rule"/>
+                        <TextBox x:Name="txtSearch" Padding="3"
+                                 TextChanged="OnSearch_TextChanged"
+                                 ToolTip="Filter by category / variant / room / notes"/>
+                    </DockPanel>
+                    <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,6">
+                        <ToggleButton x:Name="chipDirty"   DockPanel.Dock="Left" Margin="0,0,4,0"
+                                      Padding="6,2" Content="● Dirty"
+                                      Checked="OnFilterChanged" Unchecked="OnFilterChanged"
+                                      ToolTip="Show only rules with unsaved edits."/>
+                        <ToggleButton x:Name="chipInvalid" DockPanel.Dock="Left" Margin="0,0,4,0"
+                                      Padding="6,2" Content="✗ Invalid"
+                                      Checked="OnFilterChanged" Unchecked="OnFilterChanged"
+                                      ToolTip="Show only rules failing validation (missing CategoryFilter, bad Priority, …)."/>
+                        <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="6,0,0,0"
+                                   Foreground="#888" FontSize="11" Text="Toggle to filter →"/>
+                    </DockPanel>
 
                     <!-- Rule grid -->
                     <DataGrid x:Name="gridRules"

@@ -644,6 +644,13 @@ namespace StingTools.UI.PlacementCenter
             VM.SearchText = txtSearch.Text;
         }
 
+        private void OnFilterChanged(object sender, RoutedEventArgs e)
+        {
+            VM.ShowDirtyOnly   = chipDirty?.IsChecked   == true;
+            VM.ShowInvalidOnly = chipInvalid?.IsChecked == true;
+            UpdateStatus();
+        }
+
         private void OnGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             VM.Selected = gridRules.SelectedItem as PlacementRuleViewModel;
