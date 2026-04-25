@@ -589,3 +589,38 @@ half-day each without architectural change:
 ---
 
 *End of review.*
+
+---
+
+## 13. Resolution log (2026-04-25)
+
+Every backlog item from §9 has been worked through. Status:
+
+| ID | What landed | Where |
+|---|---|---|
+| PC-01 | Schema rewritten with engine-accepted enums, PascalCase keys, priority 0–100, all new fields | `StingTools/Data/Schemas/STING_PLACEMENT_RULES.schema.json` |
+| PC-02 | `PlacementRuleViewModel.Validate` compiles every regex, checks all enum memberships | `StingTools/UI/PlacementCenter/PlacementRuleViewModel.cs` |
+| PC-03 | `PlacementRulesViewModel.BuildValidCategoryNames` validates `CategoryFilter` against the live document | same root VM file |
+| PC-04 | `GenerateAnchorPoints` reads real boundary segments + door / window instances | `StingTools/Core/Placement/PlacementScorer.cs` |
+| PC-05 | Dead toggle restored once PC-14 graduated; honours `STING_PLACEMENT_RULES.learned.json` | `StingPlacementCenter.xaml` + `PlacementRuleLoader.cs` |
+| PC-06 | `OffsetYMm`, `OffsetZMm`, `RotationDeg`, `ToleranceMm`, `MountingReference` (FFL/SOFFIT/SLAB/CEILING) | `PlacementRule.cs`, scorer, XAML, code-behind |
+| PC-07 | `ExcludeRoomFilter`, `RoomDepartmentFilter`, `MinAreaM2`, `MaxAreaM2`, `LevelFilter`, `PhaseFilter`, `WorksetFilter`; `RoomMatchesScope` enforces the suite in one pass | `PlacementRule.cs`, `PlacementScorer.cs` |
+| PC-08 | Variant fallback chain (comma-separated) + regex hint + `FamilyTypeRegex` | `FixturePlacementEngine.ResolveSymbol` |
+| PC-09 | New anchor types: `OPPOSITE_WALL`, `GRID_INTERSECTION`, `COLUMN_FACE`, `PERIMETER_OFFSET`, `RAISED_FLOOR_TILE`, `DOOR_HEAD`, `STAIR_NOSING`, `ESCAPE_ROUTE_CENTRELINE`, `RELATIVE_TO`, `EQUIPMENT_PAIR` | `PlacementScorer.cs` |
+| PC-10 | `EmitLightingGridPoints` pipes lux-grid points through `CeilingGridSnap.SnapToCeilingGrid` | `PlacementScorer.cs` |
+| PC-11 | Editable Clearance / Envelope / Weight / Fire-sep group; `FamilyHintsBridge.PushExtras` writes 11 extra params | `StingPlacementCenter.xaml` + `FamilyHintsBridge.cs` |
+| PC-12 | `PlacementRuleKind` (Point/Density/Linear) + `PerAreaM2` / `PerOccupant` / `PerLinearMetre`; engine `ComputeCap` derives count from area, occupancy or perimeter | `PlacementRule.cs`, `FixturePlacementEngine.cs` |
+| PC-13 | `RuleId`, `DependsOn`, `RelativeTo`, `CoPlaceWith`, `ConflictsWith`; engine maintains per-room state, fires co-rules at the predecessor's last point | `PlacementRule.cs`, `FixturePlacementEngine.cs` |
+| PC-14 | `LearnPlacementV4Command` walks 19 categories, clusters by (Category, RoomKeyword), emits `STING_PLACEMENT_RULES.learned.json` with Priority 90 | `Commands/Placement/LearnPlacementV4Command.cs` |
+| PC-15 | `RunStudy` clones rules, perturbs `MinSpacingMm` / `Priority`, runs the engine in dry-run mode, returns real `CoveragePct` and stddev-based `SpacingVariance` | `Core/Placement/GenerativeDesignBridge.cs` |
+| PC-16 | `TryAutoLoadFromLibrary` searches `Families/**/*.rfa` for a category match and loads the first hit | `FixturePlacementEngine.cs` |
+| PC-17 | New `PostPlacementHooks` static (RunDataTagPipeline / SeedCobieComponent / AssignMepSystem); engine fires hooks after each placement | `Core/Placement/PostPlacementHooks.cs` |
+| PC-18 | 58 new baseline rules with `RuleId` + `StandardRef` across 4 packs | `Data/Placement/STING_PLACEMENT_RULES.{architecture,mechanical,electrical,healthcare-education}.json` |
+| PC-19 | Every new rule cites a UK/BS/CIBSE standard or guidance document | same packs |
+| PC-20 | `PlacementRuleLoader.LoadDefaults` auto-merges baseline + 4 packs (~100 rules out of the box); `.project.json` and `.learned.json` still win | `PlacementRuleLoader.cs` |
+| PC-21 | `chkLivePreview` toggle + 500 ms `DispatcherTimer` debounce on `CommitField` triggers a Preview after each rule edit | `StingPlacementCenter.xaml.cs` |
+| PC-22 | Per-rule HSV → ARGB colour in `PlacementPreviewSource`; per-room × rule scoring loop replaces the old "cross at room centroid" placeholder | `Core/Visualization/PlacementPreviewSource.cs` |
+| PC-23 | 8-validator picker (Clearance / Maintenance / Connectivity / Fill / Spec / Termination / Slope / Separation) honoured by `RunValidators(doc, mask)` | `StingPlacementCenter.xaml` + `PlacementCenterBridge.cs` |
+| PC-24 | Already partly wired: the `Placement_OpenCentre` button on the v4 Fixtures tab opens the Centre from the dockable panel. Embedding the editor as a tab is a deferred follow-up (Window→UserControl refactor). | `StingDockPanel.xaml` |
+| PC-25 | Run / Preview / Validate shortcuts moved from Ctrl+R/P/V (Revit conflicts) to Alt+R/P/V; tooltips updated | `StingPlacementCenter.xaml` |
+
