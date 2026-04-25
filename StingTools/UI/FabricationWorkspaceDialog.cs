@@ -598,7 +598,7 @@ namespace StingTools.UI
                 {
                     scopeLabel = "active view";
                     var view = _doc.ActiveView;
-                    if (view == null) return ids;
+                    if (view == null || view is ViewSheet) return ids;
                     foreach (var e in new FilteredElementCollector(_doc, view.Id)
                         .WherePasses(filter).WhereElementIsNotElementType()) ids.Add(e.Id);
                     return ids;
@@ -623,10 +623,11 @@ namespace StingTools.UI
                 }
                 if (ids.Count > 0) { scopeLabel = "selection"; return ids; }
 
-                // Auto-fallback: active view.
+                // Auto-fallback: active view (skip sheet views — the
+                // collector throws on those).
                 fellBack = true;
                 var v2 = _doc.ActiveView;
-                if (v2 != null)
+                if (v2 != null && !(v2 is ViewSheet))
                 {
                     foreach (var e in new FilteredElementCollector(_doc, v2.Id)
                         .WherePasses(filter).WhereElementIsNotElementType()) ids.Add(e.Id);

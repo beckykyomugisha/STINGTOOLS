@@ -72,15 +72,26 @@ namespace StingTools.Commands.Fabrication
             var ids = CollectScopeWithFallback(doc, uidoc, out scopeLabelUsed);
             if (ids == null || ids.Count == 0)
             {
-                TaskDialog.Show("STING v4 — Generate Fabrication Package",
-                    "No MEP elements found in selection, active view, or the project.\n\n" +
-                    "FabricationEngine will:\n" +
-                    "  1. Group elements per discipline rules (STING_FAB_RULES.json)\n" +
-                    "  2. Create AssemblyInstances with SP-{DISC}-{SYS}-{LVL}-{SEQ} naming\n" +
-                    "  3. Generate 5 views per assembly + BOM schedule\n" +
-                    "  4. Lay out shop drawing sheets with title block populated\n" +
-                    "  5. Emit per-discipline CSV sidecars (bend / weld / seam)\n\n" +
-                    "Open a view containing pipes / ducts / conduits and try again.");
+                // Last-resort: open the Fabrication Workspace instead of
+                // showing an error dialog. The workspace surfaces live
+                // category counts + scope radios so the user can see the
+                // 341 pipes that exist and pick a scope that includes
+                // them. This eliminates the "no MEP elements" dead-end
+                // that happens when Selection scope is on with nothing
+                // selected.
+                try
+                {
+                    var dlg = new StingTools.UI.FabricationWorkspaceDialog(doc);
+                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                    dlg.ShowDialog();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"GenerateFabPackage: workspace fallback failed: {ex.Message}");
+                    TaskDialog.Show("STING v4 — Generate Fabrication Package",
+                        "No MEP elements found in selection, active view, or the project.\n\n" +
+                        "Open a view containing pipes / ducts / conduits and try again.");
+                }
                 return Result.Cancelled;
             }
             StingLog.Info($"GenerateFabPackage: collected {ids.Count} element(s) via {scopeLabelUsed} scope.");
@@ -215,6 +226,10 @@ namespace StingTools.Commands.Fabrication
             {
                 var view = doc?.ActiveView;
                 if (view == null) return ids;
+                // Sheet views aren't valid view filters for the
+                // collector — bail early so the caller falls through
+                // to the project-level fallback.
+                if (view is ViewSheet) return ids;
                 var col = new FilteredElementCollector(doc, view.Id)
                     .WherePasses(new ElementMulticategoryFilter(MepCats))
                     .WhereElementIsNotElementType();
