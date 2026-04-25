@@ -4576,6 +4576,7 @@
                                         <Button Style="{StaticResource GreenBtn}"  Content="Place fixtures" Tag="Placement_PlaceFixtures" Click="Cmd_Click" Width="100" Height="30" ToolTip="Place all fixture categories per STING_PLACEMENT_RULES.json in scope rooms"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Lighting grid"  Tag="Placement_LightingGrid"  Click="Cmd_Click" Width="90"  Height="30" ToolTip="BS EN 12464-1 lux-target grid for the active room"/>
                                         <Button Style="{StaticResource OrangeBtn}" Content="Learn"          Tag="Placement_Learn"          Click="Cmd_Click" Width="70"  Height="30" ToolTip="Extract project-level rule overrides from already-placed fixtures"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Centre…"        Tag="Placement_OpenCentre"     Click="Cmd_Click" Width="74"  Height="30" ToolTip="Open the modeless STING Placement Centre — full rule editor, run/preview/validate, history, push-to-families."/>
                                     </WrapPanel>
 
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
