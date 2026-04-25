@@ -1394,7 +1394,102 @@ namespace StingTools.UI
                 _current.Phase, v => _current.Phase = v,
                 tooltip: "RIBA Plan of Work 2020 stage 0–7. Use * for any stage."));
             body.Children.Add(LabeledTextBlock("Origin", _current.Origin ?? "project"));
+
+            // Phase 136 — surface View style pack as a top-level identity field
+            // (a Drawing Type's most important visual binding). A dedicated
+            // BuildViewStylePackPicker() returns label + dropdown + edit link
+            // as one row group so it's discoverable here AND callable from the
+            // Views card if needed.
+            body.Children.Add(BuildViewStylePackPicker());
             return Card("Identity", body);
+        }
+
+        // Dedicated, prominent View style pack chooser. Non-editable
+        // dropdown listing every loaded pack ("(none)" + every entry from
+        // STING_VIEW_STYLE_PACKS.json — corporate baseline + project
+        // override + new packs created in the same session). Includes a
+        // "→ Edit selected pack" link that jumps to the View Style Packs
+        // tab and highlights the active pack.
+        private UIElement BuildViewStylePackPicker()
+        {
+            var stack = new StackPanel { Margin = new Thickness(0, 2, 0, 2) };
+
+            // Row 1 — label + ComboBox (non-editable for unmistakable UX).
+            var row = new DockPanel { Margin = new Thickness(0, 3, 0, 0), LastChildFill = true };
+            var lbl = new TextBlock {
+                Text = "View style pack",
+                Width = 200,
+                Foreground = new SolidColorBrush(SubtleColor),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Picks a ViewStylePack from STING_VIEW_STYLE_PACKS.json. " +
+                          "The pack supplies VG overrides, filter rules, text/dim style and tag defaults.",
+            };
+            DockPanel.SetDock(lbl, Dock.Left);
+            row.Children.Add(lbl);
+
+            var combo = new ComboBox { Height = 22, IsEditable = false };
+            DarkDialogTheme.StyleInput(combo, CardBg, FgColor, CardBorder);
+            combo.Items.Add("(none)");
+            foreach (var p in _packs ?? new List<ViewStylePack>())
+                combo.Items.Add($"{p.Id}  —  {p.Name ?? p.Id}");
+
+            // Initial selection — match by id prefix; fall back to (none).
+            string initial = "(none)";
+            if (!string.IsNullOrEmpty(_current.ViewStylePackId))
+            {
+                foreach (var item in combo.Items)
+                {
+                    if (item is string s &&
+                        s.StartsWith(_current.ViewStylePackId + "  —  ", StringComparison.OrdinalIgnoreCase))
+                    { initial = s; break; }
+                }
+                if (initial == "(none)") initial = _current.ViewStylePackId;
+            }
+            combo.SelectedItem = initial;
+            combo.SelectionChanged += (s, e) =>
+            {
+                if (combo.SelectedItem is string ss)
+                {
+                    if (ss == "(none)") { _current.ViewStylePackId = null; return; }
+                    var idx = ss.IndexOf("  —  ", StringComparison.Ordinal);
+                    _current.ViewStylePackId = idx > 0 ? ss.Substring(0, idx).Trim() : ss.Trim();
+                }
+            };
+            row.Children.Add(combo);
+            stack.Children.Add(row);
+
+            // Row 2 — count strip + "Edit selected pack" hyperlink.
+            var hint = new DockPanel { Margin = new Thickness(204, 2, 4, 4), LastChildFill = true };
+            var count = new TextBlock {
+                Text = $"{(_packs?.Count ?? 0)} pack(s) loaded · select one to bind",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            DockPanel.SetDock(count, Dock.Left);
+            hint.Children.Add(count);
+
+            var link = new TextBlock {
+                Text = "→ Edit selected pack",
+                Foreground = new SolidColorBrush(AccentColor),
+                FontSize = 11,
+                Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            link.MouseLeftButtonUp += (s, e) =>
+            {
+                if (string.IsNullOrEmpty(_current.ViewStylePackId)) return;
+                var target = (_packs ?? new List<ViewStylePack>()).FirstOrDefault(p =>
+                    string.Equals(p.Id, _current.ViewStylePackId, StringComparison.OrdinalIgnoreCase));
+                if (target == null) return;
+                _rootTabs.SelectedIndex = 1;
+                SelectPack(target);
+            };
+            hint.Children.Add(link);
+            stack.Children.Add(hint);
+
+            return stack;
         }
 
         private UIElement BuildSheetCard()
@@ -1431,50 +1526,8 @@ namespace StingTools.UI
                 _current.ViewportTypeName, v => _current.ViewportTypeName = v,
                 ProjectAssetPicker.ViewportTypeNames(_doc),
                 "ElementType where Category = OST_Viewports in the active project."));
-
-            // Phase 136 — ViewStylePackId picker + edit link.
-            var packItems = new[] { "(none)" }
-                .Concat((_packs ?? new List<ViewStylePack>()).Select(p => $"{p.Id}  —  {p.Name ?? p.Id}"))
-                .ToArray();
-            var currentPackDisplay = string.IsNullOrEmpty(_current.ViewStylePackId)
-                ? "(none)"
-                : packItems.FirstOrDefault(s => s.StartsWith(_current.ViewStylePackId + " "))
-                  ?? _current.ViewStylePackId;
-            body.Children.Add(LabeledProjectAssetCombo(
-                "View style pack",
-                currentPackDisplay,
-                v =>
-                {
-                    if (string.IsNullOrEmpty(v) || v == "(none)") { _current.ViewStylePackId = null; return; }
-                    var id = v.Contains("  —  ")
-                        ? v.Split(new[] { "  —  " }, 2, StringSplitOptions.None)[0].Trim()
-                        : v.Trim();
-                    _current.ViewStylePackId = string.IsNullOrEmpty(id) ? null : id;
-                },
-                packItems,
-                "The ViewStylePack that supplies VG overrides, filter rules and tag style defaults. " +
-                "Packs are defined in the View Style Packs tab."));
-
-            var navLink = new TextBlock
-            {
-                Text = "→ Edit selected pack",
-                Foreground = new SolidColorBrush(AccentColor),
-                FontSize = 11,
-                Cursor = Cursors.Hand,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 2, 4, 6),
-            };
-            navLink.MouseLeftButtonUp += (s, e) =>
-            {
-                if (string.IsNullOrEmpty(_current.ViewStylePackId)) return;
-                var target = (_packs ?? new List<ViewStylePack>()).FirstOrDefault(p =>
-                    string.Equals(p.Id, _current.ViewStylePackId, StringComparison.OrdinalIgnoreCase));
-                if (target == null) return;
-                _rootTabs.SelectedIndex = 1;            // switch to View Style Packs tab
-                SelectPack(target);                     // highlight the matching pack in the list
-            };
-            body.Children.Add(navLink);
-
+            // View style pack picker lives in the Identity card now (Phase 136)
+            // — see BuildViewStylePackPicker() for the discoverable top-level UX.
             return Card("Views", body);
         }
 
