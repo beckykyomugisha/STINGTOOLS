@@ -110,21 +110,8 @@ namespace StingTools.Core.Placement
             var results = new List<PlacementCandidate>();
             if (room == null || rule == null) return results;
 
-            // Room filter gate
-            if (!string.IsNullOrEmpty(rule.RoomFilter))
-            {
-                string roomName = SafeRoomName(room);
-                try
-                {
-                    if (!Regex.IsMatch(roomName, rule.RoomFilter, RegexOptions.IgnoreCase))
-                        return results;
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"PlacementScorer: invalid RoomFilter regex '{rule.RoomFilter}': {ex.Message}");
-                    return results;
-                }
-            }
+            // Room filter gate (PC-07 — full scoping suite)
+            if (!RoomMatchesScope(room, rule)) return results;
 
             // Room cap check
             if (rule.MaxPerRoom > 0 && countInRoomSoFar >= rule.MaxPerRoom)
@@ -147,10 +134,12 @@ namespace StingTools.Core.Placement
         }
 
         /// <summary>
-        /// Anchor generator. Real Revit geometry inspection (walls,
-        /// doors, ceiling solid) is deferred to the engine's face-based
-        /// placement. Here we emit one or more candidate anchor XYZs
-        /// using the room location as a coarse approximation.
+        /// PC-04 + PC-09 + PC-10 — anchor generator. Each anchor type
+        /// inspects the room's actual boundary segments / door / window /
+        /// column / grid geometry. Heights honour MountingReference
+        /// (FFL / SOFFIT / SLAB / CEILING) plus OffsetX/Y/Z (PC-06).
+        /// Falls back to the room's location point when boundary
+        /// inspection fails.
         /// </summary>
         private List<XYZ> GenerateAnchorPoints(Room room, PlacementRule rule)
         {
@@ -165,71 +154,145 @@ namespace StingTools.Core.Placement
             {
                 StingLog.Warn($"PlacementScorer: room {room.Id} LocationPoint read failed: {ex.Message}");
             }
-
             if (roomPt == null) return points;
 
-            double mountingFt = rule.MountingHeightMm * MmToFt;
-            double offsetFt   = rule.OffsetXMm * MmToFt;
+            // PC-06 — full 3-D offset and rotation read once per rule.
+            double offsetXFt = rule.OffsetXMm * MmToFt;
+            double offsetYFt = rule.OffsetYMm * MmToFt;
+            double offsetZFt = rule.OffsetZMm * MmToFt;
 
-            switch ((rule.AnchorType ?? "ROOM_CENTRE").ToUpperInvariant())
+            // PC-06 — mounting reference picks which datum MountingHeight is measured from.
+            double anchorZ = ResolveMountingDatumZ(room, rule, roomPt) + (rule.MountingHeightMm * MmToFt) + offsetZFt;
+
+            string anchor = (rule.AnchorType ?? "ROOM_CENTRE").ToUpperInvariant();
+            switch (anchor)
             {
                 case "ROOM_CENTRE":
                 case "ROOM_CENTROID":
-                    points.Add(new XYZ(roomPt.X, roomPt.Y, roomPt.Z + mountingFt));
+                    points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
                     break;
+
                 case "CEILING_CENTRE":
-                    // Mounting height treated as elevation above room floor
-                    points.Add(new XYZ(roomPt.X, roomPt.Y, roomPt.Z + Math.Max(mountingFt, 2.8 / 0.3048)));
+                    points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt,
+                        Math.Max(anchorZ, roomPt.Z + 2.8 / 0.3048)));
                     break;
+
                 case "LIGHTING_GRID":
                 case "LUX_GRID":
                 case "EN12464":
-                    // BS EN 12464-1 lumen-method grid. The calculator
-                    // emits one point per required luminaire. Returns
-                    // no points when the room is too small or the
-                    // classifier yields zero target lux.
-                    var grid = LightingGrid?.Compute(room);
-                    if (grid != null && grid.Points.Count > 0)
-                    {
-                        foreach (var p in grid.Points)
-                        {
-                            // Respect the rule's mounting height instead
-                            // of the grid's default room-Z (the calculator
-                            // uses the room bounding box min-Z which is
-                            // the room floor, not the ceiling plane).
-                            points.Add(new XYZ(p.X, p.Y, roomPt.Z + mountingFt));
-                        }
-                        StingLog.Info(
-                            $"PlacementScorer: lighting grid for room {room.Id} — " +
-                            $"{grid.RoomTypeCode} target {grid.TargetLux:F0}lx, " +
-                            $"{grid.FixturesRequired} fixture(s) on {grid.SpacingXMm:F0}×{grid.SpacingYMm:F0}mm grid");
-                    }
-                    else
-                    {
-                        // Fallback: treat as CEILING_CENTRE so lux-gated
-                        // rules still produce a candidate.
-                        points.Add(new XYZ(roomPt.X, roomPt.Y, roomPt.Z + mountingFt));
-                    }
+                    // PC-10 — pipe lighting-grid points through CeilingGridSnap.
+                    EmitLightingGridPoints(room, rule, roomPt, offsetXFt, offsetYFt, anchorZ, points);
                     break;
+
+                // PC-04 — wall/door/window anchors now read real boundary geometry.
                 case "WALL_MIDPOINT":
-                case "WALL_CORNER":
-                case "DOOR_HINGE":
-                case "DOOR_JAMB":
-                case "WINDOW_SILL":
-                    // TODO-VERIFY-API: full wall/door geometry inspection happens in
-                    // FixturePlacementEngine via BoundarySegment + wall face. For scoring
-                    // we sample 4 cardinal offsets from the room centre.
-                    double r = 3.0; // 1m in feet approx
-                    points.Add(new XYZ(roomPt.X + r + offsetFt, roomPt.Y,           roomPt.Z + mountingFt));
-                    points.Add(new XYZ(roomPt.X - r + offsetFt, roomPt.Y,           roomPt.Z + mountingFt));
-                    points.Add(new XYZ(roomPt.X,                roomPt.Y + r,       roomPt.Z + mountingFt));
-                    points.Add(new XYZ(roomPt.X,                roomPt.Y - r,       roomPt.Z + mountingFt));
+                    EmitWallMidpoints(room, rule, anchorZ, offsetXFt, offsetYFt, points);
                     break;
+                case "WALL_CORNER":
+                    EmitWallCorners(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    break;
+                case "DOOR_HINGE":
+                    EmitDoorAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points, hingeSide: true,  overDoor: false);
+                    break;
+                case "DOOR_JAMB":
+                    EmitDoorAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points, hingeSide: false, overDoor: false);
+                    break;
+                case "DOOR_HEAD":
+                    EmitDoorAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points, hingeSide: false, overDoor: true);
+                    break;
+                case "WINDOW_SILL":
+                    EmitWindowSills(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    break;
+
+                // PC-09 — additional anchor types.
+                case "OPPOSITE_WALL":
+                    EmitOppositeWallAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    break;
+                case "GRID_INTERSECTION":
+                    EmitGridIntersectionAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    break;
+                case "COLUMN_FACE":
+                    EmitColumnFaceAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    break;
+                case "PERIMETER_OFFSET":
+                    EmitPerimeterAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    break;
+                case "RAISED_FLOOR_TILE":
+                    // 600mm raised-access tile centres
+                    EmitFloorTileAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points, tileMm: 600.0);
+                    break;
+                case "STAIR_NOSING":
+                    EmitStairNosingAnchor(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    break;
+                case "ESCAPE_ROUTE_CENTRELINE":
+                    // For now, sample along the longest boundary edge — escape routes
+                    // are typically corridor centrelines parallel to the long axis.
+                    EmitWallMidpoints(room, rule, anchorZ, offsetXFt, offsetYFt, points);
+                    break;
+                case "RELATIVE_TO":
+                case "EQUIPMENT_PAIR":
+                    // PC-13 — handled by the engine; scorer falls through to ROOM_CENTRE
+                    // so the rule produces *some* candidate when no predecessor placed.
+                    points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+                    break;
+
                 default:
-                    points.Add(new XYZ(roomPt.X, roomPt.Y, roomPt.Z + mountingFt));
+                    points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
                     break;
             }
+
+            // PC-13 — when this rule is co-placed with the previous run point, no extra
+            // candidates needed; the engine will splice in the predecessor's point at
+            // ProcessRoomRule. Same for RELATIVE_TO / EQUIPMENT_PAIR above.
             return points;
+        }
+
+        /// <summary>
+        /// PC-06 — return the Z datum for MountingHeight given the rule's
+        /// MountingReference. FFL → room floor (room.Z). SLAB → room floor
+        /// (legacy alias). CEILING / SOFFIT → room top + 0 (caller adds
+        /// MountingHeight as an *offset* below the ceiling face).
+        /// </summary>
+        private double ResolveMountingDatumZ(Room room, PlacementRule rule, XYZ roomPt)
+        {
+            string r = (rule?.MountingReference ?? "FFL").ToUpperInvariant();
+            if (r == "FFL" || r == "SLAB" || string.IsNullOrEmpty(r)) return roomPt.Z;
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return roomPt.Z;
+                if (r == "CEILING" || r == "SOFFIT") return bb.Max.Z;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveMountingDatumZ {room.Id}: {ex.Message}"); }
+            return roomPt.Z;
+        }
+
+        // PC-10 — emit lighting-grid points snapped to the ceiling tile grid.
+        private void EmitLightingGridPoints(Room room, PlacementRule rule, XYZ roomPt,
+            double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
+        {
+            try
+            {
+                var grid = LightingGrid?.Compute(room);
+                if (grid == null || grid.Points.Count == 0)
+                {
+                    points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+                    return;
+                }
+                // Snap raw grid points to ceiling tile centres before lifting Z.
+                var snapped = CeilingGridSnap.SnapToCeilingGrid(_doc, room, grid.Points);
+                foreach (var p in snapped)
+                    points.Add(new XYZ(p.X + offsetXFt, p.Y + offsetYFt, anchorZ));
+                StingLog.Info(
+                    $"PlacementScorer: lighting grid for room {room.Id} — {grid.RoomTypeCode} " +
+                    $"target {grid.TargetLux:F0}lx, {grid.FixturesRequired} fixture(s), " +
+                    $"snapped to ceiling tiles");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer.EmitLightingGridPoints {room.Id}: {ex.Message}");
+                points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+            }
         }
 
         private PlacementCandidate BuildCandidate(
@@ -639,6 +702,512 @@ namespace StingTools.Core.Placement
                 StingLog.Warn($"PlacementScorer: room {room.Id} name read failed: {ex.Message}");
                 return "";
             }
+        }
+
+
+        // ── PC-04 — boundary-segment readers ─────────────────────────
+
+        /// <summary>
+        /// Cache of room → boundary segments + paired Wall/Door/Window
+        /// elements. Built once per room across all rules in one Score()
+        /// session.
+        /// </summary>
+        private readonly Dictionary<ElementId, RoomBoundaryCache> _boundaryCache
+            = new Dictionary<ElementId, RoomBoundaryCache>();
+
+        private RoomBoundaryCache GetBoundary(Room room)
+        {
+            if (room == null) return null;
+            if (_boundaryCache.TryGetValue(room.Id, out var cached)) return cached;
+            var cache = new RoomBoundaryCache();
+            try
+            {
+                var opts = new SpatialElementBoundaryOptions
+                {
+                    SpatialElementBoundaryLocation = SpatialElementBoundaryLocation.Finish,
+                    StoreFreeBoundaryFaces = false,
+                };
+                var loops = room.GetBoundarySegments(opts);
+                if (loops != null)
+                {
+                    foreach (var loop in loops)
+                    {
+                        if (loop == null) continue;
+                        foreach (var seg in loop)
+                        {
+                            if (seg == null) continue;
+                            var entry = new BoundaryEntry { Segment = seg, Curve = seg.GetCurve() };
+                            try
+                            {
+                                var hostId = seg.ElementId;
+                                if (hostId != null && hostId != ElementId.InvalidElementId)
+                                {
+                                    var host = _doc.GetElement(hostId);
+                                    if (host is Wall w) entry.Wall = w;
+                                }
+                            }
+                            catch { }
+                            if (entry.Curve != null) cache.Segments.Add(entry);
+                        }
+                    }
+                }
+
+                // Doors / windows whose host wall borders the room.
+                var bb = room.get_BoundingBox(null);
+                if (bb != null)
+                {
+                    var pad = 1.5;
+                    var outline = new Outline(
+                        new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                        new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
+                    var bbf = new BoundingBoxIntersectsFilter(outline);
+                    cache.Doors   = CollectInsts(_doc, BuiltInCategory.OST_Doors,   bbf);
+                    cache.Windows = CollectInsts(_doc, BuiltInCategory.OST_Windows, bbf);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementScorer.GetBoundary {room.Id}: {ex.Message}"); }
+            _boundaryCache[room.Id] = cache;
+            return cache;
+        }
+
+        private static List<FamilyInstance> CollectInsts(Document doc, BuiltInCategory cat, ElementFilter bbf)
+        {
+            var list = new List<FamilyInstance>();
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(cat).WhereElementIsNotElementType().WherePasses(bbf))
+                {
+                    if (el is FamilyInstance fi) list.Add(fi);
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        private class RoomBoundaryCache
+        {
+            public List<BoundaryEntry> Segments { get; } = new List<BoundaryEntry>();
+            public List<FamilyInstance> Doors   { get; set; } = new List<FamilyInstance>();
+            public List<FamilyInstance> Windows { get; set; } = new List<FamilyInstance>();
+        }
+
+        private class BoundaryEntry
+        {
+            public BoundarySegment Segment;
+            public Curve Curve;
+            public Wall Wall;
+        }
+
+        // ── PC-04 — wall midpoints / corners from real boundary segments ─
+
+        private void EmitWallMidpoints(Room room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points)
+        {
+            var b = GetBoundary(room);
+            if (b == null || b.Segments.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            foreach (var seg in b.Segments)
+            {
+                if (seg.Curve == null) continue;
+                if (!(seg.Curve is Line line)) continue;
+                var mid = line.Evaluate(0.5, true);
+                XYZ inward = ComputeInward(line, room);
+                double xFt = mid.X + inward.X * offsetXFt + (-inward.Y) * offsetYFt;
+                double yFt = mid.Y + inward.Y * offsetXFt + ( inward.X) * offsetYFt;
+                points.Add(new XYZ(xFt, yFt, anchorZ));
+            }
+        }
+
+        private void EmitWallCorners(Room room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points)
+        {
+            var b = GetBoundary(room);
+            if (b == null || b.Segments.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            // Corner = endpoint of every line segment, deduped.
+            var seen = new HashSet<long>();
+            foreach (var seg in b.Segments)
+            {
+                if (!(seg.Curve is Line line)) continue;
+                foreach (var pt in new[] { line.GetEndPoint(0), line.GetEndPoint(1) })
+                {
+                    long key = (long)(pt.X * 1000) * 100000 + (long)(pt.Y * 1000);
+                    if (!seen.Add(key)) continue;
+                    XYZ inward = ComputeInward(line, room);
+                    points.Add(new XYZ(pt.X + inward.X * offsetXFt, pt.Y + inward.Y * offsetXFt, anchorZ));
+                }
+            }
+        }
+
+        private void EmitDoorAnchor(Room room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points,
+            bool hingeSide, bool overDoor)
+        {
+            var b = GetBoundary(room);
+            if (b == null || b.Doors == null || b.Doors.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            foreach (var door in b.Doors)
+            {
+                XYZ origin = (door.Location as LocationPoint)?.Point;
+                if (origin == null) continue;
+                var hostWall = door.Host as Wall;
+                XYZ along = WallTangent(hostWall);
+                if (along == null) along = XYZ.BasisX;
+                XYZ inward = ComputeInwardFromWall(hostWall, room) ?? XYZ.BasisY;
+                // Hinge side: place along the wall in the direction of FacingFlipped.
+                double hingeSign = hingeSide ? 1 : -1;
+                if (door.FacingFlipped) hingeSign = -hingeSign;
+                XYZ shift = along.Multiply(hingeSign * (rule.OffsetXMm > 0 ? rule.OffsetXMm * MmToFt : 300.0 * MmToFt));
+                XYZ p = origin + shift + inward.Multiply(offsetYFt);
+                double z = overDoor ? (origin.Z + 2.2 / 0.3048) : anchorZ;
+                points.Add(new XYZ(p.X, p.Y, z));
+            }
+        }
+
+        private void EmitWindowSills(Room room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points)
+        {
+            var b = GetBoundary(room);
+            if (b == null || b.Windows == null || b.Windows.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            foreach (var win in b.Windows)
+            {
+                XYZ origin = (win.Location as LocationPoint)?.Point;
+                if (origin == null) continue;
+                points.Add(new XYZ(origin.X + offsetXFt, origin.Y + offsetYFt, anchorZ));
+            }
+        }
+
+        private static XYZ WallTangent(Wall w)
+        {
+            try
+            {
+                var lc = w?.Location as LocationCurve;
+                if (lc?.Curve is Line ln) return (ln.GetEndPoint(1) - ln.GetEndPoint(0)).Normalize();
+            }
+            catch { }
+            return null;
+        }
+
+        private XYZ ComputeInwardFromWall(Wall w, Room room)
+        {
+            try
+            {
+                if (w == null || w.Location is not LocationCurve lc || lc.Curve is not Line ln) return null;
+                XYZ tangent = (ln.GetEndPoint(1) - ln.GetEndPoint(0)).Normalize();
+                XYZ normal = new XYZ(-tangent.Y, tangent.X, 0);
+                // Resolve direction: nudge a tiny amount along ±normal and pick the one inside the room bbox.
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return normal;
+                XYZ wallMid = ln.Evaluate(0.5, true);
+                XYZ probe = wallMid + normal.Multiply(0.5);
+                if (probe.X >= bb.Min.X && probe.X <= bb.Max.X && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y) return normal;
+                return normal.Negate();
+            }
+            catch { return null; }
+        }
+
+        private XYZ ComputeInward(Line line, Room room)
+        {
+            try
+            {
+                XYZ tangent = (line.GetEndPoint(1) - line.GetEndPoint(0)).Normalize();
+                XYZ normal = new XYZ(-tangent.Y, tangent.X, 0);
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return normal;
+                XYZ mid = line.Evaluate(0.5, true);
+                XYZ probe = mid + normal.Multiply(0.5);
+                if (probe.X >= bb.Min.X && probe.X <= bb.Max.X && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y) return normal;
+                return normal.Negate();
+            }
+            catch { return XYZ.BasisY; }
+        }
+
+        private void Fallback(Room room, double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
+        {
+            try
+            {
+                var loc = room.Location as LocationPoint;
+                if (loc?.Point != null)
+                    points.Add(new XYZ(loc.Point.X + offsetXFt, loc.Point.Y + offsetYFt, anchorZ));
+            }
+            catch { }
+        }
+
+        // ── PC-09 — additional anchor types ──────────────────────────
+
+        private void EmitOppositeWallAnchor(Room room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points)
+        {
+            // Find the longest boundary edge on the wall opposite the first door.
+            var b = GetBoundary(room);
+            if (b == null || b.Segments.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            FamilyInstance door = (b.Doors != null && b.Doors.Count > 0) ? b.Doors[0] : null;
+            if (door == null) { EmitWallMidpoints(room, rule, anchorZ, offsetXFt, offsetYFt, points); return; }
+            XYZ doorPt = (door.Location as LocationPoint)?.Point;
+            if (doorPt == null) { EmitWallMidpoints(room, rule, anchorZ, offsetXFt, offsetYFt, points); return; }
+            BoundaryEntry best = null;
+            double bestDist = -1;
+            foreach (var seg in b.Segments)
+            {
+                if (!(seg.Curve is Line line)) continue;
+                XYZ mid = line.Evaluate(0.5, true);
+                double d = mid.DistanceTo(doorPt);
+                if (d > bestDist) { bestDist = d; best = seg; }
+            }
+            if (best == null) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            var midOpp = ((Line)best.Curve).Evaluate(0.5, true);
+            XYZ inward = ComputeInward((Line)best.Curve, room);
+            points.Add(new XYZ(midOpp.X + inward.X * offsetXFt, midOpp.Y + inward.Y * offsetXFt, anchorZ));
+        }
+
+        private void EmitGridIntersectionAnchor(Room room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points)
+        {
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+                var grids = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_Grids)
+                    .WhereElementIsNotElementType().Cast<Grid>().ToList();
+                if (grids.Count < 2) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+
+                XYZ centroid = (bb.Min + bb.Max) * 0.5;
+                XYZ best = null; double bestSq = double.MaxValue;
+                for (int i = 0; i < grids.Count; i++)
+                for (int j = i + 1; j < grids.Count; j++)
+                {
+                    var c1 = grids[i].Curve as Line;
+                    var c2 = grids[j].Curve as Line;
+                    if (c1 == null || c2 == null) continue;
+                    XYZ pt = LineIntersect(c1, c2);
+                    if (pt == null) continue;
+                    if (pt.X < bb.Min.X - 5 || pt.X > bb.Max.X + 5 ||
+                        pt.Y < bb.Min.Y - 5 || pt.Y > bb.Max.Y + 5) continue;
+                    double dx = pt.X - centroid.X, dy = pt.Y - centroid.Y;
+                    double sq = dx * dx + dy * dy;
+                    if (sq < bestSq) { bestSq = sq; best = pt; }
+                }
+                if (best != null)
+                    points.Add(new XYZ(best.X + offsetXFt, best.Y + offsetYFt, anchorZ));
+                else
+                    Fallback(room, anchorZ, offsetXFt, offsetYFt, points);
+            }
+            catch (Exception ex) { StingLog.Warn($"GridIntersectionAnchor: {ex.Message}"); Fallback(room, anchorZ, offsetXFt, offsetYFt, points); }
+        }
+
+        private static XYZ LineIntersect(Line a, Line b)
+        {
+            if (a == null || b == null) return null;
+            try
+            {
+                XYZ p1 = a.GetEndPoint(0), p2 = a.GetEndPoint(1);
+                XYZ p3 = b.GetEndPoint(0), p4 = b.GetEndPoint(1);
+                double x1 = p1.X, y1 = p1.Y, x2 = p2.X, y2 = p2.Y;
+                double x3 = p3.X, y3 = p3.Y, x4 = p4.X, y4 = p4.Y;
+                double den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+                if (Math.Abs(den) < 1e-9) return null;
+                double t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
+                return new XYZ(x1 + t * (x2 - x1), y1 + t * (y2 - y1), p1.Z);
+            }
+            catch { return null; }
+        }
+
+        private void EmitColumnFaceAnchor(Room room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points)
+        {
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+                XYZ centroid = (bb.Min + bb.Max) * 0.5;
+                var cats = new[] { BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_Columns };
+                XYZ best = null; double bestSq = double.MaxValue;
+                foreach (var cat in cats)
+                {
+                    foreach (var el in new FilteredElementCollector(_doc).OfCategory(cat).WhereElementIsNotElementType())
+                    {
+                        XYZ pt = (el.Location as LocationPoint)?.Point;
+                        if (pt == null) continue;
+                        if (pt.X < bb.Min.X - 2 || pt.X > bb.Max.X + 2 ||
+                            pt.Y < bb.Min.Y - 2 || pt.Y > bb.Max.Y + 2) continue;
+                        double dx = pt.X - centroid.X, dy = pt.Y - centroid.Y;
+                        double sq = dx * dx + dy * dy;
+                        if (sq < bestSq) { bestSq = sq; best = pt; }
+                    }
+                }
+                if (best != null) points.Add(new XYZ(best.X + offsetXFt, best.Y + offsetYFt, anchorZ));
+                else Fallback(room, anchorZ, offsetXFt, offsetYFt, points);
+            }
+            catch (Exception ex) { StingLog.Warn($"ColumnFaceAnchor: {ex.Message}"); Fallback(room, anchorZ, offsetXFt, offsetYFt, points); }
+        }
+
+        private void EmitPerimeterAnchor(Room room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points)
+        {
+            // Sample every PerLinearMetre or every 1.5m along all boundary lines.
+            var b = GetBoundary(room);
+            if (b == null || b.Segments.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            double stepMm = rule.PerLinearMetre > 0
+                ? rule.PerLinearMetre * 1000.0
+                : (rule.MinSpacingMm > 0 ? rule.MinSpacingMm : 1500.0);
+            double stepFt = stepMm * MmToFt;
+            foreach (var seg in b.Segments)
+            {
+                if (!(seg.Curve is Line line)) continue;
+                double len = line.Length;
+                int n = Math.Max(1, (int)Math.Floor(len / stepFt));
+                XYZ inward = ComputeInward(line, room);
+                for (int i = 0; i < n; i++)
+                {
+                    double t = (i + 0.5) / n;
+                    XYZ p = line.Evaluate(t, true);
+                    points.Add(new XYZ(
+                        p.X + inward.X * offsetXFt,
+                        p.Y + inward.Y * offsetXFt,
+                        anchorZ));
+                }
+            }
+        }
+
+        private void EmitFloorTileAnchor(Room room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points, double tileMm = 600.0)
+        {
+            var bb = room.get_BoundingBox(null);
+            if (bb == null) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+            XYZ centroid = (bb.Min + bb.Max) * 0.5;
+            double tileFt = tileMm * MmToFt;
+            double gx = bb.Min.X + Math.Round((centroid.X - bb.Min.X) / tileFt) * tileFt + tileFt / 2.0;
+            double gy = bb.Min.Y + Math.Round((centroid.Y - bb.Min.Y) / tileFt) * tileFt + tileFt / 2.0;
+            points.Add(new XYZ(gx + offsetXFt, gy + offsetYFt, anchorZ));
+        }
+
+        private void EmitStairNosingAnchor(Room room, PlacementRule rule, double anchorZ,
+            double offsetXFt, double offsetYFt, List<XYZ> points)
+        {
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
+                var pad = 0.5;
+                var outline = new Outline(
+                    new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                    new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
+                var bbf = new BoundingBoxIntersectsFilter(outline);
+                int placed = 0;
+                foreach (var el in new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_Stairs).WhereElementIsNotElementType().WherePasses(bbf))
+                {
+                    var stairBb = el.get_BoundingBox(null);
+                    if (stairBb == null) continue;
+                    XYZ p = (stairBb.Min + stairBb.Max) * 0.5;
+                    points.Add(new XYZ(p.X + offsetXFt, p.Y + offsetYFt, anchorZ));
+                    placed++;
+                    if (placed > 8) break;
+                }
+                if (placed == 0) Fallback(room, anchorZ, offsetXFt, offsetYFt, points);
+            }
+            catch (Exception ex) { StingLog.Warn($"StairNosingAnchor: {ex.Message}"); Fallback(room, anchorZ, offsetXFt, offsetYFt, points); }
+        }
+
+
+        // ── PC-07 — full room-scoping pass ───────────────────────────
+
+        /// <summary>
+        /// Returns true when the room matches every active scoping clause
+        /// on the rule (RoomFilter, ExcludeRoomFilter, RoomDepartmentFilter,
+        /// LevelFilter, PhaseFilter, WorksetFilter, MinAreaM2 / MaxAreaM2).
+        /// Empty / 0 means "no filter" — preserves legacy behaviour for
+        /// rules that don't set the new fields.
+        /// </summary>
+        private bool RoomMatchesScope(Room room, PlacementRule rule)
+        {
+            if (room == null || rule == null) return false;
+
+            string roomName = SafeRoomName(room);
+
+            if (!RegexAllow(rule.RoomFilter, roomName))            return false;
+            if (RegexBlock(rule.ExcludeRoomFilter, roomName))      return false;
+
+            // Department parameter
+            if (!string.IsNullOrEmpty(rule.RoomDepartmentFilter))
+            {
+                string dept = "";
+                try { dept = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? ""; }
+                catch { }
+                if (!RegexAllow(rule.RoomDepartmentFilter, dept)) return false;
+            }
+
+            // Level
+            if (!string.IsNullOrEmpty(rule.LevelFilter))
+            {
+                string lvlName = "";
+                try
+                {
+                    if (room.LevelId != null && room.LevelId != ElementId.InvalidElementId)
+                        lvlName = (_doc.GetElement(room.LevelId) as Level)?.Name ?? "";
+                }
+                catch { }
+                if (!RegexAllow(rule.LevelFilter, lvlName)) return false;
+            }
+
+            // Phase
+            if (!string.IsNullOrEmpty(rule.PhaseFilter))
+            {
+                string phaseName = "";
+                try
+                {
+                    var phaseParam = room.get_Parameter(BuiltInParameter.ROOM_PHASE_ID);
+                    if (phaseParam != null && phaseParam.HasValue)
+                    {
+                        var ph = _doc.GetElement(phaseParam.AsElementId()) as Phase;
+                        if (ph != null) phaseName = ph.Name ?? "";
+                    }
+                }
+                catch { }
+                if (!RegexAllow(rule.PhaseFilter, phaseName)) return false;
+            }
+
+            // Workset
+            if (!string.IsNullOrEmpty(rule.WorksetFilter))
+            {
+                string wsName = "";
+                try
+                {
+                    var wsId = room.WorksetId;
+                    if (wsId != null && _doc.IsWorkshared)
+                    {
+                        var ws = _doc.GetWorksetTable().GetWorkset(wsId);
+                        if (ws != null) wsName = ws.Name ?? "";
+                    }
+                }
+                catch { }
+                if (!RegexAllow(rule.WorksetFilter, wsName)) return false;
+            }
+
+            // Area gates (m²)
+            if (rule.MinAreaM2 > 0 || rule.MaxAreaM2 > 0)
+            {
+                double areaFt2 = 0;
+                try { areaFt2 = room.Area; } catch { }
+                double areaM2 = areaFt2 * 0.3048 * 0.3048;
+                if (rule.MinAreaM2 > 0 && areaM2 < rule.MinAreaM2) return false;
+                if (rule.MaxAreaM2 > 0 && areaM2 > rule.MaxAreaM2) return false;
+            }
+
+            return true;
+        }
+
+        private static bool RegexAllow(string pattern, string text)
+        {
+            if (string.IsNullOrEmpty(pattern)) return true;
+            try { return Regex.IsMatch(text ?? "", pattern, RegexOptions.IgnoreCase); }
+            catch (Exception ex) { StingLog.Warn($"PlacementScorer regex '{pattern}': {ex.Message}"); return false; }
+        }
+
+        private static bool RegexBlock(string pattern, string text)
+        {
+            if (string.IsNullOrEmpty(pattern)) return false;
+            try { return Regex.IsMatch(text ?? "", pattern, RegexOptions.IgnoreCase); }
+            catch (Exception ex) { StingLog.Warn($"PlacementScorer block regex '{pattern}': {ex.Message}"); return false; }
         }
     }
 }

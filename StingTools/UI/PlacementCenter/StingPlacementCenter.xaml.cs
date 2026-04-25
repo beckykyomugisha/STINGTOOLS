@@ -32,6 +32,10 @@ namespace StingTools.UI.PlacementCenter
         // Single instance — stays alive across opens; modeless.
         private static StingPlacementCenter _instance;
 
+        // PC-21 — debounce timer for live preview after rule edits.
+        private System.Windows.Threading.DispatcherTimer _previewDebounce;
+        private bool _livePreviewEnabled;
+
         public PlacementRulesViewModel VM { get; }
         private readonly Document _doc;
         private readonly UIDocument _uiDoc;
@@ -60,10 +64,13 @@ namespace StingTools.UI.PlacementCenter
             _doc = _uiDoc?.Document;
 
             // Combo data sources
-            cmbCategory.ItemsSource = VM.Categories;
-            cmbAnchor.ItemsSource   = VM.AnchorTypes;
-            cmbSide.ItemsSource     = VM.SideConstraints;
-            cmbVariant.ItemsSource  = VM.VariantHints;
+            cmbCategory.ItemsSource   = VM.Categories;
+            cmbAnchor.ItemsSource     = VM.AnchorTypes;
+            cmbSide.ItemsSource       = VM.SideConstraints;
+            cmbVariant.ItemsSource    = VM.VariantHints;
+            cmbMountRef.ItemsSource   = VM.MountingReferences;
+            cmbRuleKind.ItemsSource   = VM.RuleKinds;
+            cmbRelativeTo.ItemsSource = VM.RelativeToOptions;
 
             // Run-option two-way bindings
             chkProvenance.IsChecked  = VM.RunOpts.StampProvenance;
@@ -78,6 +85,18 @@ namespace StingTools.UI.PlacementCenter
             chkValidators.Unchecked  += (_,__) => VM.RunOpts.RunValidators   = false;
             chkAutoHeatmap.Checked   += (_,__) => VM.RunOpts.AutoHeatmap     = true;
             chkAutoHeatmap.Unchecked += (_,__) => VM.RunOpts.AutoHeatmap     = false;
+            // PC-17 — post-placement hooks
+            chkRunTags.IsChecked     = StingTools.Core.Placement.PostPlacementHooks.RunDataTagPipeline;
+            chkSeedCobie.IsChecked   = StingTools.Core.Placement.PostPlacementHooks.SeedCobieComponent;
+            chkAssignMep.IsChecked   = StingTools.Core.Placement.PostPlacementHooks.AssignMepSystem;
+            chkRunTags.Checked       += (_,__) => StingTools.Core.Placement.PostPlacementHooks.RunDataTagPipeline = true;
+            chkRunTags.Unchecked     += (_,__) => StingTools.Core.Placement.PostPlacementHooks.RunDataTagPipeline = false;
+            chkSeedCobie.Checked     += (_,__) => StingTools.Core.Placement.PostPlacementHooks.SeedCobieComponent = true;
+            chkSeedCobie.Unchecked   += (_,__) => StingTools.Core.Placement.PostPlacementHooks.SeedCobieComponent = false;
+            chkAssignMep.Checked     += (_,__) => StingTools.Core.Placement.PostPlacementHooks.AssignMepSystem = true;
+            chkAssignMep.Unchecked   += (_,__) => StingTools.Core.Placement.PostPlacementHooks.AssignMepSystem = false;
+            chkLivePreview.Checked   += (_,__) => _livePreviewEnabled = true;
+            chkLivePreview.Unchecked += (_,__) => _livePreviewEnabled = false;
             rbScopeView.Checked      += (_,__) => VM.RunOpts.Scope = "ActiveView";
             rbScopeSel.Checked       += (_,__) => VM.RunOpts.Scope = "Selection";
             rbScopeProj.Checked      += (_,__) => VM.RunOpts.Scope = "Project";
@@ -96,6 +115,38 @@ namespace StingTools.UI.PlacementCenter
             txtMountH.LostFocus         += (_,__) => CommitField(() => VM.Selected.MountingHeightMm = ParseDouble(txtMountH.Text,  VM.Selected.MountingHeightMm));
             txtSpacing.LostFocus        += (_,__) => CommitField(() => VM.Selected.MinSpacingMm     = ParseDouble(txtSpacing.Text, VM.Selected.MinSpacingMm));
             txtMaxRoom.LostFocus        += (_,__) => CommitField(() => VM.Selected.MaxPerRoom       = ParseInt(txtMaxRoom.Text,    VM.Selected.MaxPerRoom));
+
+            // PC-06 — geometry expansion
+            txtOffsetY.LostFocus        += (_,__) => CommitField(() => VM.Selected.OffsetYMm        = ParseDouble(txtOffsetY.Text, VM.Selected.OffsetYMm));
+            txtOffsetZ.LostFocus        += (_,__) => CommitField(() => VM.Selected.OffsetZMm        = ParseDouble(txtOffsetZ.Text, VM.Selected.OffsetZMm));
+            txtRotation.LostFocus       += (_,__) => CommitField(() => VM.Selected.RotationDeg      = ParseDouble(txtRotation.Text, VM.Selected.RotationDeg));
+            cmbMountRef.SelectionChanged+= (_,__) => CommitField(() => VM.Selected.MountingReference = cmbMountRef.SelectedItem as string ?? VM.Selected.MountingReference);
+
+            // PC-07 — room scoping suite
+            txtRoomExclude.LostFocus    += (_,__) => CommitField(() => VM.Selected.ExcludeRoomFilter    = txtRoomExclude.Text);
+            txtDepartment.LostFocus     += (_,__) => CommitField(() => VM.Selected.RoomDepartmentFilter = txtDepartment.Text);
+            txtLevelFilter.LostFocus    += (_,__) => CommitField(() => VM.Selected.LevelFilter   = txtLevelFilter.Text);
+            txtPhaseFilter.LostFocus    += (_,__) => CommitField(() => VM.Selected.PhaseFilter   = txtPhaseFilter.Text);
+            txtWorksetFilter.LostFocus  += (_,__) => CommitField(() => VM.Selected.WorksetFilter = txtWorksetFilter.Text);
+            txtMinArea.LostFocus        += (_,__) => CommitField(() => VM.Selected.MinAreaM2     = ParseDouble(txtMinArea.Text, VM.Selected.MinAreaM2));
+            txtMaxArea.LostFocus        += (_,__) => CommitField(() => VM.Selected.MaxAreaM2     = ParseDouble(txtMaxArea.Text, VM.Selected.MaxAreaM2));
+
+            // PC-12 — rule kind / density / linear
+            cmbRuleKind.SelectionChanged+= (_,__) => CommitField(() => VM.Selected.RuleKind     = ParseRuleKind(cmbRuleKind.SelectedItem as string));
+            txtPerArea.LostFocus        += (_,__) => CommitField(() => VM.Selected.PerAreaM2    = ParseDouble(txtPerArea.Text, VM.Selected.PerAreaM2));
+            txtPerOcc.LostFocus         += (_,__) => CommitField(() => VM.Selected.PerOccupant  = ParseDouble(txtPerOcc.Text,  VM.Selected.PerOccupant));
+            txtPerLin.LostFocus         += (_,__) => CommitField(() => VM.Selected.PerLinearMetre = ParseDouble(txtPerLin.Text, VM.Selected.PerLinearMetre));
+
+            // PC-13 — dependencies
+            txtRuleId.LostFocus         += (_,__) => CommitField(() => VM.Selected.RuleId        = txtRuleId.Text);
+            txtDependsOn.LostFocus      += (_,__) => CommitField(() => VM.Selected.DependsOn     = txtDependsOn.Text);
+            cmbRelativeTo.SelectionChanged += (_,__) => CommitField(() => VM.Selected.RelativeTo = cmbRelativeTo.SelectedItem as string ?? "");
+            txtCoPlace.LostFocus        += (_,__) => CommitField(() => VM.Selected.Model.CoPlaceWith   = ParseList(txtCoPlace.Text));
+            txtConflict.LostFocus       += (_,__) => CommitField(() => VM.Selected.Model.ConflictsWith = ParseList(txtConflict.Text));
+
+            // Standards & classification
+            txtStandardRef.LostFocus    += (_,__) => CommitField(() => VM.Selected.StandardRef = txtStandardRef.Text);
+            txtUniclassPr.LostFocus     += (_,__) => CommitField(() => VM.Selected.UniclassPr  = txtUniclassPr.Text);
 
             // VM → status bar binding
             VM.PropertyChanged += OnVmPropertyChanged;
@@ -443,7 +494,17 @@ namespace StingTools.UI.PlacementCenter
         {
             try
             {
-                var findings = PlacementCenterBridge.RunValidators(_doc);
+                // PC-23 — collect picked validators.
+                var mask = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (vClearance.IsChecked   == true) mask.Add("Clearance");
+                if (vMaintenance.IsChecked == true) mask.Add("Maintenance");
+                if (vConnectivity.IsChecked == true) mask.Add("Connectivity");
+                if (vFill.IsChecked        == true) mask.Add("Fill");
+                if (vSpec.IsChecked        == true) mask.Add("Spec");
+                if (vTermination.IsChecked == true) mask.Add("Termination");
+                if (vSlope.IsChecked       == true) mask.Add("Slope");
+                if (vSeparation.IsChecked  == true) mask.Add("Separation");
+                var findings = PlacementCenterBridge.RunValidators(_doc, mask);
                 if (scopeToProvenance && _lastRunUtc.HasValue)
                 {
                     findings = PlacementCenterBridge.FilterToProvenance(_doc, findings, _lastRunUtc.Value);
@@ -537,7 +598,21 @@ namespace StingTools.UI.PlacementCenter
 
             try
             {
-                var (types, writes) = FamilyHintsBridge.PushRuleToFamilyTypes(_doc, VM.Selected);
+                // PC-11 — collect optional clearance/envelope/weight overrides from the editor.
+                var extras = new FamilyHintsBridge.PushExtras
+                {
+                    ClearanceMm      = TryParseOpt(txtClr.Text),
+                    ClearanceFrontMm = TryParseOpt(txtClrFront.Text),
+                    ClearanceBackMm  = TryParseOpt(txtClrBack.Text),
+                    ClearanceSideMm  = TryParseOpt(txtClrSide.Text),
+                    ClearanceTopMm   = TryParseOpt(txtClrTop.Text),
+                    WeightKg         = TryParseOpt(txtWeightKg.Text),
+                    EnvWMm           = TryParseOpt(txtEnvW.Text),
+                    EnvDMm           = TryParseOpt(txtEnvD.Text),
+                    EnvHMm           = TryParseOpt(txtEnvH.Text),
+                    FireSepMm        = TryParseOpt(txtFireSep.Text),
+                };
+                var (types, writes) = FamilyHintsBridge.PushRuleToFamilyTypes(_doc, VM.Selected, extras);
                 VM.Status = $"Pushed to {types} family type(s) · {writes} parameter write(s)";
                 UpdateStatus();
                 TaskDialog.Show("STING — Placement Centre",
@@ -822,12 +897,37 @@ namespace StingTools.UI.PlacementCenter
                 VM.RebuildCategories();
                 UpdateStatus();
                 gridRules.Items.Refresh();
+
+                // PC-21 — debounce a live preview refresh.
+                if (_livePreviewEnabled) RestartPreviewDebounce();
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"StingPlacementCenter.CommitField: {ex.Message}");
                 txtRuleError.Text = ex.Message;
             }
+        }
+
+        private void RestartPreviewDebounce()
+        {
+            if (_previewDebounce == null)
+            {
+                _previewDebounce = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(500),
+                };
+                _previewDebounce.Tick += (s, e) =>
+                {
+                    _previewDebounce.Stop();
+                    if (_livePreviewEnabled && VM.HasSelection && VM.Selected.IsValid)
+                    {
+                        try { OnPreview_Click(this, new RoutedEventArgs()); }
+                        catch (Exception ex) { StingLog.Warn($"PC-21 live preview: {ex.Message}"); }
+                    }
+                };
+            }
+            _previewDebounce.Stop();
+            _previewDebounce.Start();
         }
 
         private void SyncFieldsFromSelection()
@@ -837,20 +937,85 @@ namespace StingTools.UI.PlacementCenter
             {
                 pnlRuleDetail.IsEnabled = VM.HasSelection;
                 if (VM.Selected == null) { txtRuleError.Text = ""; return; }
-                cmbCategory.Text          = VM.Selected.CategoryFilter ?? "";
-                cmbVariant.Text           = VM.Selected.VariantHint    ?? "";
-                txtRoom.Text              = VM.Selected.RoomFilter     ?? "";
-                txtNotes.Text             = VM.Selected.Notes          ?? "";
-                cmbAnchor.SelectedItem    = VM.Selected.AnchorType;
-                cmbSide.SelectedItem      = VM.Selected.SideConstraint;
-                txtPriority.Text          = VM.Selected.Priority.ToString(CultureInfo.InvariantCulture);
-                txtOffsetX.Text           = VM.Selected.OffsetXMm.ToString("0.##", CultureInfo.InvariantCulture);
-                txtMountH.Text            = VM.Selected.MountingHeightMm.ToString("0.##", CultureInfo.InvariantCulture);
-                txtSpacing.Text           = VM.Selected.MinSpacingMm.ToString("0.##", CultureInfo.InvariantCulture);
-                txtMaxRoom.Text           = VM.Selected.MaxPerRoom.ToString(CultureInfo.InvariantCulture);
-                txtRuleError.Text         = VM.Selected.IsValid ? "" : VM.Selected.ErrorMessage;
+                var s = VM.Selected;
+
+                // Rule core
+                cmbCategory.Text          = s.CategoryFilter ?? "";
+                cmbVariant.Text           = s.VariantHint    ?? "";
+                txtRoom.Text              = s.RoomFilter     ?? "";
+                txtNotes.Text             = s.Notes          ?? "";
+                cmbAnchor.SelectedItem    = s.AnchorType;
+                cmbSide.SelectedItem      = s.SideConstraint;
+                txtPriority.Text          = s.Priority.ToString(CultureInfo.InvariantCulture);
+
+                // Geometry (PC-06)
+                txtOffsetX.Text           = s.OffsetXMm.ToString("0.##", CultureInfo.InvariantCulture);
+                txtOffsetY.Text           = s.OffsetYMm.ToString("0.##", CultureInfo.InvariantCulture);
+                txtOffsetZ.Text           = s.OffsetZMm.ToString("0.##", CultureInfo.InvariantCulture);
+                txtRotation.Text          = s.RotationDeg.ToString("0.##", CultureInfo.InvariantCulture);
+                cmbMountRef.SelectedItem  = string.IsNullOrEmpty(s.MountingReference) ? "FFL" : s.MountingReference;
+                txtMountH.Text            = s.MountingHeightMm.ToString("0.##", CultureInfo.InvariantCulture);
+                txtSpacing.Text           = s.MinSpacingMm.ToString("0.##", CultureInfo.InvariantCulture);
+                txtMaxRoom.Text           = s.MaxPerRoom.ToString(CultureInfo.InvariantCulture);
+
+                // Room scoping (PC-07)
+                txtRoomExclude.Text       = s.ExcludeRoomFilter    ?? "";
+                txtDepartment.Text        = s.RoomDepartmentFilter ?? "";
+                txtLevelFilter.Text       = s.LevelFilter ?? "";
+                txtPhaseFilter.Text       = s.PhaseFilter ?? "";
+                txtWorksetFilter.Text     = s.WorksetFilter ?? "";
+                txtMinArea.Text           = s.MinAreaM2.ToString("0.##", CultureInfo.InvariantCulture);
+                txtMaxArea.Text           = s.MaxAreaM2.ToString("0.##", CultureInfo.InvariantCulture);
+
+                // Rule kind / density / linear (PC-12)
+                cmbRuleKind.SelectedItem  = s.RuleKind.ToString();
+                txtPerArea.Text           = s.PerAreaM2.ToString("0.##", CultureInfo.InvariantCulture);
+                txtPerOcc.Text            = s.PerOccupant.ToString("0.##", CultureInfo.InvariantCulture);
+                txtPerLin.Text            = s.PerLinearMetre.ToString("0.##", CultureInfo.InvariantCulture);
+
+                // Dependencies (PC-13)
+                txtRuleId.Text            = s.RuleId ?? "";
+                txtDependsOn.Text         = s.DependsOn ?? "";
+                cmbRelativeTo.SelectedItem = s.RelativeTo ?? "";
+                txtCoPlace.Text           = s.Model?.CoPlaceWith != null ? string.Join(",", s.Model.CoPlaceWith) : "";
+                txtConflict.Text          = s.Model?.ConflictsWith != null ? string.Join(",", s.Model.ConflictsWith) : "";
+
+                // Standards & classification
+                txtStandardRef.Text       = s.StandardRef ?? "";
+                txtUniclassPr.Text        = s.UniclassPr ?? "";
+
+                // PC-11 — clearance / envelope / weight fields are per-push extras,
+                // not part of the rule. Clear them when selection changes.
+                txtClr.Text = ""; txtClrFront.Text = ""; txtClrBack.Text = "";
+                txtClrSide.Text = ""; txtClrTop.Text = ""; txtWeightKg.Text = "";
+                txtEnvW.Text = ""; txtEnvD.Text = ""; txtEnvH.Text = ""; txtFireSep.Text = "";
+
+                txtRuleError.Text         = s.IsValid ? "" : s.ErrorMessage;
             }
             finally { _suppressUiSync = false; }
+        }
+
+        // PC-12 helper — string from RuleKinds combo to enum.
+        private static StingTools.Core.Placement.PlacementRuleKind ParseRuleKind(string s)
+        {
+            if (string.Equals(s, "Density", StringComparison.OrdinalIgnoreCase))
+                return StingTools.Core.Placement.PlacementRuleKind.Density;
+            if (string.Equals(s, "Linear", StringComparison.OrdinalIgnoreCase))
+                return StingTools.Core.Placement.PlacementRuleKind.Linear;
+            return StingTools.Core.Placement.PlacementRuleKind.Point;
+        }
+
+        // PC-13 helper — comma/semicolon-separated id list → trimmed list.
+        private static List<string> ParseList(string s)
+        {
+            var list = new List<string>();
+            if (string.IsNullOrEmpty(s)) return list;
+            foreach (var part in s.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var t = part.Trim();
+                if (!string.IsNullOrEmpty(t)) list.Add(t);
+            }
+            return list;
         }
 
         // ── Status bar ───────────────────────────────────────────────
@@ -880,6 +1045,13 @@ namespace StingTools.UI.PlacementCenter
             int.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out int v) ? v : fallback;
         private static double ParseDouble(string s, double fallback) =>
             double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : fallback;
+
+        // PC-11 helper — empty / non-numeric input → null (don't push that field).
+        private static double? TryParseOpt(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : (double?)null;
+        }
 
         // ── Resources ────────────────────────────────────────────────
 

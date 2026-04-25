@@ -2,14 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://planscape.app/schemas/STING_PLACEMENT_RULES.schema.json",
   "title": "STING Placement Rules",
-  "description": "Schema for Data/STING_PLACEMENT_RULES.json + per-project STING_PLACEMENT_RULES.project.json. Pack 126 / Gap I — IDE lint catches typos before runtime.",
+  "description": "Schema for Data/Placement/STING_PLACEMENT_RULES.json + per-project STING_PLACEMENT_RULES.project.json. Aligned with PlacementRule POCO + PlacementScorer.GenerateAnchorPoints (PC-01).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "rules"],
+  "required": ["Version", "Rules"],
   "properties": {
-    "version":      { "type": "string", "default": "v4" },
-    "description":  { "type": "string" },
-    "rules": {
+    "Version":     { "type": "string", "default": "v4" },
+    "Description": { "type": "string" },
+    "Rules": {
       "type": "array",
       "items": { "$ref": "#/$defs/PlacementRule" }
     }
@@ -18,19 +18,57 @@
     "PlacementRule": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["categoryFilter"],
+      "required": ["CategoryFilter"],
       "properties": {
-        "categoryFilter":   { "type": "string", "description": "Revit category name; one rule per category" },
-        "variantHint":      { "type": "string", "description": "Family-type variant filter — STING_FIXTURE_VARIANT_TXT match" },
-        "roomFilter":       { "type": "string", "description": "Room-name regex (case-insensitive); empty matches any room" },
-        "anchorType":       { "type": "string", "enum": ["ROOM_CENTRE", "WALL_CENTRELINE", "DOOR_OPP_WALL", "RCP_GRID", "FLOOR_GRID", "USER_PICK"], "default": "ROOM_CENTRE" },
-        "offsetXMm":        { "type": "number", "default": 0 },
-        "mountingHeightMm": { "type": "number", "default": 300 },
-        "sideConstraint":   { "type": "string", "enum": ["EITHER", "LEFT", "RIGHT", "FRONT", "BACK"], "default": "EITHER" },
-        "minSpacingMm":     { "type": "number", "default": 1000, "minimum": 0 },
-        "maxPerRoom":       { "type": "integer", "minimum": 0 },
-        "priority":         { "type": "integer", "minimum": 0, "maximum": 10, "default": 5 },
-        "notes":            { "type": "string" }
+        "RuleId":               { "type": "string", "description": "Stable id; defaults to MergeKey when empty." },
+        "RuleKind":             { "type": "string", "enum": ["Point", "Density", "Linear"], "default": "Point" },
+        "CategoryFilter":       { "type": "string", "description": "Revit category name (Element.Category.Name). Validated against Document.Settings.Categories on load." },
+        "VariantHint":          { "type": "string", "description": "Comma-separated fallback chain (FLUSH,SURFACE,RECESSED) or single regex (^IP6[5-7]$)." },
+        "FamilyTypeRegex":      { "type": "string", "description": "Optional FamilySymbol.Name regex for refining variant resolution." },
+        "RoomFilter":           { "type": "string", "description": "Room-name regex (case-insensitive); empty matches any room." },
+        "ExcludeRoomFilter":    { "type": "string", "description": "Room-name regex; rooms matching this are skipped even if RoomFilter matched." },
+        "RoomDepartmentFilter": { "type": "string", "description": "Department parameter regex (case-insensitive)." },
+        "MinAreaM2":            { "type": "number", "minimum": 0, "default": 0, "description": "Minimum room area; 0 = no minimum." },
+        "MaxAreaM2":            { "type": "number", "minimum": 0, "default": 0, "description": "Maximum room area; 0 = no maximum." },
+        "LevelFilter":          { "type": "string", "description": "Level-name regex." },
+        "PhaseFilter":          { "type": "string", "description": "Phase-name regex (matched against room CreatedPhaseId.Name)." },
+        "WorksetFilter":        { "type": "string", "description": "Workset-name regex." },
+        "AnchorType": {
+          "type": "string",
+          "enum": [
+            "ROOM_CENTRE", "ROOM_CENTROID", "CEILING_CENTRE",
+            "LIGHTING_GRID", "LUX_GRID", "EN12464",
+            "WALL_MIDPOINT", "WALL_CORNER",
+            "DOOR_HINGE", "DOOR_JAMB", "DOOR_HEAD",
+            "WINDOW_SILL",
+            "OPPOSITE_WALL", "GRID_INTERSECTION", "COLUMN_FACE",
+            "PERIMETER_OFFSET", "RAISED_FLOOR_TILE",
+            "STAIR_NOSING", "ESCAPE_ROUTE_CENTRELINE",
+            "RELATIVE_TO", "EQUIPMENT_PAIR"
+          ],
+          "default": "ROOM_CENTRE"
+        },
+        "MountingReference":    { "type": "string", "enum": ["FFL", "SOFFIT", "SLAB", "CEILING"], "default": "FFL" },
+        "OffsetXMm":            { "type": "number", "default": 0 },
+        "OffsetYMm":            { "type": "number", "default": 0 },
+        "OffsetZMm":            { "type": "number", "default": 0 },
+        "RotationDeg":          { "type": "number", "default": 0 },
+        "ToleranceMm":          { "type": "number", "minimum": 0, "default": 25 },
+        "MountingHeightMm":     { "type": "number", "default": 300 },
+        "SideConstraint":       { "type": "string", "enum": ["EITHER", "LEFT", "RIGHT", "FRONT", "BACK", "HINGE_SIDE", "LATCH_SIDE"], "default": "EITHER" },
+        "MinSpacingMm":         { "type": "number", "minimum": 0, "default": 1000 },
+        "MaxPerRoom":           { "type": "integer", "minimum": 0, "default": 0 },
+        "PerAreaM2":            { "type": "number", "minimum": 0, "default": 0, "description": "Density rules: 1 fixture per N m²; 0 = ignore." },
+        "PerOccupant":          { "type": "number", "minimum": 0, "default": 0, "description": "Density rules: 1 fixture per N occupants." },
+        "PerLinearMetre":       { "type": "number", "minimum": 0, "default": 0, "description": "Linear rules: 1 fixture per N metres of perimeter." },
+        "DependsOn":            { "type": "string", "description": "RuleId of predecessor; this rule fires only after the predecessor produced ≥1 placement." },
+        "RelativeTo":           { "type": "string", "enum": ["", "previous", "first", "self"], "default": "", "description": "When DependsOn is set, anchor relative to which placement of the predecessor." },
+        "CoPlaceWith":          { "type": "array", "items": { "type": "string" }, "default": [], "description": "RuleIds to fire alongside this rule at the same point with their offsets applied." },
+        "ConflictsWith":        { "type": "array", "items": { "type": "string" }, "default": [], "description": "RuleIds whose placement in the same room suppresses this rule." },
+        "Priority":             { "type": "integer", "minimum": 0, "maximum": 100, "default": 50 },
+        "StandardRef":          { "type": "string", "description": "Citation surfaced in result panels (e.g., 'BS 7671 §701')." },
+        "UniclassPr":           { "type": "string", "description": "Optional Uniclass 2015 product code." },
+        "Notes":                { "type": "string" }
       }
     }
   }

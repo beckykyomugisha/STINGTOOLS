@@ -10,15 +10,18 @@
         Background="{DynamicResource PrimaryBg}"
         Foreground="{DynamicResource PrimaryFg}">
 
+    <!-- PC-25 — Run / Preview / Validate moved off Ctrl+R/P/V (Revit-default
+         conflicts: Ctrl+P print, Ctrl+V paste, Ctrl+R repeat) onto Alt+R/P/V.
+         Save / New rule / UndoLast retain their conventional bindings. -->
     <Window.InputBindings>
-        <KeyBinding Modifiers="Ctrl" Key="S" Command="{x:Static local:PlacementCentreCommands.SaveProject}"/>
-        <KeyBinding Modifiers="Ctrl" Key="N" Command="{x:Static local:PlacementCentreCommands.AddRule}"/>
-        <KeyBinding Modifiers="Ctrl" Key="R" Command="{x:Static local:PlacementCentreCommands.RunPlacement}"/>
-        <KeyBinding Modifiers="Ctrl" Key="P" Command="{x:Static local:PlacementCentreCommands.Preview}"/>
-        <KeyBinding Modifiers="Ctrl" Key="V" Command="{x:Static local:PlacementCentreCommands.Validate}"/>
+        <KeyBinding Modifiers="Ctrl"      Key="S" Command="{x:Static local:PlacementCentreCommands.SaveProject}"/>
+        <KeyBinding Modifiers="Ctrl"      Key="N" Command="{x:Static local:PlacementCentreCommands.AddRule}"/>
+        <KeyBinding Modifiers="Alt"       Key="R" Command="{x:Static local:PlacementCentreCommands.RunPlacement}"/>
+        <KeyBinding Modifiers="Alt"       Key="P" Command="{x:Static local:PlacementCentreCommands.Preview}"/>
+        <KeyBinding Modifiers="Alt"       Key="V" Command="{x:Static local:PlacementCentreCommands.Validate}"/>
         <KeyBinding Modifiers="Ctrl+Shift" Key="Z" Command="{x:Static local:PlacementCentreCommands.UndoLast}"/>
-        <KeyBinding Key="F5"  Command="{x:Static local:PlacementCentreCommands.HistoryRefresh}"/>
-        <KeyBinding Key="Esc" Command="{x:Static local:PlacementCentreCommands.ClearPreview}"/>
+        <KeyBinding Key="F5"     Command="{x:Static local:PlacementCentreCommands.HistoryRefresh}"/>
+        <KeyBinding Key="Esc"    Command="{x:Static local:PlacementCentreCommands.ClearPreview}"/>
         <KeyBinding Key="Delete" Command="{x:Static local:PlacementCentreCommands.DeleteSelected}"/>
     </Window.InputBindings>
     <Window.Resources>
@@ -74,9 +77,9 @@
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save Project"     Click="OnSaveProject_Click"
                         ToolTip="Save valid rules to &lt;project&gt;/STING_PLACEMENT_RULES.project.json (Ctrl+S)."/>
                 <Separator Width="8" Visibility="Hidden"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Run Placement"   Click="OnRunPlacement_Click" ToolTip="Ctrl+R"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Preview"         Click="OnPreview_Click"      ToolTip="Ctrl+P"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Validate"        Click="OnValidate_Click"     ToolTip="Ctrl+V"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Run Placement"   Click="OnRunPlacement_Click" ToolTip="Alt+R"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Preview"         Click="OnPreview_Click"      ToolTip="Alt+P"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Validate"        Click="OnValidate_Click"     ToolTip="Alt+V"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Undo last run"   Click="OnUndoLast_Click"
                         ToolTip="Delete every element placed by the most-recent provenance bucket. Confirmation prompt. Ctrl+Shift+Z."/>
                 <Separator Width="8" Visibility="Hidden"/>
@@ -215,6 +218,8 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120"/>
@@ -225,13 +230,144 @@
 
                             <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Offset X (mm)"/>
                             <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtOffsetX" Margin="0,2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Mount Height (mm)"/>
-                            <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtMountH"  Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Offset Y (mm)"/>
+                            <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtOffsetY" Margin="0,2"
+                                       ToolTip="PC-06 — signed Y offset from the anchor's +Y axis."/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Min Spacing (mm)"/>
-                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtSpacing" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Max per Room (0 = ∞)"/>
-                            <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtMaxRoom" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Offset Z (mm)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtOffsetZ" Margin="0,2"
+                                       ToolTip="PC-06 — signed Z offset, separate from MountingHeight."/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Mount Height (mm)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtMountH"  Margin="0,2"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Mount Reference"/>
+                            <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbMountRef" Margin="0,2"
+                                       ToolTip="PC-06 — FFL / SOFFIT / SLAB / CEILING. Default FFL preserves legacy behaviour."/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Rotation (°)"/>
+                            <TextBox   Grid.Row="2" Grid.Column="3" x:Name="txtRotation" Margin="0,2"
+                                       ToolTip="PC-06 — rotation about Z in degrees."/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Min Spacing (mm)"/>
+                            <TextBox   Grid.Row="3" Grid.Column="1" x:Name="txtSpacing" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Max per Room (0 = ∞)"/>
+                            <TextBox   Grid.Row="3" Grid.Column="3" x:Name="txtMaxRoom" Margin="0,2"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Room Scoping (PC-07)" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Exclude room (regex)"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtRoomExclude" Margin="0,2"
+                                       ToolTip="Skip rooms whose name matches this regex even if RoomFilter passed."/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Department (regex)"/>
+                            <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtDepartment"   Margin="0,2"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Level (regex)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtLevelFilter"  Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Phase (regex)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtPhaseFilter"  Margin="0,2"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Workset (regex)"/>
+                            <TextBox   Grid.Row="2" Grid.Column="1" x:Name="txtWorksetFilter" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Min/Max Area (m²)"/>
+                            <DockPanel Grid.Row="2" Grid.Column="3" Margin="0,2">
+                                <TextBox x:Name="txtMinArea" Width="60" Margin="0,0,4,0"
+                                         ToolTip="Skip rooms whose Area < MinAreaM2 (0 = no minimum)."/>
+                                <TextBox x:Name="txtMaxArea"
+                                         ToolTip="Skip rooms whose Area > MaxAreaM2 (0 = no maximum)."/>
+                            </DockPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Rule Kind / Density / Linear (PC-12)" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Kind"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbRuleKind" Margin="0,2"
+                                       ToolTip="Point: one placement at the anchor. Density: count from area / occupant. Linear: count from perimeter."/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Per area (m²)"/>
+                            <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtPerArea" Margin="0,2"
+                                       ToolTip="Density: 1 fixture per N m² of floor area."/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Per occupant"/>
+                            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtPerOcc" Margin="0,2"
+                                       ToolTip="Density: 1 fixture per N occupants (read from STING_OCC_COUNT_INT)."/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Per linear m"/>
+                            <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtPerLin" Margin="0,2"
+                                       ToolTip="Linear: 1 fixture per N metres of room perimeter."/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Rule Dependencies (PC-13)" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Rule Id"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtRuleId"  Margin="0,2"
+                                       ToolTip="Stable id used by DependsOn / CoPlaceWith / ConflictsWith. Defaults to MergeKey when empty."/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Depends on"/>
+                            <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtDependsOn" Margin="0,2"
+                                       ToolTip="RuleId of predecessor — this rule fires only after that rule placed ≥1 instance."/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Relative to"/>
+                            <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="cmbRelativeTo" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Co-place / Conflicts"/>
+                            <DockPanel Grid.Row="1" Grid.Column="3" Margin="0,2">
+                                <TextBox x:Name="txtCoPlace"  Width="120" Margin="0,0,4,0"
+                                         ToolTip="Comma-separated RuleIds to fire alongside this rule."/>
+                                <TextBox x:Name="txtConflict"
+                                         ToolTip="Comma-separated RuleIds whose placement in the same room suppresses this rule."/>
+                            </DockPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Standards &amp; Classification" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Standard ref"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtStandardRef" Margin="0,2"
+                                       ToolTip="Citation surfaced in result panels (e.g. 'BS 7671 §701')."/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Uniclass Pr"/>
+                            <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtUniclassPr"  Margin="0,2"/>
                         </Grid>
                     </GroupBox>
 
@@ -241,7 +377,48 @@
                                  ToolTip="Free-text note attached to this rule. Surfaced in placement reports and pushed to STING_PLACEMENT_NOTES_TXT on family types when Push to Families runs."/>
                     </GroupBox>
 
-                    <GroupBox Header="Family Defaults &amp; Clearance" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Clearance / Envelope / Weight (PC-11, push to family types)" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Clearance (mm)"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtClr"      Margin="0,2"
+                                       ToolTip="Omnidirectional clearance — written to STING_CLEARANCE_MM."/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Front / Back (mm)"/>
+                            <DockPanel Grid.Row="0" Grid.Column="3" Margin="0,2">
+                                <TextBox x:Name="txtClrFront" Width="60" Margin="0,0,4,0"/>
+                                <TextBox x:Name="txtClrBack"/>
+                            </DockPanel>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Side / Top (mm)"/>
+                            <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,2">
+                                <TextBox x:Name="txtClrSide" Width="60" Margin="0,0,4,0"/>
+                                <TextBox x:Name="txtClrTop"/>
+                            </DockPanel>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Weight (kg)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtWeightKg" Margin="0,2"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="W × D × H (mm)"/>
+                            <DockPanel Grid.Row="2" Grid.Column="1" Margin="0,2">
+                                <TextBox x:Name="txtEnvW" Width="60" Margin="0,0,4,0"/>
+                                <TextBox x:Name="txtEnvD" Width="60" Margin="0,0,4,0"/>
+                                <TextBox x:Name="txtEnvH"/>
+                            </DockPanel>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Fire separation (mm)"/>
+                            <TextBox   Grid.Row="2" Grid.Column="3" x:Name="txtFireSep" Margin="0,2"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Family Defaults &amp; Clearance (read-only)" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
                             <DockPanel LastChildFill="False" Margin="0,0,0,6">
                                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
@@ -277,12 +454,20 @@
                         <StackPanel>
                             <CheckBox x:Name="chkProvenance"   Content="Stamp provenance on each placement (Pack 123/E)" Margin="0,3"
                                       ToolTip="When ON, every placed instance carries a StingProvenance entity so 'Undo last run' and provenance-scoped validation can find them. OFF skips the stamp — useful for one-off non-tracked placements."/>
-                            <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category (Pack 10)"   Margin="0,3"
-                                      ToolTip="Reserved for the Learn pass. When LearnPlacementV4 lands, this toggle gates whether per-category learned offsets override rule defaults."/>
+                            <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category (Pack 10 / PC-14)" Margin="0,3"
+                                      ToolTip="When ON and a STING_PLACEMENT_RULES.learned.json sits next to the .rvt, learned overrides win over the shipped baseline. PC-14 LearnPlacementV4Command writes that file."/>
                             <CheckBox x:Name="chkValidators"   Content="Run validators after placement"                  Margin="0,3"
                                       ToolTip="Run ClearanceValidator + MaintenanceClashValidator immediately after the placement commits, scoped to elements just placed."/>
                             <CheckBox x:Name="chkAutoHeatmap"  Content="Auto-paint AVF compliance heat-map on commit"    Margin="0,3"
                                       ToolTip="When ON and at least one fixture was placed, paint the AVF compliance heat-map on the active view immediately after the run commits."/>
+                            <CheckBox x:Name="chkRunTags"      Content="Run data-tag pipeline on each placement (PC-17)" Margin="0,3"
+                                      ToolTip="Invoke TagPipelineHelper.RunFullPipeline on every placed instance so the placement lands ISO-19650 tagged."/>
+                            <CheckBox x:Name="chkSeedCobie"    Content="Seed COBie component fields from the rule (PC-17)" Margin="0,3"
+                                      ToolTip="Copy StandardRef / Notes / UniclassPr onto the placed instance's COBIE_COMPONENT_* parameters."/>
+                            <CheckBox x:Name="chkAssignMep"    Content="Probe MEP connectors after placement (PC-17)" Margin="0,3"
+                                      ToolTip="Log any unconnected connectors so MEPSystemBuilder can pick them up."/>
+                            <CheckBox x:Name="chkLivePreview"  Content="Live preview while editing rules (PC-21)" Margin="0,3"
+                                      ToolTip="Auto-refresh the on-canvas preview 500 ms after each rule edit."/>
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="120"/>
@@ -294,6 +479,25 @@
                                     <RadioButton x:Name="rbScopeSel"   GroupName="Scope" Content="Selection"  Margin="0,0,12,0"/>
                                     <RadioButton x:Name="rbScopeProj"  GroupName="Scope" Content="Project"/>
                                 </StackPanel>
+                            </Grid>
+
+                            <!-- PC-23 — Validator picker. -->
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource LabelStyle}" Text="Validators"/>
+                                <WrapPanel Grid.Column="1">
+                                    <CheckBox x:Name="vClearance"   Content="Clearance"   IsChecked="True"  Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="vMaintenance" Content="Maintenance" IsChecked="True"  Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="vConnectivity" Content="Connectivity" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="vFill"        Content="Fill"        Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="vSpec"        Content="Spec"        Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="vTermination" Content="Termination" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="vSlope"       Content="Slope"       Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="vSeparation"  Content="Separation"  Margin="0,0,8,0"/>
+                                </WrapPanel>
                             </Grid>
                         </StackPanel>
                     </GroupBox>

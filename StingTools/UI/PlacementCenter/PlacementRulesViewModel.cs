@@ -41,21 +41,43 @@ namespace StingTools.UI.PlacementCenter
                 "ROOM_CENTRE",
                 "ROOM_CENTROID",
                 "CEILING_CENTRE",
-                "LIGHTING_GRID",   // BS EN 12464-1 lumen-method grid
-                "LUX_GRID",        // alias of LIGHTING_GRID
-                "EN12464",         // alias of LIGHTING_GRID
+                "LIGHTING_GRID",     // BS EN 12464-1 lumen-method grid
+                "LUX_GRID",          // alias of LIGHTING_GRID
+                "EN12464",           // alias of LIGHTING_GRID
                 "WALL_MIDPOINT",
                 "WALL_CORNER",
                 "DOOR_HINGE",
                 "DOOR_JAMB",
+                "DOOR_HEAD",         // PC-09 — over-door (exit signs)
                 "WINDOW_SILL",
+                "OPPOSITE_WALL",     // PC-09 — across from door
+                "GRID_INTERSECTION", // PC-09 — nearest structural grid intersection
+                "COLUMN_FACE",       // PC-09 — on the face of the nearest column
+                "PERIMETER_OFFSET",  // PC-09 — continuous run along every wall
+                "RAISED_FLOOR_TILE", // PC-09 — nearest 600mm tile centre
+                "STAIR_NOSING",      // PC-09 — step-edge devices
+                "ESCAPE_ROUTE_CENTRELINE", // PC-09
+                "RELATIVE_TO",       // PC-13 — relative to a predecessor rule
+                "EQUIPMENT_PAIR",    // PC-13 — co-located with another rule's last point
             };
 
         public ObservableCollection<string> SideConstraints { get; }
             = new ObservableCollection<string>
             {
-                "EITHER", "LEFT", "RIGHT", "FRONT", "BACK"
+                "EITHER", "LEFT", "RIGHT", "FRONT", "BACK", "HINGE_SIDE", "LATCH_SIDE"
             };
+
+        // PC-06 — mounting reference dropdown
+        public ObservableCollection<string> MountingReferences { get; }
+            = new ObservableCollection<string> { "FFL", "SOFFIT", "SLAB", "CEILING" };
+
+        // PC-12 — rule-kind dropdown
+        public ObservableCollection<string> RuleKinds { get; }
+            = new ObservableCollection<string> { "Point", "Density", "Linear" };
+
+        // PC-13 — RelativeTo dropdown
+        public ObservableCollection<string> RelativeToOptions { get; }
+            = new ObservableCollection<string> { "", "previous", "first", "self" };
 
         // Variant hints surface as suggestions in the editable cmbVariant
         // ComboBox. Users can type any value; this list documents the
@@ -173,11 +195,17 @@ namespace StingTools.UI.PlacementCenter
             Rules.Clear();
             try
             {
+                // PC-03: build the document's known category set so per-rule
+                // validation can warn on unknown categories.
+                _validCategoryNames = BuildValidCategoryNames(doc);
+
                 var all = PlacementRuleLoader.Load(doc?.PathName ?? "");
                 foreach (var r in all.OrderBy(r => r?.CategoryFilter ?? ""))
                 {
                     if (r == null) continue;
-                    Rules.Add(new PlacementRuleViewModel(r));
+                    var vm = new PlacementRuleViewModel(r) { ValidCategoryNames = _validCategoryNames };
+                    vm.Validate();
+                    Rules.Add(vm);
                 }
                 RebuildCategories();
 
@@ -191,6 +219,33 @@ namespace StingTools.UI.PlacementCenter
                 Status = $"Load failed: {ex.Message}";
             }
         }
+
+        /// <summary>
+        /// PC-03 — produce the set of category names (matched case-insensitively
+        /// against Element.Category.Name) that exist in the active document.
+        /// Returns null when doc is null so legacy unit tests bypass the check.
+        /// </summary>
+        public static System.Collections.Generic.HashSet<string> BuildValidCategoryNames(Autodesk.Revit.DB.Document doc)
+        {
+            if (doc == null) return null;
+            var set = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (Autodesk.Revit.DB.Category c in doc.Settings.Categories)
+                {
+                    if (c == null || string.IsNullOrEmpty(c.Name)) continue;
+                    set.Add(c.Name);
+                    if (c.SubCategories != null)
+                        foreach (Autodesk.Revit.DB.Category sub in c.SubCategories)
+                            if (sub != null && !string.IsNullOrEmpty(sub.Name)) set.Add(sub.Name);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementRulesViewModel.BuildValidCategoryNames: {ex.Message}"); }
+            return set;
+        }
+
+        private System.Collections.Generic.HashSet<string> _validCategoryNames;
+        public System.Collections.Generic.HashSet<string> ValidCategoryNames => _validCategoryNames;
 
         public void ReloadDefaults()
         {
@@ -292,10 +347,12 @@ namespace StingTools.UI.PlacementCenter
                 CategoryFilter = "(new category)",
                 AnchorType = "ROOM_CENTRE",
                 SideConstraint = "EITHER",
+                MountingReference = "FFL",
                 MinSpacingMm = 1000,
                 MountingHeightMm = 300,
                 Priority = 50,
-            });
+                RuleKind = PlacementRuleKind.Point,
+            }) { ValidCategoryNames = _validCategoryNames };
             vm.IsDirty = true;
             Rules.Add(vm);
             Selected = vm;
