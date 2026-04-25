@@ -141,10 +141,11 @@ namespace StingTools.Core.Placement
                 else
                 {
                     // Generic fallback: try ceiling first (lighting/sprinkler-y),
-                    // then floor, then wall.
-                    host = NearestOf<Ceiling>(doc, position, 12.0)
-                        ?? NearestOf<Floor>(doc, position, 12.0)
-                        ?? NearestOf<Wall>(doc, position, 6.0);
+                    // then floor, then wall. Cast each result to Element so ??
+                    // can chain across the sibling subclasses.
+                    host = (Element)NearestOf<Ceiling>(doc, position, 12.0)
+                        ?? (Element)NearestOf<Floor>(doc, position, 12.0)
+                        ?? (Element)NearestOf<Wall>(doc, position, 6.0);
                 }
             }
             catch (Exception ex)
