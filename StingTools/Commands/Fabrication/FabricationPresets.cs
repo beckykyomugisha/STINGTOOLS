@@ -18,6 +18,15 @@ using StingTools.UI;
 
 namespace StingTools.Commands.Fabrication
 {
+    public enum FabAction
+    {
+        GeneratePackage,
+        ExportCutList,
+        ExportWeldMap,
+        ExportIsometrics,
+        BomRollup,
+    }
+
     public class FabricationPreset
     {
         public string Name { get; set; } = "";
