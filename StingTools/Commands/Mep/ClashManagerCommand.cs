@@ -26,10 +26,29 @@ namespace StingTools.Commands.Mep
             {
                 // Remember the UIApplication so the dialog's child
                 // buttons can dispatch Clash commands through the
-                // existing IExternalEventHandler.
-                ClashManagerDispatcher.Bind(commandData.Application);
+                // existing IExternalEventHandler. Use ctx.App so the
+                // command works both from the Revit ribbon (commandData
+                // populated) and the dockable panel (commandData null,
+                // UIApplication resolved via StingCommandHandler.CurrentApp).
+                ClashManagerDispatcher.Bind(ctx.App);
                 var dlg = new ClashManagerDialog(ctx.UIDoc);
+
+                // Parent the modeless window to Revit's main HWND so it
+                // stays on top of the Revit document window instead of
+                // appearing behind it (which makes the button feel dead).
+                try
+                {
+                    var hwnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                    if (hwnd != IntPtr.Zero)
+                        new System.Windows.Interop.WindowInteropHelper(dlg).Owner = hwnd;
+                }
+                catch (Exception ownerEx)
+                {
+                    StingLog.Warn($"ClashManagerCommand owner: {ownerEx.Message}");
+                }
+
                 dlg.Show();
+                dlg.Activate();
                 return Result.Succeeded;
             }
             catch (Exception ex)

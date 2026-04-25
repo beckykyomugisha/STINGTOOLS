@@ -84,6 +84,47 @@ namespace StingTools.Core.Drawing
         [JsonProperty("viewTemplateName")] public string ViewTemplateName { get; set; }
         [JsonProperty("viewportTypeName")] public string ViewportTypeName { get; set; }
 
+        /// <summary>
+        /// References a <see cref="ViewStylePack"/> by id. The pack
+        /// supplies shared graphic overrides / filters / VG overrides
+        /// / text + dim styles. Null = no pack applied (profile carries
+        /// its own appearance).
+        /// </summary>
+        [JsonProperty("viewStylePackId", NullValueHandling = NullValueHandling.Ignore)]
+        public string ViewStylePackId { get; set; }
+
+        /// <summary>
+        /// Profile inheritance — a child DrawingType's Extends names a
+        /// parent id; the registry walks the chain at load-time so
+        /// resolvers see a merged snapshot. Mirrors ViewStylePack.Extends.
+        /// </summary>
+        [JsonProperty("extends", NullValueHandling = NullValueHandling.Ignore)]
+        public string Extends { get; set; }
+
+        /// <summary>
+        /// Map of title-block instance parameter name → value template.
+        /// Applied to the title-block FamilyInstance at sheet-creation
+        /// time by <see cref="TitleBlockParamApplier"/>. Value template
+        /// supports <c>${ProjectInfoParam}</c> substitution and the
+        /// standard <c>{disc}/{lvl}/{seq:Dn}/{mark}</c> token set from
+        /// the caller's pattern context.
+        /// </summary>
+        [JsonProperty("titleBlockParams", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> TitleBlockParams { get; set; }
+
+        /// <summary>
+        /// ISO 19650 naming — optional per-profile convention payload.
+        /// When set, the editor's Numbering card's "Generate ISO
+        /// pattern" button assembles SheetNumberPattern from these
+        /// fields using the standard
+        ///   {project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}
+        /// template. Values also flow through into the
+        /// TitleBlockParams map so title-block cells read the same
+        /// codes the sheet number does.
+        /// </summary>
+        [JsonProperty("isoNaming", NullValueHandling = NullValueHandling.Ignore)]
+        public IsoNaming IsoNaming { get; set; }
+
         // Numbering
         [JsonProperty("sheetNumberPattern")] public string SheetNumberPattern { get; set; } = "{disc}-{seq:D3}";
         [JsonProperty("sheetNamePattern")]   public string SheetNamePattern { get; set; }   = "{discipline} {purpose} - {lvl}";
@@ -108,6 +149,21 @@ namespace StingTools.Core.Drawing
         // compares on save to detect out-of-band edits.
         [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
         public string Checksum { get; set; }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  ISO 19650 NAMING — per-profile convention payload used to
+    //  build a compliant SheetNumberPattern and flow the matching
+    //  codes into TitleBlockParams.
+    // ─────────────────────────────────────────────────────────────────────
+
+    public sealed class IsoNaming
+    {
+        [JsonProperty("volume",      NullValueHandling = NullValueHandling.Ignore)] public string Volume { get; set; }       // e.g. "01", "ZZ"
+        [JsonProperty("type",        NullValueHandling = NullValueHandling.Ignore)] public string Type { get; set; }         // DR / SH / M3 / VS / CA / SP
+        [JsonProperty("role",        NullValueHandling = NullValueHandling.Ignore)] public string Role { get; set; }         // A / S / M / E / P / FP
+        [JsonProperty("suitability", NullValueHandling = NullValueHandling.Ignore)] public string Suitability { get; set; }  // S0..S7 / A1..A5 / B1..B5 / C1..C3
+        [JsonProperty("revision",    NullValueHandling = NullValueHandling.Ignore)] public string Revision { get; set; }     // P01, P02, C01
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -229,5 +285,26 @@ namespace StingTools.Core.Drawing
         [JsonProperty("phase")]         public string Phase { get; set; } = "*";
         [JsonProperty("docType")]       public string DocType { get; set; } = "*"; // matches DrawingPurpose values or user codes
         [JsonProperty("drawingTypeId")] public string DrawingTypeId { get; set; }
+
+        // Week 6 — predicate extensions. Each optional field narrows
+        // the match further. When null the field does not participate
+        // in matching. All set predicates must match for the rule to
+        // fire (logical AND). Field formats:
+        //
+        //   disciplineMatches / phaseMatches / docTypeMatches
+        //       regex — alternative to exact disc/phase/docType above
+        //   levelMatches
+        //       regex evaluated against the caller's level code, e.g.
+        //       "^B\d+" to match any basement level
+        //   projectCodeMatches
+        //       regex evaluated against doc's PRJ_ORG_PROJECT_CODE
+        //   hasScopeBox
+        //       true = only fires when the caller passes a scope box
+        //       with a matching discipline / doc type
+        [JsonProperty("disciplineMatches", NullValueHandling = NullValueHandling.Ignore)] public string DisciplineMatches { get; set; }
+        [JsonProperty("phaseMatches",      NullValueHandling = NullValueHandling.Ignore)] public string PhaseMatches { get; set; }
+        [JsonProperty("docTypeMatches",    NullValueHandling = NullValueHandling.Ignore)] public string DocTypeMatches { get; set; }
+        [JsonProperty("levelMatches",      NullValueHandling = NullValueHandling.Ignore)] public string LevelMatches { get; set; }
+        [JsonProperty("projectCodeMatches",NullValueHandling = NullValueHandling.Ignore)] public string ProjectCodeMatches { get; set; }
     }
 }

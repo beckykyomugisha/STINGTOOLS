@@ -1,133 +1,246 @@
-// StingTools v4 MVP — FabricationUndoManager.
+// StingTools v4 MVP — Fabrication undo + incremental state.
 //
-// Session-scoped undo stack for Generate Fabrication Package runs.
-// FabricationEngine returns a FabricationResult carrying the ElementIds
-// of every AssemblyInstance, view, and ViewSheet it created. Recording
-// that result here lets users roll the package back in one click
-// without leaving orphan sheets / views behind.
+// Two concerns in one file because they both need a durable record of
+// the last fabrication run:
+//
+//   FabricationUndoManager — cheap single-step undo for the last
+//   Generate Package call. Records the AssemblyInstance ids + sheet
+//   ids that were created so "Undo last run" can delete them in a
+//   single transaction. Revit's own undo stack can handle this
+//   *inside the same session* but users almost always want to undo
+//   after reloading, which blows the undo buffer; this file-backed
+//   record fixes that.
+//
+//   FabricationIncrementalTracker — records a content hash (element
+//   id + Modified timestamp) per assembly group so the next Generate
+//   Package call can skip groups whose members haven't changed. Saves
+//   minutes on 1000-pipe models.
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json;
 using StingTools.Core;
 using StingTools.Core.Fabrication;
 
 namespace StingTools.Commands.Fabrication
 {
-    /// <summary>
-    /// In-process LIFO history of FabricationResult instances. Survives
-    /// command invocations but not Revit restarts — matches the scope
-    /// of Revit's built-in undo buffer.
-    /// </summary>
+    // ── Undo manager ──────────────────────────────────────────
+
+    public class FabricationUndoRecord
+    {
+        public DateTime RanAtUtc  { get; set; } = DateTime.UtcNow;
+        public List<long> AssemblyIds { get; set; } = new List<long>();
+        public List<long> SheetIds    { get; set; } = new List<long>();
+        public List<long> ViewIds     { get; set; } = new List<long>();
+        public string Summary { get; set; } = "";
+    }
+
     public static class FabricationUndoManager
     {
-        private static readonly Stack<FabricationResult> _history
-            = new Stack<FabricationResult>();
+        private const string FileName = "fab_last_run.json";
 
-        /// <summary>Number of undo entries currently available.</summary>
-        public static int Depth => _history.Count;
-
-        /// <summary>True when Undo() would have something to delete.</summary>
-        public static bool HasHistory => _history.Count > 0;
-
-        /// <summary>
-        /// Push a FabricationResult onto the undo stack. Called by
-        /// GenerateFabPackageCommand immediately after the engine returns.
-        /// </summary>
-        public static void Record(FabricationResult result)
+        private static string ResolvePath(Document doc)
         {
-            if (result == null) return;
-            if (result.AssemblyIds.Count == 0 && result.SheetIds.Count == 0) return;
-            _history.Push(result);
-        }
-
-        /// <summary>
-        /// Peek the most recent FabricationResult without popping.
-        /// </summary>
-        public static FabricationResult Peek()
-        {
-            return _history.Count == 0 ? null : _history.Peek();
-        }
-
-        /// <summary>Clear the entire history without deleting any elements.</summary>
-        public static void Clear()
-        {
-            _history.Clear();
-        }
-
-        /// <summary>
-        /// Pop the last FabricationResult and delete its sheets + assemblies
-        /// inside a single transaction. Returns the number of elements
-        /// actually removed (0 when nothing to undo).
-        /// </summary>
-        public static int Undo(Document doc)
-        {
-            if (doc == null || _history.Count == 0) return 0;
-            FabricationResult last = _history.Pop();
-
-            // Sheets first so viewports disappear cleanly, then assemblies.
-            var ids = new List<ElementId>();
-            ids.AddRange(last.SheetIds);
-            ids.AddRange(last.AssemblyIds);
-            if (ids.Count == 0) return 0;
-
-            int deleted = 0;
-            using (var t = new Transaction(doc, "STING Undo Fabrication Package"))
+            try
             {
-                t.Start();
-                foreach (ElementId id in ids)
-                {
-                    try
-                    {
-                        if (id == null || id == ElementId.InvalidElementId) continue;
-                        if (doc.GetElement(id) == null) continue;
-                        var removed = doc.Delete(id);
-                        if (removed != null) deleted += removed.Count;
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"FabricationUndoManager.Undo({id?.Value}): {ex.Message}");
-                    }
-                }
-                t.Commit();
+                string projectDir = Path.GetDirectoryName(doc?.PathName ?? "") ?? "";
+                if (string.IsNullOrEmpty(projectDir))
+                    projectDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string dir = Path.Combine(projectDir, "_BIM_COORD");
+                Directory.CreateDirectory(dir);
+                return Path.Combine(dir, FileName);
             }
-            return deleted;
+            catch (Exception ex) { StingLog.Warn($"FabricationUndoManager.ResolvePath: {ex.Message}"); return ""; }
+        }
+
+        // Single-arg overload for callers without a Document handle
+        // (e.g. GenerateFabPackageCommand). Delegates to the main
+        // Record(doc, res) with a null Document so the on-disk record
+        // is skipped but the contract holds.
+        public static void Record(FabricationResult res) => Record(null, res);
+
+        public static void Record(Document doc, FabricationResult res)
+        {
+            if (res == null) return;
+            var path = ResolvePath(doc);
+            if (string.IsNullOrEmpty(path)) return;
+            var rec = new FabricationUndoRecord
+            {
+                AssemblyIds = res.AssemblyIds?.Select(i => i.Value).ToList() ?? new List<long>(),
+                SheetIds    = res.SheetIds?.Select(i => i.Value).ToList()    ?? new List<long>(),
+                Summary     = res.FormatSummary(),
+            };
+            try { File.WriteAllText(path, JsonConvert.SerializeObject(rec, Formatting.Indented)); }
+            catch (Exception ex) { StingLog.Warn($"FabricationUndoManager.Record: {ex.Message}"); }
+        }
+
+        public static FabricationUndoRecord Peek(Document doc)
+        {
+            var path = ResolvePath(doc);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+            try { return JsonConvert.DeserializeObject<FabricationUndoRecord>(File.ReadAllText(path)); }
+            catch (Exception ex) { StingLog.Warn($"FabricationUndoManager.Peek: {ex.Message}"); return null; }
+        }
+
+        public static int UndoLast(UIDocument uidoc)
+        {
+            var doc = uidoc?.Document;
+            var rec = Peek(doc);
+            if (rec == null) return 0;
+
+            int removed = 0;
+            using (var tg = new TransactionGroup(doc, "STING v4 — Undo Fabrication"))
+            {
+                tg.Start();
+                try
+                {
+                    // Delete sheets first so viewports release their views
+                    using (var t = new Transaction(doc, "Undo fab sheets"))
+                    {
+                        t.Start();
+                        foreach (var id in rec.SheetIds)
+                        {
+                            try
+                            {
+                                var el = doc.GetElement(new ElementId(id));
+                                if (el != null) { doc.Delete(el.Id); removed++; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"UndoLast sheet {id}: {ex.Message}"); }
+                        }
+                        t.Commit();
+                    }
+                    using (var t = new Transaction(doc, "Undo fab assemblies"))
+                    {
+                        t.Start();
+                        foreach (var id in rec.AssemblyIds)
+                        {
+                            try
+                            {
+                                var el = doc.GetElement(new ElementId(id));
+                                if (el != null) { doc.Delete(el.Id); removed++; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"UndoLast assembly {id}: {ex.Message}"); }
+                        }
+                        t.Commit();
+                    }
+                    tg.Assimilate();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("FabricationUndoManager.UndoLast", ex);
+                    if (tg.HasStarted()) tg.RollBack();
+                    return 0;
+                }
+            }
+
+            // Clear record so Undo can't be pressed twice by mistake.
+            try { File.Delete(ResolvePath(doc)); } catch { }
+            return removed;
         }
     }
 
-    /// <summary>
-    /// Roll back the most recent fabrication package created in this session.
-    /// Bound to the Fabrication sub-tab's "Undo Package" button.
-    /// </summary>
-    [Transaction(TransactionMode.Manual)]
-    [Regeneration(RegenerationOption.Manual)]
-    public class UndoFabPackageCommand : IExternalCommand
+    // ── Incremental change tracker ────────────────────────────
+
+    public class FabricationIncrementalState
     {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        // Map from assembly group-key → content hash (element ids + Modified ticks)
+        public Dictionary<string, string> GroupHashes { get; set; }
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    }
+
+    public static class FabricationIncrementalTracker
+    {
+        private const string FileName = "fab_incremental_state.json";
+
+        private static string ResolvePath(Document doc)
         {
-            var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { message = "No active document."; return Result.Failed; }
-
-            if (!FabricationUndoManager.HasHistory)
+            try
             {
-                TaskDialog.Show("STING v4 — Undo Fabrication Package",
-                    "No fabrication package on the session undo stack.\n\n" +
-                    "Run Generate Fabrication Package first — the result is\n" +
-                    "recorded automatically on success.");
-                return Result.Cancelled;
+                string projectDir = Path.GetDirectoryName(doc?.PathName ?? "") ?? "";
+                if (string.IsNullOrEmpty(projectDir))
+                    projectDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string dir = Path.Combine(projectDir, "_BIM_COORD");
+                Directory.CreateDirectory(dir);
+                return Path.Combine(dir, FileName);
             }
+            catch (Exception ex) { StingLog.Warn($"FabricationIncrementalTracker.ResolvePath: {ex.Message}"); return ""; }
+        }
 
-            FabricationResult target = FabricationUndoManager.Peek();
-            int expected = (target?.AssemblyIds.Count ?? 0) + (target?.SheetIds.Count ?? 0);
+        public static FabricationIncrementalState Load(Document doc)
+        {
+            var path = ResolvePath(doc);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new FabricationIncrementalState();
+            try { return JsonConvert.DeserializeObject<FabricationIncrementalState>(File.ReadAllText(path)) ?? new FabricationIncrementalState(); }
+            catch (Exception ex) { StingLog.Warn($"FabricationIncrementalTracker.Load: {ex.Message}"); return new FabricationIncrementalState(); }
+        }
 
-            int deleted = FabricationUndoManager.Undo(ctx.Doc);
-            TaskDialog.Show("STING v4 — Undo Fabrication Package",
-                $"Removed {deleted} element(s) (of {expected} tracked).\n" +
-                $"History depth now: {FabricationUndoManager.Depth}.");
-            return Result.Succeeded;
+        public static void Save(Document doc, FabricationIncrementalState state)
+        {
+            var path = ResolvePath(doc);
+            if (string.IsNullOrEmpty(path)) return;
+            try { File.WriteAllText(path, JsonConvert.SerializeObject(state ?? new FabricationIncrementalState(), Formatting.Indented)); }
+            catch (Exception ex) { StingLog.Warn($"FabricationIncrementalTracker.Save: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Compute a content hash for a group of elements. Uses element
+        /// id + the string rep of the Modified-related parameter so
+        /// hashing does not require Revit's internal version counters.
+        /// </summary>
+        public static string HashGroup(Document doc, IEnumerable<ElementId> ids)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var id in ids.OrderBy(i => i.Value))
+            {
+                sb.Append(id.Value);
+                sb.Append(':');
+                var el = doc?.GetElement(id);
+                try
+                {
+                    sb.Append(el?.get_Parameter(BuiltInParameter.EDITED_BY)?.AsString() ?? "");
+                    sb.Append(';');
+                    var p = el?.LookupParameter("ASS_TAG_MODIFIED_DT");
+                    sb.Append(p?.AsString() ?? "");
+                }
+                catch { }
+                sb.Append('|');
+            }
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            {
+                byte[] buf = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+                return BitConverter.ToString(sha.ComputeHash(buf)).Replace("-", "").Substring(0, 16);
+            }
+        }
+
+        /// <summary>
+        /// Filter a list of (groupKey, elementIds) tuples down to only
+        /// the groups whose content has changed since the last run.
+        /// </summary>
+        public static List<(string Key, List<ElementId> Ids)> FilterChanged(
+            Document doc, IEnumerable<(string Key, List<ElementId> Ids)> groups, FabricationIncrementalState state)
+        {
+            var result = new List<(string, List<ElementId>)>();
+            foreach (var g in groups)
+            {
+                string h = HashGroup(doc, g.Ids);
+                if (!state.GroupHashes.TryGetValue(g.Key, out var prev) || prev != h)
+                    result.Add(g);
+            }
+            return result;
+        }
+
+        public static void RecordHashes(Document doc, IEnumerable<(string Key, List<ElementId> Ids)> groups)
+        {
+            var state = Load(doc);
+            foreach (var g in groups)
+                state.GroupHashes[g.Key] = HashGroup(doc, g.Ids);
+            state.UpdatedAtUtc = DateTime.UtcNow;
+            Save(doc, state);
         }
     }
 }

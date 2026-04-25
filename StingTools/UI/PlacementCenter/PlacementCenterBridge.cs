@@ -123,19 +123,57 @@ namespace StingTools.UI.PlacementCenter
         }
 
         /// <summary>
-        /// Run ClearanceValidator + MaintenanceClashValidator and return
-        /// the merged finding list. Caller decides scoping (post-run
-        /// filter via FilterToProvenance, or full-project audit).
+        /// PC-23 — run a user-selected mask of validators. Empty / null mask
+        /// runs the legacy pair (Clearance + Maintenance) so existing call
+        /// sites keep working unchanged. Recognised tokens (case-insensitive):
+        /// "Clearance", "Maintenance", "Connectivity", "Fill", "Spec",
+        /// "Termination", "Slope", "Separation".
         /// </summary>
-        public static List<ValidationResult> RunValidators(Document doc)
+        public static List<ValidationResult> RunValidators(Document doc, ISet<string> mask = null)
         {
             var all = new List<ValidationResult>();
             if (doc == null) return all;
-            try { all.AddRange(new ClearanceValidator().Validate(doc)); }
-            catch (Exception ex) { StingLog.Warn($"ClearanceValidator: {ex.Message}"); }
-            try { all.AddRange(new MaintenanceClashValidator().Validate(doc)); }
-            catch (Exception ex) { StingLog.Warn($"MaintenanceClashValidator: {ex.Message}"); }
+
+            bool wants(string token) => mask == null || mask.Count == 0 || mask.Contains(token);
+
+            if (wants("Clearance"))
+                Try(() => new ClearanceValidator().Validate(doc), all, "ClearanceValidator");
+            if (wants("Maintenance"))
+                Try(() => new MaintenanceClashValidator().Validate(doc), all, "MaintenanceClashValidator");
+
+            // The remaining validators may live in v4/v6 modules — invoke via
+            // reflection so a missing assembly never crashes the panel.
+            if (wants("Connectivity")) RunValidatorReflect("StingTools.Core.Validation.ConnectivityValidator",  doc, all);
+            if (wants("Fill"))         RunValidatorReflect("StingTools.Core.Validation.FillValidator",          doc, all);
+            if (wants("Spec"))         RunValidatorReflect("StingTools.Core.Validation.SpecValidator",          doc, all);
+            if (wants("Termination"))  RunValidatorReflect("StingTools.Core.Validation.TerminationValidator",   doc, all);
+            if (wants("Slope"))        RunValidatorReflect("StingTools.Core.Validation.SlopeValidator",         doc, all);
+            if (wants("Separation"))   RunValidatorReflect("StingTools.Core.Validation.SeparationValidator",    doc, all);
+
             return all;
+        }
+
+        private static void Try(Func<IList<ValidationResult>> action, List<ValidationResult> sink, string name)
+        {
+            try { sink.AddRange(action()); }
+            catch (Exception ex) { StingLog.Warn($"{name}: {ex.Message}"); }
+        }
+
+        private static void RunValidatorReflect(string typeFullName, Document doc, List<ValidationResult> sink)
+        {
+            try
+            {
+                var t = Type.GetType(typeFullName + ", StingTools");
+                if (t == null) return;
+                var ctor = t.GetConstructor(Type.EmptyTypes);
+                if (ctor == null) return;
+                var inst = ctor.Invoke(null);
+                var m = t.GetMethod("Validate", new[] { typeof(Document) });
+                if (m == null) return;
+                var res = m.Invoke(inst, new object[] { doc }) as IEnumerable<ValidationResult>;
+                if (res != null) sink.AddRange(res);
+            }
+            catch (Exception ex) { StingLog.Warn($"{typeFullName} reflect: {ex.Message}"); }
         }
     }
 }

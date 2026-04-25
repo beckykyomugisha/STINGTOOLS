@@ -1,16 +1,14 @@
-// Phase 127-B — Placement Centre preview source.
+// Phase 127-B + PC-22 — Placement Centre preview source.
 //
-// Companion to TagPreviewSource (Pack 9). Reads the same room +
-// rule loop FixturePlacementEngine.PlaceFixturesInScope walks but
-// emits PreviewPrimitive cross / outline shapes at every candidate
-// position rather than committing FamilyInstance objects.
-//
-// Pack 9 PreviewController owns the IDirectContext3DServer
-// registration; this file only produces draw commands. No model
-// mutation, no transaction, offline-safe.
+// Companion to TagPreviewSource (Pack 9). Walks every room × rule pair
+// the engine would consider, runs PlacementScorer in-process to obtain
+// the candidate XYZs, and emits a coloured cross + outline ring per
+// candidate. PC-22 hashes each rule's MergeKey to a distinct ARGB so
+// the user can tell at a glance which rule produced which candidate.
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using StingTools.Core.Placement;
@@ -36,68 +34,110 @@ namespace StingTools.Core.Visualization
         {
             if (_doc == null) yield break;
 
-            // Run the engine in dry-run mode. The result.PlacedIds will be
-            // empty, but result.Warnings + an internal candidate list
-            // surface the points the engine WOULD have placed at.
-            // TODO-VERIFY-API: FixturePlacementEngine.PlaceFixturesInScope
-            // dryRun=true must short-circuit before NewFamilyInstance —
-            // the engine implementation respects this in its candidate
-            // accept path.
-            PlacementResult result = null;
-            try
-            {
-                result = FixturePlacementEngine.PlaceFixturesInScope(_doc, _roomIds, _rules, dryRun: true);
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"PlacementPreviewSource.Draw: dry-run failed: {ex.Message}");
-                yield break;
-            }
+            // Per-rule colour cache so identical merge keys reuse the same
+            // hue across primitives.
+            var colourFor = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-            // Engine's dry-run reports anchor points via result.PlacedIds
-            // when running in preview mode (the ID is the room owner) —
-            // but with the simpler "draw the room centroid + a marker
-            // ring at every accepted candidate" pattern we walk rooms
-            // ourselves. Per-room work keeps Phase B small; full
-            // candidate replay graduates with Phase D's preview tuning.
-            int n = 0;
+            var scorer = new PlacementScorer(_doc);
+            int total = 0;
+            const int CAP = 1500; // hard cap so the preview stays responsive
             foreach (var roomId in _roomIds)
             {
                 Room room = null;
-                try { room = _doc.GetElement(roomId) as Room; }
-                catch { }
+                try { room = _doc.GetElement(roomId) as Room; } catch { }
                 if (room == null) continue;
-
-                LocationPoint loc = null;
-                try { loc = room.Location as LocationPoint; }
-                catch { }
-                if (loc?.Point == null) continue;
-
-                XYZ c = loc.Point;
-                yield return new PreviewPrimitive
+                foreach (var rule in _rules)
                 {
-                    Kind = PreviewPrimitiveKind.Cross,
-                    ColorArgb = unchecked((int)0xFF4080FF), // STING blue
-                    Points = new List<XYZ> { c },
-                };
-                // 600 mm marker ring
-                double r = 600.0 / 304.8;
-                yield return new PreviewPrimitive
-                {
-                    Kind = PreviewPrimitiveKind.Outline,
-                    ColorArgb = unchecked((int)0xFF80B0FF),
-                    Points = new List<XYZ>
+                    if (rule == null) continue;
+                    List<PlacementCandidate> cands = null;
+                    try
                     {
-                        new XYZ(c.X - r, c.Y - r, c.Z),
-                        new XYZ(c.X + r, c.Y - r, c.Z),
-                        new XYZ(c.X + r, c.Y + r, c.Z),
-                        new XYZ(c.X - r, c.Y + r, c.Z),
-                        new XYZ(c.X - r, c.Y - r, c.Z),
-                    },
-                };
-                n++;
-                if (n > 500) yield break; // cap preview density
+                        cands = scorer.Score(room, rule, alreadyPlaced: new List<XYZ>(), countInRoomSoFar: 0);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"PlacementPreviewSource Score room {roomId} rule {rule.MergeKey}: {ex.Message}");
+                        continue;
+                    }
+                    if (cands == null || cands.Count == 0) continue;
+
+                    string key = rule.MergeKey ?? "";
+                    if (!colourFor.TryGetValue(key, out int rgb))
+                    {
+                        rgb = HueFromKey(key);
+                        colourFor[key] = rgb;
+                    }
+                    int dim = DimColour(rgb);
+
+                    foreach (var c in cands)
+                    {
+                        XYZ pt = c.Position;
+                        if (pt == null) continue;
+                        yield return new PreviewPrimitive
+                        {
+                            Kind = PreviewPrimitiveKind.Cross,
+                            ColorArgb = rgb,
+                            Points = new List<XYZ> { pt },
+                        };
+                        double r = 600.0 / 304.8;
+                        yield return new PreviewPrimitive
+                        {
+                            Kind = PreviewPrimitiveKind.Outline,
+                            ColorArgb = dim,
+                            Points = new List<XYZ>
+                            {
+                                new XYZ(pt.X - r, pt.Y - r, pt.Z),
+                                new XYZ(pt.X + r, pt.Y - r, pt.Z),
+                                new XYZ(pt.X + r, pt.Y + r, pt.Z),
+                                new XYZ(pt.X - r, pt.Y + r, pt.Z),
+                                new XYZ(pt.X - r, pt.Y - r, pt.Z),
+                            },
+                        };
+                        total++;
+                        if (total > CAP) yield break;
+                    }
+                }
             }
+        }
+
+        /// <summary>Stable hash → bright HSV colour, returned as 0xFFRRGGBB.</summary>
+        private static int HueFromKey(string key)
+        {
+            // Deterministic hash so the same rule keeps the same colour.
+            unchecked
+            {
+                int h = 23;
+                foreach (var ch in key ?? "") h = h * 31 + ch;
+                double hue = ((h & 0xFFFF) / 65535.0) * 360.0;
+                HsvToRgb(hue, 0.85, 0.95, out int r, out int g, out int b);
+                return (int)(0xFF000000U | (uint)((r << 16) | (g << 8) | b));
+            }
+        }
+
+        private static int DimColour(int argb)
+        {
+            int r = (argb >> 16) & 0xFF;
+            int g = (argb >> 8) & 0xFF;
+            int b = argb & 0xFF;
+            r = (int)(r * 0.6); g = (int)(g * 0.6); b = (int)(b * 0.6);
+            return unchecked((int)0xFF000000) | (r << 16) | (g << 8) | b;
+        }
+
+        private static void HsvToRgb(double h, double s, double v, out int r, out int g, out int b)
+        {
+            double c = v * s;
+            double x = c * (1 - Math.Abs((h / 60.0) % 2 - 1));
+            double m = v - c;
+            double rp = 0, gp = 0, bp = 0;
+            if (h < 60)       { rp = c; gp = x; bp = 0; }
+            else if (h < 120) { rp = x; gp = c; bp = 0; }
+            else if (h < 180) { rp = 0; gp = c; bp = x; }
+            else if (h < 240) { rp = 0; gp = x; bp = c; }
+            else if (h < 300) { rp = x; gp = 0; bp = c; }
+            else              { rp = c; gp = 0; bp = x; }
+            r = Math.Max(0, Math.Min(255, (int)Math.Round((rp + m) * 255)));
+            g = Math.Max(0, Math.Min(255, (int)Math.Round((gp + m) * 255)));
+            b = Math.Max(0, Math.Min(255, (int)Math.Round((bp + m) * 255)));
         }
     }
 }

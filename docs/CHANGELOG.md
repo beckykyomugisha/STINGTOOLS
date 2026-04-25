@@ -2919,3 +2919,209 @@ ThemeManager.
     surface in the result dialog.
  9. Click "Undo last run" → deletes the last batch in one transaction;
     history grid refreshes.
+
+
+#### Completed (Phase 128 — Placement Centre PC-01..PC-25)
+
+Implements every gap from `docs/PLACEMENT_CENTRE_REVIEW.md` §9. Branch
+`claude/placement-centre-review-cKDOD`, commits `1864e25c`,
+`ffac826d`, `4bc7678e`, `be727ab3`, `12fce607`, `254b24f5`.
+
+Schema & validation (PC-01..03, 05):
+
+1. Rewrote `Data/Schemas/STING_PLACEMENT_RULES.schema.json` against
+   the engine-accepted enums (anchor list, side list, mounting
+   reference, rule kind, relative-to). PascalCase keys; priority
+   range corrected to 0..100; ~30 fields total.
+2. `PlacementRuleViewModel.Validate` compiles every regex field
+   (Room, ExcludeRoom, Level, Phase, Workset, Department,
+   FamilyTypeRegex, regex-style VariantHint), checks AnchorType /
+   SideConstraint / MountingReference / RuleKind enum membership,
+   blocks density rules with no PerArea/PerOccupant and linear
+   rules with no PerLinear.
+3. `PlacementRulesViewModel.BuildValidCategoryNames` reads
+   `Document.Settings.Categories` (incl. subcategories) so unknown
+   `CategoryFilter` values surface in the Invalid chip filter.
+
+Rule POCO + UI (PC-06..08, 12, 13):
+
+4. `PlacementRule` grew from 11 to ~30 fields: OffsetYMm, OffsetZMm,
+   RotationDeg, ToleranceMm, MountingReference, ExcludeRoomFilter,
+   RoomDepartmentFilter, MinAreaM2, MaxAreaM2, LevelFilter,
+   PhaseFilter, WorksetFilter, FamilyTypeRegex, RuleId, RuleKind,
+   PerAreaM2, PerOccupant, PerLinearMetre, DependsOn, RelativeTo,
+   CoPlaceWith, ConflictsWith, StandardRef, UniclassPr.
+5. Centre got 5 new groups: Room Scoping, Rule Kind / Density / Linear,
+   Rule Dependencies, Standards & Classification, Clearance / Envelope
+   / Weight (push-to-families overrides). The existing Geometry group
+   gained Y, Z, Rotation and a Mount Reference combo.
+
+Engine (PC-04, 09, 10, 12, 13, 16, 17):
+
+6. `PlacementScorer.GenerateAnchorPoints` reads real boundary
+   segments + cached door / window / wall instances per room. WALL_*,
+   DOOR_HINGE/JAMB/HEAD, WINDOW_SILL all walk real geometry. New
+   anchors: OPPOSITE_WALL, GRID_INTERSECTION, COLUMN_FACE,
+   PERIMETER_OFFSET, RAISED_FLOOR_TILE, STAIR_NOSING,
+   ESCAPE_ROUTE_CENTRELINE, RELATIVE_TO, EQUIPMENT_PAIR.
+7. Lighting-grid path pipes points through
+   `CeilingGridSnap.SnapToCeilingGrid` so luminaires land on real
+   tile seams.
+8. `RoomMatchesScope` evaluates the seven new room-scoping clauses
+   in one pass.
+9. `FixturePlacementEngine.ResolveSymbol` accepts comma-separated
+   variant fallback chains and regex-like hints; `FamilyTypeRegex`
+   gates by symbol name. `TryAutoLoadFromLibrary` searches
+   `Families/**/*.rfa` and loads on demand.
+10. Engine grew per-room `RoomState` so PC-13 dependencies work:
+    ConflictsWith / DependsOn / CoPlaceWith / RELATIVE_TO. PC-12
+    `ComputeCap` derives placement count from PerAreaM2,
+    PerOccupant or PerLinearMetre.
+11. New `PostPlacementHooks` (PC-17) — RunDataTagPipeline,
+    SeedCobieComponent, AssignMepSystem — toggleable via the Centre,
+    fired on every successful placement.
+
+Generative Design + Learn (PC-14, 15):
+
+12. `LearnPlacementV4Command` walks 19 categories, clusters by
+    (Category, RoomKeyword), derives mean mounting height + anchor
+    vote, and writes `STING_PLACEMENT_RULES.learned.json` (Priority
+    90). `PlacementRuleLoader.Load` honours the file when
+    `PlaceFixturesOptions.HonourLearned` is on.
+13. `FixturePlacementEngine.RunStudy` clones rules, perturbs
+    MinSpacing / Priority, runs the engine in dry-run mode and
+    reports real CoveragePct (from `CountsByRoom`) and a
+    stddev-based SpacingVariance.
+
+Catalogue + per-discipline packs (PC-18..20):
+
+14. Existing baseline normalised to PascalCase + RuleId. Four new
+    packs added under `Data/Placement/`:
+    `STING_PLACEMENT_RULES.architecture.json` (19 rules),
+    `STING_PLACEMENT_RULES.mechanical.json` (11),
+    `STING_PLACEMENT_RULES.electrical.json` (18),
+    `STING_PLACEMENT_RULES.healthcare-education.json` (10).
+15. Every new rule cites a UK / BS / CIBSE / HTM / HBN / BB103
+    standard via `StandardRef`.
+16. `PlacementRuleLoader.LoadDefaults` auto-merges the four packs
+    on top of the baseline (~100 rules out-of-the-box).
+
+UX polish (PC-21..23, 25):
+
+17. `chkLivePreview` toggle + 500 ms `DispatcherTimer` debounce on
+    `CommitField` triggers Preview after each rule edit.
+18. `PlacementPreviewSource` walks every room × rule pair via
+    `PlacementScorer` in-process and emits a stable HSV → ARGB
+    colour per `MergeKey` so different rules produce visually
+    distinct candidates.
+19. Validator picker (Clearance / Maintenance / Connectivity / Fill
+    / Spec / Termination / Slope / Separation) honoured by
+    `PlacementCenterBridge.RunValidators(doc, mask)` with reflection
+    fallback for v4/v6 validators.
+20. Run / Preview / Validate keyboard shortcuts moved off Ctrl+R/P/V
+    (Revit conflicts) onto Alt+R/P/V.
+
+Deferred (PC-24): embedding the Centre's full editor as a tab inside
+the WPF dockable panel needs the Centre's singleton Window →
+UserControl refactor; the dockable panel's existing `Placement_OpenCentre`
+button continues to invoke the Centre as a modeless window.
+
+
+#### Completed (Phase 129 — Branch consolidation + parameter file alignment)
+
+1. **Merged `origin/main`** into `claude/merge-branches-resolve-conflicts-ZuHkU`,
+   resolving 40 file conflicts. Conflicts in source code (`Core/`, `Tags/`,
+   `UI/`, `Temp/`) resolved in favour of HEAD to preserve the v4 MVP work
+   (`Core/Placement/`, `Core/Routing/`, `Core/Validation/`,
+   `Core/Fabrication/`) and the Drawing Template Manager
+   (`Core/Drawing/`).
+
+2. **Merged 18 unmerged feature branches** into the
+   accumulator branch via a scripted merge loop:
+   `continue-sting-davis-work-g4OjY`, `fix-error-8Et3c`,
+   `fix-error-NDIJp`, `fix-errors-dwX5H`,
+   `fix-string-placement-center-wbfX2`,
+   `setup-git-bash-build-0aMYK`, `vigilant-edison-xPFVG`,
+   `update-fabrication-ui-kX6xx`, `fix-text-visibility-layouts-OsiY9`,
+   `implement-ideate-functionality-1aVNs`,
+   `placement-centre-review-cKDOD`, `review-boq-workflow-BAj1N`,
+   `review-configure-columns-np8bN`, `review-enhance-markdown-lGmRY`,
+   `create-bcc-guide-zfnhi`, `implement-s05-s06-H0Ya1`,
+   `planscape-implementation-74H8D`, `merge-resolve-conflicts-oB0qb`.
+   Conflicts were resolved with `--ours` to keep HEAD's newer state
+   (template engine v1.1, Drawing Template Manager, v4 MVP).
+
+3. **`MR_PARAMETERS.csv` re-aligned with `MR_PARAMETERS.txt`** —
+   added 194 missing rows so both files now hold the same 2555
+   parameters. The CSV header version bumped to `v5.7 | 20260425`.
+   Categories of newly-mirrored params (counts):
+
+   - `TB_*` title-block — 37
+   - `PRJ_ORG_*` template-engine v1.1 — 33
+   - `ASS_*` fabrication / spool / cost — 29
+   - `CST_*` BOQ / cost — 25
+   - `ELC_*` LPS / cable schedules — 22
+   - `CBN_*` carbon — 9
+   - `STR_*` structural — 5
+   - `COMM_*` commissioning — 5
+   - `CLASH_*` triage — 5
+   - `PLM_*`, `MAT_*`, `HVC_*`, `ASBUILT_*`, `TAG_*`, `HEALTH_*`,
+     `ARC_*`, `ACC_*`, `IFC_*`, `PROJECT_*` — 19 combined.
+
+4. **Fixed 10 malformed CSV rows** where descriptions contained
+   un-quoted commas — rewrote the file via `csv.writer(..., 
+   quoting=QUOTE_MINIMAL)` so every parameter description with an
+   embedded comma is now properly wrapped in double quotes
+   (`ASS_BOM_REV_TXT`, `ASS_NRM2_PARA_TXT`, `ASS_PLACE_ANCHOR_TXT`,
+   `CST_LABOUR_CREW_TXT`, `ELC_LPS_DOWN_CONDUCTOR_COUNT_NR`,
+   `ELC_LPS_INSPECTION_INTERVAL_MONTHS`,
+   `PRJ_ORG_AI_EXTRACT_ENABLED_BOOL`,
+   `PRJ_ORG_COMPANY_ADDRESS_TXT`, `TB_RESERVED_REGIONS_JSON_TXT`,
+   `TB_VIEWPORT_SLOTS_JSON_TXT`).
+
+5. **`PARAMETER_REGISTRY.json` version bumped to 5.7**, description
+   updated to call out TXT/CSV alignment at 2555 params and 26
+   parameter groups (`ASS_MNG`, `CST_PROC`, `COM_DAT`, `ELC_PWR`,
+   `HVC_SYSTEMS`, `PLM_DRN`, `LTG_CONTROLS`, `FLS_LIFE_SFTY`,
+   `PER_SUST`, `BLE_ELES`, `TPL_TRACKING`, `MAT_INFO`,
+   `PRJ_INFORMATION`, `PROP_PHYSICAL`, `RGL_CMPL`,
+   `BLE_STRUCTURE`, `STINGTags_ISO19650`, `WARN_THRESHOLDS`,
+   `SLV_SLEEVE_PARAMS`, `CLASH_COORDINATION`, `ACC_SYNC`,
+   `IFC_EXCH`, `HEALTH_METRICS`, `ASBUILT`, `COMMISSIONING`,
+   `TBL_TITLEBLOCK`).
+
+6. **`CompiledPlugin/Data/` runtime mirror re-synced** —
+   `MR_PARAMETERS.txt`, `MR_PARAMETERS.csv`, `MR_SCHEDULES.csv`,
+   `CATEGORY_BINDINGS.csv`, and `PARAMETER_REGISTRY.json` were
+   copied from `StingTools/Data/` so the deployed plugin sees the
+   same registry as the source tree.
+
+7. **Codebase health spot-checks** (no compile environment, so
+   purely static):
+   - 0 stray git conflict markers anywhere in the tree
+     (`<<<<<<<`, `=======`, `>>>>>>>`)
+   - `StingTools.csproj` and `StingTools.addin` parse as valid XML
+   - Every `<Compile Include>` / `<None Include>` /
+     `<EmbeddedResource Include>` path in the project file
+     resolves to an existing file
+   - 4 XAML files parse as valid XML
+   - 0 `Console.WriteLine` calls survived the merge
+   - All explicit conflict resolution preferred HEAD; no
+     functionality was deleted from main, only rebased on top of
+     the v4 MVP / template-engine / drawing-template work.
+
+8. **Known follow-ups (deferred to a real Revit build host):**
+   - 240 token-shaped string literals in C# (e.g.
+     `"BLE_FLOOR_THICKNESS_MM"`, `"PLACE_OFFSET_X_MM"`,
+     `"STING_HANGER_ROD_DIA_MM"`) match the parameter naming
+     convention but do not appear in `MR_PARAMETERS.txt`. Most are
+     local field-name constants used only inside their owning class
+     (e.g. `STING_CLEARANCE_MM` lookups) — not all of them need a
+     shared parameter binding, but a follow-up audit should
+     classify each as either "needs adding to the .txt registry"
+     or "rename to drop the typed-suffix to avoid confusion".
+   - `CATEGORY_BINDINGS.csv` covers 1163 of the 2555 parameters.
+     The remaining 1392 are project-info / schedule-only / type-
+     parameter rows that are intentionally unbound. A future
+     `BINDING_COVERAGE_REPORT` job could flag the small subset of
+     instance parameters that still lack a category binding.

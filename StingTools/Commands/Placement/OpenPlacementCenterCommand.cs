@@ -8,6 +8,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Commands.Placement
 {
@@ -19,8 +20,16 @@ namespace StingTools.Commands.Placement
         {
             try
             {
-                var uiApp = commandData?.Application;
-                if (uiApp == null) { message = "No active UIApplication."; return Result.Failed; }
+                // commandData is null when launched via the dock panel's
+                // IExternalEventHandler dispatch (StingCommandHandler.RunCommand
+                // passes null and relies on CurrentApp as the fallback).
+                var uiApp = commandData?.Application ?? StingCommandHandler.CurrentApp;
+                if (uiApp == null)
+                {
+                    message = "No active UIApplication — Revit may still be initialising.";
+                    StingLog.Warn("OpenPlacementCenterCommand: no UIApplication available.");
+                    return Result.Failed;
+                }
                 StingTools.UI.PlacementCenter.StingPlacementCenter.ShowOrFocus(uiApp);
                 return Result.Succeeded;
             }

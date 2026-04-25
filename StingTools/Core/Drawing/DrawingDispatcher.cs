@@ -27,18 +27,60 @@ namespace StingTools.Core.Drawing
         /// a matching entry.
         /// </summary>
         public static DrawingType Resolve(Document doc, string discipline, string phase, string docType)
+            => Resolve(doc, discipline, phase, docType, levelCode: null);
+
+        /// <summary>
+        /// Level-aware variant — Week 6. When the routing table uses
+        /// the levelMatches regex predicate, this overload lets callers
+        /// supply the current level code so basement-specific or
+        /// roof-specific profiles can fire.
+        /// </summary>
+        public static DrawingType Resolve(Document doc, string discipline, string phase, string docType, string levelCode)
         {
             var lib = DrawingTypeRegistry.GetLibrary(doc);
             if (lib?.Routing == null || lib.Routing.Count == 0) return null;
 
+            string projectCode = ReadProjectCode(doc);
+
             foreach (var rule in lib.Routing)
             {
-                if (!MatchesWildcard(rule.Discipline, discipline)) continue;
-                if (!MatchesWildcard(rule.Phase,      phase))      continue;
-                if (!MatchesWildcard(rule.DocType,    docType))    continue;
+                if (!MatchesField(rule.Discipline, rule.DisciplineMatches, discipline)) continue;
+                if (!MatchesField(rule.Phase,      rule.PhaseMatches,      phase))      continue;
+                if (!MatchesField(rule.DocType,    rule.DocTypeMatches,    docType))    continue;
+                if (!string.IsNullOrEmpty(rule.LevelMatches)
+                    && !RegexMatches(rule.LevelMatches, levelCode)) continue;
+                if (!string.IsNullOrEmpty(rule.ProjectCodeMatches)
+                    && !RegexMatches(rule.ProjectCodeMatches, projectCode)) continue;
                 return DrawingTypeRegistry.Get(doc, rule.DrawingTypeId);
             }
             return null;
+        }
+
+        private static bool MatchesField(string exact, string regexPattern, string actual)
+        {
+            // Regex predicate beats the exact-match field when both are
+            // set. Unset predicate falls through to wildcard match.
+            if (!string.IsNullOrEmpty(regexPattern)) return RegexMatches(regexPattern, actual);
+            return MatchesWildcard(exact, actual);
+        }
+
+        private static bool RegexMatches(string pattern, string actual)
+        {
+            if (string.IsNullOrEmpty(actual)) return false;
+            try { return System.Text.RegularExpressions.Regex.IsMatch(actual, pattern); }
+            catch { return false; }
+        }
+
+        private static string ReadProjectCode(Document doc)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                if (pi == null) return null;
+                var p = pi.LookupParameter("PRJ_ORG_PROJECT_CODE");
+                return p?.StorageType == StorageType.String ? p.AsString() : null;
+            }
+            catch { return null; }
         }
 
         /// <summary>

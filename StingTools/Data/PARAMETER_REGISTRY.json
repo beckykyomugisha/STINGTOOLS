@@ -1,6 +1,6 @@
 {
-  "version": "5.6",
-  "description": "STING Tools master parameter registry v5.6 — single source of truth for all parameter names, GUIDs, containers, bindings, and warning thresholds",
+  "version": "5.7",
+  "description": "STING Tools master parameter registry v5.7 — single source of truth for all parameter names, GUIDs, containers, bindings, and warning thresholds (TXT/CSV aligned at 2555 params, 26 groups)",
   "tag_format": {
     "separator": "-",
     "num_pad": 4,

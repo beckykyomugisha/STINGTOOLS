@@ -1,0 +1,155 @@
+{
+  "Version": "v4",
+  "Description": "PC-18 / PC-20 — electrical placement baseline (Electrical Fixtures, Equipment, Lighting Devices/Fixtures, Communication, Data, Telephone Devices, Security, Fire Alarm). Cited against BS 7671, BS 5839-1, BS 5266-1, BS EN 12464-1, BS 5839-8, BICSI, BS EN 62676.",
+  "Rules": [
+    {
+      "RuleId": "elec-perimeter-trunking",
+      "CategoryFilter": "Electrical Fixtures", "RuleKind": "Linear",
+      "RoomFilter": "(?i)office|study|workstation",
+      "AnchorType": "PERIMETER_OFFSET", "MountingHeightMm": 1100.0,
+      "PerLinearMetre": 0.6, "MinSpacingMm": 600.0, "Priority": 55,
+      "StandardRef": "Approved Doc M / BS 7671",
+      "Notes": "Continuous perimeter trunking sockets at 600 mm centres, 1.1 m AFF."
+    },
+    {
+      "RuleId": "elec-floor-box-density",
+      "CategoryFilter": "Electrical Fixtures", "RuleKind": "Density",
+      "RoomFilter": "(?i)open *plan|open *office|workstation",
+      "AnchorType": "RAISED_FLOOR_TILE", "MountingHeightMm": 0.0,
+      "PerAreaM2": 10.0, "MinSpacingMm": 1500.0, "Priority": 60,
+      "StandardRef": "BCO 2019", "Notes": "1 floor box per 10 m² in open-plan."
+    },
+    {
+      "RuleId": "elec-equipment-db",
+      "CategoryFilter": "Electrical Equipment", "RuleKind": "Density",
+      "RoomFilter": "(?i)plant|electrical|comms|riser",
+      "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1500.0,
+      "PerAreaM2": 250.0, "Priority": 65, "StandardRef": "BS 7671",
+      "Notes": "1 DB per 250 m² (or per floor for areas <500 m²)."
+    },
+    {
+      "RuleId": "elec-equipment-isolator-plant",
+      "CategoryFilter": "Electrical Equipment", "RoomFilter": "(?i)plant|boiler|pump",
+      "AnchorType": "WALL_CORNER", "MountingHeightMm": 1200.0, "OffsetXMm": 200.0,
+      "MaxPerRoom": 2, "Priority": 65, "StandardRef": "BS 7671 §537",
+      "Notes": "Local isolator at 1.2 m AFF in plant rooms."
+    },
+    {
+      "RuleId": "elec-light-stair-2way",
+      "CategoryFilter": "Lighting Devices", "RoomFilter": "(?i)stair|stairwell",
+      "AnchorType": "DOOR_HINGE", "MountingHeightMm": 1100.0, "OffsetXMm": 300.0,
+      "SideConstraint": "HINGE_SIDE", "MaxPerRoom": 2, "Priority": 80,
+      "StandardRef": "Approved Doc M", "Notes": "2-way switch at each stair landing."
+    },
+    {
+      "RuleId": "elec-light-conf-dimmer",
+      "CategoryFilter": "Lighting Devices", "RoomFilter": "(?i)conference|board|huddle",
+      "AnchorType": "DOOR_HINGE", "MountingHeightMm": 1100.0, "OffsetXMm": 300.0,
+      "SideConstraint": "HINGE_SIDE", "MaxPerRoom": 1, "Priority": 70,
+      "StandardRef": "Approved Doc M / DALI",
+      "VariantHint": "DIMMER,DALI",
+      "Notes": "Rocker dimmer / DALI controller in conference rooms."
+    },
+    {
+      "RuleId": "elec-light-key-plant",
+      "CategoryFilter": "Lighting Devices", "RoomFilter": "(?i)plant|riser|comms|server",
+      "AnchorType": "DOOR_HINGE", "MountingHeightMm": 1400.0, "OffsetXMm": 300.0,
+      "SideConstraint": "HINGE_SIDE", "MaxPerRoom": 1, "Priority": 75,
+      "VariantHint": "KEY", "StandardRef": "BS 7671",
+      "Notes": "Key-switch only in plant / restricted areas."
+    },
+    {
+      "RuleId": "elec-light-emergency-route",
+      "CategoryFilter": "Lighting Fixtures", "RuleKind": "Linear",
+      "RoomFilter": "(?i)escape|corridor|stair", "AnchorType": "PERIMETER_OFFSET",
+      "MountingHeightMm": 0.0, "PerLinearMetre": 8.0, "Priority": 80,
+      "StandardRef": "BS 5266-1 / BS EN 1838", "VariantHint": "EM",
+      "Notes": "Emergency luminaires every 8 m on escape routes."
+    },
+    {
+      "RuleId": "elec-light-exit-direction",
+      "CategoryFilter": "Lighting Fixtures", "RoomFilter": "(?i)exit|escape",
+      "AnchorType": "DOOR_HEAD", "MountingHeightMm": 2200.0,
+      "MaxPerRoom": 1, "Priority": 85, "StandardRef": "BS 5266-1 / BS 5499",
+      "VariantHint": "EXIT,SIGN",
+      "Notes": "Escape-route sign above every exit door."
+    },
+    {
+      "RuleId": "elec-comms-pa-corridor",
+      "CategoryFilter": "Communication Devices", "RuleKind": "Density",
+      "RoomFilter": "(?i)corridor|circulation", "AnchorType": "CEILING_CENTRE",
+      "MountingHeightMm": 0.0, "PerAreaM2": 60.0, "MinSpacingMm": 6000.0,
+      "Priority": 60, "StandardRef": "BS 5839-8",
+      "Notes": "Public-address speaker per 60 m² of corridor."
+    },
+    {
+      "RuleId": "elec-comms-pa-wc",
+      "CategoryFilter": "Communication Devices",
+      "RoomFilter": "(?i)wc|toilet|bathroom",
+      "AnchorType": "CEILING_CENTRE", "MountingHeightMm": 0.0,
+      "MaxPerRoom": 1, "Priority": 60, "StandardRef": "BS 5839-8",
+      "Notes": "1 PA speaker per WC compartment."
+    },
+    {
+      "RuleId": "elec-data-twin-rj45",
+      "CategoryFilter": "Data Devices",
+      "RoomFilter": "(?i)office|study|workstation",
+      "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 300.0,
+      "MinSpacingMm": 1500.0, "MaxPerRoom": 16, "Priority": 60,
+      "VariantHint": "RJ45,DUAL,TWIN",
+      "StandardRef": "BICSI / BS EN 50173",
+      "Notes": "Twin RJ45 per workstation."
+    },
+    {
+      "RuleId": "elec-data-cctv-poe-uplink",
+      "CategoryFilter": "Data Devices",
+      "RoomFilter": "(?i)entrance|lobby|reception|corridor",
+      "AnchorType": "CEILING_CENTRE", "MountingHeightMm": 2800.0,
+      "MaxPerRoom": 0, "MinSpacingMm": 8000.0, "Priority": 55,
+      "VariantHint": "POE,UPLINK",
+      "StandardRef": "BS EN 50173 / BS EN 62676",
+      "Notes": "PoE uplink near every IP camera."
+    },
+    {
+      "RuleId": "elec-tel-pots",
+      "CategoryFilter": "Telephone Devices",
+      "RoomFilter": "(?i)reception|nurse *station|ward|patient",
+      "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1100.0,
+      "MaxPerRoom": 1, "Priority": 50, "StandardRef": "BS 6259",
+      "Notes": "POTS / DECT handset at workpoint."
+    },
+    {
+      "RuleId": "elec-fire-mcp-stair-pair",
+      "CategoryFilter": "Fire Alarm Devices",
+      "RoomFilter": "(?i)stair", "AnchorType": "DOOR_JAMB",
+      "MountingHeightMm": 1400.0, "MaxPerRoom": 2, "Priority": 85,
+      "StandardRef": "BS 5839-1", "VariantHint": "MCP",
+      "Notes": "MCP at each stair entry — pair on every level."
+    },
+    {
+      "RuleId": "elec-security-camera-stairwell",
+      "CategoryFilter": "Security Devices",
+      "RoomFilter": "(?i)stair|stairwell|lift *lobby",
+      "AnchorType": "CEILING_CENTRE", "MountingHeightMm": 2800.0,
+      "MaxPerRoom": 1, "Priority": 60, "StandardRef": "BS EN 62676",
+      "VariantHint": "DOME",
+      "Notes": "CCTV dome in stair / lift lobby."
+    },
+    {
+      "RuleId": "elec-security-pir-room",
+      "CategoryFilter": "Security Devices",
+      "RoomFilter": "(?i)office|store|server|comms",
+      "AnchorType": "CEILING_CENTRE", "MountingHeightMm": 2400.0,
+      "MaxPerRoom": 1, "Priority": 55, "StandardRef": "BS EN 50131-2-2",
+      "VariantHint": "PIR",
+      "Notes": "Ceiling PIR for room intrusion detection."
+    },
+    {
+      "RuleId": "elec-light-classroom",
+      "CategoryFilter": "Lighting Fixtures", "RoomFilter": "(?i)classroom|teaching|lecture",
+      "AnchorType": "LIGHTING_GRID", "MountingHeightMm": 0.0, "MinSpacingMm": 2400.0,
+      "Priority": 60, "StandardRef": "BS EN 12464-1 (300–500 lux)",
+      "Notes": "Classroom luminaires on tile grid for 300+ lux."
+    }
+  ]
+}

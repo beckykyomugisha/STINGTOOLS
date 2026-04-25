@@ -225,10 +225,11 @@ namespace StingTools.Core.Fabrication
             // default SP-{disc}-{sys}-{lvl}-{seq}.
             var options = StingTools.Commands.Fabrication.FabricationOptions.ShopDrawing;
             string registryNumPattern = drawingType?.SheetNumberPattern;
+            var extraTokens = BuildTokenDict(doc, drawingType, spool, discCode, discipline, sysCode, levelCode, seq);
             string sheetNumber = !string.IsNullOrEmpty(options?.SheetNumberPattern)
-                ? SubstituteTokens(options.SheetNumberPattern, spool, discCode, sysCode, levelCode, seq, discipline)
+                ? SubstituteTokens(options.SheetNumberPattern, spool, discCode, sysCode, levelCode, seq, discipline, extras: extraTokens)
                 : !string.IsNullOrEmpty(registryNumPattern)
-                    ? SubstituteTokens(registryNumPattern, spool, discCode, sysCode, levelCode, seq, discipline)
+                    ? SubstituteTokens(registryNumPattern, spool, discCode, sysCode, levelCode, seq, discipline, extras: extraTokens)
                     : (!string.IsNullOrEmpty(spool)
                         ? spool
                         : $"SP-{discCode}-{sysCode}-{levelCode}-{seq:D4}");
@@ -242,9 +243,9 @@ namespace StingTools.Core.Fabrication
 
             string registryNamePattern = drawingType?.SheetNamePattern;
             string sheetName = !string.IsNullOrEmpty(options?.SheetNamePattern)
-                ? SubstituteTokens(options.SheetNamePattern, spool, discCode, sysCode, levelCode, seq, discipline)
+                ? SubstituteTokens(options.SheetNamePattern, spool, discCode, sysCode, levelCode, seq, discipline, extras: extraTokens)
                 : !string.IsNullOrEmpty(registryNamePattern)
-                    ? SubstituteTokens(registryNamePattern, spool, discCode, sysCode, levelCode, seq, discipline)
+                    ? SubstituteTokens(registryNamePattern, spool, discCode, sysCode, levelCode, seq, discipline, extras: extraTokens)
                     : (!string.IsNullOrEmpty(spool)
                         ? $"Spool {spool}"
                         : $"{discipline} spool {unique}");
@@ -252,7 +253,12 @@ namespace StingTools.Core.Fabrication
 
             // Title-block instance parameters live on the title block
             // FamilyInstance, accessible via collector. We set the
-            // common ones if present.
+            // fabrication-specific ones here — spool, weight, fab
+            // location, status, BOM rev, discipline — then let the
+            // Drawing Type's TitleBlockParams payload layer on top so
+            // corporate profiles can declaratively bind more cells
+            // (client name, suitability, drawn-by, project code) via
+            // ${PRJ_ORG_*} and {disc}/{lvl}/{sys}/{seq:Dn} templates.
             try
             {
                 var tbInst = new FilteredElementCollector(doc, sheet.Id)
@@ -268,6 +274,27 @@ namespace StingTools.Core.Fabrication
                 }
             }
             catch (Exception ex) { result.Warnings.Add($"Title block populate: {ex.Message}"); }
+
+            // DrawingType.TitleBlockParams — declarative per-profile
+            // title-block binding. Pass the same token dict the sheet
+            // number / name pattern used so {disc}=discCode / {lvl}=
+            // levelCode / {sys}=sysCode / {spool}=spool / {seq:Dn}
+            // resolve consistently with the sheet number pattern.
+            try
+            {
+                if (drawingType?.TitleBlockParams != null && drawingType.TitleBlockParams.Count > 0)
+                {
+                    // Same token set used to resolve the sheet number +
+                    // name patterns — ISO 19650 tokens included so
+                    // title-block cells read the same codes the sheet
+                    // number does.
+                    var tbApply = StingTools.Core.Drawing.TitleBlockParamApplier
+                        .Apply(doc, sheet, drawingType, extraTokens);
+                    foreach (var w in tbApply.Warnings)
+                        result.Warnings.Add("TitleBlockParams: " + w);
+                }
+            }
+            catch (Exception ex) { result.Warnings.Add($"TitleBlockParams: {ex.Message}"); }
         }
 
         private static string ReadString(Element el, string param)
@@ -279,13 +306,15 @@ namespace StingTools.Core.Fabrication
         /// Substitute tokens in a sheet-number or sheet-name pattern —
         /// {spool}/{disc}/{discipline}/{sys}/{lvl}/{mark} literal, plus
         /// {seq} (defaults to D4 padding) and {seq:D2}/{seq:D3}/{seq:D4}
-        /// with explicit width. Unrecognised tokens are left as literal
-        /// text so shops can mix in extra markers like "REV {revision}"
-        /// by hand later.
+        /// with explicit width. ISO 19650 tokens {project}/{originator}/
+        /// {vol}/{type}/{role}/{suit}/{rev} resolve from the optional
+        /// <paramref name="extras"/> dict when supplied. Unrecognised
+        /// tokens are left as literal text.
         /// </summary>
         private static string SubstituteTokens(string pattern, string spool,
             string disc, string sys, string lvl, int seq,
-            string disciplineFull = null, string mark = null)
+            string disciplineFull = null, string mark = null,
+            System.Collections.Generic.IDictionary<string, string> extras = null)
         {
             if (string.IsNullOrEmpty(pattern)) return "";
             var s = pattern
@@ -295,6 +324,17 @@ namespace StingTools.Core.Fabrication
                 .Replace("{sys}",        sys   ?? "")
                 .Replace("{lvl}",        lvl   ?? "")
                 .Replace("{mark}",       mark  ?? "");
+
+            // ISO 19650 tokens (and anything else the caller feeds).
+            if (extras != null)
+            {
+                foreach (var kv in extras)
+                {
+                    if (string.IsNullOrEmpty(kv.Key)) continue;
+                    s = s.Replace("{" + kv.Key + "}", kv.Value ?? "");
+                }
+            }
+
             // {seq:Dn} with explicit padding width — honour whatever the
             // pattern asks for so A-{seq:D3} yields A-001 and
             // SP-{seq:D4} yields SP-0001.
@@ -304,6 +344,47 @@ namespace StingTools.Core.Fabrication
             // Bare {seq} keeps the historical default of 4 digits.
             s = s.Replace("{seq}", seq.ToString("D4"));
             return s;
+        }
+
+        /// <summary>
+        /// Build the standard token dict for a resolved DrawingType —
+        /// ISO tokens sourced from dt.IsoNaming, project + originator
+        /// pulled from ProjectInformation so every sheet in a project
+        /// shares those two codes automatically.
+        /// </summary>
+        private static System.Collections.Generic.Dictionary<string, string>
+            BuildTokenDict(Document doc, StingTools.Core.Drawing.DrawingType dt,
+                string spool, string discCode, string discipline, string sysCode, string levelCode, int seq)
+        {
+            var d = new System.Collections.Generic.Dictionary<string, string>(
+                System.StringComparer.OrdinalIgnoreCase)
+            {
+                { "spool",      spool      ?? "" },
+                { "disc",       discCode   ?? "" },
+                { "discipline", discipline ?? "" },
+                { "sys",        sysCode    ?? "" },
+                { "lvl",        levelCode  ?? "" },
+                { "seq",        seq.ToString("D4") },
+                { "project",    ReadProjectInfo(doc, "PRJ_ORG_PROJECT_CODE") },
+                { "originator", ReadProjectInfo(doc, "PRJ_ORG_ORIGINATOR_CODE") },
+                { "vol",        dt?.IsoNaming?.Volume      ?? "" },
+                { "type",       dt?.IsoNaming?.Type        ?? "" },
+                { "role",       dt?.IsoNaming?.Role        ?? discCode ?? "" },
+                { "suit",       dt?.IsoNaming?.Suitability ?? "" },
+                { "rev",        dt?.IsoNaming?.Revision    ?? "" },
+            };
+            return d;
+        }
+
+        private static string ReadProjectInfo(Document doc, string param)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                var p = pi?.LookupParameter(param);
+                return p?.StorageType == StorageType.String ? (p.AsString() ?? "") : "";
+            }
+            catch { return ""; }
         }
 
         /// <summary>

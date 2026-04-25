@@ -1,12 +1,10 @@
 {
   "version": 1,
   "_comment": "STING corporate Drawing Types. Override per project by dropping a drawing_types.json under <project>/_BIM_COORD/. Project entries win by id; routing rules from the project file are PREPENDED (first-match-wins).",
-
   "drawingTypes": [
-
     {
       "id": "arch-plan-A1-1to100",
-      "name": "Architectural Plan — A1 @ 1:100",
+      "name": "Architectural Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -18,25 +16,77 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Architectural Plan",
       "viewportTypeName": "STING - Standard Viewport",
-      "sheetNumberPattern": "A-{lvl}-{seq:D3}",
-      "sheetNamePattern": "ARCHITECTURAL PLAN — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 150 },
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "ARCHITECTURAL PLAN \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
       "slots": [
-        { "label": "Main Plan", "viewType": "Plan",   "normX": 0.03, "normY": 0.05, "normW": 0.72, "normH": 0.90, "required": true },
-        { "label": "Key Plan",  "viewType": "Legend", "normX": 0.78, "normY": 0.65, "normW": 0.19, "normH": 0.30 },
-        { "label": "Notes",     "viewType": "Legend", "normX": 0.78, "normY": 0.05, "normW": 0.19, "normH": 0.55 }
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.65,
+          "normW": 0.19,
+          "normH": 0.3
+        },
+        {
+          "label": "Notes",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.55
+        }
       ],
       "annotation": {
-        "autoDimGrids": true, "autoTagRooms": true, "autoTagDoors": true, "autoTagWindows": true,
-        "dimensionStrategy": "Linear", "dimensionStyle": "STING - Linear",
-        "tagFamilies": { "Rooms": "STING_TAG_ROOM", "Doors": "STING_TAG_DOOR", "Windows": "STING_TAG_WINDOW" },
+        "autoDimGrids": true,
+        "autoTagRooms": true,
+        "autoTagDoors": true,
+        "autoTagWindows": true,
+        "dimensionStrategy": "Linear",
+        "dimensionStyle": "STING - Linear",
+        "tagFamilies": {
+          "Rooms": "STING_TAG_ROOM",
+          "Doors": "STING_TAG_DOOR",
+          "Windows": "STING_TAG_WINDOW"
+        },
         "denseUntilScale": 100
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Discipline": "Architectural",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01",
+        "Sheet Number": "A-{lvl}-{seq:D3}"
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
-
     {
       "id": "arch-rcp-A1-1to100",
-      "name": "Architectural RCP — A1 @ 1:100",
+      "name": "Architectural RCP \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "RCP",
       "discipline": "A",
@@ -46,22 +96,44 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Reflected Ceiling Plan",
       "sheetNumberPattern": "A-RCP-{lvl}-{seq:D3}",
-      "sheetNamePattern": "REFLECTED CEILING PLAN — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 150 },
+      "sheetNamePattern": "REFLECTED CEILING PLAN \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
       "slots": [
-        { "label": "Main RCP", "viewType": "RCP", "normX": 0.03, "normY": 0.05, "normW": 0.72, "normH": 0.90, "required": true },
-        { "label": "Legend",   "viewType": "Legend", "normX": 0.78, "normY": 0.05, "normW": 0.19, "normH": 0.90 }
+        {
+          "label": "Main RCP",
+          "viewType": "RCP",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.9
+        }
       ],
       "annotation": {
-        "autoDimGrids": true, "autoTagRooms": true,
-        "tagFamilies": { "Rooms": "STING_TAG_ROOM", "Ceilings": "STING_TAG_CEILING", "LightingFixtures": "STING_TAG_LIGHT" },
+        "autoDimGrids": true,
+        "autoTagRooms": true,
+        "tagFamilies": {
+          "Rooms": "STING_TAG_ROOM",
+          "Ceilings": "STING_TAG_CEILING",
+          "LightingFixtures": "STING_TAG_LIGHT"
+        },
         "denseUntilScale": 100
       }
     },
-
     {
       "id": "arch-section-A1-1to50",
-      "name": "Architectural Section — A1 @ 1:50",
+      "name": "Architectural Section \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Section",
       "discipline": "A",
@@ -70,23 +142,46 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Architectural Section",
-      "sheetNumberPattern": "A-SEC-{seq:D3}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "SECTION {mark}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 200 },
-      "sectionMarker": { "family": "STING_SECTION_HEAD", "markPrefix": "S", "bubbleStyle": "Filled", "farClipMm": 5000 },
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 200
+      },
+      "sectionMarker": {
+        "family": "STING_SECTION_HEAD",
+        "markPrefix": "S",
+        "bubbleStyle": "Filled",
+        "farClipMm": 5000
+      },
       "slots": [
-        { "label": "Main Section", "viewType": "Section", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.90, "required": true }
+        {
+          "label": "Main Section",
+          "viewType": "Section",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
       ],
       "annotation": {
-        "autoDimGrids": true, "autoDimLevels": true,
+        "autoDimGrids": true,
+        "autoDimLevels": true,
         "dimensionStrategy": "Linear",
         "denseUntilScale": 100
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "A",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
-
     {
       "id": "arch-elev-A1-1to100",
-      "name": "Architectural Elevation — A1 @ 1:100",
+      "name": "Architectural Elevation \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Elevation",
       "discipline": "A",
@@ -97,20 +192,58 @@
       "viewTemplateName": "STING - Architectural Elevation",
       "sheetNumberPattern": "A-EL-{seq:D3}",
       "sheetNamePattern": "ELEVATION {mark}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 200 },
-      "sectionMarker": { "family": "STING_ELEV_MARKER", "markPrefix": "E", "bubbleStyle": "Open", "farClipMm": 8000 },
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 200
+      },
+      "sectionMarker": {
+        "family": "STING_ELEV_MARKER",
+        "markPrefix": "E",
+        "bubbleStyle": "Open",
+        "farClipMm": 8000
+      },
       "slots": [
-        { "label": "Elev N", "viewType": "Elevation", "normX": 0.03, "normY": 0.52, "normW": 0.47, "normH": 0.43 },
-        { "label": "Elev E", "viewType": "Elevation", "normX": 0.52, "normY": 0.52, "normW": 0.45, "normH": 0.43 },
-        { "label": "Elev S", "viewType": "Elevation", "normX": 0.03, "normY": 0.05, "normW": 0.47, "normH": 0.43 },
-        { "label": "Elev W", "viewType": "Elevation", "normX": 0.52, "normY": 0.05, "normW": 0.45, "normH": 0.43 }
+        {
+          "label": "Elev N",
+          "viewType": "Elevation",
+          "normX": 0.03,
+          "normY": 0.52,
+          "normW": 0.47,
+          "normH": 0.43
+        },
+        {
+          "label": "Elev E",
+          "viewType": "Elevation",
+          "normX": 0.52,
+          "normY": 0.52,
+          "normW": 0.45,
+          "normH": 0.43
+        },
+        {
+          "label": "Elev S",
+          "viewType": "Elevation",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.47,
+          "normH": 0.43
+        },
+        {
+          "label": "Elev W",
+          "viewType": "Elevation",
+          "normX": 0.52,
+          "normY": 0.05,
+          "normW": 0.45,
+          "normH": 0.43
+        }
       ],
-      "annotation": { "autoDimLevels": true, "dimensionStrategy": "Linear" }
+      "annotation": {
+        "autoDimLevels": true,
+        "dimensionStrategy": "Linear"
+      }
     },
-
     {
       "id": "arch-detail-A3-1to20",
-      "name": "Architectural Detail — A3 @ 1:20",
+      "name": "Architectural Detail \u2014 A3 @ 1:20",
       "origin": "corporate",
       "purpose": "Detail",
       "discipline": "A",
@@ -121,23 +254,59 @@
       "viewTemplateName": "STING - Detail",
       "sheetNumberPattern": "A-DT-{seq:D3}",
       "sheetNamePattern": "DETAIL {mark}",
-      "crop": { "kind": "TightBbox", "marginMm": 50 },
-      "sectionMarker": { "family": "STING_CALLOUT_HEAD", "markPrefix": "D", "bubbleStyle": "Filled", "farClipMm": 500 },
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 50
+      },
+      "sectionMarker": {
+        "family": "STING_CALLOUT_HEAD",
+        "markPrefix": "D",
+        "bubbleStyle": "Filled",
+        "farClipMm": 500
+      },
       "slots": [
-        { "label": "Detail TL", "viewType": "Detail", "normX": 0.05, "normY": 0.52, "normW": 0.42, "normH": 0.45 },
-        { "label": "Detail TR", "viewType": "Detail", "normX": 0.52, "normY": 0.52, "normW": 0.42, "normH": 0.45 },
-        { "label": "Detail BL", "viewType": "Detail", "normX": 0.05, "normY": 0.05, "normW": 0.42, "normH": 0.45 },
-        { "label": "Detail BR", "viewType": "Detail", "normX": 0.52, "normY": 0.05, "normW": 0.42, "normH": 0.45 }
+        {
+          "label": "Detail TL",
+          "viewType": "Detail",
+          "normX": 0.05,
+          "normY": 0.52,
+          "normW": 0.42,
+          "normH": 0.45
+        },
+        {
+          "label": "Detail TR",
+          "viewType": "Detail",
+          "normX": 0.52,
+          "normY": 0.52,
+          "normW": 0.42,
+          "normH": 0.45
+        },
+        {
+          "label": "Detail BL",
+          "viewType": "Detail",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.42,
+          "normH": 0.45
+        },
+        {
+          "label": "Detail BR",
+          "viewType": "Detail",
+          "normX": 0.52,
+          "normY": 0.05,
+          "normW": 0.42,
+          "normH": 0.45
+        }
       ],
       "annotation": {
-        "autoDimLevels": true, "dimensionStrategy": "Chain",
+        "autoDimLevels": true,
+        "dimensionStrategy": "Chain",
         "denseUntilScale": 50
       }
     },
-
     {
       "id": "struct-plan-A1-1to100",
-      "name": "Structural Plan — A1 @ 1:100",
+      "name": "Structural Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "S",
@@ -146,22 +315,44 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Structural Plan",
-      "sheetNumberPattern": "S-{lvl}-{seq:D3}",
-      "sheetNamePattern": "STRUCTURAL PLAN — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 150 },
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "STRUCTURAL PLAN \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
       "slots": [
-        { "label": "Main Plan", "viewType": "Plan", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.90, "required": true }
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
       ],
       "annotation": {
-        "autoDimGrids": true, "autoTagEquipment": true,
+        "autoDimGrids": true,
+        "autoTagEquipment": true,
         "dimensionStrategy": "Linear",
-        "tagFamilies": { "StructuralColumns": "STING_TAG_COL", "StructuralFraming": "STING_TAG_BEAM", "StructuralFoundations": "STING_TAG_FTG" }
+        "tagFamilies": {
+          "StructuralColumns": "STING_TAG_COL",
+          "StructuralFraming": "STING_TAG_BEAM",
+          "StructuralFoundations": "STING_TAG_FTG"
+        }
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "S",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
-
     {
       "id": "struct-section-A1-1to50",
-      "name": "Structural Section — A1 @ 1:50",
+      "name": "Structural Section \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Section",
       "discipline": "S",
@@ -172,17 +363,35 @@
       "viewTemplateName": "STING - Structural Section",
       "sheetNumberPattern": "S-SEC-{seq:D3}",
       "sheetNamePattern": "STRUCTURAL SECTION {mark}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 150 },
-      "sectionMarker": { "family": "STING_SECTION_HEAD", "markPrefix": "SS", "bubbleStyle": "Filled", "farClipMm": 5000 },
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "sectionMarker": {
+        "family": "STING_SECTION_HEAD",
+        "markPrefix": "SS",
+        "bubbleStyle": "Filled",
+        "farClipMm": 5000
+      },
       "slots": [
-        { "label": "Main Section", "viewType": "Section", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.90, "required": true }
+        {
+          "label": "Main Section",
+          "viewType": "Section",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
       ],
-      "annotation": { "autoDimLevels": true, "dimensionStrategy": "Linear" }
+      "annotation": {
+        "autoDimLevels": true,
+        "dimensionStrategy": "Linear"
+      }
     },
-
     {
       "id": "mep-plan-A1-1to100",
-      "name": "MEP Plan — A1 @ 1:100",
+      "name": "MEP Plan \u2014 A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "M",
@@ -191,24 +400,53 @@
       "scale": 100,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - MEP Plan",
-      "sheetNumberPattern": "M-{lvl}-{seq:D3}",
-      "sheetNamePattern": "MEP PLAN — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 150 },
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "MEP PLAN \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
       "slots": [
-        { "label": "Main Plan", "viewType": "Plan",   "normX": 0.03, "normY": 0.05, "normW": 0.75, "normH": 0.90, "required": true },
-        { "label": "Legend",    "viewType": "Legend", "normX": 0.80, "normY": 0.05, "normW": 0.18, "normH": 0.90 }
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
       ],
       "annotation": {
-        "autoDimGrids": false, "autoTagEquipment": true,
+        "autoDimGrids": false,
+        "autoTagEquipment": true,
         "dimensionStrategy": "Linear",
-        "tagFamilies": { "DuctSystem": "STING_TAG_DUCT", "PipeSystem": "STING_TAG_PIPE", "ElectricalEquipment": "STING_TAG_ELEC" },
+        "tagFamilies": {
+          "DuctSystem": "STING_TAG_DUCT",
+          "PipeSystem": "STING_TAG_PIPE",
+          "ElectricalEquipment": "STING_TAG_ELEC"
+        },
         "denseUntilScale": 100
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
       }
     },
-
     {
       "id": "mep-coord-A1-1to50",
-      "name": "MEP Coordination — A1 @ 1:50",
+      "name": "MEP Coordination \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Coordination",
       "discipline": "M",
@@ -218,21 +456,34 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - MEP Coordination",
       "sheetNumberPattern": "M-CO-{lvl}-{seq:D3}",
-      "sheetNamePattern": "MEP COORDINATION — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 100 },
+      "sheetNamePattern": "MEP COORDINATION \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 100
+      },
       "slots": [
-        { "label": "Plan 3D Overlay", "viewType": "Plan", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.90, "required": true }
+        {
+          "label": "Plan 3D Overlay",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
       ],
       "annotation": {
-        "autoDimGrids": true, "autoTagEquipment": true,
+        "autoDimGrids": true,
+        "autoTagEquipment": true,
         "denseUntilScale": 50
       },
-      "print": { "halftoneLinks": true }
+      "print": {
+        "halftoneLinks": true
+      }
     },
-
     {
       "id": "pipe-spool-A1-1to50",
-      "name": "Pipe Spool — A1 @ 1:50",
+      "name": "Pipe Spool \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Spool",
       "discipline": "P",
@@ -241,28 +492,99 @@
       "scale": 50,
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Pipe Shop Drawing",
-      "sheetNumberPattern": "SP-{disc}-{sys}-{lvl}-{seq:D4}",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "{discipline} spool {spool}",
-      "crop": { "kind": "TightBbox", "marginMm": 300 },
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 300
+      },
       "slots": [
-        { "label": "Plan",   "viewType": "Plan",      "normX": 0.05, "normY": 0.55, "normW": 0.40, "normH": 0.40 },
-        { "label": "ISO",    "viewType": "ISO",       "normX": 0.55, "normY": 0.55, "normW": 0.40, "normH": 0.40 },
-        { "label": "Elev0",  "viewType": "Elevation", "normX": 0.05, "normY": 0.10, "normW": 0.28, "normH": 0.40 },
-        { "label": "Elev90", "viewType": "Elevation", "normX": 0.36, "normY": 0.10, "normW": 0.28, "normH": 0.40 },
-        { "label": "3D",     "viewType": "3D",        "normX": 0.67, "normY": 0.10, "normW": 0.28, "normH": 0.40 },
-        { "label": "BOM",    "viewType": "Schedule",  "normX": 0.78, "normY": 0.55, "normW": 0.20, "normH": 0.40 }
+        {
+          "label": "Plan",
+          "viewType": "Plan",
+          "normX": 0.05,
+          "normY": 0.55,
+          "normW": 0.4,
+          "normH": 0.4
+        },
+        {
+          "label": "ISO",
+          "viewType": "ISO",
+          "normX": 0.55,
+          "normY": 0.55,
+          "normW": 0.4,
+          "normH": 0.4
+        },
+        {
+          "label": "Elev0",
+          "viewType": "Elevation",
+          "normX": 0.05,
+          "normY": 0.1,
+          "normW": 0.28,
+          "normH": 0.4
+        },
+        {
+          "label": "Elev90",
+          "viewType": "Elevation",
+          "normX": 0.36,
+          "normY": 0.1,
+          "normW": 0.28,
+          "normH": 0.4
+        },
+        {
+          "label": "3D",
+          "viewType": "3D",
+          "normX": 0.67,
+          "normY": 0.1,
+          "normW": 0.28,
+          "normH": 0.4
+        },
+        {
+          "label": "BOM",
+          "viewType": "Schedule",
+          "normX": 0.78,
+          "normY": 0.55,
+          "normW": 0.2,
+          "normH": 0.4
+        }
       ],
       "annotation": {
-        "autoTagWelds": true, "autoTagBends": true, "autoTagSupports": true,
+        "autoTagWelds": true,
+        "autoTagBends": true,
+        "autoTagSupports": true,
         "dimensionStrategy": "Ordinate",
-        "tagFamilies": { "PipeFitting": "STING_TAG_WELD", "PipeAccessory": "STING_TAG_FIT" },
+        "tagFamilies": {
+          "PipeFitting": "STING_TAG_WELD",
+          "PipeAccessory": "STING_TAG_FIT"
+        },
         "denseUntilScale": 100
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Discipline": "Pipe",
+        "Suitability": "A",
+        "Sheet Status": "FOR FABRICATION",
+        "Spool Number": "{spool}",
+        "System Code": "{sys}",
+        "Level Code": "{lvl}",
+        "Sheet Number": "SP-{disc}-{sys}-{lvl}-{seq:D4}"
+      },
+      "isoNaming": {
+        "volume": "02",
+        "type": "SP",
+        "role": "P",
+        "suitability": "A",
+        "revision": "C01"
       }
     },
-
     {
       "id": "duct-spool-A1-1to50",
-      "name": "Duct Spool — A1 @ 1:50",
+      "name": "Duct Spool \u2014 A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Spool",
       "discipline": "M",
@@ -273,25 +595,72 @@
       "viewTemplateName": "STING - Duct Shop Drawing",
       "sheetNumberPattern": "SP-M-DCT-{lvl}-{seq:D4}",
       "sheetNamePattern": "Duct spool {spool}",
-      "crop": { "kind": "TightBbox", "marginMm": 300 },
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 300
+      },
       "slots": [
-        { "label": "Plan",   "viewType": "Plan",      "normX": 0.05, "normY": 0.55, "normW": 0.40, "normH": 0.40 },
-        { "label": "ISO",    "viewType": "ISO",       "normX": 0.55, "normY": 0.55, "normW": 0.40, "normH": 0.40 },
-        { "label": "Elev0",  "viewType": "Elevation", "normX": 0.05, "normY": 0.10, "normW": 0.28, "normH": 0.40 },
-        { "label": "Elev90", "viewType": "Elevation", "normX": 0.36, "normY": 0.10, "normW": 0.28, "normH": 0.40 },
-        { "label": "3D",     "viewType": "3D",        "normX": 0.67, "normY": 0.10, "normW": 0.28, "normH": 0.40 },
-        { "label": "BOM",    "viewType": "Schedule",  "normX": 0.78, "normY": 0.55, "normW": 0.20, "normH": 0.40 }
+        {
+          "label": "Plan",
+          "viewType": "Plan",
+          "normX": 0.05,
+          "normY": 0.55,
+          "normW": 0.4,
+          "normH": 0.4
+        },
+        {
+          "label": "ISO",
+          "viewType": "ISO",
+          "normX": 0.55,
+          "normY": 0.55,
+          "normW": 0.4,
+          "normH": 0.4
+        },
+        {
+          "label": "Elev0",
+          "viewType": "Elevation",
+          "normX": 0.05,
+          "normY": 0.1,
+          "normW": 0.28,
+          "normH": 0.4
+        },
+        {
+          "label": "Elev90",
+          "viewType": "Elevation",
+          "normX": 0.36,
+          "normY": 0.1,
+          "normW": 0.28,
+          "normH": 0.4
+        },
+        {
+          "label": "3D",
+          "viewType": "3D",
+          "normX": 0.67,
+          "normY": 0.1,
+          "normW": 0.28,
+          "normH": 0.4
+        },
+        {
+          "label": "BOM",
+          "viewType": "Schedule",
+          "normX": 0.78,
+          "normY": 0.55,
+          "normW": 0.2,
+          "normH": 0.4
+        }
       ],
       "annotation": {
         "autoTagSupports": true,
         "dimensionStrategy": "Ordinate",
-        "tagFamilies": { "DuctFitting": "STING_TAG_DUCT_FIT", "DuctAccessory": "STING_TAG_DMP" }
+        "tagFamilies": {
+          "DuctFitting": "STING_TAG_DUCT_FIT",
+          "DuctAccessory": "STING_TAG_DMP"
+        }
       }
     },
-
     {
       "id": "elec-riser-A2-1to100",
-      "name": "Electrical Riser — A2 @ 1:100",
+      "name": "Electrical Riser \u2014 A2 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "E",
@@ -302,17 +671,37 @@
       "viewTemplateName": "STING - Electrical Riser",
       "sheetNumberPattern": "E-RIS-{seq:D3}",
       "sheetNamePattern": "ELECTRICAL RISER {mark}",
-      "crop": { "kind": "TightBbox", "marginMm": 200 },
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 200
+      },
       "slots": [
-        { "label": "Riser",  "viewType": "Section", "normX": 0.03, "normY": 0.05, "normW": 0.74, "normH": 0.90, "required": true },
-        { "label": "Legend", "viewType": "Legend",  "normX": 0.80, "normY": 0.05, "normW": 0.18, "normH": 0.90 }
+        {
+          "label": "Riser",
+          "viewType": "Section",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.74,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
       ],
-      "annotation": { "autoDimLevels": true, "autoTagEquipment": true }
+      "annotation": {
+        "autoDimLevels": true,
+        "autoTagEquipment": true
+      }
     },
-
     {
       "id": "door-schedule-A2",
-      "name": "Door Schedule — A2",
+      "name": "Door Schedule \u2014 A2",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "A",
@@ -321,15 +710,24 @@
       "scale": 100,
       "sheetNumberPattern": "A-SCH-DR-{seq:D2}",
       "sheetNamePattern": "DOOR SCHEDULE",
-      "crop": { "kind": "None" },
+      "crop": {
+        "kind": "None"
+      },
       "slots": [
-        { "label": "Main Schedule", "viewType": "Schedule", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.90, "required": true }
+        {
+          "label": "Main Schedule",
+          "viewType": "Schedule",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
       ]
     },
-
     {
       "id": "handover-A1",
-      "name": "Handover Sheet — A1",
+      "name": "Handover Sheet \u2014 A1",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "*",
@@ -339,20 +737,53 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Handover",
       "sheetNumberPattern": "HO-{seq:D3}",
-      "sheetNamePattern": "HANDOVER — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 200 },
+      "sheetNamePattern": "HANDOVER \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 200
+      },
       "slots": [
-        { "label": "Key Plan", "viewType": "Plan",     "normX": 0.03, "normY": 0.50, "normW": 0.55, "normH": 0.45 },
-        { "label": "3D Axon",  "viewType": "3D",       "normX": 0.60, "normY": 0.50, "normW": 0.37, "normH": 0.45 },
-        { "label": "Info",     "viewType": "Legend",   "normX": 0.03, "normY": 0.05, "normW": 0.60, "normH": 0.43 },
-        { "label": "Schedule", "viewType": "Schedule", "normX": 0.65, "normY": 0.05, "normW": 0.33, "normH": 0.43 }
+        {
+          "label": "Key Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.5,
+          "normW": 0.55,
+          "normH": 0.45
+        },
+        {
+          "label": "3D Axon",
+          "viewType": "3D",
+          "normX": 0.6,
+          "normY": 0.5,
+          "normW": 0.37,
+          "normH": 0.45
+        },
+        {
+          "label": "Info",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.6,
+          "normH": 0.43
+        },
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.65,
+          "normY": 0.05,
+          "normW": 0.33,
+          "normH": 0.43
+        }
       ],
-      "annotation": { "autoTagRooms": true, "autoTagEquipment": true }
+      "annotation": {
+        "autoTagRooms": true,
+        "autoTagEquipment": true
+      }
     },
-
     {
       "id": "legend-A2",
-      "name": "Legend Sheet — A2",
+      "name": "Legend Sheet \u2014 A2",
       "origin": "corporate",
       "purpose": "Legend",
       "discipline": "*",
@@ -361,34 +792,1526 @@
       "scale": 100,
       "sheetNumberPattern": "LG-{seq:D2}",
       "sheetNamePattern": "LEGENDS & NOTES",
-      "crop": { "kind": "None" },
+      "crop": {
+        "kind": "None"
+      },
       "slots": [
-        { "label": "Legend Grid", "viewType": "Legend", "normX": 0.03, "normY": 0.05, "normW": 0.94, "normH": 0.90, "required": true }
+        {
+          "label": "Legend Grid",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
       ]
+    },
+    {
+      "id": "arch-site-A1-1to500",
+      "name": "Site / Location Plan \u2014 A1 @ 1:500",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 500,
+      "detailLevel": "Coarse",
+      "viewTemplateName": "STING - Site Plan",
+      "sheetNumberPattern": "A-SIT-{seq:D3}",
+      "sheetNamePattern": "SITE PLAN",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 2000
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "autoDimGrids": false,
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "Site": "STING_TAG_SITE"
+        }
+      }
+    },
+    {
+      "id": "arch-roof-A1-1to100",
+      "name": "Architectural Roof Plan \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Roof Plan",
+      "sheetNumberPattern": "A-RF-{seq:D3}",
+      "sheetNamePattern": "ROOF PLAN",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 200
+      },
+      "slots": [
+        {
+          "label": "Main Roof",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Falls Legend",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoDimGrids": true,
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "RainwaterOutlets": "STING_TAG_RWO",
+          "RoofLights": "STING_TAG_RFL"
+        }
+      }
+    },
+    {
+      "id": "arch-floor-finishes-A1-1to100",
+      "name": "Floor Finishes Plan \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Finishes Plan",
+      "sheetNumberPattern": "A-FF-{lvl}-{seq:D3}",
+      "sheetNamePattern": "FLOOR FINISHES \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoTagRooms": true,
+        "tagFamilies": {
+          "Rooms": "STING_TAG_FINISH"
+        }
+      }
+    },
+    {
+      "id": "arch-fire-strategy-A1-1to100",
+      "name": "Fire Strategy Plan \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Fire Strategy",
+      "sheetNumberPattern": "A-FS-{lvl}-{seq:D3}",
+      "sheetNamePattern": "FIRE STRATEGY \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Fire Legend",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoTagRooms": true,
+        "tagFamilies": {
+          "Rooms": "STING_TAG_FIRE_COMPT",
+          "Doors": "STING_TAG_FIRE_DOOR"
+        }
+      }
+    },
+    {
+      "id": "arch-accessibility-A1-1to100",
+      "name": "Accessibility Plan (Part M) \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Accessibility",
+      "sheetNumberPattern": "A-AC-{lvl}-{seq:D3}",
+      "sheetNamePattern": "ACCESSIBILITY \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.72,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Part M Legend",
+          "viewType": "Legend",
+          "normX": 0.78,
+          "normY": 0.05,
+          "normW": 0.19,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoDimGrids": true,
+        "autoTagDoors": true,
+        "autoTagRooms": true,
+        "tagFamilies": {
+          "Doors": "STING_TAG_DDA",
+          "Rooms": "STING_TAG_ROOM"
+        }
+      }
+    },
+    {
+      "id": "arch-interior-elev-A1-1to50",
+      "name": "Interior Elevation \u2014 A1 @ 1:50",
+      "origin": "corporate",
+      "purpose": "Elevation",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Interior Elevation",
+      "sheetNumberPattern": "A-IE-{seq:D3}",
+      "sheetNamePattern": "INTERIOR ELEVATION {mark}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 100
+      },
+      "sectionMarker": {
+        "family": "STING_INTERIOR_ELEV",
+        "markPrefix": "IE",
+        "bubbleStyle": "Open",
+        "farClipMm": 6000
+      },
+      "slots": [
+        {
+          "label": "Elev NE",
+          "viewType": "Elevation",
+          "normX": 0.03,
+          "normY": 0.52,
+          "normW": 0.47,
+          "normH": 0.43
+        },
+        {
+          "label": "Elev NW",
+          "viewType": "Elevation",
+          "normX": 0.52,
+          "normY": 0.52,
+          "normW": 0.45,
+          "normH": 0.43
+        },
+        {
+          "label": "Elev SE",
+          "viewType": "Elevation",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.47,
+          "normH": 0.43
+        },
+        {
+          "label": "Elev SW",
+          "viewType": "Elevation",
+          "normX": 0.52,
+          "normY": 0.05,
+          "normW": 0.45,
+          "normH": 0.43
+        }
+      ],
+      "annotation": {
+        "autoDimLevels": true,
+        "dimensionStrategy": "Linear"
+      }
+    },
+    {
+      "id": "arch-window-schedule-A2",
+      "name": "Window Schedule \u2014 A2",
+      "origin": "corporate",
+      "purpose": "Schedule",
+      "discipline": "A",
+      "paperSize": "A2",
+      "titleBlockFamily": "STING_TB_SHEET_A2",
+      "scale": 100,
+      "sheetNumberPattern": "A-SCH-WN-{seq:D2}",
+      "sheetNamePattern": "WINDOW SCHEDULE",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main Schedule",
+          "viewType": "Schedule",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "struct-foundation-A1-1to100",
+      "name": "Foundation Plan \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "S",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Foundation Plan",
+      "sheetNumberPattern": "S-FN-{seq:D3}",
+      "sheetNamePattern": "FOUNDATION PLAN",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 300
+      },
+      "slots": [
+        {
+          "label": "Main Foundation",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "autoDimGrids": true,
+        "autoTagEquipment": true,
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "StructuralFoundations": "STING_TAG_FTG",
+          "StructuralColumns": "STING_TAG_COL"
+        }
+      }
+    },
+    {
+      "id": "struct-rebar-detail-A3-1to20",
+      "name": "Rebar Detail \u2014 A3 @ 1:20",
+      "origin": "corporate",
+      "purpose": "Detail",
+      "discipline": "S",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "scale": 20,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Rebar Detail",
+      "sheetNumberPattern": "S-RB-{seq:D3}",
+      "sheetNamePattern": "REBAR DETAIL {mark}",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 30
+      },
+      "sectionMarker": {
+        "family": "STING_CALLOUT_HEAD",
+        "markPrefix": "RB",
+        "bubbleStyle": "Filled",
+        "farClipMm": 500
+      },
+      "slots": [
+        {
+          "label": "Detail",
+          "viewType": "Detail",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.92,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "autoDimLevels": true,
+        "dimensionStrategy": "Chain",
+        "tagFamilies": {
+          "StructuralRebar": "STING_TAG_BAR"
+        },
+        "denseUntilScale": 50
+      }
+    },
+    {
+      "id": "mep-hvac-duct-A1-1to100",
+      "name": "HVAC Duct Layout \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "M",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - HVAC Duct",
+      "sheetNumberPattern": "M-DC-{lvl}-{seq:D3}",
+      "sheetNamePattern": "HVAC DUCT \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoTagEquipment": true,
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "DuctSystem": "STING_TAG_DUCT",
+          "DuctFitting": "STING_TAG_DUCT_FIT",
+          "AirTerminals": "STING_TAG_AIRTERM"
+        },
+        "denseUntilScale": 100
+      }
+    },
+    {
+      "id": "mep-plantroom-A1-1to50",
+      "name": "Plant Room Plan \u2014 A1 @ 1:50",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "M",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Plant Room",
+      "sheetNumberPattern": "M-PR-{seq:D3}",
+      "sheetNamePattern": "PLANT ROOM \u2014 {mark}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 100
+      },
+      "slots": [
+        {
+          "label": "Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.52,
+          "normW": 0.64,
+          "normH": 0.43
+        },
+        {
+          "label": "Section",
+          "viewType": "Section",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.64,
+          "normH": 0.45
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.7,
+          "normY": 0.05,
+          "normW": 0.27,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoDimGrids": true,
+        "autoTagEquipment": true,
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "MechanicalEquipment": "STING_TAG_MECH_EQ",
+          "PipeSystem": "STING_TAG_PIPE"
+        }
+      }
+    },
+    {
+      "id": "elec-power-A1-1to100",
+      "name": "Electrical Power Layout \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "E",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Power Layout",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "POWER LAYOUT \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoTagEquipment": true,
+        "tagFamilies": {
+          "ElectricalEquipment": "STING_TAG_ELEC",
+          "ElectricalFixtures": "STING_TAG_SOCKET"
+        }
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      }
+    },
+    {
+      "id": "elec-lighting-A1-1to100",
+      "name": "Lighting Layout \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "E",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Lighting Layout",
+      "sheetNumberPattern": "E-LT-{lvl}-{seq:D3}",
+      "sheetNamePattern": "LIGHTING LAYOUT \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Luminaire Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoTagEquipment": true,
+        "tagFamilies": {
+          "LightingFixtures": "STING_TAG_LIGHT",
+          "LightingDevices": "STING_TAG_SWITCH"
+        }
+      }
+    },
+    {
+      "id": "elec-fire-alarm-A1-1to100",
+      "name": "Fire Alarm Layout \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "E",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Fire Alarm",
+      "sheetNumberPattern": "E-FA-{lvl}-{seq:D3}",
+      "sheetNamePattern": "FIRE ALARM \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoTagEquipment": true,
+        "tagFamilies": {
+          "FireAlarmDevices": "STING_TAG_FA_DEV"
+        }
+      }
+    },
+    {
+      "id": "plumb-drainage-A1-1to100",
+      "name": "Drainage Layout \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "P",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Drainage",
+      "sheetNumberPattern": "P-DR-{lvl}-{seq:D3}",
+      "sheetNamePattern": "DRAINAGE \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoTagEquipment": true,
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "PipeSystem": "STING_TAG_PIPE",
+          "PipeFitting": "STING_TAG_GULLY",
+          "PlumbingFixtures": "STING_TAG_SAN"
+        }
+      }
+    },
+    {
+      "id": "fm-asset-location-A1-1to100",
+      "name": "FM Asset Location Plan \u2014 A1 @ 1:100",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "*",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - FM Asset",
+      "sheetNumberPattern": "FM-AS-{lvl}-{seq:D3}",
+      "sheetNamePattern": "ASSET LOCATION \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.62,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Asset Schedule",
+          "viewType": "Schedule",
+          "normX": 0.67,
+          "normY": 0.05,
+          "normW": 0.31,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "autoTagRooms": true,
+        "autoTagEquipment": true,
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "MechanicalEquipment": "STING_TAG_FM_QR",
+          "ElectricalEquipment": "STING_TAG_FM_QR",
+          "PlumbingFixtures": "STING_TAG_FM_QR",
+          "Rooms": "STING_TAG_ROOM"
+        }
+      },
+      "print": {
+        "halftoneLinks": true
+      }
+    },
+    {
+      "id": "coord-clash-A1-1to50",
+      "name": "Coordination Clash Plan \u2014 A1 @ 1:50",
+      "origin": "corporate",
+      "purpose": "Coordination",
+      "discipline": "*",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Clash Coordination",
+      "sheetNumberPattern": "CO-CL-{lvl}-{seq:D3}",
+      "sheetNamePattern": "CLASH COORDINATION \u2014 {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 100
+      },
+      "slots": [
+        {
+          "label": "Overlay",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.52,
+          "normW": 0.94,
+          "normH": 0.45,
+          "required": true
+        },
+        {
+          "label": "Section",
+          "viewType": "Section",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.64,
+          "normH": 0.43
+        },
+        {
+          "label": "Clash Log",
+          "viewType": "Schedule",
+          "normX": 0.7,
+          "normY": 0.05,
+          "normW": 0.27,
+          "normH": 0.43
+        }
+      ],
+      "annotation": {
+        "autoDimGrids": true,
+        "autoTagEquipment": true,
+        "denseUntilScale": 50
+      },
+      "print": {
+        "halftoneLinks": true
+      }
+    },
+    {
+      "id": "pres-3d-axon-A1",
+      "name": "Presentation 3D Axonometric \u2014 A1",
+      "origin": "corporate",
+      "purpose": "3D",
+      "discipline": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 100,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Presentation 3D",
+      "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "sheetNamePattern": "3D AXONOMETRIC \u2014 {mark}",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 500
+      },
+      "slots": [
+        {
+          "label": "3D Axon",
+          "viewType": "3D",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.78,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key Plan",
+          "viewType": "Plan",
+          "normX": 0.83,
+          "normY": 0.55,
+          "normW": 0.15,
+          "normH": 0.4
+        },
+        {
+          "label": "Caption",
+          "viewType": "Legend",
+          "normX": 0.83,
+          "normY": 0.05,
+          "normW": 0.15,
+          "normH": 0.45
+        }
+      ],
+      "annotation": {
+        "autoTagRooms": false,
+        "autoDimGrids": false
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": false,
+        "lineWeightScale": 0.8
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Discipline": "Presentation",
+        "Suitability": "S1",
+        "Sheet Status": "ISSUED FOR INFORMATION",
+        "Sheet Title": "3D AXONOMETRIC \u2014 {mark}"
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "VS",
+        "role": "A",
+        "suitability": "S1",
+        "revision": "P01"
+      }
+    },
+    {
+      "id": "pres-perspective-A1",
+      "name": "Presentation Perspective \u2014 A1",
+      "origin": "corporate",
+      "purpose": "3D",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 100,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Presentation Perspective",
+      "sheetNumberPattern": "PR-PV-{seq:D2}",
+      "sheetNamePattern": "PERSPECTIVE \u2014 {mark}",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Perspective",
+          "viewType": "3D",
+          "normX": 0.03,
+          "normY": 0.13,
+          "normW": 0.94,
+          "normH": 0.82,
+          "required": true
+        },
+        {
+          "label": "Caption",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.07
+        }
+      ],
+      "annotation": {},
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": false,
+        "lineWeightScale": 0.7
+      }
+    },
+    {
+      "id": "pres-exterior-elev-A1",
+      "name": "Presentation Exterior Elevation \u2014 A1",
+      "origin": "corporate",
+      "purpose": "Elevation",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 100,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Presentation Elevation",
+      "sheetNumberPattern": "PR-EL-{seq:D2}",
+      "sheetNamePattern": "EXTERIOR ELEVATION \u2014 {mark}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 300
+      },
+      "sectionMarker": {
+        "family": "STING_ELEV_MARKER",
+        "markPrefix": "PE",
+        "bubbleStyle": "Open",
+        "farClipMm": 10000
+      },
+      "slots": [
+        {
+          "label": "Main Elevation",
+          "viewType": "Elevation",
+          "normX": 0.03,
+          "normY": 0.13,
+          "normW": 0.94,
+          "normH": 0.82,
+          "required": true
+        },
+        {
+          "label": "Materials Key",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.07
+        }
+      ],
+      "annotation": {
+        "autoDimLevels": true,
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "Walls": "STING_TAG_MAT_CALLOUT"
+        }
+      },
+      "print": {
+        "colourScheme": "PresentationMono",
+        "halftoneLinks": true,
+        "lineWeightScale": 0.9
+      }
+    },
+    {
+      "id": "pres-render-board-A1",
+      "name": "Presentation Render Board \u2014 A1 (4-up)",
+      "origin": "corporate",
+      "purpose": "3D",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 100,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - Presentation 3D",
+      "sheetNumberPattern": "PR-RB-{seq:D2}",
+      "sheetNamePattern": "RENDER BOARD {mark}",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Render NW",
+          "viewType": "3D",
+          "normX": 0.03,
+          "normY": 0.52,
+          "normW": 0.47,
+          "normH": 0.43
+        },
+        {
+          "label": "Render NE",
+          "viewType": "3D",
+          "normX": 0.52,
+          "normY": 0.52,
+          "normW": 0.45,
+          "normH": 0.43
+        },
+        {
+          "label": "Render SW",
+          "viewType": "3D",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.47,
+          "normH": 0.43
+        },
+        {
+          "label": "Render SE",
+          "viewType": "3D",
+          "normX": 0.52,
+          "normY": 0.05,
+          "normW": 0.45,
+          "normH": 0.43
+        }
+      ],
+      "annotation": {},
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": false,
+        "lineWeightScale": 0.7
+      }
+    },
+    {
+      "id": "pres-context-site-A1",
+      "name": "Presentation Context / Site \u2014 A1 @ 1:500",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 500,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Presentation Context",
+      "sheetNumberPattern": "PR-CX-{seq:D2}",
+      "sheetNamePattern": "CONTEXT PLAN \u2014 {mark}",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 3000
+      },
+      "slots": [
+        {
+          "label": "Context Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.13,
+          "normW": 0.76,
+          "normH": 0.82,
+          "required": true
+        },
+        {
+          "label": "Aerial Key",
+          "viewType": "3D",
+          "normX": 0.82,
+          "normY": 0.55,
+          "normW": 0.15,
+          "normH": 0.4
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.82,
+          "normY": 0.05,
+          "normW": 0.15,
+          "normH": 0.45
+        },
+        {
+          "label": "Caption",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.76,
+          "normH": 0.07
+        }
+      ],
+      "annotation": {
+        "tagFamilies": {
+          "Site": "STING_TAG_SITE_CALLOUT"
+        }
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": true,
+        "lineWeightScale": 0.8
+      }
+    },
+    {
+      "id": "clar-markup-A1",
+      "name": "Clarification / Markup Plan \u2014 A1",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Clarification Markup",
+      "sheetNumberPattern": "CL-MK-{lvl}-{seq:D3}",
+      "sheetNamePattern": "CLARIFICATION \u2014 {mark}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "slots": [
+        {
+          "label": "Markup Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.13,
+          "normW": 0.7,
+          "normH": 0.82,
+          "required": true
+        },
+        {
+          "label": "Query Log",
+          "viewType": "Schedule",
+          "normX": 0.75,
+          "normY": 0.13,
+          "normW": 0.22,
+          "normH": 0.82
+        },
+        {
+          "label": "Revision",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.07
+        }
+      ],
+      "annotation": {
+        "autoDimGrids": false,
+        "tagFamilies": {
+          "Rooms": "STING_TAG_ROOM"
+        }
+      },
+      "print": {
+        "colourScheme": "ClarificationRed",
+        "lineWeightScale": 1.0
+      }
+    },
+    {
+      "id": "clar-rfi-A3",
+      "name": "RFI Sketch \u2014 A3",
+      "origin": "corporate",
+      "purpose": "Detail",
+      "discipline": "*",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - RFI Sketch",
+      "sheetNumberPattern": "RFI-{seq:D4}",
+      "sheetNamePattern": "RFI {mark}",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 100
+      },
+      "sectionMarker": {
+        "family": "STING_CALLOUT_HEAD",
+        "markPrefix": "RFI",
+        "bubbleStyle": "Filled",
+        "farClipMm": 1000
+      },
+      "slots": [
+        {
+          "label": "Sketch",
+          "viewType": "Detail",
+          "normX": 0.05,
+          "normY": 0.25,
+          "normW": 0.9,
+          "normH": 0.7,
+          "required": true
+        },
+        {
+          "label": "Question",
+          "viewType": "Legend",
+          "normX": 0.05,
+          "normY": 0.13,
+          "normW": 0.9,
+          "normH": 0.1
+        },
+        {
+          "label": "Revision",
+          "viewType": "Legend",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.06
+        }
+      ],
+      "annotation": {
+        "autoDimLevels": true,
+        "autoDimGrids": true,
+        "dimensionStrategy": "Linear",
+        "denseUntilScale": 100
+      },
+      "print": {
+        "colourScheme": "ClarificationRed",
+        "lineWeightScale": 1.0
+      }
+    },
+    {
+      "id": "clar-design-intent-A1",
+      "name": "Design Intent Presentation \u2014 A1",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Design Intent",
+      "sheetNumberPattern": "DI-{seq:D3}",
+      "sheetNamePattern": "DESIGN INTENT \u2014 {mark}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 200
+      },
+      "slots": [
+        {
+          "label": "Concept Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.52,
+          "normW": 0.62,
+          "normH": 0.43
+        },
+        {
+          "label": "Illustrative 3D",
+          "viewType": "3D",
+          "normX": 0.68,
+          "normY": 0.52,
+          "normW": 0.29,
+          "normH": 0.43
+        },
+        {
+          "label": "Narrative",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.13,
+          "normW": 0.62,
+          "normH": 0.37
+        },
+        {
+          "label": "Materials Strip",
+          "viewType": "Legend",
+          "normX": 0.68,
+          "normY": 0.13,
+          "normW": 0.29,
+          "normH": 0.37
+        },
+        {
+          "label": "Caption",
+          "viewType": "Legend",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.07
+        }
+      ],
+      "annotation": {
+        "autoTagRooms": false
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": false,
+        "lineWeightScale": 0.8
+      }
     }
   ],
-
   "routing": [
-    { "discipline": "P", "phase": "*", "docType": "SPOOL",     "drawingTypeId": "pipe-spool-A1-1to50" },
-    { "discipline": "M", "phase": "*", "docType": "SPOOL",     "drawingTypeId": "duct-spool-A1-1to50" },
-
-    { "discipline": "A", "phase": "*", "docType": "PLAN",      "drawingTypeId": "arch-plan-A1-1to100" },
-    { "discipline": "A", "phase": "*", "docType": "RCP",       "drawingTypeId": "arch-rcp-A1-1to100" },
-    { "discipline": "A", "phase": "*", "docType": "SECTION",   "drawingTypeId": "arch-section-A1-1to50" },
-    { "discipline": "A", "phase": "*", "docType": "ELEVATION", "drawingTypeId": "arch-elev-A1-1to100" },
-    { "discipline": "A", "phase": "*", "docType": "DETAIL",    "drawingTypeId": "arch-detail-A3-1to20" },
-    { "discipline": "A", "phase": "*", "docType": "SCHEDULE",  "drawingTypeId": "door-schedule-A2" },
-
-    { "discipline": "S", "phase": "*", "docType": "PLAN",      "drawingTypeId": "struct-plan-A1-1to100" },
-    { "discipline": "S", "phase": "*", "docType": "SECTION",   "drawingTypeId": "struct-section-A1-1to50" },
-
-    { "discipline": "M", "phase": "*", "docType": "PLAN",      "drawingTypeId": "mep-plan-A1-1to100" },
-    { "discipline": "M", "phase": "*", "docType": "COORD",     "drawingTypeId": "mep-coord-A1-1to50" },
-
-    { "discipline": "E", "phase": "*", "docType": "PLAN",      "drawingTypeId": "elec-riser-A2-1to100" },
-    { "discipline": "E", "phase": "*", "docType": "RISER",     "drawingTypeId": "elec-riser-A2-1to100" },
-
-    { "discipline": "*", "phase": "*", "docType": "LEGEND",    "drawingTypeId": "legend-A2" },
-    { "discipline": "*", "phase": "HANDOVER", "docType": "*",  "drawingTypeId": "handover-A1" }
+    {
+      "discipline": "P",
+      "phase": "*",
+      "docType": "SPOOL",
+      "drawingTypeId": "pipe-spool-A1-1to50"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "SPOOL",
+      "drawingTypeId": "duct-spool-A1-1to50"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "PLAN",
+      "drawingTypeId": "arch-plan-A1-1to100"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "RCP",
+      "drawingTypeId": "arch-rcp-A1-1to100"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "SECTION",
+      "drawingTypeId": "arch-section-A1-1to50"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "ELEVATION",
+      "drawingTypeId": "arch-elev-A1-1to100"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "DETAIL",
+      "drawingTypeId": "arch-detail-A3-1to20"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "SCHEDULE",
+      "drawingTypeId": "door-schedule-A2"
+    },
+    {
+      "discipline": "S",
+      "phase": "*",
+      "docType": "PLAN",
+      "drawingTypeId": "struct-plan-A1-1to100"
+    },
+    {
+      "discipline": "S",
+      "phase": "*",
+      "docType": "SECTION",
+      "drawingTypeId": "struct-section-A1-1to50"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "PLAN",
+      "drawingTypeId": "mep-plan-A1-1to100"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "COORD",
+      "drawingTypeId": "mep-coord-A1-1to50"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "PLAN",
+      "drawingTypeId": "elec-riser-A2-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "RISER",
+      "drawingTypeId": "elec-riser-A2-1to100"
+    },
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "LEGEND",
+      "drawingTypeId": "legend-A2"
+    },
+    {
+      "discipline": "*",
+      "phase": "HANDOVER",
+      "docType": "*",
+      "drawingTypeId": "handover-A1"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "SITE",
+      "drawingTypeId": "arch-site-A1-1to500"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "ROOF_PLAN",
+      "drawingTypeId": "arch-roof-A1-1to100"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "FLOOR_FINISHES",
+      "drawingTypeId": "arch-floor-finishes-A1-1to100"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "FIRE_STRATEGY",
+      "drawingTypeId": "arch-fire-strategy-A1-1to100"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "ACCESSIBILITY",
+      "drawingTypeId": "arch-accessibility-A1-1to100"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "INTERIOR_ELEVATION",
+      "drawingTypeId": "arch-interior-elev-A1-1to50"
+    },
+    {
+      "discipline": "A",
+      "phase": "*",
+      "docType": "WIN_SCHEDULE",
+      "drawingTypeId": "arch-window-schedule-A2"
+    },
+    {
+      "discipline": "S",
+      "phase": "*",
+      "docType": "FOUNDATION",
+      "drawingTypeId": "struct-foundation-A1-1to100"
+    },
+    {
+      "discipline": "S",
+      "phase": "*",
+      "docType": "REBAR_DETAIL",
+      "drawingTypeId": "struct-rebar-detail-A3-1to20"
+    },
+    {
+      "discipline": "S",
+      "phase": "*",
+      "docType": "DETAIL",
+      "drawingTypeId": "struct-rebar-detail-A3-1to20"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "HVAC_DUCT",
+      "drawingTypeId": "mep-hvac-duct-A1-1to100"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "PLANTROOM",
+      "drawingTypeId": "mep-plantroom-A1-1to50"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "POWER",
+      "drawingTypeId": "elec-power-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LIGHTING",
+      "drawingTypeId": "elec-lighting-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "FIRE_ALARM",
+      "drawingTypeId": "elec-fire-alarm-A1-1to100"
+    },
+    {
+      "discipline": "P",
+      "phase": "*",
+      "docType": "DRAINAGE",
+      "drawingTypeId": "plumb-drainage-A1-1to100"
+    },
+    {
+      "discipline": "P",
+      "phase": "*",
+      "docType": "PLAN",
+      "drawingTypeId": "plumb-drainage-A1-1to100"
+    },
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "ASSET_LOCATION",
+      "drawingTypeId": "fm-asset-location-A1-1to100"
+    },
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "CLASH",
+      "drawingTypeId": "coord-clash-A1-1to50"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "3D",
+      "drawingTypeId": "pres-3d-axon-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "PERSPECTIVE",
+      "drawingTypeId": "pres-perspective-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "ELEVATION",
+      "drawingTypeId": "pres-exterior-elev-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "RENDER_BOARD",
+      "drawingTypeId": "pres-render-board-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "CONTEXT",
+      "drawingTypeId": "pres-context-site-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "PRESENTATION",
+      "docType": "DESIGN_INTENT",
+      "drawingTypeId": "clar-design-intent-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "CLARIFICATION",
+      "drawingTypeId": "clar-markup-A1"
+    },
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "RFI",
+      "drawingTypeId": "clar-rfi-A3"
+    }
   ]
 }

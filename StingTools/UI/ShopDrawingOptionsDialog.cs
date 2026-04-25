@@ -66,13 +66,22 @@ namespace StingTools.UI
         public ShopDrawingOptionsDialog(Document doc)
         {
             _doc = doc;
-            Title = "STING v4 — Shop Drawing Composition";
-            Width = 520;
-            Height = 420;
+            Title = "STING v4 — Configure Title Block";
+            Width = 540;
+            Height = 440;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = new SolidColorBrush(DarkDialogTheme.LightPalette.WindowBg);
             Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg);
+            FontFamily = new FontFamily("Segoe UI");
             ResizeMode = ResizeMode.NoResize;
+            // Force-reset inherited theme resources so this dialog
+            // always renders light, matching the Fabrication Workspace.
+            Resources["PrimaryBg"]   = new SolidColorBrush(DarkDialogTheme.LightPalette.WindowBg);
+            Resources["SecondaryBg"] = new SolidColorBrush(DarkDialogTheme.LightPalette.CardBg);
+            Resources["AccentBrush"] = new SolidColorBrush(DarkDialogTheme.LightPalette.Accent);
+            Resources["BorderColor"] = new SolidColorBrush(DarkDialogTheme.LightPalette.Border);
+            Resources["ButtonBg"]    = new SolidColorBrush(DarkDialogTheme.LightPalette.SecondaryBtn);
+            Resources["ButtonFg"]    = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg);
             DarkDialogTheme.ApplyComboBoxFix(this,
                 DarkDialogTheme.LightPalette.CardBg,
                 DarkDialogTheme.LightPalette.BodyFg,
