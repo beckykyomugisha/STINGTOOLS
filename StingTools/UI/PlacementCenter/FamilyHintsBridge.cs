@@ -52,6 +52,12 @@ namespace StingTools.UI.PlacementCenter
 
                 Add(rows, sampleType, sampleInst, "PLACE_HOST_TYPE_TXT",        "");
                 Add(rows, sampleType, sampleInst, "PLACE_MOUNT_HEIGHT_MM",      "mm");
+                Add(rows, sampleType, sampleInst, "PLACE_OFFSET_X_MM",          "mm");
+                Add(rows, sampleType, sampleInst, "PLACE_MIN_SPACING_MM",       "mm");
+                Add(rows, sampleType, sampleInst, "PLACE_ANCHOR_TXT",           "");
+                Add(rows, sampleType, sampleInst, "PLACE_SIDE_TXT",             "");
+                Add(rows, sampleType, sampleInst, "PLACE_PRIORITY_INT",         "");
+                Add(rows, sampleType, sampleInst, "PLACE_MAX_PER_ROOM_INT",     "");
                 Add(rows, sampleType, sampleInst, "PLACE_SPACING_RULE_TXT",     "");
                 Add(rows, sampleType, sampleInst, "PLACE_ORIENTATION_RULE_TXT", "");
                 Add(rows, sampleType, sampleInst, "PLACE_LEVEL_HINT_TXT",       "");
@@ -59,6 +65,7 @@ namespace StingTools.UI.PlacementCenter
                 Add(rows, sampleType, sampleInst, "PLACE_WEIGHT_KG",            "kg");
                 Add(rows, sampleType, sampleInst, "STING_FIXTURE_VARIANT_TXT",  "");
                 Add(rows, sampleType, sampleInst, "STING_ROOM_TYPE_FILTER_TXT", "");
+                Add(rows, sampleType, sampleInst, "STING_PLACEMENT_NOTES_TXT",  "");
 
                 Add(rows, sampleType, sampleInst, "STING_CLEARANCE_MM",         "mm");
                 Add(rows, sampleType, sampleInst, "STING_CLEARANCE_FRONT_MM",   "mm");
@@ -110,11 +117,28 @@ namespace StingTools.UI.PlacementCenter
                     foreach (var sym in symbols)
                     {
                         bool any = false;
+
+                        // Identity / variant
                         if (TrySetString(sym, "PLACE_ORIENTATION_RULE_TXT", "")) { writes++; any = true; }
-                        if (TrySetString(sym, "STING_FIXTURE_VARIANT_TXT", vm.VariantHint)) { writes++; any = true; }
+                        if (TrySetString(sym, "STING_FIXTURE_VARIANT_TXT",  vm.VariantHint)) { writes++; any = true; }
                         if (TrySetString(sym, "STING_ROOM_TYPE_FILTER_TXT", vm.RoomFilter)) { writes++; any = true; }
+
+                        // Geometry — full rule set, not just MountingHeight.
                         if (vm.MountingHeightMm > 0 &&
                             TrySetLengthMm(sym, "PLACE_MOUNT_HEIGHT_MM", vm.MountingHeightMm)) { writes++; any = true; }
+                        if (TrySetLengthMm(sym, "PLACE_OFFSET_X_MM",       vm.OffsetXMm))      { writes++; any = true; }
+                        if (vm.MinSpacingMm >= 0 &&
+                            TrySetLengthMm(sym, "PLACE_MIN_SPACING_MM",    vm.MinSpacingMm))   { writes++; any = true; }
+
+                        // Placement-rule discriminators
+                        if (TrySetString(sym, "PLACE_ANCHOR_TXT",          vm.Model.AnchorType ?? "ROOM_CENTRE")) { writes++; any = true; }
+                        if (TrySetString(sym, "PLACE_SIDE_TXT",            vm.Model.SideConstraint ?? "EITHER")) { writes++; any = true; }
+                        if (TrySetInteger(sym, "PLACE_PRIORITY_INT",       vm.Priority))       { writes++; any = true; }
+                        if (TrySetInteger(sym, "PLACE_MAX_PER_ROOM_INT",   vm.MaxPerRoom))     { writes++; any = true; }
+
+                        // Free-text notes for downstream consumers
+                        if (TrySetString(sym, "STING_PLACEMENT_NOTES_TXT", vm.Notes ?? ""))    { writes++; any = true; }
+
                         if (any) typesUpdated++;
                     }
                     t.Commit();
@@ -204,6 +228,20 @@ namespace StingTools.UI.PlacementCenter
                 string target = value ?? "";
                 if (current == target) return false;
                 p.Set(target);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        private static bool TrySetInteger(Element el, string paramName, int value)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            try
+            {
+                var p = el.LookupParameter(paramName);
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer) return false;
+                if (p.AsInteger() == value) return false;
+                p.Set(value);
                 return true;
             }
             catch { return false; }

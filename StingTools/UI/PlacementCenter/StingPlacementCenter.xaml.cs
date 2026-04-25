@@ -398,10 +398,11 @@ namespace StingTools.UI.PlacementCenter
                 MainInstruction = $"Write rule values to every family type in '{VM.Selected.CategoryFilter}'?",
                 MainContent =
                     "Writes the following parameters on each matching FamilySymbol:\n" +
-                    "  • PLACE_ORIENTATION_RULE_TXT (cleared so the rule's anchor takes priority)\n" +
-                    "  • PLACE_MOUNT_HEIGHT_MM\n" +
-                    "  • STING_FIXTURE_VARIANT_TXT\n" +
-                    "  • STING_ROOM_TYPE_FILTER_TXT\n\n" +
+                    "  Identity:  PLACE_ORIENTATION_RULE_TXT (cleared), STING_FIXTURE_VARIANT_TXT, STING_ROOM_TYPE_FILTER_TXT\n" +
+                    "  Geometry:  PLACE_MOUNT_HEIGHT_MM, PLACE_OFFSET_X_MM, PLACE_MIN_SPACING_MM\n" +
+                    "  Rule:      PLACE_ANCHOR_TXT, PLACE_SIDE_TXT, PLACE_PRIORITY_INT, PLACE_MAX_PER_ROOM_INT\n" +
+                    "  Notes:     STING_PLACEMENT_NOTES_TXT\n\n" +
+                    "Parameters that don't exist on the family type are skipped silently. " +
                     "Use Undo to reverse all writes as a single transaction.",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 DefaultButton = TaskDialogResult.No,
