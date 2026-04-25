@@ -158,6 +158,10 @@ namespace StingTools.UI.PlacementCenter
             }
         }
 
+        /// <summary>True when at least one rule has unsaved edits — caller
+        /// (centre's Reload Defaults handler) prompts before nuking edits.</summary>
+        public bool HasUnsavedEdits => Rules.Any(r => r.IsDirty);
+
         public PlacementRuleViewModel AddRule()
         {
             var vm = new PlacementRuleViewModel(new PlacementRule
@@ -209,15 +213,25 @@ namespace StingTools.UI.PlacementCenter
                     return false;
                 }
                 string path = Path.Combine(dir, "STING_PLACEMENT_RULES.project.json");
+
+                // Strip invalid rules from the on-disk file so a rule with
+                // (e.g.) blank CategoryFilter doesn't round-trip through every
+                // future load. Invalid rules stay in-memory so the user can
+                // still fix them — they're just not persisted.
+                var invalidVms = Rules.Where(r => !r.IsValid).ToList();
+                var validVms   = Rules.Where(r =>  r.IsValid).ToList();
+
                 var set = new StingTools.Core.Placement.PlacementRuleSet
                 {
                     Version = "v4",
-                    Rules = Rules.Select(r => r.Model).ToList(),
+                    Rules = validVms.Select(r => r.Model).ToList(),
                 };
                 File.WriteAllText(path, JsonConvert.SerializeObject(set, Formatting.Indented));
-                foreach (var r in Rules) r.ClearDirty();
+                foreach (var r in validVms) r.ClearDirty();
                 ProjectFilePath = path;
-                Status = $"Saved {Rules.Count} rule(s) → {path}";
+                Status = invalidVms.Count > 0
+                    ? $"Saved {validVms.Count} valid rule(s) → {path} · {invalidVms.Count} invalid skipped (still in-memory)"
+                    : $"Saved {Rules.Count} rule(s) → {path}";
                 OnPropertyChanged(nameof(DirtyCount));
                 return true;
             }

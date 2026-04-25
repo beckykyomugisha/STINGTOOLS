@@ -139,6 +139,23 @@ namespace StingTools.UI.PlacementCenter
 
         private void OnReloadDefaults_Click(object sender, RoutedEventArgs e)
         {
+            // Reload Defaults nukes the entire in-memory set including any
+            // unsaved edits. Confirm before destroying user work.
+            if (VM.HasUnsavedEdits)
+            {
+                int dirty = VM.Rules.Count(r => r.IsDirty);
+                var confirm = new TaskDialog("STING — Reload Defaults")
+                {
+                    MainInstruction = $"Discard {dirty} unsaved edit(s)?",
+                    MainContent =
+                        "Reload Defaults replaces every rule in the centre with the shipped " +
+                        "STING_PLACEMENT_RULES.json baseline. Project overrides on disk are " +
+                        "untouched until you click Save Project, but in-memory edits will be lost.",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No,
+                };
+                if (confirm.Show() != TaskDialogResult.Yes) return;
+            }
             VM.ReloadDefaults();
             VM.AttachFilteredView();
             gridRules.ItemsSource = VM.FilteredRules;
