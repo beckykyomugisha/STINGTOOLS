@@ -3199,3 +3199,33 @@ edit-time to keep the JSON sparse, matching Revit's own VG dialog behaviour.
 
 **csproj** — added `<UseWindowsForms>true</UseWindowsForms>` so the new sub-dialogs can
 launch the native `System.Windows.Forms.ColorDialog` colour picker.
+
+#### Completed (Phase 136 — follow-up: pack/profile fallback chain + workflow clarity)
+
+**Fallback chain wired end-to-end.** `DrawingTypePresentation.Apply` now resolves
+the pack early and uses `pack.ViewTemplate` / `pack.DetailLevel` as fallbacks when
+the DrawingType doesn't set its own — DrawingType always wins when both are set.
+Previously the pack's view template was loaded into the editor but never applied
+at runtime.
+
+**`ViewStylePack` extended** with `ViewTemplate`, `DetailLevel`, `ScaleHint`,
+`ColorScheme` so the runtime can read the same fields the editor writes. New
+`PackAppearanceDto` mirrors the editor's nested `appearance` object so
+`STING_VIEW_STYLE_PACKS.json` (which uses that shape) deserializes without
+silently dropping `textStyleName` / `dimensionStyleName` / `lineWeightScale` /
+`hatchPalette`. `ViewStylePackRegistry.PromoteAppearance` folds those onto the
+top-level pack fields at load time. Extends-chain merging extended to fold
+the four new fields parent → child.
+
+**JSON schema alias.** `ViewStylePackLibrary` now also accepts the legacy
+`stylePacks` array name (in addition to `viewStylePacks`) so the existing
+on-disk corporate JSON loads on the runtime path — was previously falling
+through to `BuildDefaults` because the array key didn't match.
+
+**Editor UX clarity.** Drawing Type's "View template name" tooltip now reads
+"overrides pack" with explicit precedence wording. View Style Pack's view
+template / detail level fields renamed "(fallback)" so the user sees the
+relationship at a glance. New status strip in the View Style Pack Appearance
+card: "Patterns from active project — N line pattern(s), M fill pattern(s)
+loaded" so the user can confirm the VG editor is sourcing patterns from the
+live document.

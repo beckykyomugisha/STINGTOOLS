@@ -506,20 +506,37 @@ namespace StingTools.UI
                 new[] { "ISO 13567 monochrome", "ISO 13567 colour", "AIA NCS", "BS 1192 mono", "Project custom" },
                 ap.HatchPalette, v => ap.HatchPalette = v,
                 tooltip: "Informational tag for the hatch family used by this pack — does not bind to a Revit asset."));
-            apBody.Children.Add(LabeledProjectAssetCombo("View template name",
+            apBody.Children.Add(LabeledProjectAssetCombo("View template name (fallback)",
                 _currentPack.ViewTemplate, v => _currentPack.ViewTemplate = v,
                 Merge(ProjectAssetPicker.ViewTemplateNames(_doc), CommonStingViewTemplates),
-                "View templates (View.IsTemplate = true) in the active project, plus STING corporate templates."));
-            apBody.Children.Add(LabeledCombo("Detail level",
+                "Pack-level view template — used as a FALLBACK when the DrawingType's own " +
+                "ViewTemplateName is empty. The DrawingType field always wins when both are set."));
+            apBody.Children.Add(LabeledCombo("Detail level (fallback)",
                 Iso19650Vocabulary.DetailLevels, _currentPack.DetailLevel,
-                v => _currentPack.DetailLevel = v));
+                v => _currentPack.DetailLevel = v,
+                tooltip: "Pack-level detail level — fallback when the DrawingType doesn't set one."));
             apBody.Children.Add(LabeledCombo("Scale hint",
                 new[] { "1:5", "1:10", "1:20", "1:25", "1:50", "1:100", "1:200", "1:500" },
                 _currentPack.ScaleHint, v => _currentPack.ScaleHint = v,
-                tooltip: "Common architectural scales. Free-text allowed if your pack needs an unusual scale."));
+                tooltip: "Informational only — the DrawingType.Scale field actually drives the produced view's scale."));
             apBody.Children.Add(LabeledCombo("Colour scheme",
                 Iso19650Vocabulary.ColorSchemes,
                 _currentPack.ColorScheme, v => _currentPack.ColorScheme = v));
+
+            // Phase 136 — show how many line / fill patterns are available
+            // from the active project. Confirms to the user that the VG
+            // editor's Override... sub-dialogs are pulling live project
+            // patterns, not a static list.
+            int linePatCount = Math.Max(0, (_linePatternNames?.Length ?? 0) - 2);   // minus "(No Override)" + "Solid"
+            int fillPatCount = Math.Max(0, (_fillPatternNames?.Length ?? 0) - 1);   // minus "(No Override)"
+            apBody.Children.Add(new TextBlock {
+                Text = $"Patterns from active project — {linePatCount} line pattern(s), {fillPatCount} fill pattern(s) loaded. " +
+                       "The Override... buttons in the VG tabs below pull from these lists.",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 10, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 6, 0, 0),
+            });
+
             _packFormHost.Children.Add(Card("Appearance", apBody));
 
             // Phase 136 — full Revit-style VG editor (replaces the old
@@ -1518,10 +1535,12 @@ namespace StingTools.UI
             body.Children.Add(LabeledCombo("Detail level",
                 Iso19650Vocabulary.DetailLevels,
                 _current.DetailLevel, v => _current.DetailLevel = v));
-            body.Children.Add(LabeledProjectAssetCombo("View template name",
+            body.Children.Add(LabeledProjectAssetCombo("View template name (overrides pack)",
                 _current.ViewTemplateName, v => _current.ViewTemplateName = v,
                 ProjectAssetPicker.ViewTemplateNames(_doc),
-                "View templates (View.IsTemplate = true) in the active project."));
+                "View templates (View.IsTemplate = true) in the active project. " +
+                "When set, this OVERRIDES the View Style Pack's template fallback. " +
+                "Leave blank to inherit from the pack."));
             body.Children.Add(LabeledProjectAssetCombo("Viewport type name",
                 _current.ViewportTypeName, v => _current.ViewportTypeName = v,
                 ProjectAssetPicker.ViewportTypeNames(_doc),

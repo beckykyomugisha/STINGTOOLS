@@ -34,6 +34,26 @@ namespace StingTools.Core.Drawing
         [JsonProperty("dimensionStyle")]  public string DimensionStyle { get; set; }
         [JsonProperty("hatchPalette")]    public string HatchPalette { get; set; }
 
+        // Phase 136 — pack-level fallbacks. The runtime (DrawingTypePresentation)
+        // uses these only when the DrawingType's own field is null/empty;
+        // DrawingType always wins when both are set.
+        [JsonProperty("viewTemplate", NullValueHandling = NullValueHandling.Ignore)]
+        public string ViewTemplate { get; set; }
+        [JsonProperty("detailLevel",  NullValueHandling = NullValueHandling.Ignore)]
+        public string DetailLevel { get; set; }
+        [JsonProperty("scaleHint",    NullValueHandling = NullValueHandling.Ignore)]
+        public string ScaleHint { get; set; }
+        [JsonProperty("colorScheme",  NullValueHandling = NullValueHandling.Ignore)]
+        public string ColorScheme { get; set; }
+
+        // Convenience for the editor — JSON keys the dialog wrote come from
+        // the local "appearance" object. These match the shape used in the
+        // disk JSON (STING_VIEW_STYLE_PACKS.json) so the runtime sees the
+        // same TextStyle / DimensionStyle / LineWeightScale values the
+        // editor emitted.
+        [JsonProperty("appearance", NullValueHandling = NullValueHandling.Ignore)]
+        public PackAppearanceDto Appearance { get; set; }
+
         [JsonProperty("filters")] public List<StyleFilterRule> Filters { get; set; } = new List<StyleFilterRule>();
 
         /// <summary>
@@ -172,9 +192,38 @@ namespace StingTools.Core.Drawing
         public bool? CutBgPatternVisible { get; set; }
     }
 
+    /// <summary>
+    /// Mirrors the dialog's "appearance" object inside each pack so the
+    /// runtime can deserialize the same JSON the editor writes. Promoted
+    /// fields are normalised onto ViewStylePack at load time by
+    /// <see cref="ViewStylePackRegistry"/> (see Promote).
+    /// </summary>
+    public sealed class PackAppearanceDto
+    {
+        [JsonProperty("lineWeightScale", NullValueHandling = NullValueHandling.Ignore)] public double? LineWeightScale { get; set; }
+        [JsonProperty("textStyleName",   NullValueHandling = NullValueHandling.Ignore)] public string TextStyleName { get; set; }
+        [JsonProperty("dimensionStyleName", NullValueHandling = NullValueHandling.Ignore)] public string DimensionStyleName { get; set; }
+        [JsonProperty("hatchPalette",    NullValueHandling = NullValueHandling.Ignore)] public string HatchPalette { get; set; }
+    }
+
     public sealed class ViewStylePackLibrary
     {
         [JsonProperty("version")] public int Version { get; set; } = 1;
-        [JsonProperty("viewStylePacks")] public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
+
+        // Primary list — newer JSON files use "viewStylePacks".
+        [JsonProperty("viewStylePacks", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ViewStylePack> Packs { get; set; } = new List<ViewStylePack>();
+
+        // Phase 136 — alias so the existing on-disk
+        // STING_VIEW_STYLE_PACKS.json (which uses "stylePacks") also
+        // deserializes correctly. Newtonsoft.Json calls the setter when
+        // it sees the legacy key; we forward to Packs so the runtime
+        // sees the same list either way.
+        [JsonProperty("stylePacks", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ViewStylePack> StylePacksLegacy
+        {
+            get => null;     // never re-serialised — the canonical key wins on save
+            set { if (value != null && value.Count > 0) Packs = value; }
+        }
     }
 }
