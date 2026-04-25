@@ -366,12 +366,14 @@ namespace StingTools.Core.Drawing
                 SheetNumberPattern = "SP-{disc}-{sys}-{lvl}-{seq:D4}",
                 SheetNamePattern   = "{discipline} spool {spool}",
                 Crop = new DrawingCropStrategy { Kind = "TightBbox", MarginMm = 300 },
+#pragma warning disable CS0618 // legacy AutoXxx setters; MigrateFromLegacy folds them into Rules at registry-load
                 Annotation = new AnnotationRulePack
                 {
                     AutoTagWelds = true, AutoTagBends = true, AutoTagSupports = true,
                     DimensionStrategy = "Ordinate",
                     DenseUntilScale = 100,
                 },
+#pragma warning restore CS0618
             };
             dt.Slots.AddRange(new[]
             {
@@ -406,6 +408,7 @@ namespace StingTools.Core.Drawing
 
         private static AnnotationRulePack AnnotationPackFor(string purpose)
         {
+#pragma warning disable CS0618 // legacy AutoXxx setters; MigrateFromLegacy folds them into Rules at registry-load
             switch (purpose)
             {
                 case DrawingPurpose.Plan:
@@ -434,6 +437,7 @@ namespace StingTools.Core.Drawing
                 default:
                     return new AnnotationRulePack();
             }
+#pragma warning restore CS0618
         }
 
         private static string DocKey(Document doc)
