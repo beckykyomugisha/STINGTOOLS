@@ -24,6 +24,7 @@ namespace StingTools.Core.Placement
     {
         private const string DefaultFileName = "STING_PLACEMENT_RULES.json";
         private const string ProjectOverrideFileName = "STING_PLACEMENT_RULES.project.json";
+        private const string LearnedOverrideFileName = "STING_PLACEMENT_RULES.learned.json";
 
         /// <summary>
         /// Load the default rule set only (no project override).
@@ -56,6 +57,19 @@ namespace StingTools.Core.Placement
 
             if (string.IsNullOrEmpty(projectDir))
                 return merged;
+
+            // PC-14 — apply the learned-overrides file first (Priority 90 wins
+            // unless the project-override file overwrites the same MergeKey).
+            if (StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned)
+            {
+                string learnedPath = Path.Combine(projectDir, LearnedOverrideFileName);
+                if (File.Exists(learnedPath))
+                {
+                    var learned = LoadFromFileSafe(learnedPath);
+                    if (learned != null && learned.Count > 0)
+                        merged = MergeRules(merged, learned);
+                }
+            }
 
             string overridePath = Path.Combine(projectDir, ProjectOverrideFileName);
             if (!File.Exists(overridePath))

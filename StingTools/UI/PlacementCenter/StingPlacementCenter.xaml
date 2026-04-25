@@ -451,15 +451,18 @@
                         <StackPanel>
                             <CheckBox x:Name="chkProvenance"   Content="Stamp provenance on each placement (Pack 123/E)" Margin="0,3"
                                       ToolTip="When ON, every placed instance carries a StingProvenance entity so 'Undo last run' and provenance-scoped validation can find them. OFF skips the stamp — useful for one-off non-tracked placements."/>
-                            <!-- PC-05 — hidden until LearnPlacementV4 graduates from stub.
-                                 Kept in the tree so the code-behind two-way bind compiles. -->
-                            <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category (Pack 10)"   Margin="0,3"
-                                      Visibility="Collapsed"
-                                      ToolTip="Reserved for the Learn pass. When LearnPlacementV4 lands, this toggle gates whether per-category learned offsets override rule defaults."/>
+                            <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category (Pack 10 / PC-14)" Margin="0,3"
+                                      ToolTip="When ON and a STING_PLACEMENT_RULES.learned.json sits next to the .rvt, learned overrides win over the shipped baseline. PC-14 LearnPlacementV4Command writes that file."/>
                             <CheckBox x:Name="chkValidators"   Content="Run validators after placement"                  Margin="0,3"
                                       ToolTip="Run ClearanceValidator + MaintenanceClashValidator immediately after the placement commits, scoped to elements just placed."/>
                             <CheckBox x:Name="chkAutoHeatmap"  Content="Auto-paint AVF compliance heat-map on commit"    Margin="0,3"
                                       ToolTip="When ON and at least one fixture was placed, paint the AVF compliance heat-map on the active view immediately after the run commits."/>
+                            <CheckBox x:Name="chkRunTags"      Content="Run data-tag pipeline on each placement (PC-17)" Margin="0,3"
+                                      ToolTip="Invoke TagPipelineHelper.RunFullPipeline on every placed instance so the placement lands ISO-19650 tagged."/>
+                            <CheckBox x:Name="chkSeedCobie"    Content="Seed COBie component fields from the rule (PC-17)" Margin="0,3"
+                                      ToolTip="Copy StandardRef / Notes / UniclassPr onto the placed instance's COBIE_COMPONENT_* parameters."/>
+                            <CheckBox x:Name="chkAssignMep"    Content="Probe MEP connectors after placement (PC-17)" Margin="0,3"
+                                      ToolTip="Log any unconnected connectors so MEPSystemBuilder can pick them up."/>
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="120"/>

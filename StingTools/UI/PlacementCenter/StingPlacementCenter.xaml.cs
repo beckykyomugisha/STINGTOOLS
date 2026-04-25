@@ -81,6 +81,16 @@ namespace StingTools.UI.PlacementCenter
             chkValidators.Unchecked  += (_,__) => VM.RunOpts.RunValidators   = false;
             chkAutoHeatmap.Checked   += (_,__) => VM.RunOpts.AutoHeatmap     = true;
             chkAutoHeatmap.Unchecked += (_,__) => VM.RunOpts.AutoHeatmap     = false;
+            // PC-17 — post-placement hooks
+            chkRunTags.IsChecked     = StingTools.Core.Placement.PostPlacementHooks.RunDataTagPipeline;
+            chkSeedCobie.IsChecked   = StingTools.Core.Placement.PostPlacementHooks.SeedCobieComponent;
+            chkAssignMep.IsChecked   = StingTools.Core.Placement.PostPlacementHooks.AssignMepSystem;
+            chkRunTags.Checked       += (_,__) => StingTools.Core.Placement.PostPlacementHooks.RunDataTagPipeline = true;
+            chkRunTags.Unchecked     += (_,__) => StingTools.Core.Placement.PostPlacementHooks.RunDataTagPipeline = false;
+            chkSeedCobie.Checked     += (_,__) => StingTools.Core.Placement.PostPlacementHooks.SeedCobieComponent = true;
+            chkSeedCobie.Unchecked   += (_,__) => StingTools.Core.Placement.PostPlacementHooks.SeedCobieComponent = false;
+            chkAssignMep.Checked     += (_,__) => StingTools.Core.Placement.PostPlacementHooks.AssignMepSystem = true;
+            chkAssignMep.Unchecked   += (_,__) => StingTools.Core.Placement.PostPlacementHooks.AssignMepSystem = false;
             rbScopeView.Checked      += (_,__) => VM.RunOpts.Scope = "ActiveView";
             rbScopeSel.Checked       += (_,__) => VM.RunOpts.Scope = "Selection";
             rbScopeProj.Checked      += (_,__) => VM.RunOpts.Scope = "Project";

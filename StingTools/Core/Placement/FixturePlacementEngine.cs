@@ -129,12 +129,46 @@ namespace StingTools.Core.Placement
                 bool cancelled = false;
                 foreach (var room in rooms)
                 {
+                    // PC-13 — per-room state so dependent rules see predecessors.
+                    var roomState = new RoomState();
                     foreach (var rule in ordered)
                     {
                         try
                         {
+                            // PC-13 — ConflictsWith: skip if any conflicting rule already fired in this room.
+                            if (RuleHasConflict(rule, roomState))
+                            {
+                                result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: skipped — ConflictsWith already fired.");
+                                continue;
+                            }
+                            // PC-13 — DependsOn: skip if predecessor produced no placements yet.
+                            if (!string.IsNullOrEmpty(rule.DependsOn) && !roomState.PlacedByRule.ContainsKey(rule.DependsOn))
+                            {
+                                result.Warnings.Add($"Room {room.Id} / {rule.MergeKey}: skipped — DependsOn '{rule.DependsOn}' has no placement in this room.");
+                                continue;
+                            }
+
                             ProcessRoomRule(doc, room, rule, scorer,
-                                perCategorySymbol, result, dryRun);
+                                perCategorySymbol, result, dryRun, roomState);
+
+                            // PC-13 — CoPlaceWith: fire each co-rule at the same XYZ as the primary's last point.
+                            if (rule.CoPlaceWith != null && rule.CoPlaceWith.Count > 0
+                                && roomState.LastPointByRule.TryGetValue(rule.MergeKey, out var lastPt))
+                            {
+                                foreach (var coId in rule.CoPlaceWith)
+                                {
+                                    var coRule = ordered.FirstOrDefault(r => string.Equals(r.MergeKey, coId, StringComparison.OrdinalIgnoreCase));
+                                    if (coRule == null) continue;
+                                    try
+                                    {
+                                        ProcessRoomRuleAtPoint(doc, room, coRule, scorer, perCategorySymbol, result, dryRun, roomState, lastPt);
+                                    }
+                                    catch (Exception cex)
+                                    {
+                                        result.Warnings.Add($"Co-place {coRule.MergeKey} in room {room.Id}: {cex.Message}");
+                                    }
+                                }
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -210,6 +244,24 @@ namespace StingTools.Core.Placement
             return rooms;
         }
 
+        /// <summary>PC-13 per-room state: maps RuleId/MergeKey → list of placed points,
+        /// plus a "last point" lookup for CoPlaceWith / RELATIVE_TO.</summary>
+        private class RoomState
+        {
+            public Dictionary<string, List<XYZ>> PlacedByRule { get; }
+                = new Dictionary<string, List<XYZ>>(StringComparer.OrdinalIgnoreCase);
+            public Dictionary<string, XYZ> LastPointByRule { get; }
+                = new Dictionary<string, XYZ>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static bool RuleHasConflict(PlacementRule rule, RoomState state)
+        {
+            if (rule?.ConflictsWith == null || rule.ConflictsWith.Count == 0) return false;
+            foreach (var c in rule.ConflictsWith)
+                if (!string.IsNullOrEmpty(c) && state.PlacedByRule.ContainsKey(c)) return true;
+            return false;
+        }
+
         private static void ProcessRoomRule(
             Document doc,
             Room room,
@@ -217,20 +269,41 @@ namespace StingTools.Core.Placement
             PlacementScorer scorer,
             Dictionary<string, FamilySymbol> perCategorySymbol,
             PlacementResult result,
-            bool dryRun)
+            bool dryRun,
+            RoomState state)
         {
             string roomKey = $"{room.Id}::{SafeRoomName(room)}";
             int alreadyInRoom = result.CountsByRoom.ContainsKey(roomKey) ? result.CountsByRoom[roomKey] : 0;
 
             var placedPoints = new List<XYZ>(); // for spacing scoring
-            var candidates = scorer.Score(room, rule, placedPoints, alreadyInRoom);
-            result.CandidatesEvaluated += candidates.Count;
+
+            // PC-13 — RELATIVE_TO / EQUIPMENT_PAIR: short-circuit by stamping the
+            // predecessor's last point as the only candidate.
+            string anchor = (rule.AnchorType ?? "").ToUpperInvariant();
+            List<PlacementCandidate> candidates;
+            if ((anchor == "RELATIVE_TO" || anchor == "EQUIPMENT_PAIR")
+                && !string.IsNullOrEmpty(rule.DependsOn)
+                && state.LastPointByRule.TryGetValue(rule.DependsOn, out var prev))
+            {
+                XYZ pt = new XYZ(prev.X + rule.OffsetXMm / 304.8,
+                                 prev.Y + rule.OffsetYMm / 304.8,
+                                 prev.Z + rule.OffsetZMm / 304.8);
+                candidates = new List<PlacementCandidate>
+                {
+                    new PlacementCandidate { Position = pt, RoomId = room.Id, Rule = rule, Score = 1.0 }
+                };
+                result.CandidatesEvaluated += 1;
+            }
+            else
+            {
+                candidates = scorer.Score(room, rule, placedPoints, alreadyInRoom);
+                result.CandidatesEvaluated += candidates.Count;
+            }
             if (candidates.Count == 0) return;
 
-            // Cap candidates to rule.MaxPerRoom (0 = unlimited)
-            int cap = rule.MaxPerRoom > 0
-                ? Math.Max(0, rule.MaxPerRoom - alreadyInRoom)
-                : candidates.Count;
+            // PC-12 — derive the count for Density / Linear rules from the room's
+            // area, occupancy or perimeter, capped by MaxPerRoom when set.
+            int cap = ComputeCap(rule, room, candidates.Count, alreadyInRoom);
             if (cap == 0) return;
 
             var chosen = candidates.Take(cap).ToList();
@@ -241,6 +314,16 @@ namespace StingTools.Core.Placement
                 {
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
+                    if (state != null)
+                    {
+                        if (!state.PlacedByRule.TryGetValue(rule.MergeKey, out var lst))
+                        {
+                            lst = new List<XYZ>();
+                            state.PlacedByRule[rule.MergeKey] = lst;
+                        }
+                        lst.Add(c.Position);
+                        state.LastPointByRule[rule.MergeKey] = c.Position;
+                    }
                 }
                 return;
             }
@@ -296,12 +379,152 @@ namespace StingTools.Core.Placement
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
                     placedPoints.Add(c.Position);
+
+                    // PC-13 — record placement on per-room state for downstream rules.
+                    if (state != null)
+                    {
+                        if (!state.PlacedByRule.TryGetValue(rule.MergeKey, out var lst))
+                        {
+                            lst = new List<XYZ>();
+                            state.PlacedByRule[rule.MergeKey] = lst;
+                        }
+                        lst.Add(c.Position);
+                        state.LastPointByRule[rule.MergeKey] = c.Position;
+                    }
+
+                    // PC-17 — optional post-placement hook: data-tag pipeline + COBie seed.
+                    try { PostPlacementHooks.RunFor(fi, rule); }
+                    catch (Exception hkEx) { result.Warnings.Add($"PC-17 post-place hook for {fi.Id}: {hkEx.Message}"); }
                 }
                 catch (Exception ex)
                 {
                     result.SkippedCount++;
                     result.Warnings.Add($"Place {rule.CategoryFilter} in {SafeRoomName(room)}: {ex.Message}");
                 }
+            }
+        }
+
+        /// <summary>
+        /// PC-12 — compute how many candidates this rule should consume in this
+        /// room. Point rules use MaxPerRoom; Density rules derive from area or
+        /// occupancy; Linear rules from perimeter. MaxPerRoom (when > 0) is a
+        /// hard cap regardless of kind.
+        /// </summary>
+        private static int ComputeCap(PlacementRule rule, Room room, int candidateCount, int alreadyInRoom)
+        {
+            int cap;
+            switch (rule.RuleKind)
+            {
+                case PlacementRuleKind.Density:
+                {
+                    int byArea = 0, byOcc = 0;
+                    if (rule.PerAreaM2 > 0)
+                    {
+                        double areaM2 = 0;
+                        try { areaM2 = room.Area * 0.3048 * 0.3048; } catch { }
+                        if (areaM2 > 0) byArea = Math.Max(1, (int)Math.Ceiling(areaM2 / rule.PerAreaM2));
+                    }
+                    if (rule.PerOccupant > 0)
+                    {
+                        int occ = 0;
+                        try
+                        {
+                            var p = room.LookupParameter("STING_OCC_COUNT_INT");
+                            if (p != null && p.HasValue && p.StorageType == StorageType.Integer) occ = p.AsInteger();
+                        }
+                        catch { }
+                        if (occ > 0) byOcc = Math.Max(1, (int)Math.Ceiling((double)occ / rule.PerOccupant));
+                    }
+                    cap = Math.Max(byArea, byOcc);
+                    if (cap == 0) cap = 1;
+                    break;
+                }
+                case PlacementRuleKind.Linear:
+                {
+                    if (rule.PerLinearMetre > 0)
+                    {
+                        // Perimeter is approximated from the bounding box; the
+                        // PERIMETER_OFFSET anchor already produces one candidate
+                        // per step, so we just take all candidates.
+                        cap = candidateCount;
+                    }
+                    else cap = candidateCount;
+                    break;
+                }
+                default:
+                    cap = rule.MaxPerRoom > 0
+                        ? Math.Max(0, rule.MaxPerRoom - alreadyInRoom)
+                        : candidateCount;
+                    break;
+            }
+
+            // Hard cap from MaxPerRoom regardless of kind.
+            if (rule.MaxPerRoom > 0)
+                cap = Math.Min(cap, Math.Max(0, rule.MaxPerRoom - alreadyInRoom));
+            return Math.Min(cap, candidateCount);
+        }
+
+        /// <summary>
+        /// PC-13 — place a single instance of the supplied rule at an explicit
+        /// point. Used by CoPlaceWith / RELATIVE_TO. Skips room-scope filters
+        /// because the predecessor already validated the room.
+        /// </summary>
+        private static void ProcessRoomRuleAtPoint(
+            Document doc,
+            Room room,
+            PlacementRule rule,
+            PlacementScorer scorer,
+            Dictionary<string, FamilySymbol> perCategorySymbol,
+            PlacementResult result,
+            bool dryRun,
+            RoomState state,
+            XYZ pt)
+        {
+            if (pt == null) return;
+            string roomKey = $"{room.Id}::{SafeRoomName(room)}";
+            // Apply this rule's offsets relative to the supplied point.
+            const double mm = 1.0 / 304.8;
+            XYZ at = new XYZ(pt.X + rule.OffsetXMm * mm,
+                             pt.Y + rule.OffsetYMm * mm,
+                             pt.Z + rule.OffsetZMm * mm);
+            if (dryRun)
+            {
+                result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
+                result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
+                return;
+            }
+            var symbol = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
+            if (symbol == null) return;
+            if (!symbol.IsActive) { try { symbol.Activate(); doc.Regenerate(); } catch { return; } }
+            try
+            {
+                var pf = PlacementHostPreflight.Place(doc, symbol, room, at, rule);
+                if (pf.Skipped || pf.Placed == null)
+                {
+                    result.SkippedCount++;
+                    if (!string.IsNullOrEmpty(pf.Reason)) result.Warnings.Add(pf.Reason);
+                    return;
+                }
+                WriteAnchorParameters(pf.Placed, rule);
+                if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
+                {
+                    try { StingTools.Core.Storage.StingProvenanceSchema.Stamp(pf.Placed, "FixturePlacementEngine.CoPlace", rule.MergeKey ?? ""); } catch { }
+                }
+                result.PlacedIds.Add(pf.Placed.Id);
+                result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
+                result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
+                if (state != null)
+                {
+                    if (!state.PlacedByRule.TryGetValue(rule.MergeKey, out var lst)) { lst = new List<XYZ>(); state.PlacedByRule[rule.MergeKey] = lst; }
+                    lst.Add(at);
+                    state.LastPointByRule[rule.MergeKey] = at;
+                }
+                try { PostPlacementHooks.RunFor(pf.Placed, rule); } catch (Exception hkEx) { result.Warnings.Add($"PC-17 post-place hook (co): {hkEx.Message}"); }
+            }
+            catch (Exception ex)
+            {
+                result.SkippedCount++;
+                result.Warnings.Add($"Co-place {rule.CategoryFilter} in {SafeRoomName(room)}: {ex.Message}");
             }
         }
 
