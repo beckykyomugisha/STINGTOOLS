@@ -4441,7 +4441,7 @@
                                         <Button Style="{StaticResource OrangeBtn}" Content="Open Workspace…" Tag="Fabrication_OpenWorkspace" Click="Cmd_Click" Width="140" Height="28" ToolTip="Open the full Fabrication Workspace dialog (light theme, Drawing-Type-Editor style: presets, scope counts, configure title block, dispatch any export)"/>
                                     </WrapPanel>
                                     <WrapPanel DockPanel.Dock="Bottom" Margin="4,6,4,4">
-                                        <Button Style="{StaticResource GreenBtn}"  Content="Generate package" Tag="Fabrication_GeneratePackage" Click="Cmd_Click" Width="110" Height="30" ToolTip="Build assemblies + views + sheets for selected MEP elements"/>
+                                        <Button Style="{StaticResource GreenBtn}"  Content="Generate package" Tag="Fabrication_OpenWorkspace" Click="Cmd_Click" Width="110" Height="30" ToolTip="Open the Fabrication Workspace — configure scope / categories / rules, then click Generate inside the workspace to build assemblies + views + sheets"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Cut list"         Tag="Fabrication_ExportCutList"   Click="Cmd_Click" Width="80"  Height="30" ToolTip="Re-emit pipe cut list CSV"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Isometrics"       Tag="Fabrication_ExportIsometrics" Click="Cmd_Click" Width="80"  Height="30" ToolTip="Index SP-... isometric sheets"/>
                                         <Button Style="{StaticResource OrangeBtn}" Content="Weld map"         Tag="Fabrication_ExportWeldMap"   Click="Cmd_Click" Width="80"  Height="30" ToolTip="Re-emit weld map CSV"/>
