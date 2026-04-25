@@ -26,6 +26,7 @@ namespace StingTools.Core.Drawing
             public bool TemplateApplied    { get; set; }
             public bool PackApplied        { get; set; }
             public bool CropApplied        { get; set; }
+            public bool TokenProfileApplied { get; set; }   // Phase 135 — Step 7.5
             public AnnotationRunStats Annotation { get; set; }
             public System.Collections.Generic.List<string> Warnings { get; } = new System.Collections.Generic.List<string>();
         }
@@ -116,20 +117,42 @@ namespace StingTools.Core.Drawing
             }
 
             // View Style Pack (shared graphic overrides) ---------------
+            ViewStylePack resolvedPack = null;
             if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
             {
                 try
                 {
-                    var pack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
-                    if (pack != null)
+                    resolvedPack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
+                    if (resolvedPack != null)
                     {
-                        var packStats = ViewStylePackApplier.Apply(doc, view, pack);
+                        var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack);
                         r.PackApplied = true;
                         r.Warnings.AddRange(packStats.Warnings);
                     }
                     else r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewStylePack: {ex.Message}"); }
+            }
+
+            // Token Profile (Phase 135) — Step 7.5 -----------------------
+            // Runs between the pack apply and the annotation pass so any
+            // auto-tags AnnotationRunner emits inherit the active style
+            // preset, paragraph depth, section visibility, and segment
+            // mask. No-op when neither the profile nor the pack supplies
+            // any tag-appearance value.
+            if (dt.TokenProfile != null
+                || resolvedPack?.TagColorScheme != null
+                || resolvedPack?.DefaultTagStyle != null
+                || (resolvedPack?.CategoryTagStyles != null && resolvedPack.CategoryTagStyles.Count > 0))
+            {
+                try
+                {
+                    var tpRes = TokenProfileApplier.Apply(doc, view, dt, resolvedPack);
+                    r.TokenProfileApplied = tpRes.ViewParamWrites + tpRes.ElementWrites
+                                          + tpRes.TypeWrites > 0 || tpRes.PresentationApplied;
+                    r.Warnings.AddRange(tpRes.Warnings);
+                }
+                catch (Exception ex) { r.Warnings.Add($"TokenProfileApplier: {ex.Message}"); }
             }
 
             // Annotation pass --------------------------------------------

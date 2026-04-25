@@ -52,6 +52,38 @@ namespace StingTools.Core.Drawing
         [JsonProperty("tagFamilies")] public Dictionary<string, string> TagFamilies { get; set; }
             = new Dictionary<string, string>();
 
+        // ── Phase 135 — Tag Appearance pack-level defaults ──
+        // Resolved by TokenProfileApplier whenever the per-DrawingType
+        // AnnotationTokenProfile leaves a slot empty. DrawingType always
+        // wins when both set the same field.
+
+        /// <summary>
+        /// Pack-level default colour scheme. Variable-driven scheme
+        /// name (e.g. "System", "Status", "Discipline") written into
+        /// STING_VIEW_TAG_STYLE for every view this pack is applied to.
+        /// Null = no pack default.
+        /// </summary>
+        [JsonProperty("tagColorScheme", NullValueHandling = NullValueHandling.Ignore)]
+        public string TagColorScheme { get; set; }
+
+        /// <summary>
+        /// Pack-level default tag style preset — "{size}{style}_{colour}"
+        /// canonical name (e.g. "2.5BOLD_RED"). Used when the
+        /// DrawingType profile's TagSize / TagStyle / TagColor are all
+        /// null. Null = no pack default.
+        /// </summary>
+        [JsonProperty("defaultTagStyle", NullValueHandling = NullValueHandling.Ignore)]
+        public string DefaultTagStyle { get; set; }
+
+        /// <summary>
+        /// Per-category tag style override (canonical preset name).
+        /// Loosely wins over DefaultTagStyle, loses to the
+        /// DrawingType.TokenProfile.TagSize/Style/Color triple.
+        /// </summary>
+        [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> CategoryTagStyles { get; set; }
+            = new Dictionary<string, string>();
+
         [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
         public string Checksum { get; set; }
     }

@@ -2,11 +2,13 @@
 //
 // DrawingDriftDetector scans every stamped view and reports where
 // the view's current state has drifted from its DrawingType profile.
-// Three drift kinds:
+// Drift kinds:
 //
-//   SCALE_DRIFT       view.Scale != profile.Scale
-//   DETAIL_DRIFT      view.DetailLevel != profile.DetailLevel
-//   TEMPLATE_DRIFT    view.ViewTemplateId.Name != profile.ViewTemplateName
+//   SCALE_DRIFT          view.Scale != profile.Scale
+//   DETAIL_DRIFT         view.DetailLevel != profile.DetailLevel
+//   TEMPLATE_DRIFT       view.ViewTemplateId.Name != profile.ViewTemplateName
+//   TOKEN_PROFILE_DRIFT  STING_VIEW_TAG_STYLE / TAG_SEG_MASK_TXT mismatch
+//                        (Phase 135)
 //
 // Consumed by the SyncStyles command (which re-applies the profile
 // on drifted views) and surfaced in the Inspect command output so
@@ -16,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 
 namespace StingTools.Core.Drawing
 {
@@ -71,9 +74,60 @@ namespace StingTools.Core.Drawing
                         report.Drifts.Add($"TEMPLATE: view '{tplName ?? "(none)"}' vs profile '{dt.ViewTemplateName}'");
                 }
 
+                // Phase 135 — token profile drift. Compares
+                // STING_VIEW_TAG_STYLE and TAG_SEG_MASK_TXT on the view
+                // to the resolved profile/pack defaults. SyncStyles
+                // re-runs DrawingTypePresentation.Apply which routes
+                // through TokenProfileApplier and heals the drift.
+                AppendTokenProfileDrift(doc, v, dt, report);
+
                 if (report.Any) reports.Add(report);
             }
             return reports;
+        }
+
+        private static void AppendTokenProfileDrift(Document doc, View v, DrawingType dt, DriftReport report)
+        {
+            try
+            {
+                // Resolve effective expected values (profile > pack).
+                var profile = dt.TokenProfile;
+                ViewStylePack pack = string.IsNullOrEmpty(dt.ViewStylePackId)
+                    ? null
+                    : ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
+
+                string expectedScheme = profile?.ColorScheme ?? pack?.TagColorScheme;
+                if (!string.IsNullOrEmpty(expectedScheme))
+                {
+                    string actual = ReadStringParam(v, ParamRegistry.VIEW_TAG_STYLE);
+                    if (!string.Equals(actual, expectedScheme, StringComparison.OrdinalIgnoreCase))
+                        report.Drifts.Add($"TOKEN_PROFILE: STING_VIEW_TAG_STYLE '{actual ?? "(empty)"}' vs profile '{expectedScheme}'");
+                }
+
+                string expectedMask = profile?.SegmentMask;
+                if (!string.IsNullOrEmpty(expectedMask)
+                    && expectedMask.Length == 8)
+                {
+                    string actual = ReadStringParam(v, ParamRegistry.TAG_SEG_MASK);
+                    if (!string.Equals(actual, expectedMask, StringComparison.Ordinal))
+                        report.Drifts.Add($"TOKEN_PROFILE: TAG_SEG_MASK '{actual ?? "(empty)"}' vs profile '{expectedMask}'");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"AppendTokenProfileDrift({v.Id}): {ex.Message}");
+            }
+        }
+
+        private static string ReadStringParam(Element el, string paramName)
+        {
+            try
+            {
+                var p = el.LookupParameter(paramName);
+                if (p == null || p.StorageType != StorageType.String) return null;
+                return p.AsString();
+            }
+            catch { return null; }
         }
 
         private static string TemplateName(Document doc, ElementId id)
