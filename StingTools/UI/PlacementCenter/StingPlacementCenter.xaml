@@ -65,15 +65,25 @@
                            VerticalAlignment="Center" Margin="0,0,16,0"/>
                 <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
                         Content="Close" Click="OnClose_Click"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Reload Defaults" Click="OnReloadDefaults_Click"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save Project"    Click="OnSaveProject_Click"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Reload Defaults" Click="OnReloadDefaults_Click"
+                        ToolTip="Discard all rules in memory and reload the shipped baseline."/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Import…"          Click="OnImportRules_Click"
+                        ToolTip="Merge rules from another JSON file (default: append, prompt to overwrite per merge key)."/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Export…"          Click="OnExportRules_Click"
+                        ToolTip="Export the current rule set to a portable JSON file you can share or version-control."/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save Project"     Click="OnSaveProject_Click"
+                        ToolTip="Save valid rules to &lt;project&gt;/STING_PLACEMENT_RULES.project.json (Ctrl+S)."/>
                 <Separator Width="8" Visibility="Hidden"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Run Placement"   Click="OnRunPlacement_Click"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Preview"         Click="OnPreview_Click"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Validate"        Click="OnValidate_Click"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Run Placement"   Click="OnRunPlacement_Click" ToolTip="Ctrl+R"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Preview"         Click="OnPreview_Click"      ToolTip="Ctrl+P"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Validate"        Click="OnValidate_Click"     ToolTip="Ctrl+V"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Undo last run"   Click="OnUndoLast_Click"
+                        ToolTip="Delete every element placed by the most-recent provenance bucket. Confirmation prompt. Ctrl+Shift+Z."/>
                 <Separator Width="8" Visibility="Hidden"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Push to Families" Click="OnPushFamilies_Click"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Heat-map"        Click="OnHeatmap_Click"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save view preset" Click="OnSaveViewPreset_Click"
+                        ToolTip="Stamp a Pack 125/M view preset onto the active view so its scope/template/scale travel with the model."/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="GD Study"        Click="OnGDStudy_Click"/>
             </DockPanel>
         </Border>
@@ -293,13 +303,10 @@
                             <DockPanel LastChildFill="False" Margin="0,0,0,6">
                                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                                            Foreground="#666" FontStyle="Italic" FontWeight="Normal"
-                                           Text="StingProvenanceSchema — last 30 hourly buckets, newest first."/>
+                                           Text="StingProvenanceSchema — last 30 hourly buckets, newest first. Double-click a row to select in Revit."/>
                                 <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
-                                        Content="Refresh" Click="OnHistoryRefresh_Click" Margin="4,0"/>
-                                <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
-                                        Content="Undo last run" Click="OnUndoLast_Click" Margin="4,0"/>
-                                <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
-                                        Content="Save view preset" Click="OnSaveViewPreset_Click" Margin="4,0"/>
+                                        Content="Refresh" Click="OnHistoryRefresh_Click" Margin="4,0"
+                                        ToolTip="Re-scan provenance and refresh the table (F5)."/>
                             </DockPanel>
                             <DataGrid x:Name="gridHistory"
                                       AutoGenerateColumns="False"

@@ -195,6 +195,41 @@ namespace StingTools.UI.PlacementCenter
                 UpdateStatus();
         }
 
+        private void OnImportRules_Click(object sender, RoutedEventArgs e)
+        {
+            // Wrap WinForms-flavoured OpenFileDialog with the WPF default paths.
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "STING — Import placement rules",
+                Filter = "STING placement rules (*.json)|*.json|All files (*.*)|*.*",
+                FileName = "STING_PLACEMENT_RULES.project.json",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            int n = VM.ImportFromFile(dlg.FileName);
+            UpdateStatus();
+            TaskDialog.Show("STING — Import placement rules",
+                n > 0
+                    ? $"Imported {n} rule(s) from {dlg.FileName}.\nClick Save Project to persist."
+                    : $"No rules imported. Check the file format (expects {{ \"version\": \"v4\", \"rules\": [...] }}).");
+        }
+
+        private void OnExportRules_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "STING — Export placement rules",
+                Filter = "STING placement rules (*.json)|*.json|All files (*.*)|*.*",
+                FileName = "STING_PLACEMENT_RULES.export.json",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            int n = VM.ExportToFile(dlg.FileName);
+            UpdateStatus();
+            TaskDialog.Show("STING — Export placement rules",
+                n > 0
+                    ? $"Exported {n} valid rule(s) to {dlg.FileName}."
+                    : "No valid rules to export.");
+        }
+
         // ── Phase 127-B engine wiring ────────────────────────────────
 
         private void OnRunPlacement_Click(object sender, RoutedEventArgs e)

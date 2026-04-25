@@ -214,6 +214,77 @@ namespace StingTools.UI.PlacementCenter
         /// (centre's Reload Defaults handler) prompts before nuking edits.</summary>
         public bool HasUnsavedEdits => Rules.Any(r => r.IsDirty);
 
+        /// <summary>Append rules from an external JSON file (same schema as
+        /// STING_PLACEMENT_RULES.json). Existing rules are kept; rules with
+        /// the same MergeKey are skipped so an import can't silently
+        /// shadow a project override. Returns the number actually appended.</summary>
+        public int ImportFromFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return 0;
+            try
+            {
+                var json = File.ReadAllText(path);
+                var set = JsonConvert.DeserializeObject<StingTools.Core.Placement.PlacementRuleSet>(json);
+                if (set?.Rules == null || set.Rules.Count == 0) return 0;
+
+                var existingKeys = new HashSet<string>(Rules.Select(r => r.MergeKey ?? ""), StringComparer.OrdinalIgnoreCase);
+                int n = 0;
+                foreach (var r in set.Rules)
+                {
+                    if (r == null) continue;
+                    string key = r.MergeKey ?? "";
+                    if (existingKeys.Contains(key)) continue;
+                    var vm = new PlacementRuleViewModel(r) { IsDirty = true };
+                    Rules.Add(vm);
+                    existingKeys.Add(key);
+                    n++;
+                }
+                if (n > 0)
+                {
+                    RebuildCategories();
+                    Status = $"Imported {n} rule(s) from {Path.GetFileName(path)} (Save Project to persist).";
+                    OnPropertyChanged(nameof(DirtyCount));
+                }
+                else
+                {
+                    Status = $"Import skipped — every rule in {Path.GetFileName(path)} already present (matched on MergeKey).";
+                }
+                return n;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementRulesViewModel.ImportFromFile", ex);
+                Status = $"Import failed: {ex.Message}";
+                return 0;
+            }
+        }
+
+        /// <summary>Write the current valid rules to an arbitrary path —
+        /// used for sharing rule sets between projects/teams without
+        /// touching the project's STING_PLACEMENT_RULES.project.json.</summary>
+        public int ExportToFile(string path)
+        {
+            try
+            {
+                var validVms = Rules.Where(r => r.IsValid).ToList();
+                if (validVms.Count == 0) { Status = "Export skipped — no valid rules."; return 0; }
+                var set = new StingTools.Core.Placement.PlacementRuleSet
+                {
+                    Version = "v4",
+                    Rules = validVms.Select(r => r.Model).ToList(),
+                };
+                File.WriteAllText(path, JsonConvert.SerializeObject(set, Formatting.Indented));
+                Status = $"Exported {validVms.Count} rule(s) → {path}";
+                return validVms.Count;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementRulesViewModel.ExportToFile", ex);
+                Status = $"Export failed: {ex.Message}";
+                return 0;
+            }
+        }
+
         public PlacementRuleViewModel AddRule()
         {
             var vm = new PlacementRuleViewModel(new PlacementRule
