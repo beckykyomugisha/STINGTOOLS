@@ -32,6 +32,10 @@ namespace StingTools.UI.PlacementCenter
         // Single instance — stays alive across opens; modeless.
         private static StingPlacementCenter _instance;
 
+        // PC-21 — debounce timer for live preview after rule edits.
+        private System.Windows.Threading.DispatcherTimer _previewDebounce;
+        private bool _livePreviewEnabled;
+
         public PlacementRulesViewModel VM { get; }
         private readonly Document _doc;
         private readonly UIDocument _uiDoc;
@@ -91,6 +95,8 @@ namespace StingTools.UI.PlacementCenter
             chkSeedCobie.Unchecked   += (_,__) => StingTools.Core.Placement.PostPlacementHooks.SeedCobieComponent = false;
             chkAssignMep.Checked     += (_,__) => StingTools.Core.Placement.PostPlacementHooks.AssignMepSystem = true;
             chkAssignMep.Unchecked   += (_,__) => StingTools.Core.Placement.PostPlacementHooks.AssignMepSystem = false;
+            chkLivePreview.Checked   += (_,__) => _livePreviewEnabled = true;
+            chkLivePreview.Unchecked += (_,__) => _livePreviewEnabled = false;
             rbScopeView.Checked      += (_,__) => VM.RunOpts.Scope = "ActiveView";
             rbScopeSel.Checked       += (_,__) => VM.RunOpts.Scope = "Selection";
             rbScopeProj.Checked      += (_,__) => VM.RunOpts.Scope = "Project";
@@ -488,7 +494,17 @@ namespace StingTools.UI.PlacementCenter
         {
             try
             {
-                var findings = PlacementCenterBridge.RunValidators(_doc);
+                // PC-23 — collect picked validators.
+                var mask = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (vClearance.IsChecked   == true) mask.Add("Clearance");
+                if (vMaintenance.IsChecked == true) mask.Add("Maintenance");
+                if (vConnectivity.IsChecked == true) mask.Add("Connectivity");
+                if (vFill.IsChecked        == true) mask.Add("Fill");
+                if (vSpec.IsChecked        == true) mask.Add("Spec");
+                if (vTermination.IsChecked == true) mask.Add("Termination");
+                if (vSlope.IsChecked       == true) mask.Add("Slope");
+                if (vSeparation.IsChecked  == true) mask.Add("Separation");
+                var findings = PlacementCenterBridge.RunValidators(_doc, mask);
                 if (scopeToProvenance && _lastRunUtc.HasValue)
                 {
                     findings = PlacementCenterBridge.FilterToProvenance(_doc, findings, _lastRunUtc.Value);
@@ -881,12 +897,37 @@ namespace StingTools.UI.PlacementCenter
                 VM.RebuildCategories();
                 UpdateStatus();
                 gridRules.Items.Refresh();
+
+                // PC-21 — debounce a live preview refresh.
+                if (_livePreviewEnabled) RestartPreviewDebounce();
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"StingPlacementCenter.CommitField: {ex.Message}");
                 txtRuleError.Text = ex.Message;
             }
+        }
+
+        private void RestartPreviewDebounce()
+        {
+            if (_previewDebounce == null)
+            {
+                _previewDebounce = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(500),
+                };
+                _previewDebounce.Tick += (s, e) =>
+                {
+                    _previewDebounce.Stop();
+                    if (_livePreviewEnabled && VM.HasSelection && VM.Selected.IsValid)
+                    {
+                        try { OnPreview_Click(this, new RoutedEventArgs()); }
+                        catch (Exception ex) { StingLog.Warn($"PC-21 live preview: {ex.Message}"); }
+                    }
+                };
+            }
+            _previewDebounce.Stop();
+            _previewDebounce.Start();
         }
 
         private void SyncFieldsFromSelection()
