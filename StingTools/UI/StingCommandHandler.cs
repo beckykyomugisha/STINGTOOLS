@@ -334,6 +334,9 @@ namespace StingTools.UI
                     case "DrawingTypes_Inspect": RunCommand<Commands.Drawing.DrawingTypesInspectCommand>(app); break;
                     case "DrawingTypes_Reload":  RunCommand<Commands.Drawing.DrawingTypesReloadCommand>(app);  break;
                     case "DrawingTypes_Editor":  RunCommand<Commands.Drawing.DrawingTypeEditorCommand>(app);   break;
+                    case "DrawingTypes_GroupBrowser":  DrawingTypesGroupBrowserInline(app); break;
+                    case "DrawingTypes_SyncStyles":    DrawingTypesSyncStylesInline(app);   break;
+                    case "DrawingTypes_FromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;
 
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
@@ -5236,6 +5239,99 @@ namespace StingTools.UI
         }
 
         // ── TitleBlock operations ───────────────────────────────────
+
+        // ── Drawing Type Editor inline helpers (Phase 113.x) ────────────────
+        private static void DrawingTypesGroupBrowserInline(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            try
+            {
+                var lib = StingTools.Core.Drawing.DrawingTypeRegistry.GetLibrary(doc);
+                var types = lib?.DrawingTypes ?? new System.Collections.Generic.List<StingTools.Core.Drawing.DrawingType>();
+                var byDisc = types
+                    .GroupBy(t => string.IsNullOrEmpty(t.Discipline) ? "*" : t.Discipline)
+                    .OrderBy(g => g.Key);
+                var sb = new System.Text.StringBuilder();
+                foreach (var g in byDisc)
+                {
+                    sb.AppendLine($"[{g.Key}]  ({g.Count()} types)");
+                    foreach (var t in g.OrderBy(x => x.Purpose).ThenBy(x => x.Id))
+                        sb.AppendLine($"    {t.Id}  ·  {t.Purpose}  ·  {t.PaperSize} 1:{t.Scale}");
+                    sb.AppendLine();
+                }
+                TaskDialog.Show("Drawing Types — Group Browser",
+                    sb.Length == 0 ? "No drawing types loaded." : sb.ToString());
+            }
+            catch (Exception ex) { StingLog.Error("DrawingTypes_GroupBrowser", ex); }
+        }
+
+        private static void DrawingTypesSyncStylesInline(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            try
+            {
+                // Refresh registry then report which view-template / viewport-type
+                // names referenced by drawing types resolve in the active project.
+                StingTools.Core.Drawing.DrawingTypeRegistry.Reload(doc);
+                var lib = StingTools.Core.Drawing.DrawingTypeRegistry.GetLibrary(doc);
+                int ok = 0, missingTpl = 0, missingVp = 0;
+                var miss = new System.Collections.Generic.List<string>();
+                foreach (var t in lib?.DrawingTypes ?? new System.Collections.Generic.List<StingTools.Core.Drawing.DrawingType>())
+                {
+                    bool tplOk = string.IsNullOrEmpty(t.ViewTemplateName) ||
+                                 new FilteredElementCollector(doc).OfClass(typeof(View))
+                                    .Cast<View>().Any(v => v.IsTemplate &&
+                                        string.Equals(v.Name, t.ViewTemplateName, StringComparison.OrdinalIgnoreCase));
+                    bool vpOk  = string.IsNullOrEmpty(t.ViewportTypeName) ||
+                                 new FilteredElementCollector(doc).OfClass(typeof(ElementType))
+                                    .Cast<ElementType>().Any(et => et.Category?.Id.Value == (long)BuiltInCategory.OST_Viewports &&
+                                        string.Equals(et.Name, t.ViewportTypeName, StringComparison.OrdinalIgnoreCase));
+                    if (tplOk && vpOk) ok++;
+                    else
+                    {
+                        if (!tplOk) { missingTpl++; miss.Add($"  {t.Id}  →  view template '{t.ViewTemplateName}'"); }
+                        if (!vpOk)  { missingVp++;  miss.Add($"  {t.Id}  →  viewport type '{t.ViewportTypeName}'"); }
+                    }
+                }
+                TaskDialog.Show("Drawing Types — Sync Styles",
+                    $"OK: {ok}\nMissing view templates: {missingTpl}\nMissing viewport types: {missingVp}\n\n" +
+                    (miss.Count == 0 ? "All references resolved." : string.Join("\n", miss.Take(40))));
+            }
+            catch (Exception ex) { StingLog.Error("DrawingTypes_SyncStyles", ex); }
+        }
+
+        private static void DrawingTypesFromScopeBoxesInline(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            try
+            {
+                var sboxes = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                if (sboxes.Count == 0)
+                { TaskDialog.Show("From Scope Boxes", "No scope boxes in the project."); return; }
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Suggested drawing-type stubs (one per scope box):\n");
+                foreach (var sbx in sboxes.OrderBy(s => s.Name))
+                {
+                    var disc = "A";
+                    var nm = (sbx.Name ?? "").ToUpperInvariant();
+                    if      (nm.Contains("MEP") || nm.StartsWith("M-")) disc = "M";
+                    else if (nm.Contains("ELEC")|| nm.StartsWith("E-")) disc = "E";
+                    else if (nm.Contains("PLUMB")||nm.StartsWith("P-")) disc = "P";
+                    else if (nm.Contains("STR") || nm.StartsWith("S-")) disc = "S";
+                    sb.AppendLine($"  {disc.ToLowerInvariant()}-plan-A1-{sbx.Name.Replace(' ', '_')}-1to100");
+                }
+                sb.AppendLine("\nUse + New in the Drawing Types tab to commit these as project-scoped types.");
+                TaskDialog.Show("From Scope Boxes", sb.ToString());
+            }
+            catch (Exception ex) { StingLog.Error("DrawingTypes_FromScopeBoxes", ex); }
+        }
 
         private static void TitleBlockReset(UIApplication app)
         {

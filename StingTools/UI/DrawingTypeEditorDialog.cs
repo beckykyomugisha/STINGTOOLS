@@ -56,6 +56,7 @@ namespace StingTools.UI
         private TextBox _tbSearch;
         private StackPanel _formHost;                    // right-hand form container
         private TextBlock _validationStrip;
+        private TabControl _rootTabs;                    // top-level tab host
 
         public DrawingTypeEditorDialog(Document doc)
         {
@@ -91,24 +92,825 @@ namespace StingTools.UI
         private UIElement BuildLayout()
         {
             var root = new Grid { Margin = new Thickness(12) };
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            root.Children.Add(BuildLeftPanel());
-            Grid.SetColumn(root.Children[root.Children.Count - 1], 0);
-            Grid.SetRow(root.Children[root.Children.Count - 1], 0);
-
-            var right = BuildRightPanel();
-            Grid.SetColumn(right, 1); Grid.SetRow(right, 0);
-            root.Children.Add(right);
+            _rootTabs = new TabControl
+            {
+                Background = new SolidColorBrush(BgColor),
+                Foreground = new SolidColorBrush(FgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                Padding = new Thickness(6),
+            };
+            _rootTabs.Items.Add(MakeTab("Drawing Types",   BuildDrawingTypesTab()));
+            _rootTabs.Items.Add(MakeTab("View Style Packs", BuildViewStylePacksTab()));
+            _rootTabs.Items.Add(MakeTab("Viewport Tools",   BuildViewportToolsTab()));
+            _rootTabs.Items.Add(MakeTab("Sheet Tools",      BuildSheetToolsTab()));
+            _rootTabs.Items.Add(MakeTab("Title Block",      BuildTitleBlockTab()));
+            _rootTabs.Items.Add(MakeTab("Sheet Manager",    BuildSheetManagerTab()));
+            Grid.SetRow(_rootTabs, 0);
+            root.Children.Add(_rootTabs);
 
             var footer = BuildFooter();
-            Grid.SetColumn(footer, 0); Grid.SetRow(footer, 1); Grid.SetColumnSpan(footer, 2);
+            Grid.SetRow(footer, 1);
             root.Children.Add(footer);
 
             return root;
+        }
+
+        private TabItem MakeTab(string header, UIElement content)
+        {
+            return new TabItem
+            {
+                Header = header,
+                Content = content,
+                Background = new SolidColorBrush(CardBg),
+                Foreground = new SolidColorBrush(FgColor),
+            };
+        }
+
+        // The original 2-column Drawing Types layout, now hosted inside the
+        // first tab. The toolbar above the search row exposes the docs-panel
+        // DRAWING TYPES section (Inspect / Reload JSON / Group Browser /
+        // Sync Styles / From Scope Boxes / Edit Types alias).
+        private UIElement BuildDrawingTypesTab()
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            // Toolbar — corp ribbon style
+            var toolbar = BuildSectionToolbar(new (string label, string tag)[]
+            {
+                ("Inspect",         "DrawingTypes_Inspect"),
+                ("Reload JSON",     "DrawingTypes_Reload"),
+                ("Group Browser",   "DrawingTypes_GroupBrowser"),
+                ("Sync Styles",     "DrawingTypes_SyncStyles"),
+                ("From Scope Boxes","DrawingTypes_FromScopeBoxes"),
+            });
+            Grid.SetRow(toolbar, 0); Grid.SetColumnSpan(toolbar, 2);
+            grid.Children.Add(toolbar);
+
+            var left = BuildLeftPanel();
+            Grid.SetRow(left, 1); Grid.SetColumn(left, 0);
+            grid.Children.Add(left);
+
+            var right = BuildRightPanel();
+            Grid.SetRow(right, 1); Grid.SetColumn(right, 1);
+            grid.Children.Add(right);
+
+            return grid;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  ACTION TABS — mirror the dock-panel DOCS sections so users can
+        //  drive the entire docs surface without leaving this dialog.
+        //  Every button dispatches via StingDockPanel.DispatchCommand,
+        //  which raises the same IExternalEventHandler the dock panel uses.
+        // ═══════════════════════════════════════════════════════════════
+
+        // ── View Style Packs editor ───────────────────────────────────────
+        // Left = list of packs from STING_VIEW_STYLE_PACKS.json (with
+        // extends-chain shown). Right = comprehensive form with Identity,
+        // Appearance, Filter rules and VG overrides cards. Mirrors the
+        // Drawing Types tab so the user has one mental model.
+
+        private List<ViewStylePack> _packs;
+        private ViewStylePack _currentPack;
+        private StackPanel _packFormHost;
+        private ListBox _lbPacks;
+
+        private UIElement BuildViewStylePacksTab()
+        {
+            _packs = LoadViewStylePacks();
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Left
+            var dock = new DockPanel { Margin = new Thickness(0, 0, 8, 0), LastChildFill = true };
+            var hdr = new TextBlock { Text = "Style packs",
+                FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(AccentColor),
+                Margin = new Thickness(0, 0, 0, 6) };
+            DockPanel.SetDock(hdr, Dock.Top); dock.Children.Add(hdr);
+
+            var actions = new StackPanel { Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 0, 6) };
+            actions.Children.Add(MakeSmallBtn("＋ New",  () => ActionNewPack()));
+            actions.Children.Add(MakeSmallBtn("Clone",   () => ActionClonePack()));
+            actions.Children.Add(MakeSmallBtn("Delete",  () => ActionDeletePack()));
+            DockPanel.SetDock(actions, Dock.Top); dock.Children.Add(actions);
+
+            _lbPacks = new ListBox
+            {
+                Background = new SolidColorBrush(CardBg),
+                Foreground = new SolidColorBrush(FgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+            };
+            foreach (var p in _packs) _lbPacks.Items.Add(p);
+            _lbPacks.SelectionChanged += (s, e) =>
+            {
+                if (_lbPacks.SelectedItem is ViewStylePack sel) SelectPack(sel);
+            };
+            dock.Children.Add(_lbPacks);
+            Grid.SetColumn(dock, 0); grid.Children.Add(dock);
+
+            // Right form host
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            _packFormHost = new StackPanel { Margin = new Thickness(8, 0, 0, 0) };
+            scroll.Content = _packFormHost;
+            Grid.SetColumn(scroll, 1); grid.Children.Add(scroll);
+
+            if (_packs.Count > 0) SelectPack(_packs[0]);
+            return grid;
+        }
+
+        private void SelectPack(ViewStylePack p)
+        {
+            _currentPack = p;
+            for (int i = 0; i < _lbPacks.Items.Count; i++)
+                if (ReferenceEquals(_lbPacks.Items[i], p)) { _lbPacks.SelectedIndex = i; break; }
+            RenderPackForm();
+        }
+
+        private void RenderPackForm()
+        {
+            _packFormHost.Children.Clear();
+            if (_currentPack == null) return;
+
+            // Identity
+            var idBody = new StackPanel();
+            idBody.Children.Add(LabeledTextBox("Id",          _currentPack.Id,          v => _currentPack.Id = v));
+            idBody.Children.Add(LabeledTextBox("Name",        _currentPack.Name,        v => _currentPack.Name = v));
+            idBody.Children.Add(LabeledTextBox("Description", _currentPack.Description, v => _currentPack.Description = v));
+            var parents = new[] { "" }.Concat(_packs.Where(x => x != _currentPack).Select(x => x.Id)).ToArray();
+            idBody.Children.Add(LabeledCombo("Extends (parent pack id)", parents,
+                _currentPack.Extends ?? "", v => _currentPack.Extends = string.IsNullOrEmpty(v) ? null : v));
+            idBody.Children.Add(LabeledTextBlock("Origin", _currentPack.Origin ?? "project"));
+            _packFormHost.Children.Add(Card("Identity", idBody));
+
+            // Appearance
+            var ap = _currentPack.Appearance = _currentPack.Appearance ?? new PackAppearance();
+            var apBody = new StackPanel();
+            apBody.Children.Add(LabeledDouble("Line-weight scale", ap.LineWeightScale,
+                v => ap.LineWeightScale = v));
+            apBody.Children.Add(LabeledProjectAssetCombo("Text style name",
+                ap.TextStyleName, v => ap.TextStyleName = v,
+                ProjectAssetPicker.TextStyleNames(_doc),
+                "TextNoteType elements in the active project."));
+            apBody.Children.Add(LabeledProjectAssetCombo("Dimension style name",
+                ap.DimensionStyleName, v => ap.DimensionStyleName = v,
+                ProjectAssetPicker.DimensionStyleNames(_doc),
+                "DimensionType elements in the active project."));
+            apBody.Children.Add(LabeledCombo("Hatch palette (informational)",
+                new[] { "ISO 13567 monochrome", "ISO 13567 colour", "AIA NCS", "BS 1192 mono", "Project custom" },
+                ap.HatchPalette, v => ap.HatchPalette = v,
+                tooltip: "Informational tag for the hatch family used by this pack — does not bind to a Revit asset."));
+            apBody.Children.Add(LabeledProjectAssetCombo("View template name",
+                _currentPack.ViewTemplate, v => _currentPack.ViewTemplate = v,
+                ProjectAssetPicker.ViewTemplateNames(_doc),
+                "View templates (View.IsTemplate = true) in the active project."));
+            apBody.Children.Add(LabeledCombo("Detail level",
+                Iso19650Vocabulary.DetailLevels, _currentPack.DetailLevel,
+                v => _currentPack.DetailLevel = v));
+            apBody.Children.Add(LabeledCombo("Scale hint",
+                new[] { "1:5", "1:10", "1:20", "1:25", "1:50", "1:100", "1:200", "1:500" },
+                _currentPack.ScaleHint, v => _currentPack.ScaleHint = v,
+                tooltip: "Common architectural scales. Free-text allowed if your pack needs an unusual scale."));
+            apBody.Children.Add(LabeledCombo("Colour scheme",
+                Iso19650Vocabulary.ColorSchemes,
+                _currentPack.ColorScheme, v => _currentPack.ColorScheme = v));
+            _packFormHost.Children.Add(Card("Appearance", apBody));
+
+            // Filter rules
+            var frBody = new StackPanel();
+            _currentPack.FilterRules = _currentPack.FilterRules ?? new List<PackFilterRule>();
+            frBody.Children.Add(new TextBlock {
+                Text = "Per-filter graphic overrides. Filters must already exist in the project (ParameterFilterElement). Colours in #RRGGBB.",
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4) });
+            frBody.Children.Add(MakeFilterRuleHeader());
+            foreach (var fr in _currentPack.FilterRules.ToList())
+                frBody.Children.Add(MakeFilterRuleRow(fr));
+            frBody.Children.Add(MakeSmallBtn("＋ Add filter rule", () =>
+            {
+                _currentPack.FilterRules.Add(new PackFilterRule { Name = "NewFilter", Visible = true,
+                    ProjColor = "#000000", ProjWeight = 1, CutColor = "#000000", CutWeight = 1 });
+                RenderPackForm();
+            }));
+            _packFormHost.Children.Add(Card("Filter rules", frBody));
+
+            // VG Overrides per category
+            var vgBody = new StackPanel();
+            _currentPack.VgOverrides = _currentPack.VgOverrides ?? new Dictionary<string, PackCategoryOverride>();
+            vgBody.Children.Add(new TextBlock {
+                Text = "Per-category graphic overrides. Key = category name (Walls / Grids / Rooms), BuiltInCategory enum, or <Room Separation> for subcategories. Colours in #RRGGBB.",
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4) });
+            vgBody.Children.Add(MakeVgHeader());
+            foreach (var kv in _currentPack.VgOverrides.ToList())
+                vgBody.Children.Add(MakeVgRow(kv.Key, kv.Value));
+            vgBody.Children.Add(MakeSmallBtn("＋ Add VG override", () =>
+            {
+                var key = "NewCategory" + _currentPack.VgOverrides.Count;
+                _currentPack.VgOverrides[key] = new PackCategoryOverride { Visible = true, ProjWeight = 1 };
+                RenderPackForm();
+            }));
+            _packFormHost.Children.Add(Card("VG overrides (per category)", vgBody));
+
+            // Validation strip
+            _packFormHost.Children.Add(new TextBlock
+            {
+                Text = ValidatePack(_currentPack),
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, Margin = new Thickness(4, 10, 4, 4),
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+
+        // ── Filter rule row ──
+        private UIElement MakeFilterRuleHeader()
+        {
+            var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
+            string[] headers = { "Filter name", "Visible", "Halftone", "Proj-Col", "Proj-Wt", "Cut-Col", "Cut-Wt", "Trans%" };
+            double[] widths  = { 160, 56, 56, 70, 50, 70, 50, 56 };
+            for (int i = 0; i < widths.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var t = new TextBlock { Text = headers[i], FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor) };
+                Grid.SetColumn(t, i); g.Children.Add(t);
+            }
+            return g;
+        }
+
+        private UIElement MakeFilterRuleRow(PackFilterRule fr)
+        {
+            var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            double[] widths = { 160, 56, 56, 70, 50, 70, 50, 56 };
+            for (int i = 0; i < widths.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
+
+            var name = SmallTb(fr.Name, v => fr.Name = v);
+            var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);
+            var ht   = MakeChk(fr.Halftone, v => fr.Halftone = v);
+            var pc   = SmallTb(fr.ProjColor, v => fr.ProjColor = v);
+            var pw   = SmallTb(fr.ProjWeight.ToString(), v => fr.ProjWeight = TryInt(v));
+            var cc   = SmallTb(fr.CutColor, v => fr.CutColor = v);
+            var cw   = SmallTb(fr.CutWeight.ToString(), v => fr.CutWeight = TryInt(v));
+            var tr   = SmallTb(fr.Transparency.ToString(), v => fr.Transparency = TryInt(v));
+
+            var ctrls = new UIElement[] { name, vis, ht, pc, pw, cc, cw, tr };
+            for (int i = 0; i < ctrls.Length; i++)
+            {
+                Grid.SetColumn(ctrls[i], i);
+                if (ctrls[i] is FrameworkElement fe) fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
+                g.Children.Add(ctrls[i]);
+            }
+            return g;
+        }
+
+        // ── VG override row ──
+        private UIElement MakeVgHeader()
+        {
+            var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
+            string[] headers = { "Category", "Visible", "Halftone", "Proj-Col", "Proj-Wt", "Cut-Col", "Cut-Wt", "Trans%" };
+            double[] widths  = { 160, 56, 56, 70, 50, 70, 50, 56 };
+            for (int i = 0; i < widths.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var t = new TextBlock { Text = headers[i], FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor) };
+                Grid.SetColumn(t, i); g.Children.Add(t);
+            }
+            return g;
+        }
+
+        private UIElement MakeVgRow(string key, PackCategoryOverride v)
+        {
+            var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            double[] widths = { 160, 56, 56, 70, 50, 70, 50, 56 };
+            for (int i = 0; i < widths.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
+
+            var keyBox = SmallTb(key, newKey =>
+            {
+                if (string.IsNullOrWhiteSpace(newKey) || newKey == key) return;
+                _currentPack.VgOverrides.Remove(key);
+                _currentPack.VgOverrides[newKey] = v;
+            });
+            var vis = MakeChk(v.Visible, b => v.Visible = b);
+            var ht  = MakeChk(v.Halftone,b => v.Halftone = b);
+            var pc  = SmallTb(v.ProjColor,  s => v.ProjColor = s);
+            var pw  = SmallTb(v.ProjWeight.ToString(), s => v.ProjWeight = TryInt(s));
+            var cc  = SmallTb(v.CutColor,   s => v.CutColor = s);
+            var cw  = SmallTb(v.CutWeight.ToString(), s => v.CutWeight = TryInt(s));
+            var tr  = SmallTb(v.Transparency.ToString(), s => v.Transparency = TryInt(s));
+
+            var ctrls = new UIElement[] { keyBox, vis, ht, pc, pw, cc, cw, tr };
+            for (int i = 0; i < ctrls.Length; i++)
+            {
+                Grid.SetColumn(ctrls[i], i);
+                if (ctrls[i] is FrameworkElement fe) fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
+                g.Children.Add(ctrls[i]);
+            }
+            return g;
+        }
+
+        private CheckBox MakeChk(bool value, Action<bool> setter)
+        {
+            var cb = new CheckBox { IsChecked = value, VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center };
+            cb.Checked   += (s, e) => setter?.Invoke(true);
+            cb.Unchecked += (s, e) => setter?.Invoke(false);
+            return cb;
+        }
+
+        private static int TryInt(string s) => int.TryParse(s, out var n) ? n : 0;
+
+        private string ValidatePack(ViewStylePack p)
+        {
+            var issues = new List<string>();
+            if (string.IsNullOrEmpty(p.Id)) issues.Add("id is empty");
+            if (!string.IsNullOrEmpty(p.Extends) && !_packs.Any(x => x.Id == p.Extends))
+                issues.Add($"extends references missing pack '{p.Extends}'");
+            if (issues.Count == 0) return $"✓ Pack OK. Extends chain: {ResolveExtendsChain(p)}";
+            return $"⚠ {issues.Count} issue(s): {string.Join(" · ", issues)}";
+        }
+
+        private string ResolveExtendsChain(ViewStylePack p)
+        {
+            var chain = new List<string> { p.Id };
+            var cur = p;
+            int guard = 10;
+            while (cur != null && !string.IsNullOrEmpty(cur.Extends) && guard-- > 0)
+            {
+                cur = _packs.FirstOrDefault(x => x.Id == cur.Extends);
+                if (cur != null) chain.Add(cur.Id);
+            }
+            return string.Join(" → ", chain);
+        }
+
+        // ── Pack list actions ──
+        private void ActionNewPack()
+        {
+            var p = new ViewStylePack
+            {
+                Id = "new-pack-" + Guid.NewGuid().ToString("N").Substring(0, 6),
+                Name = "New Style Pack",
+                Origin = "project",
+                Extends = "corp-base",
+                Appearance = new PackAppearance(),
+                FilterRules = new List<PackFilterRule>(),
+                VgOverrides = new Dictionary<string, PackCategoryOverride>(),
+            };
+            _packs.Add(p);
+            _lbPacks.Items.Add(p);
+            SelectPack(p);
+        }
+
+        private void ActionClonePack()
+        {
+            if (_currentPack == null) return;
+            var json = JsonConvert.SerializeObject(_currentPack);
+            var copy = JsonConvert.DeserializeObject<ViewStylePack>(json);
+            copy.Id = _currentPack.Id + "-copy";
+            copy.Name = (_currentPack.Name ?? _currentPack.Id) + " (copy)";
+            copy.Origin = "project";
+            _packs.Add(copy);
+            _lbPacks.Items.Add(copy);
+            SelectPack(copy);
+        }
+
+        private void ActionDeletePack()
+        {
+            if (_currentPack == null) return;
+            var resp = System.Windows.MessageBox.Show(
+                $"Delete style pack '{_currentPack.Id}'?\nCorporate packs only vanish from the project override.",
+                "Confirm", MessageBoxButton.YesNo);
+            if (resp != MessageBoxResult.Yes) return;
+            _packs.Remove(_currentPack);
+            _lbPacks.Items.Remove(_currentPack);
+            _currentPack = _packs.FirstOrDefault();
+            if (_currentPack != null) SelectPack(_currentPack); else _packFormHost.Children.Clear();
+        }
+
+        // ── JSON load ──
+        private List<ViewStylePack> LoadViewStylePacks()
+        {
+            var list = new List<ViewStylePack>();
+            try
+            {
+                var path = Path.Combine(StingTools.Core.StingToolsApp.DataPath ?? "", "STING_VIEW_STYLE_PACKS.json");
+                if (!File.Exists(path)) return list;
+                var doc = JsonConvert.DeserializeObject<ViewStylePackDoc>(File.ReadAllText(path));
+                return doc?.StylePacks ?? list;
+            }
+            catch (Exception ex) { StingLog.Warn("ViewStylePacks load: " + ex.Message); return list; }
+        }
+
+        // ── POCO models for view style packs ──
+        private class ViewStylePackDoc
+        {
+            [JsonProperty("stylePacks")] public List<ViewStylePack> StylePacks { get; set; }
+        }
+
+        private class ViewStylePack
+        {
+            [JsonProperty("id")]          public string Id { get; set; }
+            [JsonProperty("name")]        public string Name { get; set; }
+            [JsonProperty("description")] public string Description { get; set; }
+            [JsonProperty("extends")]     public string Extends { get; set; }
+            [JsonProperty("origin")]      public string Origin { get; set; }
+            [JsonProperty("viewTemplate")] public string ViewTemplate { get; set; }
+            [JsonProperty("detailLevel")] public string DetailLevel { get; set; }
+            [JsonProperty("scaleHint")]   public string ScaleHint { get; set; }
+            [JsonProperty("colorScheme")] public string ColorScheme { get; set; }
+            [JsonProperty("appearance")]  public PackAppearance Appearance { get; set; }
+            [JsonProperty("filterRules")] public List<PackFilterRule> FilterRules { get; set; }
+            [JsonProperty("vgOverrides")] public Dictionary<string, PackCategoryOverride> VgOverrides { get; set; }
+            public override string ToString()
+            {
+                var ext = string.IsNullOrEmpty(Extends) ? "" : $"  ←  {Extends}";
+                return $"{Id}{ext}";
+            }
+        }
+
+        private class PackAppearance
+        {
+            [JsonProperty("lineWeightScale")] public double LineWeightScale { get; set; } = 1.0;
+            [JsonProperty("textStyleName")]   public string TextStyleName { get; set; }
+            [JsonProperty("dimensionStyleName")] public string DimensionStyleName { get; set; }
+            [JsonProperty("hatchPalette")]    public string HatchPalette { get; set; }
+        }
+
+        private class PackFilterRule
+        {
+            [JsonProperty("name")]         public string Name { get; set; }
+            [JsonProperty("visible")]      public bool Visible { get; set; } = true;
+            [JsonProperty("halftone")]     public bool Halftone { get; set; }
+            [JsonProperty("projColor")]    public string ProjColor { get; set; }
+            [JsonProperty("projWeight")]   public int ProjWeight { get; set; }
+            [JsonProperty("cutColor")]     public string CutColor { get; set; }
+            [JsonProperty("cutWeight")]    public int CutWeight { get; set; }
+            [JsonProperty("transparency")] public int Transparency { get; set; }
+        }
+
+        private class PackCategoryOverride
+        {
+            [JsonProperty("visible")]      public bool Visible { get; set; } = true;
+            [JsonProperty("halftone")]     public bool Halftone { get; set; }
+            [JsonProperty("projColor")]    public string ProjColor { get; set; }
+            [JsonProperty("projWeight")]   public int ProjWeight { get; set; }
+            [JsonProperty("cutColor")]     public string CutColor { get; set; }
+            [JsonProperty("cutWeight")]    public int CutWeight { get; set; }
+            [JsonProperty("transparency")] public int Transparency { get; set; }
+        }
+
+        private UIElement BuildViewportToolsTab()
+        {
+            var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel { Margin = new Thickness(8) };
+            stack.Children.Add(TabIntro("Viewport Tools",
+                "Operate on viewports placed on sheets — align, renumber, distribute. " +
+                "Every button dispatches to the same Revit external-event handler the dock panel uses. " +
+                "Run on the active sheet's viewports, or on a multi-select."));
+
+            stack.Children.Add(SectionCardRich("Alignment",
+                "Snap selected viewports to a common edge or centre line.",
+                new (string,string,string)[]
+                {
+                    ("↑ Top",  "VPAlignTop",   "Align to topmost edge"),
+                    ("↕ MidY", "VPAlignMidY",  "Align horizontal centre lines"),
+                    ("↓ Bot",  "VPAlignBot",   "Align to bottom edge"),
+                    ("← Left", "VPAlignLeft",  "Align to leftmost edge"),
+                    ("↔ MidX", "VPAlignMidX",  "Align vertical centre lines"),
+                    ("→ Right","VPAlignRight", "Align to rightmost edge"),
+                }));
+            stack.Children.Add(SectionCardRich("Numbering",
+                "Auto-renumber viewports on the active sheet (left-to-right or top-to-bottom).",
+                new (string,string,string)[]
+                {
+                    ("L→R",      "VPNumLR",            "Renumber left-to-right, top-to-bottom"),
+                    ("T→B",      "VPNumTB",            "Renumber top-to-bottom, left-to-right"),
+                    ("+1",       "VPNumPlus",          "Increment all viewport numbers by 1"),
+                    ("-1",       "VPNumMinus",         "Decrement all viewport numbers by 1"),
+                    ("Prefix",   "VPPrefix",           "Add a prefix to selected viewport numbers"),
+                    ("Suffix",   "VPSuffix",           "Add a suffix to selected viewport numbers"),
+                    ("Renum VP", "RenumberViewports",  "Generic renumber dialog (handed-off to engine)"),
+                }));
+            stack.Children.Add(SectionCardRich("Spacing",
+                "Auto-position, evenly distribute or move viewports between sheets.",
+                new (string,string,string)[]
+                {
+                    ("Auto-Place",     "AutoPlaceViewports",  "Pack viewports onto sheet using shelf-packing"),
+                    ("Batch Align",    "BatchAlignViewports", "Align viewports across multiple sheets"),
+                    ("Align VP",       "AlignViewports",      "Single-sheet alignment dialog"),
+                    ("Crop to Content","CropToContent",       "Tight crop region per viewport"),
+                    ("Move VP",        "MoveViewport",        "Move a viewport between sheets"),
+                }));
+            host.Content = stack;
+            return host;
+        }
+
+        private UIElement BuildSheetToolsTab()
+        {
+            var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel { Margin = new Thickness(8) };
+            stack.Children.Add(TabIntro("Sheet Tools",
+                "Project-wide sheet operations — organise, index, transmittal, naming, automation. " +
+                "Read-only commands open dialogs; Manual commands run a Revit transaction."));
+
+            stack.Children.Add(SectionCardRich("Sheet operations",
+                "Catalogue, organise and audit sheets. Most produce a CSV or schedule.",
+                new (string,string,string)[]
+                {
+                    ("Organizer",      "SheetOrganizer",    "Group sheets by discipline prefix"),
+                    ("Index",          "SheetIndex",        "Create the STING - Sheet Index schedule"),
+                    ("Transmittal",    "Transmittal",       "Generate ISO 19650 transmittal report"),
+                    ("Journal",        "JournalParser",     "Parse Revit journal for errors / commands / memory"),
+                    ("Naming",         "SheetNamingCheck",  "ISO 19650 sheet-naming compliance audit"),
+                    ("Auto-Num",       "AutoNumberSheets",  "Sequentially renumber sheets within discipline"),
+                    ("Map Sheets",     "MapSheets",         "Build sheet-to-element ownership map"),
+                    ("Tag Sheets",     "TagSheets",         "Bulk-write title-block tags onto sheets"),
+                    ("View Organizer", "ViewOrganizer",     "Organise non-placed views by type / level"),
+                    ("Delete Unused",  "DeleteUnusedViews", "Remove views not placed on any sheet (with protection)"),
+                }));
+            stack.Children.Add(SectionCardRich("Sheet number editor",
+                "Bulk-edit sheet numbers. All operate on the active selection or all sheets when nothing is selected.",
+                new (string,string,string)[]
+                {
+                    ("Reset Title",   "SheetResetTitle",     "Reset title-block instance position to (0,0)"),
+                    ("+1",            "SheetNumPlus",        "Increment numeric portion of sheet numbers"),
+                    ("-1",            "SheetNumMinus",       "Decrement numeric portion of sheet numbers"),
+                    ("Prefix",        "SheetPrefix",         "Add prefix to sheet numbers (e.g. A-)"),
+                    ("Suffix",        "SheetSuffix",         "Add suffix to sheet numbers (e.g. -R1)"),
+                    ("Rem Pre",       "SheetRemovePrefix",   "Strip prefix from sheet numbers"),
+                    ("Rem Suf",       "SheetRemoveSuffix",   "Strip suffix from sheet numbers"),
+                    ("Find&Replace",  "SheetFindReplace",    "Open the Batch Rename dialog (sheets scope)"),
+                }));
+            stack.Children.Add(SectionCardRich("View automation",
+                "Duplicate, rename, retemplate views in bulk.",
+                new (string,string,string)[]
+                {
+                    ("Duplicate View",     "DuplicateView",     "Duplicate with Detailing / View-only / Dependent"),
+                    ("Batch Rename",       "BatchRenameViews",  "Single-step dialog with 7 rename ops + preview"),
+                    ("Copy View Settings", "CopyViewSettings",  "Copy filters, overrides and template from source view"),
+                    ("Magic Rename",       "MagicRename",       "Auto-rename from title-block + level + discipline"),
+                    ("View Tab Colour",    "ViewTabColour",     "Colour the Project Browser tab per discipline"),
+                    ("Text Case",          "TextCase",          "Convert text notes to UPPER / lower / Title case"),
+                    ("Sum Areas",          "SumAreas",          "Total area of selected / all rooms"),
+                }));
+            host.Content = stack;
+            return host;
+        }
+
+        // Single source of truth for every title-block action surfaced
+        // anywhere in the plugin. Consolidates Phase-97 commands, repair
+        // utilities, sheet-context revision tools, transmittal stamps and
+        // pre-export gating — so the user never has to leave this dialog
+        // to operate on title blocks.
+        private UIElement BuildTitleBlockTab()
+        {
+            var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel { Margin = new Thickness(8) };
+
+            stack.Children.Add(TabIntro("Title Block",
+                "Single source of truth for every title-block action. " +
+                "Authoring writes to TITLE_BLOCK.csv and PRJ_TB_* shared parameters. " +
+                "Sheet identity / Revision / Transmittal stamp the live ViewSheet. " +
+                "Suitability codes follow BS EN ISO 19650-1 §A (S0–S4 / A1–A5 / B1–B6 / AR)."));
+
+            // ── Quick-pick reference for ISO 19650 codes ──
+            var codeBody = new StackPanel();
+            codeBody.Children.Add(new TextBlock {
+                Text = "ISO 19650 reference (read-only) — useful for the Authoring dialogs below.",
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11,
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) });
+            codeBody.Children.Add(LabeledCombo("Discipline / Role (ISO 19650-2 §A.5)",
+                Iso19650Vocabulary.DisciplineCodes, "*", _ => { },
+                tooltip: "ISO single-letter codes — A/B/C/D/E/F/G/H/I/K/L/M/P/Q/S/T/W/X/Y/Z. Use * for any."));
+            codeBody.Children.Add(LabeledCombo("Information-Container Type (ISO 19650-2 §A.6)",
+                Iso19650Vocabulary.DocTypes, "DR", _ => { },
+                tooltip: "DR = Drawing · M3 = 3D Model · SP = Specification · SC = Schedule · RP = Report · etc."));
+            codeBody.Children.Add(LabeledCombo("Suitability code (BS EN ISO 19650-1 §A)",
+                Iso19650Vocabulary.SuitabilityCodes, "S2", _ => { },
+                tooltip: "WIP S0 · Shared S1–S7 · Published A1–A5 · Partial B1–B6 · Archive AR."));
+            codeBody.Children.Add(LabeledCombo("Revision prefix",
+                Iso19650Vocabulary.RevisionPrefixes, "P", _ => { },
+                tooltip: "P = Preliminary · C = Construction · T = Tender · I = Information · R = Revision · A = As-built."));
+            codeBody.Children.Add(LabeledCombo("RIBA stage",
+                Iso19650Vocabulary.RibaStages, "*", _ => { },
+                tooltip: "RIBA Plan of Work 2020 stages 0–7."));
+            codeBody.Children.Add(LabeledCombo("Authority",
+                Iso19650Vocabulary.AuthorityCodes, "", _ => { },
+                tooltip: "KCCA / ERA / NEMA (Uganda) · BC / PA / EA (UK). Empty = non-submission."));
+            stack.Children.Add(Card("ISO 19650 code legend", codeBody));
+
+            // ── Authoring (Phase 97 STING TB System v1.0) ──
+            stack.Children.Add(SectionCardRich("Authoring (Phase 97 — TITLE_BLOCK.csv)",
+                "Edit per-discipline defaults, populate every sheet, validate completeness, swap variants, bind legends, and gate pre-export.",
+                new (string,string,string)[]
+                {
+                    ("Edit CSV…",   "TitleBlockEditCsv",   "Open the in-Revit DataGrid for TITLE_BLOCK.csv (no external editor needed)"),
+                    ("Populate",    "TitleBlockPopulate",  "Bulk-write PRJ_TB_* values from TITLE_BLOCK.csv to every sheet"),
+                    ("Validate",    "TitleBlockValidate",  "Audit completeness — missing fields, invalid suitability codes, stale syncs"),
+                    ("Set Variant", "TitleBlockSetVariant","Auto-swap STING_TB_* family by paper size + viewport aspect"),
+                    ("Legend Bind", "DisciplineLegendBind","Place LGD-{DISC}-NOTES legend view into title-block notes region"),
+                    ("Pre-Export",  "PreExportValidate",   "Pre-export completeness gate — blocks PDF/DWF when critical fields are empty"),
+                }));
+
+            // ── Sheet identity (counts, transmittals, swap) ──
+            stack.Children.Add(SectionCard("Sheet identity & transmittal", new (string,string)[]
+            {
+                ("Count Sheets",   "SheetCountAutoUpdate"),
+                ("Stamp TX",       "TransmittalAutoIssue"),
+                ("Transmittal",    "Transmittal"),
+                ("Swap Title Block","SwapTitleBlock"),
+                ("Set Variant",    "TitleBlockSetVariant"),
+            }));
+
+            // ── Revision tools that stamp the title block ──
+            stack.Children.Add(SectionCard("Revision (writes to PRJ_TB_REVISION_*)", new (string,string)[]
+            {
+                ("Revision Sync",        "RevisionSync"),
+                ("Auto Rev Cloud",       "RevisionCloudAuto"),
+                ("Show Clouds",          "RevShowClouds"),
+                ("Show Tags",            "RevShowTags"),
+                ("Rev Naming Check",     "RevisionNamingEnforce"),
+                ("Rev Tag Integration",  "RevisionTagIntegration"),
+                ("Rev Schedule",         "RevisionSchedule"),
+                ("Rev Dashboard",        "RevisionDashboard"),
+                ("Rev Compare",          "RevisionCompare"),
+                ("Rev Export",           "RevisionExport"),
+            }));
+
+            // ── Repair / first-aid ──
+            stack.Children.Add(SectionCard("Repair & first-aid", new (string,string)[]
+            {
+                ("Reset Position",   "TitleBlockReset"),
+                ("Rescue",           "TitleBlockRescue"),
+                ("Transmittal Gate", "TransmittalGateCheck"),
+            }));
+
+            // ── Author kit (file map + nested-family pointers) ──
+            stack.Children.Add(InfoCard(
+                "Author kit (15 .rfa families): COVER_A3 · STARTUP_A3 · ASSEMBLY_PIPE · " +
+                "ASSEMBLY_DUCT · ASSEMBLY_COND · ASSEMBLY_HANGER · TECHNICAL_A1 · CLIENT_A1 · " +
+                "IFC_A1 · IFT_A1 · AS_BUILT_A1 · SUBMISSION_KCCA · SUBMISSION_ERA · " +
+                "SUBMISSION_NEMA · MARKETING_A2.\n\n" +
+                "Each family carries 37 TB_ family parameters (drawable zone, slots, reserved " +
+                "regions, nested-family pointers, visibility toggles, authority code, version " +
+                "stamp). The project carries 37 PRJ_TB_ project-info parameters that the kit " +
+                "auto-fills.\n\n" +
+                "Step-by-step layman guide → docs/guides/TITLE_BLOCK_CREATION_GUIDE.md\n" +
+                "Per-discipline default values → StingTools/Data/TITLE_BLOCK.csv\n" +
+                "Visual style packs (corp-base, fabrication-shop, technical-presentation, " +
+                "client-presentation, construction-issue, tender-issue, as-built, " +
+                "authority-submission, marketing-render) → StingTools/Data/STING_VIEW_STYLE_PACKS.json"));
+
+            host.Content = stack;
+            return host;
+        }
+
+        private UIElement BuildSheetManagerTab()
+        {
+            var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel { Margin = new Thickness(8) };
+            stack.Children.Add(SectionCard("Sheet Manager", new (string,string)[]
+            {
+                ("Sheet Manager",  "SheetManager"),
+                ("Auto-Layout",    "AutoLayout"),
+                ("Clone Sheet",    "CloneSheet"),
+                ("Place Unplaced", "PlaceUnplacedViews"),
+                ("Optimal Scale",  "OptimalScale"),
+                ("Sheet Audit",    "SheetAudit"),
+                ("Batch Arrange",  "BatchArrange"),
+                ("Move VP",        "MoveViewport"),
+            }));
+            stack.Children.Add(SectionCard("Advanced", new (string,string)[]
+            {
+                ("MaxRects",       "MaxRectsLayout"),
+                ("Save Layout",    "SaveLayoutPreset"),
+                ("Apply Layout",   "ApplyLayoutPreset"),
+                ("Overflow",       "PlaceWithOverflow"),
+                ("Batch Clone",    "BatchCloneSheets"),
+                ("Renumber",       "BatchRenumberSheets"),
+                ("VP Types",       "AutoAssignVPTypes"),
+                ("Export CSV",     "ExportSheetSet"),
+            }));
+            stack.Children.Add(SectionCard("Templates & Compliance", new (string,string)[]
+            {
+                ("From Template",  "CreateFromTemplate"),
+                ("Save Template",  "SaveSheetTemplate"),
+                ("ISO Check",      "SheetComplianceCheck"),
+                ("Tag Sheets",     "TagSheets"),
+                ("Sheet Register", "ExportSheetRegister"),
+                ("Grid Align",     "GridAlignViewports"),
+                ("Align Edges",    "AlignViewportEdges"),
+                ("Distribute",     "DistributeViewports"),
+                ("Batch Print",    "BatchPrintSheets"),
+            }));
+            host.Content = stack;
+            return host;
+        }
+
+        // ── Section card helpers shared by every action tab ──
+
+        private UIElement SectionCard(string title, (string label, string tag)[] buttons)
+        {
+            var body = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+            foreach (var (label, tag) in buttons)
+                body.Children.Add(MakeActionBtn(label, tag));
+            return Card(title, body);
+        }
+
+        // Rich variant — adds a one-line description below the title
+        // and per-button tooltips.
+        private UIElement SectionCardRich(string title, string description,
+            (string label, string tag, string tip)[] buttons)
+        {
+            var body = new StackPanel();
+            if (!string.IsNullOrEmpty(description))
+                body.Children.Add(new TextBlock {
+                    Text = description, TextWrapping = TextWrapping.Wrap,
+                    Foreground = new SolidColorBrush(SubtleColor), FontSize = 11,
+                    Margin = new Thickness(0, 0, 0, 4) });
+            var wrap = new WrapPanel();
+            foreach (var (label, tag, tip) in buttons)
+            {
+                var b = MakeActionBtn(label, tag);
+                if (!string.IsNullOrEmpty(tip)) b.ToolTip = tip;
+                wrap.Children.Add(b);
+            }
+            body.Children.Add(wrap);
+            return Card(title, body);
+        }
+
+        // Tab intro banner — accent-coloured title + subtle description.
+        private UIElement TabIntro(string title, string body)
+        {
+            var stack = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
+            stack.Children.Add(new TextBlock {
+                Text = title, FontWeight = FontWeights.SemiBold, FontSize = 14,
+                Foreground = new SolidColorBrush(AccentColor),
+                Margin = new Thickness(0, 0, 0, 2) });
+            stack.Children.Add(new TextBlock {
+                Text = body, TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11 });
+            return stack;
+        }
+
+        private UIElement InfoCard(string text)
+        {
+            var body = new TextBlock
+            {
+                Text = text,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11,
+            };
+            return Card("Reference", body);
+        }
+
+        // Toolbar row for the Drawing Types tab — same dispatcher.
+        private UIElement BuildSectionToolbar((string label, string tag)[] buttons)
+        {
+            var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            foreach (var (label, tag) in buttons)
+                bar.Children.Add(MakeActionBtn(label, tag));
+            return bar;
+        }
+
+        // Action button — dispatches via the dock panel's external-event
+        // handler so the same Revit API thread runs the work, exactly as
+        // the dock panel does. Works while this dialog is modal because
+        // WPF runs its own message pump.
+        private Button MakeActionBtn(string label, string tag)
+        {
+            var b = new Button
+            {
+                Content = label, MinWidth = 92, Height = 26,
+                Margin = new Thickness(0, 0, 6, 6),
+                Background = new SolidColorBrush(CardBg),
+                Foreground = new SolidColorBrush(FgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 0, 8, 0),
+                FontSize = 11,
+                ToolTip = $"Dispatch tag: {tag}",
+            };
+            b.Click += (s, e) =>
+            {
+                try { StingDockPanel.DispatchCommand(tag); }
+                catch (Exception ex) { StingLog.Error("Dispatch:" + tag, ex); }
+            };
+            return b;
         }
 
         private UIElement BuildLeftPanel()
@@ -248,16 +1050,17 @@ namespace StingTools.UI
             body.Children.Add(LabeledTextBox("Id",          _current.Id,          v => _current.Id = v));
             body.Children.Add(LabeledTextBox("Name",        _current.Name,        v => _current.Name = v));
             body.Children.Add(LabeledTextBox("Description", _current.Description, v => _current.Description = v));
-            body.Children.Add(LabeledCombo("Purpose", new[] {
-                DrawingPurpose.Plan, DrawingPurpose.Rcp, DrawingPurpose.Section,
-                DrawingPurpose.Elevation, DrawingPurpose.Detail, DrawingPurpose.Schedule,
-                DrawingPurpose.Spool, DrawingPurpose.Coordination, DrawingPurpose.Legend,
-                DrawingPurpose.ThreeD },
+            body.Children.Add(LabeledCombo("Purpose",
+                Iso19650Vocabulary.DrawingPurposes,
                 _current.Purpose, v => _current.Purpose = v));
-            body.Children.Add(LabeledTextBox("Discipline (A/S/M/E/P or *)",
-                _current.Discipline, v => _current.Discipline = v));
-            body.Children.Add(LabeledTextBox("Phase (or *)",
-                _current.Phase,      v => _current.Phase = v));
+            body.Children.Add(LabeledCombo("Discipline (ISO 19650-2 §A.5)",
+                Iso19650Vocabulary.DisciplineCodes,
+                _current.Discipline, v => _current.Discipline = v,
+                tooltip: "ISO 19650-2 / BS 1192 single-letter role codes — A/B/C/D/E/F/G/H/I/K/L/M/P/Q/S/T/W/X/Y/Z. Use * for any."));
+            body.Children.Add(LabeledCombo("Phase / RIBA stage",
+                Iso19650Vocabulary.RibaStages,
+                _current.Phase, v => _current.Phase = v,
+                tooltip: "RIBA Plan of Work 2020 stage 0–7. Use * for any stage."));
             body.Children.Add(LabeledTextBlock("Origin", _current.Origin ?? "project"));
             return Card("Identity", body);
         }
@@ -265,13 +1068,18 @@ namespace StingTools.UI
         private UIElement BuildSheetCard()
         {
             var body = new StackPanel();
-            body.Children.Add(LabeledCombo("Paper size",
-                new[] { "A0", "A1", "A2", "A3", "A4" },
-                _current.PaperSize, v => _current.PaperSize = v));
-            body.Children.Add(LabeledTextBox("Title block family",
-                _current.TitleBlockFamily, v => _current.TitleBlockFamily = v));
+            body.Children.Add(LabeledCombo("Paper size (ISO 216)",
+                Iso19650Vocabulary.PaperSizes,
+                _current.PaperSize, v => _current.PaperSize = v,
+                tooltip: "A0 = 841×1189 · A1 = 594×841 · A2 = 420×594 · A3 = 297×420 · A4 = 210×297 mm."));
+            // Title-block family — pulled from the active project so users
+            // pick from what is actually loaded, eliminating typo errors.
+            body.Children.Add(LabeledProjectAssetCombo("Title block family",
+                _current.TitleBlockFamily, v => _current.TitleBlockFamily = v,
+                ProjectAssetPicker.TitleBlockFamilyTypes(_doc),
+                "Family Symbols of category OST_TitleBlocks loaded in the active project."));
             body.Children.Add(LabeledCombo("Orientation",
-                new[] { "Landscape", "Portrait" },
+                Iso19650Vocabulary.Orientations,
                 _current.Orientation, v => _current.Orientation = v));
             return Card("Sheet", body);
         }
@@ -281,25 +1089,32 @@ namespace StingTools.UI
             var body = new StackPanel();
             body.Children.Add(LabeledNumber("Scale (1:N)", _current.Scale, v => _current.Scale = v));
             body.Children.Add(LabeledCombo("Detail level",
-                new[] { "Coarse", "Medium", "Fine" },
+                Iso19650Vocabulary.DetailLevels,
                 _current.DetailLevel, v => _current.DetailLevel = v));
-            body.Children.Add(LabeledTextBox("View template name",
-                _current.ViewTemplateName, v => _current.ViewTemplateName = v));
-            body.Children.Add(LabeledTextBox("Viewport type name",
-                _current.ViewportTypeName, v => _current.ViewportTypeName = v));
+            body.Children.Add(LabeledProjectAssetCombo("View template name",
+                _current.ViewTemplateName, v => _current.ViewTemplateName = v,
+                ProjectAssetPicker.ViewTemplateNames(_doc),
+                "View templates (View.IsTemplate = true) in the active project."));
+            body.Children.Add(LabeledProjectAssetCombo("Viewport type name",
+                _current.ViewportTypeName, v => _current.ViewportTypeName = v,
+                ProjectAssetPicker.ViewportTypeNames(_doc),
+                "ElementType where Category = OST_Viewports in the active project."));
             return Card("Views", body);
         }
 
         private UIElement BuildNumberingCard()
         {
             var body = new StackPanel();
-            body.Children.Add(LabeledTextBox("Sheet number pattern",
+            body.Children.Add(LabeledCombo("Sheet number pattern",
+                Iso19650Vocabulary.SheetNumberPatterns,
                 _current.SheetNumberPattern, v => _current.SheetNumberPattern = v,
-                tooltip: "Tokens: {spool} {disc} {discipline} {sys} {lvl} {mark} {seq} {seq:D2..4}"));
-            body.Children.Add(LabeledTextBox("Sheet name pattern",
+                tooltip: "Standard ISO 19650 / BS 1192 patterns. Tokens: {prj} {orig} {vol} {lvl} {role} " +
+                         "{spool} {disc} {discipline} {sys} {mark} {seq} {seq:D2..4}."));
+            body.Children.Add(LabeledCombo("Sheet name pattern",
+                Iso19650Vocabulary.SheetNamePatterns,
                 _current.SheetNamePattern, v => _current.SheetNamePattern = v,
-                tooltip: "Same token set as sheet number."));
-            return Card("Numbering", body);
+                tooltip: "Standard sheet name templates. Same token set as sheet number."));
+            return Card("Numbering (ISO 19650-2 §A.6)", body);
         }
 
         private UIElement BuildCropCard()
@@ -307,10 +1122,12 @@ namespace StingTools.UI
             var body = new StackPanel();
             _current.Crop = _current.Crop ?? new DrawingCropStrategy();
             body.Children.Add(LabeledCombo("Kind",
-                new[] { "ScopeBox", "ScopeBoxOrBbox", "TightBbox", "RoomBoundary", "None" },
+                Iso19650Vocabulary.CropKinds,
                 _current.Crop.Kind, v => _current.Crop.Kind = v));
-            body.Children.Add(LabeledTextBox("Scope box name (when Kind=ScopeBox)",
-                _current.Crop.ScopeBoxName, v => _current.Crop.ScopeBoxName = v));
+            body.Children.Add(LabeledProjectAssetCombo("Scope box name (when Kind=ScopeBox)",
+                _current.Crop.ScopeBoxName, v => _current.Crop.ScopeBoxName = v,
+                ProjectAssetPicker.ScopeBoxNames(_doc),
+                "Scope boxes (OST_VolumeOfInterest) in the active project."));
             body.Children.Add(LabeledDouble("Margin (mm)",
                 _current.Crop.MarginMm, v => _current.Crop.MarginMm = v));
             return Card("Crop strategy", body);
@@ -320,12 +1137,14 @@ namespace StingTools.UI
         {
             var body = new StackPanel();
             _current.SectionMarker = _current.SectionMarker ?? new SectionMarkerSpec();
-            body.Children.Add(LabeledTextBox("Family",
-                _current.SectionMarker.Family, v => _current.SectionMarker.Family = v));
+            body.Children.Add(LabeledProjectAssetCombo("Family",
+                _current.SectionMarker.Family, v => _current.SectionMarker.Family = v,
+                ProjectAssetPicker.SectionMarkerFamilies(_doc),
+                "Section / elevation / callout marker families loaded in the project."));
             body.Children.Add(LabeledTextBox("Mark prefix",
                 _current.SectionMarker.MarkPrefix, v => _current.SectionMarker.MarkPrefix = v));
             body.Children.Add(LabeledCombo("Bubble style",
-                new[] { "Filled", "Open", "Dash" },
+                Iso19650Vocabulary.BubbleStyles,
                 _current.SectionMarker.BubbleStyle, v => _current.SectionMarker.BubbleStyle = v));
             body.Children.Add(LabeledDouble("Far clip (mm)",
                 _current.SectionMarker.FarClipMm, v => _current.SectionMarker.FarClipMm = v));
@@ -348,10 +1167,12 @@ namespace StingTools.UI
             body.Children.Add(CheckRow("Auto-tag supports",  pack.AutoTagSupports,  v => pack.AutoTagSupports = v));
 
             body.Children.Add(LabeledCombo("Dimension strategy",
-                new[] { "Linear", "Ordinate", "Chain" },
+                Iso19650Vocabulary.DimensionStrategies,
                 pack.DimensionStrategy, v => pack.DimensionStrategy = v));
-            body.Children.Add(LabeledTextBox("Dimension style name",
-                pack.DimensionStyle, v => pack.DimensionStyle = v));
+            body.Children.Add(LabeledProjectAssetCombo("Dimension style name",
+                pack.DimensionStyle, v => pack.DimensionStyle = v,
+                ProjectAssetPicker.DimensionStyleNames(_doc),
+                "DimensionType elements in the active project."));
             body.Children.Add(LabeledNullableNumber("Dense until scale (1:N)",
                 pack.DenseUntilScale,  v => pack.DenseUntilScale = v,
                 tooltip: "View scale ≤ this value → full annotation. Coarser → grid dims only. Empty = always full."));
@@ -376,9 +1197,16 @@ namespace StingTools.UI
                     pack.TagFamilies.Remove(catKey);
                     pack.TagFamilies[k.Text.Trim()] = pack.TagFamilies.ContainsKey(catKey) ? pack.TagFamilies[catKey] : kv.Value;
                 };
-                var v = new TextBox { Text = kv.Value, Height = 22, Margin = new Thickness(6, 0, 0, 0) };
+                // Combo populated with both vocabulary tag families and
+                // every tag family currently loaded in the project — so
+                // the user can pick by hand or type free text if needed.
+                var loadedTags = ProjectAssetPicker.TagFamilyNames(_doc).ToArray();
+                var v = new ComboBox { Height = 22, IsEditable = true, Margin = new Thickness(6, 0, 0, 0) };
                 DarkDialogTheme.StyleInput(v, CardBg, FgColor, CardBorder);
-                v.LostFocus += (s, e) => pack.TagFamilies[k.Text.Trim()] = v.Text.Trim();
+                foreach (var item in loadedTags.Concat(Iso19650Vocabulary.CommonTagFamilies).Distinct().OrderBy(s => s))
+                    v.Items.Add(item);
+                v.Text = kv.Value ?? "";
+                v.LostFocus += (s, e) => pack.TagFamilies[k.Text.Trim()] = v.Text?.Trim();
                 var rm = MakeSmallBtn("×", () => { pack.TagFamilies.Remove(catKey); RenderForm(); });
                 rm.Width = 22;
                 Grid.SetColumn(k, 0); Grid.SetColumn(v, 1); Grid.SetColumn(rm, 2);
@@ -416,7 +1244,12 @@ namespace StingTools.UI
                                : new GridLength(60) });
 
                 var tbLbl = SmallTb(slot.Label,    v => slot.Label    = v);
-                var tbVt  = SmallTb(slot.ViewType, v => slot.ViewType = v);
+                // Closed list of Revit ViewType enum values — eliminates typos.
+                var tbVt  = SmallCombo(slot.ViewType, v => slot.ViewType = v,
+                    new[] { "FloorPlan", "CeilingPlan", "Elevation", "Section", "ThreeD",
+                            "Detail", "DraftingView", "Legend", "Schedule", "AreaPlan",
+                            "EngineeringPlan", "Walkthrough", "Rendering", "ProjectBrowser",
+                            "SystemBrowser", "Plan", "Sheet", "Internal", "Undefined" });
                 var tbX   = SmallTb(slot.NormX.ToString("F2"), v => slot.NormX = Parse(v));
                 var tbY   = SmallTb(slot.NormY.ToString("F2"), v => slot.NormY = Parse(v));
                 var tbW   = SmallTb(slot.NormW.ToString("F2"), v => slot.NormW = Parse(v));
@@ -456,8 +1289,9 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 10, 0, 0), LastChildFill = false };
 
             var hint = new TextBlock {
-                Text = "Save writes to <project>/_BIM_COORD/drawing_types.json (project override). " +
-                       "Corporate baseline on disk is never mutated.",
+                Text = "Save writes the active tab to <project>/_BIM_COORD/drawing_types.json or view_style_packs.json — " +
+                       "project override only. Corporate baseline on disk is never mutated. " +
+                       "Action tabs dispatch directly via the dock-panel external-event queue.",
                 Foreground = new SolidColorBrush(SubtleColor),
                 FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
                 TextWrapping = TextWrapping.Wrap };
@@ -624,7 +1458,8 @@ namespace StingTools.UI
             return row;
         }
 
-        private UIElement LabeledCombo(string label, string[] items, string value, Action<string> setter)
+        private UIElement LabeledCombo(string label, string[] items, string value, Action<string> setter,
+            string tooltip = null)
         {
             var row = new DockPanel { Margin = new Thickness(0, 3, 0, 3), LastChildFill = true };
             var lbl = new TextBlock {
@@ -633,9 +1468,9 @@ namespace StingTools.UI
                 VerticalAlignment = VerticalAlignment.Center };
             DockPanel.SetDock(lbl, Dock.Left);
             row.Children.Add(lbl);
-            var cb = new ComboBox { Height = 22, IsEditable = true };
+            var cb = new ComboBox { Height = 22, IsEditable = true, ToolTip = tooltip };
             DarkDialogTheme.StyleInput(cb, CardBg, FgColor, CardBorder);
-            foreach (var it in items) cb.Items.Add(it);
+            foreach (var it in items ?? Array.Empty<string>()) cb.Items.Add(it);
             cb.Text = value ?? "";
             cb.LostFocus += (s, e) => { setter?.Invoke(cb.Text?.Trim()); };
             cb.SelectionChanged += (s, e) =>
@@ -644,6 +1479,17 @@ namespace StingTools.UI
             };
             row.Children.Add(cb);
             return row;
+        }
+
+        // Project-asset combo — like LabeledCombo but the items are
+        // queried live from the active Revit document via
+        // ProjectAssetPicker, and a small ⟳ button refreshes the list.
+        private UIElement LabeledProjectAssetCombo(string label, string value,
+            Action<string> setter, IEnumerable<string> items, string tooltip = null)
+        {
+            return LabeledCombo(label,
+                (items ?? Array.Empty<string>()).OrderBy(x => x).ToArray(),
+                value, setter, tooltip);
         }
 
         private UIElement LabeledNumber(string label, int value, Action<int> setter)
@@ -687,6 +1533,21 @@ namespace StingTools.UI
             DarkDialogTheme.StyleInput(tb, CardBg, FgColor, CardBorder);
             tb.LostFocus += (s, e) => setter?.Invoke(tb.Text);
             return tb;
+        }
+
+        // Compact editable combo for inline grids (Slots / VG rows etc.).
+        private ComboBox SmallCombo(string text, Action<string> setter, string[] items)
+        {
+            var cb = new ComboBox { Height = 20, FontSize = 10, IsEditable = true };
+            DarkDialogTheme.StyleInput(cb, CardBg, FgColor, CardBorder);
+            foreach (var it in items ?? Array.Empty<string>()) cb.Items.Add(it);
+            cb.Text = text ?? "";
+            cb.LostFocus += (s, e) => setter?.Invoke(cb.Text?.Trim());
+            cb.SelectionChanged += (s, e) =>
+            {
+                if (cb.SelectedItem is string ss) setter?.Invoke(ss);
+            };
+            return cb;
         }
 
         private Button MakeSmallBtn(string label, Action onClick)
