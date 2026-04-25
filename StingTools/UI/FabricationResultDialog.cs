@@ -21,6 +21,7 @@ using StingTools.Core.Fabrication;
 // Disambiguate WPF vs Revit types.
 using Color    = System.Windows.Media.Color;
 using TextBox  = System.Windows.Controls.TextBox;
+using Grid     = System.Windows.Controls.Grid;
 
 namespace StingTools.UI
 {
