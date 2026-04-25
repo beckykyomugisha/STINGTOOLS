@@ -28,6 +28,7 @@ GROUP	22	IFC_EXCH
 GROUP	23	HEALTH_METRICS
 GROUP	24	ASBUILT
 GROUP	25	COMMISSIONING
+GROUP	26	TBL_TITLEBLOCK
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
 PARAM	f8fe813a-44e9-5e47-9109-921171dc53b6	ASS_CAT_TXT	TEXT		1	1	Ass Cat Txt [ISO 19650-3:2020]	1
 PARAM	3c189e63-383c-5011-b7d9-873faed4e6c6	ASS_CST_QUANTITY_NR	TEXT		1	1	Ass Cst Quantity Nr [ISO 19650-3:2020]	1
@@ -2585,3 +2586,40 @@ PARAM	18208fa9-2926-51ec-b44c-96ebd6c2e6c7	ARC_GLAZING_SPEC_TXT	TEXT		10	1	Glazi
 PARAM	65a3cf4e-6dc8-5095-9664-575a96101272	CBN_RUNTIME_HRS_YR_NR	NUMBER		9	1	Equivalent annual operating hours for operational carbon calc [BS EN 16798-1:2019]	1
 PARAM	84428fa6-2f50-5b11-a1ea-db12a58c45e9	CBN_REFRIGERANT_GWP_KG_CO2E	NUMBER		9	1	Refrigerant global warming potential contribution in kgCO2e [BS EN 378-2:2016]	1
 PARAM	973e1eb4-6aac-53e4-85ea-a35f4e8d8aec	ASBUILT_COVER_DEVIATION_MM	NUMBER		24	1	As-built concrete cover deviation from design in mm [BS EN 13670:2009]	1
+PARAM	e1130859-e394-5287-9b12-87f81e4f3a62	TB_DRAWZONE_X_MM	NUMBER		26	1	Drawable zone origin X from sheet origin in mm [STING TB v1]	1
+PARAM	75f1c4b1-022c-5822-a725-1e9aa4533685	TB_DRAWZONE_Y_MM	NUMBER		26	1	Drawable zone origin Y from sheet origin in mm [STING TB v1]	1
+PARAM	3fd4a9b3-2aee-52ff-84e5-a8b8647d5e7a	TB_DRAWZONE_W_MM	NUMBER		26	1	Drawable zone width in mm [STING TB v1]	1
+PARAM	0fa581cf-16c7-5872-9fb9-7081d21993c9	TB_DRAWZONE_H_MM	NUMBER		26	1	Drawable zone height in mm [STING TB v1]	1
+PARAM	59928f4a-6840-5ace-b2e5-b5781904543b	TB_DRAWZONE_MARKER_ID_TXT	TEXT		26	1	Mark value of nested detail item that bounds the drawable zone (engine reads its bbox at runtime) [STING TB v1]	1
+PARAM	6d02c578-67ae-5ae0-9efa-05db64f01942	TB_RESERVED_REGIONS_JSON_TXT	TEXT		26	1	JSON array of reserved rectangles {name,x,y,w,h,kind} that engine must not overlap [STING TB v1]	1
+PARAM	e76d263f-5b03-5568-8b9e-1d1dbf21f347	TB_VIEWPORT_SLOTS_JSON_TXT	TEXT		26	1	JSON array of viewport slots {label,normX,normY,normW,normH,viewType,scale} consumed by ShopDrawingComposer [STING TB v1]	1
+PARAM	87bd8b10-f099-5788-b71d-b75d487b4a7e	TB_DRAWING_TYPE_ID_TXT	TEXT		26	1	Back-reference to STING_DRAWING_TYPES.json id [STING TB v1]	1
+PARAM	91e14b95-8eaa-55a7-9371-a4ce7a59e903	TB_PAPER_SIZE_TXT	TEXT		26	1	Paper size A0 A1 A2 A3 A4 [STING TB v1]	1
+PARAM	b6319d2e-ce98-581f-8ef7-e99efb586415	TB_ORIENTATION_TXT	TEXT		26	1	Sheet orientation Landscape or Portrait [STING TB v1]	1
+PARAM	04661785-4aa1-5969-9664-b056c880e3f0	TB_PURPOSE_TXT	TEXT		26	1	Sheet purpose Plan RCP Section Elevation Detail Schedule Spool Coordination Legend 3D Submission [STING TB v1]	1
+PARAM	c2861f75-5490-50c1-ab0a-bee80da086e3	TB_DISCIPLINE_LIST_TXT	TEXT		26	1	CSV of discipline codes this title block is valid for eg M;E;P;A;S [STING TB v1]	1
+PARAM	156fb9f9-00c7-5e73-9b8a-9868d4274966	TB_AUTHORITY_CODE_TXT	TEXT		26	1	Authority code KCCA ERA NEMA blank for non-submission [STING TB v1]	1
+PARAM	7083f7de-6c03-521e-bbb4-65724c4142b2	TB_MAX_VIEWPORTS_INT	INTEGER		26	1	Capacity hint for overflow logic [STING TB v1]	1
+PARAM	02de282c-b472-5abd-b7f4-e62e12d6c6e8	TB_TEMPLATE_VERSION_TXT	TEXT		26	1	Family template semantic version eg 1.2.0 [STING TB v1]	1
+PARAM	243f2ce9-cfdf-5855-891d-2acf5f9006e8	TB_LAST_VALIDATED_DT_TXT	TEXT		26	1	ISO date string YYYY-MM-DD when family last passed validator [STING TB v1]	1
+PARAM	0981c0a9-7805-568a-8fee-abb012f6239c	TB_SHOW_NORTH_ARROW_BOOL	YESNO		26	1	Visibility toggle for nested north arrow [STING TB v1]	1
+PARAM	afcd0647-42e0-537f-bd18-5f46ed1871df	TB_SHOW_SCALEBAR_BOOL	YESNO		26	1	Visibility toggle for nested scale bar [STING TB v1]	1
+PARAM	9a64e982-1b97-5922-9831-0948aaf1cf76	TB_SHOW_KEY_PLAN_BOOL	YESNO		26	1	Visibility toggle for nested key plan [STING TB v1]	1
+PARAM	da7b6ce4-8e29-5985-9211-2c5a917bbc4b	TB_SHOW_REV_TABLE_BOOL	YESNO		26	1	Visibility toggle for embedded revision schedule [STING TB v1]	1
+PARAM	77246dff-2e64-5986-baa8-7ba6d38a8e1b	TB_SHOW_QR_CODE_BOOL	YESNO		26	1	Visibility toggle for QR code stamp [STING TB v1]	1
+PARAM	46ee0d08-0b63-55af-9099-9b1f4a11e2a9	TB_SHOW_COMPANY_STRIP_BOOL	YESNO		26	1	Visibility toggle for company info strip logo address contacts [STING TB v1]	1
+PARAM	fcd1f7f2-8b64-5cd7-9d27-982d604a231e	TB_SHOW_DISCIPLINE_COLOR_STRIP_BOOL	YESNO		26	1	Visibility toggle for discipline color strip [STING TB v1]	1
+PARAM	f5374df4-b048-5fd2-97cf-552d304ed134	TB_NORTH_ARROW_AUTO_ROTATE_BOOL	YESNO		26	1	Engine rotates nested north arrow to match viewport rotation [STING TB v1]	1
+PARAM	33472683-7bb0-572a-bcfb-af85c0a9dbcd	TB_QR_PAYLOAD_TXT	TEXT		26	1	Engine populates with deep link URL to CDE record [STING TB v1]	1
+PARAM	a480a6e8-5038-56ff-b773-9bc8547c8e18	TB_REQUIRED_SEALS_JSON_TXT	TEXT		26	1	JSON array of required signature seals for submission TBs [STING TB v1]	1
+PARAM	debf8b1e-9057-59f6-8341-74d419ab7982	TB_REQUIRED_REV_FORMAT_TXT	TEXT		26	1	Required revision format pattern eg P01-P02 or A-B-C [STING TB v1]	1
+PARAM	1def6a69-c050-5ce9-a118-b190d7359e23	TB_AUTHORITY_FORM_VERSION_TXT	TEXT		26	1	Submission form version eg KCCA-2024-Rev3 [STING TB v1]	1
+PARAM	94b48873-b462-5ecd-9829-454c75fd1c19	TB_REQUIRED_PRJ_PARAMS_TXT	TEXT		26	1	CSV of project params that must be non empty for submission eg PRJ_PLOT_NUMBER;PRJ_LRV_NUMBER [STING TB v1]	1
+PARAM	ba23f847-6c7c-583f-983f-ef41aabeb702	TB_NESTED_NORTH_ARROW_FAMILY_TXT	TEXT		26	1	Family name of nested north arrow inside the title block [STING TB v1]	1
+PARAM	497b2aab-8450-5730-bb71-67267a42b76e	TB_NESTED_SCALEBAR_FAMILY_TXT	TEXT		26	1	Family name of nested scale bar inside the title block [STING TB v1]	1
+PARAM	66531c4b-58ad-5363-911e-59d499b1b9ab	TB_NESTED_KEYPLAN_FAMILY_TXT	TEXT		26	1	Family name of nested key plan inside the title block [STING TB v1]	1
+PARAM	6d75c469-e086-5445-976c-59d795e5d928	TB_NESTED_GRID_BUBBLE_FAMILY_TXT	TEXT		26	1	Family name of grid bubble annotation pre-loaded in title block [STING TB v1]	1
+PARAM	45ed094b-c752-58fa-b3ad-66360cea8ed7	TB_NESTED_SECTION_MARKER_FAMILY_TXT	TEXT		26	1	Family name of section marker pre-loaded in title block [STING TB v1]	1
+PARAM	5e959337-7ceb-5e3e-8643-d22bbd894987	TB_NESTED_ELEVATION_MARKER_FAMILY_TXT	TEXT		26	1	Family name of elevation marker pre-loaded in title block [STING TB v1]	1
+PARAM	07ac604d-efea-55b1-aebe-295646bdf4e6	TB_NESTED_CALLOUT_TAG_FAMILY_TXT	TEXT		26	1	Family name of callout tag pre-loaded in title block [STING TB v1]	1
+PARAM	88910aa0-e1fc-588c-a651-31b4f671994b	TB_NESTED_REV_CLOUD_TAG_FAMILY_TXT	TEXT		26	1	Family name of revision cloud tag pre-loaded in title block [STING TB v1]	1
