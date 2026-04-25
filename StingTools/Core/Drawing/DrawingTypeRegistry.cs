@@ -122,6 +122,10 @@ namespace StingTools.Core.Drawing
                 var project   = LoadProjectOverride(doc);
                 var merged    = Merge(corporate, project);
                 ComputeChecksums(merged);
+                // Phase 113 — fold legacy autoDim*/autoTag* booleans into
+                // the new Rules collection so consumers only inspect Rules.
+                foreach (var t in merged.DrawingTypes ?? new List<DrawingType>())
+                    t.Annotation?.MigrateFromLegacy();
                 _cache[key] = merged;
                 return merged;
             }

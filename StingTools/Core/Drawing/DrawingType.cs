@@ -14,6 +14,7 @@
 // docType) routing, and Core/Drawing/DrawingTypeValidator.cs for the
 // pre-flight check that runs before any batch generation.
 
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -228,15 +229,29 @@ namespace StingTools.Core.Drawing
 
     public sealed class AnnotationRulePack
     {
-        [JsonProperty("autoDimGrids")]   public bool AutoDimGrids { get; set; }
-        [JsonProperty("autoDimLevels")]  public bool AutoDimLevels { get; set; }
-        [JsonProperty("autoTagRooms")]   public bool AutoTagRooms { get; set; }
-        [JsonProperty("autoTagDoors")]   public bool AutoTagDoors { get; set; }
-        [JsonProperty("autoTagWindows")] public bool AutoTagWindows { get; set; }
-        [JsonProperty("autoTagEquipment")] public bool AutoTagEquipment { get; set; }
-        [JsonProperty("autoTagWelds")]   public bool AutoTagWelds { get; set; }
-        [JsonProperty("autoTagSupports")] public bool AutoTagSupports { get; set; }
-        [JsonProperty("autoTagBends")]   public bool AutoTagBends { get; set; }
+        // Legacy boolean fields — retained for backwards compatibility
+        // with older JSON. Loader calls MigrateFromLegacy() which folds
+        // any true value into the Rules collection so downstream code
+        // only ever needs to inspect Rules.
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoDimGrids", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoDimGrids { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoDimLevels", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoDimLevels { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagRooms", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagRooms { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagDoors", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagDoors { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagWindows", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagWindows { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagEquipment", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagEquipment { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagWelds", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagWelds { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagSupports", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagSupports { get; set; }
+        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagBends", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagBends { get; set; }
+
+        /// <summary>
+        /// Per-category, per-rule auto-annotation entries. Replaces the
+        /// 9 individual boolean flags above. <see cref="MigrateFromLegacy"/>
+        /// converts legacy true values into Rules entries the first time
+        /// a profile is loaded.
+        /// </summary>
+        [JsonProperty("rules", NullValueHandling = NullValueHandling.Ignore)]
+        public List<AutoAnnotationRule> Rules { get; set; }
+            = new List<AutoAnnotationRule>();
 
         /// <summary>
         /// Linear | Ordinate | Chain — sets the dimensioning strategy
@@ -254,6 +269,15 @@ namespace StingTools.Core.Drawing
             = new Dictionary<string, string>();
 
         /// <summary>
+        /// Per-category TAG7 paragraph-depth override (1=compact … 10=full
+        /// audit). Empty = use the drawing-type default. Lookup by
+        /// category display name (same key set as TagFamilies).
+        /// </summary>
+        [JsonProperty("tagDepths", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, int> TagDepths { get; set; }
+            = new Dictionary<string, int>();
+
+        /// <summary>
         /// Scale modifier — at scales coarser than this value, annotation
         /// density is automatically reduced (grid dims only, no per-
         /// element tags). At scales finer than this, full annotation
@@ -261,6 +285,72 @@ namespace StingTools.Core.Drawing
         /// </summary>
         [JsonProperty("denseUntilScale", NullValueHandling = NullValueHandling.Ignore)]
         public int? DenseUntilScale { get; set; }
+
+        /// <summary>
+        /// Folds legacy <c>autoDim*</c> / <c>autoTag*</c> booleans into
+        /// the <see cref="Rules"/> collection. Idempotent: a second call
+        /// with the same input is a no-op.
+        /// </summary>
+        public void MigrateFromLegacy()
+        {
+            if (Rules == null) Rules = new List<AutoAnnotationRule>();
+#pragma warning disable CS0618
+            void Add(string cat, string rt)
+            {
+                foreach (var r in Rules)
+                    if (string.Equals(r.Category, cat, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(r.RuleType, rt, StringComparison.OrdinalIgnoreCase))
+                        return;
+                Rules.Add(new AutoAnnotationRule { Category = cat, RuleType = rt, Enabled = true });
+            }
+            if (AutoDimGrids)     Add("Grids", "AutoDim");
+            if (AutoDimLevels)    Add("Levels", "AutoDim");
+            if (AutoTagRooms)     Add("Rooms", "AutoTag");
+            if (AutoTagDoors)     Add("Doors", "AutoTag");
+            if (AutoTagWindows)   Add("Windows", "AutoTag");
+            if (AutoTagEquipment) Add("Mechanical Equipment", "AutoTag");
+            if (AutoTagWelds)     Add("Pipe Fittings", "AutoTag");
+            if (AutoTagSupports)  Add("Structural Framing", "AutoTag");
+            if (AutoTagBends)     Add("Duct Fittings", "AutoTag");
+            // Reset legacy fields once migrated so the project override
+            // JSON only persists the new Rules collection.
+            AutoDimGrids = AutoDimLevels = false;
+            AutoTagRooms = AutoTagDoors = AutoTagWindows = false;
+            AutoTagEquipment = AutoTagWelds = AutoTagSupports = AutoTagBends = false;
+#pragma warning restore CS0618
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  AUTO-ANNOTATION RULE — one entry per (category, rule type) pair
+    //  that the annotation pass should fire. Replaces the 9 flat bool
+    //  flags on the legacy AnnotationRulePack.
+    // ─────────────────────────────────────────────────────────────────────
+
+    public sealed class AutoAnnotationRule
+    {
+        /// <summary>
+        /// Category display name — e.g. "Rooms", "Mechanical Equipment",
+        /// "Grids", "Structural Framing".
+        /// </summary>
+        [JsonProperty("category")]   public string Category  { get; set; }
+
+        /// <summary>
+        /// Rule type — AutoTag / AutoDim / AutoDimOrdinate /
+        /// AutoTagRoomName / AutoAnnotateSlope / etc. See
+        /// DrawingTypeEditorDialog.KnownRuleTypes for the full list.
+        /// </summary>
+        [JsonProperty("ruleType")]   public string RuleType  { get; set; }
+
+        [JsonProperty("enabled")]    public bool   Enabled   { get; set; } = true;
+
+        /// <summary>Optional per-rule tag-family override.</summary>
+        [JsonProperty("tagFamily", NullValueHandling = NullValueHandling.Ignore)]
+        public string TagFamily { get; set; }
+
+        /// <summary>Optional per-rule TAG7 paragraph depth (1..10).</summary>
+        [JsonProperty("depth", NullValueHandling = NullValueHandling.Ignore)]
+        public int? Depth { get; set; }
     }
 
     // ─────────────────────────────────────────────────────────────────────

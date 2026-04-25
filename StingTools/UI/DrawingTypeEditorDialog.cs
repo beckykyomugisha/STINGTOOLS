@@ -58,6 +58,119 @@ namespace StingTools.UI
         private TextBlock _validationStrip;
         private TabControl _rootTabs;                    // top-level tab host
 
+        // Slot grid column widths — header + every data row share these
+        // so the column edges line up pixel-for-pixel regardless of the
+        // dialog width.
+        // [Label, ViewType, NormX, NormY, NormW, NormH, Scale, ×]
+        private static readonly int[] _slotColWidths = { 100, 110, 60, 60, 60, 60, 60, 24 };
+
+        // ── Static vocabularies (Change 3 / 4 / 6) ────────────────────
+        // Union with ProjectAssetPicker.* live readers at runtime so the
+        // UI offers a sensible default set even on an empty model, and
+        // pulls in project-specific names where the project has them.
+
+        private static readonly string[] KnownRevitCategories = new[]
+        {
+            "Walls", "Curtain Panels", "Curtain Wall Mullions", "Doors", "Windows",
+            "Floors", "Ceilings", "Roofs", "Stairs", "Railings", "Ramps",
+            "Structural Columns", "Structural Framing", "Structural Foundations",
+            "Structural Rebar", "Structural Area Reinforcement", "Structural Fabric Areas",
+            "Mechanical Equipment", "Duct System", "Ducts", "Duct Fittings",
+            "Duct Accessories", "Duct Insulations", "Air Terminals",
+            "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulations",
+            "Plumbing Fixtures",
+            "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures",
+            "Cable Trays", "Conduits",
+            "Fire Alarm Devices", "Sprinklers",
+            "Communication Devices", "Security Devices", "Nurse Call Devices",
+            "Data Devices", "Fire Protection",
+            "Rooms", "Areas", "Spaces", "Zones",
+            "Furniture", "Furniture Systems", "Casework", "Specialty Equipment",
+            "Parking", "Topography", "Site",
+            "Grids", "Levels", "Scope Boxes", "Reference Planes", "Reference Lines",
+            "Section Boxes", "Matchline",
+            "Dimensions", "Text Notes", "Generic Annotations", "Keynote Tags",
+            "Room Tags", "Area Tags", "Space Tags", "Door Tags", "Window Tags",
+            "Model Groups", "Assembly Instances",
+        };
+
+        private static readonly string[] KnownTaggableCategories = new[]
+        {
+            "Air Terminals", "Cable Trays", "Casework", "Ceilings", "Communication Devices",
+            "Conduits", "Curtain Panels", "Data Devices", "Doors", "Duct Accessories",
+            "Duct Fittings", "Duct Insulations", "Ducts", "Electrical Equipment",
+            "Electrical Fixtures", "Fire Alarm Devices", "Fire Protection",
+            "Floors", "Furniture", "Furniture Systems", "Generic Models",
+            "Lighting Devices", "Lighting Fixtures", "Mechanical Equipment",
+            "Model Groups", "Nurse Call Devices", "Parking", "Pipe Accessories",
+            "Pipe Fittings", "Pipe Insulations", "Pipes", "Plumbing Fixtures",
+            "Railings", "Ramps", "Rooms", "Security Devices", "Site",
+            "Spaces", "Specialty Equipment", "Sprinklers", "Stairs",
+            "Structural Area Reinforcement", "Structural Columns",
+            "Structural Fabric Areas", "Structural Foundations", "Structural Framing",
+            "Structural Rebar", "Walls", "Windows", "Zones",
+        };
+
+        private static readonly string[] CommonStingFilters = new[]
+        {
+            "Existing - Halftone", "Demolished - Red", "New Construction",
+            "Temporary Works", "Proposed - Bold", "Design Option A", "Design Option B",
+            "Structural Hatch", "Fire Rating - 30min", "Fire Rating - 60min",
+            "Fire Rating - 90min", "Fire Rating - 120min",
+            "Mechanical Duct", "Electrical Conduit", "Plumbing Pipe",
+            "Sprinkler", "Fire Alarm", "Low Voltage",
+            "Out of Scope", "NTS - Not To Scale",
+        };
+
+        private static readonly string[] CommonStingTextStyles = new[]
+        {
+            "STING - 2.0mm", "STING - 2.5mm", "STING - 3.0mm Presentation",
+            "STING - 2.0mm Shop", "STING - 3.5mm Large Format",
+        };
+
+        private static readonly string[] CommonStingDimensionStyles = new[]
+        {
+            "STING - Linear", "STING - Ordinate", "STING - Chain",
+        };
+
+        private static readonly string[] CommonStingViewTemplates = new[]
+        {
+            "STING - Architectural Plan", "STING - Mechanical Plan",
+            "STING - Electrical Plan", "STING - Plumbing Plan", "STING - Structural Plan",
+            "STING - Fire Protection Plan", "STING - Low Voltage Plan",
+            "STING - MEP Coordination", "STING - Combined Services",
+            "STING - Demolition Plan", "STING - As-Built Plan", "STING - Lighting RCP",
+            "STING - Ceiling RCP", "STING - Presentation Section", "STING - Detail Section",
+            "STING - Coordination 3D", "STING - Presentation 3D",
+            "STING - Presentation Elevation", "STING - Working Section",
+            "STING - Working Elevation",
+        };
+
+        // Auto-annotation rule type vocabulary (Change 6b). Surfaced in
+        // the Annotation rules grid as a SmallCombo source.
+        private static readonly string[] KnownRuleTypes = new[]
+        {
+            "AutoTag", "AutoDim", "AutoDimOrdinate", "AutoDimChain",
+            "AutoTagWithLeader", "AutoTagHideIfEmpty", "AutoTagTypeMark",
+            "AutoTagRoomName", "AutoTagRoomNumber", "AutoTagDoorNumber",
+            "AutoTagWindowMark", "AutoTagEquipmentTag", "AutoTagGridBubble",
+            "AutoDimWallLength", "AutoDimColumnGrid", "AutoDimOpenings",
+            "AutoDimElevation", "AutoAnnotateSlope", "AutoAnnotateFlowArrow",
+            "AutoAnnotateSpaceNumber", "AutoAnnotateAreaBoundary",
+        };
+
+        // Merge live + static into a deduplicated, sorted list. Used for
+        // every "static + project-asset" combo source in the editor.
+        private static IEnumerable<string> Merge(IEnumerable<string> live, IEnumerable<string> statics)
+        {
+            return (live ?? Array.Empty<string>())
+                .Concat(statics ?? Array.Empty<string>())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(s => s, StringComparer.OrdinalIgnoreCase);
+        }
+
         public DrawingTypeEditorDialog(Document doc)
         {
             _doc = doc;
@@ -259,20 +372,20 @@ namespace StingTools.UI
                 v => ap.LineWeightScale = v));
             apBody.Children.Add(LabeledProjectAssetCombo("Text style name",
                 ap.TextStyleName, v => ap.TextStyleName = v,
-                ProjectAssetPicker.TextStyleNames(_doc),
-                "TextNoteType elements in the active project."));
+                Merge(ProjectAssetPicker.TextStyleNames(_doc), CommonStingTextStyles),
+                "TextNoteType elements in the active project, plus STING corporate text styles."));
             apBody.Children.Add(LabeledProjectAssetCombo("Dimension style name",
                 ap.DimensionStyleName, v => ap.DimensionStyleName = v,
-                ProjectAssetPicker.DimensionStyleNames(_doc),
-                "DimensionType elements in the active project."));
+                Merge(ProjectAssetPicker.DimensionStyleNames(_doc), CommonStingDimensionStyles),
+                "DimensionType elements in the active project, plus STING corporate dimension styles."));
             apBody.Children.Add(LabeledCombo("Hatch palette (informational)",
                 new[] { "ISO 13567 monochrome", "ISO 13567 colour", "AIA NCS", "BS 1192 mono", "Project custom" },
                 ap.HatchPalette, v => ap.HatchPalette = v,
                 tooltip: "Informational tag for the hatch family used by this pack — does not bind to a Revit asset."));
             apBody.Children.Add(LabeledProjectAssetCombo("View template name",
                 _currentPack.ViewTemplate, v => _currentPack.ViewTemplate = v,
-                ProjectAssetPicker.ViewTemplateNames(_doc),
-                "View templates (View.IsTemplate = true) in the active project."));
+                Merge(ProjectAssetPicker.ViewTemplateNames(_doc), CommonStingViewTemplates),
+                "View templates (View.IsTemplate = true) in the active project, plus STING corporate templates."));
             apBody.Children.Add(LabeledCombo("Detail level",
                 Iso19650Vocabulary.DetailLevels, _currentPack.DetailLevel,
                 v => _currentPack.DetailLevel = v));
@@ -355,7 +468,9 @@ namespace StingTools.UI
             for (int i = 0; i < widths.Length; i++)
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
 
-            var name = SmallTb(fr.Name, v => fr.Name = v);
+            var filterNames = Merge(ProjectAssetPicker.ParameterFilterNames(_doc),
+                                    CommonStingFilters).ToArray();
+            var name = SmallCombo(fr.Name, v => fr.Name = v, filterNames);
             var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);
             var ht   = MakeChk(fr.Halftone, v => fr.Halftone = v);
             var pc   = SmallTb(fr.ProjColor, v => fr.ProjColor = v);
@@ -398,12 +513,18 @@ namespace StingTools.UI
             for (int i = 0; i < widths.Length; i++)
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
 
-            var keyBox = SmallTb(key, newKey =>
+            // Category column: editable combo sourced from KnownRevitCategories
+            // ∪ live ProjectAssetPicker.CategoryNames so users pick from
+            // real categories but can still type "OST_Walls" or
+            // subcategory "<Room Separation>".
+            var categories = Merge(ProjectAssetPicker.CategoryNames(_doc),
+                                   KnownRevitCategories).ToArray();
+            var keyBox = SmallCombo(key, newKey =>
             {
                 if (string.IsNullOrWhiteSpace(newKey) || newKey == key) return;
                 _currentPack.VgOverrides.Remove(key);
                 _currentPack.VgOverrides[newKey] = v;
-            });
+            }, categories);
             var vis = MakeChk(v.Visible, b => v.Visible = b);
             var ht  = MakeChk(v.Halftone,b => v.Halftone = b);
             var pc  = SmallTb(v.ProjColor,  s => v.ProjColor = s);
@@ -1154,121 +1275,257 @@ namespace StingTools.UI
         private UIElement BuildAnnotationCard()
         {
             var pack = _current.Annotation = _current.Annotation ?? new AnnotationRulePack();
+            // Fold legacy autoDim/autoTag booleans into the new Rules
+            // collection on first edit so any legacy save persists as
+            // Rules entries rather than the old flat flags.
+            pack.MigrateFromLegacy();
+
             var body = new StackPanel();
 
-            body.Children.Add(CheckRow("Auto-dim grids",     pack.AutoDimGrids,     v => pack.AutoDimGrids = v));
-            body.Children.Add(CheckRow("Auto-dim levels",    pack.AutoDimLevels,    v => pack.AutoDimLevels = v));
-            body.Children.Add(CheckRow("Auto-tag rooms",     pack.AutoTagRooms,     v => pack.AutoTagRooms = v));
-            body.Children.Add(CheckRow("Auto-tag doors",     pack.AutoTagDoors,     v => pack.AutoTagDoors = v));
-            body.Children.Add(CheckRow("Auto-tag windows",   pack.AutoTagWindows,   v => pack.AutoTagWindows = v));
-            body.Children.Add(CheckRow("Auto-tag equipment", pack.AutoTagEquipment, v => pack.AutoTagEquipment = v));
-            body.Children.Add(CheckRow("Auto-tag welds",     pack.AutoTagWelds,     v => pack.AutoTagWelds = v));
-            body.Children.Add(CheckRow("Auto-tag bends",     pack.AutoTagBends,     v => pack.AutoTagBends = v));
-            body.Children.Add(CheckRow("Auto-tag supports",  pack.AutoTagSupports,  v => pack.AutoTagSupports = v));
+            // ── Automation rule pack ──
+            body.Children.Add(BuildAnnotationRulesGrid(pack));
 
             body.Children.Add(LabeledCombo("Dimension strategy",
                 Iso19650Vocabulary.DimensionStrategies,
                 pack.DimensionStrategy, v => pack.DimensionStrategy = v));
             body.Children.Add(LabeledProjectAssetCombo("Dimension style name",
                 pack.DimensionStyle, v => pack.DimensionStyle = v,
-                ProjectAssetPicker.DimensionStyleNames(_doc),
-                "DimensionType elements in the active project."));
+                Merge(ProjectAssetPicker.DimensionStyleNames(_doc), CommonStingDimensionStyles),
+                "DimensionType elements in the active project, plus STING corporate dimension styles."));
             body.Children.Add(LabeledNullableNumber("Dense until scale (1:N)",
                 pack.DenseUntilScale,  v => pack.DenseUntilScale = v,
                 tooltip: "View scale ≤ this value → full annotation. Coarser → grid dims only. Empty = always full."));
 
-            // Tag families mini-editor: "Category → Family" rows
-            body.Children.Add(new TextBlock {
-                Text = "Tag families (Category → Family name)",
-                Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 11, Margin = new Thickness(0, 8, 0, 2) });
-            pack.TagFamilies = pack.TagFamilies ?? new Dictionary<string, string>();
-            foreach (var kv in pack.TagFamilies.ToList())
-            {
-                string catKey = kv.Key;
-                var row = new Grid { Margin = new Thickness(0, 2, 0, 0) };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
-                var k = new TextBox { Text = catKey, Height = 22 };
-                DarkDialogTheme.StyleInput(k, CardBg, FgColor, CardBorder);
-                k.LostFocus += (s, e) =>
-                {
-                    pack.TagFamilies.Remove(catKey);
-                    pack.TagFamilies[k.Text.Trim()] = pack.TagFamilies.ContainsKey(catKey) ? pack.TagFamilies[catKey] : kv.Value;
-                };
-                // Combo populated with both vocabulary tag families and
-                // every tag family currently loaded in the project — so
-                // the user can pick by hand or type free text if needed.
-                var loadedTags = ProjectAssetPicker.TagFamilyNames(_doc).ToArray();
-                var v = new ComboBox { Height = 22, IsEditable = true, Margin = new Thickness(6, 0, 0, 0) };
-                DarkDialogTheme.StyleInput(v, CardBg, FgColor, CardBorder);
-                foreach (var item in loadedTags.Concat(Iso19650Vocabulary.CommonTagFamilies).Distinct().OrderBy(s => s))
-                    v.Items.Add(item);
-                v.Text = kv.Value ?? "";
-                v.LostFocus += (s, e) => pack.TagFamilies[k.Text.Trim()] = v.Text?.Trim();
-                var rm = MakeSmallBtn("×", () => { pack.TagFamilies.Remove(catKey); RenderForm(); });
-                rm.Width = 22;
-                Grid.SetColumn(k, 0); Grid.SetColumn(v, 1); Grid.SetColumn(rm, 2);
-                row.Children.Add(k); row.Children.Add(v); row.Children.Add(rm);
-                body.Children.Add(row);
-            }
-            body.Children.Add(MakeSmallBtn("＋ Add category mapping", () =>
-            {
-                pack.TagFamilies["NewCategory"] = "STING_TAG_FAMILY";
-                RenderForm();
-            }));
+            // ── Tag families + per-category Depth (Change 4 + 5) ──
+            body.Children.Add(BuildTagFamiliesGrid(pack));
 
             return Card("Annotation rule pack", body);
+        }
+
+        // Compact grid editor for AnnotationRulePack.Rules (Change 6c).
+        // Header: ✓ Enabled · Category · Rule type · Tag family · Depth · ×
+        private UIElement BuildAnnotationRulesGrid(AnnotationRulePack pack)
+        {
+            pack.Rules = pack.Rules ?? new List<AutoAnnotationRule>();
+            var host = new StackPanel();
+
+            host.Children.Add(new TextBlock {
+                Text = "Automation rules — one row per (category, rule type) pair the annotation pass should fire.",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4) });
+
+            host.Children.Add(MakeRuleHeader());
+            foreach (var rule in pack.Rules.ToList())
+                host.Children.Add(MakeRuleRow(pack, rule));
+
+            host.Children.Add(MakeSmallBtn("＋ Add rule", () =>
+            {
+                pack.Rules.Add(new AutoAnnotationRule {
+                    Category = "Rooms", RuleType = "AutoTag", Enabled = true });
+                RenderForm();
+            }));
+            return host;
+        }
+
+        // Column geometry shared by the rules header + each row so cells
+        // align: Enabled 40 · Category 170 · RuleType 160 · TagFamily * · Depth 50 · × 24.
+        private static readonly GridLength[] _ruleCols =
+        {
+            new GridLength(40),
+            new GridLength(170),
+            new GridLength(160),
+            new GridLength(1, GridUnitType.Star),
+            new GridLength(50),
+            new GridLength(24),
+        };
+
+        private UIElement MakeRuleHeader()
+        {
+            var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
+            for (int i = 0; i < _ruleCols.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = _ruleCols[i] });
+            string[] headers = { "✓", "Category", "Rule type", "Tag family", "Depth", "" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var t = new TextBlock {
+                    Text = headers[i], FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0),
+                };
+                Grid.SetColumn(t, i); g.Children.Add(t);
+            }
+            return g;
+        }
+
+        private UIElement MakeRuleRow(AnnotationRulePack pack, AutoAnnotationRule rule)
+        {
+            var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            for (int i = 0; i < _ruleCols.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = _ruleCols[i] });
+
+            var cats   = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
+                               KnownTaggableCategories).ToArray();
+            var fams   = Merge(ProjectAssetPicker.TagFamilyNames(_doc),
+                               Iso19650Vocabulary.CommonTagFamilies).ToArray();
+
+            var enabled = MakeChk(rule.Enabled, b => rule.Enabled = b);
+            var cat     = SmallCombo(rule.Category, v => rule.Category = v, cats);
+            var rt      = SmallCombo(rule.RuleType, v => rule.RuleType = v, KnownRuleTypes);
+            var fam     = SmallCombo(rule.TagFamily ?? "", v =>
+                rule.TagFamily = string.IsNullOrWhiteSpace(v) ? null : v.Trim(), fams);
+            var depth   = SmallCombo(rule.Depth?.ToString() ?? "", v =>
+            {
+                if (string.IsNullOrWhiteSpace(v)) rule.Depth = null;
+                else if (int.TryParse(v, out var n)) rule.Depth = n;
+            }, new[] { "", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" });
+            depth.IsEditable = false;
+            var rm = MakeSmallBtn("×", () => { pack.Rules.Remove(rule); RenderForm(); });
+            rm.Width = 22;
+
+            var ctrls = new UIElement[] { enabled, cat, rt, fam, depth, rm };
+            for (int i = 0; i < ctrls.Length; i++)
+            {
+                Grid.SetColumn(ctrls[i], i);
+                if (ctrls[i] is FrameworkElement fe)
+                    fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
+                g.Children.Add(ctrls[i]);
+            }
+            return g;
+        }
+
+        // Tag families grid with Category dropdown + Family combo + Depth.
+        // Columns: Category 180 · Family 1* · Depth 50 · × 24.
+        private static readonly GridLength[] _tagFamCols =
+        {
+            new GridLength(180),
+            new GridLength(1, GridUnitType.Star),
+            new GridLength(50),
+            new GridLength(24),
+        };
+
+        private UIElement BuildTagFamiliesGrid(AnnotationRulePack pack)
+        {
+            pack.TagFamilies = pack.TagFamilies ?? new Dictionary<string, string>();
+            pack.TagDepths   = pack.TagDepths   ?? new Dictionary<string, int>();
+
+            var host = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
+            host.Children.Add(new TextBlock {
+                Text = "Tag families (Category → Family name → Depth)",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, Margin = new Thickness(0, 0, 0, 2) });
+
+            host.Children.Add(MakeTagFamHeader());
+            foreach (var kv in pack.TagFamilies.ToList())
+                host.Children.Add(MakeTagFamRow(pack, kv.Key, kv.Value));
+
+            host.Children.Add(MakeSmallBtn("＋ Add category mapping", () =>
+            {
+                var key = "NewCategory" + pack.TagFamilies.Count;
+                pack.TagFamilies[key] = "STING_TAG_FAMILY";
+                RenderForm();
+            }));
+            return host;
+        }
+
+        private UIElement MakeTagFamHeader()
+        {
+            var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
+            for (int i = 0; i < _tagFamCols.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = _tagFamCols[i] });
+            string[] headers = { "Category", "Family", "Depth", "" };
+            string[] tooltips = {
+                null, null,
+                "TAG7 paragraph depth (1=compact … 10=full audit). Overrides drawing type default for this category only.",
+                null,
+            };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var t = new TextBlock {
+                    Text = headers[i], FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0),
+                };
+                if (!string.IsNullOrEmpty(tooltips[i])) t.ToolTip = tooltips[i];
+                Grid.SetColumn(t, i); g.Children.Add(t);
+            }
+            return g;
+        }
+
+        private UIElement MakeTagFamRow(AnnotationRulePack pack, string catKey, string famValue)
+        {
+            var g = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+            for (int i = 0; i < _tagFamCols.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = _tagFamCols[i] });
+
+            var cats = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
+                             KnownTaggableCategories).ToArray();
+            var fams = Merge(ProjectAssetPicker.TagFamilyNames(_doc),
+                             Iso19650Vocabulary.CommonTagFamilies).ToArray();
+
+            // Category combo — rename-key-preserves-value semantics.
+            var k = SmallCombo(catKey, newKey =>
+            {
+                newKey = (newKey ?? "").Trim();
+                if (string.IsNullOrEmpty(newKey) || newKey == catKey) return;
+                if (!pack.TagFamilies.ContainsKey(catKey)) return;
+                var existing = pack.TagFamilies[catKey];
+                pack.TagFamilies.Remove(catKey);
+                pack.TagFamilies[newKey] = existing;
+                if (pack.TagDepths.TryGetValue(catKey, out var d))
+                {
+                    pack.TagDepths.Remove(catKey);
+                    pack.TagDepths[newKey] = d;
+                }
+            }, cats);
+
+            var v = SmallCombo(famValue ?? "", val =>
+            {
+                if (pack.TagFamilies.ContainsKey(catKey))
+                    pack.TagFamilies[catKey] = (val ?? "").Trim();
+            }, fams);
+
+            int currentDepth = pack.TagDepths.TryGetValue(catKey, out var dv) ? dv : 2;
+            var depth = SmallCombo(currentDepth.ToString(), dv2 =>
+            {
+                if (int.TryParse(dv2, out var n))
+                    pack.TagDepths[catKey] = n;
+            }, new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" });
+            depth.IsEditable = false;
+            depth.ToolTip = "TAG7 paragraph depth (1=compact … 10=full audit). " +
+                            "Overrides drawing type default for this category only.";
+
+            var rm = MakeSmallBtn("×", () =>
+            {
+                pack.TagFamilies.Remove(catKey);
+                pack.TagDepths.Remove(catKey);
+                RenderForm();
+            });
+            rm.Width = 22;
+
+            var ctrls = new UIElement[] { k, v, depth, rm };
+            for (int i = 0; i < ctrls.Length; i++)
+            {
+                Grid.SetColumn(ctrls[i], i);
+                if (ctrls[i] is FrameworkElement fe)
+                    fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
+                g.Children.Add(ctrls[i]);
+            }
+            return g;
         }
 
         private UIElement BuildSlotsCard()
         {
             var body = new StackPanel();
             _current.Slots = _current.Slots ?? new List<DrawingSlot>();
-            var hdr = new TextBlock {
-                Text = "Label        ViewType       X      Y      W      H     Scale  ",
-                FontFamily = new FontFamily("Consolas"),
-                Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 10, Margin = new Thickness(0, 0, 0, 2) };
-            body.Children.Add(hdr);
+
+            // Header row uses the same column definitions as every data
+            // row so cells stay aligned regardless of dialog width.
+            body.Children.Add(MakeSlotHeader());
 
             foreach (var slot in _current.Slots.ToList())
-            {
-                var row = new Grid { Margin = new Thickness(0, 2, 0, 0) };
-                for (int c = 0; c < 8; c++)
-                    row.ColumnDefinitions.Add(new ColumnDefinition {
-                        Width = c == 0 ? new GridLength(100)
-                               : c == 1 ? new GridLength(110)
-                               : c == 7 ? new GridLength(24)
-                               : new GridLength(60) });
+                body.Children.Add(MakeSlotRow(slot, () => RenderForm()));
 
-                var tbLbl = SmallTb(slot.Label,    v => slot.Label    = v);
-                // Closed list of Revit ViewType enum values — eliminates typos.
-                var tbVt  = SmallCombo(slot.ViewType, v => slot.ViewType = v,
-                    new[] { "FloorPlan", "CeilingPlan", "Elevation", "Section", "ThreeD",
-                            "Detail", "DraftingView", "Legend", "Schedule", "AreaPlan",
-                            "EngineeringPlan", "Walkthrough", "Rendering", "ProjectBrowser",
-                            "SystemBrowser", "Plan", "Sheet", "Internal", "Undefined" });
-                var tbX   = SmallTb(slot.NormX.ToString("F2"), v => slot.NormX = Parse(v));
-                var tbY   = SmallTb(slot.NormY.ToString("F2"), v => slot.NormY = Parse(v));
-                var tbW   = SmallTb(slot.NormW.ToString("F2"), v => slot.NormW = Parse(v));
-                var tbH   = SmallTb(slot.NormH.ToString("F2"), v => slot.NormH = Parse(v));
-                var tbSc  = SmallTb(slot.Scale?.ToString() ?? "", v =>
-                    slot.Scale = int.TryParse(v, out var n) ? (int?)n : null);
-                var rm    = MakeSmallBtn("×", () => { _current.Slots.Remove(slot); RenderForm(); });
-                rm.Width = 22;
-
-                var ctrls = new UIElement[] { tbLbl, tbVt, tbX, tbY, tbW, tbH, tbSc, rm };
-                for (int i = 0; i < ctrls.Length; i++)
-                {
-                    Grid.SetColumn(ctrls[i], i);
-                    if (ctrls[i] is FrameworkElement fe)
-                        fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
-                    row.Children.Add(ctrls[i]);
-                }
-                body.Children.Add(row);
-            }
             body.Children.Add(MakeSmallBtn("＋ Add slot", () =>
             {
                 _current.Slots.Add(new DrawingSlot {
@@ -1279,35 +1536,104 @@ namespace StingTools.UI
             return Card("Slots (0..1 normalised)", body);
         }
 
+        private UIElement MakeSlotHeader()
+        {
+            var g = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+            for (int c = 0; c < _slotColWidths.Length; c++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_slotColWidths[c]) });
+            string[] headers = { "Label", "ViewType", "X", "Y", "W", "H", "Scale", "" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var t = new TextBlock {
+                    Text = headers[i],
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0),
+                };
+                Grid.SetColumn(t, i);
+                g.Children.Add(t);
+            }
+            return g;
+        }
+
+        private UIElement MakeSlotRow(DrawingSlot slot, Action onChange)
+        {
+            var row = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+            for (int c = 0; c < _slotColWidths.Length; c++)
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_slotColWidths[c]) });
+
+            var tbLbl = SmallTb(slot.Label, v => slot.Label = v);
+            // Closed list of Revit ViewType enum values — eliminates typos.
+            var tbVt  = SmallCombo(slot.ViewType, v => slot.ViewType = v,
+                new[] { "FloorPlan", "CeilingPlan", "Elevation", "Section", "ThreeD",
+                        "Detail", "DraftingView", "Legend", "Schedule", "AreaPlan",
+                        "EngineeringPlan", "Walkthrough", "Rendering", "ProjectBrowser",
+                        "SystemBrowser", "Plan", "Sheet", "Internal", "Undefined" });
+            var tbX  = SmallTb(slot.NormX.ToString("F2"), v => slot.NormX = Parse(v));
+            var tbY  = SmallTb(slot.NormY.ToString("F2"), v => slot.NormY = Parse(v));
+            var tbW  = SmallTb(slot.NormW.ToString("F2"), v => slot.NormW = Parse(v));
+            var tbH  = SmallTb(slot.NormH.ToString("F2"), v => slot.NormH = Parse(v));
+            var tbSc = SmallTb(slot.Scale?.ToString() ?? "", v =>
+                slot.Scale = int.TryParse(v, out var n) ? (int?)n : null);
+            var rm   = MakeSmallBtn("×", () => { _current.Slots.Remove(slot); onChange?.Invoke(); });
+            rm.Width = 22;
+
+            var ctrls = new UIElement[] { tbLbl, tbVt, tbX, tbY, tbW, tbH, tbSc, rm };
+            for (int i = 0; i < ctrls.Length; i++)
+            {
+                Grid.SetColumn(ctrls[i], i);
+                if (ctrls[i] is FrameworkElement fe)
+                    fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
+                row.Children.Add(ctrls[i]);
+            }
+            return row;
+        }
+
         // ═══════════════════════════════════════════════════════════════
         //  FOOTER — Save / Save-As / Close
         // ═══════════════════════════════════════════════════════════════
 
         private UIElement BuildFooter()
         {
+            // DockPanel processes children in declaration order — adding
+            // the buttons FIRST with Dock.Right reserves their pixels
+            // before the hint is added, so a narrow window can never
+            // clip the buttons. The hint then takes whatever room
+            // remains and ellipsises gracefully.
             var row = new DockPanel {
-                Margin = new Thickness(0, 10, 0, 0), LastChildFill = false };
+                Margin = new Thickness(0, 10, 0, 0),
+                LastChildFill = true,
+                MinHeight = 36,
+            };
+
+            var right = new StackPanel {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 230,
+            };
+            DockPanel.SetDock(right, Dock.Right);
+            var btnClose = MakeBigBtn("Close", CardBg, false);
+            var btnSave  = MakeBigBtn("Save",  AccentColor, true);
+            btnClose.Click += (s, e) => { DialogResult = false; };
+            btnSave.Click  += (s, e) => { if (SaveToProjectOverride()) { DialogResult = true; } };
+            right.Children.Add(btnClose);
+            right.Children.Add(btnSave);
+            row.Children.Add(right);
 
             var hint = new TextBlock {
                 Text = "Save writes the active tab to <project>/_BIM_COORD/drawing_types.json or view_style_packs.json — " +
                        "project override only. Corporate baseline on disk is never mutated. " +
                        "Action tabs dispatch directly via the dock-panel external-event queue.",
                 Foreground = new SolidColorBrush(SubtleColor),
-                FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
-                TextWrapping = TextWrapping.Wrap };
-            DockPanel.SetDock(hint, Dock.Left);
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 0, 8, 0),
+            };
             row.Children.Add(hint);
 
-            var right = new StackPanel {
-                Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            DockPanel.SetDock(right, Dock.Right);
-            var btnClose  = MakeBigBtn("Close",          CardBg, false);
-            var btnSave   = MakeBigBtn("Save",           AccentColor, true);
-            btnClose.Click += (s, e) => { DialogResult = false; };
-            btnSave.Click  += (s, e) => { if (SaveToProjectOverride()) { DialogResult = true; } };
-            right.Children.Add(btnClose);
-            right.Children.Add(btnSave);
-            row.Children.Add(right);
             return row;
         }
 
