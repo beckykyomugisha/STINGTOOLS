@@ -262,11 +262,20 @@ namespace StingTools.Core.Placement
             {
                 try
                 {
-                    FamilyInstance fi = doc.Create.NewFamilyInstance(
-                        c.Position, symbol, room.Level, StructuralType.NonStructural);
-                    if (fi == null)
+                    // Pre-flight picks the right NewFamilyInstance overload
+                    // for the family's FamilyPlacementType (level-based vs
+                    // hosted) and locates a host element when the family
+                    // template requires one. Falls through to skip + warn
+                    // when the placement type isn't supported, instead of
+                    // silently creating a host-less ghost instance that
+                    // schedules later miss in QTO / COBie.
+                    var pf = PlacementHostPreflight.Place(doc, symbol, room, c.Position, rule);
+                    FamilyInstance fi = pf.Placed;
+                    if (pf.Skipped || fi == null)
                     {
                         result.SkippedCount++;
+                        if (!string.IsNullOrEmpty(pf.Reason))
+                            result.Warnings.Add(pf.Reason);
                         continue;
                     }
 
