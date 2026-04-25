@@ -1,6 +1,7 @@
 <Window x:Class="StingTools.UI.PlacementCenter.StingPlacementCenter"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:StingTools.UI.PlacementCenter"
         Title="STING — Placement Centre"
         Width="1280" Height="780"
         MinWidth="1024" MinHeight="640"
@@ -9,6 +10,17 @@
         Background="{DynamicResource PrimaryBg}"
         Foreground="{DynamicResource PrimaryFg}">
 
+    <Window.InputBindings>
+        <KeyBinding Modifiers="Ctrl" Key="S" Command="{x:Static local:PlacementCentreCommands.SaveProject}"/>
+        <KeyBinding Modifiers="Ctrl" Key="N" Command="{x:Static local:PlacementCentreCommands.AddRule}"/>
+        <KeyBinding Modifiers="Ctrl" Key="R" Command="{x:Static local:PlacementCentreCommands.RunPlacement}"/>
+        <KeyBinding Modifiers="Ctrl" Key="P" Command="{x:Static local:PlacementCentreCommands.Preview}"/>
+        <KeyBinding Modifiers="Ctrl" Key="V" Command="{x:Static local:PlacementCentreCommands.Validate}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="Z" Command="{x:Static local:PlacementCentreCommands.UndoLast}"/>
+        <KeyBinding Key="F5"  Command="{x:Static local:PlacementCentreCommands.HistoryRefresh}"/>
+        <KeyBinding Key="Esc" Command="{x:Static local:PlacementCentreCommands.ClearPreview}"/>
+        <KeyBinding Key="Delete" Command="{x:Static local:PlacementCentreCommands.DeleteSelected}"/>
+    </Window.InputBindings>
     <Window.Resources>
         <Style x:Key="ToolBtn" TargetType="Button">
             <Setter Property="Padding" Value="10,4"/>
@@ -53,15 +65,25 @@
                            VerticalAlignment="Center" Margin="0,0,16,0"/>
                 <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
                         Content="Close" Click="OnClose_Click"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Reload Defaults" Click="OnReloadDefaults_Click"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save Project"    Click="OnSaveProject_Click"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Reload Defaults" Click="OnReloadDefaults_Click"
+                        ToolTip="Discard all rules in memory and reload the shipped baseline."/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Import…"          Click="OnImportRules_Click"
+                        ToolTip="Merge rules from another JSON file (default: append, prompt to overwrite per merge key)."/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Export…"          Click="OnExportRules_Click"
+                        ToolTip="Export the current rule set to a portable JSON file you can share or version-control."/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save Project"     Click="OnSaveProject_Click"
+                        ToolTip="Save valid rules to &lt;project&gt;/STING_PLACEMENT_RULES.project.json (Ctrl+S)."/>
                 <Separator Width="8" Visibility="Hidden"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Run Placement"   Click="OnRunPlacement_Click"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Preview"         Click="OnPreview_Click"/>
-                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Validate"        Click="OnValidate_Click"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Run Placement"   Click="OnRunPlacement_Click" ToolTip="Ctrl+R"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Preview"         Click="OnPreview_Click"      ToolTip="Ctrl+P"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtn}"          Content="Validate"        Click="OnValidate_Click"     ToolTip="Ctrl+V"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Undo last run"   Click="OnUndoLast_Click"
+                        ToolTip="Delete every element placed by the most-recent provenance bucket. Confirmation prompt. Ctrl+Shift+Z."/>
                 <Separator Width="8" Visibility="Hidden"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Push to Families" Click="OnPushFamilies_Click"/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Heat-map"        Click="OnHeatmap_Click"/>
+                <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="Save view preset" Click="OnSaveViewPreset_Click"
+                        ToolTip="Stamp a Pack 125/M view preset onto the active view so its scope/template/scale travel with the model."/>
                 <Button DockPanel.Dock="Left"  Style="{StaticResource ToolBtnSecondary}" Content="GD Study"        Click="OnGDStudy_Click"/>
             </DockPanel>
         </Border>
@@ -77,27 +99,35 @@
             <!-- LEFT: rule list + search + add/delete -->
             <Border Grid.Column="0" Background="{DynamicResource SecondaryBg}" Padding="6">
                 <DockPanel>
-                    <!-- Search -->
-                    <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox  Grid.Column="0" x:Name="txtSearch" Padding="3"
-                                  TextChanged="OnSearch_TextChanged"
-                                  ToolTip="Filter by category / variant / room / notes"/>
-                        <Button   Grid.Column="1" Style="{StaticResource ToolBtnSecondary}"
-                                  Content="+" Width="32" Click="OnAdd_Click" ToolTip="Add a new rule"/>
-                        <Button   Grid.Column="2" Style="{StaticResource ToolBtnSecondary}"
-                                  Content="−" Width="32" Click="OnDelete_Click" ToolTip="Delete selected rule"/>
-                    </Grid>
+                    <!-- Search + filter chips -->
+                    <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,4">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
+                                Content="−" Width="32" Click="OnDelete_Click" ToolTip="Delete selected rule"/>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
+                                Content="+" Width="32" Click="OnAdd_Click" ToolTip="Add a new rule"/>
+                        <TextBox x:Name="txtSearch" Padding="3"
+                                 TextChanged="OnSearch_TextChanged"
+                                 ToolTip="Filter by category / variant / room / notes"/>
+                    </DockPanel>
+                    <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,6">
+                        <ToggleButton x:Name="chipDirty"   DockPanel.Dock="Left" Margin="0,0,4,0"
+                                      Padding="6,2" Content="● Dirty"
+                                      Checked="OnFilterChanged" Unchecked="OnFilterChanged"
+                                      ToolTip="Show only rules with unsaved edits."/>
+                        <ToggleButton x:Name="chipInvalid" DockPanel.Dock="Left" Margin="0,0,4,0"
+                                      Padding="6,2" Content="✗ Invalid"
+                                      Checked="OnFilterChanged" Unchecked="OnFilterChanged"
+                                      ToolTip="Show only rules failing validation (missing CategoryFilter, bad Priority, …)."/>
+                        <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="6,0,0,0"
+                                   Foreground="#888" FontSize="11" Text="Toggle to filter →"/>
+                    </DockPanel>
 
                     <!-- Rule grid -->
                     <DataGrid x:Name="gridRules"
                               AutoGenerateColumns="False"
                               IsReadOnly="True"
-                              SelectionMode="Single"
+                              SelectionMode="Extended"
+                              SelectionUnit="FullRow"
                               SelectionChanged="OnGrid_SelectionChanged"
                               GridLinesVisibility="Horizontal"
                               HeadersVisibility="Column"
@@ -108,7 +138,17 @@
                               Background="{DynamicResource PrimaryBg}"
                               Foreground="{DynamicResource PrimaryFg}"
                               RowBackground="{DynamicResource PrimaryBg}"
-                              AlternatingRowBackground="{DynamicResource SecondaryBg}">
+                              AlternatingRowBackground="{DynamicResource SecondaryBg}"
+                              ToolTip="Ctrl+click / Shift+click to multi-select. Right-click for bulk actions.">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Clone selected" Click="OnCloneSelected_Click"/>
+                                <MenuItem Header="Delete selected" Click="OnDeleteSelected_Click"/>
+                                <Separator/>
+                                <MenuItem Header="Select invalid"  Click="OnSelectInvalid_Click"/>
+                                <MenuItem Header="Select dirty"    Click="OnSelectDirty_Click"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="●"
                                                 Binding="{Binding IsDirty, Converter={StaticResource DirtyDotConverter}}"
@@ -129,7 +169,11 @@
 
             <!-- RIGHT: detail GroupBoxes -->
             <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="10">
-                <StackPanel x:Name="pnlDetail" IsEnabled="False">
+                <StackPanel x:Name="pnlDetail">
+                    <!-- pnlRuleDetail wraps the rule-bound editors so they
+                         disable when no rule is selected; Run Options and
+                         History stay enabled (they don't depend on a row). -->
+                    <StackPanel x:Name="pnlRuleDetail" IsEnabled="False">
 
                     <GroupBox Header="Rule Core" Style="{StaticResource GroupBoxStyle}">
                         <Grid>
@@ -149,7 +193,8 @@
                             <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbCategory" IsEditable="True" Margin="0,2"/>
 
                             <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Variant Hint"/>
-                            <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtVariant"  Margin="0,2"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="3" x:Name="cmbVariant" IsEditable="True" Margin="0,2"
+                                       ToolTip="Family-type variant filter. Suggested: FLUSH / SURFACE / RECESSED / IP65 / IP66 / EM / DALI."/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Room Filter (regex)"/>
                             <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtRoom"     Margin="0,2"/>
@@ -190,6 +235,12 @@
                         </Grid>
                     </GroupBox>
 
+                    <GroupBox Header="Notes" Style="{StaticResource GroupBoxStyle}">
+                        <TextBox x:Name="txtNotes" AcceptsReturn="True" TextWrapping="Wrap"
+                                 MinHeight="48" MaxHeight="120" VerticalScrollBarVisibility="Auto"
+                                 ToolTip="Free-text note attached to this rule. Surfaced in placement reports and pushed to STING_PLACEMENT_NOTES_TXT on family types when Push to Families runs."/>
+                    </GroupBox>
+
                     <GroupBox Header="Family Defaults &amp; Clearance" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
                             <DockPanel LastChildFill="False" Margin="0,0,0,6">
@@ -206,6 +257,7 @@
                                       HeadersVisibility="Column"
                                       GridLinesVisibility="Horizontal"
                                       MaxHeight="220"
+                                      ItemsSource="{Binding VM.FamilyHints, RelativeSource={RelativeSource AncestorType=Window}}"
                                       Background="{DynamicResource PrimaryBg}"
                                       Foreground="{DynamicResource PrimaryFg}"
                                       RowBackground="{DynamicResource PrimaryBg}"
@@ -219,13 +271,18 @@
                             </DataGrid>
                         </StackPanel>
                     </GroupBox>
+                    </StackPanel> <!-- /pnlRuleDetail -->
 
                     <GroupBox Header="Run Options" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
-                            <CheckBox x:Name="chkProvenance"   Content="Stamp provenance on each placement (Pack 123/E)" Margin="0,3"/>
-                            <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category (Pack 10)"   Margin="0,3"/>
-                            <CheckBox x:Name="chkValidators"   Content="Run validators after placement"                  Margin="0,3"/>
-                            <CheckBox x:Name="chkAutoHeatmap"  Content="Auto-paint AVF compliance heat-map on commit"    Margin="0,3"/>
+                            <CheckBox x:Name="chkProvenance"   Content="Stamp provenance on each placement (Pack 123/E)" Margin="0,3"
+                                      ToolTip="When ON, every placed instance carries a StingProvenance entity so 'Undo last run' and provenance-scoped validation can find them. OFF skips the stamp — useful for one-off non-tracked placements."/>
+                            <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category (Pack 10)"   Margin="0,3"
+                                      ToolTip="Reserved for the Learn pass. When LearnPlacementV4 lands, this toggle gates whether per-category learned offsets override rule defaults."/>
+                            <CheckBox x:Name="chkValidators"   Content="Run validators after placement"                  Margin="0,3"
+                                      ToolTip="Run ClearanceValidator + MaintenanceClashValidator immediately after the placement commits, scoped to elements just placed."/>
+                            <CheckBox x:Name="chkAutoHeatmap"  Content="Auto-paint AVF compliance heat-map on commit"    Margin="0,3"
+                                      ToolTip="When ON and at least one fixture was placed, paint the AVF compliance heat-map on the active view immediately after the run commits."/>
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="120"/>
@@ -246,13 +303,10 @@
                             <DockPanel LastChildFill="False" Margin="0,0,0,6">
                                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                                            Foreground="#666" FontStyle="Italic" FontWeight="Normal"
-                                           Text="StingProvenanceSchema — last 30 hourly buckets, newest first."/>
+                                           Text="StingProvenanceSchema — last 30 hourly buckets, newest first. Double-click a row to select in Revit."/>
                                 <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
-                                        Content="Refresh" Click="OnHistoryRefresh_Click" Margin="4,0"/>
-                                <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
-                                        Content="Undo last run" Click="OnUndoLast_Click" Margin="4,0"/>
-                                <Button DockPanel.Dock="Right" Style="{StaticResource ToolBtnSecondary}"
-                                        Content="Save view preset" Click="OnSaveViewPreset_Click" Margin="4,0"/>
+                                        Content="Refresh" Click="OnHistoryRefresh_Click" Margin="4,0"
+                                        ToolTip="Re-scan provenance and refresh the table (F5)."/>
                             </DockPanel>
                             <DataGrid x:Name="gridHistory"
                                       AutoGenerateColumns="False"
@@ -261,6 +315,9 @@
                                       HeadersVisibility="Column"
                                       GridLinesVisibility="Horizontal"
                                       MaxHeight="220"
+                                      ItemsSource="{Binding VM.History, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      MouseDoubleClick="OnHistory_DoubleClick"
+                                      ToolTip="Double-click a row to select its placed instances in Revit."
                                       Background="{DynamicResource PrimaryBg}"
                                       Foreground="{DynamicResource PrimaryFg}"
                                       RowBackground="{DynamicResource PrimaryBg}"

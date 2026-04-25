@@ -1,0 +1,219 @@
+// StingTools v4 MVP — placement host pre-flight.
+//
+// Bridges PlacementRule.AnchorType to FamilySymbol.Family.FamilyPlacementType.
+// Revit's NewFamilyInstance overloads are placement-type-specific:
+//
+//   OneLevelBased / OneLevelBasedHosted   → (point, symbol, level, st)
+//   WorkPlaneBased                        → (point, symbol, level, st)
+//                                          OR (reference, point, refDir, symbol)
+//   WallBased / OneLevelBasedHosted+Wall  → (point, symbol, hostWall, level, st)
+//   CeilingBased / *FloorBased / RoofBased→ (point, symbol, hostElement, level, st)
+//   ViewBased                             → out of scope for FixturePlacementEngine
+//
+// Calling the wrong overload either throws or places a free-standing
+// instance whose Host is null — schedules then silently miss the host
+// in QTO / COBie. This pre-flight picks the right overload up-front and,
+// when a host is required, locates a sensible candidate (the nearest
+// ceiling for a CeilingBased family, the nearest wall for a WallBased
+// family, …) at the placement point.
+//
+// Family-level template promotion (Wall → Ceiling) is NOT possible via
+// the Revit API — Family.FamilyPlacementType is read-only and the
+// family editor blocks template-lineage swaps for hosted templates.
+// What this class does is the next-best thing: pick the right overload
+// for the family's existing template, and surface a clear warning when
+// the rule's intent (anchor) and the family's template disagree so the
+// user can fix the rule, swap families, or run the family Quick-Edit
+// → ChangeHost flow.
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.Structure;
+
+namespace StingTools.Core.Placement
+{
+    /// <summary>Result of one pre-flight call. Carries either the
+    /// successfully created FamilyInstance or a structured reason for
+    /// skipping (so the engine can collect them in PlacementResult.Warnings).</summary>
+    public class PlacementHostPreflightResult
+    {
+        public FamilyInstance Placed { get; set; }
+        public bool Skipped { get; set; }
+        public string Reason { get; set; } = "";
+    }
+
+    public static class PlacementHostPreflight
+    {
+        /// <summary>Decide the right NewFamilyInstance overload for the
+        /// supplied symbol + rule + candidate position, locate the host
+        /// element when one is required, and return the placed instance.
+        /// All calls happen inside the caller's existing Transaction.</summary>
+        public static PlacementHostPreflightResult Place(
+            Document doc,
+            FamilySymbol symbol,
+            Room room,
+            XYZ position,
+            PlacementRule rule)
+        {
+            var r = new PlacementHostPreflightResult();
+            if (doc == null || symbol == null || position == null)
+            {
+                r.Skipped = true;
+                r.Reason = "Pre-flight: null document / symbol / position.";
+                return r;
+            }
+
+            var fpt = symbol.Family?.FamilyPlacementType ?? FamilyPlacementType.Invalid;
+            try
+            {
+                switch (fpt)
+                {
+                    // OneLevelBased / TwoLevelsBased / WorkPlaneBased are
+                    // the un-hosted templates — lighting devices, plumbing
+                    // fixtures, MEP equipment. The historic level-based
+                    // overload works.
+                    case FamilyPlacementType.OneLevelBased:
+                    case FamilyPlacementType.TwoLevelsBased:
+                    case FamilyPlacementType.WorkPlaneBased:
+                        r.Placed = doc.Create.NewFamilyInstance(
+                            position, symbol, room?.Level, StructuralType.NonStructural);
+                        return r;
+
+                    // OneLevelBasedHosted = wall / ceiling / floor / roof
+                    // hosted templates. Locate the host before calling the
+                    // host-aware overload.
+                    case FamilyPlacementType.OneLevelBasedHosted:
+                        return TryHostedPlace(doc, symbol, room, position, rule, fpt);
+
+                    // ViewBased / CurveBased / Adaptive / Invalid — not
+                    // something a fixture-placement engine should touch.
+                    default:
+                        r.Skipped = true;
+                        r.Reason = $"Pre-flight: '{symbol.Family?.Name}' is {fpt} — fixture engine only supports OneLevelBased / TwoLevelsBased / WorkPlaneBased / OneLevelBasedHosted. " +
+                                   "Use Family Quick Edit → Change Host on an existing instance, or pick a different family for this rule.";
+                        return r;
+                }
+            }
+            catch (Exception ex)
+            {
+                r.Skipped = true;
+                r.Reason = $"Pre-flight: NewFamilyInstance({fpt}, {symbol.Family?.Name}) threw: {ex.Message}";
+                return r;
+            }
+        }
+
+        // Hosted families: walls / ceilings / floors / roofs. Locate the
+        // nearest candidate within a bounded radius around the placement
+        // point so the host is geometrically plausible.
+        private static PlacementHostPreflightResult TryHostedPlace(
+            Document doc,
+            FamilySymbol symbol,
+            Room room,
+            XYZ position,
+            PlacementRule rule,
+            FamilyPlacementType fpt)
+        {
+            var r = new PlacementHostPreflightResult();
+            string famName = symbol.Family?.Name ?? "?";
+
+            // Heuristic choice of host kind based on the rule's anchor.
+            string anchor = (rule?.AnchorType ?? "").ToUpperInvariant();
+            bool prefersCeiling = anchor == "CEILING_CENTRE"
+                                 || anchor == "LIGHTING_GRID"
+                                 || anchor == "LUX_GRID"
+                                 || anchor == "EN12464";
+            bool prefersWall    = anchor == "WALL_MIDPOINT"
+                                 || anchor == "WALL_CORNER"
+                                 || anchor == "DOOR_HINGE"
+                                 || anchor == "DOOR_JAMB"
+                                 || anchor == "WINDOW_SILL";
+
+            Element host = null;
+            try
+            {
+                if (prefersWall)
+                    host = NearestOf<Wall>(doc, position, 6.0); // ~1.83m
+                else if (prefersCeiling)
+                    host = NearestOf<Ceiling>(doc, position, 12.0); // ~3.66m
+                else
+                {
+                    // Generic fallback: try ceiling first (lighting/sprinkler-y),
+                    // then floor, then wall. Cast each result to Element so ??
+                    // can chain across the sibling subclasses.
+                    host = (Element)NearestOf<Ceiling>(doc, position, 12.0)
+                        ?? (Element)NearestOf<Floor>(doc, position, 12.0)
+                        ?? (Element)NearestOf<Wall>(doc, position, 6.0);
+                }
+            }
+            catch (Exception ex)
+            {
+                r.Skipped = true;
+                r.Reason = $"Pre-flight host search: {ex.Message}";
+                return r;
+            }
+
+            if (host == null)
+            {
+                r.Skipped = true;
+                r.Reason = $"Pre-flight: '{famName}' is {fpt} but no compatible host found within search radius near {Fmt(position)}. " +
+                           "Either change the rule's CategoryFilter to a non-hosted family, or use Family Quick Edit → Change Host on an existing instance to rehost.";
+                return r;
+            }
+
+            try
+            {
+                r.Placed = doc.Create.NewFamilyInstance(
+                    position, symbol, host, room?.Level, StructuralType.NonStructural);
+                if (r.Placed == null)
+                {
+                    r.Skipped = true;
+                    r.Reason = $"Pre-flight: NewFamilyInstance({fpt}, host {host.GetType().Name} id {host.Id.Value}) returned null.";
+                }
+                return r;
+            }
+            catch (Exception ex)
+            {
+                r.Skipped = true;
+                r.Reason = $"Pre-flight: NewFamilyInstance({fpt}, host {host.GetType().Name}) threw: {ex.Message}. " +
+                           "The family's template is probably incompatible with the chosen host — swap families or use Family Quick Edit → Change Host.";
+                return r;
+            }
+        }
+
+        private static T NearestOf<T>(Document doc, XYZ point, double maxDistFt) where T : Element
+        {
+            T best = null;
+            double bestSq = maxDistFt * maxDistFt;
+            try
+            {
+                var col = new FilteredElementCollector(doc)
+                    .OfClass(typeof(T))
+                    .WhereElementIsNotElementType();
+                foreach (var el in col)
+                {
+                    if (el is not T candidate) continue;
+                    BoundingBoxXYZ bb = candidate.get_BoundingBox(null);
+                    if (bb == null) continue;
+                    XYZ centre = (bb.Min + bb.Max) * 0.5;
+                    double dx = centre.X - point.X;
+                    double dy = centre.Y - point.Y;
+                    double dz = centre.Z - point.Z;
+                    double sq = dx * dx + dy * dy + dz * dz;
+                    if (sq < bestSq)
+                    {
+                        best = candidate;
+                        bestSq = sq;
+                    }
+                }
+            }
+            catch { }
+            return best;
+        }
+
+        private static string Fmt(XYZ p) =>
+            p == null ? "(null)" : $"({p.X:F2},{p.Y:F2},{p.Z:F2})";
+    }
+}

@@ -45,11 +45,28 @@ namespace StingTools.Core.Placement
         /// override library. If dryRun is true, returns candidates without
         /// placing anything (the UI shows a preview).
         /// </summary>
+        /// <summary>Original 4-arg entry point — preserved for back-compat.
+        /// Delegates to the 5-arg overload with a no-op progress callback.</summary>
         public static PlacementResult PlaceFixturesInScope(
             Document doc,
             IList<ElementId> roomIds,
             IList<PlacementRule> rules,
             bool dryRun)
+            => PlaceFixturesInScope(doc, roomIds, rules, dryRun, progress: null);
+
+        /// <summary>Long-form entry point with a progress hook. The
+        /// callback is invoked once per room with (processed, total) so the
+        /// Placement Centre can show a StingProgressDialog and let the user
+        /// abort. Returning <c>true</c> from the callback aborts the run
+        /// after the current room commits — partial work is kept (still
+        /// inside the engine's Transaction so callers can roll back at the
+        /// outer TransactionGroup level if they want all-or-nothing).</summary>
+        public static PlacementResult PlaceFixturesInScope(
+            Document doc,
+            IList<ElementId> roomIds,
+            IList<PlacementRule> rules,
+            bool dryRun,
+            Func<int, int, bool> progress)
         {
             var result = new PlacementResult { DryRun = dryRun };
             if (doc == null)
@@ -107,6 +124,9 @@ namespace StingTools.Core.Placement
 
             try
             {
+                int processed = 0;
+                int total = rooms.Count;
+                bool cancelled = false;
                 foreach (var room in rooms)
                 {
                     foreach (var rule in ordered)
@@ -122,12 +142,31 @@ namespace StingTools.Core.Placement
                             result.SkippedCount++;
                         }
                     }
+                    processed++;
+                    if (progress != null)
+                    {
+                        try
+                        {
+                            if (progress(processed, total))
+                            {
+                                cancelled = true;
+                                result.Warnings.Add($"Cancelled after {processed} of {total} room(s).");
+                                break;
+                            }
+                        }
+                        catch (Exception pgEx)
+                        {
+                            result.Warnings.Add($"Progress callback: {pgEx.Message}");
+                        }
+                    }
                 }
 
                 if (!dryRun)
                 {
                     tx.Commit();
                 }
+                if (cancelled)
+                    StingLog.Info($"FixturePlacementEngine: run cancelled after {processed}/{total} rooms.");
             }
             catch (Exception ex)
             {
@@ -223,23 +262,36 @@ namespace StingTools.Core.Placement
             {
                 try
                 {
-                    FamilyInstance fi = doc.Create.NewFamilyInstance(
-                        c.Position, symbol, room.Level, StructuralType.NonStructural);
-                    if (fi == null)
+                    // Pre-flight picks the right NewFamilyInstance overload
+                    // for the family's FamilyPlacementType (level-based vs
+                    // hosted) and locates a host element when the family
+                    // template requires one. Falls through to skip + warn
+                    // when the placement type isn't supported, instead of
+                    // silently creating a host-less ghost instance that
+                    // schedules later miss in QTO / COBie.
+                    var pf = PlacementHostPreflight.Place(doc, symbol, room, c.Position, rule);
+                    FamilyInstance fi = pf.Placed;
+                    if (pf.Skipped || fi == null)
                     {
                         result.SkippedCount++;
+                        if (!string.IsNullOrEmpty(pf.Reason))
+                            result.Warnings.Add(pf.Reason);
                         continue;
                     }
 
                     WriteAnchorParameters(fi, rule);
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
-                    // audit can identify auto-created fixtures.
-                    try
+                    // audit can identify auto-created fixtures. Centre's
+                    // "Stamp provenance" checkbox flips PlaceFixturesOptions.
+                    if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
                     {
-                        StingTools.Core.Storage.StingProvenanceSchema.Stamp(
-                            fi, "FixturePlacementEngine", rule?.MergeKey ?? "");
+                        try
+                        {
+                            StingTools.Core.Storage.StingProvenanceSchema.Stamp(
+                                fi, "FixturePlacementEngine", rule?.MergeKey ?? "");
+                        }
+                        catch (Exception pvEx) { result.Warnings.Add($"Provenance stamp: {pvEx.Message}"); }
                     }
-                    catch (Exception pvEx) { result.Warnings.Add($"Provenance stamp: {pvEx.Message}"); }
                     result.PlacedIds.Add(fi.Id);
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;

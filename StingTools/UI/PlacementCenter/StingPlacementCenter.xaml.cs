@@ -17,6 +17,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
@@ -62,6 +63,7 @@ namespace StingTools.UI.PlacementCenter
             cmbCategory.ItemsSource = VM.Categories;
             cmbAnchor.ItemsSource   = VM.AnchorTypes;
             cmbSide.ItemsSource     = VM.SideConstraints;
+            cmbVariant.ItemsSource  = VM.VariantHints;
 
             // Run-option two-way bindings
             chkProvenance.IsChecked  = VM.RunOpts.StampProvenance;
@@ -83,8 +85,10 @@ namespace StingTools.UI.PlacementCenter
             // Per-rule field handlers — wired manually so we can validate after each edit
             cmbCategory.LostFocus       += (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
             cmbCategory.SelectionChanged+= (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
-            txtVariant.LostFocus        += (_,__) => CommitField(() => VM.Selected.VariantHint      = txtVariant.Text);
+            cmbVariant.LostFocus        += (_,__) => CommitField(() => VM.Selected.VariantHint      = (cmbVariant.Text ?? "").Trim());
+            cmbVariant.SelectionChanged += (_,__) => CommitField(() => VM.Selected.VariantHint      = (cmbVariant.Text ?? "").Trim());
             txtRoom.LostFocus           += (_,__) => CommitField(() => VM.Selected.RoomFilter       = txtRoom.Text);
+            txtNotes.LostFocus          += (_,__) => CommitField(() => VM.Selected.Notes            = txtNotes.Text);
             cmbAnchor.SelectionChanged  += (_,__) => CommitField(() => VM.Selected.AnchorType       = cmbAnchor.SelectedItem as string ?? VM.Selected.AnchorType);
             cmbSide.SelectionChanged    += (_,__) => CommitField(() => VM.Selected.SideConstraint   = cmbSide.SelectedItem   as string ?? VM.Selected.SideConstraint);
             txtPriority.LostFocus       += (_,__) => CommitField(() => VM.Selected.Priority         = ParseInt(txtPriority.Text, VM.Selected.Priority));
@@ -104,10 +108,35 @@ namespace StingTools.UI.PlacementCenter
 
             // Phase D — populate history grid on first open so the
             // panel surface isn't a wall of empties.
-            try { gridHistory.ItemsSource = HistoryBridge.ReadHistory(_doc); }
+            try { VM.SetHistory(HistoryBridge.ReadHistory(_doc)); }
             catch (Exception hEx) { StingLog.Warn($"History first-load: {hEx.Message}"); }
 
             UpdateStatus();
+
+            // Keyboard shortcuts — see PlacementCentreCommands.cs.
+            CommandBindings.Add(new CommandBinding(PlacementCentreCommands.SaveProject,    (s,a) => OnSaveProject_Click(s, a)));
+            CommandBindings.Add(new CommandBinding(PlacementCentreCommands.AddRule,        (s,a) => OnAdd_Click(s, a)));
+            CommandBindings.Add(new CommandBinding(PlacementCentreCommands.RunPlacement,   (s,a) => OnRunPlacement_Click(s, a)));
+            CommandBindings.Add(new CommandBinding(PlacementCentreCommands.Preview,        (s,a) => OnPreview_Click(s, a)));
+            CommandBindings.Add(new CommandBinding(PlacementCentreCommands.Validate,       (s,a) => OnValidate_Click(s, a)));
+            CommandBindings.Add(new CommandBinding(PlacementCentreCommands.UndoLast,       (s,a) => OnUndoLast_Click(s, a)));
+            CommandBindings.Add(new CommandBinding(PlacementCentreCommands.HistoryRefresh, (s,a) => OnHistoryRefresh_Click(s, a)));
+            CommandBindings.Add(new CommandBinding(PlacementCentreCommands.ClearPreview,   (s,a) => OnClearPreview_Shortcut(s, a)));
+            CommandBindings.Add(new CommandBinding(PlacementCentreCommands.DeleteSelected, (s,a) => OnDeleteSelected_Click(s, a)));
+
+            HookDocumentLifecycle();
+        }
+
+        // ESC = clear any active DirectContext3D preview without closing the window.
+        private void OnClearPreview_Shortcut(object sender, ExecutedRoutedEventArgs e)
+        {
+            try
+            {
+                StingTools.Core.Visualization.PreviewController.Cancel();
+                VM.Status = "Preview cleared.";
+                UpdateStatus();
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter ESC clear preview: {ex.Message}"); }
         }
 
         // ── Singleton orchestration ──────────────────────────────────
@@ -116,8 +145,21 @@ namespace StingTools.UI.PlacementCenter
         {
             if (_instance != null && !_instance._closed)
             {
-                _instance.Activate();
-                return;
+                // If the cached instance is bound to a different document
+                // than the active one, close it and reopen against the
+                // current doc so rules + history come from the right project.
+                var activeDoc = uiApp?.ActiveUIDocument?.Document;
+                if (activeDoc != null && _instance._doc != null &&
+                    !ReferenceEquals(activeDoc, _instance._doc))
+                {
+                    try { _instance.Close(); } catch { }
+                    _instance = null;
+                }
+                else
+                {
+                    _instance.Activate();
+                    return;
+                }
             }
             try
             {
@@ -133,12 +175,61 @@ namespace StingTools.UI.PlacementCenter
             }
         }
 
+        // Wire DocumentClosing so a stale singleton can't outlive its
+        // backing document and silently operate on the wrong project.
+        private void HookDocumentLifecycle()
+        {
+            if (_uiApp == null || _uiApp.Application == null) return;
+            try
+            {
+                _uiApp.Application.DocumentClosing += OnRevitDocumentClosing;
+                this.Closed += (_, __) =>
+                {
+                    try { _uiApp.Application.DocumentClosing -= OnRevitDocumentClosing; } catch { }
+                };
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter HookDocumentLifecycle: {ex.Message}"); }
+        }
+
+        private void OnRevitDocumentClosing(object sender, Autodesk.Revit.DB.Events.DocumentClosingEventArgs e)
+        {
+            try
+            {
+                if (e?.Document != null && ReferenceEquals(e.Document, _doc))
+                {
+                    StingLog.Info("PlacementCenter: document closing, auto-closing centre.");
+                    Dispatcher.Invoke(() =>
+                    {
+                        try { Close(); } catch (Exception ex) { StingLog.Warn($"PlacementCenter auto-close: {ex.Message}"); }
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter OnRevitDocumentClosing: {ex.Message}"); }
+        }
+
         private bool _closed;
 
         // ── Toolbar handlers ─────────────────────────────────────────
 
         private void OnReloadDefaults_Click(object sender, RoutedEventArgs e)
         {
+            // Reload Defaults nukes the entire in-memory set including any
+            // unsaved edits. Confirm before destroying user work.
+            if (VM.HasUnsavedEdits)
+            {
+                int dirty = VM.Rules.Count(r => r.IsDirty);
+                var confirm = new TaskDialog("STING — Reload Defaults")
+                {
+                    MainInstruction = $"Discard {dirty} unsaved edit(s)?",
+                    MainContent =
+                        "Reload Defaults replaces every rule in the centre with the shipped " +
+                        "STING_PLACEMENT_RULES.json baseline. Project overrides on disk are " +
+                        "untouched until you click Save Project, but in-memory edits will be lost.",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No,
+                };
+                if (confirm.Show() != TaskDialogResult.Yes) return;
+            }
             VM.ReloadDefaults();
             VM.AttachFilteredView();
             gridRules.ItemsSource = VM.FilteredRules;
@@ -149,6 +240,41 @@ namespace StingTools.UI.PlacementCenter
         {
             if (VM.SaveProject(_doc))
                 UpdateStatus();
+        }
+
+        private void OnImportRules_Click(object sender, RoutedEventArgs e)
+        {
+            // Wrap WinForms-flavoured OpenFileDialog with the WPF default paths.
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "STING — Import placement rules",
+                Filter = "STING placement rules (*.json)|*.json|All files (*.*)|*.*",
+                FileName = "STING_PLACEMENT_RULES.project.json",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            int n = VM.ImportFromFile(dlg.FileName);
+            UpdateStatus();
+            TaskDialog.Show("STING — Import placement rules",
+                n > 0
+                    ? $"Imported {n} rule(s) from {dlg.FileName}.\nClick Save Project to persist."
+                    : $"No rules imported. Check the file format (expects {{ \"version\": \"v4\", \"rules\": [...] }}).");
+        }
+
+        private void OnExportRules_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "STING — Export placement rules",
+                Filter = "STING placement rules (*.json)|*.json|All files (*.*)|*.*",
+                FileName = "STING_PLACEMENT_RULES.export.json",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            int n = VM.ExportToFile(dlg.FileName);
+            UpdateStatus();
+            TaskDialog.Show("STING — Export placement rules",
+                n > 0
+                    ? $"Exported {n} valid rule(s) to {dlg.FileName}."
+                    : "No valid rules to export.");
         }
 
         // ── Phase 127-B engine wiring ────────────────────────────────
@@ -186,19 +312,44 @@ namespace StingTools.UI.PlacementCenter
             VM.Status = "Running placement…";
             UpdateStatus();
 
+            // Push run-options into the static option-bag the engine reads.
+            // Snapshot the previous values so other call sites (Fixtures-tab
+            // PlaceFixturesCommand) get their settings restored after this run.
+            bool prevStamp = StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance;
+            bool prevLearn = StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned;
+            StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = VM.RunOpts.StampProvenance;
+            StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = VM.RunOpts.HonourLearned;
+
             DateTime startUtc = DateTime.UtcNow;
             PlacementResult result = null;
+            // Show a modeless progress dialog so the user can see per-room
+            // progress and abort. The placement engine commits per-room
+            // ProcessRoomRule writes inside its single Transaction, so the
+            // outer TransactionGroup keeps everything undoable as one step.
+            var progress = StingProgressDialog.Show(
+                "STING — Placement Centre · Run", roomIds.Count);
             try
             {
+                // FixturePlacementEngine opens its own Transaction inside the
+                // supplied document. Wrap it in a TransactionGroup so the run
+                // is undoable as a single step but DO NOT open another
+                // Transaction here — Revit forbids nested Transactions and
+                // the engine would silently fail with "Transaction start
+                // failed: …" in result.Warnings.
                 using (var tg = new TransactionGroup(_doc, "STING Placement Centre — Run"))
                 {
                     tg.Start();
-                    using (var t = new Transaction(_doc, "STING PlaceFixtures"))
-                    {
-                        t.Start();
-                        result = FixturePlacementEngine.PlaceFixturesInScope(_doc, roomIds, rules, dryRun: false);
-                        t.Commit();
-                    }
+                    result = FixturePlacementEngine.PlaceFixturesInScope(
+                        _doc, roomIds, rules, dryRun: false,
+                        progress: (done, total) =>
+                        {
+                            try
+                            {
+                                progress.Increment($"Room {done} of {total}…");
+                                return progress.IsCancelled;
+                            }
+                            catch { return false; }
+                        });
                     tg.Assimilate();
                 }
             }
@@ -210,6 +361,13 @@ namespace StingTools.UI.PlacementCenter
                 UpdateStatus();
                 return;
             }
+            finally
+            {
+                // Restore the option-bag so other entry points aren't affected.
+                StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
+                StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
+                try { progress?.Close(); } catch { }
+            }
 
             _lastRunUtc = startUtc;
             _lastPlacedIds = result?.PlacedIds?.ToList() ?? new List<ElementId>();
@@ -220,6 +378,20 @@ namespace StingTools.UI.PlacementCenter
             VM.Status = $"Placed {placed} · skipped {skipped} · warnings {warns}";
             UpdateStatus();
 
+            // History panel is the source of truth for "what just happened" —
+            // refresh it so the new bucket appears immediately, before any
+            // dialog steals focus.
+            try { VM.SetHistory(HistoryBridge.ReadHistory(_doc)); }
+            catch (Exception hEx) { StingLog.Warn($"PlacementCenter post-run history refresh: {hEx.Message}"); }
+
+            // Auto-paint the AVF compliance heat-map when the toggle is on so
+            // the user sees coverage immediately after the commit.
+            if (VM.RunOpts.AutoHeatmap && placed > 0)
+            {
+                try { OnHeatmap_Click(sender, e); }
+                catch (Exception hmEx) { StingLog.Warn($"PlacementCenter auto-heatmap: {hmEx.Message}"); }
+            }
+
             // Optional: validators on what just happened
             if (VM.RunOpts.RunValidators)
                 ShowFindings(scopeToProvenance: true, headline: "Run + post-validation");
@@ -227,7 +399,7 @@ namespace StingTools.UI.PlacementCenter
                 TaskDialog.Show("STING — Placement Centre",
                     $"Placement run complete.\n\n" +
                     $"Placed: {placed}\nSkipped: {skipped}\nWarnings: {warns}\n\n" +
-                    "Run Validate now to audit the result, or click Undo last run (Phase D) to revert.");
+                    "Run Validate now to audit the result, or click Undo last run to revert.");
         }
 
         private void OnPreview_Click(object sender, RoutedEventArgs e)
@@ -314,7 +486,7 @@ namespace StingTools.UI.PlacementCenter
             if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
             if (VM.Selected == null || string.IsNullOrEmpty(VM.Selected.CategoryFilter))
             {
-                gridFamilyHints.ItemsSource = null;
+                VM.SetFamilyHints(null);
                 VM.Status = "Pick a rule with a non-empty CategoryFilter first.";
                 UpdateStatus();
                 return;
@@ -322,7 +494,7 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 var rows = FamilyHintsBridge.Inspect(_doc, VM.Selected.CategoryFilter);
-                gridFamilyHints.ItemsSource = rows;
+                VM.SetFamilyHints(rows);
                 int populated = rows.Count(r => !string.IsNullOrEmpty(r.Value));
                 VM.Status = $"Inspected {VM.Selected.CategoryFilter} · {populated} of {rows.Count} hint param(s) populated";
                 UpdateStatus();
@@ -352,10 +524,11 @@ namespace StingTools.UI.PlacementCenter
                 MainInstruction = $"Write rule values to every family type in '{VM.Selected.CategoryFilter}'?",
                 MainContent =
                     "Writes the following parameters on each matching FamilySymbol:\n" +
-                    "  • PLACE_ORIENTATION_RULE_TXT (cleared so the rule's anchor takes priority)\n" +
-                    "  • PLACE_MOUNT_HEIGHT_MM\n" +
-                    "  • STING_FIXTURE_VARIANT_TXT\n" +
-                    "  • STING_ROOM_TYPE_FILTER_TXT\n\n" +
+                    "  Identity:  PLACE_ORIENTATION_RULE_TXT (cleared), STING_FIXTURE_VARIANT_TXT, STING_ROOM_TYPE_FILTER_TXT\n" +
+                    "  Geometry:  PLACE_MOUNT_HEIGHT_MM, PLACE_OFFSET_X_MM, PLACE_MIN_SPACING_MM\n" +
+                    "  Rule:      PLACE_ANCHOR_TXT, PLACE_SIDE_TXT, PLACE_PRIORITY_INT, PLACE_MAX_PER_ROOM_INT\n" +
+                    "  Notes:     STING_PLACEMENT_NOTES_TXT\n\n" +
+                    "Parameters that don't exist on the family type are skipped silently. " +
                     "Use Undo to reverse all writes as a single transaction.",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 DefaultButton = TaskDialogResult.No,
@@ -427,7 +600,7 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 var rows = HistoryBridge.ReadHistory(_doc);
-                gridHistory.ItemsSource = rows;
+                VM.SetHistory(rows);
                 int total = rows.Sum(r => r.Count);
                 VM.Status = $"History · {rows.Count} bucket(s), {total} placement(s) on record";
                 UpdateStatus();
@@ -436,6 +609,35 @@ namespace StingTools.UI.PlacementCenter
             {
                 StingLog.Error("PlacementCenter.OnHistoryRefresh", ex);
                 TaskDialog.Show("STING — Placement Centre", $"History refresh failed: {ex.Message}");
+            }
+        }
+
+        // Double-click any history row to select its placed instances in
+        // Revit. Uses the ids the bucket already carries — no second
+        // provenance scan. Skips ids that have since been deleted.
+        private void OnHistory_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (_uiDoc == null) return;
+            var row = gridHistory.SelectedItem as HistoryBridge.HistoryRow;
+            if (row == null || row.Ids == null || row.Ids.Count == 0)
+            {
+                VM.Status = "History row has no element ids attached.";
+                UpdateStatus();
+                return;
+            }
+            try
+            {
+                var live = row.Ids
+                    .Where(id => id != null && id != ElementId.InvalidElementId &&
+                                 _doc.GetElement(id) != null)
+                    .ToList();
+                _uiDoc.Selection.SetElementIds(live);
+                VM.Status = $"Selected {live.Count} of {row.Ids.Count} element(s) from history bucket {row.CreatedUtc}";
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementCenter.OnHistory_DoubleClick: {ex.Message}");
             }
         }
 
@@ -548,9 +750,57 @@ namespace StingTools.UI.PlacementCenter
             }
         }
 
+        private void OnCloneSelected_Click(object sender, RoutedEventArgs e)
+        {
+            var picks = gridRules.SelectedItems
+                .OfType<PlacementRuleViewModel>().ToList();
+            if (picks.Count == 0) return;
+            int n = VM.CloneMany(picks);
+            UpdateStatus();
+            if (n > 0) gridRules.ScrollIntoView(VM.Selected);
+        }
+
+        private void OnDeleteSelected_Click(object sender, RoutedEventArgs e)
+        {
+            var picks = gridRules.SelectedItems
+                .OfType<PlacementRuleViewModel>().ToList();
+            if (picks.Count == 0) return;
+            var confirm = new TaskDialog("STING — Delete selected rules")
+            {
+                MainInstruction = $"Remove {picks.Count} rule(s)?",
+                MainContent = "The rules are removed from the in-memory set; click Save Project to persist.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No,
+            };
+            if (confirm.Show() != TaskDialogResult.Yes) return;
+            VM.DeleteMany(picks);
+            UpdateStatus();
+        }
+
+        private void OnSelectInvalid_Click(object sender, RoutedEventArgs e)
+        {
+            gridRules.SelectedItems.Clear();
+            foreach (var r in VM.Rules.Where(r => !r.IsValid))
+                gridRules.SelectedItems.Add(r);
+        }
+
+        private void OnSelectDirty_Click(object sender, RoutedEventArgs e)
+        {
+            gridRules.SelectedItems.Clear();
+            foreach (var r in VM.Rules.Where(r => r.IsDirty))
+                gridRules.SelectedItems.Add(r);
+        }
+
         private void OnSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
             VM.SearchText = txtSearch.Text;
+        }
+
+        private void OnFilterChanged(object sender, RoutedEventArgs e)
+        {
+            VM.ShowDirtyOnly   = chipDirty?.IsChecked   == true;
+            VM.ShowInvalidOnly = chipInvalid?.IsChecked == true;
+            UpdateStatus();
         }
 
         private void OnGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -585,11 +835,12 @@ namespace StingTools.UI.PlacementCenter
             _suppressUiSync = true;
             try
             {
-                pnlDetail.IsEnabled = VM.HasSelection;
+                pnlRuleDetail.IsEnabled = VM.HasSelection;
                 if (VM.Selected == null) { txtRuleError.Text = ""; return; }
                 cmbCategory.Text          = VM.Selected.CategoryFilter ?? "";
-                txtVariant.Text           = VM.Selected.VariantHint    ?? "";
+                cmbVariant.Text           = VM.Selected.VariantHint    ?? "";
                 txtRoom.Text              = VM.Selected.RoomFilter     ?? "";
+                txtNotes.Text             = VM.Selected.Notes          ?? "";
                 cmbAnchor.SelectedItem    = VM.Selected.AnchorType;
                 cmbSide.SelectedItem      = VM.Selected.SideConstraint;
                 txtPriority.Text          = VM.Selected.Priority.ToString(CultureInfo.InvariantCulture);
@@ -660,6 +911,6 @@ namespace StingTools.UI.PlacementCenter
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
             => value is bool b && b ? "●" : "";
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-            => Binding.DoNothing;
+            => System.Windows.Data.Binding.DoNothing;
     }
 }

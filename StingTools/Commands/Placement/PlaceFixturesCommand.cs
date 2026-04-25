@@ -54,6 +54,12 @@ namespace StingTools.Commands.Placement
         public static bool MinDoorClearance300    { get; set; } = true;
         public static bool MinWindowClearance100  { get; set; } = true;
 
+        // Run-options surfaced by the Placement Centre. Read by
+        // FixturePlacementEngine; defaults preserve historic behaviour
+        // (provenance always stamped, learned offsets always honoured).
+        public static bool StampProvenance        { get; set; } = true;
+        public static bool HonourLearned          { get; set; } = true;
+
         /// <summary>
         /// Return the set of Revit category names this command should
         /// consider, based on the discipline checkboxes. Used by
