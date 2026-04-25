@@ -111,6 +111,122 @@ namespace StingTools.UI
             "Structural Rebar", "Walls", "Windows", "Zones",
         };
 
+        // Phase 136 — Native Revit categories grouped by discipline. Used by
+        // the VG editor's discipline-filter combo, and as a fallback when
+        // doc.Settings.Categories returns an unusually thin list (empty
+        // template, family editor, no MEP loaded, etc.). Keys mirror the
+        // discipline filter values; the special "All" key is reserved at
+        // runtime for "no filter".
+        private static readonly Dictionary<string, string[]> KnownModelCategoriesByDiscipline =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Architectural"] = new[]
+            {
+                "Walls", "Curtain Panels", "Curtain Wall Mullions", "Curtain Systems",
+                "Doors", "Windows", "Floors", "Ceilings", "Roofs",
+                "Stairs", "Railings", "Ramps", "Casework", "Furniture", "Furniture Systems",
+                "Specialty Equipment", "Generic Models", "Mass",
+                "Site", "Topography", "Parking", "Planting", "Entourage",
+                "Roads", "Pads",
+            },
+            ["Structural"] = new[]
+            {
+                "Structural Columns", "Structural Framing", "Structural Foundations",
+                "Structural Connections", "Structural Stiffeners", "Structural Trusses",
+                "Structural Rebar", "Structural Area Reinforcement",
+                "Structural Path Reinforcement", "Structural Fabric Areas",
+                "Structural Fabric Reinforcement", "Rebar Shape", "Structural Beam Systems",
+                "Structural Loads", "Analytical Spaces", "Analytical Surfaces",
+            },
+            ["Mechanical"] = new[]
+            {
+                "Mechanical Equipment", "Air Terminals", "Ducts", "Duct Fittings",
+                "Duct Accessories", "Duct Insulations", "Duct Linings", "Duct Placeholders",
+                "Duct Systems", "Flex Ducts", "HVAC Zones", "MEP Fabrication Ductwork",
+                "MEP Fabrication Hangers",
+            },
+            ["Electrical"] = new[]
+            {
+                "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures",
+                "Lighting Devices", "Cable Trays", "Cable Tray Fittings",
+                "Conduits", "Conduit Fittings", "Wires", "Electrical Circuits",
+                "Telephone Devices", "Communication Devices", "Data Devices",
+                "Security Devices", "Nurse Call Devices", "Fire Alarm Devices",
+            },
+            ["Plumbing"] = new[]
+            {
+                "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulations",
+                "Pipe Placeholders", "Flex Pipes", "Plumbing Fixtures",
+                "Sprinklers", "Piping Systems", "MEP Fabrication Pipework",
+            },
+            ["Fire Protection"] = new[]
+            {
+                "Fire Alarm Devices", "Fire Protection", "Sprinklers",
+            },
+            ["Coordination"] = new[]
+            {
+                "Rooms", "Spaces", "Areas", "Zones",
+                "Levels", "Grids", "Scope Boxes", "Reference Planes", "Reference Lines",
+                "Section Boxes", "Matchline", "Detail Items", "Model Groups",
+                "Assembly Instances", "Assemblies", "Parts", "Project Information",
+            },
+        };
+
+        private static readonly Dictionary<string, string[]> KnownAnnotationCategoriesByDiscipline =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Annotation"] = new[]
+            {
+                "Dimensions", "Spot Coordinates", "Spot Elevations", "Spot Slopes",
+                "Text Notes", "Generic Annotations", "Keynote Tags", "Multi-Category Tags",
+                "Detail Items", "Filled Region", "Masking Region",
+                "Revision Clouds", "Revision Cloud Tags",
+                "Section Marks", "Elevation Marks", "Callout Boundary", "Callout Heads",
+                "Reference View", "View Title", "Sheet Number", "Sheet Name",
+                "Title Marks", "Levels (Annotation)", "Grids (Annotation)", "Matchline",
+            },
+            ["Tags — Architectural"] = new[]
+            {
+                "Door Tags", "Window Tags", "Wall Tags", "Floor Tags", "Ceiling Tags",
+                "Roof Tags", "Stair Tags", "Railing Tags", "Ramp Tags", "Casework Tags",
+                "Furniture Tags", "Furniture System Tags", "Curtain Panel Tags",
+                "Generic Model Tags", "Specialty Equipment Tags",
+                "Room Tags", "Space Tags", "Area Tags", "Zone Tags",
+                "Site Tags", "Parking Tags", "Planting Tags",
+            },
+            ["Tags — Structural"] = new[]
+            {
+                "Structural Column Tags", "Structural Framing Tags",
+                "Structural Foundation Tags", "Structural Connection Tags",
+                "Structural Rebar Tags", "Structural Truss Tags",
+                "Structural Beam System Tags", "Span Direction Symbol",
+            },
+            ["Tags — Mechanical"] = new[]
+            {
+                "Mechanical Equipment Tags", "Air Terminal Tags",
+                "Duct Tags", "Duct Fitting Tags", "Duct Accessory Tags",
+                "Duct Insulation Tags", "Flex Duct Tags",
+                "HVAC Zone Tags",
+            },
+            ["Tags — Electrical"] = new[]
+            {
+                "Electrical Equipment Tags", "Electrical Fixture Tags",
+                "Lighting Fixture Tags", "Lighting Device Tags",
+                "Cable Tray Tags", "Cable Tray Fitting Tags",
+                "Conduit Tags", "Conduit Fitting Tags", "Wire Tags",
+                "Communication Device Tags", "Data Device Tags",
+                "Security Device Tags", "Nurse Call Device Tags",
+                "Fire Alarm Device Tags", "Telephone Device Tags",
+            },
+            ["Tags — Plumbing"] = new[]
+            {
+                "Pipe Tags", "Pipe Fitting Tags", "Pipe Accessory Tags",
+                "Pipe Insulation Tags", "Flex Pipe Tags",
+                "Plumbing Fixture Tags", "Sprinkler Tags",
+            },
+        };
+
+
         private static readonly string[] CommonStingFilters = new[]
         {
             "Existing - Halftone", "Demolished - Red", "New Construction",
@@ -2267,6 +2383,7 @@ namespace StingTools.UI
         {
             public string CategoryName { get; set; }       // display name
             public string CategoryKey  { get; set; }       // key into VgOverrides dict
+            public string Discipline   { get; set; }       // "Architectural"/"Mechanical"/... for filter combo
             public bool IsSubcategory  { get; set; }
             public List<VgCategoryNode> Children { get; set; } = new List<VgCategoryNode>();
             public bool IsExpanded { get; set; }            // UI state for [+]/[-]
@@ -2279,103 +2396,148 @@ namespace StingTools.UI
         private string[] _linePatternNames = new[] { "(No Override)", "Solid" };
         private string[] _fillPatternNames = new[] { "(No Override)" };
 
-        // Build the three category trees + line/fill pattern lists from the
-        // active document. Called once from the constructor (before BuildLayout).
+        // Discipline label assigned to nodes created from the static
+        // fallback list (the live doc loop assigns "Project" so users see
+        // which entries are currently bound to a category in this model).
+        private const string DISC_PROJECT = "Project";
+
+        // Build the three category trees + line/fill pattern lists.
+        // Unions doc.Settings.Categories with the static
+        // KnownModelCategoriesByDiscipline / KnownAnnotationCategoriesByDiscipline
+        // tables so the editor always shows a complete native-Revit catalogue,
+        // even on minimal projects (template-only documents, family editor,
+        // empty new project) and is filterable by discipline.
         private void BuildCategoryTrees()
         {
+            // Per-step try/catch so a failure in one step (e.g. a hostile
+            // doc.Settings.Categories iteration) doesn't suppress the static
+            // fallback that follows.
+            var modelByKey = new Dictionary<string, VgCategoryNode>(StringComparer.OrdinalIgnoreCase);
+            var annoByKey  = new Dictionary<string, VgCategoryNode>(StringComparer.OrdinalIgnoreCase);
+
+            // 1. Live doc categories ----------------------------------------
             try
             {
-                if (_doc == null) return;
-
-                // Model categories ----------------------------------------
-                foreach (Category cat in _doc.Settings.Categories)
+                if (_doc != null)
                 {
-                    if (cat == null) continue;
-                    if (cat.CategoryType != CategoryType.Model) continue;
-                    var node = new VgCategoryNode { CategoryName = cat.Name, CategoryKey = cat.Name };
-                    foreach (Category sub in cat.SubCategories)
+                    foreach (Category cat in _doc.Settings.Categories)
                     {
-                        if (sub == null) continue;
-                        node.Children.Add(new VgCategoryNode
-                        {
-                            CategoryName  = sub.Name,
-                            CategoryKey   = "<" + sub.Name + ">",
-                            IsSubcategory = true,
-                        });
-                    }
-                    _modelCatNodes.Add(node);
-                }
-                _modelCatNodes = _modelCatNodes.OrderBy(n => n.CategoryName).ToList();
-
-                // Annotation categories -----------------------------------
-                foreach (Category cat in _doc.Settings.Categories)
-                {
-                    if (cat == null) continue;
-                    if (cat.CategoryType != CategoryType.Annotation) continue;
-                    var node = new VgCategoryNode { CategoryName = cat.Name, CategoryKey = cat.Name };
-                    foreach (Category sub in cat.SubCategories)
-                    {
-                        if (sub == null) continue;
-                        node.Children.Add(new VgCategoryNode
-                        {
-                            CategoryName  = sub.Name,
-                            CategoryKey   = "<" + sub.Name + ">",
-                            IsSubcategory = true,
-                        });
-                    }
-                    _annotationCatNodes.Add(node);
-                }
-                _annotationCatNodes = _annotationCatNodes.OrderBy(n => n.CategoryName).ToList();
-
-                // Imported (DWG / DXF) categories --------------------------
-                // Group by import file name; subcats are the layers.
-                var imports = new FilteredElementCollector(_doc)
-                    .OfClass(typeof(ImportInstance))
-                    .Cast<ImportInstance>()
-                    .Where(i => i?.Category != null)
-                    .ToList();
-                var byFile = new Dictionary<string, VgCategoryNode>(StringComparer.OrdinalIgnoreCase);
-                foreach (var imp in imports)
-                {
-                    var c = imp.Category;
-                    if (c == null) continue;
-                    if (!byFile.TryGetValue(c.Name, out var parent))
-                    {
-                        parent = new VgCategoryNode { CategoryName = c.Name, CategoryKey = c.Name };
-                        byFile[c.Name] = parent;
-                        foreach (Category sub in c.SubCategories)
+                        if (cat == null) continue;
+                        Dictionary<string, VgCategoryNode> bucket = null;
+                        if (cat.CategoryType == CategoryType.Model) bucket = modelByKey;
+                        else if (cat.CategoryType == CategoryType.Annotation) bucket = annoByKey;
+                        if (bucket == null) continue;
+                        var node = new VgCategoryNode {
+                            CategoryName = cat.Name, CategoryKey = cat.Name,
+                            Discipline = DISC_PROJECT };
+                        foreach (Category sub in cat.SubCategories)
                         {
                             if (sub == null) continue;
-                            parent.Children.Add(new VgCategoryNode
-                            {
-                                CategoryName  = sub.Name,
-                                CategoryKey   = "<" + sub.Name + ">",
-                                IsSubcategory = true,
-                            });
+                            node.Children.Add(new VgCategoryNode {
+                                CategoryName = sub.Name, CategoryKey = "<" + sub.Name + ">",
+                                Discipline = DISC_PROJECT, IsSubcategory = true });
                         }
+                        bucket[cat.Name] = node;
                     }
                 }
-                _importedCatNodes = byFile.Values.OrderBy(n => n.CategoryName).ToList();
-
-                // Line + fill patterns ------------------------------------
-                _linePatternNames = new[] { "(No Override)", "Solid" }
-                    .Concat(new FilteredElementCollector(_doc)
-                        .OfClass(typeof(LinePatternElement))
-                        .Cast<LinePatternElement>()
-                        .Select(lp => lp.Name).OrderBy(n => n))
-                    .Distinct().ToArray();
-
-                _fillPatternNames = new[] { "(No Override)" }
-                    .Concat(new FilteredElementCollector(_doc)
-                        .OfClass(typeof(FillPatternElement))
-                        .Cast<FillPatternElement>()
-                        .Select(fp => fp.Name).OrderBy(n => n))
-                    .Distinct().ToArray();
             }
-            catch (Exception ex)
+            catch (Exception ex) { StingLog.Warn("BuildCategoryTrees.live: " + ex.Message); }
+
+            // 2. Static fallback (runs unconditionally — never throws) -----
+            foreach (var kv in KnownModelCategoriesByDiscipline)
+                foreach (var name in kv.Value)
+                {
+                    if (modelByKey.ContainsKey(name)) continue;
+                    modelByKey[name] = new VgCategoryNode {
+                        CategoryName = name, CategoryKey = name, Discipline = kv.Key };
+                }
+            foreach (var kv in KnownAnnotationCategoriesByDiscipline)
+                foreach (var name in kv.Value)
+                {
+                    if (annoByKey.ContainsKey(name)) continue;
+                    annoByKey[name] = new VgCategoryNode {
+                        CategoryName = name, CategoryKey = name, Discipline = kv.Key };
+                }
+
+            _modelCatNodes      = modelByKey.Values.OrderBy(n => n.CategoryName).ToList();
+            _annotationCatNodes = annoByKey.Values .OrderBy(n => n.CategoryName).ToList();
+
+            // 3. Imported (DWG / DXF) categories — live doc only ----------
+            try
             {
-                StingLog.Warn("DrawingTypeEditor.BuildCategoryTrees: " + ex.Message);
+                if (_doc != null)
+                {
+                    var imports = new FilteredElementCollector(_doc)
+                        .OfClass(typeof(ImportInstance))
+                        .Cast<ImportInstance>()
+                        .Where(i => i?.Category != null)
+                        .ToList();
+                    var byFile = new Dictionary<string, VgCategoryNode>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var imp in imports)
+                    {
+                        var c = imp.Category;
+                        if (c == null) continue;
+                        if (!byFile.TryGetValue(c.Name, out var parent))
+                        {
+                            parent = new VgCategoryNode {
+                                CategoryName = c.Name, CategoryKey = c.Name, Discipline = DISC_PROJECT };
+                            byFile[c.Name] = parent;
+                            foreach (Category sub in c.SubCategories)
+                            {
+                                if (sub == null) continue;
+                                parent.Children.Add(new VgCategoryNode {
+                                    CategoryName = sub.Name, CategoryKey = "<" + sub.Name + ">",
+                                    Discipline = DISC_PROJECT, IsSubcategory = true });
+                            }
+                        }
+                    }
+                    _importedCatNodes = byFile.Values.OrderBy(n => n.CategoryName).ToList();
+                }
             }
+            catch (Exception ex) { StingLog.Warn("BuildCategoryTrees.imports: " + ex.Message); }
+
+            // 4. Line + fill patterns — live doc only ---------------------
+            try
+            {
+                if (_doc != null)
+                {
+                    _linePatternNames = new[] { "(No Override)", "Solid" }
+                        .Concat(new FilteredElementCollector(_doc)
+                            .OfClass(typeof(LinePatternElement))
+                            .Cast<LinePatternElement>()
+                            .Select(lp => lp.Name).OrderBy(n => n))
+                        .Distinct().ToArray();
+
+                    _fillPatternNames = new[] { "(No Override)" }
+                        .Concat(new FilteredElementCollector(_doc)
+                            .OfClass(typeof(FillPatternElement))
+                            .Cast<FillPatternElement>()
+                            .Select(fp => fp.Name).OrderBy(n => n))
+                        .Distinct().ToArray();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("BuildCategoryTrees.patterns: " + ex.Message); }
+        }
+
+        // Returns the discipline filter options for a given tree type.
+        // "All" + "Project" (live-doc-tagged) + each static-table key.
+        private string[] DisciplineFilterOptions(IEnumerable<VgCategoryNode> nodes,
+            Dictionary<string, string[]> staticTable)
+        {
+            var live = nodes.Select(n => n.Discipline ?? "")
+                .Where(d => !string.IsNullOrEmpty(d))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            // Order: "All" first, then "Project" if any live entries, then
+            // static-table keys in their declared order.
+            var ordered = new List<string> { "All" };
+            if (live.Any(d => d.Equals(DISC_PROJECT, StringComparison.OrdinalIgnoreCase)))
+                ordered.Add(DISC_PROJECT);
+            foreach (var k in staticTable.Keys)
+                if (live.Any(d => d.Equals(k, StringComparison.OrdinalIgnoreCase))
+                    && !ordered.Contains(k, StringComparer.OrdinalIgnoreCase))
+                    ordered.Add(k);
+            return ordered.ToArray();
         }
 
 
@@ -2450,9 +2612,38 @@ namespace StingTools.UI
         private static readonly double[] _vgColWidths =
             { 22, 180, 90, 90, 50, 90, 90, 60, 80 };
 
+        // Per-tab discipline filter state — keyed by tree-list reference so
+        // each tab keeps its own filter independently.
+        private readonly Dictionary<List<VgCategoryNode>, string> _disciplineFilter
+            = new Dictionary<List<VgCategoryNode>, string>();
+
         private UIElement BuildVgTreeTab(List<VgCategoryNode> nodes)
         {
             var dock = new DockPanel { Margin = new Thickness(2), LastChildFill = true };
+
+            // Resolve the static-table for this tree (used for filter options).
+            var staticTable = ReferenceEquals(nodes, _annotationCatNodes)
+                ? KnownAnnotationCategoriesByDiscipline
+                : KnownModelCategoriesByDiscipline;
+
+            // Discipline filter row (top) ---------------------------------
+            if (!_disciplineFilter.ContainsKey(nodes)) _disciplineFilter[nodes] = "All";
+            var filterRow = new DockPanel { Margin = new Thickness(0, 0, 0, 4), LastChildFill = true };
+            var filterLbl = new TextBlock {
+                Text = "Filter by discipline:",
+                Foreground = new SolidColorBrush(SubtleColor),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0) };
+            DockPanel.SetDock(filterLbl, Dock.Left);
+            filterRow.Children.Add(filterLbl);
+
+            var filterCombo = new ComboBox { Height = 22, IsEditable = false, MinWidth = 160 };
+            DarkDialogTheme.StyleInput(filterCombo, CardBg, FgColor, CardBorder);
+            foreach (var d in DisciplineFilterOptions(nodes, staticTable))
+                filterCombo.Items.Add(d);
+            filterCombo.SelectedItem = _disciplineFilter[nodes];
+            DockPanel.SetDock(filterRow, Dock.Top);
+            dock.Children.Add(filterRow);
 
             // Column header row
             var hdrRow = MakeVgHeaderRow();
@@ -2465,35 +2656,68 @@ namespace StingTools.UI
                 Orientation = Orientation.Horizontal,
                 Margin = new Thickness(0, 4, 0, 2),
             };
-            actions.Children.Add(MakeSmallBtn("All",        () => BulkSetVisibility(nodes, true)));
-            actions.Children.Add(MakeSmallBtn("None",       () => BulkSetVisibility(nodes, false)));
-            actions.Children.Add(MakeSmallBtn("Invert",     () => BulkInvertVisibility(nodes)));
-            actions.Children.Add(MakeSmallBtn("Expand All", () => BulkExpand(nodes, true)));
-            actions.Children.Add(MakeSmallBtn("Collapse All", () => BulkExpand(nodes, false)));
+            actions.Children.Add(MakeSmallBtn("All",        () => BulkSetVisibility(FilteredNodes(nodes), true)));
+            actions.Children.Add(MakeSmallBtn("None",       () => BulkSetVisibility(FilteredNodes(nodes), false)));
+            actions.Children.Add(MakeSmallBtn("Invert",     () => BulkInvertVisibility(FilteredNodes(nodes))));
+            actions.Children.Add(MakeSmallBtn("Expand All", () => BulkExpand(FilteredNodes(nodes), true)));
+            actions.Children.Add(MakeSmallBtn("Collapse All", () => BulkExpand(FilteredNodes(nodes), false)));
             DockPanel.SetDock(actions, Dock.Bottom);
             dock.Children.Add(actions);
 
-            // Scrollable category rows
-            var scroll = new ScrollViewer
-            {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                MaxHeight = 380,
-            };
-            var rows = new StackPanel();
-            scroll.Content = rows;
-            dock.Children.Add(scroll);
+            // Category rows — direct StackPanel inside the DockPanel's
+            // remaining (LastChildFill) area. The form-host already has its
+            // own outer ScrollViewer, so we don't nest one here (which could
+            // collapse to zero height when the parent has Auto sizing).
+            var rowsHost = new StackPanel { MinHeight = 220 };
+            dock.Children.Add(rowsHost);
 
-            RenderVgRows(rows, nodes);
+            // Wire the filter combo *after* rowsHost exists so the handler
+            // can re-render against the current filter selection.
+            filterCombo.SelectionChanged += (s, e) =>
+            {
+                if (filterCombo.SelectedItem is string ss)
+                {
+                    _disciplineFilter[nodes] = ss;
+                    RenderVgRows(rowsHost, nodes);
+                }
+            };
+            filterRow.Children.Add(filterCombo);
+
+            RenderVgRows(rowsHost, nodes);
             return dock;
         }
 
-        // Render the rows for the given node list. Subcat rows render only
-        // when the parent is expanded. Re-called whenever override state
-        // changes that affects visibility / structure.
+        // Filter `nodes` by the active discipline selection ("All" → no filter).
+        private List<VgCategoryNode> FilteredNodes(List<VgCategoryNode> nodes)
+        {
+            if (!_disciplineFilter.TryGetValue(nodes, out var disc) || string.IsNullOrEmpty(disc) || disc == "All")
+                return nodes;
+            return nodes.Where(n => string.Equals(n.Discipline, disc, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+        }
+
+        // Render the rows for the given node list, honouring the per-tab
+        // discipline filter. Subcat rows render only when the parent is
+        // expanded. Re-called whenever filter / override state changes.
         private void RenderVgRows(StackPanel host, List<VgCategoryNode> nodes)
         {
             host.Children.Clear();
-            foreach (var n in nodes)
+            var filtered = FilteredNodes(nodes);
+
+            if (filtered.Count == 0)
+            {
+                host.Children.Add(new TextBlock
+                {
+                    Text = "(no categories match this filter — switch to All or load some elements)",
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    FontStyle = FontStyles.Italic,
+                    FontSize = 11,
+                    Margin = new Thickness(8, 8, 8, 8),
+                });
+                return;
+            }
+
+            foreach (var n in filtered)
             {
                 host.Children.Add(MakeVgCategoryRow(n, host, nodes, indent: 0));
                 if (n.IsExpanded)
