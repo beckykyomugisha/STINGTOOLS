@@ -67,14 +67,10 @@ namespace StingTools.UI
         // FILTER (system / level text)
         private TextBox _txtSystemFilter, _txtLevelFilter;
 
-        // RULES card (collapsed into the filter strip)
-        private CheckBox _chkPipe, _chkPipeLB, _chkDuct, _chkDuctPitt, _chkConduit;
-
-        // OUTPUT card
-        private CheckBox _chkAssy, _chkViews, _chkSheets, _chkSymbols, _chkCsv;
-
-        // CONTENT MODE
-        private RadioButton _rbIso6412, _rbGeneric;
+        // Rules / Output / Content mode are configured via the dock-panel
+        // Fabrication tab and read by the engine directly off
+        // FabricationOptions — the workspace dialog deliberately does not
+        // mirror them here so the layout matches the spec mockup.
 
         // Tabs
         private TabControl _tabs;
@@ -237,7 +233,7 @@ namespace StingTools.UI
             return grid;
         }
 
-        // ─── CATEGORY breakdown card ────────────────────────────────────
+        // ─── CATEGORY breakdown card — checkbox + count rows ────────────
 
         private UIElement BuildCategoryCard()
         {
@@ -252,7 +248,7 @@ namespace StingTools.UI
                 Foreground = new SolidColorBrush(AccentColor),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Margin = new Thickness(0, 6, 0, 0),
+                Margin = new Thickness(0, 8, 0, 4),
             };
             body.Children.Add(_txtDisciplineSummary);
 
@@ -260,87 +256,60 @@ namespace StingTools.UI
             // RefreshScopeAndCategories.
             foreach (var info in MepCategories)
             {
-                var row = new CategoryRow(info.bic, info.label, info.disc, NeutralBtn, FgColor, AccentColor, AltRowBg, CardBorder);
+                var row = new CategoryRow(info.bic, info.label, info.disc,
+                    FgColor, AccentColor, CardBorder,
+                    onToggle: () => RefreshPackagePreview());
                 _catRows[info.bic] = row;
                 _categoryListHost.Children.Add(row.RowElement);
             }
 
-            return Card("Categories in scope", body);
+            return Card("Categories", body);
         }
 
-        // ─── FILTERS / RULES / OUTPUT / CONTENT ─────────────────────────
+        // ─── FILTERS — single inline System / Level row ─────────────────
 
         private UIElement BuildFiltersCard()
         {
-            var grid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            var grid = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // Filter (System / Level)
-            var filterBody = new StackPanel();
-            filterBody.Children.Add(new TextBlock
+            var lblSys = new TextBlock
             {
-                Text = "Free-text filters; blank = no filter.",
-                Foreground = new SolidColorBrush(SubtleColor), FontSize = 10,
-                Margin = new Thickness(0, 0, 0, 4),
-            });
-            _txtSystemFilter = new TextBox { Height = 22 };
+                Text = "System:",
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(AccentColor),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(lblSys, 0); Grid.SetRow(lblSys, 0);
+            grid.Children.Add(lblSys);
+
+            _txtSystemFilter = new TextBox { Height = 22, Margin = new Thickness(0, 0, 12, 0) };
             DarkDialogTheme.StyleInput(_txtSystemFilter, CardBg, FgColor, CardBorder);
             _txtSystemFilter.LostFocus += (s, e) => RefreshPackagePreview();
-            filterBody.Children.Add(LabelInline("System", 70));
-            filterBody.Children.Add(_txtSystemFilter);
-            _txtLevelFilter = new TextBox { Height = 22, Margin = new Thickness(0, 4, 0, 0) };
+            Grid.SetColumn(_txtSystemFilter, 1); Grid.SetRow(_txtSystemFilter, 0);
+            grid.Children.Add(_txtSystemFilter);
+
+            var lblLvl = new TextBlock
+            {
+                Text = "Level:",
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(AccentColor),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(lblLvl, 2); Grid.SetRow(lblLvl, 0);
+            grid.Children.Add(lblLvl);
+
+            _txtLevelFilter = new TextBox { Height = 22 };
             DarkDialogTheme.StyleInput(_txtLevelFilter, CardBg, FgColor, CardBorder);
             _txtLevelFilter.LostFocus += (s, e) => RefreshPackagePreview();
-            filterBody.Children.Add(LabelInline("Level", 70));
-            filterBody.Children.Add(_txtLevelFilter);
-            var filterCard = Card("Filter", filterBody);
-            Grid.SetColumn(filterCard, 0);
-            grid.Children.Add(filterCard);
-
-            // Rules
-            var rulesBody = new StackPanel();
-            _chkPipe     = CheckRow("Pipe (max 6 m / 4 bends)",                FabricationOptions.RulePipe,     v => FabricationOptions.RulePipe     = v);
-            _chkPipeLB   = CheckRow("Pipe large bore (max 3 m)",               FabricationOptions.RulePipeLB,   v => FabricationOptions.RulePipeLB   = v);
-            _chkDuct     = CheckRow("Duct TDF (max 3 m / 3 bends)",            FabricationOptions.RuleDuct,     v => FabricationOptions.RuleDuct     = v);
-            _chkDuctPitt = CheckRow("Duct Pittsburgh (max 2.4 m)",             FabricationOptions.RuleDuctPitt, v => FabricationOptions.RuleDuctPitt = v);
-            _chkConduit  = CheckRow("Conduit (max 6 m / 3 bends, BS 7671)",    FabricationOptions.RuleConduit,  v => FabricationOptions.RuleConduit  = v);
-            rulesBody.Children.Add(_chkPipe);
-            rulesBody.Children.Add(_chkPipeLB);
-            rulesBody.Children.Add(_chkDuct);
-            rulesBody.Children.Add(_chkDuctPitt);
-            rulesBody.Children.Add(_chkConduit);
-            var rulesCard = Card("Rules", rulesBody);
-            Grid.SetColumn(rulesCard, 1);
-            grid.Children.Add(rulesCard);
-
-            // Output + Content mode (combined)
-            var outBody = new StackPanel();
-            _chkAssy    = CheckRow("Generate AssemblyInstances",  FabricationOptions.GenerateAssemblies,  v => FabricationOptions.GenerateAssemblies  = v);
-            _chkViews   = CheckRow("Generate views (5 + BOM)",    FabricationOptions.GenerateViews,       v => FabricationOptions.GenerateViews       = v);
-            _chkSheets  = CheckRow("Generate shop drawing sheets",FabricationOptions.GenerateSheets,      v => FabricationOptions.GenerateSheets      = v);
-            _chkSymbols = CheckRow("Place ISO 6412 symbols",      FabricationOptions.PlaceISO6412Symbols, v => FabricationOptions.PlaceISO6412Symbols = v);
-            _chkCsv     = CheckRow("Emit per-discipline CSVs",    FabricationOptions.EmitPerDisciplineCsv,v => FabricationOptions.EmitPerDisciplineCsv= v);
-            outBody.Children.Add(_chkAssy);
-            outBody.Children.Add(_chkViews);
-            outBody.Children.Add(_chkSheets);
-            outBody.Children.Add(_chkSymbols);
-            outBody.Children.Add(_chkCsv);
-            outBody.Children.Add(new TextBlock { Text = "Content mode",
-                Foreground = new SolidColorBrush(SubtleColor), FontSize = 10,
-                Margin = new Thickness(0, 6, 0, 2) });
-            var contentRow = new StackPanel { Orientation = Orientation.Horizontal };
-            _rbIso6412 = MakeRadio("ISO 6412 (workshop)",     "FabContent",  FabricationOptions.ContentModeIso6412);
-            _rbGeneric = MakeRadio("Generic (geometry only)", "FabContent", !FabricationOptions.ContentModeIso6412);
-            _rbIso6412.Checked += (s, e) => FabricationOptions.ContentModeIso6412 = true;
-            _rbGeneric.Checked += (s, e) => FabricationOptions.ContentModeIso6412 = false;
-            contentRow.Children.Add(_rbIso6412);
-            contentRow.Children.Add(_rbGeneric);
-            outBody.Children.Add(contentRow);
-            var outCard = Card("Output", outBody);
-            Grid.SetColumn(outCard, 2);
-            grid.Children.Add(outCard);
+            Grid.SetColumn(_txtLevelFilter, 3); Grid.SetRow(_txtLevelFilter, 0);
+            grid.Children.Add(_txtLevelFilter);
 
             return grid;
         }
@@ -709,7 +678,10 @@ namespace StingTools.UI
                 foreach (var id in ids)
                 {
                     var el = _doc.GetElement(id);
-                    if (el == null) continue;
+                    if (el?.Category == null) continue;
+                    var bic = (BuiltInCategory)(int)el.Category.Id.Value;
+                    // Skip categories the user unticked in the breakdown.
+                    if (_catRows.TryGetValue(bic, out var crow) && !crow.IsChecked) continue;
                     string disc = DisciplineFor(el);
                     if (!RuleEnabledFor(disc)) continue;
                     string sys = ParameterHelpers.GetString(el, "PLM_SYS_TXT");
@@ -1000,24 +972,13 @@ namespace StingTools.UI
 
         private void HydrateFromOptions()
         {
+            // Workspace mirrors the SCOPE radios only — the rules /
+            // output / content-mode toggles are read by the engine
+            // directly off FabricationOptions and configured via the
+            // dock panel.
             if (_rbScopeSel  != null) _rbScopeSel.IsChecked  = FabricationOptions.ScopeSelection;
             if (_rbScopeView != null) _rbScopeView.IsChecked = FabricationOptions.ScopeActiveView;
             if (_rbScopeProj != null) _rbScopeProj.IsChecked = FabricationOptions.ScopeProject;
-
-            if (_chkPipe     != null) _chkPipe.IsChecked     = FabricationOptions.RulePipe;
-            if (_chkPipeLB   != null) _chkPipeLB.IsChecked   = FabricationOptions.RulePipeLB;
-            if (_chkDuct     != null) _chkDuct.IsChecked     = FabricationOptions.RuleDuct;
-            if (_chkDuctPitt != null) _chkDuctPitt.IsChecked = FabricationOptions.RuleDuctPitt;
-            if (_chkConduit  != null) _chkConduit.IsChecked  = FabricationOptions.RuleConduit;
-
-            if (_chkAssy    != null) _chkAssy.IsChecked    = FabricationOptions.GenerateAssemblies;
-            if (_chkViews   != null) _chkViews.IsChecked   = FabricationOptions.GenerateViews;
-            if (_chkSheets  != null) _chkSheets.IsChecked  = FabricationOptions.GenerateSheets;
-            if (_chkSymbols != null) _chkSymbols.IsChecked = FabricationOptions.PlaceISO6412Symbols;
-            if (_chkCsv     != null) _chkCsv.IsChecked     = FabricationOptions.EmitPerDisciplineCsv;
-
-            if (_rbIso6412 != null) _rbIso6412.IsChecked =  FabricationOptions.ContentModeIso6412;
-            if (_rbGeneric != null) _rbGeneric.IsChecked = !FabricationOptions.ContentModeIso6412;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1178,45 +1139,40 @@ namespace StingTools.UI
     //  Helper types
     // ═══════════════════════════════════════════════════════════════════
 
-    /// <summary>One row in the live category-breakdown card. The row is
-    /// just a presentation surface — the underlying selection always
-    /// flows from the SCOPE radio buttons + free-text filters.</summary>
+    /// <summary>One row in the live category-breakdown card. The CheckBox
+    /// gates whether elements of that category contribute to the package
+    /// preview / scope, and the right-aligned count tracks the live
+    /// element count returned by RefreshScopeAndCategories.</summary>
     internal sealed class CategoryRow
     {
+        private readonly CheckBox _check;
         private readonly TextBlock _txtCount;
         public BuiltInCategory Category { get; }
         public Grid RowElement { get; }
+        public bool IsChecked => _check?.IsChecked == true;
 
         public CategoryRow(BuiltInCategory bic, string label, string disc,
-            Color rowBg, Color fg, Color accent, Color altRowBg, Color border)
+            Color fg, Color accent, Color border, Action onToggle)
         {
             Category = bic;
 
             RowElement = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-            RowElement.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
             RowElement.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             RowElement.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
 
-            var dot = new Border
+            _check = new CheckBox
             {
-                Width = 10, Height = 10,
-                CornerRadius = new CornerRadius(5),
-                Background = new SolidColorBrush(accent),
-                Margin = new Thickness(2, 4, 8, 4),
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            };
-            Grid.SetColumn(dot, 0); RowElement.Children.Add(dot);
-
-            var lbl = new TextBlock
-            {
-                Text = $"{label}   ({disc})",
+                Content = label,
+                IsChecked = true,
                 Foreground = new SolidColorBrush(fg),
                 FontSize = 11,
-                Margin = new Thickness(0, 4, 0, 4),
+                Margin = new Thickness(0, 2, 0, 2),
                 VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = $"Discipline: {disc}",
             };
-            Grid.SetColumn(lbl, 1); RowElement.Children.Add(lbl);
+            _check.Checked   += (s, e) => onToggle?.Invoke();
+            _check.Unchecked += (s, e) => onToggle?.Invoke();
+            Grid.SetColumn(_check, 0); RowElement.Children.Add(_check);
 
             _txtCount = new TextBlock
             {
@@ -1228,7 +1184,7 @@ namespace StingTools.UI
                 TextAlignment = TextAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center,
             };
-            Grid.SetColumn(_txtCount, 2); RowElement.Children.Add(_txtCount);
+            Grid.SetColumn(_txtCount, 1); RowElement.Children.Add(_txtCount);
         }
 
         public void SetCount(int n)
