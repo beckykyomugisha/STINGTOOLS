@@ -123,6 +123,8 @@ namespace StingTools.UI.PlacementCenter
             CommandBindings.Add(new CommandBinding(PlacementCentreCommands.HistoryRefresh, (s,a) => OnHistoryRefresh_Click(s, a)));
             CommandBindings.Add(new CommandBinding(PlacementCentreCommands.ClearPreview,   (s,a) => OnClearPreview_Shortcut(s, a)));
             CommandBindings.Add(new CommandBinding(PlacementCentreCommands.DeleteSelected, (s,a) => OnDeleteSelected_Click(s, a)));
+
+            HookDocumentLifecycle();
         }
 
         // ESC = clear any active DirectContext3D preview without closing the window.
@@ -143,8 +145,21 @@ namespace StingTools.UI.PlacementCenter
         {
             if (_instance != null && !_instance._closed)
             {
-                _instance.Activate();
-                return;
+                // If the cached instance is bound to a different document
+                // than the active one, close it and reopen against the
+                // current doc so rules + history come from the right project.
+                var activeDoc = uiApp?.ActiveUIDocument?.Document;
+                if (activeDoc != null && _instance._doc != null &&
+                    !ReferenceEquals(activeDoc, _instance._doc))
+                {
+                    try { _instance.Close(); } catch { }
+                    _instance = null;
+                }
+                else
+                {
+                    _instance.Activate();
+                    return;
+                }
             }
             try
             {
@@ -158,6 +173,38 @@ namespace StingTools.UI.PlacementCenter
                 TaskDialog.Show("STING — Placement Centre",
                     $"Failed to open Placement Centre.\n\n{ex.Message}");
             }
+        }
+
+        // Wire DocumentClosing so a stale singleton can't outlive its
+        // backing document and silently operate on the wrong project.
+        private void HookDocumentLifecycle()
+        {
+            if (_uiApp == null || _uiApp.Application == null) return;
+            try
+            {
+                _uiApp.Application.DocumentClosing += OnRevitDocumentClosing;
+                this.Closed += (_, __) =>
+                {
+                    try { _uiApp.Application.DocumentClosing -= OnRevitDocumentClosing; } catch { }
+                };
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter HookDocumentLifecycle: {ex.Message}"); }
+        }
+
+        private void OnRevitDocumentClosing(object sender, Autodesk.Revit.DB.Events.DocumentClosingEventArgs e)
+        {
+            try
+            {
+                if (e?.Document != null && ReferenceEquals(e.Document, _doc))
+                {
+                    StingLog.Info("PlacementCenter: document closing, auto-closing centre.");
+                    Dispatcher.Invoke(() =>
+                    {
+                        try { Close(); } catch (Exception ex) { StingLog.Warn($"PlacementCenter auto-close: {ex.Message}"); }
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter OnRevitDocumentClosing: {ex.Message}"); }
         }
 
         private bool _closed;
