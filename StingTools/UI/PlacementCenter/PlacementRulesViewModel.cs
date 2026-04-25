@@ -32,11 +32,23 @@ namespace StingTools.UI.PlacementCenter
         public ObservableCollection<string> Categories { get; }
             = new ObservableCollection<string>();
 
+        // Anchor list MUST match the switch in PlacementScorer.GenerateAnchorPoints
+        // — entries that the scorer doesn't recognise silently fall through to
+        // ROOM_CENTRE. Order: most-used first, lighting-grid family second.
         public ObservableCollection<string> AnchorTypes { get; }
             = new ObservableCollection<string>
             {
-                "ROOM_CENTRE", "WALL_CENTRELINE", "DOOR_OPP_WALL",
-                "RCP_GRID", "FLOOR_GRID", "USER_PICK"
+                "ROOM_CENTRE",
+                "ROOM_CENTROID",
+                "CEILING_CENTRE",
+                "LIGHTING_GRID",   // BS EN 12464-1 lumen-method grid
+                "LUX_GRID",        // alias of LIGHTING_GRID
+                "EN12464",         // alias of LIGHTING_GRID
+                "WALL_MIDPOINT",
+                "WALL_CORNER",
+                "DOOR_HINGE",
+                "DOOR_JAMB",
+                "WINDOW_SILL",
             };
 
         public ObservableCollection<string> SideConstraints { get; }
@@ -45,7 +57,45 @@ namespace StingTools.UI.PlacementCenter
                 "EITHER", "LEFT", "RIGHT", "FRONT", "BACK"
             };
 
+        // Variant hints surface as suggestions in the editable cmbVariant
+        // ComboBox. Users can type any value; this list documents the
+        // canonical STING_FIXTURE_VARIANT_TXT vocabulary so projects stay
+        // consistent across teams.
+        public ObservableCollection<string> VariantHints { get; }
+            = new ObservableCollection<string>
+            {
+                "FLUSH", "SURFACE", "RECESSED",
+                "IP65", "IP66", "IP67",
+                "EM",        // emergency-rated luminaire
+                "DALI",      // DALI-controlled
+                "TWIN",
+                "SINGLE",
+            };
+
         public RunOptions RunOpts { get; } = new RunOptions();
+
+        // Live-bound grids (gap 12) — drained + repopulated by the centre's
+        // bridges. ObservableCollection means UI refreshes without an
+        // imperative gridX.ItemsSource = ... reassignment per call.
+        public ObservableCollection<FamilyHintsBridge.HintRow> FamilyHints { get; }
+            = new ObservableCollection<FamilyHintsBridge.HintRow>();
+
+        public ObservableCollection<HistoryBridge.HistoryRow> History { get; }
+            = new ObservableCollection<HistoryBridge.HistoryRow>();
+
+        public void SetFamilyHints(System.Collections.Generic.IEnumerable<FamilyHintsBridge.HintRow> rows)
+        {
+            FamilyHints.Clear();
+            if (rows == null) return;
+            foreach (var r in rows) FamilyHints.Add(r);
+        }
+
+        public void SetHistory(System.Collections.Generic.IEnumerable<HistoryBridge.HistoryRow> rows)
+        {
+            History.Clear();
+            if (rows == null) return;
+            foreach (var r in rows) History.Add(r);
+        }
 
         // ── Selection ────────────────────────────────────────────────
 
@@ -91,6 +141,20 @@ namespace StingTools.UI.PlacementCenter
         {
             get => _searchText;
             set { if (_searchText != value) { _searchText = value ?? ""; OnPropertyChanged(); ApplyFilter(); } }
+        }
+
+        private bool _showDirtyOnly;
+        public bool ShowDirtyOnly
+        {
+            get => _showDirtyOnly;
+            set { if (_showDirtyOnly != value) { _showDirtyOnly = value; OnPropertyChanged(); ApplyFilter(); } }
+        }
+
+        private bool _showInvalidOnly;
+        public bool ShowInvalidOnly
+        {
+            get => _showInvalidOnly;
+            set { if (_showInvalidOnly != value) { _showInvalidOnly = value; OnPropertyChanged(); ApplyFilter(); } }
         }
 
         public ICollectionView FilteredRules { get; private set; }
@@ -146,6 +210,81 @@ namespace StingTools.UI.PlacementCenter
             }
         }
 
+        /// <summary>True when at least one rule has unsaved edits — caller
+        /// (centre's Reload Defaults handler) prompts before nuking edits.</summary>
+        public bool HasUnsavedEdits => Rules.Any(r => r.IsDirty);
+
+        /// <summary>Append rules from an external JSON file (same schema as
+        /// STING_PLACEMENT_RULES.json). Existing rules are kept; rules with
+        /// the same MergeKey are skipped so an import can't silently
+        /// shadow a project override. Returns the number actually appended.</summary>
+        public int ImportFromFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return 0;
+            try
+            {
+                var json = File.ReadAllText(path);
+                var set = JsonConvert.DeserializeObject<StingTools.Core.Placement.PlacementRuleSet>(json);
+                if (set?.Rules == null || set.Rules.Count == 0) return 0;
+
+                var existingKeys = new HashSet<string>(Rules.Select(r => r.MergeKey ?? ""), StringComparer.OrdinalIgnoreCase);
+                int n = 0;
+                foreach (var r in set.Rules)
+                {
+                    if (r == null) continue;
+                    string key = r.MergeKey ?? "";
+                    if (existingKeys.Contains(key)) continue;
+                    var vm = new PlacementRuleViewModel(r) { IsDirty = true };
+                    Rules.Add(vm);
+                    existingKeys.Add(key);
+                    n++;
+                }
+                if (n > 0)
+                {
+                    RebuildCategories();
+                    Status = $"Imported {n} rule(s) from {Path.GetFileName(path)} (Save Project to persist).";
+                    OnPropertyChanged(nameof(DirtyCount));
+                }
+                else
+                {
+                    Status = $"Import skipped — every rule in {Path.GetFileName(path)} already present (matched on MergeKey).";
+                }
+                return n;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementRulesViewModel.ImportFromFile", ex);
+                Status = $"Import failed: {ex.Message}";
+                return 0;
+            }
+        }
+
+        /// <summary>Write the current valid rules to an arbitrary path —
+        /// used for sharing rule sets between projects/teams without
+        /// touching the project's STING_PLACEMENT_RULES.project.json.</summary>
+        public int ExportToFile(string path)
+        {
+            try
+            {
+                var validVms = Rules.Where(r => r.IsValid).ToList();
+                if (validVms.Count == 0) { Status = "Export skipped — no valid rules."; return 0; }
+                var set = new StingTools.Core.Placement.PlacementRuleSet
+                {
+                    Version = "v4",
+                    Rules = validVms.Select(r => r.Model).ToList(),
+                };
+                File.WriteAllText(path, JsonConvert.SerializeObject(set, Formatting.Indented));
+                Status = $"Exported {validVms.Count} rule(s) → {path}";
+                return validVms.Count;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlacementRulesViewModel.ExportToFile", ex);
+                Status = $"Export failed: {ex.Message}";
+                return 0;
+            }
+        }
+
         public PlacementRuleViewModel AddRule()
         {
             var vm = new PlacementRuleViewModel(new PlacementRule
@@ -176,6 +315,56 @@ namespace StingTools.UI.PlacementCenter
             OnPropertyChanged(nameof(DirtyCount));
         }
 
+        /// <summary>Bulk-delete a set of rules. Caller is responsible for
+        /// confirming with the user; the VM just removes them and updates
+        /// status/categories/dirty count.</summary>
+        public int DeleteMany(IEnumerable<PlacementRuleViewModel> victims)
+        {
+            int n = 0;
+            foreach (var v in (victims ?? System.Array.Empty<PlacementRuleViewModel>()).ToList())
+            {
+                if (v == null || !Rules.Contains(v)) continue;
+                Rules.Remove(v);
+                n++;
+            }
+            if (n > 0)
+            {
+                Selected = Rules.Count > 0 ? Rules[0] : null;
+                RebuildCategories();
+                Status = $"Removed {n} rule(s) (not yet persisted).";
+                OnPropertyChanged(nameof(DirtyCount));
+            }
+            return n;
+        }
+
+        /// <summary>Clone a set of rules. The new rules carry the original
+        /// category + " (copy)" so they're easy to find and the user can
+        /// rename. All clones are flagged dirty.</summary>
+        public int CloneMany(IEnumerable<PlacementRuleViewModel> sources)
+        {
+            int n = 0;
+            PlacementRuleViewModel last = null;
+            foreach (var s in (sources ?? System.Array.Empty<PlacementRuleViewModel>()).ToList())
+            {
+                if (s == null) continue;
+                var copy = s.Clone();
+                copy.CategoryFilter = string.IsNullOrEmpty(s.CategoryFilter)
+                    ? "(new category)"
+                    : s.CategoryFilter + " (copy)";
+                Rules.Add(copy);
+                last = copy;
+                n++;
+            }
+            if (n > 0)
+            {
+                Selected = last;
+                RebuildCategories();
+                Status = $"Cloned {n} rule(s) — fix the category names then save.";
+                OnPropertyChanged(nameof(DirtyCount));
+            }
+            return n;
+        }
+
         /// <summary>
         /// Persist rules to &lt;project&gt;/STING_PLACEMENT_RULES.project.json
         /// next to the .rvt file. Uses the existing PlacementRuleSet wrapper
@@ -197,15 +386,25 @@ namespace StingTools.UI.PlacementCenter
                     return false;
                 }
                 string path = Path.Combine(dir, "STING_PLACEMENT_RULES.project.json");
+
+                // Strip invalid rules from the on-disk file so a rule with
+                // (e.g.) blank CategoryFilter doesn't round-trip through every
+                // future load. Invalid rules stay in-memory so the user can
+                // still fix them — they're just not persisted.
+                var invalidVms = Rules.Where(r => !r.IsValid).ToList();
+                var validVms   = Rules.Where(r =>  r.IsValid).ToList();
+
                 var set = new StingTools.Core.Placement.PlacementRuleSet
                 {
                     Version = "v4",
-                    Rules = Rules.Select(r => r.Model).ToList(),
+                    Rules = validVms.Select(r => r.Model).ToList(),
                 };
                 File.WriteAllText(path, JsonConvert.SerializeObject(set, Formatting.Indented));
-                foreach (var r in Rules) r.ClearDirty();
+                foreach (var r in validVms) r.ClearDirty();
                 ProjectFilePath = path;
-                Status = $"Saved {Rules.Count} rule(s) → {path}";
+                Status = invalidVms.Count > 0
+                    ? $"Saved {validVms.Count} valid rule(s) → {path} · {invalidVms.Count} invalid skipped (still in-memory)"
+                    : $"Saved {Rules.Count} rule(s) → {path}";
                 OnPropertyChanged(nameof(DirtyCount));
                 return true;
             }
@@ -232,8 +431,13 @@ namespace StingTools.UI.PlacementCenter
             FilteredRules = System.Windows.Data.CollectionViewSource.GetDefaultView(Rules);
             FilteredRules.Filter = obj =>
             {
-                if (string.IsNullOrEmpty(_searchText)) return true;
                 if (obj is not PlacementRuleViewModel vm) return false;
+
+                // Chip filters short-circuit when active.
+                if (_showDirtyOnly   && !vm.IsDirty) return false;
+                if (_showInvalidOnly &&  vm.IsValid) return false;
+
+                if (string.IsNullOrEmpty(_searchText)) return true;
                 string q = _searchText.Trim();
                 return (vm.CategoryFilter?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
                     || (vm.VariantHint?.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
