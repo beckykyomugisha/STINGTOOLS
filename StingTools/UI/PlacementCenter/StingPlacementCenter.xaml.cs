@@ -190,15 +190,16 @@ namespace StingTools.UI.PlacementCenter
             PlacementResult result = null;
             try
             {
+                // FixturePlacementEngine opens its own Transaction inside the
+                // supplied document. Wrap it in a TransactionGroup so the run
+                // is undoable as a single step but DO NOT open another
+                // Transaction here — Revit forbids nested Transactions and
+                // the engine would silently fail with "Transaction start
+                // failed: …" in result.Warnings.
                 using (var tg = new TransactionGroup(_doc, "STING Placement Centre — Run"))
                 {
                     tg.Start();
-                    using (var t = new Transaction(_doc, "STING PlaceFixtures"))
-                    {
-                        t.Start();
-                        result = FixturePlacementEngine.PlaceFixturesInScope(_doc, roomIds, rules, dryRun: false);
-                        t.Commit();
-                    }
+                    result = FixturePlacementEngine.PlaceFixturesInScope(_doc, roomIds, rules, dryRun: false);
                     tg.Assimilate();
                 }
             }

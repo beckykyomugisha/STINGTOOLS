@@ -32,11 +32,23 @@ namespace StingTools.UI.PlacementCenter
         public ObservableCollection<string> Categories { get; }
             = new ObservableCollection<string>();
 
+        // Anchor list MUST match the switch in PlacementScorer.GenerateAnchorPoints
+        // — entries that the scorer doesn't recognise silently fall through to
+        // ROOM_CENTRE. Order: most-used first, lighting-grid family second.
         public ObservableCollection<string> AnchorTypes { get; }
             = new ObservableCollection<string>
             {
-                "ROOM_CENTRE", "WALL_CENTRELINE", "DOOR_OPP_WALL",
-                "RCP_GRID", "FLOOR_GRID", "USER_PICK"
+                "ROOM_CENTRE",
+                "ROOM_CENTROID",
+                "CEILING_CENTRE",
+                "LIGHTING_GRID",   // BS EN 12464-1 lumen-method grid
+                "LUX_GRID",        // alias of LIGHTING_GRID
+                "EN12464",         // alias of LIGHTING_GRID
+                "WALL_MIDPOINT",
+                "WALL_CORNER",
+                "DOOR_HINGE",
+                "DOOR_JAMB",
+                "WINDOW_SILL",
             };
 
         public ObservableCollection<string> SideConstraints { get; }
