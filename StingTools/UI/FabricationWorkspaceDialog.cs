@@ -243,37 +243,121 @@ namespace StingTools.UI
             return grid;
         }
 
-        // ─── CATEGORY breakdown card — checkbox + count rows ────────────
+        // ─── COMPACT category dropdown + discipline summary ─────────────
+        //
+        // The previous full-height category list was eating ~280 px of
+        // vertical real estate. This collapses it into a single
+        // "Categories: N of M selected" button that pops a checklist on
+        // click. The discipline rollup stays inline so the user still
+        // sees totals at a glance.
+
+        private System.Windows.Controls.Primitives.ToggleButton _btnCategoriesPopup;
+        private System.Windows.Controls.Primitives.Popup _popCategories;
 
         private UIElement BuildCategoryCard()
         {
-            var body = new StackPanel();
+            var grid = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Compact dropdown: "Categories: 4 of 12 selected ▾"
+            _btnCategoriesPopup = new System.Windows.Controls.Primitives.ToggleButton
+            {
+                Content = "Categories: …",
+                MinWidth = 240, Height = 26,
+                Margin = new Thickness(0, 0, 12, 0),
+                Background = new SolidColorBrush(NeutralBtn),
+                Foreground = new SolidColorBrush(FgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+                FontSize = 11,
+                Padding = new Thickness(8, 0, 8, 0),
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(_btnCategoriesPopup, 0);
+            grid.Children.Add(_btnCategoriesPopup);
+
+            // Popup hosting the category checklist.
+            _popCategories = new System.Windows.Controls.Primitives.Popup
+            {
+                PlacementTarget = _btnCategoriesPopup,
+                Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+                StaysOpen = false,
+                AllowsTransparency = true,
+            };
+            var popBorder = new Border
+            {
+                Background = new SolidColorBrush(CardBg),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(10),
+                MinWidth = 320,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Color.FromRgb(0, 0, 0), Opacity = 0.18,
+                    ShadowDepth = 2, BlurRadius = 6,
+                },
+            };
+            var popStack = new StackPanel();
+            popBorder.Child = popStack;
+            _popCategories.Child = popBorder;
+
+            // Tick all / Untick all toolbar inside the popup.
+            var popToolbar = new StackPanel { Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 0, 6) };
+            popToolbar.Children.Add(MakeSmallBtn("Tick all",   () => SetAllCategories(true)));
+            popToolbar.Children.Add(MakeSmallBtn("Untick all", () => SetAllCategories(false)));
+            popStack.Children.Add(popToolbar);
 
             _categoryListHost = new StackPanel();
-            body.Children.Add(_categoryListHost);
+            popStack.Children.Add(_categoryListHost);
+            foreach (var info in MepCategories)
+            {
+                var row = new CategoryRow(info.bic, info.label, info.disc,
+                    FgColor, AccentColor, CardBorder,
+                    onToggle: () => { UpdateCategoryButtonText(); RefreshPackagePreview(); });
+                _catRows[info.bic] = row;
+                _categoryListHost.Children.Add(row.RowElement);
+            }
 
+            _btnCategoriesPopup.Checked   += (s, e) => _popCategories.IsOpen = true;
+            _btnCategoriesPopup.Unchecked += (s, e) => _popCategories.IsOpen = false;
+            _popCategories.Closed         += (s, e) => _btnCategoriesPopup.IsChecked = false;
+
+            // Inline discipline summary stays visible.
             _txtDisciplineSummary = new TextBlock
             {
                 Text = "By discipline: …",
                 Foreground = new SolidColorBrush(AccentColor),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Margin = new Thickness(0, 8, 0, 4),
+                VerticalAlignment = VerticalAlignment.Center,
             };
-            body.Children.Add(_txtDisciplineSummary);
+            Grid.SetColumn(_txtDisciplineSummary, 1);
+            grid.Children.Add(_txtDisciplineSummary);
 
-            // Build one row per category — populated/refreshed in
-            // RefreshScopeAndCategories.
-            foreach (var info in MepCategories)
-            {
-                var row = new CategoryRow(info.bic, info.label, info.disc,
-                    FgColor, AccentColor, CardBorder,
-                    onToggle: () => RefreshPackagePreview());
-                _catRows[info.bic] = row;
-                _categoryListHost.Children.Add(row.RowElement);
-            }
+            UpdateCategoryButtonText();
+            return grid;
+        }
 
-            return Card("Categories", body);
+        private void SetAllCategories(bool isChecked)
+        {
+            foreach (var kv in _catRows) kv.Value.SetChecked(isChecked);
+            UpdateCategoryButtonText();
+            RefreshPackagePreview();
+        }
+
+        private void UpdateCategoryButtonText()
+        {
+            if (_btnCategoriesPopup == null) return;
+            int total    = _catRows.Count;
+            int selected = _catRows.Values.Count(r => r.IsChecked);
+            int withCount= _catRows.Values.Count(r => r.IsChecked && r.LastCount > 0);
+            _btnCategoriesPopup.Content = withCount > 0
+                ? $"Categories: {selected} of {total} ticked  (▾)"
+                : $"Categories: {selected} of {total} ticked  (▾)";
         }
 
         // ─── FILTERS — single inline System / Level row ─────────────────
@@ -513,13 +597,13 @@ namespace StingTools.UI
 
             AddFooterCell(row1, 0, MakeFooterBtn("Generate package", GreenBtn,   true,
                 () => Dispatch("Fabrication_GeneratePackage")), null);
-            _cmbCutListFormat = MakeFormatCombo(new[] { "CSV", "TXT", "JSON" }, "CSV");
+            _cmbCutListFormat = MakeFormatCombo(new[] { "CSV", "XLSX", "TXT", "JSON" }, "CSV");
             AddFooterCell(row1, 1, MakeFooterBtn("Export cut list",  NeutralBtn, false,
                 () => Dispatch("Fabrication_ExportCutList")),    _cmbCutListFormat);
-            _cmbWeldMapFormat = MakeFormatCombo(new[] { "CSV", "TXT", "JSON" }, "CSV");
+            _cmbWeldMapFormat = MakeFormatCombo(new[] { "CSV", "XLSX", "TXT", "JSON" }, "CSV");
             AddFooterCell(row1, 2, MakeFooterBtn("Export weld map",  OrangeBtn,  false,
                 () => Dispatch("Fabrication_ExportWeldMap")),    _cmbWeldMapFormat);
-            _cmbIsoIndexFormat = MakeFormatCombo(new[] { "CSV index", "PDF index" }, "CSV index");
+            _cmbIsoIndexFormat = MakeFormatCombo(new[] { "CSV index", "XLSX index", "PDF index" }, "CSV index");
             AddFooterCell(row1, 3, MakeFooterBtn("Export iso index", NeutralBtn, false,
                 () => Dispatch("Fabrication_ExportIsometrics")), _cmbIsoIndexFormat);
             outer.Children.Add(row1);
@@ -631,6 +715,7 @@ namespace StingTools.UI
                         : "By discipline: " + string.Join(" · ",
                             byDisc.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} = {kv.Value}"));
                 }
+                UpdateCategoryButtonText();
             }
             catch (Exception ex)
             {
@@ -987,43 +1072,75 @@ namespace StingTools.UI
 
         private void LoadPreset()
         {
-            string name = (_cmbPreset?.Text ?? "").Trim();
-            if (string.IsNullOrEmpty(name)) return;
+            // Pull the name from BOTH SelectedItem AND Text — an editable
+            // ComboBox surfaces the typed text but resets it to ""
+            // briefly when the dropdown closes after a selection. The
+            // old Text-only read silently returned without showing any
+            // feedback, which looked like the Load button was dead.
+            string name = (_cmbPreset?.SelectedItem as string) ?? "";
+            if (string.IsNullOrWhiteSpace(name)) name = (_cmbPreset?.Text ?? "");
+            name = name.Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                MessageBox.Show("Type or pick a preset name first.", Title,
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
             var all = LoadAllPresets();
             if (!all.TryGetValue(name, out var p))
             {
-                MessageBox.Show($"Preset '{name}' not found.", Title, MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Preset '{name}' not found.", Title,
+                    MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
             p.ApplyTo();
             HydrateFromOptions();
             RefreshScopeAndCategories();
             RefreshPackagePreview();
+            MessageBox.Show($"Preset '{name}' applied.", Title,
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private string GetPresetName()
+        {
+            string name = (_cmbPreset?.SelectedItem as string) ?? "";
+            if (string.IsNullOrWhiteSpace(name)) name = (_cmbPreset?.Text ?? "");
+            return name.Trim();
         }
 
         private void SavePreset()
         {
-            string name = (_cmbPreset?.Text ?? "").Trim();
+            string name = GetPresetName();
             if (string.IsNullOrEmpty(name))
             {
-                MessageBox.Show("Type a preset name first.", Title, MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Type a preset name first.", Title,
+                    MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
             var all = LoadAllPresets();
             all[name] = FabricationPreset.Capture();
             SaveAllPresets(all);
             RefreshPresetCombo(name);
+            MessageBox.Show($"Preset '{name}' saved.", Title,
+                MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void DeletePreset()
         {
-            string name = (_cmbPreset?.Text ?? "").Trim();
+            string name = GetPresetName();
             if (string.IsNullOrEmpty(name)) return;
             var all = LoadAllPresets();
             if (all.Remove(name))
             {
                 SaveAllPresets(all);
                 RefreshPresetCombo(null);
+                MessageBox.Show($"Preset '{name}' deleted.", Title,
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show($"Preset '{name}' not found.", Title,
+                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -1054,24 +1171,65 @@ namespace StingTools.UI
         //  Dispatch
         // ═══════════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// Run a Fabrication_* command directly on the current thread.
+        /// The workspace dialog is modal — when ShowDialog() blocks the
+        /// Revit API thread, ExternalEvent.Raise() can queue but never
+        /// fire until the dialog closes. So instead of routing through
+        /// StingDockPanel.DispatchCommand we instantiate the matching
+        /// IExternalCommand and Execute() it inline. That works whether
+        /// the dock panel has been opened or not, AND completes before
+        /// the dialog refreshes the package preview.
+        /// </summary>
         private void Dispatch(string tag)
         {
             try
             {
-                if (!StingDockPanel.DispatchCommand(tag))
+                Autodesk.Revit.UI.IExternalCommand cmd = ResolveCommand(tag);
+                if (cmd == null)
                 {
-                    MessageBox.Show("Could not dispatch command: " + tag +
-                        "\n(Open the STING dock panel once so the command pipeline initialises.)",
-                        Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Unknown command tag: " + tag, Title,
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
                 }
+                string msg = "";
+                cmd.Execute(null, ref msg, new Autodesk.Revit.DB.ElementSet());
+                // After any export / package run, refresh the preview.
+                RefreshPackagePreview();
             }
             catch (Exception ex)
             {
                 StingLog.Error("FabricationWorkspaceDialog.Dispatch " + tag, ex);
-                MessageBox.Show("Could not dispatch command: " + tag,
+                MessageBox.Show("Command failed: " + tag + "\n\n" + ex.Message,
                     Title, MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
+
+        /// <summary>
+        /// Map a Fabrication_* tag to the matching IExternalCommand.
+        /// Mirrors the switch in StingCommandHandler.Execute but runs
+        /// inline instead of through ExternalEvent.
+        /// </summary>
+        private static Autodesk.Revit.UI.IExternalCommand ResolveCommand(string tag)
+        {
+            switch (tag)
+            {
+                case "Fabrication_GeneratePackage":   return new StingTools.Commands.Fabrication.GenerateFabPackageCommand();
+                case "Fabrication_ExportCutList":     return new StingTools.Commands.Fabrication.ExportCutListCommand();
+                case "Fabrication_ExportIsometrics":  return new StingTools.Commands.Fabrication.ExportIsometricsCommand();
+                case "Fabrication_ExportWeldMap":     return new StingTools.Commands.Fabrication.ExportWeldMapCommand();
+                case "Fabrication_ExportMaj":         return new StingTools.Commands.Fabrication.ExportMajCommand();
+                case "Fabrication_ExportPcf":         return new StingTools.Commands.Fabrication.ExportPcfCommand();
+                case "Fabrication_UndoPackage":       return new StingTools.Commands.Fabrication.UndoFabPackageCommand();
+                case "Fabrication_SmartGroup":        return new StingTools.Commands.Fabrication.SmartGroupCommand();
+                case "Fabrication_ClashPreflight":    return new StingTools.Commands.Fabrication.ClashPreflightCommand();
+                case "Fabrication_IncrementalRebuild":return new StingTools.Commands.Fabrication.IncrementalRebuildCommand();
+                case "Fabrication_BomRollup":         return new StingTools.Commands.Fabrication.BomRollupCommand();
+                case "Fabrication_LinkDocRegister":   return new StingTools.Commands.Fabrication.LinkDocRegisterCommand();
+            }
+            return null;
+        }
+
 
         // ═══════════════════════════════════════════════════════════════
         //  UI primitives
@@ -1397,6 +1555,7 @@ namespace StingTools.UI
         public BuiltInCategory Category { get; }
         public Grid RowElement { get; }
         public bool IsChecked => _check?.IsChecked == true;
+        public int  LastCount { get; private set; }
 
         public CategoryRow(BuiltInCategory bic, string label, string disc,
             Color fg, Color accent, Color border, Action onToggle)
@@ -1436,8 +1595,14 @@ namespace StingTools.UI
 
         public void SetCount(int n)
         {
+            LastCount = n;
             if (_txtCount != null) _txtCount.Text = n.ToString();
             RowElement.Opacity = n == 0 ? 0.45 : 1.0;
+        }
+
+        public void SetChecked(bool isChecked)
+        {
+            if (_check != null) _check.IsChecked = isChecked;
         }
     }
 
