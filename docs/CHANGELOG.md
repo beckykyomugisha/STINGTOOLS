@@ -3250,3 +3250,20 @@ survey / authority / clarification / asbuilt / handover / presentation-mono),
 plus an 80+ DrawingType matrix indexed by RIBA stage × discipline × output.
 Recommended sequencing: baseline 4 packs first, Stage 4 IFC types next, then
 routing rules, then specialised packs as projects need them.
+
+#### Design — STING-Managed View Templates (advisory, not implemented)
+
+`docs/STING_MANAGED_TEMPLATES_DESIGN.md` — full proposal for replacing
+hand-authored Revit view templates with **STING-managed** templates that the
+runtime auto-generates from the pack's settings. Hybrid architecture: each
+pack picks `templateMode = managed | external`. In `managed` mode the runtime
+maintains `STING:<pack-id>:<view-type>` templates from pack JSON (VG, filters,
+detail level, phase, discipline, view range, visual style, …). `external`
+mode preserves the current behaviour as an escape hatch.
+
+Phased build: Phase 1 scaffolding (mode flag + cheap fields), Phase 2 full
+template fidelity (view range / underlay / sun / display), Phase 3 migration
+commands, Phase 4 polish. Phase 1 is the smallest piece that delivers the
+"don't go back to Revit for VG/templates" promise.
+
+Implementation pending user approval — no runtime change yet.
