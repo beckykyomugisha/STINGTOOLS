@@ -242,11 +242,15 @@ namespace StingTools.UI
                     Background = new SolidColorBrush(PendingStep),
                     VerticalAlignment = VerticalAlignment.Center
                 };
+                // Initial circles are PendingStep grey (#BDBDBD) — white
+                // on that is ~1.6:1 and unreadable. Start with dark text;
+                // UpdateStepIndicator flips to white when the circle
+                // darkens to ActiveStep / CompletedStep.
                 circle.Child = new TextBlock
                 {
                     Text = (i + 1).ToString(),
                     FontSize = 12, FontWeight = FontWeights.Bold,
-                    Foreground = Brushes.White,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0x22, 0x22)),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -280,6 +284,16 @@ namespace StingTools.UI
                     Color color = idx < _currentPage ? CompletedStep :
                                   idx == _currentPage ? ActiveStep : PendingStep;
                     circle.Background = new SolidColorBrush(color);
+                    // Light numbers read on the saturated ActiveStep /
+                    // CompletedStep fills; dark numbers read on the
+                    // light PendingStep grey.
+                    if (circle.Child is TextBlock num)
+                    {
+                        num.Foreground = new SolidColorBrush(
+                            idx <= _currentPage
+                                ? Colors.White
+                                : Color.FromRgb(0x22, 0x22, 0x22));
+                    }
                     stepIdx++;
                 }
             }

@@ -13,10 +13,15 @@ using StingTools.UI;
 namespace StingTools.Tags
 {
     // ════════════════════════════════════════════════════════════════════════════
-    //  FAMILY PARAMETER CREATOR ENGINE
+    //  TAG FAMILY PARAMETER CREATOR ENGINE
     //
-    //  Injects STING shared parameters into .rfa family files, detects category,
-    //  adds tag position parameter with formulas, and creates position variant types.
+    //  Injects the STING TAG schema (tokens, ASS_TAG_* containers, visibility /
+    //  paragraph gates, 128-entry style matrix, TAG_POS + 16-branch formula,
+    //  position variant types) into tag family .rfa files. Scope is tag-only.
+    //
+    //  For regular Revit families (doors, walls, MEP equipment) the CSV-binding
+    //  + formula pipeline lives in Temp › Family Parameter Processor
+    //  (FamilyParameterProcessorCommand in Temp/TemplateManagerCommands.cs).
     // ════════════════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -994,7 +999,7 @@ namespace StingTools.Tags
                 result.Category = catName;
                 result.DiscCode = discCode;
 
-                using (Transaction tx = new Transaction(famDoc, "STING Family Param Creator"))
+                using (Transaction tx = new Transaction(famDoc, "STING Tag Family Parameter Creator"))
                 {
                     tx.Start();
 
@@ -1492,15 +1497,21 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════════════════
-    //  FAMILY PARAMETER CREATOR COMMAND
+    //  TAG FAMILY PARAMETER CREATOR COMMAND
     // ════════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Inject STING shared parameters into existing .rfa family files.
-    /// This command only modifies families that already exist on disk — it
-    /// never calls app.NewFamilyDocument and never creates new .rfa files.
-    /// The default mode is purely additive: absent STING parameters are
-    /// appended, but labels, formulas, family types, and previously-set
+    /// Inject the STING TAG schema into existing tag family .rfa files.
+    /// This command only touches tag families (tokens, ASS_TAG_* containers,
+    /// TAG_POS, visibility gates, style matrix). For regular Revit families
+    /// (doors, walls, MEP equipment, etc.) use
+    /// <see cref="StingTools.Temp.FamilyParameterProcessorCommand"/> which
+    /// drives FAMILY_PARAMETER_BINDINGS.csv + FORMULAS_WITH_DEPENDENCIES.csv.
+    ///
+    /// Like the processor, this command never calls app.NewFamilyDocument
+    /// and never creates new .rfa files — it only modifies families already
+    /// on disk. The default mode is purely additive: absent STING parameters
+    /// are appended, but labels, formulas, family types, and previously-set
     /// bindings are left exactly as they were. Optional migrate / purge
     /// modes are explicit opt-ins for schema-reset workflows.
     /// </summary>
@@ -1514,10 +1525,13 @@ namespace StingTools.Tags
             if (ctx == null)
             {
                 StingLog.Warn("FamilyParamCreator: No document open — cannot access Revit Application.");
-                TaskDialog.Show("STING — Family Param Creator",
-                    "A Revit document must be open to use Family Param Creator.\n\n" +
+                TaskDialog.Show("STING — Tag Family Parameter Creator",
+                    "A Revit document must be open to use the Tag Family Parameter Creator.\n\n" +
                     "Open any Revit project (even a blank one) to provide the\n" +
-                    "Revit Application context needed for opening .rfa files.");
+                    "Revit Application context needed for opening .rfa files.\n\n" +
+                    "This command is for TAG family files only. For regular Revit\n" +
+                    "families (doors, walls, MEP equipment, etc.) use\n" +
+                    "Temp ▸ Family Parameter Processor.");
                 return Result.Failed;
             }
 
@@ -1549,8 +1563,9 @@ namespace StingTools.Tags
                     { Label = "Batch Folder — Purge STING + Reinject (destructive)", Detail = "Purge + reinject across folder. Use only for schema migrations.", Tag = "purge_batch" },
             };
             var selected = StingListPicker.Show(
-                "STING — Family Param Creator",
-                "Inject STING shared parameters into .rfa family files",
+                "STING — Tag Family Parameter Creator",
+                "Inject STING TAG schema (tokens, ASS_TAG containers, TAG_POS, style matrix) into tag family .rfa files. " +
+                "For non-tag / regular Revit families (doors, walls, MEP equipment) use Temp ▸ Family Parameter Processor.",
                 modeItems);
             if (selected == null || selected.Count == 0) return Result.Cancelled;
             string mode = selected[0].Tag as string ?? "add_single";
@@ -1652,7 +1667,7 @@ namespace StingTools.Tags
             int processed = 0;
             bool cancelled = false;
 
-            var progress = StingProgressDialog.Show("STING — Family Param Creator", rfaFiles.Count);
+            var progress = StingProgressDialog.Show("STING — Tag Family Parameter Creator", rfaFiles.Count);
             try
             {
                 foreach (string rfaPath in rfaFiles)
@@ -1745,7 +1760,7 @@ namespace StingTools.Tags
                     report.AppendLine($"  {Path.GetFileName(r.SourcePath)}: {r.ErrorMessage}");
             }
 
-            TaskDialog.Show("STING — Family Param Creator", report.ToString());
+            TaskDialog.Show("STING — Tag Family Parameter Creator", report.ToString());
             StingLog.Info($"FamilyParamCreator: {succeeded}/{processed} succeeded, {totalParamsAdded} params added");
             return Result.Succeeded;
         }

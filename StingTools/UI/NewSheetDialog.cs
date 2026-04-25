@@ -168,8 +168,13 @@ namespace StingTools.UI
             });
             headerStack.Children.Add(new TextBlock
             {
+                // BrFgSubtle (#777) is unreadable on the dark banner;
+                // use a near-white muted grey for the subtitle so it
+                // clears WCAG contrast against BrBgHeader.
                 Text = "Add rows for each sheet. Edit cells directly. Use toolbar to add/remove/duplicate rows.",
-                FontSize = 11, Foreground = BrFgSubtle, Margin = new Thickness(0, 2, 0, 0)
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xD0, 0xD8, 0xDC)),
+                Margin = new Thickness(0, 2, 0, 0)
             });
             header.Child = headerStack;
             Grid.SetRow(header, 0);

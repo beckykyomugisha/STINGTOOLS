@@ -70,13 +70,13 @@ namespace StingTools.UI
             Width = 520;
             Height = 420;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            Background = new SolidColorBrush(Color.FromRgb(0x2D, 0x2D, 0x30));
-            Foreground = Brushes.White;
+            Background = new SolidColorBrush(DarkDialogTheme.LightPalette.WindowBg);
+            Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg);
             ResizeMode = ResizeMode.NoResize;
             DarkDialogTheme.ApplyComboBoxFix(this,
-                Color.FromRgb(0x3E, 0x3E, 0x42),
-                Colors.White,
-                Color.FromRgb(0x55, 0x55, 0x58));
+                DarkDialogTheme.LightPalette.CardBg,
+                DarkDialogTheme.LightPalette.BodyFg,
+                DarkDialogTheme.LightPalette.AltRowBg);
             BuildUi();
         }
 
@@ -116,7 +116,7 @@ namespace StingTools.UI
                        "STING_TB_ASSEMBLY_* resolution.",
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 12, 0, 0),
-                Foreground = new SolidColorBrush(Color.FromRgb(170, 170, 170)),
+                Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.SubtleFg),
                 FontSize = 11,
             };
             Grid.SetRow(hint, 6);
@@ -134,8 +134,8 @@ namespace StingTools.UI
             {
                 Content = "Compose",
                 Width = 90, Height = 30, Margin = new Thickness(0, 0, 8, 0),
-                Background = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D)),
-                Foreground = Brushes.White,
+                Background = new SolidColorBrush(DarkDialogTheme.LightPalette.Accent),
+                Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.AccentFg),
                 BorderThickness = new Thickness(0),
                 FontWeight = FontWeights.SemiBold,
             };
@@ -143,9 +143,10 @@ namespace StingTools.UI
             {
                 Content = "Cancel",
                 Width = 90, Height = 30,
-                Background = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x58)),
-                Foreground = Brushes.White,
-                BorderThickness = new Thickness(0),
+                Background = new SolidColorBrush(DarkDialogTheme.LightPalette.SecondaryBtn),
+                Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg),
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(DarkDialogTheme.LightPalette.Border),
             };
             btnOk.Click     += (_, __) => { CaptureResult(); DialogResult = true; Close(); };
             btnCancel.Click += (_, __) => { DialogResult = false; Close(); };
@@ -241,7 +242,7 @@ namespace StingTools.UI
                 Text = text,
                 Margin = new Thickness(0, 6, 8, 6),
                 VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
+                Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg),
             };
             Grid.SetRow(lbl, row);
             Grid.SetColumn(lbl, 0);
@@ -252,8 +253,9 @@ namespace StingTools.UI
             var cb = new ComboBox
             {
                 Margin = new Thickness(0, 6, 0, 6),
-                Background = new SolidColorBrush(Color.FromRgb(0x3E, 0x3E, 0x42)),
-                Foreground = Brushes.White,
+                Background = new SolidColorBrush(DarkDialogTheme.LightPalette.CardBg),
+                Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg),
+                BorderBrush = new SolidColorBrush(DarkDialogTheme.LightPalette.Border),
             };
             Grid.SetRow(cb, row);
             Grid.SetColumn(cb, 1);
@@ -267,9 +269,9 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 6, 0, 6),
                 Text = initial,
                 ToolTip = tooltip,
-                Background = new SolidColorBrush(Color.FromRgb(0x3E, 0x3E, 0x42)),
-                Foreground = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x58)),
+                Background = new SolidColorBrush(DarkDialogTheme.LightPalette.CardBg),
+                Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg),
+                BorderBrush = new SolidColorBrush(DarkDialogTheme.LightPalette.Border),
             };
             Grid.SetRow(tb, row);
             Grid.SetColumn(tb, 1);

@@ -467,8 +467,10 @@ namespace StingTools.UI
                 }
                 else
                 {
-                    // Future step
-                    border.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(180, 140, 200));
+                    // Future step — #B48CC8 light purple has ~1.7:1 contrast
+                    // against white text. Darkened to #4A148C (deep purple)
+                    // so the step number is clearly visible.
+                    border.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 20, 140));
                     txt.Text = _stepLabels[i];
                     txt.Foreground = Brushes.White;
                 }

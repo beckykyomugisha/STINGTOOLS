@@ -37,13 +37,13 @@ namespace StingTools.UI
             public bool IsChecked { get; set; } = true;
         }
 
-        // ── Theme ────────────────────────────────────────────────────
-        private static readonly Color BgColor = Color.FromRgb(0x2D, 0x2D, 0x30);
-        private static readonly Color PanelBg = Color.FromRgb(0x3E, 0x3E, 0x42);
-        private static readonly Color AccentColor = Color.FromRgb(0xE8, 0x91, 0x2D);
-        private static readonly Color FgColor = Colors.White;
-        private static readonly Color DimFg = Color.FromRgb(0xA0, 0xA0, 0xA0);
-        private static readonly Color BorderClr = Color.FromRgb(0x55, 0x55, 0x58);
+        // ── Theme (light, contrast-safe; flipped from old dark palette) ──
+        private static readonly Color BgColor = Color.FromRgb(0xFA, 0xFA, 0xFA);          // window bg
+        private static readonly Color PanelBg = Color.FromRgb(0xFF, 0xFF, 0xFF);          // card/input bg
+        private static readonly Color AccentColor = Color.FromRgb(0xE8, 0x91, 0x2D);      // STING orange
+        private static readonly Color FgColor = Color.FromRgb(0x22, 0x22, 0x22);          // body text
+        private static readonly Color DimFg = Color.FromRgb(0x66, 0x66, 0x66);            // muted text
+        private static readonly Color BorderClr = Color.FromRgb(0xCF, 0xD8, 0xDC);        // subtle border
 
         private static SolidColorBrush FZ(SolidColorBrush b) { b.Freeze(); return b; }
         private static SolidColorBrush FZ(byte r, byte g, byte b) { var br = new SolidColorBrush(Color.FromRgb(r, g, b)); br.Freeze(); return br; }
@@ -53,9 +53,10 @@ namespace StingTools.UI
         private static readonly SolidColorBrush FgBrush = FZ(new(FgColor));
         private static readonly SolidColorBrush DimBrush = FZ(new(DimFg));
         private static readonly new SolidColorBrush BorderBrush = FZ(new(BorderClr));
-        private static readonly SolidColorBrush BrDark25 = FZ(0x25, 0x25, 0x28);
-        private static readonly SolidColorBrush BrDark1E = FZ(0x1E, 0x1E, 0x1E);
-        private static readonly SolidColorBrush BrMid50 = FZ(0x50, 0x50, 0x53);
+        // Zebra / darker rows re-mapped to light greys so body text reads.
+        private static readonly SolidColorBrush BrDark25 = FZ(0xF0, 0xF0, 0xF0);
+        private static readonly SolidColorBrush BrDark1E = FZ(0xE5, 0xE5, 0xE5);
+        private static readonly SolidColorBrush BrMid50 = FZ(0xD0, 0xD0, 0xD0);
         private static readonly HashSet<string> _universalSet = new HashSet<string> { "UNIVERSAL" };
 
         // ── Controls ─────────────────────────────────────────────────

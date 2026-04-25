@@ -8,35 +8,57 @@ using System.Windows.Media;
 namespace StingTools.UI
 {
     /// <summary>
-    /// Fixes white-on-white text in WPF dialogs that paint a custom dark
-    /// Background and rely on an inherited white Foreground. Input controls
-    /// (TextBox, ComboBox) do not inherit Window.Background — they render
-    /// with default (light) chrome, which makes white text invisible.
+    /// Palette constants + control-styling helpers for STING dialogs. The
+    /// palette was formerly dark (white text on #2D2D30) but suffered from
+    /// white-on-white and black-on-dark contrast failures whenever a WPF
+    /// control fell back to system chrome. It was flipped to a LIGHT
+    /// palette (dark text on near-white) so every default / system
+    /// fallback is automatically readable. The orange STING accent is
+    /// kept unchanged and still works as a primary-button fill.
     ///
-    /// Two complementary entry points:
+    /// Entry points:
     ///
     /// 1. <see cref="ApplyComboBoxFix"/> — installs a window-level implicit
-    ///    style for <see cref="ComboBoxItem"/>. This alone fixes the
-    ///    dropdown rows but not the combo edit field or standalone
-    ///    TextBoxes (WPF default templates bind those to
-    ///    SystemColors.WindowBrushKey, which wins over implicit styles).
+    ///    style for <see cref="ComboBoxItem"/> so dropdown rows adopt the
+    ///    caller's bg/fg/hover instead of system defaults.
     ///
     /// 2. <see cref="StyleInput(TextBox)"/> / <see cref="StyleInput(ComboBox)"/>
     ///    — explicit per-control styling that sets Background / Foreground /
-    ///    BorderBrush directly on the instance. This is the proven pattern
-    ///    (see ShopDrawingOptionsDialog) and is the one to reach for when
-    ///    the implicit-style approach does not land.
+    ///    BorderBrush directly on the instance.
     ///
-    /// Call ApplyComboBoxFix(...) once per Window and StyleInput(...) on
-    /// every input control created procedurally; the two cover both the
-    /// dropdown rows and the input body/edit field.
+    /// Callers can consume the <see cref="LightPalette"/> constants below
+    /// to stay in sync with the rest of the app.
     /// </summary>
     internal static class DarkDialogTheme
     {
-        // ─── Default palette (matches the dark dialogs already in the codebase) ───
-        private static readonly Color DefaultBg     = Color.FromRgb(0x3E, 0x3E, 0x42);
-        private static readonly Color DefaultFg     = Colors.White;
-        private static readonly Color DefaultBorder = Color.FromRgb(0x55, 0x55, 0x58);
+        // ─── Light palette (contrast-safe defaults) ───
+        // Previously: DefaultBg=#3E3E42 + DefaultFg=White + DefaultBorder=#555558.
+        // That required every input to be hand-styled or text became
+        // unreadable against WPF system defaults. The light palette below
+        // matches the rest of the STING UI (ThemeManager themes are all
+        // light) and degrades gracefully when a control falls back to
+        // system chrome.
+        private static readonly Color DefaultBg     = Color.FromRgb(0xFF, 0xFF, 0xFF); // white input bg
+        private static readonly Color DefaultFg     = Color.FromRgb(0x22, 0x22, 0x22); // near-black text
+        private static readonly Color DefaultBorder = Color.FromRgb(0xCF, 0xD8, 0xDC); // light grey border
+
+        /// <summary>
+        /// Shared light-theme constants for STING dialogs. Use these
+        /// instead of hardcoding dark hex values so every dialog stays
+        /// consistent and contrast-safe.
+        /// </summary>
+        public static class LightPalette
+        {
+            public static readonly Color WindowBg   = Color.FromRgb(0xFA, 0xFA, 0xFA); // off-white page
+            public static readonly Color CardBg     = Color.FromRgb(0xFF, 0xFF, 0xFF); // input / card
+            public static readonly Color AltRowBg   = Color.FromRgb(0xF0, 0xF0, 0xF0); // zebra row
+            public static readonly Color Border     = Color.FromRgb(0xCF, 0xD8, 0xDC); // subtle border
+            public static readonly Color BodyFg     = Color.FromRgb(0x22, 0x22, 0x22); // body text
+            public static readonly Color SubtleFg   = Color.FromRgb(0x66, 0x66, 0x66); // muted text
+            public static readonly Color Accent     = Color.FromRgb(0xE8, 0x91, 0x2D); // STING orange
+            public static readonly Color AccentFg   = Color.FromRgb(0xFF, 0xFF, 0xFF); // on orange
+            public static readonly Color SecondaryBtn = Color.FromRgb(0xE8, 0xE8, 0xE8); // neutral btn
+        }
 
         // ═════════════════════════════════════════════════════════════════
         //  Window-level fix (dropdown rows)
