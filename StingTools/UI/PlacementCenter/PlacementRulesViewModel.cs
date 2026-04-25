@@ -57,6 +57,21 @@ namespace StingTools.UI.PlacementCenter
                 "EITHER", "LEFT", "RIGHT", "FRONT", "BACK"
             };
 
+        // Variant hints surface as suggestions in the editable cmbVariant
+        // ComboBox. Users can type any value; this list documents the
+        // canonical STING_FIXTURE_VARIANT_TXT vocabulary so projects stay
+        // consistent across teams.
+        public ObservableCollection<string> VariantHints { get; }
+            = new ObservableCollection<string>
+            {
+                "FLUSH", "SURFACE", "RECESSED",
+                "IP65", "IP66", "IP67",
+                "EM",        // emergency-rated luminaire
+                "DALI",      // DALI-controlled
+                "TWIN",
+                "SINGLE",
+            };
+
         public RunOptions RunOpts { get; } = new RunOptions();
 
         // ── Selection ────────────────────────────────────────────────

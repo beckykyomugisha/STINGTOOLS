@@ -129,7 +129,11 @@
 
             <!-- RIGHT: detail GroupBoxes -->
             <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="10">
-                <StackPanel x:Name="pnlDetail" IsEnabled="False">
+                <StackPanel x:Name="pnlDetail">
+                    <!-- pnlRuleDetail wraps the rule-bound editors so they
+                         disable when no rule is selected; Run Options and
+                         History stay enabled (they don't depend on a row). -->
+                    <StackPanel x:Name="pnlRuleDetail" IsEnabled="False">
 
                     <GroupBox Header="Rule Core" Style="{StaticResource GroupBoxStyle}">
                         <Grid>
@@ -149,7 +153,8 @@
                             <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbCategory" IsEditable="True" Margin="0,2"/>
 
                             <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Variant Hint"/>
-                            <TextBox   Grid.Row="0" Grid.Column="3" x:Name="txtVariant"  Margin="0,2"/>
+                            <ComboBox  Grid.Row="0" Grid.Column="3" x:Name="cmbVariant" IsEditable="True" Margin="0,2"
+                                       ToolTip="Family-type variant filter. Suggested: FLUSH / SURFACE / RECESSED / IP65 / IP66 / EM / DALI."/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Room Filter (regex)"/>
                             <TextBox   Grid.Row="1" Grid.Column="1" x:Name="txtRoom"     Margin="0,2"/>
@@ -190,6 +195,12 @@
                         </Grid>
                     </GroupBox>
 
+                    <GroupBox Header="Notes" Style="{StaticResource GroupBoxStyle}">
+                        <TextBox x:Name="txtNotes" AcceptsReturn="True" TextWrapping="Wrap"
+                                 MinHeight="48" MaxHeight="120" VerticalScrollBarVisibility="Auto"
+                                 ToolTip="Free-text note attached to this rule. Surfaced in placement reports and pushed to STING_PLACEMENT_NOTES_TXT on family types when Push to Families runs."/>
+                    </GroupBox>
+
                     <GroupBox Header="Family Defaults &amp; Clearance" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
                             <DockPanel LastChildFill="False" Margin="0,0,0,6">
@@ -219,6 +230,7 @@
                             </DataGrid>
                         </StackPanel>
                     </GroupBox>
+                    </StackPanel> <!-- /pnlRuleDetail -->
 
                     <GroupBox Header="Run Options" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>

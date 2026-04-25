@@ -62,6 +62,7 @@ namespace StingTools.UI.PlacementCenter
             cmbCategory.ItemsSource = VM.Categories;
             cmbAnchor.ItemsSource   = VM.AnchorTypes;
             cmbSide.ItemsSource     = VM.SideConstraints;
+            cmbVariant.ItemsSource  = VM.VariantHints;
 
             // Run-option two-way bindings
             chkProvenance.IsChecked  = VM.RunOpts.StampProvenance;
@@ -83,8 +84,10 @@ namespace StingTools.UI.PlacementCenter
             // Per-rule field handlers — wired manually so we can validate after each edit
             cmbCategory.LostFocus       += (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
             cmbCategory.SelectionChanged+= (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
-            txtVariant.LostFocus        += (_,__) => CommitField(() => VM.Selected.VariantHint      = txtVariant.Text);
+            cmbVariant.LostFocus        += (_,__) => CommitField(() => VM.Selected.VariantHint      = (cmbVariant.Text ?? "").Trim());
+            cmbVariant.SelectionChanged += (_,__) => CommitField(() => VM.Selected.VariantHint      = (cmbVariant.Text ?? "").Trim());
             txtRoom.LostFocus           += (_,__) => CommitField(() => VM.Selected.RoomFilter       = txtRoom.Text);
+            txtNotes.LostFocus          += (_,__) => CommitField(() => VM.Selected.Notes            = txtNotes.Text);
             cmbAnchor.SelectionChanged  += (_,__) => CommitField(() => VM.Selected.AnchorType       = cmbAnchor.SelectedItem as string ?? VM.Selected.AnchorType);
             cmbSide.SelectionChanged    += (_,__) => CommitField(() => VM.Selected.SideConstraint   = cmbSide.SelectedItem   as string ?? VM.Selected.SideConstraint);
             txtPriority.LostFocus       += (_,__) => CommitField(() => VM.Selected.Priority         = ParseInt(txtPriority.Text, VM.Selected.Priority));
@@ -632,11 +635,12 @@ namespace StingTools.UI.PlacementCenter
             _suppressUiSync = true;
             try
             {
-                pnlDetail.IsEnabled = VM.HasSelection;
+                pnlRuleDetail.IsEnabled = VM.HasSelection;
                 if (VM.Selected == null) { txtRuleError.Text = ""; return; }
                 cmbCategory.Text          = VM.Selected.CategoryFilter ?? "";
-                txtVariant.Text           = VM.Selected.VariantHint    ?? "";
+                cmbVariant.Text           = VM.Selected.VariantHint    ?? "";
                 txtRoom.Text              = VM.Selected.RoomFilter     ?? "";
+                txtNotes.Text             = VM.Selected.Notes          ?? "";
                 cmbAnchor.SelectedItem    = VM.Selected.AnchorType;
                 cmbSide.SelectedItem      = VM.Selected.SideConstraint;
                 txtPriority.Text          = VM.Selected.Priority.ToString(CultureInfo.InvariantCulture);
