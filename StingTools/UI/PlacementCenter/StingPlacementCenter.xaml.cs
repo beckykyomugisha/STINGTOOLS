@@ -322,6 +322,12 @@ namespace StingTools.UI.PlacementCenter
 
             DateTime startUtc = DateTime.UtcNow;
             PlacementResult result = null;
+            // Show a modeless progress dialog so the user can see per-room
+            // progress and abort. The placement engine commits per-room
+            // ProcessRoomRule writes inside its single Transaction, so the
+            // outer TransactionGroup keeps everything undoable as one step.
+            var progress = StingProgressDialog.Show(
+                "STING — Placement Centre · Run", roomIds.Count);
             try
             {
                 // FixturePlacementEngine opens its own Transaction inside the
@@ -333,7 +339,17 @@ namespace StingTools.UI.PlacementCenter
                 using (var tg = new TransactionGroup(_doc, "STING Placement Centre — Run"))
                 {
                     tg.Start();
-                    result = FixturePlacementEngine.PlaceFixturesInScope(_doc, roomIds, rules, dryRun: false);
+                    result = FixturePlacementEngine.PlaceFixturesInScope(
+                        _doc, roomIds, rules, dryRun: false,
+                        progress: (done, total) =>
+                        {
+                            try
+                            {
+                                progress.Increment($"Room {done} of {total}…");
+                                return progress.IsCancelled;
+                            }
+                            catch { return false; }
+                        });
                     tg.Assimilate();
                 }
             }
@@ -350,6 +366,7 @@ namespace StingTools.UI.PlacementCenter
                 // Restore the option-bag so other entry points aren't affected.
                 StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
                 StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
+                try { progress?.Close(); } catch { }
             }
 
             _lastRunUtc = startUtc;

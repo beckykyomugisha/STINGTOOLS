@@ -45,11 +45,28 @@ namespace StingTools.Core.Placement
         /// override library. If dryRun is true, returns candidates without
         /// placing anything (the UI shows a preview).
         /// </summary>
+        /// <summary>Original 4-arg entry point — preserved for back-compat.
+        /// Delegates to the 5-arg overload with a no-op progress callback.</summary>
         public static PlacementResult PlaceFixturesInScope(
             Document doc,
             IList<ElementId> roomIds,
             IList<PlacementRule> rules,
             bool dryRun)
+            => PlaceFixturesInScope(doc, roomIds, rules, dryRun, progress: null);
+
+        /// <summary>Long-form entry point with a progress hook. The
+        /// callback is invoked once per room with (processed, total) so the
+        /// Placement Centre can show a StingProgressDialog and let the user
+        /// abort. Returning <c>true</c> from the callback aborts the run
+        /// after the current room commits — partial work is kept (still
+        /// inside the engine's Transaction so callers can roll back at the
+        /// outer TransactionGroup level if they want all-or-nothing).</summary>
+        public static PlacementResult PlaceFixturesInScope(
+            Document doc,
+            IList<ElementId> roomIds,
+            IList<PlacementRule> rules,
+            bool dryRun,
+            Func<int, int, bool> progress)
         {
             var result = new PlacementResult { DryRun = dryRun };
             if (doc == null)
@@ -107,6 +124,9 @@ namespace StingTools.Core.Placement
 
             try
             {
+                int processed = 0;
+                int total = rooms.Count;
+                bool cancelled = false;
                 foreach (var room in rooms)
                 {
                     foreach (var rule in ordered)
@@ -122,12 +142,31 @@ namespace StingTools.Core.Placement
                             result.SkippedCount++;
                         }
                     }
+                    processed++;
+                    if (progress != null)
+                    {
+                        try
+                        {
+                            if (progress(processed, total))
+                            {
+                                cancelled = true;
+                                result.Warnings.Add($"Cancelled after {processed} of {total} room(s).");
+                                break;
+                            }
+                        }
+                        catch (Exception pgEx)
+                        {
+                            result.Warnings.Add($"Progress callback: {pgEx.Message}");
+                        }
+                    }
                 }
 
                 if (!dryRun)
                 {
                     tx.Commit();
                 }
+                if (cancelled)
+                    StingLog.Info($"FixturePlacementEngine: run cancelled after {processed}/{total} rooms.");
             }
             catch (Exception ex)
             {
