@@ -1,0 +1,172 @@
+// StingTools — Drawing Template Manager · Bonus
+//
+// DrawingCropApplier reads DrawingType.Crop and writes the matching
+// Revit view-crop state. Crop kinds:
+//
+//   ScopeBox       use the scope box named in crop.scopeBoxName.
+//                  Error if missing.
+//   ScopeBoxOrBbox use named scope box if present, else tight bbox + margin.
+//   TightBbox      compute element bbox and pad by crop.marginMm.
+//   RoomBoundary   union of room boundaries + margin (plans only).
+//   None           leave the view's default crop alone.
+//
+// Called by DrawingTypePresentation.Apply between view-template and
+// annotation passes. Null or unparsable crop → no-op.
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Autodesk.Revit.DB;
+
+namespace StingTools.Core.Drawing
+{
+    public static class DrawingCropApplier
+    {
+        public static List<string> Apply(Document doc, View view, DrawingType dt)
+        {
+            var warnings = new List<string>();
+            if (doc == null || view == null || dt?.Crop == null) return warnings;
+            if (view.IsTemplate) return warnings;
+
+            var crop = dt.Crop;
+            try
+            {
+                switch ((crop.Kind ?? "").Trim())
+                {
+                    case "None":
+                        return warnings;
+
+                    case "ScopeBox":
+                        {
+                            var sb = FindScopeBox(doc, crop.ScopeBoxName);
+                            if (sb == null)
+                            {
+                                warnings.Add($"Scope box '{crop.ScopeBoxName}' not found.");
+                                return warnings;
+                            }
+                            SetScopeBox(view, sb.Id, warnings);
+                            break;
+                        }
+
+                    case "ScopeBoxOrBbox":
+                        {
+                            var sb = FindScopeBox(doc, crop.ScopeBoxName);
+                            if (sb != null) SetScopeBox(view, sb.Id, warnings);
+                            else            SetTightBboxCrop(doc, view, crop.MarginMm, warnings);
+                            break;
+                        }
+
+                    case "TightBbox":
+                        SetTightBboxCrop(doc, view, crop.MarginMm, warnings);
+                        break;
+
+                    case "RoomBoundary":
+                        SetRoomBoundaryCrop(doc, view, crop.MarginMm, warnings);
+                        break;
+
+                    default:
+                        warnings.Add($"Unknown crop kind '{crop.Kind}' — no-op.");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                warnings.Add($"CropApplier: {ex.Message}");
+            }
+            return warnings;
+        }
+
+        private static Element FindScopeBox(Document doc, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                    .WhereElementIsNotElementType()
+                    .FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+            }
+            catch { return null; }
+        }
+
+        private static void SetScopeBox(View view, ElementId scopeBoxId, List<string> warnings)
+        {
+            try
+            {
+                var p = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                if (p == null || p.IsReadOnly) { warnings.Add("VIEWER_VOLUME_OF_INTEREST_CROP not writable."); return; }
+                p.Set(scopeBoxId);
+                view.CropBoxActive = true;
+                view.CropBoxVisible = true;
+            }
+            catch (Exception ex) { warnings.Add($"SetScopeBox: {ex.Message}"); }
+        }
+
+        private static void SetTightBboxCrop(Document doc, View view, double marginMm, List<string> warnings)
+        {
+            try
+            {
+                // Union the bboxes of every element visible in the view.
+                BoundingBoxXYZ union = null;
+                foreach (var el in new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType())
+                {
+                    var bb = el.get_BoundingBox(view);
+                    if (bb == null) continue;
+                    if (union == null) { union = new BoundingBoxXYZ { Min = bb.Min, Max = bb.Max }; continue; }
+                    union.Min = new XYZ(Math.Min(union.Min.X, bb.Min.X),
+                                         Math.Min(union.Min.Y, bb.Min.Y),
+                                         Math.Min(union.Min.Z, bb.Min.Z));
+                    union.Max = new XYZ(Math.Max(union.Max.X, bb.Max.X),
+                                         Math.Max(union.Max.Y, bb.Max.Y),
+                                         Math.Max(union.Max.Z, bb.Max.Z));
+                }
+                if (union == null) { warnings.Add("TightBbox: view is empty, no crop applied."); return; }
+
+                var marginFt = (marginMm / 304.8);
+                union.Min = union.Min - new XYZ(marginFt, marginFt, 0);
+                union.Max = union.Max + new XYZ(marginFt, marginFt, 0);
+
+                view.CropBoxActive  = true;
+                view.CropBoxVisible = true;
+                view.CropBox        = union;
+            }
+            catch (Exception ex) { warnings.Add($"TightBbox: {ex.Message}"); }
+        }
+
+        private static void SetRoomBoundaryCrop(Document doc, View view, double marginMm, List<string> warnings)
+        {
+            try
+            {
+                var rooms = new FilteredElementCollector(doc, view.Id)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                if (rooms.Count == 0) { warnings.Add("RoomBoundary: no rooms in view, falling back to TightBbox."); SetTightBboxCrop(doc, view, marginMm, warnings); return; }
+
+                BoundingBoxXYZ union = null;
+                foreach (var r in rooms)
+                {
+                    var bb = r.get_BoundingBox(view);
+                    if (bb == null) continue;
+                    if (union == null) { union = new BoundingBoxXYZ { Min = bb.Min, Max = bb.Max }; continue; }
+                    union.Min = new XYZ(Math.Min(union.Min.X, bb.Min.X),
+                                         Math.Min(union.Min.Y, bb.Min.Y),
+                                         Math.Min(union.Min.Z, bb.Min.Z));
+                    union.Max = new XYZ(Math.Max(union.Max.X, bb.Max.X),
+                                         Math.Max(union.Max.Y, bb.Max.Y),
+                                         Math.Max(union.Max.Z, bb.Max.Z));
+                }
+                if (union == null) { warnings.Add("RoomBoundary: no room bboxes."); return; }
+
+                var marginFt = (marginMm / 304.8);
+                union.Min = union.Min - new XYZ(marginFt, marginFt, 0);
+                union.Max = union.Max + new XYZ(marginFt, marginFt, 0);
+
+                view.CropBoxActive  = true;
+                view.CropBoxVisible = true;
+                view.CropBox        = union;
+            }
+            catch (Exception ex) { warnings.Add($"RoomBoundary: {ex.Message}"); }
+        }
+    }
+}

@@ -39,8 +39,61 @@ namespace StingTools.Core.Drawing
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
             var lib = GetLibrary(doc);
-            return lib.DrawingTypes.FirstOrDefault(
+            var raw = lib.DrawingTypes.FirstOrDefault(
                 t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
+            return raw == null ? null : ResolveExtends(lib, raw);
+        }
+
+        /// <summary>
+        /// Walk DrawingType.Extends and return a merged snapshot —
+        /// child non-null / non-default fields override parent. Loop
+        /// detection via visited-set; mirror of ViewStylePackRegistry.
+        /// </summary>
+        private static DrawingType ResolveExtends(DrawingTypeLibrary lib, DrawingType leaf)
+        {
+            if (string.IsNullOrWhiteSpace(leaf.Extends)) return leaf;
+
+            var chain = new List<DrawingType>();
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var cur = leaf;
+            while (cur != null)
+            {
+                if (!visited.Add(cur.Id ?? Guid.NewGuid().ToString()))
+                {
+                    StingTools.Core.StingLog.Warn($"DrawingType extends cycle at '{cur.Id}'.");
+                    break;
+                }
+                chain.Add(cur);
+                if (string.IsNullOrWhiteSpace(cur.Extends)) break;
+                cur = lib.DrawingTypes.FirstOrDefault(
+                    t => string.Equals(t.Id, cur.Extends, StringComparison.OrdinalIgnoreCase));
+            }
+
+            chain.Reverse();
+            var m = new DrawingType { Id = leaf.Id, Name = leaf.Name, Origin = leaf.Origin, Extends = leaf.Extends };
+            foreach (var p in chain)
+            {
+                if (!string.IsNullOrEmpty(p.Description))      m.Description = p.Description;
+                if (!string.IsNullOrEmpty(p.Purpose))          m.Purpose = p.Purpose;
+                if (!string.IsNullOrEmpty(p.Discipline))       m.Discipline = p.Discipline;
+                if (!string.IsNullOrEmpty(p.Phase))            m.Phase = p.Phase;
+                if (!string.IsNullOrEmpty(p.PaperSize))        m.PaperSize = p.PaperSize;
+                if (!string.IsNullOrEmpty(p.TitleBlockFamily)) m.TitleBlockFamily = p.TitleBlockFamily;
+                if (!string.IsNullOrEmpty(p.Orientation))      m.Orientation = p.Orientation;
+                if (p.Scale > 0)                               m.Scale = p.Scale;
+                if (!string.IsNullOrEmpty(p.DetailLevel))      m.DetailLevel = p.DetailLevel;
+                if (!string.IsNullOrEmpty(p.ViewTemplateName)) m.ViewTemplateName = p.ViewTemplateName;
+                if (!string.IsNullOrEmpty(p.ViewportTypeName)) m.ViewportTypeName = p.ViewportTypeName;
+                if (!string.IsNullOrEmpty(p.SheetNumberPattern)) m.SheetNumberPattern = p.SheetNumberPattern;
+                if (!string.IsNullOrEmpty(p.SheetNamePattern))   m.SheetNamePattern = p.SheetNamePattern;
+                if (!string.IsNullOrEmpty(p.ViewStylePackId))    m.ViewStylePackId = p.ViewStylePackId;
+                if (p.Crop != null)          m.Crop = p.Crop;
+                if (p.SectionMarker != null) m.SectionMarker = p.SectionMarker;
+                if (p.Slots != null && p.Slots.Count > 0) m.Slots = p.Slots;
+                if (p.Annotation != null)    m.Annotation = p.Annotation;
+                if (p.Print != null)         m.Print = p.Print;
+            }
+            return m;
         }
 
         public static IReadOnlyList<DrawingType> ListAll(Document doc)
