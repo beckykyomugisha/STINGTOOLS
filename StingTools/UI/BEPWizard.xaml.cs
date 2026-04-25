@@ -27,6 +27,9 @@ namespace StingTools.UI
         private static readonly SolidColorBrush BrDim = FZ(0x99, 0x99, 0x99);
         private static readonly SolidColorBrush BrGreen = FZ(0x4C, 0xAF, 0x50);
         private static readonly SolidColorBrush BrPurple = FZ(0x6A, 0x1B, 0x9A);
+        // Step-indicator number swatches — readable against each step background.
+        private static readonly SolidColorBrush BrNumDark = FZ(0x22, 0x22, 0x22); // on light grey
+        private static readonly SolidColorBrush BrNumLight = FZ(0xFF, 0xFF, 0xFF); // on green / purple
 
         /// <summary>Result data — populated when user clicks Create.</summary>
         public BEPWizardData WizardData { get; private set; }
@@ -93,10 +96,14 @@ namespace StingTools.UI
                     Width = 28, Height = 28, CornerRadius = new CornerRadius(14),
                     Margin = new Thickness(2), Background = BrGrey
                 };
+                // Initial foreground matches BrGrey (#E0E0E0) pending
+                // state — white is ~1.3:1 and vanished after the
+                // palette flip, so use dark text. Active/completed
+                // states override this via UpdateStepIndicators.
                 var num = new TextBlock
                 {
                     Text = (i + 1).ToString(), FontWeight = FontWeights.Bold,
-                    FontSize = 12, Foreground = Brushes.White,
+                    FontSize = 12, Foreground = BrNumDark,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -121,20 +128,27 @@ namespace StingTools.UI
         {
             for (int i = 0; i < TotalPages; i++)
             {
+                // Keep the circle's number legible against whichever
+                // background we're about to set: light text on the
+                // saturated green / purple, dark text on the light grey.
+                var num = _stepBorders[i].Child as TextBlock;
                 if (i < _currentPage)
                 {
                     _stepBorders[i].Background = BrGreen;
+                    if (num != null) num.Foreground = BrNumLight;
                     _stepLabels[i].Foreground = BrGreen;
                 }
                 else if (i == _currentPage)
                 {
                     _stepBorders[i].Background = BrPurple;
+                    if (num != null) num.Foreground = BrNumLight;
                     _stepLabels[i].Foreground = BrPurple;
                     _stepLabels[i].FontWeight = FontWeights.Bold;
                 }
                 else
                 {
                     _stepBorders[i].Background = BrGrey;
+                    if (num != null) num.Foreground = BrNumDark;
                     _stepLabels[i].Foreground = BrDim;
                     _stepLabels[i].FontWeight = FontWeights.Normal;
                 }

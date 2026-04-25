@@ -20,6 +20,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
@@ -60,12 +61,12 @@ namespace StingTools.UI
             Width = 1000;
             Height = 680;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            Background = new SolidColorBrush(Color.FromRgb(0x2D, 0x2D, 0x30));
-            Foreground = Brushes.White;
+            Background = new SolidColorBrush(DarkDialogTheme.LightPalette.WindowBg);
+            Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg);
             DarkDialogTheme.ApplyComboBoxFix(this,
-                Color.FromRgb(0x3E, 0x3E, 0x42),
-                Colors.White,
-                Color.FromRgb(0x55, 0x55, 0x58));
+                DarkDialogTheme.LightPalette.CardBg,
+                DarkDialogTheme.LightPalette.BodyFg,
+                DarkDialogTheme.LightPalette.AltRowBg);
 
             BuildUi();
             LoadClashFile();
@@ -98,7 +99,7 @@ namespace StingTools.UI
                 FontSize = 16,
                 FontWeight = FontWeights.SemiBold,
                 Text = "Clash Manager",
-                Foreground = Brushes.White,
+                Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg),
             };
             Grid.SetRow(_header, 0);
             root.Children.Add(_header);
@@ -114,9 +115,9 @@ namespace StingTools.UI
             {
                 Width = 220, Height = 26,
                 Margin = new Thickness(6, 0, 16, 0),
-                Background = new SolidColorBrush(Color.FromRgb(0x3E, 0x3E, 0x42)),
-                Foreground = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x58)),
+                Background = new SolidColorBrush(DarkDialogTheme.LightPalette.CardBg),
+                Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg),
+                BorderBrush = new SolidColorBrush(DarkDialogTheme.LightPalette.Border),
                 ToolTip = "Search across Id / Category A / Category B / State / Severity",
             };
             _txtFilter.TextChanged += (_, __) => ApplyFilter();
@@ -135,7 +136,10 @@ namespace StingTools.UI
             Grid.SetRow(filterBar, 1);
             root.Children.Add(filterBar);
 
-            // Data grid
+            // Data grid — light palette with an explicit header style so
+            // column titles are always readable (WPF default header
+            // foreground is system-dependent and was rendering
+            // invisible on the old dark background).
             _grid = new DataGrid
             {
                 AutoGenerateColumns = false,
@@ -143,12 +147,21 @@ namespace StingTools.UI
                 CanUserSortColumns = true,
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x28)),
-                Foreground = Brushes.White,
-                RowBackground = new SolidColorBrush(Color.FromRgb(0x2F, 0x2F, 0x33)),
-                AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x37)),
+                Background = new SolidColorBrush(DarkDialogTheme.LightPalette.CardBg),
+                Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg),
+                RowBackground = new SolidColorBrush(DarkDialogTheme.LightPalette.CardBg),
+                AlternatingRowBackground = new SolidColorBrush(DarkDialogTheme.LightPalette.AltRowBg),
+                BorderBrush = new SolidColorBrush(DarkDialogTheme.LightPalette.Border),
                 Margin = new Thickness(16, 0, 16, 8),
             };
+            var headerStyle = new Style(typeof(DataGridColumnHeader));
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty,
+                new SolidColorBrush(DarkDialogTheme.LightPalette.AltRowBg)));
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty,
+                new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg)));
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(6, 4, 6, 4)));
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
+            _grid.ColumnHeaderStyle = headerStyle;
             _grid.Columns.Add(new DataGridTextColumn { Header = "Id",          Binding = new Binding("Id"),       Width = 150 });
             _grid.Columns.Add(new DataGridTextColumn { Header = "Severity",    Binding = new Binding("Severity"), Width = 90 });
             _grid.Columns.Add(new DataGridTextColumn { Header = "State",       Binding = new Binding("State"),    Width = 100 });
@@ -296,7 +309,8 @@ namespace StingTools.UI
 
         private static TextBlock MakeLabel(string t) => new TextBlock
         {
-            Text = t, Foreground = Brushes.White,
+            Text = t,
+            Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg),
             Margin = new Thickness(0, 0, 6, 0),
             VerticalAlignment = VerticalAlignment.Center,
         };
@@ -307,8 +321,9 @@ namespace StingTools.UI
             {
                 Width = 110, Height = 26,
                 Margin = new Thickness(0, 0, 16, 0),
-                Background = new SolidColorBrush(Color.FromRgb(0x3E, 0x3E, 0x42)),
-                Foreground = Brushes.White,
+                Background = new SolidColorBrush(DarkDialogTheme.LightPalette.CardBg),
+                Foreground = new SolidColorBrush(DarkDialogTheme.LightPalette.BodyFg),
+                BorderBrush = new SolidColorBrush(DarkDialogTheme.LightPalette.Border),
             };
             foreach (var it in items) cb.Items.Add(new ComboBoxItem { Content = it });
             cb.SelectedIndex = 0;
@@ -324,10 +339,13 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 0, 6, 0),
                 ToolTip = tip,
                 Background = new SolidColorBrush(accent
-                    ? Color.FromRgb(0xE8, 0x91, 0x2D)
-                    : Color.FromRgb(0x55, 0x55, 0x58)),
-                Foreground = Brushes.White,
-                BorderThickness = new Thickness(0),
+                    ? DarkDialogTheme.LightPalette.Accent
+                    : DarkDialogTheme.LightPalette.SecondaryBtn),
+                Foreground = new SolidColorBrush(accent
+                    ? DarkDialogTheme.LightPalette.AccentFg
+                    : DarkDialogTheme.LightPalette.BodyFg),
+                BorderThickness = new Thickness(accent ? 0 : 1),
+                BorderBrush = new SolidColorBrush(DarkDialogTheme.LightPalette.Border),
                 FontWeight = accent ? FontWeights.SemiBold : FontWeights.Normal,
             };
             b.Click += onClick;

@@ -2825,3 +2825,97 @@ deterministic GUIDs that will never rotate.
  4. Pack 126/K IfcPropertyMapper is a builder — the existing IFC
     export code paths still need a one-line call-site to consume the
     psets it produces.
+
+
+---
+
+#### Completed (Phase 127 — Placement Centre, Phases A–D)
+
+Modeless WPF Window — `UI/PlacementCenter/StingPlacementCenter.xaml(.cs)`
+— consolidates every placement-related surface into one centre with a
+master-detail layout and stacked GroupBoxes ("inline panels"). Single
+instance per UIApplication (`ShowOrFocus`); theme-aware via
+ThemeManager.
+
+**Phase 127-A — Skeleton**
+ - PlacementRuleViewModel (INPC wrapper, IsDirty / IsValid)
+ - PlacementRulesViewModel (collection + filter + load/save/add/delete)
+ - XAML window with toolbar, search/grid/details, status bar
+ - OpenPlacementCenterCommand registered as `Placement_OpenCentre`
+
+**Phase 127-B — Engine wiring**
+ - PlacementCenterBridge — ResolveScope (ActiveView / Selection /
+   Project) + ToRules + RunValidators + FilterToProvenance
+ - PlacementPreviewSource — IPreviewSource emitting Cross + Outline at
+   each room centroid for the DirectContext3D preview canvas
+ - Run / Preview / Validate buttons fully wired through the bridge
+
+**Phase 127-C — Family-side**
+ - FamilyHintsBridge — Inspect (read 22 PLACE_/STING_/MNT_/CLASH_/FIRE_
+   params from a sample family in the selected category) + Push (write
+   rule values to every matching FamilySymbol inside one Transaction)
+ - "Family Defaults & Clearance" GroupBox now hosts a real DataGrid
+   driven by Inspect; toolbar's "Push to Families" gated by a confirmation
+   TaskDialog
+
+**Phase 127-D — Polish**
+ - HistoryBridge — reads StingProvenanceSchema (Pack 123/E) into 30
+   newest hourly buckets; "Refresh" / "Undo last run" / "Save view
+   preset" actions
+ - "History & Provenance" GroupBox now hosts a real DataGrid plus the
+   three action buttons
+ - Heat-map button → AvfHeatmapEngine.Paint with ComplianceHeatmapAdapter
+ - GD Study button → TaskDialog explaining the .dyn launch flow
+ - Save view preset → StingViewPresetSchema (Pack 125/M) write
+ - Undo last → HistoryBridge.DeleteIds inside one Transaction; prefers
+   the centre's _lastPlacedIds, falls back to provenance most-recent
+
+**Files (new)**
+ - StingTools/UI/PlacementCenter/PlacementRuleViewModel.cs
+ - StingTools/UI/PlacementCenter/PlacementRulesViewModel.cs
+ - StingTools/UI/PlacementCenter/PlacementCenterBridge.cs
+ - StingTools/UI/PlacementCenter/FamilyHintsBridge.cs
+ - StingTools/UI/PlacementCenter/HistoryBridge.cs
+ - StingTools/UI/PlacementCenter/StingPlacementCenter.xaml
+ - StingTools/UI/PlacementCenter/StingPlacementCenter.xaml.cs
+ - StingTools/Core/Visualization/PlacementPreviewSource.cs
+ - StingTools/Commands/Placement/OpenPlacementCenterCommand.cs
+
+**Files (edited)**
+ - StingTools/UI/StingCommandHandler.cs — `Placement_OpenCentre` tag
+
+**Caveats**
+ 1. Built without dotnet build verification (Linux sandbox).
+ 2. PlacementPreviewSource paints room-centroid markers, not the
+    candidate set the engine derives from rules; full candidate replay
+    is a Phase E follow-up.
+ 3. "Save view preset" stores name + timestamp only; the
+    OverridesJson payload is empty until per-view offset overrides
+    have a UI editor.
+ 4. Heat-map only paints ComplianceHeatmapAdapter; the placement-quality
+    adapter (per-element scoring) lands when PlacementCandidate.Score
+    is exposed by the engine.
+ 5. Dock-panel button + ribbon entry deferred — the centre is invokable
+    through StingCommandHandler.SetCommand("Placement_OpenCentre")
+    today; the visual surface lands with the next dock-panel
+    refresh.
+
+**Smoke test**
+ 1. From Revit's Add-Ins ribbon (or via Postable command tag), invoke
+    `Placement_OpenCentre`. Window opens centred over the host Revit
+    process.
+ 2. Grid lists ~43 rules from STING_PLACEMENT_RULES.json.
+ 3. Pick a row, edit Priority, lose focus → status bar shows
+    "1 unsaved", grid first-column shows "●".
+ 4. Click "Save Project" → JSON written next to .rvt; status bar shows
+    "Saved 43 rule(s) → …".
+ 5. Click "Run Placement" with scope=Active view → confirmation dialog;
+    on Yes, runs FixturePlacementEngine, status bar reports placed/
+    skipped/warnings, validators panel opens if Run Options checked.
+ 6. Click "Preview" → blue ghost markers paint on the active view.
+ 7. Click "Inspect" inside a rule → Family Defaults grid populates with
+    hint param values + sources.
+ 8. Click "Push to Families" → confirmation; on Yes, parameter writes
+    surface in the result dialog.
+ 9. Click "Undo last run" → deletes the last batch in one transaction;
+    history grid refreshes.
