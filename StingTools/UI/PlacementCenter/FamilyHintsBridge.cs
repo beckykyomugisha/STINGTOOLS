@@ -87,14 +87,31 @@ namespace StingTools.UI.PlacementCenter
         }
 
         /// <summary>
+        /// PC-11 — clearance / weight / envelope edits the Centre's
+        /// new "Clearance" group writes. Optional; values not set are
+        /// not pushed.
+        /// </summary>
+        public class PushExtras
+        {
+            public double? ClearanceFrontMm;
+            public double? ClearanceBackMm;
+            public double? ClearanceSideMm;
+            public double? ClearanceTopMm;
+            public double? ClearanceMm;       // omnidirectional
+            public double? WeightKg;
+            public double? EnvWMm;
+            public double? EnvDMm;
+            public double? EnvHMm;
+            public double? FireSepMm;
+        }
+
+        /// <summary>
         /// Push the rule's geometry + variant values onto every family
         /// type in the category. Returns (typesUpdated, paramsWritten).
-        /// Caller wraps in their own TransactionGroup or passes one in;
-        /// this method opens a single Transaction so it's safe to call
-        /// from a click handler.
+        /// PC-11 adds clearance / weight / envelope writes via PushExtras.
         /// </summary>
         public static (int types, int writes) PushRuleToFamilyTypes(
-            Document doc, PlacementRuleViewModel vm)
+            Document doc, PlacementRuleViewModel vm, PushExtras extras = null)
         {
             int typesUpdated = 0, writes = 0;
             if (doc == null || vm == null || string.IsNullOrEmpty(vm.CategoryFilter))
@@ -123,21 +140,41 @@ namespace StingTools.UI.PlacementCenter
                         if (TrySetString(sym, "STING_FIXTURE_VARIANT_TXT",  vm.VariantHint)) { writes++; any = true; }
                         if (TrySetString(sym, "STING_ROOM_TYPE_FILTER_TXT", vm.RoomFilter)) { writes++; any = true; }
 
-                        // Geometry — full rule set, not just MountingHeight.
+                        // Geometry — full rule set (PC-06 expanded: X, Y, Z, rotation, mount).
                         if (vm.MountingHeightMm > 0 &&
                             TrySetLengthMm(sym, "PLACE_MOUNT_HEIGHT_MM", vm.MountingHeightMm)) { writes++; any = true; }
-                        if (TrySetLengthMm(sym, "PLACE_OFFSET_X_MM",       vm.OffsetXMm))      { writes++; any = true; }
+                        if (TrySetLengthMm(sym, "PLACE_OFFSET_X_MM", vm.OffsetXMm)) { writes++; any = true; }
+                        if (TrySetLengthMm(sym, "PLACE_OFFSET_Y_MM", vm.OffsetYMm)) { writes++; any = true; }
+                        if (TrySetLengthMm(sym, "PLACE_OFFSET_Z_MM", vm.OffsetZMm)) { writes++; any = true; }
+                        if (TrySetString(sym, "PLACE_MOUNT_REFERENCE_TXT", vm.MountingReference ?? "FFL")) { writes++; any = true; }
                         if (vm.MinSpacingMm >= 0 &&
-                            TrySetLengthMm(sym, "PLACE_MIN_SPACING_MM",    vm.MinSpacingMm))   { writes++; any = true; }
+                            TrySetLengthMm(sym, "PLACE_MIN_SPACING_MM", vm.MinSpacingMm)) { writes++; any = true; }
 
                         // Placement-rule discriminators
-                        if (TrySetString(sym, "PLACE_ANCHOR_TXT",          vm.Model.AnchorType ?? "ROOM_CENTRE")) { writes++; any = true; }
-                        if (TrySetString(sym, "PLACE_SIDE_TXT",            vm.Model.SideConstraint ?? "EITHER")) { writes++; any = true; }
-                        if (TrySetInteger(sym, "PLACE_PRIORITY_INT",       vm.Priority))       { writes++; any = true; }
-                        if (TrySetInteger(sym, "PLACE_MAX_PER_ROOM_INT",   vm.MaxPerRoom))     { writes++; any = true; }
+                        if (TrySetString(sym, "PLACE_ANCHOR_TXT",        vm.Model.AnchorType    ?? "ROOM_CENTRE")) { writes++; any = true; }
+                        if (TrySetString(sym, "PLACE_SIDE_TXT",          vm.Model.SideConstraint ?? "EITHER"))     { writes++; any = true; }
+                        if (TrySetInteger(sym, "PLACE_PRIORITY_INT",     vm.Priority))     { writes++; any = true; }
+                        if (TrySetInteger(sym, "PLACE_MAX_PER_ROOM_INT", vm.MaxPerRoom))   { writes++; any = true; }
 
-                        // Free-text notes for downstream consumers
-                        if (TrySetString(sym, "STING_PLACEMENT_NOTES_TXT", vm.Notes ?? ""))    { writes++; any = true; }
+                        // Free-text notes + standards
+                        if (TrySetString(sym, "STING_PLACEMENT_NOTES_TXT", vm.Notes       ?? "")) { writes++; any = true; }
+                        if (TrySetString(sym, "STING_STANDARD_REF_TXT",    vm.StandardRef ?? "")) { writes++; any = true; }
+                        if (TrySetString(sym, "STING_UNICLASS_PR_TXT",     vm.UniclassPr  ?? "")) { writes++; any = true; }
+
+                        // PC-11 — clearance / weight / envelope / fire separation
+                        if (extras != null)
+                        {
+                            if (extras.ClearanceMm.HasValue       && TrySetLengthMm(sym, "STING_CLEARANCE_MM",       extras.ClearanceMm.Value))       { writes++; any = true; }
+                            if (extras.ClearanceFrontMm.HasValue  && TrySetLengthMm(sym, "STING_CLEARANCE_FRONT_MM", extras.ClearanceFrontMm.Value))  { writes++; any = true; }
+                            if (extras.ClearanceBackMm.HasValue   && TrySetLengthMm(sym, "STING_CLEARANCE_BACK_MM",  extras.ClearanceBackMm.Value))   { writes++; any = true; }
+                            if (extras.ClearanceSideMm.HasValue   && TrySetLengthMm(sym, "STING_CLEARANCE_SIDE_MM",  extras.ClearanceSideMm.Value))   { writes++; any = true; }
+                            if (extras.ClearanceTopMm.HasValue    && TrySetLengthMm(sym, "STING_CLEARANCE_TOP_MM",   extras.ClearanceTopMm.Value))    { writes++; any = true; }
+                            if (extras.WeightKg.HasValue          && TrySetDouble (sym, "PLACE_WEIGHT_KG",           extras.WeightKg.Value))          { writes++; any = true; }
+                            if (extras.EnvWMm.HasValue            && TrySetLengthMm(sym, "MNT_ENV_W_MM",             extras.EnvWMm.Value))            { writes++; any = true; }
+                            if (extras.EnvDMm.HasValue            && TrySetLengthMm(sym, "MNT_ENV_D_MM",             extras.EnvDMm.Value))            { writes++; any = true; }
+                            if (extras.EnvHMm.HasValue            && TrySetLengthMm(sym, "MNT_ENV_H_MM",             extras.EnvHMm.Value))            { writes++; any = true; }
+                            if (extras.FireSepMm.HasValue         && TrySetLengthMm(sym, "FIRE_SEP_MM",              extras.FireSepMm.Value))         { writes++; any = true; }
+                        }
 
                         if (any) typesUpdated++;
                     }
@@ -149,6 +186,29 @@ namespace StingTools.UI.PlacementCenter
                 StingLog.Error("FamilyHintsBridge.PushRuleToFamilyTypes", ex);
             }
             return (typesUpdated, writes);
+        }
+
+        private static bool TrySetDouble(Element el, string paramName, double value)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            try
+            {
+                var p = el.LookupParameter(paramName);
+                if (p == null || p.IsReadOnly) return false;
+                if (p.StorageType == StorageType.Double)
+                {
+                    if (Math.Abs(p.AsDouble() - value) < 1e-6) return false;
+                    p.Set(value); return true;
+                }
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int next = (int)Math.Round(value);
+                    if (p.AsInteger() == next) return false;
+                    p.Set(next); return true;
+                }
+            }
+            catch { }
+            return false;
         }
 
         // ── Helpers ──────────────────────────────────────────────────

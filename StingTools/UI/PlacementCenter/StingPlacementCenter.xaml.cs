@@ -572,7 +572,21 @@ namespace StingTools.UI.PlacementCenter
 
             try
             {
-                var (types, writes) = FamilyHintsBridge.PushRuleToFamilyTypes(_doc, VM.Selected);
+                // PC-11 — collect optional clearance/envelope/weight overrides from the editor.
+                var extras = new FamilyHintsBridge.PushExtras
+                {
+                    ClearanceMm      = TryParseOpt(txtClr.Text),
+                    ClearanceFrontMm = TryParseOpt(txtClrFront.Text),
+                    ClearanceBackMm  = TryParseOpt(txtClrBack.Text),
+                    ClearanceSideMm  = TryParseOpt(txtClrSide.Text),
+                    ClearanceTopMm   = TryParseOpt(txtClrTop.Text),
+                    WeightKg         = TryParseOpt(txtWeightKg.Text),
+                    EnvWMm           = TryParseOpt(txtEnvW.Text),
+                    EnvDMm           = TryParseOpt(txtEnvD.Text),
+                    EnvHMm           = TryParseOpt(txtEnvH.Text),
+                    FireSepMm        = TryParseOpt(txtFireSep.Text),
+                };
+                var (types, writes) = FamilyHintsBridge.PushRuleToFamilyTypes(_doc, VM.Selected, extras);
                 VM.Status = $"Pushed to {types} family type(s) · {writes} parameter write(s)";
                 UpdateStatus();
                 TaskDialog.Show("STING — Placement Centre",
@@ -919,6 +933,12 @@ namespace StingTools.UI.PlacementCenter
                 txtStandardRef.Text       = s.StandardRef ?? "";
                 txtUniclassPr.Text        = s.UniclassPr ?? "";
 
+                // PC-11 — clearance / envelope / weight fields are per-push extras,
+                // not part of the rule. Clear them when selection changes.
+                txtClr.Text = ""; txtClrFront.Text = ""; txtClrBack.Text = "";
+                txtClrSide.Text = ""; txtClrTop.Text = ""; txtWeightKg.Text = "";
+                txtEnvW.Text = ""; txtEnvD.Text = ""; txtEnvH.Text = ""; txtFireSep.Text = "";
+
                 txtRuleError.Text         = s.IsValid ? "" : s.ErrorMessage;
             }
             finally { _suppressUiSync = false; }
@@ -974,6 +994,13 @@ namespace StingTools.UI.PlacementCenter
             int.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out int v) ? v : fallback;
         private static double ParseDouble(string s, double fallback) =>
             double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : fallback;
+
+        // PC-11 helper — empty / non-numeric input → null (don't push that field).
+        private static double? TryParseOpt(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : (double?)null;
+        }
 
         // ── Resources ────────────────────────────────────────────────
 

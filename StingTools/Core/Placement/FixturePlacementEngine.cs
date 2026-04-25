@@ -312,42 +312,84 @@ namespace StingTools.Core.Placement
             Dictionary<string, FamilySymbol> cache,
             PlacementResult result)
         {
-            // Pack 3 — cache key now includes the variant hint so one
-            // category can resolve to different symbols for different rules.
-            string hint = rule?.VariantHint ?? "";
-            string cacheKey = string.IsNullOrEmpty(hint) ? categoryName : $"{categoryName}|{hint}";
+            // PC-08 — VariantHint is a comma-separated fallback chain
+            // (FLUSH,SURFACE,RECESSED) or a single regex (^IP6[5-7]$).
+            // FamilyTypeRegex (optional) further refines symbol matching
+            // by symbol name.
+            string hint  = rule?.VariantHint ?? "";
+            string ftrx  = rule?.FamilyTypeRegex ?? "";
+            string cacheKey = string.IsNullOrEmpty(hint) && string.IsNullOrEmpty(ftrx)
+                ? categoryName
+                : $"{categoryName}|{hint}|{ftrx}";
             if (cache.TryGetValue(cacheKey, out var cached)) return cached;
+
+            // Build matcher and ordered fallback chain.
+            var chain = SplitVariantChain(hint);
+            System.Text.RegularExpressions.Regex variantRx = null;
+            if (chain.Count == 0 && IsRegexLike(hint))
+            {
+                try { variantRx = new System.Text.RegularExpressions.Regex(hint, System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
+                catch (Exception ex) { result.Warnings.Add($"VariantHint regex '{hint}': {ex.Message}"); }
+            }
+            System.Text.RegularExpressions.Regex typeRx = null;
+            if (!string.IsNullOrEmpty(ftrx))
+            {
+                try { typeRx = new System.Text.RegularExpressions.Regex(ftrx, System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
+                catch (Exception ex) { result.Warnings.Add($"FamilyTypeRegex '{ftrx}': {ex.Message}"); }
+            }
 
             FamilySymbol picked = null;
             FamilySymbol firstForCategory = null;
+            // For chain-mode resolution, remember the best match per chain index so
+            // an earlier chain entry always beats a later one.
+            int bestChainIndex = int.MaxValue;
             try
             {
-                // Pack 3 — reads STING_FIXTURE_VARIANT_TXT (type parameter) on every
-                // FamilySymbol of the target category. Prefers a variant match
-                // over the first symbol. Falls back to the first symbol when no
-                // variant is declared on either side, preserving the previous
-                // behaviour for families that haven't been processed by
-                // InjectAutomationPresentationPack.
-                var collector = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol));
+                var collector = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
                 foreach (var el in collector)
                 {
                     if (!(el is FamilySymbol fs)) continue;
                     if (fs.Category == null) continue;
                     if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
                         continue;
-                    if (firstForCategory == null) firstForCategory = fs;
 
-                    if (!string.IsNullOrEmpty(hint))
+                    // FamilyTypeRegex is an additional gate, applied to symbol name.
+                    if (typeRx != null && !typeRx.IsMatch(fs.Name ?? "")) continue;
+
+                    if (firstForCategory == null) firstForCategory = fs;
+                    string variant = fs.LookupParameter("STING_FIXTURE_VARIANT_TXT")?.AsString() ?? "";
+
+                    if (chain.Count > 0)
                     {
-                        string variant = fs.LookupParameter("STING_FIXTURE_VARIANT_TXT")?.AsString() ?? "";
+                        for (int i = 0; i < chain.Count && i < bestChainIndex; i++)
+                        {
+                            if (string.Equals(variant, chain[i], StringComparison.OrdinalIgnoreCase))
+                            {
+                                picked = fs;
+                                bestChainIndex = i;
+                                if (i == 0) goto done;
+                                break;
+                            }
+                        }
+                    }
+                    else if (variantRx != null)
+                    {
+                        if (variantRx.IsMatch(variant))
+                        {
+                            picked = fs;
+                            goto done;
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(hint))
+                    {
                         if (string.Equals(variant, hint, StringComparison.OrdinalIgnoreCase))
                         {
                             picked = fs;
-                            break;
+                            goto done;
                         }
                     }
                 }
+            done:
                 if (picked == null) picked = firstForCategory;
             }
             catch (Exception ex)
@@ -355,13 +397,110 @@ namespace StingTools.Core.Placement
                 result.Warnings.Add($"Resolve symbol for '{categoryName}' (hint='{hint}'): {ex.Message}");
             }
 
+            // PC-16 — auto-load missing families from the on-disk library so a
+            // project that doesn't yet contain a sample of the rule's category
+            // can still be served by the engine.
+            if (picked == null && firstForCategory == null)
+            {
+                picked = TryAutoLoadFromLibrary(doc, categoryName, hint, result);
+                firstForCategory = picked;
+            }
+
             if (picked == null)
                 result.Warnings.Add($"No FamilySymbol found for category '{categoryName}' — skipping its rules.");
-            else if (!string.IsNullOrEmpty(hint) && firstForCategory != null && picked == firstForCategory)
-                result.Warnings.Add($"No FamilySymbol with STING_FIXTURE_VARIANT_TXT='{hint}' in category '{categoryName}' — using first available symbol.");
+            else if (!string.IsNullOrEmpty(hint) && firstForCategory != null && picked == firstForCategory && bestChainIndex == int.MaxValue && variantRx == null)
+                result.Warnings.Add($"No FamilySymbol matching VariantHint='{hint}' in category '{categoryName}' — using first available symbol.");
 
             cache[cacheKey] = picked;
             return picked;
+        }
+
+        /// <summary>
+        /// PC-16 — search the on-disk family library (resolved via
+        /// StingToolsApp.AssemblyPath / Families/&lt;normalised category&gt;)
+        /// for a .rfa whose top-level Family.OwnerFamily.FamilyCategory.Name
+        /// matches the requested category. Loads the first match into the
+        /// document and returns its first symbol. Caller already owns a
+        /// Transaction (the engine's "STING v4 Place Fixtures" tx).
+        /// </summary>
+        private static FamilySymbol TryAutoLoadFromLibrary(Document doc, string categoryName, string hint, PlacementResult result)
+        {
+            try
+            {
+                string root = StingToolsApp.AssemblyPath;
+                if (string.IsNullOrEmpty(root)) return null;
+                // Look in Families/ + Families/<discipline>/ — discipline is unknown here, so glob across the tree.
+                string famRoot = System.IO.Path.Combine(root, "Families");
+                if (!System.IO.Directory.Exists(famRoot))
+                    famRoot = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(root) ?? "", "Families");
+                if (!System.IO.Directory.Exists(famRoot)) return null;
+
+                // Normalise category for filename matching.
+                string token = categoryName.Replace(" ", "").Replace("/", "").Replace("\\", "");
+                var rfas = System.IO.Directory.EnumerateFiles(famRoot, "*.rfa", System.IO.SearchOption.AllDirectories)
+                    .Where(p =>
+                    {
+                        string name = System.IO.Path.GetFileNameWithoutExtension(p) ?? "";
+                        return name.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0
+                            || name.IndexOf(categoryName, StringComparison.OrdinalIgnoreCase) >= 0;
+                    })
+                    .ToList();
+                if (rfas.Count == 0) return null;
+
+                foreach (var path in rfas)
+                {
+                    try
+                    {
+                        Family loaded;
+                        if (!doc.LoadFamily(path, out loaded) || loaded == null) continue;
+                        FamilySymbol first = null;
+                        foreach (var symId in loaded.GetFamilySymbolIds())
+                        {
+                            if (doc.GetElement(symId) is FamilySymbol fs)
+                            {
+                                if (fs.Category != null &&
+                                    string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    first = fs;
+                                    break;
+                                }
+                            }
+                        }
+                        if (first != null)
+                        {
+                            result.Warnings.Add($"PC-16 auto-loaded '{System.IO.Path.GetFileName(path)}' for category '{categoryName}'.");
+                            return first;
+                        }
+                    }
+                    catch (Exception lex) { StingLog.Warn($"PC-16 LoadFamily {path}: {lex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PC-16 TryAutoLoadFromLibrary: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>PC-08 — split a comma/semicolon/pipe-separated variant
+        /// fallback chain into trimmed entries. Returns empty when input
+        /// is regex-like (^…$) or empty.</summary>
+        private static List<string> SplitVariantChain(string hint)
+        {
+            var list = new List<string>();
+            if (string.IsNullOrEmpty(hint) || IsRegexLike(hint)) return list;
+            foreach (var part in hint.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var t = part.Trim();
+                if (!string.IsNullOrEmpty(t)) list.Add(t);
+            }
+            return list;
+        }
+
+        private static bool IsRegexLike(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return false;
+            return s.StartsWith("^", StringComparison.Ordinal)
+                || s.Contains("$")
+                || s.Contains("\\d")
+                || s.Contains("[");
         }
 
         private static void WriteAnchorParameters(FamilyInstance fi, PlacementRule rule)

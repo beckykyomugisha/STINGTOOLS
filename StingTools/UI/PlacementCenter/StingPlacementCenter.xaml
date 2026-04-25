@@ -374,7 +374,48 @@
                                  ToolTip="Free-text note attached to this rule. Surfaced in placement reports and pushed to STING_PLACEMENT_NOTES_TXT on family types when Push to Families runs."/>
                     </GroupBox>
 
-                    <GroupBox Header="Family Defaults &amp; Clearance" Style="{StaticResource GroupBoxStyle}">
+                    <GroupBox Header="Clearance / Envelope / Weight (PC-11, push to family types)" Style="{StaticResource GroupBoxStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Clearance (mm)"/>
+                            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="txtClr"      Margin="0,2"
+                                       ToolTip="Omnidirectional clearance — written to STING_CLEARANCE_MM."/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Front / Back (mm)"/>
+                            <DockPanel Grid.Row="0" Grid.Column="3" Margin="0,2">
+                                <TextBox x:Name="txtClrFront" Width="60" Margin="0,0,4,0"/>
+                                <TextBox x:Name="txtClrBack"/>
+                            </DockPanel>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="Side / Top (mm)"/>
+                            <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,2">
+                                <TextBox x:Name="txtClrSide" Width="60" Margin="0,0,4,0"/>
+                                <TextBox x:Name="txtClrTop"/>
+                            </DockPanel>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Weight (kg)"/>
+                            <TextBox   Grid.Row="1" Grid.Column="3" x:Name="txtWeightKg" Margin="0,2"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelStyle}" Text="W × D × H (mm)"/>
+                            <DockPanel Grid.Row="2" Grid.Column="1" Margin="0,2">
+                                <TextBox x:Name="txtEnvW" Width="60" Margin="0,0,4,0"/>
+                                <TextBox x:Name="txtEnvD" Width="60" Margin="0,0,4,0"/>
+                                <TextBox x:Name="txtEnvH"/>
+                            </DockPanel>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Fire separation (mm)"/>
+                            <TextBox   Grid.Row="2" Grid.Column="3" x:Name="txtFireSep" Margin="0,2"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Family Defaults &amp; Clearance (read-only)" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
                             <DockPanel LastChildFill="False" Margin="0,0,0,6">
                                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
