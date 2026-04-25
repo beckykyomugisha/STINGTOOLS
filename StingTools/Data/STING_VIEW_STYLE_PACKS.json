@@ -1,0 +1,231 @@
+{
+  "schemaVersion": "1.1",
+  "name": "STING Corporate View Style Packs",
+  "description": "Single-source-of-truth visual presentation packs. Every pack except the root extends corp-base; only fields that override the parent need to be set. Drawing-type recipes reference packs by id (extendsChain resolved at runtime).",
+  "namespace": "Planscape Limited",
+  "lastUpdated": "2026-04-25",
+  "stylePacks": [
+    {
+      "id": "corp-base",
+      "name": "Corporate Base (root of extends chain)",
+      "description": "All other packs extend this. Only set fields here that are invariant across every corporate output — house line weights, text/dim styles, hatch palette, and the universal filter rules.",
+      "extends": null,
+      "origin": "corporate",
+      "appearance": {
+        "lineWeightScale": 1.0,
+        "textStyleName": "STING - 2.5mm",
+        "dimensionStyleName": "STING - Linear",
+        "hatchPalette": "ISO 13567 monochrome"
+      },
+      "filterRules": [
+        { "name": "Existing - Halftone",  "visible": true,  "halftone": true,  "projColor": "#808080", "projWeight": 1, "cutColor": "#808080", "cutWeight": 1, "transparency": 0 },
+        { "name": "Demolished - Red",     "visible": true,  "halftone": true,  "projColor": "#C00000", "projWeight": 1, "cutColor": "#C00000", "cutWeight": 1, "transparency": 30 },
+        { "name": "New Construction",     "visible": true,  "halftone": false, "projColor": "#000000", "projWeight": 4, "cutColor": "#000000", "cutWeight": 5, "transparency": 0 }
+      ],
+      "vgOverrides": {
+        "Grids":       { "visible": true, "projColor": "#808080", "projWeight": 3, "cutColor": "",        "cutWeight": 0, "transparency": 0 },
+        "Levels":      { "visible": true, "projColor": "#808080", "projWeight": 3, "cutColor": "",        "cutWeight": 0, "transparency": 0 },
+        "Scope Boxes": { "visible": true, "projColor": "#1976D2", "projWeight": 1, "cutColor": "",        "cutWeight": 0, "transparency": 50 },
+        "Reference Planes": { "visible": false }
+      }
+    },
+    {
+      "id": "corp-standard-plan",
+      "name": "Corporate Plan",
+      "description": "1:100 architectural plan. Walls bold, floors halftoned, ceilings hidden, grids un-halftoned.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "viewTemplate": "STING - Architectural Plan",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "Monochrome",
+      "vgOverrides": {
+        "Walls":     { "visible": true, "projColor": "#000000", "projWeight": 4, "cutColor": "#000000", "cutWeight": 5, "transparency": 0 },
+        "Doors":     { "visible": true, "projColor": "#000000", "projWeight": 2 },
+        "Windows":   { "visible": true, "projColor": "#000000", "projWeight": 2 },
+        "Floors":    { "visible": true, "halftone": true,  "projWeight": 1 },
+        "Ceilings":  { "visible": false }
+      }
+    },
+    {
+      "id": "corp-standard-rcp",
+      "name": "Corporate RCP",
+      "description": "Reflected ceiling plan. Walls halftoned, ceilings shown, lights un-halftoned.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "viewTemplate": "STING - RCP",
+      "detailLevel": "Medium",
+      "scaleHint": "1:100",
+      "colorScheme": "Monochrome",
+      "vgOverrides": {
+        "Walls":             { "halftone": true,  "projWeight": 1 },
+        "Floors":            { "visible": false },
+        "Ceilings":          { "visible": true,  "projColor": "#000000", "projWeight": 2 },
+        "Lighting Fixtures": { "visible": true,  "projColor": "#FFC000", "projWeight": 4 },
+        "Air Terminals":     { "visible": true,  "projColor": "#0070C0", "projWeight": 3 }
+      }
+    },
+    {
+      "id": "corp-standard-section",
+      "name": "Corporate Section",
+      "description": "1:50 building section. Cut elements bold, beyond elements halftoned.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "viewTemplate": "STING - Architectural Section",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "Monochrome",
+      "vgOverrides": {
+        "Walls":   { "projWeight": 2, "cutWeight": 6 },
+        "Floors":  { "projWeight": 2, "cutWeight": 5 },
+        "Roofs":   { "projWeight": 2, "cutWeight": 5 },
+        "Ceilings":{ "projWeight": 1, "cutWeight": 3 }
+      }
+    },
+    {
+      "id": "corp-standard-elevation",
+      "name": "Corporate Elevation",
+      "description": "Building elevation. Outline bold, internal lines fine, shadows ON for definition.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "viewTemplate": "STING - Architectural Elevation",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "Monochrome",
+      "shadowsOff": false,
+      "vgOverrides": {
+        "Walls":   { "projWeight": 4 },
+        "Doors":   { "projWeight": 2 },
+        "Windows": { "projWeight": 2 },
+        "Curtain Wall Mullions": { "projWeight": 3 }
+      }
+    },
+    {
+      "id": "corp-standard-detail",
+      "name": "Corporate Detail",
+      "description": "1:20 / 1:10 detail. Maximum line variety, hatching shown, dimensions dense.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "viewTemplate": "STING - Detail",
+      "detailLevel": "Fine",
+      "scaleHint": "1:20",
+      "colorScheme": "Monochrome",
+      "appearance": { "lineWeightScale": 1.2 },
+      "vgOverrides": {
+        "Detail Items": { "visible": true, "projWeight": 3 }
+      }
+    },
+    {
+      "id": "corp-clarification",
+      "name": "Clarification Sketch",
+      "description": "RFI / clarification mark-up. Yellow highlight cloud, callout text bold red.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "viewTemplate": "STING - Clarification",
+      "detailLevel": "Medium",
+      "scaleHint": "1:50",
+      "colorScheme": "Monochrome",
+      "filterRules": [
+        { "name": "Clarification Highlight", "visible": true, "halftone": false, "projColor": "#FFFF00", "projWeight": 6, "transparency": 50 }
+      ]
+    },
+    {
+      "id": "corp-coordination",
+      "name": "MEP Coordination",
+      "description": "Multi-discipline coord plan. Mech blue / Elec yellow / Plumb green / Fire red.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "viewTemplate": "STING - MEP Coordination",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "Discipline",
+      "vgOverrides": {
+        "HVAC":                 { "projColor": "#0070C0", "projWeight": 5 },
+        "Pipes":                { "projColor": "#00B050", "projWeight": 5 },
+        "Electrical Equipment": { "projColor": "#FFC000", "projWeight": 5 },
+        "Fire Protection":      { "projColor": "#C00000", "projWeight": 5 },
+        "Walls":                { "halftone": true, "projWeight": 1 }
+      }
+    },
+    {
+      "id": "corp-fabrication-shop",
+      "name": "Fabrication Shop Drawing",
+      "description": "Workshop-floor look. Bold MEP, no halftone, dense annotation. Used by ShopDrawingComposer.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "viewTemplate": "STING - Fabrication Shop",
+      "detailLevel": "Fine",
+      "scaleHint": "1:25",
+      "colorScheme": "Monochrome",
+      "appearance": { "lineWeightScale": 1.5 },
+      "vgOverrides": {
+        "Pipes":            { "projWeight": 6 },
+        "Pipe Fittings":    { "projWeight": 6 },
+        "Pipe Accessories": { "projWeight": 6 },
+        "Ducts":            { "projWeight": 6 },
+        "Duct Fittings":    { "projWeight": 6 },
+        "Mechanical Equipment": { "projWeight": 5 },
+        "Walls":            { "halftone": true, "projWeight": 1 },
+        "Floors":           { "halftone": true, "projWeight": 1 }
+      },
+      "filterRules": [
+        { "name": "Insulated - Hatch", "visible": true, "projColor": "#000000", "projWeight": 3, "transparency": 0 }
+      ]
+    },
+    {
+      "id": "corp-presentation-rich",
+      "name": "Technical Presentation",
+      "description": "Internal IDR / TDR. Discipline-coloured, balanced weights, halftoned underlays.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "viewTemplate": "STING - Technical Presentation",
+      "detailLevel": "Medium",
+      "scaleHint": "1:50",
+      "colorScheme": "Discipline",
+      "appearance": { "lineWeightScale": 1.2 },
+      "vgOverrides": {
+        "Walls":      { "projColor": "#3C3C3C", "projWeight": 4 },
+        "Lighting Fixtures": { "projColor": "#FFC000", "projWeight": 4 }
+      }
+    },
+    {
+      "id": "corp-presentation-mono",
+      "name": "Client Presentation",
+      "description": "Client steering committee. Pastel, large text, shadows ON, no annotation clutter.",
+      "extends": "corp-presentation-rich",
+      "origin": "corporate",
+      "viewTemplate": "STING - Client Presentation",
+      "detailLevel": "Fine",
+      "scaleHint": "1:50",
+      "colorScheme": "Pastel",
+      "appearance": { "lineWeightScale": 0.8, "textStyleName": "STING - 5mm" },
+      "shadowsOff": false,
+      "ambientShadows": true,
+      "vgOverrides": {
+        "Grids":           { "visible": false },
+        "Levels":          { "visible": false },
+        "Sections":        { "visible": false },
+        "Reference Planes":{ "visible": false },
+        "Dimensions":      { "visible": false },
+        "Walls":           { "projColor": "#D2D2D2", "projWeight": 2 },
+        "Floors":          { "projColor": "#E6E1D2", "projWeight": 1 },
+        "Furniture":       { "projColor": "#B49678", "projWeight": 2 },
+        "Plants":          { "projColor": "#78B478", "projWeight": 2 }
+      }
+    }
+  ],
+  "routing": [
+    { "purpose": "Spool",      "discipline": "*",    "stylePackId": "corp-fabrication-shop" },
+    { "purpose": "Coord",      "discipline": "*",    "stylePackId": "corp-coordination" },
+    { "purpose": "Plan",       "discipline": "ARCH", "stylePackId": "corp-standard-plan" },
+    { "purpose": "Plan",       "discipline": "MEP",  "stylePackId": "corp-coordination" },
+    { "purpose": "RCP",        "discipline": "*",    "stylePackId": "corp-standard-rcp" },
+    { "purpose": "Section",    "discipline": "*",    "stylePackId": "corp-standard-section" },
+    { "purpose": "Elevation",  "discipline": "*",    "stylePackId": "corp-standard-elevation" },
+    { "purpose": "Detail",     "discipline": "*",    "stylePackId": "corp-standard-detail" },
+    { "purpose": "Clarification","discipline":"*",   "stylePackId": "corp-clarification" },
+    { "purpose": "ClientReview","discipline":"*",    "stylePackId": "corp-presentation-mono" },
+    { "purpose": "DesignReview","discipline":"*",    "stylePackId": "corp-presentation-rich" },
+    { "purpose": "*",          "discipline": "*",    "stylePackId": "corp-base" }
+  ]
+}
