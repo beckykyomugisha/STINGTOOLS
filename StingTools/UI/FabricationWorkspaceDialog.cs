@@ -1305,7 +1305,7 @@ namespace StingTools.UI
         {
             try
             {
-                var last = FabricationUndoManager.Peek();
+                var last = FabricationUndoManager.Peek(_doc);
                 if (last == null || last.SheetIds == null || last.SheetIds.Count == 0)
                 {
                     MessageBox.Show(
@@ -1316,7 +1316,7 @@ namespace StingTools.UI
                 var app = StingTools.UI.StingCommandHandler.CurrentApp;
                 var uidoc = app?.ActiveUIDocument;
                 if (uidoc == null || _doc == null) return;
-                var sheet = _doc.GetElement(last.SheetIds[0]) as Autodesk.Revit.DB.View;
+                var sheet = _doc.GetElement(new Autodesk.Revit.DB.ElementId(last.SheetIds[0])) as Autodesk.Revit.DB.View;
                 if (sheet == null)
                 {
                     MessageBox.Show(
