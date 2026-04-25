@@ -2031,6 +2031,8 @@
                             <StackPanel>
                                 <WrapPanel>
                                     <!-- Phase 108m — Preset combinations + roadmap buttons -->
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Placement Centre" Tag="Placement_OpenCentre" Click="Cmd_Click" FontWeight="Bold"
+                                            ToolTip="Open the modeless STING Placement Centre — full rule editor, run / preview / validate, history with select-in-Revit, push-to-families, undo last run, import/export rules. Ctrl+S Save · Ctrl+R Run · Ctrl+P Preview · Ctrl+V Validate · F5 Refresh · Esc Clear preview."/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Preset Combinations" Tag="PresetCombinations" Click="Cmd_Click" FontWeight="Bold"
                                             ToolTip="One-click macros that chain multiple Model* commands — Build Room / Structural Bay / Wet Room / Corridor / Staircase. Defined in Data/PRESET_COMBINATIONS.json."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Unified DWG Wizard" Tag="UnifiedDWGWizard" Click="Cmd_Click"
