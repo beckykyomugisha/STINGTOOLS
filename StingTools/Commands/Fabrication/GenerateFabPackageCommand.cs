@@ -262,42 +262,32 @@ namespace StingTools.Commands.Fabrication
         }
 
         /// <summary>
-        /// Concise light-themed success dialog. Replaces the old
-        /// StingResultPanel pop-up (dark-header, 40-line warnings dump)
-        /// with a single TaskDialog that surfaces the headline counts
-        /// and notes how many warnings landed in the log. Designers
-        /// can crack open StingTools.log for the full warning list.
+        /// Light-themed result dialog matching the Fabrication Workspace's
+        /// visual language: white background, orange section accents,
+        /// card-based summary with Open last sheet / View log / Open
+        /// Workspace / Close action row. Replaces the previous heavy
+        /// StingResultPanel pop-up (dark-blue header) and the interim
+        /// TaskDialog summary.
         /// </summary>
         private void ShowResult(FabricationResult res)
         {
             // Always log every warning so the audit trail stays
-            // intact even though we no longer render them in the UI.
+            // intact even though we no longer render them all in the UI.
             foreach (var w in res.Warnings) StingLog.Warn($"GenerateFabPackage: {w}");
 
-            var summary = new System.Text.StringBuilder();
-            summary.AppendLine(res.FormatSummary());
-            summary.AppendLine();
-            if (res.AssembliesByDiscipline.Count > 0)
+            try
             {
-                summary.AppendLine("Assemblies by discipline:");
-                foreach (var kv in res.AssembliesByDiscipline)
-                    summary.AppendLine($"  {kv.Key}: {kv.Value}");
-                summary.AppendLine();
+                var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                var dlg = new StingTools.UI.FabricationResultDialog(doc, res);
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                dlg.ShowDialog();
             }
-            summary.AppendLine($"Sheets generated: {res.SheetIds.Count}");
-            if (res.FailedCount > 0)
-                summary.AppendLine($"Failed: {res.FailedCount}");
-            if (res.Warnings.Count > 0)
-                summary.AppendLine($"Warnings: {res.Warnings.Count} (see StingTools.log for the full list)");
-
-            var td = new TaskDialog("STING v4 — Generate Fabrication Package")
+            catch (Exception ex)
             {
-                MainInstruction = "Fabrication package generated.",
-                MainContent = summary.ToString(),
-                CommonButtons = TaskDialogCommonButtons.Close,
-                DefaultButton = TaskDialogResult.Close,
-            };
-            td.Show();
+                StingLog.Error("GenerateFabPackage.ShowResult", ex);
+                // Last-resort fallback: never silently swallow the result.
+                TaskDialog.Show("STING v4 — Fabrication Package", res.FormatSummary());
+            }
         }
     }
 }
