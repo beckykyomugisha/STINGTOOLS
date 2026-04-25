@@ -29,6 +29,11 @@ namespace StingTools.Core.Drawing
             public bool TokenProfileApplied { get; set; }   // Phase 135 — Step 7.5
             public AnnotationRunStats Annotation { get; set; }
             public System.Collections.Generic.List<string> Warnings { get; } = new System.Collections.Generic.List<string>();
+
+            // Phase 137 — STING-Managed View Templates
+            public ElementId ManagedTemplateId { get; set; } = ElementId.InvalidElementId;
+            public bool ManagedTemplateCreated { get; set; }
+            public bool ManagedTemplateUpdated { get; set; }
         }
 
         public static ApplyResult Apply(Document doc, View view, DrawingType dt, bool runAnnotation = true)
@@ -116,20 +121,57 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex) { r.Warnings.Add($"CropApplier: {ex.Message}"); }
             }
 
-            // View Style Pack (shared graphic overrides) ---------------
+            // View Style Pack — Phase 137 routing: managed vs external -
             ViewStylePack resolvedPack = null;
             if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
             {
                 try
                 {
                     resolvedPack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
-                    if (resolvedPack != null)
+                    if (resolvedPack == null)
                     {
+                        r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
+                    }
+                    else if (resolvedPack.IsManaged)
+                    {
+                        // MANAGED MODE — auto-generate / sync a Revit
+                        // template, bind the view to it. Caller already
+                        // owns an open transaction.
+                        var syncResult = ManagedTemplateSyncer.EnsureTemplate(
+                            doc, resolvedPack, view.ViewType);
+                        r.Warnings.AddRange(syncResult.Warnings);
+
+                        if (syncResult.TemplateId != ElementId.InvalidElementId)
+                        {
+                            try { view.ViewTemplateId = syncResult.TemplateId; }
+                            catch (Exception ex) { r.Warnings.Add($"Bind managed template: {ex.Message}"); }
+
+                            r.ManagedTemplateId = syncResult.TemplateId;
+                            r.ManagedTemplateCreated = syncResult.Created;
+                            r.ManagedTemplateUpdated = syncResult.Updated;
+                            r.PackApplied = true;
+                            // In managed mode, VG/filters are on the
+                            // template itself — no per-view applier call.
+                        }
+                        else
+                        {
+                            // Could not create template (no seed) —
+                            // gracefully fall through to per-view apply.
+                            r.Warnings.Add(
+                                $"Pack '{resolvedPack.Id}' is managed but no seed template exists. " +
+                                "Falling back to per-view overrides for this view.");
+                            var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack);
+                            r.PackApplied = true;
+                            r.Warnings.AddRange(packStats.Warnings);
+                        }
+                    }
+                    else
+                    {
+                        // EXTERNAL MODE — existing behaviour unchanged.
                         var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack);
                         r.PackApplied = true;
                         r.Warnings.AddRange(packStats.Warnings);
                     }
-                    else r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewStylePack: {ex.Message}"); }
             }

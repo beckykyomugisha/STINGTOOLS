@@ -984,6 +984,10 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Group Browser" Tag="DrawingTypes_GroupBrowser" Click="Cmd_Click" ToolTip="Pivot the registry by discipline — quick overview of every drawing type that exists per discipline"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="Reload registry then report which view templates and viewport types referenced by drawing types are missing in the active project"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="Scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name)"/>
+                                    <!-- Phase 137 — STING-Managed View Templates -->
+                                    <Button Style="{StaticResource ActionBtn}" Content="Convert→Managed" Tag="DrawingTypes_ConvertToManaged" Click="Cmd_Click" ToolTip="Read a Revit view template into a ViewStylePack and flip templateMode to 'managed' — STING then auto-generates and maintains it as STING:&lt;pack-id&gt;:&lt;ViewType&gt;"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Detach Managed" Tag="DrawingTypes_DetachManaged" Click="Cmd_Click" ToolTip="Flip a managed pack back to 'external'. STING-managed templates are renamed to plain names; STING stops auto-updating them"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Regen Templates" Tag="DrawingTypes_RegenerateTemplates" Click="Cmd_Click" ToolTip="Force-resync every STING:&lt;pack-id&gt;:&lt;ViewType&gt; template across all managed packs (heals checksum drift)"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

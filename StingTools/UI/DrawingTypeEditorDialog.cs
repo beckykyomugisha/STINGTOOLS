@@ -262,6 +262,10 @@ namespace StingTools.UI
                 ("Group Browser",   "DrawingTypes_GroupBrowser"),
                 ("Sync Styles",     "DrawingTypes_SyncStyles"),
                 ("From Scope Boxes","DrawingTypes_FromScopeBoxes"),
+                // Phase 137 — STING-Managed View Templates
+                ("Convert to Managed",  "DrawingTypes_ConvertToManaged"),
+                ("Detach Managed",      "DrawingTypes_DetachManaged"),
+                ("Regenerate Templates","DrawingTypes_RegenerateTemplates"),
             });
             Grid.SetRow(toolbar, 0); Grid.SetColumnSpan(toolbar, 2);
             grid.Children.Add(toolbar);
@@ -368,6 +372,34 @@ namespace StingTools.UI
             // Appearance
             var ap = _currentPack.Appearance = _currentPack.Appearance ?? new PackAppearance();
             var apBody = new StackPanel();
+
+            // Phase 137 — Template mode toggle (always visible, top of card)
+            apBody.Children.Add(LabeledCombo("Template mode",
+                new[] {
+                    "external  (point to a Revit template by name)",
+                    "managed   (STING auto-generates templates)"
+                },
+                _currentPack.IsManaged
+                    ? "managed   (STING auto-generates templates)"
+                    : "external  (point to a Revit template by name)",
+                v =>
+                {
+                    var newMode = (v ?? "").TrimStart().StartsWith("managed", StringComparison.OrdinalIgnoreCase)
+                        ? "managed" : "external";
+                    if (!string.Equals(newMode, _currentPack.TemplateMode ?? "external",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        _currentPack.TemplateMode = newMode;
+                        // Seed defaults for managed mode on first switch
+                        if (newMode == "managed" && _currentPack.ManagedFields == null)
+                            _currentPack.ManagedFields = new List<string>
+                            { "vg", "filters", "detailLevel", "discipline", "phaseFilter" };
+                        RenderPackForm();
+                    }
+                },
+                tooltip: "external = legacy (pack.viewTemplate names a Revit template). " +
+                         "managed = STING auto-generates a Revit template named STING:<pack-id>:<viewType>."));
+
             apBody.Children.Add(LabeledDouble("Line-weight scale", ap.LineWeightScale,
                 v => ap.LineWeightScale = v));
             apBody.Children.Add(LabeledProjectAssetCombo("Text style name",
@@ -382,10 +414,14 @@ namespace StingTools.UI
                 new[] { "ISO 13567 monochrome", "ISO 13567 colour", "AIA NCS", "BS 1192 mono", "Project custom" },
                 ap.HatchPalette, v => ap.HatchPalette = v,
                 tooltip: "Informational tag for the hatch family used by this pack — does not bind to a Revit asset."));
-            apBody.Children.Add(LabeledProjectAssetCombo("View template name",
-                _currentPack.ViewTemplate, v => _currentPack.ViewTemplate = v,
-                Merge(ProjectAssetPicker.ViewTemplateNames(_doc), CommonStingViewTemplates),
-                "View templates (View.IsTemplate = true) in the active project, plus STING corporate templates."));
+
+            if (!_currentPack.IsManaged)
+            {
+                apBody.Children.Add(LabeledProjectAssetCombo("View template name",
+                    _currentPack.ViewTemplate, v => _currentPack.ViewTemplate = v,
+                    Merge(ProjectAssetPicker.ViewTemplateNames(_doc), CommonStingViewTemplates),
+                    "View templates (View.IsTemplate = true) in the active project, plus STING corporate templates."));
+            }
             apBody.Children.Add(LabeledCombo("Detail level",
                 Iso19650Vocabulary.DetailLevels, _currentPack.DetailLevel,
                 v => _currentPack.DetailLevel = v));
@@ -396,6 +432,46 @@ namespace StingTools.UI
             apBody.Children.Add(LabeledCombo("Colour scheme",
                 Iso19650Vocabulary.ColorSchemes,
                 _currentPack.ColorScheme, v => _currentPack.ColorScheme = v));
+
+            // Phase 137 — managed-mode-only fields
+            if (_currentPack.IsManaged)
+            {
+                apBody.Children.Add(BuildManagedInfoStrip());
+                apBody.Children.Add(LabeledCombo("Visual style",
+                    new[]{"Wireframe","HiddenLine","Shading","ShadingWithEdges",
+                          "Realistic","RealisticWithEdges","RayTrace","(inherit)"},
+                    _currentPack.VisualStyle ?? "(inherit)",
+                    v => _currentPack.VisualStyle = (v == "(inherit)" || string.IsNullOrWhiteSpace(v)) ? null : v));
+                apBody.Children.Add(LabeledCombo("View discipline",
+                    new[]{"Architectural","Structural","Mechanical","Electrical",
+                          "Plumbing","Coordination","(inherit)"},
+                    _currentPack.Discipline ?? "(inherit)",
+                    v => _currentPack.Discipline = (v == "(inherit)" || string.IsNullOrWhiteSpace(v)) ? null : v));
+                apBody.Children.Add(LabeledProjectAssetCombo("Phase filter",
+                    _currentPack.PhaseFilter,
+                    v => _currentPack.PhaseFilter = string.IsNullOrEmpty(v) ? null : v,
+                    Merge(ProjectAssetPicker.PhaseFilterNames(_doc),
+                          new[] { "Show All", "Show New", "Show Previous + New", "Show Demo + New" }),
+                    "PhaseFilter elements in the active project."));
+                apBody.Children.Add(LabeledProjectAssetCombo("Phase",
+                    _currentPack.PhaseName,
+                    v => _currentPack.PhaseName = string.IsNullOrEmpty(v) ? null : v,
+                    ProjectAssetPicker.PhaseNames(_doc),
+                    "Phase elements in the active project."));
+
+                apBody.Children.Add(BuildViewRangeSubCard());
+
+                apBody.Children.Add(LabeledNumber("Far clip offset (mm)",
+                    (int)(_currentPack.FarClipMm ?? 30000),
+                    v => _currentPack.FarClipMm = v <= 0 ? (double?)null : v));
+
+                apBody.Children.Add(CheckRow("Annotation crop",
+                    _currentPack.AnnotationCrop ?? false,
+                    v => _currentPack.AnnotationCrop = v));
+
+                apBody.Children.Add(BuildManagedFieldsEditor());
+            }
+
             _packFormHost.Children.Add(Card("Appearance", apBody));
 
             // Filter rules
@@ -479,6 +555,152 @@ namespace StingTools.UI
 
             body.Children.Add(BuildPackCategoryTagStylesGrid(p));
             return Card("Tag appearance (Phase 135)", body);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  Phase 137 — Managed mode UI helpers
+        // ═══════════════════════════════════════════════════════════════
+
+        private UIElement BuildManagedInfoStrip()
+        {
+            // Count templates already managed by this pack in the live document.
+            int managedCount = 0;
+            var names = new List<string>();
+            try
+            {
+                if (_doc != null && !string.IsNullOrEmpty(_currentPack?.Id))
+                {
+                    var prefix = $"STING:{_currentPack.Id}:";
+                    var col = new FilteredElementCollector(_doc)
+                        .OfClass(typeof(View))
+                        .Cast<View>()
+                        .Where(v => v.IsTemplate && (v.Name ?? "").StartsWith(prefix, StringComparison.Ordinal));
+                    foreach (var v in col)
+                    {
+                        managedCount++;
+                        if (names.Count < 4) names.Add(v.Name);
+                    }
+                }
+            }
+            catch { }
+
+            string countLine = managedCount == 0
+                ? "No STING-managed templates exist yet for this pack. Run Sync Styles or generate a sheet to create them."
+                : $"Manages {managedCount} template(s): " + string.Join(", ", names) +
+                  (managedCount > names.Count ? ", …" : "");
+
+            var stack = new StackPanel();
+            stack.Children.Add(new TextBlock
+            {
+                Text = "In managed mode STING generates Revit view templates named " +
+                       "STING:<pack-id>:<ViewType>. Changes saved here are applied " +
+                       "next time a view is produced or Sync Styles runs.",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = countLine,
+                Foreground = new SolidColorBrush(FgColor),
+                FontStyle = FontStyles.Italic,
+                FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+
+            var actions = new StackPanel { Orientation = Orientation.Horizontal };
+            actions.Children.Add(MakeSmallBtn("Regenerate now", () =>
+            {
+                try { StingDockPanel.DispatchCommand("DrawingTypes_RegenerateTemplates"); }
+                catch (Exception ex) { StingLog.Warn("Regenerate dispatch: " + ex.Message); }
+            }));
+            stack.Children.Add(actions);
+
+            return new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0xE3, 0xF2, 0xFD)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x90, 0xCA, 0xF9)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(2),
+                Padding = new Thickness(8, 6, 8, 6),
+                Margin = new Thickness(0, 6, 0, 6),
+                Child = stack,
+            };
+        }
+
+        private UIElement BuildViewRangeSubCard()
+        {
+            _currentPack.ViewRange = _currentPack.ViewRange ?? new PackViewRangeUi();
+            var vr = _currentPack.ViewRange;
+            var body = new StackPanel();
+            body.Children.Add(new TextBlock
+            {
+                Text = "Plans only. All values in mm relative to the view's level.",
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+            body.Children.Add(LabeledNumber("Top clip (mm)",       (int)vr.TopMm,       v => vr.TopMm = v));
+            body.Children.Add(LabeledNumber("Cut plane (mm)",      (int)vr.CutPlaneMm,  v => vr.CutPlaneMm = v));
+            body.Children.Add(LabeledNumber("Bottom clip (mm)",    (int)vr.BottomMm,    v => vr.BottomMm = v));
+            body.Children.Add(LabeledNumber("View depth offset (mm)", (int)vr.ViewDepthMm, v => vr.ViewDepthMm = v));
+            return Card("View range (plans only)", body);
+        }
+
+        // 12 candidate fields — each a checkbox writing into _currentPack.ManagedFields.
+        private static readonly string[] _managedFieldsAll = new[]
+        {
+            "vg", "filters", "detailLevel", "discipline", "phaseFilter",
+            "scale", "visualStyle", "viewRange", "underlay",
+            "annotationCrop", "farClip", "displayOptions",
+        };
+        private static readonly string[] _managedFieldsDefault = new[]
+        {
+            "vg", "filters", "detailLevel", "discipline", "phaseFilter",
+        };
+
+        private UIElement BuildManagedFieldsEditor()
+        {
+            if (_currentPack.ManagedFields == null || _currentPack.ManagedFields.Count == 0)
+                _currentPack.ManagedFields = new List<string>(_managedFieldsDefault);
+
+            var body = new StackPanel();
+            body.Children.Add(new TextBlock
+            {
+                Text = "Managed fields — STING will only write checked fields onto the template. " +
+                       "Anything unchecked stays user-editable in Revit's template editor.",
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11,
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4),
+            });
+
+            // 4 columns × 3 rows for 12 checkboxes
+            var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+            foreach (var f in _managedFieldsAll)
+            {
+                var key = f;
+                bool isOn = _currentPack.ManagedFields.Contains(key, StringComparer.OrdinalIgnoreCase);
+                var cb = new CheckBox
+                {
+                    Content = key,
+                    IsChecked = isOn,
+                    Width = 130,
+                    Margin = new Thickness(0, 2, 8, 2),
+                    Foreground = new SolidColorBrush(FgColor),
+                };
+                cb.Checked += (s, e) =>
+                {
+                    if (!_currentPack.ManagedFields.Contains(key, StringComparer.OrdinalIgnoreCase))
+                        _currentPack.ManagedFields.Add(key);
+                };
+                cb.Unchecked += (s, e) =>
+                {
+                    var existing = _currentPack.ManagedFields
+                        .FirstOrDefault(x => string.Equals(x, key, StringComparison.OrdinalIgnoreCase));
+                    if (existing != null) _currentPack.ManagedFields.Remove(existing);
+                };
+                wrap.Children.Add(cb);
+            }
+            body.Children.Add(wrap);
+            return Card("Managed fields", body);
         }
 
         private static readonly GridLength[] _packCatStyleCols =
@@ -789,11 +1011,53 @@ namespace StingTools.UI
             [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
             public Dictionary<string, string> CategoryTagStyles { get; set; }
 
+            // Phase 137 — STING-Managed View Templates
+            [JsonProperty("templateMode", NullValueHandling = NullValueHandling.Ignore)]
+            public string TemplateMode { get; set; }
+            [JsonProperty("managedFields", NullValueHandling = NullValueHandling.Ignore)]
+            public List<string> ManagedFields { get; set; }
+            [JsonProperty("discipline", NullValueHandling = NullValueHandling.Ignore)]
+            public string Discipline { get; set; }
+            [JsonProperty("visualStyle", NullValueHandling = NullValueHandling.Ignore)]
+            public string VisualStyle { get; set; }
+            [JsonProperty("phaseFilter", NullValueHandling = NullValueHandling.Ignore)]
+            public string PhaseFilter { get; set; }
+            [JsonProperty("phaseName", NullValueHandling = NullValueHandling.Ignore)]
+            public string PhaseName { get; set; }
+            [JsonProperty("annotationCrop", NullValueHandling = NullValueHandling.Ignore)]
+            public bool? AnnotationCrop { get; set; }
+            [JsonProperty("farClipMm", NullValueHandling = NullValueHandling.Ignore)]
+            public double? FarClipMm { get; set; }
+            [JsonProperty("viewRange", NullValueHandling = NullValueHandling.Ignore)]
+            public PackViewRangeUi ViewRange { get; set; }
+            [JsonProperty("displayOptions", NullValueHandling = NullValueHandling.Ignore)]
+            public PackDisplayOptionsUi DisplayOptions { get; set; }
+
+            [JsonIgnore]
+            public bool IsManaged
+                => string.Equals(TemplateMode, "managed", StringComparison.OrdinalIgnoreCase);
+
             public override string ToString()
             {
                 var ext = string.IsNullOrEmpty(Extends) ? "" : $"  ←  {Extends}";
-                return $"{Id}{ext}";
+                var managed = IsManaged ? "● " : "";
+                return $"{managed}{Id}{ext}";
             }
+        }
+
+        private class PackViewRangeUi
+        {
+            [JsonProperty("topMm")]       public double TopMm       { get; set; } = 2300;
+            [JsonProperty("cutPlaneMm")] public double CutPlaneMm  { get; set; } = 1200;
+            [JsonProperty("bottomMm")]   public double BottomMm    { get; set; } = 0;
+            [JsonProperty("viewDepthMm")]public double ViewDepthMm { get; set; } = -300;
+        }
+
+        private class PackDisplayOptionsUi
+        {
+            [JsonProperty("shadows")]        public bool Shadows        { get; set; }
+            [JsonProperty("sketchyLines")]   public bool SketchyLines   { get; set; }
+            [JsonProperty("ambientShadows")] public bool AmbientShadows { get; set; }
         }
 
         private class PackAppearance
