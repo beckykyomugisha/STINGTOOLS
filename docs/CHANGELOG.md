@@ -3025,3 +3025,103 @@ Deferred (PC-24): embedding the Centre's full editor as a tab inside
 the WPF dockable panel needs the Centre's singleton Window →
 UserControl refactor; the dockable panel's existing `Placement_OpenCentre`
 button continues to invoke the Centre as a modeless window.
+
+
+#### Completed (Phase 129 — Branch consolidation + parameter file alignment)
+
+1. **Merged `origin/main`** into `claude/merge-branches-resolve-conflicts-ZuHkU`,
+   resolving 40 file conflicts. Conflicts in source code (`Core/`, `Tags/`,
+   `UI/`, `Temp/`) resolved in favour of HEAD to preserve the v4 MVP work
+   (`Core/Placement/`, `Core/Routing/`, `Core/Validation/`,
+   `Core/Fabrication/`) and the Drawing Template Manager
+   (`Core/Drawing/`).
+
+2. **Merged 18 unmerged feature branches** into the
+   accumulator branch via a scripted merge loop:
+   `continue-sting-davis-work-g4OjY`, `fix-error-8Et3c`,
+   `fix-error-NDIJp`, `fix-errors-dwX5H`,
+   `fix-string-placement-center-wbfX2`,
+   `setup-git-bash-build-0aMYK`, `vigilant-edison-xPFVG`,
+   `update-fabrication-ui-kX6xx`, `fix-text-visibility-layouts-OsiY9`,
+   `implement-ideate-functionality-1aVNs`,
+   `placement-centre-review-cKDOD`, `review-boq-workflow-BAj1N`,
+   `review-configure-columns-np8bN`, `review-enhance-markdown-lGmRY`,
+   `create-bcc-guide-zfnhi`, `implement-s05-s06-H0Ya1`,
+   `planscape-implementation-74H8D`, `merge-resolve-conflicts-oB0qb`.
+   Conflicts were resolved with `--ours` to keep HEAD's newer state
+   (template engine v1.1, Drawing Template Manager, v4 MVP).
+
+3. **`MR_PARAMETERS.csv` re-aligned with `MR_PARAMETERS.txt`** —
+   added 194 missing rows so both files now hold the same 2555
+   parameters. The CSV header version bumped to `v5.7 | 20260425`.
+   Categories of newly-mirrored params (counts):
+
+   - `TB_*` title-block — 37
+   - `PRJ_ORG_*` template-engine v1.1 — 33
+   - `ASS_*` fabrication / spool / cost — 29
+   - `CST_*` BOQ / cost — 25
+   - `ELC_*` LPS / cable schedules — 22
+   - `CBN_*` carbon — 9
+   - `STR_*` structural — 5
+   - `COMM_*` commissioning — 5
+   - `CLASH_*` triage — 5
+   - `PLM_*`, `MAT_*`, `HVC_*`, `ASBUILT_*`, `TAG_*`, `HEALTH_*`,
+     `ARC_*`, `ACC_*`, `IFC_*`, `PROJECT_*` — 19 combined.
+
+4. **Fixed 10 malformed CSV rows** where descriptions contained
+   un-quoted commas — rewrote the file via `csv.writer(..., 
+   quoting=QUOTE_MINIMAL)` so every parameter description with an
+   embedded comma is now properly wrapped in double quotes
+   (`ASS_BOM_REV_TXT`, `ASS_NRM2_PARA_TXT`, `ASS_PLACE_ANCHOR_TXT`,
+   `CST_LABOUR_CREW_TXT`, `ELC_LPS_DOWN_CONDUCTOR_COUNT_NR`,
+   `ELC_LPS_INSPECTION_INTERVAL_MONTHS`,
+   `PRJ_ORG_AI_EXTRACT_ENABLED_BOOL`,
+   `PRJ_ORG_COMPANY_ADDRESS_TXT`, `TB_RESERVED_REGIONS_JSON_TXT`,
+   `TB_VIEWPORT_SLOTS_JSON_TXT`).
+
+5. **`PARAMETER_REGISTRY.json` version bumped to 5.7**, description
+   updated to call out TXT/CSV alignment at 2555 params and 26
+   parameter groups (`ASS_MNG`, `CST_PROC`, `COM_DAT`, `ELC_PWR`,
+   `HVC_SYSTEMS`, `PLM_DRN`, `LTG_CONTROLS`, `FLS_LIFE_SFTY`,
+   `PER_SUST`, `BLE_ELES`, `TPL_TRACKING`, `MAT_INFO`,
+   `PRJ_INFORMATION`, `PROP_PHYSICAL`, `RGL_CMPL`,
+   `BLE_STRUCTURE`, `STINGTags_ISO19650`, `WARN_THRESHOLDS`,
+   `SLV_SLEEVE_PARAMS`, `CLASH_COORDINATION`, `ACC_SYNC`,
+   `IFC_EXCH`, `HEALTH_METRICS`, `ASBUILT`, `COMMISSIONING`,
+   `TBL_TITLEBLOCK`).
+
+6. **`CompiledPlugin/Data/` runtime mirror re-synced** —
+   `MR_PARAMETERS.txt`, `MR_PARAMETERS.csv`, `MR_SCHEDULES.csv`,
+   `CATEGORY_BINDINGS.csv`, and `PARAMETER_REGISTRY.json` were
+   copied from `StingTools/Data/` so the deployed plugin sees the
+   same registry as the source tree.
+
+7. **Codebase health spot-checks** (no compile environment, so
+   purely static):
+   - 0 stray git conflict markers anywhere in the tree
+     (`<<<<<<<`, `=======`, `>>>>>>>`)
+   - `StingTools.csproj` and `StingTools.addin` parse as valid XML
+   - Every `<Compile Include>` / `<None Include>` /
+     `<EmbeddedResource Include>` path in the project file
+     resolves to an existing file
+   - 4 XAML files parse as valid XML
+   - 0 `Console.WriteLine` calls survived the merge
+   - All explicit conflict resolution preferred HEAD; no
+     functionality was deleted from main, only rebased on top of
+     the v4 MVP / template-engine / drawing-template work.
+
+8. **Known follow-ups (deferred to a real Revit build host):**
+   - 240 token-shaped string literals in C# (e.g.
+     `"BLE_FLOOR_THICKNESS_MM"`, `"PLACE_OFFSET_X_MM"`,
+     `"STING_HANGER_ROD_DIA_MM"`) match the parameter naming
+     convention but do not appear in `MR_PARAMETERS.txt`. Most are
+     local field-name constants used only inside their owning class
+     (e.g. `STING_CLEARANCE_MM` lookups) — not all of them need a
+     shared parameter binding, but a follow-up audit should
+     classify each as either "needs adding to the .txt registry"
+     or "rename to drop the typed-suffix to avoid confusion".
+   - `CATEGORY_BINDINGS.csv` covers 1163 of the 2555 parameters.
+     The remaining 1392 are project-info / schedule-only / type-
+     parameter rows that are intentionally unbound. A future
+     `BINDING_COVERAGE_REPORT` job could flag the small subset of
+     instance parameters that still lack a category binding.
