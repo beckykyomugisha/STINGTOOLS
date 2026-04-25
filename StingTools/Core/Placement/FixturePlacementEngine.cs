@@ -233,13 +233,17 @@ namespace StingTools.Core.Placement
 
                     WriteAnchorParameters(fi, rule);
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
-                    // audit can identify auto-created fixtures.
-                    try
+                    // audit can identify auto-created fixtures. Centre's
+                    // "Stamp provenance" checkbox flips PlaceFixturesOptions.
+                    if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
                     {
-                        StingTools.Core.Storage.StingProvenanceSchema.Stamp(
-                            fi, "FixturePlacementEngine", rule?.MergeKey ?? "");
+                        try
+                        {
+                            StingTools.Core.Storage.StingProvenanceSchema.Stamp(
+                                fi, "FixturePlacementEngine", rule?.MergeKey ?? "");
+                        }
+                        catch (Exception pvEx) { result.Warnings.Add($"Provenance stamp: {pvEx.Message}"); }
                     }
-                    catch (Exception pvEx) { result.Warnings.Add($"Provenance stamp: {pvEx.Message}"); }
                     result.PlacedIds.Add(fi.Id);
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;

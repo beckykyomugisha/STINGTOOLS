@@ -186,6 +186,14 @@ namespace StingTools.UI.PlacementCenter
             VM.Status = "Running placement…";
             UpdateStatus();
 
+            // Push run-options into the static option-bag the engine reads.
+            // Snapshot the previous values so other call sites (Fixtures-tab
+            // PlaceFixturesCommand) get their settings restored after this run.
+            bool prevStamp = StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance;
+            bool prevLearn = StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned;
+            StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = VM.RunOpts.StampProvenance;
+            StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = VM.RunOpts.HonourLearned;
+
             DateTime startUtc = DateTime.UtcNow;
             PlacementResult result = null;
             try
@@ -211,6 +219,12 @@ namespace StingTools.UI.PlacementCenter
                 UpdateStatus();
                 return;
             }
+            finally
+            {
+                // Restore the option-bag so other entry points aren't affected.
+                StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
+                StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
+            }
 
             _lastRunUtc = startUtc;
             _lastPlacedIds = result?.PlacedIds?.ToList() ?? new List<ElementId>();
@@ -221,6 +235,20 @@ namespace StingTools.UI.PlacementCenter
             VM.Status = $"Placed {placed} · skipped {skipped} · warnings {warns}";
             UpdateStatus();
 
+            // History panel is the source of truth for "what just happened" —
+            // refresh it so the new bucket appears immediately, before any
+            // dialog steals focus.
+            try { gridHistory.ItemsSource = HistoryBridge.ReadHistory(_doc); }
+            catch (Exception hEx) { StingLog.Warn($"PlacementCenter post-run history refresh: {hEx.Message}"); }
+
+            // Auto-paint the AVF compliance heat-map when the toggle is on so
+            // the user sees coverage immediately after the commit.
+            if (VM.RunOpts.AutoHeatmap && placed > 0)
+            {
+                try { OnHeatmap_Click(sender, e); }
+                catch (Exception hmEx) { StingLog.Warn($"PlacementCenter auto-heatmap: {hmEx.Message}"); }
+            }
+
             // Optional: validators on what just happened
             if (VM.RunOpts.RunValidators)
                 ShowFindings(scopeToProvenance: true, headline: "Run + post-validation");
@@ -228,7 +256,7 @@ namespace StingTools.UI.PlacementCenter
                 TaskDialog.Show("STING — Placement Centre",
                     $"Placement run complete.\n\n" +
                     $"Placed: {placed}\nSkipped: {skipped}\nWarnings: {warns}\n\n" +
-                    "Run Validate now to audit the result, or click Undo last run (Phase D) to revert.");
+                    "Run Validate now to audit the result, or click Undo last run to revert.");
         }
 
         private void OnPreview_Click(object sender, RoutedEventArgs e)

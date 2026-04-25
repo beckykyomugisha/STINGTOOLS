@@ -222,10 +222,14 @@
 
                     <GroupBox Header="Run Options" Style="{StaticResource GroupBoxStyle}">
                         <StackPanel>
-                            <CheckBox x:Name="chkProvenance"   Content="Stamp provenance on each placement (Pack 123/E)" Margin="0,3"/>
-                            <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category (Pack 10)"   Margin="0,3"/>
-                            <CheckBox x:Name="chkValidators"   Content="Run validators after placement"                  Margin="0,3"/>
-                            <CheckBox x:Name="chkAutoHeatmap"  Content="Auto-paint AVF compliance heat-map on commit"    Margin="0,3"/>
+                            <CheckBox x:Name="chkProvenance"   Content="Stamp provenance on each placement (Pack 123/E)" Margin="0,3"
+                                      ToolTip="When ON, every placed instance carries a StingProvenance entity so 'Undo last run' and provenance-scoped validation can find them. OFF skips the stamp — useful for one-off non-tracked placements."/>
+                            <CheckBox x:Name="chkLearned"      Content="Honour learned offsets per category (Pack 10)"   Margin="0,3"
+                                      ToolTip="Reserved for the Learn pass. When LearnPlacementV4 lands, this toggle gates whether per-category learned offsets override rule defaults."/>
+                            <CheckBox x:Name="chkValidators"   Content="Run validators after placement"                  Margin="0,3"
+                                      ToolTip="Run ClearanceValidator + MaintenanceClashValidator immediately after the placement commits, scoped to elements just placed."/>
+                            <CheckBox x:Name="chkAutoHeatmap"  Content="Auto-paint AVF compliance heat-map on commit"    Margin="0,3"
+                                      ToolTip="When ON and at least one fixture was placed, paint the AVF compliance heat-map on the active view immediately after the run commits."/>
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="120"/>
