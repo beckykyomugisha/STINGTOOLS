@@ -102,11 +102,21 @@ namespace StingTools.UI
             _doc = doc;
 
             Title = "STING v4 — Fabrication Workspace";
-            Width = 1100; Height = 760;
+            Width = 1100; Height = 780;
             MinWidth = 920; MinHeight = 600;
-            Background = new SolidColorBrush(BgColor);
-            FontFamily = new FontFamily("Segoe UI");
+            Background  = new SolidColorBrush(BgColor);
+            Foreground  = new SolidColorBrush(FgColor);
+            FontFamily  = new FontFamily("Segoe UI");
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            // Force-reset inherited theme resources so the workspace
+            // always renders light, even when the host dock panel is
+            // running a dark or non-default theme.
+            Resources["PrimaryBg"]   = new SolidColorBrush(BgColor);
+            Resources["SecondaryBg"] = new SolidColorBrush(CardBg);
+            Resources["AccentBrush"] = new SolidColorBrush(AccentColor);
+            Resources["BorderColor"] = new SolidColorBrush(CardBorder);
+            Resources["ButtonBg"]    = new SolidColorBrush(NeutralBtn);
+            Resources["ButtonFg"]    = new SolidColorBrush(FgColor);
             DarkDialogTheme.ApplyComboBoxFix(this, CardBg, FgColor, CardBorder);
 
             try
@@ -477,30 +487,88 @@ namespace StingTools.UI
         }
 
         // ─── FOOTER — every action surfaced ─────────────────────────────
+        //
+        // Three rows now, all light-themed:
+        //   1) Generate package (green primary) + main exports each
+        //      paired with a format dropdown (CSV / TXT / JSON for cut
+        //      list + weld map; CSV index / PDF for iso index).
+        //   2) Secondary exports + Doc Register link.
+        //   3) Utility row: Settings…, Refresh, View log, Open last
+        //      sheet, Help, Close.
+
+        private ComboBox _cmbCutListFormat;
+        private ComboBox _cmbWeldMapFormat;
+        private ComboBox _cmbIsoIndexFormat;
 
         private UIElement BuildFooter()
         {
             var outer = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
 
-            // Top row: Generate package (primary) + main exports
-            var row1 = new WrapPanel();
-            row1.Children.Add(MakeBigBtn("Generate package", GreenBtn,  true,  () => Dispatch("Fabrication_GeneratePackage")));
-            row1.Children.Add(MakeBigBtn("Export cut list",  NeutralBtn,false, () => Dispatch("Fabrication_ExportCutList")));
-            row1.Children.Add(MakeBigBtn("Export weld map",  OrangeBtn, false, () => Dispatch("Fabrication_ExportWeldMap")));
-            row1.Children.Add(MakeBigBtn("Export iso index", NeutralBtn,false, () => Dispatch("Fabrication_ExportIsometrics")));
+            // ── Row 1: Generate + main exports with format combos ──
+            var row1 = new Grid();
+            for (int i = 0; i < 4; i++)
+                row1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row1.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            row1.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            AddFooterCell(row1, 0, MakeFooterBtn("Generate package", GreenBtn,   true,
+                () => Dispatch("Fabrication_GeneratePackage")), null);
+            _cmbCutListFormat = MakeFormatCombo(new[] { "CSV", "TXT", "JSON" }, "CSV");
+            AddFooterCell(row1, 1, MakeFooterBtn("Export cut list",  NeutralBtn, false,
+                () => Dispatch("Fabrication_ExportCutList")),    _cmbCutListFormat);
+            _cmbWeldMapFormat = MakeFormatCombo(new[] { "CSV", "TXT", "JSON" }, "CSV");
+            AddFooterCell(row1, 2, MakeFooterBtn("Export weld map",  OrangeBtn,  false,
+                () => Dispatch("Fabrication_ExportWeldMap")),    _cmbWeldMapFormat);
+            _cmbIsoIndexFormat = MakeFormatCombo(new[] { "CSV index", "PDF index" }, "CSV index");
+            AddFooterCell(row1, 3, MakeFooterBtn("Export iso index", NeutralBtn, false,
+                () => Dispatch("Fabrication_ExportIsometrics")), _cmbIsoIndexFormat);
             outer.Children.Add(row1);
 
-            // Bottom row: secondary actions
+            // ── Row 2: secondary exports ──
             var row2 = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
-            row2.Children.Add(MakeBigBtn("Incremental rebuild", NeutralBtn, false, () => Dispatch("Fabrication_IncrementalRebuild")));
-            row2.Children.Add(MakeBigBtn("BOM roll-up (XLSX)",  NeutralBtn, false, () => Dispatch("Fabrication_BomRollup")));
-            row2.Children.Add(MakeBigBtn("Export PCF",          NeutralBtn, false, () => Dispatch("Fabrication_ExportPcf")));
-            row2.Children.Add(MakeBigBtn("Export MAJ",          NeutralBtn, false, () => Dispatch("Fabrication_ExportMaj")));
-            row2.Children.Add(MakeBigBtn("Link → Doc Register", NeutralBtn, false, () => Dispatch("Fabrication_LinkDocRegister")));
-            row2.Children.Add(MakeBigBtn("Close",               NeutralBtn, false, () => { DialogResult = false; }));
+            row2.Children.Add(MakeFooterBtn("Incremental rebuild", NeutralBtn, false, () => Dispatch("Fabrication_IncrementalRebuild")));
+            row2.Children.Add(MakeFooterBtn("BOM roll-up (XLSX)",  NeutralBtn, false, () => Dispatch("Fabrication_BomRollup")));
+            row2.Children.Add(MakeFooterBtn("Export PCF",          NeutralBtn, false, () => Dispatch("Fabrication_ExportPcf")));
+            row2.Children.Add(MakeFooterBtn("Export MAJ",          NeutralBtn, false, () => Dispatch("Fabrication_ExportMaj")));
+            row2.Children.Add(MakeFooterBtn("Link → Doc Register", NeutralBtn, false, () => Dispatch("Fabrication_LinkDocRegister")));
             outer.Children.Add(row2);
 
+            // ── Row 3: utility row ──
+            var row3 = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            row3.Children.Add(MakeFooterBtn("Settings…",        NeutralBtn, false, OpenSettingsPopup));
+            row3.Children.Add(MakeFooterBtn("Refresh preview",  NeutralBtn, false, () => { RefreshScopeAndCategories(); RefreshPackagePreview(); }));
+            row3.Children.Add(MakeFooterBtn("Open last sheet",  NeutralBtn, false, OpenLastGeneratedSheet));
+            row3.Children.Add(MakeFooterBtn("View log",         NeutralBtn, false, OpenStingLog));
+            row3.Children.Add(MakeFooterBtn("Help",             NeutralBtn, false, OpenHelp));
+            row3.Children.Add(MakeFooterBtn("Close",            NeutralBtn, false, () => { DialogResult = false; }));
+            outer.Children.Add(row3);
+
             return outer;
+        }
+
+        private static void AddFooterCell(Grid g, int col, UIElement btn, UIElement combo)
+        {
+            Grid.SetColumn(btn, col); Grid.SetRow(btn, 0); g.Children.Add(btn);
+            if (combo != null)
+            {
+                Grid.SetColumn(combo, col); Grid.SetRow(combo, 1);
+                g.Children.Add(combo);
+            }
+        }
+
+        private ComboBox MakeFormatCombo(string[] values, string defaultValue)
+        {
+            var cb = new ComboBox
+            {
+                Height = 22,
+                Margin = new Thickness(0, 2, 6, 0),
+                FontSize = 10,
+            };
+            DarkDialogTheme.StyleInput(cb, CardBg, FgColor, CardBorder);
+            foreach (var v in values) cb.Items.Add(v);
+            cb.Text = defaultValue;
+            cb.SelectedIndex = 0;
+            return cb;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1133,6 +1201,184 @@ namespace StingTools.UI
             };
             b.Click += (s, e) => onClick?.Invoke();
             return b;
+        }
+
+        /// <summary>
+        /// Footer button: stretches to fill its grid cell so the
+        /// row 1 buttons line up perfectly with the format combos
+        /// underneath them.
+        /// </summary>
+        private Button MakeFooterBtn(string label, Color bg, bool isDefault, Action onClick)
+        {
+            var fg = bg == NeutralBtn ? FgColor : Color.FromRgb(0xFF, 0xFF, 0xFF);
+            var b = new Button
+            {
+                Content = label,
+                Height = 32,
+                Margin = new Thickness(0, 0, 6, 0),
+                Background = new SolidColorBrush(bg),
+                Foreground = new SolidColorBrush(fg),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+                FontWeight = isDefault ? FontWeights.Bold : FontWeights.Normal,
+                IsDefault = isDefault,
+                FontSize = 12,
+                Padding = new Thickness(8, 0, 8, 0),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
+            b.Click += (s, e) => onClick?.Invoke();
+            return b;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  UTILITY ACTIONS — surfaced on row 3 of the footer
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Open a small popup mirroring the dock-panel Rules / Output /
+        /// Content-mode controls so the user doesn't have to leave the
+        /// workspace to flip them. State still flows through
+        /// FabricationOptions.
+        /// </summary>
+        private void OpenSettingsPopup()
+        {
+            var dlg = new Window
+            {
+                Title = "STING v4 — Fabrication Settings",
+                Width = 440, Height = 540,
+                Background = new SolidColorBrush(BgColor),
+                Foreground = new SolidColorBrush(FgColor),
+                FontFamily = new FontFamily("Segoe UI"),
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ResizeMode = ResizeMode.NoResize,
+            };
+            DarkDialogTheme.ApplyComboBoxFix(dlg, CardBg, FgColor, CardBorder);
+
+            var stack = new StackPanel { Margin = new Thickness(12) };
+
+            // Rules
+            var rulesBody = new StackPanel();
+            rulesBody.Children.Add(CheckRow("Pipe (max 6 m / 4 bends)",                FabricationOptions.RulePipe,     v => FabricationOptions.RulePipe     = v));
+            rulesBody.Children.Add(CheckRow("Pipe large bore (max 3 m)",               FabricationOptions.RulePipeLB,   v => FabricationOptions.RulePipeLB   = v));
+            rulesBody.Children.Add(CheckRow("Duct TDF (max 3 m / 3 bends)",            FabricationOptions.RuleDuct,     v => FabricationOptions.RuleDuct     = v));
+            rulesBody.Children.Add(CheckRow("Duct Pittsburgh (max 2.4 m)",             FabricationOptions.RuleDuctPitt, v => FabricationOptions.RuleDuctPitt = v));
+            rulesBody.Children.Add(CheckRow("Conduit (max 6 m / 3 bends, BS 7671)",    FabricationOptions.RuleConduit,  v => FabricationOptions.RuleConduit  = v));
+            stack.Children.Add(Card("Discipline rules", rulesBody));
+
+            // Output
+            var outBody = new StackPanel();
+            outBody.Children.Add(CheckRow("Generate AssemblyInstances",  FabricationOptions.GenerateAssemblies,  v => FabricationOptions.GenerateAssemblies  = v));
+            outBody.Children.Add(CheckRow("Generate views (5 + BOM)",    FabricationOptions.GenerateViews,       v => FabricationOptions.GenerateViews       = v));
+            outBody.Children.Add(CheckRow("Generate shop drawing sheets",FabricationOptions.GenerateSheets,      v => FabricationOptions.GenerateSheets      = v));
+            outBody.Children.Add(CheckRow("Place ISO 6412 symbols",      FabricationOptions.PlaceISO6412Symbols, v => FabricationOptions.PlaceISO6412Symbols = v));
+            outBody.Children.Add(CheckRow("Emit per-discipline CSVs",    FabricationOptions.EmitPerDisciplineCsv,v => FabricationOptions.EmitPerDisciplineCsv= v));
+            stack.Children.Add(Card("Output", outBody));
+
+            // Content mode
+            var contentBody = new StackPanel { Orientation = Orientation.Horizontal };
+            var rbIso = MakeRadio("ISO 6412 (workshop)",     "FabSettingsContent",  FabricationOptions.ContentModeIso6412);
+            var rbGen = MakeRadio("Generic (geometry only)", "FabSettingsContent", !FabricationOptions.ContentModeIso6412);
+            rbIso.Checked += (s, e) => FabricationOptions.ContentModeIso6412 = true;
+            rbGen.Checked += (s, e) => FabricationOptions.ContentModeIso6412 = false;
+            contentBody.Children.Add(rbIso);
+            contentBody.Children.Add(rbGen);
+            stack.Children.Add(Card("Content mode", contentBody));
+
+            // Close
+            var closeRow = new StackPanel { Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
+            closeRow.Children.Add(MakeBigBtn("Done", AccentColor, true, () => dlg.Close()));
+            stack.Children.Add(closeRow);
+
+            dlg.Content = stack;
+            dlg.ShowDialog();
+            RefreshPackagePreview();
+        }
+
+        /// <summary>
+        /// Open the most recently generated shop drawing sheet from the
+        /// FabricationUndoManager session history. Falls back to a hint
+        /// when the session has no successful run yet.
+        /// </summary>
+        private void OpenLastGeneratedSheet()
+        {
+            try
+            {
+                var last = FabricationUndoManager.Peek();
+                if (last == null || last.SheetIds == null || last.SheetIds.Count == 0)
+                {
+                    MessageBox.Show(
+                        "No fabrication package on the session history.\nRun Generate Package first.",
+                        Title, MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                var app = StingTools.UI.StingCommandHandler.CurrentApp;
+                var uidoc = app?.ActiveUIDocument;
+                if (uidoc == null || _doc == null) return;
+                var sheet = _doc.GetElement(last.SheetIds[0]) as Autodesk.Revit.DB.View;
+                if (sheet == null)
+                {
+                    MessageBox.Show(
+                        "The last generated sheet has been deleted.",
+                        Title, MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                uidoc.ActiveView = sheet;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("FabricationWorkspaceDialog.OpenLastGeneratedSheet", ex);
+            }
+        }
+
+        private void OpenStingLog()
+        {
+            try
+            {
+                string assyDir = StingToolsApp.AssemblyPath;
+                if (string.IsNullOrEmpty(assyDir))
+                {
+                    MessageBox.Show("Plugin assembly path is not initialised yet.",
+                        Title, MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                string logPath = Path.Combine(assyDir, "StingTools.log");
+                if (!File.Exists(logPath))
+                {
+                    MessageBox.Show($"Log file not found: {logPath}",
+                        Title, MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = logPath,
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("FabricationWorkspaceDialog.OpenStingLog", ex);
+            }
+        }
+
+        private void OpenHelp()
+        {
+            MessageBox.Show(
+                "STING v4 — Fabrication Workspace\n\n" +
+                "1. Pick scope (Selection / Active view / Project) → Refresh.\n" +
+                "2. Tick categories you want included; the live counts " +
+                "show how many MEP elements feed the package.\n" +
+                "3. Optional: filter by System / Level free-text.\n" +
+                "4. Configure title block + view template (Configure…).\n" +
+                "5. Click Generate package — assemblies, views, sheets " +
+                "and ISO 6412 symbols are created in one transaction.\n" +
+                "6. Re-emit individual exports (cut list, weld map, iso " +
+                "index, PCF, MAJ) without rebuilding the whole package.\n\n" +
+                "Settings… surfaces the discipline rules + output " +
+                "toggles + content mode (ISO 6412 vs generic).",
+                "STING v4 — Fabrication Workspace help",
+                MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 
