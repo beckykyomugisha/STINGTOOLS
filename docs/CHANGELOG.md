@@ -3125,3 +3125,50 @@ button continues to invoke the Centre as a modeless window.
      parameter rows that are intentionally unbound. A future
      `BINDING_COVERAGE_REPORT` job could flag the small subset of
      instance parameters that still lack a category binding.
+
+---
+
+#### Completed (Phase 135 — DrawingType Token Profile: per-profile tag depth, style & colour control)
+
+1. **`AnnotationTokenProfile` POCO** added to `Core/Drawing/DrawingType.cs` with 9 optional
+   fields: `presentationMode`, `paraDepth`, `categoryDepths`, `sectionVisibility`,
+   `tagSize`, `tagStyle`, `tagColor`, `colorScheme`, `segmentMask`, `displayMode`.
+   Null on every field means "inherit / don't override". Wired into
+   `DrawingTypeRegistry.ResolveExtends` so the merged snapshot carries the profile.
+
+2. **`TokenProfileApplier`** added at `Core/Drawing/TokenProfileApplier.cs` (~430 lines).
+   Steps A–G translate the merged profile + `ViewStylePack` defaults into Revit writes:
+   STING_VIEW_TAG_STYLE param, paragraph depth, TAG7 section visibility, tag style preset
+   matrix, segment mask, display mode, presentation-mode preset. All writes are
+   idempotent and inside the caller's transaction.
+
+3. **Pipeline addition (Step 7.5)** wired into `DrawingTypePresentation.Apply()` between
+   `ViewStylePack` apply (step 7) and `AnnotationRunner` (step 8). No-op when neither the
+   profile nor the pack supplies any tag-appearance value.
+
+4. **`ViewStylePack` extended** with three pack-level defaults:
+   `TagColorScheme`, `DefaultTagStyle`, `CategoryTagStyles` (in
+   `Core/Drawing/ViewStylePack.cs`). DrawingType profile fields override pack fields.
+   `ViewStylePackRegistry.ResolveExtends` folds them through the inheritance chain.
+
+5. **3 new drawing types** in `Data/STING_DRAWING_TYPES.json`:
+   `mep-plan-presentation` (depth 2, scheme Discipline, BLUE NOM, mask 10010101),
+   `mep-plan-technical` (depth 5 + per-cat overrides, scheme System, BOLD BLACK, full mask),
+   `mep-plan-fabrication` (depth 10, scheme System, BOLD RED, mask 10001011).
+   Each picks up routing rules (M discipline, PRESENTATION/TECHNICAL/FABRICATION phases).
+
+6. **4 packs updated** in `Data/STING_VIEW_STYLE_PACKS.json`:
+   `corp-coordination` / `corp-fabrication-shop` / `corp-presentation-rich` /
+   `corp-presentation-mono` now seed `tagColorScheme` + `defaultTagStyle` +
+   `categoryTagStyles` so projects bound to those packs without an explicit profile still
+   get coherent tag colours.
+
+7. **Drawing Type editor** — added "Token Depth & Style" card to Tab 1 (presentation mode,
+   global + per-category depth, TAG7 A–F section checkboxes, size/style/colour combos,
+   colour-scheme combo, segment mask, display mode, summary collapse line). Tab 2 grew a
+   "Tag appearance" card (default scheme / default style / per-category style grid).
+
+8. **Drift detection** — `TOKEN_PROFILE_DRIFT` kind added to
+   `Core/Drawing/DrawingDriftDetector.cs`. Compares STING_VIEW_TAG_STYLE +
+   TAG_SEG_MASK_TXT on stamped views against the resolved profile/pack pair; SyncStyles
+   re-runs `DrawingTypePresentation.Apply` to heal the drift.

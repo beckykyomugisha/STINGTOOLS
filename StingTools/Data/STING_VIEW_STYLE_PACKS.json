@@ -204,6 +204,16 @@
         "Structural Columns":     { "projColor": "#4A148C", "projWeight": 4, "halftone": true },
         "Structural Framing":     { "projColor": "#4A148C", "projWeight": 3, "halftone": true },
         "Walls":                  { "halftone": true, "projColor": "#808080", "projWeight": 2 }
+      },
+      "tagColorScheme": "System",
+      "defaultTagStyle": "2BOLD_BLACK",
+      "categoryTagStyles": {
+        "Mechanical Equipment": "2BOLD_BLUE",
+        "Pipe Fittings":        "2NOM_GREEN",
+        "Duct Fittings":        "2NOM_BLUE",
+        "Electrical Equipment": "2BOLD_ORANGE",
+        "Fire Alarm Devices":   "2BOLD_RED",
+        "Sprinklers":           "2BOLD_RED"
       }
     },
     {
@@ -229,6 +239,13 @@
         "Walls":              { "visible": false },
         "Structural Framing": { "visible": false },
         "Dimensions":         { "projColor": "#000000", "projWeight": 2 }
+      },
+      "tagColorScheme": "System",
+      "defaultTagStyle": "2BOLD_RED",
+      "categoryTagStyles": {
+        "Pipe Fittings":        "2BOLD_RED",
+        "Duct Fittings":        "2BOLD_RED",
+        "Mechanical Equipment": "2BOLD_BLACK"
       }
     },
     {
@@ -255,6 +272,13 @@
         "Grids":               { "visible": false },
         "Dimensions":          { "visible": false },
         "Text Notes":          { "projColor": "#263238" }
+      },
+      "tagColorScheme": "Discipline",
+      "defaultTagStyle": "2.5NOM_BLUE",
+      "categoryTagStyles": {
+        "Rooms":   "3NOM_BLACK",
+        "Doors":   "2.5NOM_BLACK",
+        "Windows": "2.5NOM_BLACK"
       }
     },
     {
@@ -274,6 +298,13 @@
         "Rooms":              { "projColor": "#BDBDBD" },
         "Furniture":          { "projColor": "#9E9E9E" },
         "Topography":         { "projColor": "#BDBDBD" }
+      },
+      "tagColorScheme": "Mono",
+      "defaultTagStyle": "2.5NOM_BLACK",
+      "categoryTagStyles": {
+        "Rooms":   "2.5NOM_BLACK",
+        "Doors":   "2NOM_BLACK",
+        "Windows": "2NOM_BLACK"
       }
     }
   ],
