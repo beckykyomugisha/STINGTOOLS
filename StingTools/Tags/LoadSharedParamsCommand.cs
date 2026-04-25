@@ -143,14 +143,88 @@ namespace StingTools.Tags
             }
             StingLog.Info($"Pre-scan: {existingBindings.Count} parameters already bound");
 
-            // Filter each group to only unbound params
+            // ── Step 3b: Scan ALL SharedParameterElements for GUID+type conflicts ──
+            // Revit stores shared parameter definitions in SharedParameterElement.
+            // These can exist WITHOUT any binding (orphaned by prior Remove, imported
+            // from family/CAD, or created by another addin). doc.ParameterBindings
+            // does not enumerate these, so the name-based filter above misses them.
+            //
+            // When ParameterBindings.Insert() is called with an ExternalDefinition whose
+            // GUID matches an existing SharedParameterElement of a different data type
+            // (e.g. project has CST_LOCAL_MAT_BOOL as Text, MR file has it as Yes/No),
+            // Revit raises an "Error - cannot be ignored" modal dialog that
+            // BindingWarningSwallower cannot suppress (it only handles Warning severity).
+            // The only safe fix is to detect these conflicts up-front and skip them.
+            StingLog.Info("LoadSharedParams: step 3b — scanning SharedParameterElements for type conflicts");
+            var existingSpecByGuid = new Dictionary<Guid, (string name, string typeId)>();
+            try
+            {
+                var spes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(SharedParameterElement))
+                    .Cast<SharedParameterElement>();
+                foreach (var spe in spes)
+                {
+                    try
+                    {
+                        Guid g = spe.GuidValue;
+                        InternalDefinition intDef = spe.GetDefinition();
+                        string name = intDef?.Name ?? "";
+                        string typeId = null;
+                        try { typeId = intDef?.GetDataType()?.TypeId; }
+                        catch (Exception gdtEx) { StingLog.Warn($"GetDataType '{name}': {gdtEx.Message}"); }
+                        existingSpecByGuid[g] = (name, typeId);
+                    }
+                    catch (Exception speEx) { StingLog.Warn($"Inspect SharedParameterElement: {speEx.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Collect SharedParameterElements: {ex.Message}"); }
+            StingLog.Info($"Pre-scan: {existingSpecByGuid.Count} SharedParameterElements in project");
+
+            // Filter each group to only unbound params AND skip GUID/type conflicts
             int totalToBind = 0;
             int alreadyBound = 0;
+            int typeConflicts = 0;
+            var typeConflictDetails = new List<string>();
             var groupsToProcess = new List<(string groupName, List<ExternalDefinition> defs)>();
             foreach (var (groupName, defs) in groupDefs)
             {
-                var unbound = defs.Where(d => !existingBindings.Contains(d.Name)).ToList();
-                alreadyBound += defs.Count - unbound.Count;
+                var unbound = new List<ExternalDefinition>();
+                foreach (var d in defs)
+                {
+                    // Skip if already bound by name
+                    if (existingBindings.Contains(d.Name))
+                    {
+                        alreadyBound++;
+                        continue;
+                    }
+
+                    // Skip if GUID exists with different name or different data type
+                    if (existingSpecByGuid.TryGetValue(d.GUID, out var existing))
+                    {
+                        string newTypeId = null;
+                        try { newTypeId = d.GetDataType()?.TypeId; }
+                        catch (Exception gdtEx) { StingLog.Warn($"GetDataType def '{d.Name}': {gdtEx.Message}"); }
+
+                        bool nameMismatch = !string.Equals(existing.name, d.Name, StringComparison.OrdinalIgnoreCase);
+                        bool typeMismatch = existing.typeId != null && newTypeId != null
+                            && !string.Equals(existing.typeId, newTypeId, StringComparison.Ordinal);
+
+                        if (nameMismatch || typeMismatch)
+                        {
+                            typeConflicts++;
+                            if (typeConflictDetails.Count < 20)
+                            {
+                                string reason = nameMismatch
+                                    ? $"'{d.Name}': GUID already held by '{existing.name}' in project"
+                                    : $"'{d.Name}': project has type {ShortTypeId(existing.typeId)}, MR file has {ShortTypeId(newTypeId)}";
+                                typeConflictDetails.Add(reason);
+                            }
+                            continue;
+                        }
+                    }
+
+                    unbound.Add(d);
+                }
                 if (unbound.Count > 0)
                 {
                     groupsToProcess.Add((groupName, unbound));
@@ -158,7 +232,14 @@ namespace StingTools.Tags
                 }
             }
 
-            StingLog.Info($"To bind: {totalToBind}, already bound: {alreadyBound}");
+            if (typeConflicts > 0)
+            {
+                StingLog.Warn($"Skipped {typeConflicts} parameter(s) due to GUID/type conflicts with existing project params:");
+                foreach (string d in typeConflictDetails)
+                    StingLog.Warn($"  {d}");
+            }
+
+            StingLog.Info($"To bind: {totalToBind}, already bound: {alreadyBound}, type conflicts: {typeConflicts}");
 
             // ── Always clean material bindings, even when nothing new to bind ──
             // CRITICAL: This must run BEFORE the early return below. Prior sessions
@@ -180,6 +261,18 @@ namespace StingTools.Tags
                 var earlyMsg = new StringBuilder();
                 earlyMsg.AppendLine($"All {totalDefs} parameters are already bound — nothing to do.");
                 earlyMsg.AppendLine($"{alreadyBound} parameters already present in project.");
+                if (typeConflicts > 0)
+                {
+                    earlyMsg.AppendLine($"{typeConflicts} parameter(s) skipped due to GUID/type conflicts.");
+                    earlyMsg.AppendLine();
+                    earlyMsg.AppendLine("These exist in the project with a different data type or name.");
+                    earlyMsg.AppendLine("Skipped to avoid Revit's unrecoverable 'cannot be added' error.");
+                    earlyMsg.AppendLine("First 10:");
+                    foreach (string d in typeConflictDetails.Take(10))
+                        earlyMsg.AppendLine($"  {d}");
+                    if (typeConflictDetails.Count > 10)
+                        earlyMsg.AppendLine($"  ... and {typeConflictDetails.Count - 10} more (see StingTools.log)");
+                }
                 if (matRemovedEarly > 0 || matAddedEarly > 0)
                 {
                     earlyMsg.AppendLine();
@@ -412,6 +505,8 @@ namespace StingTools.Tags
             report.AppendLine($"Bound: {bound} parameters");
             report.AppendLine($"Already present: {alreadyBound}");
             report.AppendLine($"Skipped/failed: {skipped}");
+            if (typeConflicts > 0)
+                report.AppendLine($"Skipped (type conflicts): {typeConflicts} — see Details");
             report.AppendLine($"Total in file: {totalDefs}");
             report.AppendLine($"Categories: {coreCats.Size}");
             report.AppendLine($"Groups processed: {groupsToProcess.Count}");
@@ -420,6 +515,19 @@ namespace StingTools.Tags
             if (materialsUnbound > 0)
                 report.AppendLine($"Material cleanup: removed {materialsUnbound} stale bindings from OST_Materials");
             report.AppendLine();
+
+            if (typeConflicts > 0)
+            {
+                report.AppendLine($"Type conflicts skipped ({typeConflicts}): the project already has these");
+                report.AppendLine("shared parameters with a different data type or name. Skipped to avoid");
+                report.AppendLine("Revit's unrecoverable 'cannot be added' error. To re-load as the MR file");
+                report.AppendLine("type, first purge the conflicting parameters (STING → Purge Shared Params):");
+                foreach (string d in typeConflictDetails.Take(10))
+                    report.AppendLine($"  {d}");
+                if (typeConflictDetails.Count > 10)
+                    report.AppendLine($"  ... and {typeConflictDetails.Count - 10} more (see StingTools.log)");
+                report.AppendLine();
+            }
 
             if (boundByGroup.Count > 0)
             {
@@ -510,6 +618,23 @@ namespace StingTools.Tags
             BuiltInCategory.OST_TelephoneDevices,
         };
 
+        // Clash rec-3: Categories watched by LiveClashUpdater. CLASH_COORDINATION
+        // group binds only to these so clash parameters don't pollute every
+        // element in the model. Keep this list in sync with
+        // StingTools/Clash/LiveClashUpdater.cs Register() triggers.
+        private static readonly BuiltInCategory[] ClashCategories = new[]
+        {
+            BuiltInCategory.OST_DuctCurves,
+            BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_CableTray,
+            BuiltInCategory.OST_Conduit,
+            BuiltInCategory.OST_Walls,
+            BuiltInCategory.OST_Floors,
+            BuiltInCategory.OST_Ceilings,
+            BuiltInCategory.OST_StructuralFraming,
+            BuiltInCategory.OST_StructuralColumns,
+        };
+
         private static readonly BuiltInCategory[] BleCategories = new[]
         {
             BuiltInCategory.OST_Walls,
@@ -560,6 +685,39 @@ namespace StingTools.Tags
                 overrides["BLE_ELES"] = bleCats;
                 overrides["BLE_STRUCTURE"] = bleCats;
             }
+
+            // Clash rec-3: CLASH_COORDINATION group binds only to the 9 categories
+            // LiveClashUpdater.Register watches. Keeps CLASH_LIVE_FLAG /
+            // CLASH_LAST_RUN_DT / CLASH_OTHER_ELEMENT_TXT off every element in
+            // the model (which would spam parameter-editor dropdowns).
+            var clashCats = BuildCatSet(doc, ClashCategories);
+            if (clashCats.Size > 0)
+            {
+                overrides["CLASH_COORDINATION"] = clashCats;
+            }
+
+            // BOQ Cost Manager (Phase 91) — project-level parameters bind to ProjectInformation only
+            // so the budget, variance, coverage % and last-costed timestamp sit on the ProjectInfo
+            // element (accessible via doc.ProjectInformation) instead of every modeled element.
+            // Without this override the new group 13 params would be bound to the universal
+            // category set which mostly isn't useful for project-wide metrics.
+            try
+            {
+                var prjSet = new CategorySet();
+                var prjCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_ProjectInformation);
+                if (prjCat != null && prjCat.AllowsBoundParameters)
+                {
+                    prjSet.Insert(prjCat);
+                    // Merge with existing PRJ_INFORMATION override if it already exists —
+                    // some existing PRJ_TB_* params may want both ProjectInfo AND sheets.
+                    if (overrides.TryGetValue("PRJ_INFORMATION", out var existing))
+                    {
+                        foreach (Category c in existing) prjSet.Insert(c);
+                    }
+                    overrides["PRJ_INFORMATION"] = prjSet;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildGroupCategoryOverrides PRJ_INFORMATION: {ex.Message}"); }
 
             // OST_Materials does NOT support AllowsBoundParameters in Revit API,
             // so we bind material-relevant params (MAT_INFO, PROP_PHYSICAL) to
@@ -906,6 +1064,27 @@ namespace StingTools.Tags
             var set = new CategorySet();
             foreach (var bic in enums) TryInsert(doc, set, bic);
             return set;
+        }
+
+        /// <summary>
+        /// Extract a short, user-friendly label from a Revit ForgeTypeId TypeId string.
+        /// E.g. "autodesk.spec:spec.boolean.yesno-1.0.0" → "yesno",
+        ///      "autodesk.spec:spec.string.text-1.0.0"   → "text".
+        /// Falls back to the raw TypeId when the pattern does not match so the
+        /// message is still actionable.
+        /// </summary>
+        private static string ShortTypeId(string typeId)
+        {
+            if (string.IsNullOrEmpty(typeId)) return "(unknown)";
+            // Strip "autodesk.spec:spec." prefix and "-x.y.z" version suffix
+            int colon = typeId.IndexOf(':');
+            string tail = colon >= 0 && colon + 1 < typeId.Length
+                ? typeId.Substring(colon + 1) : typeId;
+            int dash = tail.IndexOf('-');
+            if (dash > 0) tail = tail.Substring(0, dash);
+            if (tail.StartsWith("spec.", StringComparison.Ordinal))
+                tail = tail.Substring("spec.".Length);
+            return tail;
         }
 
         // ════════════════════════════════════════════════════════════════

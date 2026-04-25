@@ -30,7 +30,10 @@ namespace StingTools.Docs
             if (ctx.Doc == null) return Result.Failed;
             var doc = ctx.Doc;
 
-            // Gather templates: built-in + user-saved
+            // Gather templates: built-in + user-saved + Drawing Type profiles
+            // Drawing Type profiles are adapted on the fly via
+            // DrawingTypeSheetAdapter so the existing SheetTemplateEngine.
+            // CreateSheetFromTemplate pipeline stays the single path.
             var builtIn = SheetTemplateEngine.GetBuiltInTemplates();
             var library = SheetTemplateEngine.LoadTemplateLibrary(doc);
             var allTemplates = new List<SheetTemplate>();
@@ -38,25 +41,53 @@ namespace StingTools.Docs
             allTemplates.AddRange(library.Templates.Where(t =>
                 !builtIn.Any(b => b.Name.Equals(t.Name, StringComparison.OrdinalIgnoreCase))));
 
-            if (allTemplates.Count == 0)
+            var items = allTemplates.Select(t => new StingListPicker.ListItem
             {
-                TaskDialog.Show("Sheet Templates", "No templates available.");
+                Label  = t.Name,
+                Detail = $"[Template] {t.Discipline} | {t.PaperSize} | {t.ViewportSlots.Count} slots",
+                Tag    = t,
+            }).ToList();
+
+            // Append Drawing Type profiles — prefixed so they sort
+            // under a distinct group in the picker. The Tag carries
+            // the raw DrawingType so the post-pick branch can detect
+            // which source produced the selection.
+            try
+            {
+                foreach (var dt in StingTools.Core.Drawing.DrawingTypeRegistry.ListAll(doc)
+                             .OrderBy(d => d.Discipline).ThenBy(d => d.Purpose).ThenBy(d => d.Id))
+                {
+                    items.Add(new StingListPicker.ListItem
+                    {
+                        Label  = dt.Id,
+                        Detail = $"[Profile] {dt.Discipline} / {dt.Purpose} | {dt.PaperSize} @ 1:{dt.Scale} | {(dt.Slots?.Count ?? 0)} slots",
+                        Tag    = dt,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CreateFromTemplate: DrawingType enumeration failed — {ex.Message}");
+            }
+
+            if (items.Count == 0)
+            {
+                TaskDialog.Show("Sheet Templates", "No templates or Drawing Type profiles available.");
                 return Result.Cancelled;
             }
 
-            // Pick template
-            var items = allTemplates.Select(t => new StingListPicker.ListItem
-            {
-                Label = t.Name,
-                Detail = $"{t.Discipline} | {t.PaperSize} | {t.ViewportSlots.Count} slots",
-                Tag = t
-            }).ToList();
-
             var picked = StingListPicker.Show("Create Sheet from Template",
-                "Select a sheet template", items, false);
+                "Select a sheet template or Drawing Type profile", items, false);
             if (picked == null || picked.Count == 0) return Result.Cancelled;
 
-            var template = picked[0].Tag as SheetTemplate;
+            // Detect which source the user picked. DrawingType → adapt
+            // to SheetTemplate via the adapter; SheetTemplate → use as-is.
+            StingTools.Core.Drawing.DrawingType pickedDt = picked[0].Tag as StingTools.Core.Drawing.DrawingType;
+            SheetTemplate template = picked[0].Tag as SheetTemplate;
+            if (pickedDt != null)
+            {
+                template = DrawingTypeSheetAdapter.ToSheetTemplate(pickedDt);
+            }
             if (template == null) return Result.Cancelled;
 
             // Get unplaced views matching slot types
@@ -67,14 +98,25 @@ namespace StingTools.Docs
                 return Result.Cancelled;
             }
 
-            // Get title block
+            // Get title block — prefer the DrawingType profile's
+            // declared family when the pick was a profile and the
+            // family is loaded, so corporate consistency wins without
+            // asking the user to choose every time.
             var titleBlocks = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_TitleBlocks)
                 .WhereElementIsElementType()
                 .Cast<FamilySymbol>().ToList();
 
             ElementId tbId = ElementId.InvalidElementId;
-            if (titleBlocks.Count == 1)
+            if (pickedDt != null)
+            {
+                tbId = DrawingTypeSheetAdapter.ResolveTitleBlock(doc, pickedDt);
+            }
+            if (tbId != ElementId.InvalidElementId)
+            {
+                // Resolved from profile — skip the picker.
+            }
+            else if (titleBlocks.Count == 1)
             {
                 tbId = titleBlocks[0].Id;
             }
@@ -101,9 +143,23 @@ namespace StingTools.Docs
                 var sheet = SheetTemplateEngine.CreateSheetFromTemplate(doc, template, unplaced, tbId);
                 if (sheet != null)
                 {
+                    // DrawingType post-create: stamp the profile id +
+                    // apply title-block parameter binding. No-op when
+                    // the pick was a legacy SheetTemplate.
+                    var warnings = new List<string>();
+                    if (pickedDt != null)
+                        DrawingTypeSheetAdapter.PostCreate(doc, sheet, pickedDt, warnings);
+
                     tx.Commit();
-                    TaskDialog.Show("Sheet Templates",
-                        $"Created sheet {sheet.SheetNumber} from template '{template.Name}'.");
+
+                    var msg = $"Created sheet {sheet.SheetNumber} from {(pickedDt != null ? "profile" : "template")} '{template.Name}'.";
+                    if (warnings.Count > 0)
+                    {
+                        msg += $"\n\n{warnings.Count} warning(s):\n  ";
+                        msg += string.Join("\n  ", warnings.Take(10));
+                        if (warnings.Count > 10) msg += $"\n  …({warnings.Count - 10} more)";
+                    }
+                    TaskDialog.Show("Sheet Templates", msg);
                     return Result.Succeeded;
                 }
                 tx.RollBack();
@@ -369,6 +425,8 @@ namespace StingTools.Docs
                     .Where(s => !s.IsPlaceholder)
                     .OrderBy(s => s.SheetNumber)
                     .ToList();
+                // Phase 97 — spec §7.8 PreExportValidate gate
+                if (!PreExportValidateGate.CheckOrAbort(doc, sheets)) return Result.Cancelled;
                 exported = SheetTemplateEngine.ExportSheetsToPDF(doc, sheets, outputDir);
             }
             else if (scope == "DISC")
@@ -391,6 +449,15 @@ namespace StingTools.Docs
 
                 string discPick = StingListPicker.Show("Select Discipline", "Pick discipline to export", disciplines);
                 if (discPick == null) return Result.Cancelled;
+                // Phase 97 — spec §7.8 PreExportValidate gate (discipline-scoped)
+                var discSheets = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .Where(s => !s.IsPlaceholder
+                        && string.Equals(SheetManagerEngine.ExtractDisciplinePrefix(s.SheetNumber),
+                            discPick, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (!PreExportValidateGate.CheckOrAbort(doc, discSheets)) return Result.Cancelled;
                 exported = SheetTemplateEngine.ExportDisciplineToPDF(doc, discPick, outputDir);
             }
             else // SEL
@@ -413,6 +480,8 @@ namespace StingTools.Docs
                 if (picked == null || picked.Count == 0) return Result.Cancelled;
 
                 var selectedSheets = picked.Select(p => p.Tag as ViewSheet).Where(s => s != null).ToList();
+                // Phase 97 — spec §7.8 PreExportValidate gate (selection-scoped)
+                if (!PreExportValidateGate.CheckOrAbort(doc, selectedSheets)) return Result.Cancelled;
                 exported = SheetTemplateEngine.ExportSheetsToPDF(doc, selectedSheets, outputDir);
             }
 

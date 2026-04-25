@@ -149,7 +149,7 @@ public class AuthController : ControllerBase
         var licenseKey = new LicenseKey
         {
             TenantId       = tenant.Id,
-            Key            = $"PLANSCAPE-TRIAL-{Guid.NewGuid():N}".ToUpper()[..32],
+            Key            = $"STING-TRIAL-{Guid.NewGuid():N}".ToUpper()[..32],
             Tier           = LicenseTier.Starter,
             MaxActivations = 3,
             MimEnabled     = false,
@@ -217,7 +217,10 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Me()
     {
-        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : Guid.Empty;
+        // JWT middleware maps "sub" to ClaimTypes.NameIdentifier by default, so check both
+        var subClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        var userId = Guid.TryParse(subClaim, out var id) ? id : Guid.Empty;
         var user = await _db.Users.Include(u => u.Tenant).FirstOrDefaultAsync(u => u.Id == userId);
         if (user == null) return NotFound();
 
@@ -227,6 +230,157 @@ public class AuthController : ControllerBase
             Tier = user.Tenant?.Tier.ToString() ?? "Starter",
             user.Tenant?.MimEnabled,
             user.LastLoginAt
+        });
+    }
+
+    // ── Accept invitation (P10) ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Exchange an invitation token for a fully-activated account + JWT.
+    ///
+    /// Flow:
+    ///   1. Admin calls POST /api/projects/{id}/members/invite → creates a
+    ///      pending AppUser (IsActive=false) with an INV: token in
+    ///      RefreshToken (expires in 14 days).
+    ///   2. User receives an email with /accept-invitation?token=…&amp;email=…
+    ///   3. Mobile/web POSTs here with token + email + password.
+    ///   4. Server sets password, IsActive=true, clears token, returns JWT.
+    /// </summary>
+    /// <response code="200">Account activated — access + refresh tokens returned.</response>
+    /// <response code="400">Invalid / expired token.</response>
+    [EnableRateLimiting("auth")]
+    [HttpPost("accept-invitation")]
+    [ProducesResponseType(typeof(AuthLoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AuthLoginResponse>> AcceptInvitation([FromBody] AcceptInvitationRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.Email))
+            return BadRequest(new { message = "Token and email are required." });
+        if (req.Password == null || req.Password.Length < 8)
+            return BadRequest(new { message = "Password must be at least 8 characters." });
+
+        var email = req.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u =>
+                u.Email == email &&
+                u.RefreshToken == $"INV:{req.Token}" &&
+                u.RefreshTokenExpiresAt > DateTime.UtcNow);
+
+        if (user == null)
+            return BadRequest(new { message = "Invalid or expired invitation." });
+
+        user.PasswordHash = HashPassword(req.Password);
+        user.IsActive = true;
+
+        // Issue a fresh access + refresh token.
+        var refresh = Guid.NewGuid().ToString("N");
+        user.RefreshToken = refresh;
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new AuthLoginResponse
+        {
+            AccessToken  = GenerateJwt(user),
+            RefreshToken = refresh,
+            ExpiresAt    = DateTime.UtcNow.AddHours(8),
+            UserName     = user.DisplayName,
+            Role         = user.Role.ToString(),
+            Tier         = user.Tenant?.Tier.ToString() ?? "Starter",
+            MimEnabled   = user.Tenant?.MimEnabled ?? false,
+        });
+    }
+
+    // ── Tenant switcher (TENANT-SWITCH) ────────────────────────────────────────
+
+    /// <summary>List all tenants the authenticated user's email is a member of.</summary>
+    /// <remarks>
+    /// Used by the mobile header badge + picker. An email can have multiple <see cref="AppUser"/>
+    /// rows (one per tenant) — this endpoint surfaces all of them so the UI can let the
+    /// consultant switch organisations without logging out.
+    /// </remarks>
+    [HttpGet("tenants")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult> GetMemberships()
+    {
+        var subClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        var activeUserId = Guid.TryParse(subClaim, out var id) ? id : Guid.Empty;
+
+        var active = await _db.Users.AsNoTracking()
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u => u.Id == activeUserId);
+        if (active == null) return NotFound();
+
+        // Same email across tenants — common when consultants are invited to
+        // multiple client orgs.
+        var memberships = await _db.Users.AsNoTracking()
+            .Include(u => u.Tenant)
+            .Where(u => u.Email == active.Email && u.IsActive)
+            .OrderBy(u => u.Tenant!.Name)
+            .Select(u => new
+            {
+                userId = u.Id,
+                tenantId = u.TenantId,
+                tenantName = u.Tenant!.Name,
+                tenantSlug = u.Tenant.Slug,
+                tenantTier = u.Tenant.Tier.ToString(),
+                mimEnabled = u.Tenant.MimEnabled,
+                role = u.Role.ToString(),
+                isActiveTenant = u.Id == activeUserId,
+            })
+            .ToListAsync();
+
+        return Ok(memberships);
+    }
+
+    /// <summary>Re-issue a JWT for a different tenant the user belongs to.</summary>
+    /// <response code="200">New JWT + refresh token — apply in SecureStore under a per-tenant key.</response>
+    /// <response code="403">User is not a member of the requested tenant.</response>
+    [HttpPost("switch-tenant")]
+    [Authorize]
+    [ProducesResponseType(typeof(AuthLoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<AuthLoginResponse>> SwitchTenant([FromBody] SwitchTenantRequest req)
+    {
+        var subClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        var activeUserId = Guid.TryParse(subClaim, out var id) ? id : Guid.Empty;
+
+        var active = await _db.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == activeUserId);
+        if (active == null) return Unauthorized();
+
+        var target = await _db.Users
+            .Include(u => u.Tenant)
+            .FirstOrDefaultAsync(u =>
+                u.Email == active.Email &&
+                u.TenantId == req.TenantId &&
+                u.IsActive);
+        if (target == null)
+        {
+            // Do not reveal whether the tenant exists — return 403.
+            return Forbid();
+        }
+
+        var token = GenerateJwt(target);
+        var refreshToken = Guid.NewGuid().ToString("N");
+        target.RefreshToken = refreshToken;
+        target.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+        target.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new AuthLoginResponse
+        {
+            AccessToken = token,
+            RefreshToken = refreshToken,
+            ExpiresAt = DateTime.UtcNow.AddHours(8),
+            UserName = target.DisplayName,
+            Role = target.Role.ToString(),
+            Tier = target.Tenant?.Tier.ToString() ?? "Starter",
+            MimEnabled = target.Tenant?.MimEnabled ?? false
         });
     }
 
@@ -330,8 +484,11 @@ public class AuthController : ControllerBase
 
     private string GenerateJwt(Core.Entities.AppUser user)
     {
+        // P1 — tag newly issued tokens with kid=current so future rotations can
+        // tell our tokens apart. KeyId matches the SecurityKey registered in
+        // Program.cs ("current" vs "previous").
         var jwtKey = _config["Jwt:Key"] ?? "Planscape-Dev-Secret-Key-Min32Chars!!";
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)) { KeyId = "current" };
         var creds = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -364,3 +521,6 @@ public class AuthController : ControllerBase
     public static string HashPassword(string password)
         => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
 }
+
+public record SwitchTenantRequest(Guid TenantId);
+public record AcceptInvitationRequest(string Token, string Email, string Password);

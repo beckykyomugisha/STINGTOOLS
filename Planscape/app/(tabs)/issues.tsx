@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,15 +12,60 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { theme, getPriorityColor } from '@/utils/theme';
-import { listProjects, listIssues, createIssue } from '@/api/endpoints';
-import type { BimIssue, Project } from '@/types/api';
+import { listProjects, listIssues, createIssue, uploadIssueAttachment, updateIssue, _getBaseUrl } from '@/api/endpoints';
+import type { BimIssue, Project, ProjectMember } from '@/types/api';
+import { imageService, CapturedImage } from '@/services/imageService';
+import { locationService } from '@/services/locationService';
+import { MemberPicker } from '@/components/MemberPicker';
+import * as Application from 'expo-application';
+import * as Device from 'expo-device';
+import { crashReporter } from '@/services/crashReporter';
+import { useNotificationStore } from '@/stores/notificationStore';
+import { debounce } from '@/utils/debounce';
+
+/**
+ * Phase 94 — MOB-01/MOB-06. Open the Planscape xeokit viewer for a project in
+ * an in-app browser. URL shape is {serverUrl}/viewer/index.html?model=<code>.xkt.
+ * The viewer itself lives in wwwroot on the Planscape.Server and reads the
+ * 'model' query parameter to fetch the xkt bundle.
+ */
+async function openViewer(projectCode: string): Promise<void> {
+  try {
+    const base = await _getBaseUrl();
+    const url = `${base}/viewer/index.html?model=${encodeURIComponent(projectCode)}.xkt`;
+    await WebBrowser.openBrowserAsync(url, {
+      // Corporate-themed in-app browser tab — falls back to Safari View
+      // Controller on iOS and Custom Tabs on Android automatically.
+      toolbarColor: theme.colors.primary,
+      controlsColor: theme.colors.accent,
+      dismissButtonStyle: 'close',
+    });
+  } catch (err) {
+    Alert.alert('Viewer unavailable', err instanceof Error ? err.message : String(err));
+  }
+}
 
 type PriorityFilter = 'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 type StatusFilter = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 
 export default function IssuesScreen() {
+  // Phase 96 — notificationTapRouter pushes /(tabs)/issues?issueId=X and/or
+  // ?projectId=Y. Scanner pushes ?createForElement=X&elementTag=Y to pre-fill
+  // a new-issue form. The ref guards against re-firing the redirect/open on
+  // every render while the user is browsing.
+  const params = useLocalSearchParams<{
+    issueId?: string;
+    projectId?: string;
+    createForElement?: string;
+    elementTag?: string;
+  }>();
+  const deepLinkHandled = useRef(false);
+  const scannerLinkHandled = useRef(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [issues, setIssues] = useState<BimIssue[]>([]);
@@ -31,6 +76,16 @@ export default function IssuesScreen() {
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+
+  // Phase 96 — debounce so the filter re-run doesn't fire on every keystroke.
+  // 250ms is the point of diminishing returns — coordinators typing a tag
+  // number perceive it as instant but lists of 500+ issues no longer re-render
+  // on every character.
+  const debouncedSetSearch = useMemo(
+    () => debounce((v: string) => setSearchQuery(v), 250),
+    [],
+  );
 
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -38,8 +93,19 @@ export default function IssuesScreen() {
   const [newDescription, setNewDescription] = useState('');
   const [newType, setNewType] = useState('RFI');
   const [newPriority, setNewPriority] = useState<BimIssue['priority']>('MEDIUM');
+  const [newAssignee, setNewAssignee] = useState<ProjectMember | null>(null);
+  const [newPhotos, setNewPhotos] = useState<CapturedImage[]>([]);
+  const [newElementIds, setNewElementIds] = useState<string>('');
+  const [showMemberPicker, setShowMemberPicker] = useState(false);
+  const [creationStatus, setCreationStatus] = useState<string | null>(null);
 
-  const [selectedIssue, setSelectedIssue] = useState<BimIssue | null>(null);
+  // Phase 96 — bulk action state. `bulkMode` toggles the list into multi-
+  // select; taps add/remove from `bulkSelection`. `bulkBusy` disables the
+  // bulk bar while an operation is in flight so users don't double-submit.
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelection, setBulkSelection] = useState<Set<string>>(new Set());
+  const [bulkAssignVisible, setBulkAssignVisible] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const loadData = useCallback(async (projectId?: string) => {
     try {
@@ -69,8 +135,41 @@ export default function IssuesScreen() {
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData(params.projectId);
+  }, [loadData, params.projectId]);
+
+  // Phase 96 — clear the "issues" badge when the user reaches the list.
+  useEffect(() => {
+    useNotificationStore.getState().clear('issues');
+  }, []);
+
+  // Phase 96 — once the list has loaded, honour ?issueId=X from a notification
+  // tap by pushing straight to the detail screen. Guarded by a ref so the
+  // redirect fires exactly once per deep-link, not on every re-render when
+  // the user bounces back to the list.
+  useEffect(() => {
+    if (!deepLinkHandled.current && params.issueId && activeProject) {
+      deepLinkHandled.current = true;
+      router.push(`/issue-detail?id=${params.issueId}&projectId=${activeProject.id}`);
+    }
+  }, [params.issueId, activeProject]);
+
+  // Phase 96 — scanner → "Raise Issue" pushes createForElement+elementTag.
+  // Open the create modal with those values pre-filled so coordinators don't
+  // have to retype the element ID they just scanned. Clears router params
+  // after consumption so navigating away + back doesn't re-trigger the modal.
+  useEffect(() => {
+    if (!scannerLinkHandled.current && params.createForElement && activeProject) {
+      scannerLinkHandled.current = true;
+      setNewElementIds(params.createForElement);
+      if (params.elementTag) {
+        setNewTitle(`Issue with ${params.elementTag}`);
+      }
+      setShowCreate(true);
+      // Clear the params so re-mounting the tab won't reopen the modal
+      router.setParams({ createForElement: undefined, elementTag: undefined });
+    }
+  }, [params.createForElement, params.elementTag, activeProject]);
 
   function onRefresh() {
     setRefreshing(true);
@@ -99,27 +198,202 @@ export default function IssuesScreen() {
     closed: issues.filter((i) => i.status === 'CLOSED').length,
   };
 
+  async function handleAddPhoto(source: 'camera' | 'library') {
+    try {
+      const captured = source === 'camera'
+        ? await imageService.captureFromCamera()
+        : await imageService.pickFromLibrary();
+      if (!captured) return;
+      const compressed = await imageService.compress(captured.uri).catch(() => captured);
+      setNewPhotos(prev => [...prev, compressed]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Photo capture failed');
+    }
+  }
+
+  function handleRemovePhoto(index: number) {
+    setNewPhotos(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function resetCreateForm() {
+    setNewTitle('');
+    setNewDescription('');
+    setNewType('RFI');
+    setNewPriority('MEDIUM');
+    setNewAssignee(null);
+    setNewPhotos([]);
+    setNewElementIds('');
+    setCreationStatus(null);
+  }
+
+  /**
+   * Phase 96 — toggle an issue in/out of the bulk selection set. Clearing the
+   * last item auto-exits bulk mode so users aren't stuck in an empty mode.
+   */
+  function toggleBulkItem(id: string): void {
+    setBulkSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.size === 0) setBulkMode(false);
+      return next;
+    });
+  }
+
+  function enterBulkMode(firstId: string): void {
+    setBulkMode(true);
+    setBulkSelection(new Set([firstId]));
+  }
+
+  function exitBulkMode(): void {
+    setBulkMode(false);
+    setBulkSelection(new Set());
+  }
+
+  /**
+   * Phase 96 — bulk status update. Parallelised via Promise.allSettled so
+   * 50 updates don't serialise (50 × 250ms latency = 12s → 250ms total). We
+   * chunk by 6 to avoid spamming the server with 50+ concurrent requests
+   * which some reverse proxies rate-limit as abuse. Failures are collected
+   * and surfaced as a summary alert instead of aborting halfway through.
+   */
+  async function bulkUpdateStatus(newStatus: BimIssue['status']): Promise<void> {
+    if (!activeProject || bulkSelection.size === 0) return;
+    setBulkBusy(true);
+    const ids = Array.from(bulkSelection);
+    const errors: string[] = [];
+    try {
+      const updates: Partial<BimIssue> = { status: newStatus };
+      if (newStatus === 'RESOLVED') updates.resolvedAt = new Date().toISOString();
+      for (let i = 0; i < ids.length; i += 6) {
+        const batch = ids.slice(i, i + 6);
+        const results = await Promise.allSettled(
+          batch.map((id) => updateIssue(activeProject.id, id, updates)),
+        );
+        results.forEach((r, idx) => {
+          if (r.status === 'rejected') {
+            errors.push(`${batch[idx]}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`);
+          }
+        });
+      }
+      if (errors.length > 0) {
+        Alert.alert(
+          'Some updates failed',
+          `${ids.length - errors.length}/${ids.length} succeeded.\n\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n…' : ''}`,
+        );
+      }
+    } finally {
+      setBulkBusy(false);
+      exitBulkMode();
+      loadData(activeProject.id);
+    }
+  }
+
+  async function bulkReassign(member: ProjectMember): Promise<void> {
+    if (!activeProject || bulkSelection.size === 0) return;
+    setBulkAssignVisible(false);
+    setBulkBusy(true);
+    const ids = Array.from(bulkSelection);
+    const errors: string[] = [];
+    const payload = {
+      assignee: member.displayName,
+      assigneeEmail: member.email,
+      assigneeUserId: member.userId,
+    };
+    try {
+      for (let i = 0; i < ids.length; i += 6) {
+        const batch = ids.slice(i, i + 6);
+        const results = await Promise.allSettled(
+          batch.map((id) => updateIssue(activeProject.id, id, payload)),
+        );
+        results.forEach((r, idx) => {
+          if (r.status === 'rejected') {
+            errors.push(`${batch[idx]}: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`);
+          }
+        });
+      }
+      if (errors.length > 0) {
+        Alert.alert('Some reassignments failed', `${ids.length - errors.length}/${ids.length} succeeded.`);
+      }
+    } finally {
+      setBulkBusy(false);
+      exitBulkMode();
+      loadData(activeProject.id);
+    }
+  }
+
   async function handleCreate() {
     if (!activeProject || !newTitle.trim()) return;
     setCreating(true);
+    setCreationStatus('Capturing site location…');
+    let location: { latitude: number; longitude: number; accuracy: number | null } | null = null;
     try {
-      await createIssue(activeProject.id, {
+      const loc = await locationService.getCurrent();
+      if (loc) location = { latitude: loc.latitude, longitude: loc.longitude, accuracy: loc.accuracy };
+    } catch (err) {
+      // Permission denied or no signal — proceed without coordinates
+      console.warn('[issues.create] location capture failed', err);
+    }
+
+    const deviceId = Application.getAndroidId?.() ?? (await Application.getIosIdForVendorAsync?.()) ?? null;
+
+    try {
+      setCreationStatus('Creating issue…');
+      const created = await createIssue(activeProject.id, {
         title: newTitle.trim(),
         description: newDescription.trim(),
         type: newType,
         priority: newPriority,
         status: 'OPEN',
+        assignee: newAssignee?.displayName ?? '',
+        assigneeEmail: newAssignee?.email,
+        assigneeUserId: newAssignee?.userId,
+        // Phase 96 — scanner-initiated issues carry elementIds through so the
+        // server can later lookup "which elements does this issue touch".
+        elementIds: newElementIds || undefined,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+        locationAccuracy: location?.accuracy ?? undefined,
+        deviceId: deviceId ?? undefined,
       });
+
+      // Upload attachments after issue exists. Failures don't block the create.
+      for (let i = 0; i < newPhotos.length; i++) {
+        const p = newPhotos[i];
+        setCreationStatus(`Uploading photo ${i + 1} of ${newPhotos.length}…`);
+        try {
+          await uploadIssueAttachment({
+            projectId: activeProject.id,
+            issueId: created.id,
+            uri: p.uri,
+            fileName: p.fileName ?? `site-${Date.now()}-${i}.jpg`,
+            contentType: p.type ?? 'image/jpeg',
+            latitude: location?.latitude,
+            longitude: location?.longitude,
+          });
+        } catch (uploadErr) {
+          console.warn(`[issues.create] photo ${i} upload failed`, uploadErr);
+        }
+      }
       setShowCreate(false);
-      setNewTitle('');
-      setNewDescription('');
-      setNewType('RFI');
-      setNewPriority('MEDIUM');
+      resetCreateForm();
       loadData(activeProject.id);
-    } catch {
-      // Stay on form so user can retry
+    } catch (err) {
+      // NEW-INFO-14 — Explicit handling for the geofence 403 so the user sees
+      // "Outside project boundary" rather than a raw HTTP error.
+      const msg = err instanceof Error ? err.message : 'Failed to create issue';
+      if (msg.includes('HTTP 403') || msg.toLowerCase().includes('geofence')
+          || msg.toLowerCase().includes('outside the project')) {
+        setError('Outside project geofence — move on site or ask your BIM manager to widen the boundary.');
+      } else if (msg.includes('HTTP 400') && msg.toLowerCase().includes('latitude')) {
+        setError('Invalid GPS reading — try again in a moment.');
+      } else if (msg.includes('HTTP 400') && msg.toLowerCase().includes('assignee')) {
+        setError('Chosen assignee is not a member of this project.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setCreating(false);
+      setCreationStatus(null);
     }
   }
 
@@ -168,8 +442,8 @@ export default function IssuesScreen() {
           style={styles.searchInput}
           placeholder="Search issues..."
           placeholderTextColor={theme.colors.disabled}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          value={searchInput}
+          onChangeText={(v) => { setSearchInput(v); debouncedSetSearch(v); }}
         />
       </View>
 
@@ -189,12 +463,56 @@ export default function IssuesScreen() {
         ))}
       </ScrollView>
 
+      {/* Phase 96 — Bulk action bar (shown only in bulk mode). */}
+      {bulkMode && (
+        <View style={styles.bulkBar}>
+          <View style={styles.bulkBarLeft}>
+            <TouchableOpacity onPress={exitBulkMode} accessibilityLabel="Exit bulk selection">
+              <Text style={styles.bulkBarCancel}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.bulkBarCount}>{bulkSelection.size} selected</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            <TouchableOpacity style={styles.bulkAction} disabled={bulkBusy}
+              onPress={() => bulkUpdateStatus('IN_PROGRESS')}>
+              <Text style={styles.bulkActionText}>→ In Progress</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.bulkAction} disabled={bulkBusy}
+              onPress={() => bulkUpdateStatus('RESOLVED')}>
+              <Text style={styles.bulkActionText}>→ Resolved</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.bulkAction} disabled={bulkBusy}
+              onPress={() => bulkUpdateStatus('CLOSED')}>
+              <Text style={styles.bulkActionText}>→ Closed</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.bulkAction} disabled={bulkBusy}
+              onPress={() => setBulkAssignVisible(true)}>
+              <Text style={styles.bulkActionText}>Reassign…</Text>
+            </TouchableOpacity>
+            {bulkBusy && <ActivityIndicator color={theme.colors.accent} size="small" style={{ marginLeft: 6 }} />}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Issue list */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <IssueCard issue={item} onPress={() => setSelectedIssue(item)} />
+          <IssueCard
+            issue={item}
+            bulkMode={bulkMode}
+            selected={bulkSelection.has(item.id)}
+            onPress={() => {
+              if (bulkMode) {
+                toggleBulkItem(item.id);
+              } else {
+                router.push(`/issue-detail?id=${item.id}&projectId=${activeProject.id}`);
+              }
+            }}
+            onLongPress={() => { if (!bulkMode) enterBulkMode(item.id); }}
+            onViewIn3D={() => openViewer(activeProject.code)}
+          />
         )}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.accent} />}
@@ -220,6 +538,15 @@ export default function IssuesScreen() {
         >
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>New Issue</Text>
+
+            {newElementIds ? (
+              <View style={styles.linkedElementChip}>
+                <Text style={styles.linkedElementChipLabel}>LINKED ELEMENT</Text>
+                <Text style={styles.linkedElementChipValue} numberOfLines={1}>
+                  {params.elementTag || newElementIds}
+                </Text>
+              </View>
+            ) : null}
 
             <Text style={styles.inputLabel}>Title *</Text>
             <TextInput
@@ -269,8 +596,77 @@ export default function IssuesScreen() {
               ))}
             </View>
 
+            <Text style={styles.inputLabel}>Assignee</Text>
+            <TouchableOpacity
+              style={styles.modalInput}
+              onPress={() => setShowMemberPicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Pick assignee"
+            >
+              <Text style={{
+                fontSize: theme.fontSize.md,
+                color: newAssignee ? theme.colors.text : theme.colors.disabled,
+              }}>
+                {newAssignee
+                  ? `${newAssignee.displayName} (${newAssignee.email})`
+                  : 'Tap to choose a project member'}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.inputLabel}>Photos ({newPhotos.length})</Text>
+            <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginTop: 4 }}>
+              <TouchableOpacity
+                style={[styles.typeChip, { flexDirection: 'row' }]}
+                onPress={() => handleAddPhoto('camera')}
+                accessibilityRole="button"
+                accessibilityLabel="Take a photo with the camera"
+              >
+                <Text style={styles.typeChipText}>📷  Camera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeChip, { flexDirection: 'row' }]}
+                onPress={() => handleAddPhoto('library')}
+                accessibilityRole="button"
+                accessibilityLabel="Pick a photo from library"
+              >
+                <Text style={styles.typeChipText}>🖼  Library</Text>
+              </TouchableOpacity>
+            </View>
+            {newPhotos.length > 0 && (
+              <ScrollView horizontal style={{ marginTop: theme.spacing.sm }}>
+                {newPhotos.map((p, i) => (
+                  <TouchableOpacity
+                    key={`${p.uri}-${i}`}
+                    onPress={() => handleRemovePhoto(i)}
+                    accessibilityLabel={`Remove photo ${i + 1}`}
+                  >
+                    <View style={{
+                      width: 64, height: 64, marginRight: 8,
+                      borderRadius: 6, borderWidth: 1, borderColor: theme.colors.border,
+                      alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: theme.colors.background,
+                    }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 11 }}>{i + 1} ✕</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {creationStatus && (
+              <Text style={{
+                marginTop: theme.spacing.sm,
+                fontSize: theme.fontSize.xs,
+                color: theme.colors.textSecondary,
+                textAlign: 'center',
+              }}>{creationStatus}</Text>
+            )}
+
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowCreate(false)}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => { setShowCreate(false); resetCreateForm(); }}
+              >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -289,50 +685,28 @@ export default function IssuesScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Issue Detail Modal */}
-      <Modal visible={!!selectedIssue} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          {selectedIssue && (
-            <View style={styles.detailCard}>
-              <ScrollView>
-                <View style={styles.detailHeader}>
-                  <View style={[styles.detailPriorityBadge, { backgroundColor: getPriorityColor(selectedIssue.priority) }]}>
-                    <Text style={styles.detailPriorityText}>{selectedIssue.priority}</Text>
-                  </View>
-                  <StatusBadge status={selectedIssue.status} />
-                </View>
+      {/* Member picker (NEW-MOB-13) */}
+      {activeProject && (
+        <MemberPicker
+          visible={showMemberPicker}
+          projectId={activeProject.id}
+          selectedEmail={newAssignee?.email}
+          onSelect={setNewAssignee}
+          onClose={() => setShowMemberPicker(false)}
+        />
+      )}
 
-                <Text style={styles.detailCode}>{selectedIssue.issueCode}</Text>
-                <Text style={styles.detailTitle}>{selectedIssue.title}</Text>
+      {/* Phase 96 — bulk reassign member picker (reuses same component) */}
+      {activeProject && (
+        <MemberPicker
+          visible={bulkAssignVisible}
+          projectId={activeProject.id}
+          onSelect={bulkReassign}
+          onClose={() => setBulkAssignVisible(false)}
+        />
+      )}
 
-                {selectedIssue.description ? (
-                  <Text style={styles.detailDescription}>{selectedIssue.description}</Text>
-                ) : null}
-
-                <View style={styles.detailGrid}>
-                  <DetailField label="Type" value={selectedIssue.type} />
-                  <DetailField label="Discipline" value={selectedIssue.discipline || '—'} />
-                  <DetailField label="Assignee" value={selectedIssue.assignee || 'Unassigned'} />
-                  <DetailField label="Revision" value={selectedIssue.revision || '—'} />
-                  <DetailField label="Created" value={formatDate(selectedIssue.createdAt)} />
-                  <DetailField label="Updated" value={formatDate(selectedIssue.updatedAt)} />
-                </View>
-
-                {selectedIssue.elementIds ? (
-                  <View style={styles.detailElementIds}>
-                    <Text style={styles.detailElementLabel}>Linked Elements</Text>
-                    <Text style={styles.detailElementValue}>{selectedIssue.elementIds}</Text>
-                  </View>
-                ) : null}
-              </ScrollView>
-
-              <TouchableOpacity style={styles.detailClose} onPress={() => setSelectedIssue(null)}>
-                <Text style={styles.detailCloseText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </Modal>
+      {/* Phase 94 — Legacy detail modal replaced by router.push('/issue-detail?id=...'). */}
     </View>
   );
 }
@@ -352,20 +726,55 @@ function SummaryChip({ label, count, color, active, onPress }: {
   );
 }
 
-function IssueCard({ issue, onPress }: { issue: BimIssue; onPress: () => void }) {
+function IssueCard({
+  issue,
+  onPress,
+  onLongPress,
+  onViewIn3D,
+  bulkMode = false,
+  selected = false,
+}: {
+  issue: BimIssue;
+  onPress: () => void;
+  onLongPress?: () => void;
+  onViewIn3D: () => void;
+  bulkMode?: boolean;
+  selected?: boolean;
+}) {
   const priorityColor = getPriorityColor(issue.priority);
-  const isOverdue = issue.status === 'OPEN' && daysSince(issue.createdAt) > 7;
+  // NEW-INFO-02 — Prefer the server's IsOverdue flag when present, fall back
+  // to the local 7-day heuristic for legacy responses.
+  const isOverdue = issue.isOverdue ?? (
+    issue.status === 'OPEN' && !!issue.dueDate && new Date(issue.dueDate) < new Date()
+  ) ?? (issue.status === 'OPEN' && daysSince(issue.createdAt) > 7);
+  const hasPhotos = (issue.attachmentCount ?? 0) > 0;
 
   return (
-    <TouchableOpacity style={styles.issueCard} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={[styles.issueCard, selected && styles.issueCardSelected]}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={350}
+      activeOpacity={0.7}
+    >
       <View style={[styles.issueCardLeft, { backgroundColor: priorityColor }]} />
       <View style={styles.issueCardBody}>
         <View style={styles.issueCardTopRow}>
+          {bulkMode && (
+            <View style={[styles.bulkCheck, selected && styles.bulkCheckOn]}>
+              <Text style={styles.bulkCheckText}>{selected ? '✓' : ''}</Text>
+            </View>
+          )}
           <Text style={styles.issueCardCode}>{issue.issueCode}</Text>
           <View style={styles.issueCardBadges}>
             <View style={[styles.typeBadge]}>
               <Text style={styles.typeBadgeText}>{issue.type}</Text>
             </View>
+            {hasPhotos ? (
+              <View style={[styles.typeBadge, { backgroundColor: '#fff3e0' }]}>
+                <Text style={[styles.typeBadgeText, { color: '#E8912D' }]}>📷 {issue.attachmentCount}</Text>
+              </View>
+            ) : null}
             <StatusBadge status={issue.status} small />
           </View>
         </View>
@@ -376,10 +785,21 @@ function IssueCard({ issue, onPress }: { issue: BimIssue; onPress: () => void })
           ) : (
             <Text style={[styles.issueCardAssignee, { fontStyle: 'italic' }]}>Unassigned</Text>
           )}
-          <Text style={styles.issueCardDate}>
-            {isOverdue ? 'OVERDUE · ' : ''}{formatDate(issue.createdAt)}
+          <Text style={[styles.issueCardDate, isOverdue && { color: '#D32F2F', fontWeight: '700' }]}>
+            {isOverdue ? 'OVERDUE · ' : ''}
+            {issue.dueDate ? `due ${formatDate(issue.dueDate)}` : formatDate(issue.createdAt)}
+            {typeof issue.daysOpen === 'number' ? ` · ${issue.daysOpen}d` : ''}
           </Text>
         </View>
+        {/* Phase 94 — MOB-06. Jumps into the xeokit viewer in-app browser. */}
+        <TouchableOpacity
+          style={styles.view3DButton}
+          onPress={(e) => { e.stopPropagation(); onViewIn3D(); }}
+          accessibilityRole="button"
+          accessibilityLabel="View this issue in the 3D model viewer"
+        >
+          <Text style={styles.view3DButtonText}>🧊  View in 3D</Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -407,21 +827,12 @@ function StatusBadge({ status, small }: { status: string; small?: boolean }) {
   );
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.detailField}>
-      <Text style={styles.detailFieldLabel}>{label}</Text>
-      <Text style={styles.detailFieldValue}>{value}</Text>
-    </View>
-  );
-}
-
 function formatDate(iso: string): string {
   if (!iso) return '—';
   try {
     const d = new Date(iso);
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch {
+  } catch (e) { crashReporter.warn('issues.tsx:579', { e: String(e) });
     return iso;
   }
 }
@@ -429,7 +840,7 @@ function formatDate(iso: string): string {
 function daysSince(iso: string): number {
   try {
     return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
-  } catch {
+  } catch (e) { crashReporter.warn('issues.tsx:587', { e: String(e) });
     return 0;
   }
 }
@@ -651,6 +1062,23 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
 
+  // Phase 94 — View in 3D button
+  view3DButton: {
+    alignSelf: 'flex-start',
+    marginTop: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accent + '12',
+  },
+  view3DButtonText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '600',
+    color: theme.colors.accent,
+  },
+
   // Status badge
   statusBadge: {
     borderRadius: theme.borderRadius.sm,
@@ -811,95 +1239,92 @@ const styles = StyleSheet.create({
     color: theme.colors.surface,
   },
 
-  // Detail modal
-  detailCard: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.borderRadius.xl,
-    borderTopRightRadius: theme.borderRadius.xl,
-    padding: theme.spacing.lg,
-    maxHeight: '90%',
-  },
-  detailHeader: {
+  // Phase 96 — bulk action bar + multi-select checkbox
+  bulkBar: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
-  detailPriorityBadge: {
-    borderRadius: theme.borderRadius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  bulkBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginRight: theme.spacing.sm,
   },
-  detailPriorityText: {
+  bulkBarCancel: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+  },
+  bulkBarCount: {
+    color: '#fff',
     fontSize: theme.fontSize.sm,
     fontWeight: '700',
+  },
+  bulkAction: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.accent,
+  },
+  bulkActionText: {
     color: '#fff',
-  },
-  detailCode: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.xs,
-  },
-  detailTitle: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: theme.spacing.md,
-  },
-  detailDescription: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
-    lineHeight: 22,
-    marginBottom: theme.spacing.md,
-  },
-  detailGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-  },
-  detailField: {
-    width: '47%',
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.sm,
-  },
-  detailFieldLabel: {
+    fontWeight: '700',
     fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginBottom: 2,
   },
-  detailFieldValue: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '500',
-    color: theme.colors.text,
+  issueCardSelected: {
+    borderWidth: 2,
+    borderColor: theme.colors.accent,
   },
-  detailElementIds: {
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-  },
-  detailElementLabel: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginBottom: 4,
-  },
-  detailElementValue: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  detailClose: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: theme.spacing.sm + 4,
+  bulkCheck: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: theme.colors.disabled,
+    marginRight: theme.spacing.sm,
     alignItems: 'center',
-    marginTop: theme.spacing.md,
+    justifyContent: 'center',
   },
-  detailCloseText: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-    color: theme.colors.surface,
+  bulkCheckOn: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
   },
+  bulkCheckText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+
+  // Phase 96 — pre-filled linked element chip in the create modal
+  linkedElementChip: {
+    backgroundColor: theme.colors.accent + '18',
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  linkedElementChipLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.accent,
+    letterSpacing: 0.5,
+  },
+  linkedElementChipValue: {
+    fontSize: theme.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: theme.colors.text,
+    marginTop: 2,
+  },
+
+  // Phase 94 — legacy "detail modal" styles removed. Issue detail now lives
+  // in app/(tabs)/issue-detail.tsx and uses its own stylesheet.
 });

@@ -31,7 +31,7 @@ Planscape consists of three tiers:
 
 ### Critical Finding
 
-**The Planscape.PluginSync library (SyncClient.cs, OfflineQueue.cs, SyncScheduler.cs) is 100% dead code.** It is never instantiated or called by StingTools. The actual plugin-to-server communication uses a separate `StingBIMServerClient` class in `PlatformLinkCommands.cs` that performs manual, on-demand sync only. This means:
+**The Planscape.PluginSync library (SyncClient.cs, OfflineQueue.cs, SyncScheduler.cs) is 100% dead code.** It is never instantiated or called by StingTools. The actual plugin-to-server communication uses a separate `PlanscapeServerClient` class in `PlatformLinkCommands.cs` that performs manual, on-demand sync only. This means:
 
 - No automatic background sync exists between the Revit plugin and the server
 - The `OnDocumentSaved` handler in `StingToolsApp.cs` queues data but nothing consumes it
@@ -220,7 +220,7 @@ These features are **already production-ready** and require no additional work:
 - Exponential backoff retry (1s, 2s, 4s)
 - **Problem:** No code in `StingToolsApp.cs` or anywhere in StingTools ever creates instances of these classes
 
-#### System B: StingBIMServerClient (ACTUALLY USED)
+#### System B: PlanscapeServerClient (ACTUALLY USED)
 
 | File | Lines | Status |
 |------|-------|--------|
@@ -249,7 +249,7 @@ These features are **already production-ready** and require no additional work:
 | INT-03 | **No conflict resolution** | CRITICAL | TagSync server endpoint (POST `/api/tagsync/sync`) does blind overwrite — no `LastModified` timestamp comparison, no version vector |
 | INT-04 | **No incremental sync** | HIGH | Both systems send full element snapshots. No change tracking, no dirty flags, no sync watermark |
 | INT-05 | **OnDocumentSaved data lost** | HIGH | Compliance data queued in static fields is never consumed by any sync mechanism |
-| INT-06 | **No auth token management** | HIGH | `SyncClient.cs` has JWT token storage but `StingBIMServerClient` handles auth separately with no token refresh |
+| INT-06 | **No auth token management** | HIGH | `SyncClient.cs` has JWT token storage but `PlanscapeServerClient` handles auth separately with no token refresh |
 | INT-07 | **No sync status UI** | MEDIUM | No visual indicator in the Revit dockable panel showing sync state (synced/pending/error/offline) |
 | INT-08 | **No selective sync** | MEDIUM | Cannot sync only changed elements or specific disciplines — always full project |
 | INT-09 | **Server accepts 50K elements** | MEDIUM | `TagSyncController` allows up to 50,000 elements per request but client batches at 2,000. No streaming/chunked transfer |
@@ -257,7 +257,7 @@ These features are **already production-ready** and require no additional work:
 
 ### 4.3 Feature Comparison: Server vs Plugin Support
 
-| Feature | Server API | PluginSync (Dead) | StingBIMServerClient | Mobile App |
+| Feature | Server API | PluginSync (Dead) | PlanscapeServerClient | Mobile App |
 |---------|-----------|-------------------|----------------------|------------|
 | Element tag sync | ✅ POST /tagsync/sync | ✅ Implemented | ✅ Manual | ❌ None |
 | Compliance push | ✅ POST /compliance | ✅ Implemented | ✅ Manual | ❌ None |
@@ -350,7 +350,7 @@ All estimates assume a single experienced full-stack developer familiar with Rea
 
 | Task | Effort | Description |
 |------|--------|-------------|
-| Wire PluginSync to StingToolsApp | 2 days | Call `SyncScheduler.Start()` in `OnStartup()`, remove `StingBIMServerClient` duplication |
+| Wire PluginSync to StingToolsApp | 2 days | Call `SyncScheduler.Start()` in `OnStartup()`, remove `PlanscapeServerClient` duplication |
 | TagSync conflict resolution | 3 days | Add `LastModified` timestamp comparison, version vectors, merge strategy |
 | Mobile camera integration | 2 days | `expo-image-picker` + image compression + attachment upload |
 | Mobile GPS integration | 1 day | `expo-location` + coordinate capture on issue creation |
@@ -415,7 +415,7 @@ All estimates assume a single experienced full-stack developer familiar with Rea
 | Phase 2: High Priority | 3–4 | £12,600 | £25,200 |
 | Phase 3: Medium Priority | 2–3 | £7,800 | £33,000 |
 | Phase 4: Polish & Scale | 2 | £6,000 | £39,000 |
-| **Total** | **12–16 weeks** | **£33,000–£39,000** | |
+| **Total** | **11–14 weeks** | **£33,000–£39,000** | |
 
 > **Note:** Costs assume a single developer. Parallelising Phase 1 server + mobile work across 2 developers could compress the timeline to 8–10 weeks but would increase coordination overhead.
 
@@ -425,59 +425,59 @@ All estimates assume a single experienced full-stack developer familiar with Rea
 
 ### Week 1–2: Foundation
 ```
-[x] Wire Planscape.PluginSync into StingToolsApp.OnStartup()
-[x] Add LastModified/Version fields to TaggedElement entity
-[x] Add Latitude/Longitude/Accuracy to BimIssue entity
-[x] EF Core migration for new fields
-[x] Install expo-image-picker, expo-location, expo-notifications
-[x] Set up Zustand state management with offline-first pattern
-[x] Implement mobile push notification handler
+[ ] Wire Planscape.PluginSync into StingToolsApp.OnStartup()
+[ ] Add LastModified/Version fields to TaggedElement entity
+[ ] Add Latitude/Longitude/Accuracy to BimIssue entity
+[ ] EF Core migration for new fields
+[ ] Install expo-image-picker, expo-location, expo-notifications
+[ ] Set up Zustand state management with offline-first pattern
+[ ] Implement mobile push notification handler
 ```
 
 ### Week 3–4: Core On-Site Features
 ```
-[x] Complete QR scanner: parse → lookup → display → create issue
-[x] Camera capture: photo → compress → attach to issue
-[x] GPS tagging: capture coordinates on issue/document creation
-[x] Server image thumbnailing pipeline (150px, 300px, 600px)
-[x] TagSync conflict resolution (timestamp + version vector)
-[x] Mobile offline queue drain with exponential retry
+[ ] Complete QR scanner: parse → lookup → display → create issue
+[ ] Camera capture: photo → compress → attach to issue
+[ ] GPS tagging: capture coordinates on issue/document creation
+[ ] Server image thumbnailing pipeline (150px, 300px, 600px)
+[ ] TagSync conflict resolution (timestamp + version vector)
+[ ] Mobile offline queue drain with exponential retry
 ```
 
 ### Week 5–6: Document Access
 ```
-[x] PDF viewer with download + offline cache
-[x] Image viewer with pinch-zoom
-[x] Server delta sync with SyncWatermark
-[x] Server batch operations for issues/documents
-[x] HTTPS/TLS with Let's Encrypt
+[ ] PDF viewer with download + offline cache
+[ ] Image viewer with pinch-zoom
+[ ] Server delta sync with SyncWatermark
+[ ] Server batch operations for issues/documents
+[ ] HTTPS/TLS with Let's Encrypt
 ```
 
 ### Week 7–8: Real-Time Collaboration
 ```
-[x] SignalR mobile client with JWT auth
-[x] Compliance dashboard with RAG bars and charts
-[x] Meetings UI with agenda and action items
-[x] Server file versioning
-[x] Production deployment with MinIO/S3
+[ ] SignalR mobile client with JWT auth
+[ ] Compliance dashboard with RAG bars and charts
+[ ] Meetings UI with agenda and action items
+[ ] Server file versioning
+[ ] Production deployment with MinIO/S3
 ```
 
 ### Week 9–10: Enhanced Features
 ```
-[x] Document annotation (draw on photo)
-[x] Server QR code generation for asset labels
-[x] Geofence validation
-[x] Secure token storage + biometric auth
-[x] Per-device rate limiting
+[ ] Document annotation (draw on photo)
+[ ] Server QR code generation for asset labels
+[ ] Geofence validation
+[ ] Secure token storage + biometric auth
+[ ] Per-device rate limiting
 ```
 
 ### Week 11–12: Production Hardening
 ```
-[x] CI/CD pipeline (GitHub Actions + Expo EAS)
-[x] Load testing for 50 concurrent users
-[x] Monitoring (Serilog + health checks)
-[x] Security audit (OWASP mobile checklist)
-[x] Documentation and deployment runbook
+[ ] CI/CD pipeline (GitHub Actions + Expo EAS)
+[ ] Load testing for 50 concurrent users
+[ ] Monitoring (Serilog + health checks)
+[ ] Security audit (OWASP mobile checklist)
+[ ] Documentation and deployment runbook
 ```
 
 ---
@@ -486,7 +486,7 @@ All estimates assume a single experienced full-stack developer familiar with Rea
 
 ### 8.1 Resolve the Dual Sync System
 
-**Recommendation:** Retire `StingBIMServerClient` and wire `Planscape.PluginSync` as the canonical sync path.
+**Recommendation:** Retire `PlanscapeServerClient` and wire `Planscape.PluginSync` as the canonical sync path.
 
 ```
 StingToolsApp.OnStartup()
@@ -501,7 +501,7 @@ StingToolsApp.OnStartup()
 Changes required:
 1. `StingToolsApp.cs`: Add `SyncScheduler.Start()` after `OnStartup()` ribbon build
 2. `StingToolsApp.cs`: Remove `_pendingSyncDoc`/`_pendingSyncTime` static fields; use `OfflineQueue.Enqueue()` instead
-3. `PlatformLinkCommands.cs`: Redirect `PlatformSyncCommand` to call `SyncScheduler.SyncNow()` instead of `StingBIMServerClient`
+3. `PlatformLinkCommands.cs`: Redirect `PlatformSyncCommand` to call `SyncScheduler.SyncNow()` instead of `PlanscapeServerClient`
 4. `StingCommandHandler.cs`: Update dispatch at line 1873–1876
 
 ### 8.2 Implement Optimistic Conflict Resolution
@@ -630,7 +630,7 @@ CREATE TABLE "SyncConflicts" (
 | SyncClient.cs | Planscape.Server/src/Planscape.PluginSync/ | 254 | HTTP sync client (DEAD CODE) |
 | OfflineQueue.cs | Planscape.Server/src/Planscape.PluginSync/ | 126 | File-backed queue (DEAD CODE) |
 | SyncScheduler.cs | Planscape.Server/src/Planscape.PluginSync/ | 122 | 5-min timer (DEAD CODE) |
-| PlatformLinkCommands.cs | StingTools/BIMManager/ | 2,222 | Contains StingBIMServerClient (ACTIVE) |
+| PlatformLinkCommands.cs | StingTools/BIMManager/ | 2,222 | Contains PlanscapeServerClient (ACTIVE) |
 | StingCommandHandler.cs | StingTools/UI/ | 4,826+ | Dispatch at lines 1873-1876 |
 | StingToolsApp.cs | StingTools/Core/ | 418+ | OnDocumentSaved at lines 508-557 |
 | TagSyncController.cs | Planscape.Server/src/Planscape.API/Controllers/ | ~200 | Blind overwrite at lines 54-77 |

@@ -1,0 +1,142 @@
+{
+  "Version": "v4",
+  "Description": "PC-18 / PC-20 — architectural placement baseline (Doors, Windows, Furniture, Casework, Generic Models, Specialty Equipment, Stairs, Curtain Panels). Cited against Approved Doc M, BS 8300-2, BCO 2019, BB103, HBN 04-01, HTM 06-01.",
+  "Rules": [
+    {
+      "RuleId": "arch-door-room-default",
+      "CategoryFilter": "Doors", "RoomFilter": "(?i)office|study", "AnchorType": "WALL_MIDPOINT",
+      "MountingHeightMm": 0.0, "OffsetXMm": 0.0, "SideConstraint": "EITHER", "MinSpacingMm": 0.0,
+      "MaxPerRoom": 1, "Priority": 70, "StandardRef": "Approved Doc M / BS 8300-2",
+      "Notes": "1 leaf per office, hinge-side opening per Approved Doc M."
+    },
+    {
+      "RuleId": "arch-door-accessible-wc",
+      "CategoryFilter": "Doors", "RoomFilter": "(?i)accessible|disabled|ambulant", "AnchorType": "WALL_MIDPOINT",
+      "MountingHeightMm": 0.0, "OffsetXMm": 0.0, "SideConstraint": "EITHER", "MinSpacingMm": 0.0,
+      "MaxPerRoom": 1, "Priority": 90, "StandardRef": "Approved Doc M / BS 8300-2",
+      "Notes": "Accessible WC: 1000mm clear leaf, outward swing per BS 8300-2:2018 §17."
+    },
+    {
+      "RuleId": "arch-door-lift-lobby",
+      "CategoryFilter": "Doors", "RoomFilter": "(?i)lift *lobby|lift *hall", "AnchorType": "WALL_MIDPOINT",
+      "MountingHeightMm": 0.0, "OffsetXMm": 0.0, "SideConstraint": "EITHER", "MinSpacingMm": 0.0,
+      "MaxPerRoom": 1, "Priority": 80, "StandardRef": "BS EN 81-70",
+      "Notes": "Lift-lobby double-leaf access door."
+    },
+    {
+      "RuleId": "arch-window-residential-cill",
+      "CategoryFilter": "Windows", "RoomFilter": "(?i)bedroom|living|lounge|dining", "AnchorType": "WALL_MIDPOINT",
+      "MountingHeightMm": 800.0, "OffsetXMm": 0.0, "SideConstraint": "EITHER", "MinSpacingMm": 1500.0,
+      "MaxPerRoom": 0, "Priority": 60, "StandardRef": "BS 8233 daylight",
+      "Notes": "Residential cill at 800mm; respect Part B fire-egress where applicable."
+    },
+    {
+      "RuleId": "arch-window-office-cill",
+      "CategoryFilter": "Windows", "RoomFilter": "(?i)office|meeting|conference|board", "AnchorType": "WALL_MIDPOINT",
+      "MountingHeightMm": 1100.0, "OffsetXMm": 0.0, "SideConstraint": "EITHER", "MinSpacingMm": 1800.0,
+      "MaxPerRoom": 0, "Priority": 60, "StandardRef": "BS 8233 / BCO 2019",
+      "Notes": "Office cill at 1100mm to suit deskheight equipment."
+    },
+    {
+      "RuleId": "arch-window-atrium",
+      "CategoryFilter": "Windows", "RoomFilter": "(?i)atrium|reception|lobby", "AnchorType": "WALL_MIDPOINT",
+      "MountingHeightMm": 0.0, "OffsetXMm": 0.0, "SideConstraint": "EITHER", "MinSpacingMm": 2000.0,
+      "MaxPerRoom": 0, "Priority": 60, "StandardRef": "BS 8233",
+      "Notes": "Full-height glazing in atria for daylight."
+    },
+    {
+      "RuleId": "arch-furniture-office-density",
+      "CategoryFilter": "Furniture", "RuleKind": "Density",
+      "RoomFilter": "(?i)office|study|workstation", "AnchorType": "ROOM_CENTRE",
+      "PerAreaM2": 6.4, "MaxPerRoom": 0, "Priority": 60, "StandardRef": "BCO 2019 §3.3",
+      "Notes": "BCO desk pitch 6.4 m² per workstation."
+    },
+    {
+      "RuleId": "arch-furniture-meeting-table",
+      "CategoryFilter": "Furniture", "RoomFilter": "(?i)meeting|conference|board",
+      "AnchorType": "ROOM_CENTRE", "MountingHeightMm": 0.0, "MinSpacingMm": 0.0,
+      "MaxPerRoom": 1, "Priority": 65, "StandardRef": "BCO 2019",
+      "Notes": "Conference / board table at room centre."
+    },
+    {
+      "RuleId": "arch-furniture-classroom",
+      "CategoryFilter": "Furniture", "RuleKind": "Density",
+      "RoomFilter": "(?i)classroom|teaching", "AnchorType": "ROOM_CENTRE",
+      "PerOccupant": 1.0, "MaxPerRoom": 0, "Priority": 60, "StandardRef": "BB103",
+      "Notes": "1 desk per pupil per BB103 area allowance."
+    },
+    {
+      "RuleId": "arch-furniture-canteen",
+      "CategoryFilter": "Furniture", "RuleKind": "Density",
+      "RoomFilter": "(?i)canteen|cafeteria|dining", "AnchorType": "ROOM_CENTRE",
+      "PerAreaM2": 1.5, "MaxPerRoom": 0, "Priority": 55, "StandardRef": "BCO 2019 §6",
+      "Notes": "1 dining seat per 1.5 m² (peak occupancy)."
+    },
+    {
+      "RuleId": "arch-casework-kitchen-base",
+      "CategoryFilter": "Casework", "RuleKind": "Linear",
+      "RoomFilter": "(?i)kitchen|kitchenette|pantry", "AnchorType": "PERIMETER_OFFSET",
+      "PerLinearMetre": 0.6, "MountingHeightMm": 900.0, "MinSpacingMm": 600.0,
+      "MaxPerRoom": 0, "Priority": 60, "StandardRef": "BS EN 1116",
+      "Notes": "Standard 600 mm modular base unit per linear metre."
+    },
+    {
+      "RuleId": "arch-casework-lab-bench",
+      "CategoryFilter": "Casework", "RuleKind": "Linear",
+      "RoomFilter": "(?i)lab|laboratory", "AnchorType": "PERIMETER_OFFSET",
+      "PerLinearMetre": 1.5, "MountingHeightMm": 900.0, "MinSpacingMm": 1500.0,
+      "MaxPerRoom": 0, "Priority": 60, "StandardRef": "HTM 06-01 / BB103",
+      "Notes": "Lab bench module at 1.5 m centres, 900 mm working height."
+    },
+    {
+      "RuleId": "arch-casework-classroom-storage",
+      "CategoryFilter": "Casework", "RoomFilter": "(?i)classroom|teaching",
+      "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 0.0, "MinSpacingMm": 0.0,
+      "MaxPerRoom": 1, "Priority": 55, "StandardRef": "BB103",
+      "Notes": "Classroom storage on rear wall."
+    },
+    {
+      "RuleId": "arch-generic-coathook",
+      "CategoryFilter": "Generic Models", "RuleKind": "Linear",
+      "RoomFilter": "(?i)corridor|circulation", "AnchorType": "PERIMETER_OFFSET",
+      "PerLinearMetre": 0.6, "MountingHeightMm": 1700.0, "MinSpacingMm": 600.0,
+      "MaxPerRoom": 0, "Priority": 40, "StandardRef": "BS 8300-2",
+      "Notes": "Coat hooks at 1700mm AFF every 600 mm."
+    },
+    {
+      "RuleId": "arch-generic-signage",
+      "CategoryFilter": "Generic Models", "RoomFilter": "(?i)corridor|stair|lift",
+      "AnchorType": "DOOR_JAMB", "MountingHeightMm": 1500.0, "OffsetXMm": -50.0,
+      "SideConstraint": "RIGHT", "MinSpacingMm": 0.0, "MaxPerRoom": 1, "Priority": 50,
+      "StandardRef": "BS 8300-2", "Notes": "Wayfinding sign at 1500 mm AFF beside door."
+    },
+    {
+      "RuleId": "arch-specialty-lectern",
+      "CategoryFilter": "Specialty Equipment", "RoomFilter": "(?i)classroom|lecture|auditorium",
+      "AnchorType": "ROOM_CENTRE", "MountingHeightMm": 1200.0, "OffsetYMm": 1500.0,
+      "SideConstraint": "FRONT", "MinSpacingMm": 0.0, "MaxPerRoom": 1, "Priority": 60,
+      "StandardRef": "BB103", "Notes": "Lectern at front-of-room centreline."
+    },
+    {
+      "RuleId": "arch-specialty-vending",
+      "CategoryFilter": "Specialty Equipment", "RoomFilter": "(?i)canteen|cafeteria|dining",
+      "AnchorType": "WALL_CORNER", "MountingHeightMm": 0.0, "OffsetXMm": 200.0,
+      "SideConstraint": "EITHER", "MinSpacingMm": 1500.0, "MaxPerRoom": 0, "Priority": 50,
+      "StandardRef": "BCO 2019", "Notes": "Vending machine on circulation corner."
+    },
+    {
+      "RuleId": "arch-stair-handrail",
+      "CategoryFilter": "Stairs", "RoomFilter": "(?i)stair|staircase",
+      "AnchorType": "PERIMETER_OFFSET", "MountingHeightMm": 900.0,
+      "PerLinearMetre": 1.0, "MinSpacingMm": 1000.0, "MaxPerRoom": 0, "Priority": 75,
+      "StandardRef": "Approved Doc K / BS 6180", "Notes": "Hand-rail extension at 900 mm AFF."
+    },
+    {
+      "RuleId": "arch-parking-accessible",
+      "CategoryFilter": "Parking", "RuleKind": "Density",
+      "RoomFilter": "", "AnchorType": "ROOM_CENTRE",
+      "PerAreaM2": 200.0, "MaxPerRoom": 0, "Priority": 70, "StandardRef": "Approved Doc M / Part S",
+      "Notes": "Accessible bay quota target ~6 % per BS 8300-1; placeholder density."
+    }
+  ]
+}

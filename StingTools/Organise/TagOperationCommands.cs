@@ -942,10 +942,9 @@ namespace StingTools.Organise
             if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            // Red = missing, Orange = incomplete, Yellow = ISO violation, Purple = placeholder
-            FillPatternElement solidFill = new FilteredElementCollector(doc)
-                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
-                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            // Red = missing, Orange = incomplete, Yellow = ISO violation, Purple = placeholder.
+            // Use the cached shared helper so we don't pay for a FEC per command.
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(doc);
 
             var red = new OverrideGraphicSettings();
             red.SetProjectionLineColor(new Color(255, 0, 0));
@@ -1453,18 +1452,11 @@ namespace StingTools.Organise
             ("Cyan", new Color(0, 180, 200)),
         };
 
-        /// <summary>Find the solid fill pattern (needed for surface overrides).</summary>
+        /// <summary>Find the solid fill pattern (needed for surface overrides).
+        /// Delegates to the cached ParameterHelpers helper so every caller shares
+        /// the same FillPatternElement instance across the session.</summary>
         public static FillPatternElement FindSolidFill(Document doc)
-        {
-            try
-            {
-                return new FilteredElementCollector(doc)
-                    .OfClass(typeof(FillPatternElement))
-                    .Cast<FillPatternElement>()
-                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
-        }
+            => ParameterHelpers.GetSolidFillPattern(doc);
 
         /// <summary>Build override settings for annotation coloring.</summary>
         public static OverrideGraphicSettings BuildAnnotationOverride(
@@ -5531,8 +5523,12 @@ namespace StingTools.Organise
                         {
                             try
                             {
-                                Parameter p = e.LookupParameter(ParamRegistry.CLUSTER_COUNT);
-                                return p != null && p.AsInteger() > 1;
+                                // Gap 2 — ES-preferred read. Pre-migration projects
+                                // fall back to the legacy shared-parameter read inside
+                                // StingEsHelpers.ReadCluster; post-migration projects
+                                // resolve the cluster count from the ES entity.
+                                var cluster = StingTools.Core.Storage.StingEsHelpers.ReadCluster(e);
+                                return cluster != null && cluster.Count > 1;
                             }
                             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                         })
@@ -6141,6 +6137,11 @@ namespace StingTools.Organise
                     }
                     break;
                 case Model.NumberingEngine.SelectionScope.AllFromActiveView:
+                    if (doc.ActiveView == null)
+                    {
+                        TaskDialog.Show("Numbering", "No active graphical view — switch to a view first.");
+                        return Result.Cancelled;
+                    }
                     elementIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
                         .OfCategory(config.Category)
                         .WhereElementIsNotElementType()

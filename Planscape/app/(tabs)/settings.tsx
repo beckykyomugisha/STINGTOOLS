@@ -19,6 +19,7 @@ import { getBaseUrl, setBaseUrl, clearTokens } from '@/api/client';
 import { getMe } from '@/api/endpoints';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import type { UserProfile } from '@/types/api';
+import { crashReporter } from '@/services/crashReporter';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -54,7 +55,7 @@ export default function SettingsScreen() {
       setServerUrl(url);
       setUrlDraft(url);
       setUser(profile);
-    } catch {
+    } catch (e) { crashReporter.warn('settings.tsx:57', { e: String(e) });
       // Profile load may fail if token expired — that's fine
     } finally {
       setLoadingUser(false);
@@ -202,7 +203,7 @@ export default function SettingsScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
-              placeholder="https://api.stingbim.com"
+              placeholder="https://api.planscape.com"
               placeholderTextColor={theme.colors.disabled}
             />
             <TouchableOpacity style={styles.smallBtn} onPress={saveUrl}>
@@ -308,7 +309,7 @@ export default function SettingsScreen() {
       {/* ── About ── */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>About</Text>
-        <InfoRow label="App" value="Planscape by StingBIM" />
+        <InfoRow label="App" value="Planscape" />
         <InfoRow label="Version" value="1.0.0" />
         <InfoRow label="Platform" value={Platform.OS} />
       </View>
@@ -356,7 +357,7 @@ function formatTime(iso: string): string {
       hour: '2-digit',
       minute: '2-digit',
     });
-  } catch {
+  } catch (e) { crashReporter.warn('settings.tsx:359', { e: String(e) });
     return iso;
   }
 }

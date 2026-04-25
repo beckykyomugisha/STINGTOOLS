@@ -375,7 +375,10 @@ namespace StingTools.Core
             "DataDropReadiness", "WeeklyCoordinatorReport", "ExportSchedulesToExcel", "COBieImport",
             "UserProductivityReport", "FederatedCompliance", "ApprovalWorkflow", "RevisionSchedule",
             "AssignNumbers", "SetSeqScheme", "ExportTagMap", "ImportTagMap", "BatchPlaceTags",
-            "TagSelector", "ExportTagPositions"
+            "TagSelector", "ExportTagPositions",
+            // Phase 92: Speckle workflow tags + SpeckleSnapshot preset aliases
+            "SpeckleSend", "SpeckleReceive", "SpeckleDiff",
+            "ComplianceSnapshot", "WarningsSummary"
         };
 
         /// <summary>Invalidate the built-in presets cache (e.g. after JSON file changes).</summary>
@@ -1090,6 +1093,23 @@ namespace StingTools.Core
                 // GAP-09: Save data hash sidecar after workflow to mark data as processed
                 SaveDataHashSidecar(doc);
 
+                // Pack 122 / Gap B — stamp the last-run scalars onto ES so the
+                // morning briefing, dock panel, and Idling SLA scanner can read
+                // workflow state without parsing STING_WORKFLOW_LOG.jsonl.
+                try
+                {
+                    string status = cancelled ? "Cancelled" :
+                                    failed > 0 ? "Failed" : "Succeeded";
+                    using (var t = new Transaction(doc, "STING ES: stamp workflow last-run"))
+                    {
+                        t.Start();
+                        StingTools.Core.Storage.StingWorkflowStateSchema
+                            .StampLastRun(doc, preset.Name ?? "", status);
+                        t.Commit();
+                    }
+                }
+                catch (Exception esEx) { StingLog.Warn($"WorkflowState ES stamp: {esEx.Message}"); }
+
                 // Phase 49: Log to coordination log for audit trail
                 try
                 {
@@ -1298,6 +1318,12 @@ namespace StingTools.Core
                 // Data Pipeline
                 case "DynamicBindings": return new Temp.DynamicBindingsCommand();
                 case "BOQExport": return new Temp.BOQExportCommand();
+
+                // Phase 108j — BOQ × BCC workflow integration
+                case "BOQRefresh":             return new BOQ.BOQRefreshCommand();
+                case "BOQSnapshotSave":        return new BOQ.BOQSnapshotSaveCommand();
+                case "BOQSnapshotCompare":     return new BOQ.BOQSnapshotCompareCommand();
+                case "BOQExportProfessional":  return new BOQ.BOQProfessionalExportCommand();
                 case "BatchFamilyParams": return new Temp.BatchAddFamilyParamsCommand();
                 case "FamilyParamProcessor": return new Temp.FamilyParameterProcessorCommand();
 
@@ -1399,6 +1425,7 @@ namespace StingTools.Core
                 case "RaiseIssue":              return new BIMManager.RaiseIssueCommand();
                 case "UpdateIssue":             return new BIMManager.UpdateIssueCommand();
                 case "SelectIssueElements":     return new BIMManager.SelectIssueElementsCommand();
+                case "LinkIssueElements":       return new BIMManager.SelectIssueElementsCommand(); // alias — BCC dispatches this tag
                 case "IssueDashboard":          return new BIMManager.IssueDashboardCommand();
                 case "BCFExport":               return new BIMManager.BCFExportCommand();
                 case "BCFImport":               return new BIMManager.BCFImportCommand();
@@ -1446,6 +1473,19 @@ namespace StingTools.Core
                 case "TemplateAudit":           return new Temp.TemplateAuditCommand();
                 case "TemplateComplianceScore": return new Temp.TemplateComplianceScoreCommand();
                 case "ClashDetection":          return new Temp.ClashDetectionCommand();
+                // Phase 5 clash engine — BCC Clash-tab buttons route through
+                // BIMCoordinationCenterCommand.DispatchCoordAction which uses
+                // WorkflowEngine.GetCommandInstance to resolve a Tag to an
+                // IExternalCommand. The StingCommandHandler.Execute switch
+                // (which I extended in rec-4) handles the SAME tags from the
+                // dockable-panel path, but BCC doesn't go through that switch
+                // — so the tags have to be registered here too or every
+                // Clash-tab button shows "Action 'X' is not handled".
+                case "ClashRun":                return new Core.Clash.ClashRunCommand();
+                case "ClashBcfExport":          return new Core.Clash.ClashBcfExportCommand();
+                case "ClashSessionRefresh":     return new Core.Clash.ClashSessionRefreshCommand();
+                case "ClashSessionClear":       return new Core.Clash.ClashSessionClearCommand();
+                case "ClashMatrixEdit":         return new Core.Clash.ClashMatrixEditCommand();
                 case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
                 case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
                 case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();
@@ -1481,6 +1521,58 @@ namespace StingTools.Core
                 case "RoomSpaceAudit":          return new Temp.RoomAuditCommand();
                 case "HandoverManual":          return new Docs.HandoverManualCommand();
                 case "MEPSizingCheck":          return new Temp.MEPSizingCheckCommand();
+
+                // Phase 92: Speckle workflow steps + semantic aliases used by SpeckleSnapshot preset.
+                // "ComplianceSnapshot" and "WarningsSummary" are user-facing names — there are no
+                // dedicated commands, so they alias onto the existing dashboards (matches CLAUDE.md
+                // note: "steps = [SpeckleDiff, SpeckleSend, ComplianceSnapshot, WarningsSummary]").
+                case "SpeckleSend":             return new BIMManager.SpeckleSendCommand();
+                case "SpeckleReceive":          return new BIMManager.SpeckleReceiveCommand();
+                case "SpeckleDiff":             return new BIMManager.SpeckleDiffCommand();
+                case "ComplianceSnapshot":      return new Tags.CompletenessDashboardCommand();
+                case "WarningsSummary":         return new WarningsDashboardCommand();
+
+                // Phase 96: QR code tags dispatched from BCC Overview "QR CODES" section
+                // and the Planscape-native-hub → "Generate QR Link" quick share button.
+                // All four aliases land on the same ReadOnly QRCodeCommand.
+                case "QRCode":
+                case "GenerateQRCode":
+                case "GenerateQRSheet":
+                case "PrintQRTags":
+                case "PlanscapeQR":              return new Tags.QRCodeCommand();
+
+                // Phase 96: BCC-Perm-01 fix — ExportPermissionMatrix was resolvable from the
+                // dock panel (StingCommandHandler) but not from the BCC action path, so the
+                // Permission Groups "Export Matrix" button was silently running
+                // ExportModelHealth instead. Added here so both dispatch paths hit the
+                // real role/folder CSV exporter.
+                case "ExportPermissionMatrix": return new BIMManager.ExportPermissionMatrixCommand();
+
+                // Phase 96: Code Legend button dispatched from BCC Overview + Document Manager
+                // share bar. Same double-path issue as QR — only wired in StingCommandHandler
+                // so BCC's ExternalEvent path produced "Action 'CodeLegend' is not handled."
+                case "CodeLegend":             return new Tags.CodeLegendCommand();
+
+                // Phase 98: 4D/5D scheduling commands dispatched from BCC 4D/5D tab. Same
+                // double-path gap as QR/CodeLegend — only wired in StingCommandHandler so
+                // BCC's ExternalEvent path produced "Action 'X' is not handled".
+                case "WorkingCalendar":        return new BIMManager.WorkingCalendarCommand();
+                case "SaveWorkingCalendar":    return new BIMManager.WorkingCalendarCommand();
+                case "NavisworksTimeLiner":    return new BIMManager.NavisworksTimeLinerExportCommand();
+                case "ElementCostTrace":       return new BIMManager.ElementCostTraceCommand();
+
+                // Phase 104: GAP-analysis commands (GapAnalysisFixCommands.cs) dispatched from BCC
+                // action bar via WarningsManager.DispatchCoordAction. Previously only resolvable via
+                // StingCommandHandler, so BCC ExternalEvent path produced "Action 'X' is not handled".
+                case "ExportDashboardHTML":    return new BIMManager.ExportDashboardHTMLCommand();
+                case "AutoMeetingMinutes":     return new BIMManager.AutoMeetingMinutesCommand();
+                case "BEPStageValidation":     return new BIMManager.BEPStageValidationCommand();
+                case "IssueRevisionLink":      return new BIMManager.IssueRevisionLinkCommand();
+                case "TagRevisionDiff":        return new BIMManager.TagRevisionDiffCommand();
+                case "AutoScheduleMeetings":   return new BIMManager.AutoScheduleMeetingsCommand();
+                case "COBieExtendedImport":    return new BIMManager.COBieExtendedImportCommand();
+                // "LinkIssueElements" alias defined above at ~line 1405 — removed the duplicate
+                // case here (CS0152). The alias still resolves via the earlier case.
                 // WF-02: EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand.
                 // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
                 // which is handled by the plugin hook fallback + error logging in RunCommandByTag.
@@ -1692,12 +1784,18 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("DrawingIssue"));
             presets.Add(GetBuiltInPreset("SpatialQA"));
 
+            // Phase 92: Speckle snapshot round-trip preset
+            presets.Add(GetBuiltInPreset("SpeckleSnapshot"));
+
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
 
             // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
             _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
             _cachedBuiltInPresetsDataPath = dataDir;
+
+            // Remove any null entries from failed lookups
+            presets.RemoveAll(p => p == null);
 
             // User-defined JSON files
             // Append user-defined JSON presets on top
@@ -2271,6 +2369,31 @@ namespace StingTools.Core
                         }
                     };
 
+                // Phase 108j — BOQ × BCC integration preset.
+                // Monthly cost review loop wiring the BOQ Cost Manager to
+                // the BIM Coordination Center: refresh costs, snapshot,
+                // compare to previous, validate containers (for COBie
+                // coherence), dashboard + weekly report for the meeting.
+                case "MonthlyCostReview":
+                    return new WorkflowPreset
+                    {
+                        Name = "Monthly Cost Review",
+                        Description = "BOQ × BCC integration — refresh rates, take a BOQ snapshot, compare to previous, raise issues on >10% category deltas, update Model Health, export report for the meeting.",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "BOQRefresh",           Label = "1. Refresh BOQ rates + parameters" },
+                            new WorkflowStep { CommandTag = "ValidateTags",         Label = "2. Validate tag compliance (BOQ quality gate)" },
+                            new WorkflowStep { CommandTag = "BOQSnapshotSave",      Label = "3. Save BOQ snapshot for this review cycle" },
+                            new WorkflowStep { CommandTag = "BOQSnapshotCompare",   Label = "4. Compare to previous snapshot", Optional = true },
+                            new WorkflowStep { CommandTag = "ComplianceGateCheck",  Label = "5. Compliance gate check",        Optional = true },
+                            new WorkflowStep { CommandTag = "ModelHealthDashboard", Label = "6. Update Model Health dashboard" },
+                            new WorkflowStep { CommandTag = "IssueDashboard",       Label = "7. Snapshot open issues list" },
+                            new WorkflowStep { CommandTag = "WeeklyCoordinatorReport", Label = "8. Generate HTML cost-review report" },
+                            new WorkflowStep { CommandTag = "BOQExportProfessional", Label = "9. Export Tender BOQ (priced copy for meeting)", Optional = true },
+                        }
+                    };
+
                 // Phase 68: BIM coordinator productivity presets
                 case "COBieReadiness":
                     return new WorkflowPreset
@@ -2322,6 +2445,22 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "FamilyStagePopulate", Label = "4. Re-populate spatial tokens" },
                             new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate updated tags" },
                             new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "6. Show compliance dashboard" },
+                        }
+                    };
+
+                // Phase 92: Speckle snapshot round-trip preset
+                case "SpeckleSnapshot":
+                    return new WorkflowPreset
+                    {
+                        Name = "SpeckleSnapshot",
+                        Description = "Diff model against last snapshot, push to Speckle, capture compliance and warnings.",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "SpeckleDiff",         Label = "1. Diff against last Speckle snapshot" },
+                            new WorkflowStep { CommandTag = "SpeckleSend",         Label = "2. Export tagged elements to snapshot" },
+                            new WorkflowStep { CommandTag = "ComplianceSnapshot",  Label = "3. Capture compliance snapshot" },
+                            new WorkflowStep { CommandTag = "WarningsSummary",     Label = "4. Capture warnings summary" },
                         }
                     };
 

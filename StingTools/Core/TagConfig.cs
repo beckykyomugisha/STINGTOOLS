@@ -1890,11 +1890,18 @@ namespace StingTools.Core
         /// </summary>
         private static void LoadCategoryWarningsFromTagConfigCsvs()
         {
+            // Routed through HandoverModeHelper so a DesignConstruction project
+            // picks up warnings from the DC-variant CSVs and a Handover project
+            // keeps using the default CSVs. Missing variants fall back to the
+            // Handover defaults, so this is safe in any install.
+            // Pass (Document)null so the helper falls through to the
+            // PARAGRAPH_PRESETS.json active_preset (mode set by the last user
+            // Apply); the string-mode overload would short-circuit to Handover.
             string[] csvFiles = new[]
             {
-                "STING_TAG_CONFIG_v5_0_ARCH.csv",
-                "STING_TAG_CONFIG_v5_0_MEP.csv",
-                "STING_TAG_CONFIG_v5_0_STR.csv"
+                HandoverModeHelper.GetTagConfigCsv("ARCH", (Document)null),
+                HandoverModeHelper.GetTagConfigCsv("MEP",  (Document)null),
+                HandoverModeHelper.GetTagConfigCsv("STR",  (Document)null),
             };
 
             int added = 0;
@@ -2042,6 +2049,8 @@ namespace StingTools.Core
                     File.WriteAllText(tmp, JsonConvert.SerializeObject(data, Formatting.Indented));
                     try { File.Replace(tmp, ConfigSource, ConfigSource + ".bak"); }
                     catch { File.Copy(tmp, ConfigSource, true); try { File.Delete(tmp); } catch { } }
+                    // Invalidate cached config — GetConfigValue will re-read on next hit.
+                    lock (_cfgCacheLock) { _cfgCached = null; _cfgCachedPath = null; _cfgCachedMTicks = 0; }
                 }
                 catch (Exception ex)
                 {
@@ -2050,14 +2059,52 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>AE-02: Read a single config key from project_config.json. Returns null if not found.</summary>
-        public static string GetConfigValue(string key)
+        // AE-02 cache — GetConfigValue was hit from dashboards / command
+        // entry points and re-read + re-parsed project_config.json on every
+        // call. Cache the deserialised dictionary keyed by (path, mtime)
+        // so repeated reads are zero I/O.
+        private static readonly object _cfgCacheLock = new object();
+        private static string _cfgCachedPath;
+        private static long _cfgCachedMTicks;
+        private static Dictionary<string, object> _cfgCached;
+
+        private static Dictionary<string, object> LoadConfigCached()
         {
             try
             {
                 if (string.IsNullOrEmpty(ConfigSource) || !File.Exists(ConfigSource)) return null;
+                long mtime = File.GetLastWriteTimeUtc(ConfigSource).Ticks;
+                lock (_cfgCacheLock)
+                {
+                    if (_cfgCached != null
+                        && string.Equals(_cfgCachedPath, ConfigSource, StringComparison.OrdinalIgnoreCase)
+                        && _cfgCachedMTicks == mtime)
+                        return _cfgCached;
+                }
                 string json = File.ReadAllText(ConfigSource);
                 var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
+                lock (_cfgCacheLock)
+                {
+                    _cfgCached = data;
+                    _cfgCachedPath = ConfigSource;
+                    _cfgCachedMTicks = mtime;
+                }
+                return data;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadConfigCached: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>AE-02: Read a single config key from project_config.json. Returns null if not found.
+        /// Uses a (path, mtime) cache so repeat reads never touch disk.</summary>
+        public static string GetConfigValue(string key)
+        {
+            try
+            {
+                var data = LoadConfigCached();
                 if (data != null && data.TryGetValue(key, out object val) && val != null)
                     return val.ToString();
             }
@@ -2674,11 +2721,15 @@ namespace StingTools.Core
                                    : "";
             string seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
 
-            string tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
+            // PERF: hoist the tag body ("[prefix-]disc-loc-zone-lvl-sys-func-prod-")
+            // and the suffix tail ("[-suffix]") outside the collision loop so only
+            // the SEQ segment needs to re-concatenate per collision iteration.
+            string tagBody = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod);
+            if (!string.IsNullOrEmpty(TagPrefix)) tagBody = TagPrefix + Separator + tagBody;
+            tagBody += Separator;
+            string tagSuffix = string.IsNullOrEmpty(TagSuffix) ? string.Empty : Separator + TagSuffix;
 
-            // TW-03: Apply optional tag prefix and suffix
-            if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
-            if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+            string tag = tagBody + seq + tagSuffix;
 
             // Collision detection: if this exact tag already exists, increment SEQ
             if (existingTags != null)
@@ -2699,10 +2750,7 @@ namespace StingTools.Core
                         return false; // Skip element to prevent duplicate tags
                     }
                     seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
-                    tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
-                    // TW-03: Re-apply prefix/suffix after collision rebuild
-                    if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
-                    if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+                    tag = tagBody + seq + tagSuffix;
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
@@ -2893,9 +2941,33 @@ namespace StingTools.Core
                 // display variant immediately (default = PROD-SEQ mode 2)
                 ParameterHelpers.SetIfEmpty(el, "STING_DISPLAY_MODE", ParamRegistry.DisplayModeDefault.ToString());
 
-                // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
-                // Tier 1 content is visible in tag families after tagging)
-                ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
+                // ORPHAN-FIX: honour the Tokens & Depth paragraph-depth slider.
+                // When the user has pushed a ParaDepth value from the sub-tab we
+                // overwrite all 10 PARA_STATE BOOLs so tiers 1..N are enabled and
+                // tiers N+1..10 are disabled. When the slider hasn't been touched
+                // we keep the historic behaviour of only seeding PARA_STATE_1 to
+                // avoid stomping manual tier selections.
+                int paraDepth = 0;
+                try
+                {
+                    string pd = StingTools.UI.StingCommandHandler.GetExtraParam("ParaDepth");
+                    if (!string.IsNullOrEmpty(pd) && int.TryParse(pd, out int v) && v >= 1 && v <= 10)
+                        paraDepth = v;
+                }
+                catch { /* ignore — use default */ }
+
+                if (paraDepth >= 1)
+                {
+                    string[] paraStates = ParamRegistry.AllParaStates;
+                    for (int i = 0; i < paraStates.Length; i++)
+                        ParameterHelpers.SetYesNo(el, paraStates[i], i < paraDepth, overwrite: true);
+                }
+                else
+                {
+                    // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
+                    // Tier 1 content is visible in tag families after tagging)
+                    ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
+                }
 
                 // TAG_WARN_VISIBLE_BOOL = No (default off — prevents expensive per-element
                 // warning evaluation on every WriteTag7All call for large models)
@@ -2971,6 +3043,19 @@ namespace StingTools.Core
             // Mode 0 means unset — use the configurable default from ParamRegistry
             if (mode == 0) mode = ParamRegistry.DisplayModeDefault;
             string display = BuildDisplayTag(el, mode);
+
+            // ORPHAN-FIX: honour the Tokens & Depth TokenMask when the user is in
+            // full 8-segment mode. Other modes already display subsets.
+            try
+            {
+                if (mode == 5 || mode == 0)
+                {
+                    string mask = StingTools.UI.StingCommandHandler.GetExtraParam("TokenMask");
+                    if (!string.IsNullOrEmpty(mask) && mask.Length >= 8 && mask != "11111111")
+                        display = ApplySegmentMask(display, mask);
+                }
+            }
+            catch { /* mask is an optional UX hint — ignore failures */ }
             if (!string.IsNullOrEmpty(display))
             {
                 try
@@ -5327,9 +5412,34 @@ namespace StingTools.Core
             }
 
             // ISO reference always added with connecting language
-            string fullTag = string.Join(Separator, tokenValues);
-            if (!string.IsNullOrEmpty(TagPrefix)) fullTag = TagPrefix + Separator + fullTag;
-            if (!string.IsNullOrEmpty(TagSuffix)) fullTag = fullTag + Separator + TagSuffix;
+            // S02 defensive guards — trap upstream token corruption so the narrative stays readable
+            // even when a PROD/SYS/etc. writer accidentally concatenated multiple descriptors into
+            // one token slot, or when TagPrefix/TagSuffix already appears in the joined string.
+            string[] isoTokens = new string[tokenValues.Length];
+            for (int i = 0; i < tokenValues.Length; i++)
+            {
+                string v = tokenValues[i];
+                if (!string.IsNullOrEmpty(v) && !string.IsNullOrEmpty(Separator) && v.Contains(Separator))
+                {
+                    StingLog.Warn($"BuildTag7Sections: token[{i}]='{v}' contains separator '{Separator}'. " +
+                                  $"ElementId={el?.Id}. Truncating to first segment.");
+                    v = v.Split(new[] { Separator }, 2, StringSplitOptions.None)[0];
+                }
+                isoTokens[i] = v;
+            }
+            string fullTag = string.Join(Separator, isoTokens);
+            if (!string.IsNullOrEmpty(TagPrefix) &&
+                !fullTag.StartsWith(TagPrefix + Separator, StringComparison.Ordinal) &&
+                !fullTag.StartsWith(TagPrefix, StringComparison.Ordinal))
+            {
+                fullTag = TagPrefix + Separator + fullTag;
+            }
+            if (!string.IsNullOrEmpty(TagSuffix) &&
+                !fullTag.EndsWith(Separator + TagSuffix, StringComparison.Ordinal) &&
+                !fullTag.EndsWith(TagSuffix, StringComparison.Ordinal))
+            {
+                fullTag = fullTag + Separator + TagSuffix;
+            }
             if (classPlain.Length > 0) { classPlain.Append(". Assigned "); classMarked.Append(". Assigned "); }
             classPlain.Append($"ISO 19650 tag {fullTag}");
             classMarked.Append($"\u00ABL\u00BBISO 19650 tag\u00AB/L\u00BB \u00ABH\u00BB{fullTag}\u00AB/H\u00BB");
@@ -5646,7 +5756,7 @@ namespace StingTools.Core
 
             // U-value checks
             if (wp.Contains("U_VALUE"))
-                return ParameterHelpers.GetString(el, "PER_THERM_U_VALUE_W_M2K_NR");
+                return ParameterHelpers.GetString(el, "PER_THERM_U_VALUE_W_M2K");
             // Voltage drop
             if (wp.Contains("VLT_DROP"))
                 return ParameterHelpers.GetString(el, ParamRegistry.ELC_VOLTAGE);
@@ -5705,7 +5815,7 @@ namespace StingTools.Core
                 return ParameterHelpers.GetString(el, "BLE_CW_PANEL_SHGC");
             // Window U-value
             if (wp.Contains("WINDOW_U_VALUE"))
-                return ParameterHelpers.GetString(el, "BLE_WINDOW_U_VALUE");
+                return ParameterHelpers.GetString(el, "BLE_WINDOW_U_VALUE_W_M_2K_NR");
             // Rail height
             if (wp.Contains("RAIL_HEIGHT"))
                 return ParameterHelpers.GetString(el, "BLE_RAIL_HEIGHT_MM");
@@ -5752,7 +5862,6 @@ namespace StingTools.Core
                 return ParameterHelpers.GetString(el, "ELC_PNL_SHORT_CIRCUIT_KA");
             // Spare ways
             if (wp.Contains("SPARE_WAYS"))
-                return ParameterHelpers.GetString(el, "ELC_PNL_SPARE_WAYS_PCT");
             // Pipe gradient
             if (wp.Contains("PIPE_GRADIENT"))
                 return ParameterHelpers.GetString(el, "PLM_PIPE_GRADIENT_PCT");

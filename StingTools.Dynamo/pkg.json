@@ -1,0 +1,32 @@
+{
+  "license": "Proprietary — Planscape / STING Tools",
+  "file_hash": null,
+  "name": "STING Tools",
+  "version": "1.0.0",
+  "description": "STING Tools ZeroTouch node library. 48+ nodes across Tag, Placement, Routing, Validation, MEP, Fabrication, BOQ, Sheets, Export, Standards categories. Every node delegates to the STING dock-panel command pipeline so the graph sees identical behaviour to manual button clicks.",
+  "group": "STING BIM",
+  "keywords": [
+    "STING",
+    "BIM",
+    "ISO 19650",
+    "CIBSE",
+    "MEP",
+    "Fabrication",
+    "BOQ",
+    "Automation"
+  ],
+  "dependencies": [],
+  "host_dependencies": [
+    "Revit"
+  ],
+  "contents": "Dynamo ZeroTouch library — StingTools.Dynamo.dll. Requires StingTools.dll loaded in Revit (installed as a Revit add-in). Samples folder contains 5 representative .dyn workflow graphs.",
+  "engine_version": "2.17.0.0",
+  "engine": "dynamo",
+  "engine_metadata": "",
+  "site_url": "",
+  "repository_url": "",
+  "contains_binaries": true,
+  "node_libraries": [
+    "StingTools.Dynamo, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+  ]
+}

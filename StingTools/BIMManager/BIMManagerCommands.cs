@@ -1447,7 +1447,7 @@ namespace StingTools.BIMManager
                 ["fire_safety"] = new JObject
                 {
                     ["building_safety_act_2022"] = "Golden Thread of building information maintained via STING tags",
-                    ["fire_rating_data"] = "BLE_FIRE_RATING_TXT parameter on all fire-rated elements",
+                    ["fire_rating_data"] = "PER_FIRE_RATING_HR parameter on all fire-rated elements",
                     ["fire_compartmentation"] = "Fire zones tracked via STING ZONE parameter",
                     ["evacuation_modelling"] = "Room and corridor data exported via STING COBie Space worksheet"
                 },
@@ -2050,9 +2050,13 @@ namespace StingTools.BIMManager
                     string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                     if (!string.IsNullOrEmpty(sys)) sysCodes.Add(sys);
                 }
-                modelData["element_counts_by_category"] = JObject.FromObject(
-                    countByCategory.OrderByDescending(kv => kv.Value)
-                    .Take(30).ToDictionary(kv => kv.Key, kv => kv.Value));
+                // Build JObject directly from the top-30 ordered pairs — the
+                // intermediate ToDictionary allocated a whole second dict just
+                // to hand JObject.FromObject something to serialize.
+                var topCategoriesObj = new JObject();
+                foreach (var kv in countByCategory.OrderByDescending(kv => kv.Value).Take(30))
+                    topCategoriesObj[kv.Key] = kv.Value;
+                modelData["element_counts_by_category"] = topCategoriesObj;
                 modelData["element_counts_by_discipline"] = JObject.FromObject(countByDisc);
                 modelData["system_codes_in_use"] = new JArray(sysCodes.OrderBy(s => s));
                 modelData["tagged_elements"] = totalTagged;
@@ -5413,7 +5417,7 @@ namespace StingTools.BIMManager
                     csv.AppendLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
                     foreach (var row in ws.Value)
                         csv.AppendLine(string.Join(",", headers.Select(h =>
-                            $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
+                            $"\"{(row.TryGetValue(h, out var v) ? v?.Replace("\"", "\"\"") : "")}\"")));
 
                     try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
                     catch (Exception ex) { StingLog.Warn($"COBie {ws.Key}: {ex.Message}"); }
@@ -5514,10 +5518,13 @@ namespace StingTools.BIMManager
                 }
             }
 
-            // Add missing resource types
-            string createdBy = resources.Count > 0 && resources[0].ContainsKey("CreatedBy") ? resources[0]["CreatedBy"] : Environment.UserName;
+            // Add missing resource types — TryGetValue avoids the
+            // ContainsKey+indexer double-lookup on every row.
+            string createdBy = Environment.UserName;
+            if (resources.Count > 0 && resources[0].TryGetValue("CreatedBy", out var cbv)) createdBy = cbv;
             string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
-            var existing = new HashSet<string>(resources.Select(r => r.ContainsKey("Name") ? r["Name"] : ""));
+            var existing = new HashSet<string>(resources.Select(r =>
+                r.TryGetValue("Name", out var nv) ? nv : ""));
 
             foreach (var kvp in enhancements)
             {
@@ -5536,9 +5543,11 @@ namespace StingTools.BIMManager
         /// <summary>Enhance Impact worksheet with lifecycle cost analysis, carbon per m², and energy benchmarks.</summary>
         private static void EnhanceImpactWorksheet(Document doc, List<Dictionary<string, string>> impacts)
         {
-            string createdBy = impacts.Count > 0 && impacts[0].ContainsKey("CreatedBy") ? impacts[0]["CreatedBy"] : Environment.UserName;
+            string createdBy = Environment.UserName;
+            if (impacts.Count > 0 && impacts[0].TryGetValue("CreatedBy", out var icbv)) createdBy = icbv;
             string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
-            var seen = new HashSet<string>(impacts.Select(i => i.ContainsKey("Name") ? i["Name"] : ""));
+            var seen = new HashSet<string>(impacts.Select(i =>
+                i.TryGetValue("Name", out var nv) ? nv : ""));
 
             // Add building-level energy benchmarks
             var benchmarks = new[]
@@ -5657,6 +5666,52 @@ namespace StingTools.BIMManager
             transmittals.Add(transmittal);
             BIMManagerEngine.SaveJsonFile(txPath, transmittals);
 
+            // Template engine v1.1 (S10): run the same transmittal through the
+            // orchestrator so MiniWord renders the B06 template, WorkflowEngine
+            // starts a transmittal_default instance, and AuditLog records
+            // doc.rendered. Existing behaviour (text summary + TB stamping
+            // below) is untouched; failures here are logged and ignored.
+            string orchestratedRenderPath = null;
+            string orchestratedTemplateId = null;
+            string orchestratedWorkflowId = null;
+            try
+            {
+                var req = new Planscape.Docs.Templates.TransmittalRequest
+                {
+                    TransmittalId   = transmittal["transmittal_id"]?.ToString(),
+                    TemplateFamily  = "B",
+                    Subject         = $"Transmittal {transmittal["transmittal_id"]}",
+                    Reason          = "Model drop per MIDP schedule",
+                    Method          = "Email",
+                    IssueDate       = DateTime.UtcNow,
+                    IssuedBy        = Environment.UserName,
+                    CoveringNote    = $"Suitability {suitability} — {BIMManagerEngine.SuitabilityCodes[suitability]}",
+                    Documents       = outgoingIds.Select(id => new Planscape.Docs.Templates.TransmittalDocumentRef
+                    {
+                        Number = id?.ToString(), Title = id?.ToString(), Suitability = suitability, Type = "DR"
+                    }).ToList()
+                };
+                var orchResult = Planscape.Docs.Templates.TransmittalOrchestrator.Create(doc, req);
+                if (orchResult?.Ok == true)
+                {
+                    orchestratedRenderPath = orchResult.DocxPath;
+                    orchestratedTemplateId = orchResult.TemplateId;
+                    orchestratedWorkflowId = orchResult.WorkflowInstanceId;
+                    transmittal["template_id"]          = orchestratedTemplateId;
+                    transmittal["rendered_file_path"]   = orchestratedRenderPath;
+                    transmittal["workflow_instance_id"] = orchestratedWorkflowId;
+                    BIMManagerEngine.SaveJsonFile(txPath, transmittals);
+                }
+                else
+                {
+                    StingLog.Warn($"CreateTransmittalCommand orchestrator: {orchResult?.Error}");
+                }
+            }
+            catch (Exception orchEx)
+            {
+                StingLog.Warn($"CreateTransmittalCommand orchestrator delegation failed: {orchEx.Message}");
+            }
+
             var pi = doc.ProjectInformation;
             var note = new StringBuilder();
             note.AppendLine("╔══════════════════════════════════════════════════════╗");
@@ -5672,6 +5727,14 @@ namespace StingTools.BIMManager
             note.AppendLine($"  Documents:       {outgoingIds.Count} attached from register");
             note.AppendLine();
             note.AppendLine($"  Edit: {txPath}");
+            if (!string.IsNullOrEmpty(orchestratedRenderPath))
+            {
+                note.AppendLine();
+                note.AppendLine($"  Rendered:        {orchestratedRenderPath}");
+                note.AppendLine($"  Template:        {orchestratedTemplateId}");
+                if (!string.IsNullOrEmpty(orchestratedWorkflowId))
+                    note.AppendLine($"  Workflow ID:     {orchestratedWorkflowId}");
+            }
 
             // Save text version
             string txtPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
@@ -5681,6 +5744,38 @@ namespace StingTools.BIMManager
 
             TaskDialog.Show("STING Transmittal", note.ToString());
             StingLog.Info($"Transmittal: {transmittal["transmittal_id"]}, {outgoingIds.Count} docs");
+
+            // Phase 97 — spec §6.2/§7.7: offer to stamp PRJ_TB_LAST_TRANSMITTAL_* on sheets
+            // in this transmittal so title-block Band 6 reflects the new submission.
+            try
+            {
+                var stampDlg = new TaskDialog("STING Title Block — Stamp Sheets");
+                stampDlg.MainInstruction = "Stamp transmittal on sheet title blocks?";
+                stampDlg.MainContent = $"Mirror transmittal {transmittal["transmittal_id"]} onto " +
+                    "PRJ_TB_LAST_TRANSMITTAL_TXT, PRJ_TB_LAST_TRANSMITTAL_DATE_TXT, and the " +
+                    "PRJ_TB_DELIVERABLE_* parameters for the sheets you pick.";
+                stampDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Pick sheets and stamp");
+                stampDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Skip — don't stamp sheets");
+                if (stampDlg.Show() == TaskDialogResult.CommandLink1)
+                {
+                    var allSheets = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet))
+                        .Cast<ViewSheet>().Where(s => !s.IsPlaceholder)
+                        .OrderBy(s => s.SheetNumber).ToList();
+                    var sheetItems = allSheets.Select(s => new Select.StingListPicker.ListItem
+                    { Label = $"{s.SheetNumber} - {s.Name}", Tag = s }).ToList();
+                    var picked = Select.StingListPicker.Show("Stamp Transmittal",
+                        $"Stamp {transmittal["transmittal_id"]} on which sheets?", sheetItems, true);
+                    if (picked != null && picked.Count > 0)
+                    {
+                        var sel = picked.Select(p => p.Tag as ViewSheet).Where(s => s != null).ToList();
+                        int n = Docs.TransmittalStamper.Stamp(doc, sel, transmittal, deliverable: null);
+                        TaskDialog.Show("STING Transmittal Stamp",
+                            $"Stamped {n} sheet(s) with transmittal {transmittal["transmittal_id"]}.");
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TB auto-stamp after CreateTransmittal failed: {ex.Message}"); }
+
             return Result.Succeeded;
         }
     }
@@ -6160,7 +6255,7 @@ namespace StingTools.BIMManager
                 csv.AppendLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
                 foreach (var row in ws.Value)
                     csv.AppendLine(string.Join(",", headers.Select(h =>
-                        $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
+                        $"\"{(row.TryGetValue(h, out var v) ? v?.Replace("\"", "\"\"") : "")}\"")));
                 try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
                 catch (Exception ex) { StingLog.Warn($"COBie CSV write failed for {ws.Key}: {ex.Message}"); }
             }
@@ -9109,21 +9204,30 @@ namespace StingTools.BIMManager
 
                 var now = DateTime.Now;
                 int total = issues.Count;
-                int open = issues.Count(i => i["status"]?.ToString() != "CLOSED" && i["status"]?.ToString() != "VOID");
-                int closed = issues.Count(i => i["status"]?.ToString() == "CLOSED");
-                int overdue = issues.Count(i =>
+                // Single-pass tally — previous impl enumerated `issues` five
+                // times (Count, two filtered Counts, three GroupBy+ToDictionary).
+                int open = 0, closed = 0, overdue = 0;
+                var byType = new Dictionary<string, int>();
+                var byPriority = new Dictionary<string, int>();
+                var byStatus = new Dictionary<string, int>();
+                foreach (var i in issues)
                 {
-                    string status = i["status"]?.ToString() ?? "";
-                    if (status == "CLOSED" || status == "VOID") return false;
-                    return DateTime.TryParse(i["date_due"]?.ToString(), out DateTime due) && due < now;
-                });
+                    string status = i["status"]?.ToString() ?? "?";
+                    string type = i["type"]?.ToString() ?? "?";
+                    string priority = i["priority"]?.ToString() ?? "?";
 
-                var byType = issues.GroupBy(i => i["type"]?.ToString() ?? "?")
-                    .ToDictionary(g => g.Key, g => g.Count());
-                var byPriority = issues.GroupBy(i => i["priority"]?.ToString() ?? "?")
-                    .ToDictionary(g => g.Key, g => g.Count());
-                var byStatus = issues.GroupBy(i => i["status"]?.ToString() ?? "?")
-                    .ToDictionary(g => g.Key, g => g.Count());
+                    if (status == "CLOSED") closed++;
+                    else if (status != "VOID") open++;
+
+                    if (status != "CLOSED" && status != "VOID"
+                        && DateTime.TryParse(i["date_due"]?.ToString(), out DateTime due)
+                        && due < now)
+                        overdue++;
+
+                    byType.TryGetValue(type, out int tc); byType[type] = tc + 1;
+                    byPriority.TryGetValue(priority, out int pc); byPriority[priority] = pc + 1;
+                    byStatus.TryGetValue(status, out int sc); byStatus[status] = sc + 1;
+                }
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"Issue Statistics — {total} total");

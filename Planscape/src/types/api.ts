@@ -1,4 +1,4 @@
-/** Matches StingBIM.Core entity shapes */
+/** Matches Planscape.Core entity shapes */
 
 export interface LoginRequest {
   email: string;
@@ -59,12 +59,64 @@ export interface BimIssue {
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
   assignee: string;
+  assigneeEmail?: string;
+  assigneeUserId?: string;
   discipline: string;
   revision: string;
   elementIds: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  dueDate?: string;
+  resolvedAt?: string;
+  isOverdue?: boolean;
+  daysOpen?: number;
+  latitude?: number;
+  longitude?: number;
+  locationAccuracy?: number;
+  deviceId?: string;
+  source?: 'mobile' | 'plugin' | 'web' | 'mobile-bridge';
+  attachmentCount?: number;
+  // MODEL-VIEWER — 3D anchor. Populated when the issue was raised from the
+  // viewer's "create issue here" action.
+  modelId?: string | null;
+  modelElementGuid?: string | null;
+  modelX?: number | null;
+  modelY?: number | null;
+  modelZ?: number | null;
+}
+
+/** NEW-INFO-06/07 — Activity timeline entries surfaced from AuditLog. */
+export interface IssueActivityEntry {
+  id: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | string;
+  entityType: string;
+  entityId: string;
+  userName?: string;
+  timestamp: string;
+  details?: Record<string, unknown>;
+}
+
+export interface ProjectMember {
+  userId: string;
+  email: string;
+  displayName: string;
+  projectRole: string;
+  iso19650Role: string;
+}
+
+export interface IssueAttachment {
+  id: string;
+  issueId: string;
+  documentId: string;
+  fileName: string;
+  contentType: string;
+  thumbnailUrl?: string;
+  /** Phase 94 — authenticated URL for the raw attachment binary (preferred) or
+   *  full-size variant when the server exposes it. Consumed by the mobile
+   *  photo gallery in app/(tabs)/issue-detail.tsx. */
+  url?: string;
+  uploadedAt: string;
 }
 
 export interface DocumentRecord {
@@ -117,8 +169,91 @@ export interface TaggedElement {
 
 export interface OfflineAction {
   id: string;
-  type: 'CREATE_ISSUE' | 'UPDATE_ISSUE' | 'TRANSITION_CDE';
+  /** Phase 94 adds ATTACH_PHOTO for mobile photo uploads queued when offline. */
+  type: 'CREATE_ISSUE' | 'UPDATE_ISSUE' | 'TRANSITION_CDE' | 'ATTACH_PHOTO';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;
+  /** Phase 96 — retry bookkeeping. Actions move to failed side-queue at 3. */
+  retryCount?: number;
+  lastError?: string;
+  /** N-G17 — exponential-backoff gate: epoch ms when this action may retry. */
+  nextRetryAt?: number;
+}
+
+// ── NEW-INT-01 — entities the mobile app can now list/read ────────────
+
+export interface Transmittal {
+  id: string;
+  projectId: string;
+  transmittalNumber: string;
+  subject: string;
+  issuedBy: string;
+  issuedTo: string;
+  status: 'DRAFT' | 'SENT' | 'ACKNOWLEDGED';
+  createdAt: string;
+  sentAt?: string;
+  documentCount?: number;
+}
+
+export interface Meeting {
+  id: string;
+  projectId: string;
+  title: string;
+  type: string;
+  scheduledAt: string;
+  status: string;
+  organiser: string;
+  actionItemCount?: number;
+}
+
+export interface WorkflowRun {
+  id: string;
+  projectId: string;
+  presetName: string;
+  userName: string;
+  stepsPassed: number;
+  stepsFailed: number;
+  stepsSkipped: number;
+  durationMs: number;
+  complianceBefore: number;
+  complianceAfter: number;
+  executedAt: string;
+}
+
+export interface WarningRecord {
+  id: string;
+  projectId: string;
+  category: string;
+  severity: string;
+  description: string;
+  elementId?: string;
+  createdAt: string;
+}
+
+export interface ProjectSettings {
+  issueTypes: string[];
+  priorities: string[];
+  disciplines: string[];
+  cdeStates: string[];
+  suitabilityCodes: string[];
+  limits: { maxAttachmentMB: number; maxDocumentMB: number; maxPhotosPerIssue: number };
+  slaHours: { critical: number; high: number; medium: number; low: number };
+  geofence: { hasBoundary: boolean; requireBoundary: boolean };
+}
+
+export interface NotificationPreferences {
+  id: string;
+  userId: string;
+  tenantId: string;
+  issuesEnabled: boolean;
+  complianceEnabled: boolean;
+  revisionsEnabled: boolean;
+  meetingsEnabled: boolean;
+  slaBreachesEnabled: boolean;
+  channel: 'push' | 'email' | 'signalr' | 'all';
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  timeZone?: string;
+  updatedAt: string;
 }

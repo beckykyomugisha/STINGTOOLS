@@ -100,6 +100,13 @@ namespace StingTools.UI
         internal static List<RoleDefinition>   GetLastPermissionsRoles()   => _lastPermissionsRoles.Count   > 0 ? _lastPermissionsRoles   : GetDefaultRoles();
         internal static List<FolderPermission> GetLastPermissionsFolders() => _lastPermissionsFolders.Count > 0 ? _lastPermissionsFolders : GetDefaultFolderPermissions();
 
+        /// <summary>Phase 103: return the live WarningRow list from the currently
+        /// open BCC instance (populated by BuildCoordData). Used by the
+        /// ZoomToWarning_ dispatch handler so it matches against real
+        /// FailingElement IDs instead of hitting doc.GetWarnings() twice.</summary>
+        internal static List<WarningRow> GetLastCoordWarnings()
+            => CurrentInstance?._data?.Warnings ?? new List<WarningRow>();
+
         // Phase 76: Singleton for modeless BCC
         public static BIMCoordinationCenter CurrentInstance { get; private set; }
 
@@ -132,7 +139,7 @@ namespace StingTools.UI
         private ContentControl _warningsDetailArea;      // Warnings full inline panel
         private ContentControl _coordLogDetailArea;      // Coord log filter + detail
         private ContentControl _permissionsDetailArea;   // Permissions inline
-        private ContentControl _stingBIMDetailArea;      // StingBIM hub detail
+        private ContentControl _planscapeDetailArea;      // Planscape hub detail
 #pragma warning restore CS0169
 
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
@@ -432,6 +439,10 @@ namespace StingTools.UI
             public string Status { get; set; }
             public string Agenda { get; set; }
             public int Attendees { get; set; }
+            // Phase 98: Chair must be a string (team member name). The DataGrid
+            // previously bound the Chair column to Attendees (int) which rendered
+            // the numeric attendee count instead of a person's name.
+            public string Chair { get; set; }
         }
 
         /// <summary>Phase 77 Item 6: Action item data row for inline grid.</summary>
@@ -504,6 +515,83 @@ namespace StingTools.UI
             public string Owner { get; set; }
             public string DueDate { get; set; }
             public bool IsOverdue { get; set; }
+
+            // ── v1.0 template-engine fields (S02) ──
+            public string DocNumber { get; set; }
+            public string Revision { get; set; }
+            public string FunctionalBreakdown { get; set; } = "ZZ";
+            public string SpatialBreakdown { get; set; } = "XX";
+            public string Originator { get; set; } = "PLNS";
+            public string RoleCode { get; set; }
+            public string ContractorRef { get; set; }
+            public string System { get; set; }
+            public string Subsystem { get; set; }
+            public string EquipmentType { get; set; }
+            public string IssuedBy { get; set; }
+            public string ReviewedBy { get; set; }
+            public string ApprovedBy { get; set; }
+            public string Supersedes { get; set; }
+            public string SupersededBy { get; set; }
+            public List<RevisionHistoryEntry> RevisionHistory { get; set; } = new List<RevisionHistoryEntry>();
+            public List<HoldEntry> Holds { get; set; } = new List<HoldEntry>();
+            public List<ReferenceEntry> References { get; set; } = new List<ReferenceEntry>();
+
+            // ── v1.1 additions (workflow, signature, cross-links) ──
+            public string WorkflowState { get; set; }
+            public string AssignedTo { get; set; }
+            public DateTime? SlaDeadline { get; set; }
+            public List<WorkflowHistoryEntry> WorkflowHistory { get; set; } = new List<WorkflowHistoryEntry>();
+            public string FileHashSha256 { get; set; }
+            public List<string> Tags { get; set; } = new List<string>();
+            public List<string> RelatedTransmittalIds { get; set; } = new List<string>();
+            public List<string> RelatedRfiIds { get; set; } = new List<string>();
+            public bool RequiresSignature { get; set; }
+            public string SignatureStatus { get; set; } = "None";
+            public string SignedFilePath { get; set; }
+        }
+
+        /// <summary>Template engine v1.0 — revision history entry captured in DeliverableRow.RevisionHistory.</summary>
+        internal class RevisionHistoryEntry
+        {
+            public string Revision { get; set; }
+            public string Suitability { get; set; }
+            public string Timestamp { get; set; }
+            public string User { get; set; }
+            public string Reason { get; set; }
+            public string TemplateId { get; set; }
+            public string RenderedFilePath { get; set; }
+        }
+
+        /// <summary>Template engine v1.0 — hold entry captured in DeliverableRow.Holds.</summary>
+        internal class HoldEntry
+        {
+            public string Id { get; set; }
+            public string Description { get; set; }
+            public string RaisedBy { get; set; }
+            public string RaisedAt { get; set; }
+            public string ClearedBy { get; set; }
+            public string ClearedAt { get; set; }
+            public bool IsOpen { get; set; } = true;
+        }
+
+        /// <summary>Template engine v1.0 — reference row captured in DeliverableRow.References.</summary>
+        internal class ReferenceEntry
+        {
+            public string RefType { get; set; }    // "Drawing", "Spec", "Standard", "RFI", "External"
+            public string RefId { get; set; }
+            public string RefTitle { get; set; }
+            public string RefUrl { get; set; }
+        }
+
+        /// <summary>Template engine v1.1 — workflow history entry captured in DeliverableRow.WorkflowHistory.</summary>
+        internal class WorkflowHistoryEntry
+        {
+            public string Timestamp { get; set; }
+            public string FromState { get; set; }
+            public string ToState { get; set; }
+            public string Action { get; set; }
+            public string User { get; set; }
+            public string Comment { get; set; }
         }
 
         /// <summary>Phase 49: Coordination log entry for audit trail.</summary>
@@ -598,7 +686,10 @@ namespace StingTools.UI
         private BIMCoordinationCenter(CoordData data)
         {
             _data = data;
-            Title = "STING BIM Coordination Center";
+            // Phase 104: Rebranded — drop "STING" prefix per user request. The window is now
+            // titled just "BIM Coordination Center" so it reads as a role-based tool rather
+            // than a product feature. "STINGTOOLS BCC" appears in logs/audit trail only.
+            Title = "BIM Coordination Center";
             Width = 1200; Height = 820;
             MinWidth = 900; MinHeight = 600;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -606,22 +697,57 @@ namespace StingTools.UI
             FontFamily = new FontFamily("Segoe UI");
             ResizeMode = ResizeMode.CanResizeWithGrip;
 
-            // Fix window z-order: set Revit as owner and bring BCC to front after load
-            this.Loaded += (_, _) =>
+            // Phase 101: fix BCC z-order (BCC was dropping behind Revit when the
+            // Revit main window was clicked).
+            //
+            // WindowInteropHelper.Owner MUST be set BEFORE the window's HWND is
+            // realised — i.e. during SourceInitialized, not Loaded. Setting it
+            // in Loaded (Phase 98) was too late: by then the HWND was already
+            // parented to the desktop root, so Windows did not keep it z-ordered
+            // above the Revit main window. Moving the owner assignment to
+            // SourceInitialized means BCC behaves as a true child of Revit and
+            // stays above it for the life of the window.
+            this.SourceInitialized += (_, _) =>
             {
                 try
                 {
-                    // Try Revit-specific window class first, fall back to main process window
                     var revitHwnd = NativeMethods.FindWindow("Rvt_MainWindow", null);
-                    var handle = revitHwnd != IntPtr.Zero ? revitHwnd
+                    var handle = revitHwnd != IntPtr.Zero
+                        ? revitHwnd
                         : System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
                     if (handle != IntPtr.Zero)
                         new System.Windows.Interop.WindowInteropHelper(this).Owner = handle;
                 }
-                catch (Exception exOwner) { StingLog.Warn($"BIMCoordCenter window owner: {exOwner.Message}"); }
-                // Ensure BCC comes to front after Revit takes focus back
-                Dispatcher.BeginInvoke(new Action(() => { Topmost = true; Activate(); Focus(); Topmost = false; }),
-                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+                catch (Exception exOwner) { StingLog.Warn($"BIMCoordCenter SourceInitialized owner: {exOwner.Message}"); }
+            };
+            this.Loaded += (_, _) =>
+            {
+                // Pulse Topmost briefly so the BCC is brought to the front after
+                // Revit re-activates during startup. Leaving Topmost=true would
+                // force BCC above every Windows app (including browsers), which
+                // the user doesn't want — so we flip it back off on the next tick.
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    Topmost = true; Activate(); Focus(); Topmost = false;
+                }), System.Windows.Threading.DispatcherPriority.ContextIdle);
+            };
+
+            // Phase 104: when BCC regains activation (e.g. user alt-tabs back
+            // into it, or a child window closes), pulse Topmost briefly so it
+            // jumps over Revit's main window. Without this, closing a child
+            // sometimes leaves Revit's main window on top because the z-order
+            // fell down the chain Revit → BCC during the child's lifetime.
+            this.Activated += (_, _) =>
+            {
+                try
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (!IsActive) return;
+                        Topmost = true; Topmost = false;
+                    }), System.Windows.Threading.DispatcherPriority.ContextIdle);
+                }
+                catch { /* best effort */ }
             };
 
             var root = new Grid();
@@ -686,10 +812,11 @@ namespace StingTools.UI
                 }
                 if (e.Key == Key.F5)
                 {
-                    // Refresh current tab
-                    if (_currentTab != null && _tabCache.ContainsKey(_currentTab))
-                        _tabCache.Remove(_currentTab);
-                    if (_currentTab != null) NavigateTo(_currentTab);
+                    // Phase 101: F5 now triggers a full reload (rebuild CoordData
+                    // on the API thread, re-render the current tab) — same as
+                    // the Refresh button on the header. Previously F5 only
+                    // re-rendered the cached tab without refreshing model data.
+                    ReloadAll();
                     e.Handled = true;
                 }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.E)
@@ -748,7 +875,7 @@ namespace StingTools.UI
             var leftStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             leftStack.Children.Add(new TextBlock
             {
-                Text = "STING BIM COORDINATION CENTER",
+                Text = "BIM COORDINATION CENTER",
                 Foreground = Brushes.White, FontSize = 16, FontWeight = FontWeights.Bold,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 20, 0)
             });
@@ -760,9 +887,32 @@ namespace StingTools.UI
             });
             hGrid.Children.Add(leftStack);
 
-            // Right: RAG indicator + compliance + date
+            // Right: Refresh + RAG indicator + compliance + date
             var rightStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(rightStack, 1);
+
+            // Phase 101: Refresh button FIRST in the right stack so it sits to
+            // the LEFT of the compliance % per user feedback. Rebuilds
+            // CoordData on the Revit API thread via ExternalEvent, wipes the
+            // tab cache so EVERY tab (not just the current one) re-renders on
+            // next visit, and shows the current tab with fresh data
+            // immediately. Same behaviour as F5.
+            var refreshBtn = new Button
+            {
+                Content = "\u21BB  Refresh",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Background = Br(Color.FromRgb(0x1E, 0x88, 0xE5)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(10, 3, 10, 3),
+                Margin = new Thickness(0, 0, 14, 0),
+                Cursor = Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Reload every BCC tab from the current model state (F5 also works). Rebuilds compliance, warnings, issues, revisions, workflows, QA, 4D/5D, deliverables, meetings, team, and coord log."
+            };
+            refreshBtn.Click += (s, e) => ReloadAll();
+            rightStack.Children.Add(refreshBtn);
 
             // RAG circle
             var ragColor = _data.RAGStatus == "GREEN" ? CGreen : _data.RAGStatus == "AMBER" ? CAmber : CRed;
@@ -780,6 +930,7 @@ namespace StingTools.UI
                 Foreground = Br(Color.FromRgb(0x90, 0xCA, 0xF9)), FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center
             });
+
             hGrid.Children.Add(rightStack);
 
             header.Child = hGrid;
@@ -1068,6 +1219,22 @@ namespace StingTools.UI
             actionsWrap.Children.Add(MakeActionButton("Validate Tags", "ValidateTags", Br(CGreen),
                 "Run ISO 19650 tag validation — checks all tokens, cross-validates DISC/SYS, reports 4-bucket compliance"));
             stack.Children.Add(actionsWrap);
+
+            // Phase 106: Coordination checks — surface rule-based clash, clearance and naming audits
+            // on the BCC Overview. Buttons dispatch through ActionDispatcher → BCCActionEventHandler →
+            // DispatchCoordAction → WorkflowEngine.GetCommandInstance, which resolves each tag to the
+            // matching StingTools.Temp command.
+            stack.Children.Add(MakeSectionHeader("COORDINATION CHECKS"));
+            var clashWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+            clashWrap.Children.Add(MakeActionButton("Run Clash Detection", "ClashDetection", Br(CRed),
+                "Rule-based MEP vs structural clash on the active model. Writes JSON report to 12_CLASHES."));
+            clashWrap.Children.Add(MakeActionButton("Cross-Model Clash", "CrossModelClash", Br(Color.FromRgb(0xAD, 0x14, 0x57)),
+                "Host MEP vs linked-model structural clash using each link's total transform."));
+            clashWrap.Children.Add(MakeActionButton("MEP Clearance", "MEPClearance", Br(CAmber),
+                "CIBSE Guide W / BS EN 12237 clearance audit: 200 mm ducts, 150 mm pipes. CSV report."));
+            clashWrap.Children.Add(MakeActionButton("Naming Audit", "NamingAudit", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                "BS 1192 / ISO 19650 view, sheet and workset naming audit. TSV report in .bimmanager."));
+            stack.Children.Add(clashWrap);
 
             // Phase 48b: Action Required section — top 3 priority items
             var actionRequired = new List<(string text, string action, SolidColorBrush color)>();
@@ -2391,7 +2558,7 @@ namespace StingTools.UI
                            "Issue types: RFI (Request for Information), NCR (Non-Conformance Report),\n" +
                            "SI (Site Instruction), Clash, Snagging, Design, Change Order\n\n" +
                            "Issues are stored in _bim_manager/issues.json alongside the project.\n" +
-                           "BCF 2.1 export/import supported for ACC, Navisworks, BIMcollab, Solibri.",
+                           "BCF 2.1 export/import supported for Planscape (native), ACC, Navisworks, BIMcollab, Solibri, Trimble Connect, BIM Track, Revizto, Bentley iTwin, Procore.",
                     FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.Gray
                 };
                 root.Children.Add(infoCard);
@@ -2425,34 +2592,122 @@ namespace StingTools.UI
         // ════════════════════════════════════════════════════════════════
 
         // ── ISO 19650 revision code catalogue ─────────────────────────────
+        // Phase 99: comprehensive revision series per ISO 19650 / BS 1192 / UK NA 2021.
+        // Groups: Tender (T) → Preliminary (P) → Contract (Co) → Construction (C)
+        // → Revision (R) → Building (B) → Digital (D) → Approved (A) → As-Built (Z/AB).
+        // Dropdown is grouped by Series, tooltips explain when each is used.
         private static readonly (string Code, string Label, string Series, string Tooltip)[] IsoRevisionCodes =
+            BuildIsoRevisionCodes();
+
+        // Phase 104: user-hidden ISO revision codes. BIM coordinators asked for a way to
+        // delete codes from the dropdown that are not relevant to their project (e.g., a
+        // residential project never uses IFT/IFP tender stamps). Persisted to
+        // project_config.json under key BCC_HIDDEN_ISO_REVISIONS as a CSV of codes.
+        private static HashSet<string> _hiddenIsoRevisions;
+        private static HashSet<string> HiddenIsoRevisions()
         {
-            ("P01","P01 — Preliminary Issue 1",       "Preliminary","First preliminary issue — brief/feasibility stage"),
-            ("P02","P02 — Preliminary Issue 2",       "Preliminary","Second preliminary stage submission"),
-            ("P03","P03 — Preliminary Issue 3",       "Preliminary","Third preliminary stage submission"),
-            ("P04","P04 — Preliminary Issue 4",       "Preliminary","Fourth preliminary stage submission"),
-            ("P05","P05 — Preliminary Issue 5",       "Preliminary","Fifth preliminary stage submission"),
-            ("P06","P06 — Preliminary Issue 6",       "Preliminary","Sixth preliminary stage submission"),
-            ("P07","P07 — Preliminary Issue 7",       "Preliminary","Seventh preliminary stage submission"),
-            ("P08","P08 — Preliminary Issue 8",       "Preliminary","Eighth preliminary stage submission"),
-            ("P09","P09 — Preliminary Issue 9",       "Preliminary","Ninth preliminary stage submission"),
-            ("P10","P10 — Preliminary Issue 10",      "Preliminary","Tenth preliminary stage submission"),
-            ("C01","C01 — Construction Issue 1",      "Construction","First construction issue — tender/build"),
-            ("C02","C02 — Construction Issue 2",      "Construction","Second construction issue"),
-            ("C03","C03 — Construction Issue 3",      "Construction","Third construction issue"),
-            ("C04","C04 — Construction Issue 4",      "Construction","Fourth construction issue"),
-            ("C05","C05 — Construction Issue 5",      "Construction","Fifth construction issue"),
-            ("C06","C06 — Construction Issue 6",      "Construction","Sixth construction issue"),
-            ("C07","C07 — Construction Issue 7",      "Construction","Seventh construction issue"),
-            ("C08","C08 — Construction Issue 8",      "Construction","Eighth construction issue"),
-            ("C09","C09 — Construction Issue 9",      "Construction","Ninth construction issue"),
-            ("C10","C10 — Construction Issue 10",     "Construction","Tenth construction issue"),
-            ("A",  "A   — As-Built Revision A",       "As-Built",   "First as-built revision — post-construction record"),
-            ("B",  "B   — As-Built Revision B",       "As-Built",   "Second as-built revision"),
-            ("C",  "C   — As-Built Revision C",       "As-Built",   "Third as-built revision"),
-            ("D",  "D   — As-Built Revision D",       "As-Built",   "Fourth as-built revision"),
-            ("E",  "E   — As-Built Revision E",       "As-Built",   "Fifth as-built revision"),
-        };
+            if (_hiddenIsoRevisions != null) return _hiddenIsoRevisions;
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string csv = Core.TagConfig.GetConfigValue("BCC_HIDDEN_ISO_REVISIONS");
+                if (!string.IsNullOrEmpty(csv))
+                    foreach (var c in csv.Split(',')) { var t = c.Trim(); if (t.Length > 0) set.Add(t); }
+            }
+            catch (Exception ex) { StingLog.Warn($"HiddenIsoRevisions load: {ex.Message}"); }
+            _hiddenIsoRevisions = set;
+            return set;
+        }
+        private static void SaveHiddenIsoRevisions()
+        {
+            try
+            {
+                var set = HiddenIsoRevisions();
+                Core.TagConfig.SetConfigValue("BCC_HIDDEN_ISO_REVISIONS", string.Join(",", set));
+            }
+            catch (Exception ex) { StingLog.Warn($"SaveHiddenIsoRevisions: {ex.Message}"); }
+        }
+
+        private static (string Code, string Label, string Series, string Tooltip)[] BuildIsoRevisionCodes()
+        {
+            var list = new List<(string, string, string, string)>();
+
+            // ── Tender (T-series) — used during tender / bid phase ─────────
+            for (int i = 1; i <= 10; i++)
+                list.Add(($"T{i:D2}", $"T{i:D2} — Tender Issue {i}",
+                    "Tender", $"Tender package issue {i} — pre-contract pricing / bid submission"));
+
+            // ── Preliminary (P-series) — PAS 1192-2 / ISO 19650-2 pre-contract ──
+            for (int i = 1; i <= 20; i++)
+                list.Add(($"P{i:D2}", $"P{i:D2} — Preliminary Issue {i}",
+                    "Preliminary", $"Preliminary issue {i} — design development / coordination before construction contract"));
+
+            // ── Contract (Co-series) — contract documentation (post-award) ──
+            for (int i = 1; i <= 10; i++)
+                list.Add(($"Co{i:D2}", $"Co{i:D2} — Contract Issue {i}",
+                    "Contract", $"Contract issue {i} — formally contracted documentation, pre-construction"));
+
+            // ── Construction (C-series) — construction-phase issue ────────
+            for (int i = 1; i <= 20; i++)
+                list.Add(($"C{i:D2}", $"C{i:D2} — Construction Issue {i}",
+                    "Construction", $"Construction issue {i} — authorised for building / manufacture"));
+
+            // ── Revision (R-series) — client-driven post-issue revisions ──
+            for (int i = 1; i <= 10; i++)
+                list.Add(($"R{i:D2}", $"R{i:D2} — Revision {i}",
+                    "Revision", $"Client-driven revision {i} after initial issue"));
+
+            // ── Building (B-series) — used on projects with partial sign-off (BS 1192 NA) ──
+            for (int i = 1; i <= 5; i++)
+                list.Add(($"B{i:D2}", $"B{i:D2} — Partial Sign-off {i}",
+                    "Building", $"Partial building sign-off stage {i} — occupation / phased handover"));
+
+            // ── Digital (D-series) — digital-only revisions / modelling updates ──
+            for (int i = 1; i <= 10; i++)
+                list.Add(($"D{i:D2}", $"D{i:D2} — Digital Revision {i}",
+                    "Digital", $"Digital-only revision {i} — model update without drawing reissue"));
+
+            // ── Approved (A1, A2) — client formal approval per ISO 19650-2 §5.6 ──
+            list.Add(("A1", "A1  — Approved",
+                "Approved", "Client-approved construction issue (ISO 19650-2 §5.6 unconditional approval)"));
+            list.Add(("A2", "A2  — Approved with Comments",
+                "Approved", "Client-approved with tracked comments — rework required before next revision"));
+
+            // ── As-Built (alphabetic A–Z series) — post-construction record ──
+            // Skip letters easily confused with series codes (C, D, P, R, T, B) to
+            // avoid accidental collisions with the numbered series above.
+            foreach (char ch in "AEFGHIJKLMNOQSUVWXYZ")
+                list.Add((ch.ToString(), $"{ch}   — As-Built Revision {ch}",
+                    "As-Built", $"As-built / record drawing revision {ch} — final post-construction record"));
+            // Allow AB suffix for projects that explicitly distinguish AB01+
+            for (int i = 1; i <= 10; i++)
+                list.Add(($"AB{i:D2}", $"AB{i:D2} — As-Built Record {i}",
+                    "As-Built", $"As-built record {i} — standardised AB-series used by some operators"));
+
+            // ── Special non-numeric codes commonly seen on UK projects ────
+            list.Add(("IFC", "IFC  — Issued for Coordination", "Special",
+                "Status stamp — document is being shared for clash / design coordination"));
+            list.Add(("IFA", "IFA  — Issued for Approval", "Special",
+                "Status stamp — document is issued for formal client / stage approval"));
+            list.Add(("IFR", "IFR  — Issued for Record", "Special",
+                "Status stamp — document is issued as the formal archival record"));
+            list.Add(("IFT", "IFT  — Issued for Tender", "Special",
+                "Status stamp — document is issued as part of the tender package"));
+            list.Add(("IFP", "IFP  — Issued for Planning", "Special",
+                "Status stamp — document is issued for planning permission submission"));
+            list.Add(("IFI", "IFI  — Issued for Information", "Special",
+                "Status stamp — document is issued for information only, not for design decisions"));
+            list.Add(("IFPT", "IFPT — Issued for Pre-Tender", "Special",
+                "Status stamp — document is issued ahead of formal tender for early supplier engagement"));
+            list.Add(("WD", "WD   — Withdrawn", "Special",
+                "Document has been withdrawn from the CDE — no longer valid, cannot be restored"));
+            list.Add(("SS", "SS   — Superseded", "Special",
+                "Document has been replaced by a newer revision — retained for traceability"));
+            list.Add(("OB", "OB   — Obsolete", "Special",
+                "Document is historically retained but not for use — terminal state"));
+
+            return list.ToArray();
+        }
 
         // ── ISO discipline codes for revisions / deliverables ─────────────
         private static readonly (string Code, string Label, Color Colour)[] IsoDisciplineCodes =
@@ -2615,6 +2870,55 @@ namespace StingTools.UI
             // ── Revision Register DataGrid ─────────────────────────────────
             stack.Children.Add(MakeSectionHeader("REVISION REGISTER"));
 
+            // Phase 103: inline pre-revision compliance banner. Replaces the
+            // Revit TaskDialog that used to pop up behind the BCC when tag
+            // compliance was below 80%. The banner reads CoordData.TagPct so
+            // it updates with every Refresh. A checkbox "Create anyway if
+            // below 80%" sets a flag we pass to CreateRevisionCommand via
+            // ExtraParam("RevisionComplianceAck"), replacing the modal
+            // decision with an inline one.
+            bool _revComplianceLow = _data.TagPct < 80;
+            var _revComplianceAckCheck = new CheckBox
+            {
+                Content = $"Create revision anyway below 80% (I accept that COBie data may be incomplete)",
+                IsChecked = !_revComplianceLow,
+                FontSize = 11,
+                Margin = new Thickness(0, 6, 0, 0),
+                ToolTip = "Tick this if you want to create a revision even though tag compliance is below 80%. Keep unchecked to guard the export pipeline."
+            };
+            if (_revComplianceLow)
+            {
+                var gateBorder = new Border
+                {
+                    Background = Br(Color.FromRgb(0xFF, 0xF3, 0xE0)),
+                    BorderBrush = Br(Color.FromRgb(0xE8, 0x91, 0x2D)),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(10, 8, 10, 8),
+                    Margin = new Thickness(0, 0, 0, 6)
+                };
+                var gateStack = new StackPanel();
+                gateStack.Children.Add(new TextBlock
+                {
+                    Text = $"\u26A0  Tag compliance is {_data.TagPct:F0}% (below the 80% revision gate).",
+                    FontWeight = FontWeights.Bold, FontSize = 12,
+                    Foreground = Br(Color.FromRgb(0xBF, 0x36, 0x00)),
+                    TextWrapping = TextWrapping.Wrap
+                });
+                gateStack.Children.Add(new TextBlock
+                {
+                    Text = $"Tagged: {_data.TaggedComplete}   |   Untagged: {_data.Untagged}   |   Stale: {_data.StaleCount}\n" +
+                           "Creating a revision with low compliance may result in incomplete COBie data.\n" +
+                           "Recommended: raise compliance to \u226580% before creating the revision.",
+                    FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                    Foreground = Br(Color.FromRgb(0x55, 0x40, 0x20)),
+                    Margin = new Thickness(0, 4, 0, 0)
+                });
+                gateStack.Children.Add(_revComplianceAckCheck);
+                gateBorder.Child = gateStack;
+                stack.Children.Add(gateBorder);
+            }
+
             // ── Create Revision inline form ────────────────────────────────
             var createFormBorder = new Border
             {
@@ -2632,30 +2936,64 @@ namespace StingTools.UI
             };
             stack.Children.Add(createFormHeader);
 
-            var codeDropdown = new ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0), MinWidth = 280, ToolTip = "Select ISO 19650 revision code" };
-            // Group: Preliminary
-            var prelimGroup = new ComboBoxItem { Content = "\u2500\u2500 PRELIMINARY (P-series) \u2500\u2500", IsEnabled = false, FontWeight = FontWeights.Bold, Foreground = Br(Color.FromRgb(0x15,0x65,0xC0)) };
-            codeDropdown.Items.Add(prelimGroup);
-            foreach (var rc in IsoRevisionCodes.Where(r => r.Series == "Preliminary"))
+            // Phase 101: IsEditable=true so coordinators can type a bespoke
+            // revision code directly into the combo (e.g. internal codes like
+            // "PQ-01" or stage-gate ids like "G3-A"). Typed values are taken
+            // as the Code verbatim; preset items still populate the Tag on
+            // selection. Helper below reads the right value depending on mode.
+            var codeDropdown = new ComboBox
             {
-                var item = new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip };
-                codeDropdown.Items.Add(item);
-            }
-            var constGroup = new ComboBoxItem { Content = "\u2500\u2500 CONSTRUCTION (C-series) \u2500\u2500", IsEnabled = false, FontWeight = FontWeights.Bold, Foreground = Br(Color.FromRgb(0x2E,0x7D,0x32)) };
-            codeDropdown.Items.Add(constGroup);
-            foreach (var rc in IsoRevisionCodes.Where(r => r.Series == "Construction"))
+                Height = 28, FontSize = 11, Margin = new Thickness(0, 0, 8, 0),
+                MinWidth = 280,
+                IsEditable = true,
+                IsTextSearchEnabled = true,
+                StaysOpenOnEdit = true,
+                ToolTip = "Select a preset ISO 19650 revision code, or type a custom code (9 series: Tender, Preliminary, Contract, Construction, Revision, Building, Digital, Approved, As-Built + status stamps)"
+            };
+            // Phase 99: all 9 series now rendered. Each series gets a coloured
+            // non-selectable header so BIM coordinators can see the section divisions.
+            void AddSeriesHeader(string label, Color headerColour)
             {
-                var item = new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip };
-                codeDropdown.Items.Add(item);
+                codeDropdown.Items.Add(new ComboBoxItem
+                {
+                    Content = $"\u2500\u2500 {label} \u2500\u2500",
+                    IsEnabled = false,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Br(headerColour)
+                });
             }
-            var asbuiltGroup = new ComboBoxItem { Content = "\u2500\u2500 AS-BUILT (Letter series) \u2500\u2500", IsEnabled = false, FontWeight = FontWeights.Bold, Foreground = Br(Color.FromRgb(0x6A,0x1B,0x9A)) };
-            codeDropdown.Items.Add(asbuiltGroup);
-            foreach (var rc in IsoRevisionCodes.Where(r => r.Series == "As-Built"))
+            // Phase 104: filter codes the user has hidden via the Delete button.
+            var hidden = HiddenIsoRevisions();
+            void AddSeries(string seriesKey, string header, Color headerColour)
             {
-                var item = new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip };
-                codeDropdown.Items.Add(item);
+                var entries = IsoRevisionCodes
+                    .Where(r => r.Series == seriesKey && !hidden.Contains(r.Code))
+                    .ToList();
+                if (entries.Count == 0) return;
+                AddSeriesHeader(header, headerColour);
+                foreach (var rc in entries)
+                    codeDropdown.Items.Add(new ComboBoxItem { Content = rc.Label, Tag = rc.Code, ToolTip = rc.Tooltip });
             }
-            codeDropdown.SelectedIndex = 1; // Default: P01
+            AddSeries("Tender",       "TENDER (T-series)",              Color.FromRgb(0x45, 0x50, 0x6E));
+            AddSeries("Preliminary",  "PRELIMINARY (P-series)",         Color.FromRgb(0x15, 0x65, 0xC0));
+            AddSeries("Contract",     "CONTRACT (Co-series)",           Color.FromRgb(0x00, 0x69, 0x7C));
+            AddSeries("Construction", "CONSTRUCTION (C-series)",        Color.FromRgb(0x2E, 0x7D, 0x32));
+            AddSeries("Revision",     "REVISION (R-series)",            Color.FromRgb(0xE8, 0x91, 0x2D));
+            AddSeries("Building",     "BUILDING / PARTIAL (B-series)",  Color.FromRgb(0x4E, 0x34, 0x2E));
+            AddSeries("Digital",      "DIGITAL (D-series)",             Color.FromRgb(0x6A, 0x1B, 0x9A));
+            AddSeries("Approved",     "APPROVED (A1/A2)",               Color.FromRgb(0x2E, 0x7D, 0x32));
+            AddSeries("As-Built",     "AS-BUILT (letter + AB-series)",  Color.FromRgb(0x6A, 0x1B, 0x9A));
+            AddSeries("Special",      "STATUS STAMPS (IFC / IFA / IFR / IFT / WD / SS / OB)",
+                Color.FromRgb(0xC6, 0x28, 0x28));
+            // Default: P01 — second item (first is the Tender header)
+            for (int i = 0; i < codeDropdown.Items.Count; i++)
+            {
+                if (codeDropdown.Items[i] is ComboBoxItem ci && (ci.Tag as string) == "P01")
+                {
+                    codeDropdown.SelectedIndex = i;
+                    break;
+                }
+            }
 
             var discDropdown = new ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0,0,8,0), MinWidth = 220, ToolTip = "ISO originating discipline" };
             foreach (var dc in IsoDisciplineCodes)
@@ -2680,16 +3018,89 @@ namespace StingTools.UI
             };
             createBtn.Click += (s, e) =>
             {
-                string selCode = (codeDropdown.SelectedItem as ComboBoxItem)?.Tag as string ?? "P01";
+                // Phase 103: honour the inline compliance-gate checkbox. If
+                // compliance is below 80% and the user hasn't explicitly
+                // acknowledged, halt here (inline — no popup) so they see the
+                // orange banner above the form. Otherwise set the ExtraParam
+                // that CreateRevisionCommand reads for its audit log and
+                // proceed with the dispatch.
+                bool ack = _revComplianceAckCheck.IsChecked == true;
+                if (_revComplianceLow && !ack)
+                {
+                    if (_statusBar != null)
+                        _statusBar.Text = $"Revision blocked: tag compliance {_data.TagPct:F0}% < 80%. Tick the ack checkbox above to override, or tag to \u226580% first.";
+                    return;
+                }
+                StingCommandHandler.SetExtraParam("RevisionComplianceAck", ack ? "true" : "false");
+
+                // Phase 101: dropdown is now IsEditable — fall back to typed Text
+                // (with | stripped so it can't break the pipe-delimited dispatch)
+                // when the user enters a custom code that isn't in the preset list.
+                string selCode = (codeDropdown.SelectedItem as ComboBoxItem)?.Tag as string;
+                if (string.IsNullOrWhiteSpace(selCode))
+                {
+                    selCode = codeDropdown.Text?.Trim()?.Replace("|", "/");
+                    if (string.IsNullOrWhiteSpace(selCode)) selCode = "P01";
+                }
                 string selDisc = (discDropdown.SelectedItem as ComboBoxItem)?.Tag as string ?? "ALL";
-                string selDesc = descBox.Text?.Trim();
+                string selDesc = descBox.Text?.Trim()?.Replace("|", "/");
                 if (string.IsNullOrEmpty(selDesc)) selDesc = "Revision";
                 DispatchAction($"CreateRevision|{selCode}|{selDisc}|{selDesc}");
+            };
+
+            // Phase 104: "Delete code" removes the currently-selected ISO revision code
+            // from the dropdown (persists to project_config.json). "Restore all" clears the
+            // hidden list. These operate on the IsoRevisionCodes catalogue — not on the
+            // revisions already created on the model.
+            var deleteCodeBtn = new Button
+            {
+                Content = "\u2212 Delete Code", Height = 28, Padding = new Thickness(10,0,10,0),
+                Background = Br(Color.FromRgb(0xC6, 0x28, 0x28)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                Margin = new Thickness(0,0,6,0),
+                ToolTip = "Hide the currently-selected ISO revision code from the dropdown (persists per project). Does not affect existing revisions."
+            };
+            deleteCodeBtn.Click += (s, e) =>
+            {
+                string code = (codeDropdown.SelectedItem as ComboBoxItem)?.Tag as string;
+                if (string.IsNullOrWhiteSpace(code))
+                {
+                    if (_statusBar != null) _statusBar.Text = "Select a preset ISO code from the dropdown first (typed custom codes cannot be deleted).";
+                    return;
+                }
+                var set = HiddenIsoRevisions();
+                set.Add(code);
+                SaveHiddenIsoRevisions();
+                // Remove the corresponding ComboBoxItem from the dropdown live
+                ComboBoxItem toRemove = null;
+                foreach (var it in codeDropdown.Items)
+                    if (it is ComboBoxItem ci && (ci.Tag as string) == code) { toRemove = ci; break; }
+                if (toRemove != null) codeDropdown.Items.Remove(toRemove);
+                if (codeDropdown.Items.Count > 0) codeDropdown.SelectedIndex = 1; // skip first header
+                if (_statusBar != null) _statusBar.Text = $"Hidden ISO revision code '{code}'. Click 'Restore All' to bring it back.";
+            };
+            var restoreCodesBtn = new Button
+            {
+                Content = "\u21BA Restore All", Height = 28, Padding = new Thickness(10,0,10,0),
+                Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                Margin = new Thickness(0,0,8,0),
+                ToolTip = "Restore all hidden ISO revision codes to the dropdown"
+            };
+            restoreCodesBtn.Click += (s, e) =>
+            {
+                HiddenIsoRevisions().Clear();
+                SaveHiddenIsoRevisions();
+                if (_statusBar != null) _statusBar.Text = "All ISO revision codes restored. Close and reopen the Revisions tab to see them.";
+                // Navigate away and back to rebuild
+                try { if (_tabCache.ContainsKey(TabRevisions)) _tabCache.Remove(TabRevisions); NavigateTo(TabRevisions); } catch (Exception ex) { StingLog.Warn($"restoreCodesBtn: {ex.Message}"); }
             };
 
             var formRow = new WrapPanel { Margin = new Thickness(0,0,0,4) };
             formRow.Children.Add(new TextBlock { Text = "ISO Code: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
             formRow.Children.Add(codeDropdown);
+            formRow.Children.Add(deleteCodeBtn);
+            formRow.Children.Add(restoreCodesBtn);
             formRow.Children.Add(new TextBlock { Text = "Discipline: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
             formRow.Children.Add(discDropdown);
             formRow.Children.Add(new TextBlock { Text = "Description: ", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), FontWeight = FontWeights.SemiBold });
@@ -2697,6 +3108,79 @@ namespace StingTools.UI
             formRow.Children.Add(createBtn);
             createFormBorder.Child = formRow;
             stack.Children.Add(createFormBorder);
+
+            // Phase 104: custom code row — explicit inline input so the
+            // coordinator can add bespoke revision codes (e.g. PQ-01, G3-A,
+            // Co11 when they go past the built-in 10 Contract issues) without
+            // hunting through the IsEditable combo. Typed code is prepended
+            // as a new ComboBoxItem in its own "CUSTOM" group at the top of
+            // the dropdown and immediately selected.
+            var customCodeBorder = new Border
+            {
+                Background = Br(Color.FromRgb(0xFF, 0xF8, 0xE1)),
+                BorderBrush = Br(Color.FromRgb(0xE8, 0x91, 0x2D)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(10, 6, 10, 6),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            var customCodeRow = new WrapPanel();
+            customCodeRow.Children.Add(new TextBlock
+            {
+                Text = "\u2795 Add Custom Code:", FontWeight = FontWeights.SemiBold, FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0),
+                Foreground = Br(Color.FromRgb(0x55, 0x40, 0x20)),
+                ToolTip = "Append a bespoke ISO code to the dropdown (e.g. PQ-01, G3-A, Co11). Useful when >10 revisions in one series."
+            });
+            var customCodeBox = new System.Windows.Controls.TextBox
+            {
+                Width = 100, FontSize = 11, Margin = new Thickness(0, 0, 4, 0),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "Custom revision code"
+            };
+            var customLabelBox = new System.Windows.Controls.TextBox
+            {
+                Width = 180, FontSize = 11, Margin = new Thickness(0, 0, 4, 0),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "Human-readable label (optional)"
+            };
+            var addCustomBtn = new Button
+            {
+                Content = "Add to dropdown", Height = 22, Padding = new Thickness(8, 0, 8, 0),
+                Background = Br(Color.FromRgb(0xE8, 0x91, 0x2D)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                ToolTip = "Prepend the typed code to the ISO Code dropdown and select it"
+            };
+            addCustomBtn.Click += (s, e) =>
+            {
+                string cc = customCodeBox.Text?.Trim()?.Replace("|", "/");
+                if (string.IsNullOrWhiteSpace(cc))
+                {
+                    if (_statusBar != null) _statusBar.Text = "Enter a custom code first.";
+                    return;
+                }
+                string lbl = customLabelBox.Text?.Trim();
+                string display = string.IsNullOrEmpty(lbl) ? $"{cc} — Custom revision" : $"{cc} \u2014 {lbl}";
+                // Insert at index 0 (above every preset series header) with a
+                // gold tint so it stands out as non-standard.
+                var item = new ComboBoxItem
+                {
+                    Content = display, Tag = cc,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = Br(Color.FromRgb(0xBF, 0x36, 0x00)),
+                    ToolTip = $"Custom revision code — added from BCC Revisions tab"
+                };
+                codeDropdown.Items.Insert(0, item);
+                codeDropdown.SelectedIndex = 0;
+                customCodeBox.Clear();
+                customLabelBox.Clear();
+                if (_statusBar != null) _statusBar.Text = $"Custom code '{cc}' added and selected.";
+            };
+            customCodeRow.Children.Add(customCodeBox);
+            customCodeRow.Children.Add(customLabelBox);
+            customCodeRow.Children.Add(addCustomBtn);
+            customCodeBorder.Child = customCodeRow;
+            stack.Children.Add(customCodeBorder);
 
             // ── Register DataGrid ──────────────────────────────────────────
             if (_data.Revisions.Count > 0)
@@ -3033,7 +3517,7 @@ namespace StingTools.UI
             // Platform definitions: name, connected (placeholder)
             var platforms = new[]
             {
-                ("StingBIM ★", false),
+                ("Planscape ★", false),
                 ("ACC", false), ("SharePoint", false), ("Procore", false), ("Aconex", false),
                 ("Trimble Connect", false), ("Bentley iTwin", false), ("Viewpoint 4P", false), ("BCF Server", false)
             };
@@ -3117,10 +3601,10 @@ namespace StingTools.UI
             var navyBrush = Br(CHeaderBg);
             var detailStack = new StackPanel { Margin = new Thickness(8) };
 
-            // ── StingBIM: native collaboration hub ──
-            if (platformName.StartsWith("StingBIM"))
+            // ── Planscape: native collaboration hub ──
+            if (platformName.StartsWith("Planscape"))
             {
-                detailStack.Children.Add(new TextBlock { Text = "StingBIM — Native Collaboration Hub", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 6) });
+                detailStack.Children.Add(new TextBlock { Text = "Planscape — Native Collaboration Hub", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 6) });
                 detailStack.Children.Add(new TextBlock { Text = "Share coordination data, model health, issues and meeting records with your team — no external platform required.", FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0x44, 0x44, 0x44)), Margin = new Thickness(0, 0, 0, 10) });
 
                 // Quick-share buttons
@@ -3128,12 +3612,12 @@ namespace StingTools.UI
                 var shareRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
                 var btns = new (string Label, string Action, Color Clr, string Tip)[]
                 {
-                    ("📋 Copy Dashboard Link", "StingBIMCopyLink", Color.FromRgb(0x45, 0x50, 0x6E), "Copy shareable HTML dashboard link to clipboard"),
-                    ("📧 Email Report",        "StingBIMEmail",    Color.FromRgb(0x15, 0x65, 0xC0), "Generate email with project status summary (Excel attachment)"),
-                    ("💬 Teams Message",       "StingBIMTeams",    Color.FromRgb(0x46, 0x4E, 0xB8), "Generate Teams/Slack message with coordination status cards"),
-                    ("📱 WhatsApp Update",     "StingBIMWhatsApp", CGreen,                           "Generate WhatsApp-ready text with project summary link"),
-                    ("🔗 Generate QR Link",    "StingBIMQR",       CHeaderBg,                        "Generate QR code linking to the latest exported HTML dashboard"),
-                    ("📊 Export HTML Dashboard","StingBIMHTML",    Color.FromRgb(0x6A, 0x1B, 0x9A), "Export full coordination dashboard as standalone HTML file (shareable, no login needed)"),
+                    ("📋 Copy Dashboard Link", "PlanscapeCopyLink", Color.FromRgb(0x45, 0x50, 0x6E), "Copy shareable HTML dashboard link to clipboard"),
+                    ("📧 Email Report",        "PlanscapeEmail",    Color.FromRgb(0x15, 0x65, 0xC0), "Generate email with project status summary (Excel attachment)"),
+                    ("💬 Teams Message",       "PlanscapeTeams",    Color.FromRgb(0x46, 0x4E, 0xB8), "Generate Teams/Slack message with coordination status cards"),
+                    ("📱 WhatsApp Update",     "PlanscapeWhatsApp", CGreen,                           "Generate WhatsApp-ready text with project summary link"),
+                    ("🔗 Generate QR Link",    "PlanscapeQR",       CHeaderBg,                        "Generate QR code linking to the latest exported HTML dashboard"),
+                    ("📊 Export HTML Dashboard","PlanscapeHTML",    Color.FromRgb(0x6A, 0x1B, 0x9A), "Export full coordination dashboard as standalone HTML file (shareable, no login needed)"),
                 };
                 foreach (var (lbl, act, clr, tip) in btns)
                 {
@@ -3146,20 +3630,93 @@ namespace StingTools.UI
 
                 // Access management
                 detailStack.Children.Add(new TextBlock { Text = "ACCESS MANAGEMENT", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 4, 0, 4) });
-                var accessGrid = MakeExcelDataGrid(120);
+
+                // Phase 102 — comprehensive role dropdown.
+                // Previously only 4 generic platform roles (Admin/Coordinator/
+                // Viewer/External). Now seeded from the canonical GetDefaultRoles
+                // ISO 19650 catalogue (Client, Project Manager, BIM Manager,
+                // Architect, Structural/MEP Engineers, Fire Engineer, Civil,
+                // Contractor, Clerk of Works, FM, etc.) — same list used by
+                // the Permission Groups sub-tab so both views stay in lock-step.
+                var accessRoleList = new List<string>();
+                accessRoleList.Add("Admin");           // Platform-level
+                accessRoleList.Add("Coordinator");
+                accessRoleList.Add("Viewer");
+                accessRoleList.Add("External");
+                accessRoleList.Add("— ISO 19650 Roles —");
+                foreach (var r in GetDefaultRoles())
+                    accessRoleList.Add($"{r.Code} — {r.Name}");
+                var accessRoleStyle = new Style(typeof(ComboBox));
+                accessRoleStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+
+                // Phase 102 — separate Name and Email columns (user feedback).
+                // Previously both were merged into a single "Name / Email"
+                // column bound only to Name, so the email field on each
+                // TeamMemberRow was invisible on this grid.
+                var accessGrid = MakeExcelDataGrid(130);
                 accessGrid.IsReadOnly = false;
-                accessGrid.Columns.Add(new DataGridTextColumn { Header = "Name / Email", Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), Binding = new System.Windows.Data.Binding("Name") });
-                accessGrid.Columns.Add(new DataGridComboBoxColumn { Header = "Role", Width = 100, ItemsSource = new[] { "Admin", "Coordinator", "Viewer", "External" }, SelectedItemBinding = new System.Windows.Data.Binding("Role") });
-                accessGrid.Columns.Add(new DataGridCheckBoxColumn { Header = "Active", Width = 55, Binding = new System.Windows.Data.Binding("Active") });
+                accessGrid.Columns.Add(new DataGridTextColumn     { Header = "Name",    Binding = new System.Windows.Data.Binding("Name"),    Width = new DataGridLength(1.4, DataGridLengthUnitType.Star) });
+                accessGrid.Columns.Add(new DataGridTextColumn     { Header = "Email",   Binding = new System.Windows.Data.Binding("Email"),   Width = new DataGridLength(1.8, DataGridLengthUnitType.Star) });
+                accessGrid.Columns.Add(new DataGridTextColumn     { Header = "Company", Binding = new System.Windows.Data.Binding("Company"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                accessGrid.Columns.Add(new DataGridComboBoxColumn { Header = "Role",    ItemsSource = accessRoleList, SelectedItemBinding = new System.Windows.Data.Binding("Role"), Width = 160, EditingElementStyle = accessRoleStyle });
+                accessGrid.Columns.Add(new DataGridCheckBoxColumn { Header = "Active",  Binding = new System.Windows.Data.Binding("Active"),  Width = 55 });
                 accessGrid.ItemsSource = _data.TeamMembers;
                 detailStack.Children.Add(accessGrid);
 
+                // Phase 102 — quick actions on the access grid
+                var accessToolbar = new WrapPanel { Margin = new Thickness(0, 4, 0, 10) };
+                var addMemberBtnP = new Button
+                {
+                    Content = "\u2795 Add Member", Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0),
+                    Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                    ToolTip = "Add a new team member. Name + Email are editable inline after insertion."
+                };
+                addMemberBtnP.Click += (s, e) =>
+                {
+                    _data.TeamMembers.Add(new TeamMemberRow { Active = true, Role = "Viewer" });
+                    accessGrid.Items.Refresh();
+                };
+                accessToolbar.Children.Add(addMemberBtnP);
+
+                var inviteBtn = new Button
+                {
+                    Content = "\ud83d\udce7 Invite Selected", Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0),
+                    Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                    ToolTip = "Copy an invite email body (link + role) for the highlighted row to the clipboard."
+                };
+                inviteBtn.Click += (s, e) =>
+                {
+                    if (accessGrid.SelectedItem is TeamMemberRow tm && !string.IsNullOrWhiteSpace(tm.Email))
+                    {
+                        string invite =
+                            $"Subject: Planscape invitation — {_data.ProjectName}\n\n" +
+                            $"Hi {tm.Name},\n\n" +
+                            $"You've been added to the Planscape project '{_data.ProjectName}' as {tm.Role}.\n" +
+                            $"Sign in at {BIMManager.PlanscapeServerClient.Instance.ServerUrl}\n\n" +
+                            "\u2014 Sent from BIM Coordination Center";
+                        try { System.Windows.Clipboard.SetText(invite); } catch { }
+                        ShowStatus($"Invite copied for {tm.Name}");
+                    }
+                    else ShowStatus("Select a row with an email first.");
+                };
+                accessToolbar.Children.Add(inviteBtn);
+
+                var savePlBtn = new Button
+                {
+                    Content = "\ud83d\udcbe Save Access", Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0),
+                    Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand,
+                    ToolTip = "Persist the access roster to _bim_manager/team_members.json"
+                };
+                savePlBtn.Click += (s, e) => DispatchAction("SaveProjectMembers");
+                accessToolbar.Children.Add(savePlBtn);
+                detailStack.Children.Add(accessToolbar);
+
                 // ── Server Connection ────────────────────────────────────────
-                bool sbConnected = BIMManager.StingBIMServerClient.Instance.IsConnected;
+                bool sbConnected = BIMManager.PlanscapeServerClient.Instance.IsConnected;
                 var connStatus = new TextBlock
                 {
                     Text = sbConnected
-                        ? $"🟢 Connected — {BIMManager.StingBIMServerClient.Instance.ConnectedUser}  |  {BIMManager.StingBIMServerClient.Instance.TierName}"
+                        ? $"🟢 Connected — {BIMManager.PlanscapeServerClient.Instance.ConnectedUser}  |  {BIMManager.PlanscapeServerClient.Instance.TierName}"
                         : "🔴 Not connected",
                     FontSize = 11, FontWeight = FontWeights.SemiBold,
                     Foreground = sbConnected ? Br(CGreen) : Br(CRed),
@@ -3170,7 +3727,7 @@ namespace StingTools.UI
                 detailStack.Children.Add(new TextBlock { Text = "SERVER CONNECTION", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4) });
 
                 // Pre-load saved connection settings so the fields are populated on open
-                string _savedUrl = BIMManager.StingBIMServerClient.Instance.ServerUrl;
+                string _savedUrl = BIMManager.PlanscapeServerClient.Instance.ServerUrl;
                 string _savedEmail = "";
                 if (!sbConnected && !string.IsNullOrEmpty(_data.FilePath))
                 {
@@ -3179,8 +3736,8 @@ namespace StingTools.UI
                         string _cfgDir = System.IO.Path.Combine(
                             System.IO.Path.GetDirectoryName(_data.FilePath) ?? "",
                             "STING_BIM_MANAGER");
-                        string _cfgPath = System.IO.Path.Combine(_cfgDir, "stingbim_connection.json");
-                        var (_url, _email, _pid) = BIMManager.StingBIMServerClient.LoadConnectionSettings(_cfgPath);
+                        string _cfgPath = System.IO.Path.Combine(_cfgDir, "planscape_connection.json");
+                        var (_url, _email, _pid) = BIMManager.PlanscapeServerClient.LoadConnectionSettings(_cfgPath);
                         if (!string.IsNullOrEmpty(_url))   _savedUrl   = _url;
                         if (!string.IsNullOrEmpty(_email)) _savedEmail = _email;
                     }
@@ -3188,7 +3745,7 @@ namespace StingTools.UI
                 }
                 else if (sbConnected)
                 {
-                    _savedEmail = BIMManager.StingBIMServerClient.Instance.ConnectedUser;
+                    _savedEmail = BIMManager.PlanscapeServerClient.Instance.ConnectedUser;
                 }
 
                 var sbUrlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
@@ -3196,15 +3753,15 @@ namespace StingTools.UI
                 var sbUrlBox = new System.Windows.Controls.TextBox
                 {
                     Width = 270, FontSize = 11, Margin = new Thickness(4, 0, 0, 0),
-                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "https://stingbim-api.onrender.com",
-                    ToolTip = "StingBIM API server URL (your Render.com deployment)"
+                    Text = !string.IsNullOrEmpty(_savedUrl) ? _savedUrl : "https://planscape-api.onrender.com",
+                    ToolTip = "Planscape API server URL (your Render.com deployment)"
                 };
                 sbUrlRow.Children.Add(sbUrlBox);
                 detailStack.Children.Add(sbUrlRow);
 
                 var sbEmailRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
                 sbEmailRow.Children.Add(new TextBlock { Text = "Email:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
-                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), Text = _savedEmail, ToolTip = "Your StingBIM account email" };
+                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), Text = _savedEmail, ToolTip = "Your Planscape account email" };
                 sbEmailRow.Children.Add(sbEmailBox);
                 detailStack.Children.Add(sbEmailRow);
 
@@ -3219,34 +3776,148 @@ namespace StingTools.UI
                 var sbDiscoBtn = new Button { Content = "Disconnect", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(CRed),          Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0), IsEnabled = sbConnected };
                 sbConnBtn.Click += (s, e) =>
                 {
-                    StingCommandHandler.SetExtraParam("StingBIMServerUrl", sbUrlBox.Text.Trim());
-                    StingCommandHandler.SetExtraParam("StingBIMEmail", sbEmailBox.Text.Trim());
-                    StingCommandHandler.SetExtraParam("StingBIMPassword", sbPassBox.Password);
-                    DispatchAction("StingBIMConnect");
+                    StingCommandHandler.SetExtraParam("PlanscapeServerUrl", sbUrlBox.Text.Trim());
+                    StingCommandHandler.SetExtraParam("PlanscapeEmail", sbEmailBox.Text.Trim());
+                    StingCommandHandler.SetExtraParam("PlanscapePassword", sbPassBox.Password);
+                    DispatchAction("PlanscapeConnect");
                     // Refresh the panel after connect completes (Revit external event is async)
                     var refreshTimer = new System.Windows.Threading.DispatcherTimer
                         { Interval = TimeSpan.FromSeconds(2) };
-                    refreshTimer.Tick += (ts, te) => { refreshTimer.Stop(); ShowPlatformDetail("StingBIM"); };
+                    refreshTimer.Tick += (ts, te) => { refreshTimer.Stop(); ShowPlatformDetail("Planscape"); };
                     refreshTimer.Start();
                 };
                 sbDiscoBtn.Click += (s, e) =>
                 {
-                    DispatchAction("StingBIMDisconnect");
+                    DispatchAction("PlanscapeDisconnect");
                     // Disconnect is synchronous — refresh immediately on next idle cycle
-                    Dispatcher.BeginInvoke(new Action(() => ShowPlatformDetail("StingBIM")),
+                    Dispatcher.BeginInvoke(new Action(() => ShowPlatformDetail("Planscape")),
                         System.Windows.Threading.DispatcherPriority.Background);
                 };
                 sbConnBtnRow.Children.Add(sbConnBtn); sbConnBtnRow.Children.Add(sbDiscoBtn);
+
+                // Phase 102: when connected, add a third button to open the
+                // web dashboard so coordinators can jump from BCC straight
+                // into the browser viewer / mobile hand-off.
+                if (sbConnected)
+                {
+                    var openWebBtn = new Button
+                    {
+                        Content = "\ud83c\udf10 Open Web Dashboard", Height = 28, Padding = new Thickness(12, 0, 12, 0),
+                        Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 6, 0),
+                        ToolTip = "Open the Planscape web dashboard in your default browser (mobile app also uses this URL)"
+                    };
+                    openWebBtn.Click += (s, e) => DispatchAction("PlanscapeOpenWebDashboard");
+                    sbConnBtnRow.Children.Add(openWebBtn);
+                }
                 detailStack.Children.Add(sbConnBtnRow);
+
+                // ── Phase 102/103: Server status card (ALWAYS visible) ──
+                // Even when offline the card tells the user what they'll get
+                // once connected (tier / MIM / tenant / sync capabilities +
+                // server URL they're pointing at). Previously the card only
+                // rendered when sbConnected was true, so the user never saw
+                // it — which they reported as "I can't see the rich connection
+                // info you claimed to have added".
+                detailStack.Children.Add(new TextBlock
+                {
+                    Text = "SERVER STATUS", FontWeight = FontWeights.Bold, FontSize = 11,
+                    Foreground = Br(CAccent), Margin = new Thickness(0, 6, 0, 4)
+                });
+                {
+                    var client = BIMManager.PlanscapeServerClient.Instance;
+                    string userLine  = sbConnected
+                        ? $"\ud83d\udc64  User: {client.ConnectedUser}"
+                        : "\ud83d\udc64  User: (not signed in)";
+                    string tierLine  = sbConnected
+                        ? $"\ud83d\udce6  Tier: {client.TierName}   \u2022   MIM add-on: {(client.MimEnabled ? "enabled" : "disabled")}"
+                        : "\ud83d\udce6  Tier: Starter (Free) — sign in to activate Professional / Premium / Enterprise seats";
+                    string tenantLine = sbConnected
+                        ? $"\ud83c\udfe2  Tenant: {client.TenantId}"
+                        : "\ud83c\udfe2  Tenant: (not linked)";
+                    string urlLine   = !string.IsNullOrEmpty(client.ServerUrl)
+                        ? $"\ud83d\udd17  Server: {client.ServerUrl}"
+                        : $"\ud83d\udd17  Server: (no URL set) \u2014 default https://planscape-api.onrender.com";
+                    string errLine   = !string.IsNullOrEmpty(client.LastError)
+                        ? $"\n\u26A0  Last error: {client.LastError}"
+                        : "";
+                    var infoBorder = new Border
+                    {
+                        Background = Br(sbConnected ? Color.FromRgb(0xE8, 0xF4, 0xFF) : Color.FromRgb(0xF5, 0xF5, 0xF5)),
+                        BorderBrush = Br(sbConnected ? Color.FromRgb(0xBB, 0xDE, 0xFB) : Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(10, 8, 10, 8),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    };
+                    var infoStack = new StackPanel();
+                    infoStack.Children.Add(new TextBlock { Text = userLine,  FontSize = 11, Margin = new Thickness(0, 0, 0, 2) });
+                    infoStack.Children.Add(new TextBlock { Text = tierLine,  FontSize = 11, Margin = new Thickness(0, 0, 0, 2), TextWrapping = TextWrapping.Wrap });
+                    infoStack.Children.Add(new TextBlock { Text = tenantLine,FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)), Margin = new Thickness(0, 0, 0, 2) });
+                    infoStack.Children.Add(new TextBlock { Text = urlLine + errLine, FontSize = 10, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)), TextWrapping = TextWrapping.Wrap });
+                    infoBorder.Child = infoStack;
+                    detailStack.Children.Add(infoBorder);
+                }
+
+                // ── Phase 103: Feature overview card (what Planscape exposes) ──
+                // Visible to every user regardless of connection state so the
+                // BIM coordinator can see what the platform actually does
+                // before committing to a sign-in.
+                detailStack.Children.Add(new TextBlock
+                {
+                    Text = "PLATFORM FEATURES", FontWeight = FontWeights.Bold, FontSize = 11,
+                    Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4)
+                });
+                {
+                    var featBorder = new Border
+                    {
+                        Background = Br(Color.FromRgb(0xF8, 0xF5, 0xFF)),
+                        BorderBrush = Br(Color.FromRgb(0xD1, 0xC4, 0xE9)),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(10, 8, 10, 8),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    };
+                    var featStack = new StackPanel();
+                    void AddFeat(string emoji, string title, string body)
+                    {
+                        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 3) };
+                        row.Children.Add(new TextBlock { Text = emoji, FontSize = 12, Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Top });
+                        var txt = new StackPanel();
+                        txt.Children.Add(new TextBlock { Text = title, FontSize = 11, FontWeight = FontWeights.SemiBold });
+                        txt.Children.Add(new TextBlock { Text = body,  FontSize = 10, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)) });
+                        row.Children.Add(txt);
+                        featStack.Children.Add(row);
+                    }
+                    AddFeat("\ud83d\udd04", "Bi-directional tag sync",
+                        "Tags, compliance snapshots and audit trails flow between Revit plugin and the web/mobile clients.");
+                    AddFeat("\ud83d\udea8", "Issues + BCF 2.1 round-trip",
+                        "Raise, assign, resolve issues with photo attachments, SLA gates and BCF interoperability for ACC / Navisworks / Solibri.");
+                    AddFeat("\ud83d\udcc4", "CDE document lifecycle",
+                        "WIP \u2192 SHARED \u2192 PUBLISHED \u2192 ARCHIVE transitions with approval chains, suitability codes and file upload.");
+                    AddFeat("\ud83d\udd14", "Push notifications (FCM / APNs)",
+                        "Mobile push for new issues, SLA breaches, revision creation and compliance drops.");
+                    AddFeat("\ud83d\udcf1", "Mobile companion",
+                        "On-site issue capture with photo + GPS, offline queue, 3D viewer, meeting action items.");
+                    AddFeat("\ud83d\udcc8", "Real-time SignalR updates",
+                        "Compliance %, warnings, issues and presence broadcast to the team without refreshing.");
+                    AddFeat("\ud83d\udd0d", "Cross-project global search",
+                        "Search tags, issues, documents, meetings across every project you belong to.");
+                    AddFeat("\ud83d\udd17", "External platform connectors",
+                        "ACC, Procore, Aconex, Trimble, Bentley iTwin, Viewpoint, SharePoint — all via the BCC platform tiles.");
+                    featBorder.Child = featStack;
+                    detailStack.Children.Add(featBorder);
+                }
 
                 // ── Sync settings ────────────────────────────────────────────
                 detailStack.Children.Add(new TextBlock { Text = "SYNC OPTIONS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 4, 0, 4) });
-                var syncOptsStingBIM = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-                foreach (var opt in new[] { "Auto-sync on model save", "Include model snapshots", "Notify on new issues", "Send weekly digest" })
-                    syncOptsStingBIM.Children.Add(new CheckBox { Content = opt, Margin = new Thickness(0, 0, 14, 4), FontSize = 11 });
-                detailStack.Children.Add(syncOptsStingBIM);
+                var syncOptsPlanscape = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+                foreach (var opt in new[] { "Auto-sync on model save", "Include model snapshots", "Notify on new issues", "Send weekly digest", "Compliance snapshot on revision", "Real-time (SignalR) updates" })
+                    syncOptsPlanscape.Children.Add(new CheckBox { Content = opt, Margin = new Thickness(0, 0, 14, 4), FontSize = 11 });
+                detailStack.Children.Add(syncOptsPlanscape);
 
-                var stingBIMBtnRow = new StackPanel { Orientation = Orientation.Horizontal };
+                var planscapeBtnRow = new StackPanel { Orientation = Orientation.Horizontal };
                 var syncNowBtnS = new Button
                 {
                     Content = "⬆ Sync Elements to Server", Height = 28, Padding = new Thickness(12, 0, 12, 0),
@@ -3254,14 +3925,14 @@ namespace StingTools.UI
                     FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0),
                     IsEnabled = sbConnected,
                     ToolTip = sbConnected
-                        ? "Push all tagged elements (ASS_TAG_1 parameters) to the StingBIM server"
-                        : "Connect to the StingBIM server first"
+                        ? "Push all tagged elements (ASS_TAG_1 parameters) to the Planscape server"
+                        : "Connect to the Planscape server first"
                 };
                 var viewDashBtn = new Button { Content = "📊 HTML Dashboard", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0), ToolTip = "Export standalone HTML dashboard (no login required — share with anyone)" };
-                syncNowBtnS.Click += (s, e) => DispatchAction("StingBIMSyncNow");
-                viewDashBtn.Click += (s, e) => DispatchAction("StingBIMHTML");
-                stingBIMBtnRow.Children.Add(syncNowBtnS); stingBIMBtnRow.Children.Add(viewDashBtn);
-                detailStack.Children.Add(stingBIMBtnRow);
+                syncNowBtnS.Click += (s, e) => DispatchAction("PlanscapeSyncNow");
+                viewDashBtn.Click += (s, e) => DispatchAction("PlanscapeHTML");
+                planscapeBtnRow.Children.Add(syncNowBtnS); planscapeBtnRow.Children.Add(viewDashBtn);
+                detailStack.Children.Add(planscapeBtnRow);
 
                 var detailBorderS = new Border { Background = Br(CCardBg), BorderBrush = Br(CBorder), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(16), Child = detailStack };
                 _platformDetailArea.Content = detailBorderS;
@@ -3951,21 +4622,25 @@ namespace StingTools.UI
                 "Configure and display interactive Gantt timeline with phase/trade breakdown"));
             actionsWrap.Children.Add(Make4DPanelButton("Cost Report", "CostReport5D", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
                 "Configure detailed 5D cost report: by category, discipline, phase with subtotals"));
-            actionsWrap.Children.Add(MakeActionButton("Cash Flow", "CashFlow5D", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+            // Phase 98: all 4D/5D operations now reveal their inline configuration /
+            // summary panels in-place rather than opening new TaskDialog windows that
+            // break the BCC z-order and force the coordinator to hunt for the popup.
+            // The switch in Build4DPanelFor already has cases for every tag below.
+            actionsWrap.Children.Add(Make4DPanelButton("Cash Flow", "CashFlow5D", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
                 "S-curve cash flow forecast with monthly planned vs actual spend"));
-            actionsWrap.Children.Add(MakeActionButton("Export Schedule", "ExportSchedule4D", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            actionsWrap.Children.Add(Make4DPanelButton("Export Schedule", "ExportSchedule4D", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Export 4D schedule to CSV for Navisworks TimeLiner / Synchro import"));
-            actionsWrap.Children.Add(MakeActionButton("Import MS Project", "ImportMSProject", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            actionsWrap.Children.Add(Make4DPanelButton("Import MS Project", "ImportMSProject", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Import tasks from Microsoft Project XML/CSV for 4D integration"));
-            actionsWrap.Children.Add(MakeActionButton("Milestone Register", "MilestoneRegister", Br(CAccent),
+            actionsWrap.Children.Add(Make4DPanelButton("Milestone Register", "MilestoneRegister", Br(CAccent),
                 "View/manage construction milestones with completion tracking"));
-            actionsWrap.Children.Add(MakeActionButton("Phase Summary", "PhaseSummary", Br(CHeaderBg),
+            actionsWrap.Children.Add(Make4DPanelButton("Phase Summary", "PhaseSummary", Br(CHeaderBg),
                 "Phase-by-phase summary: element counts, completion status, duration"));
-            actionsWrap.Children.Add(MakeActionButton("Working Calendar", "WorkingCalendar", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            actionsWrap.Children.Add(Make4DPanelButton("Working Calendar", "WorkingCalendar", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Configure working days, holidays, and shift patterns for scheduling"));
-            actionsWrap.Children.Add(MakeActionButton("Navisworks Export", "NavisworksTimeLiner", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+            actionsWrap.Children.Add(Make4DPanelButton("Navisworks Export", "NavisworksTimeLiner", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
                 "Export Navisworks TimeLiner CSV with element-to-task mapping"));
-            actionsWrap.Children.Add(MakeActionButton("Element Cost Trace", "ElementCostTrace", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+            actionsWrap.Children.Add(Make4DPanelButton("Element Cost Trace", "ElementCostTrace", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
                 "Trace cost allocation per element: material + labour + plant rates"));
             stack.Children.Add(actionsWrap);
 
@@ -4104,8 +4779,25 @@ namespace StingTools.UI
 
                     var zoomRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
                     zoomRow.Children.Add(new TextBlock { Text = "Zoom:", Width = 90, VerticalAlignment = VerticalAlignment.Center });
-                    var zoomSlider = new Slider { Minimum = 1, Maximum = 10, Value = 5, Width = 200, VerticalAlignment = VerticalAlignment.Center };
+                    // Phase 104: TickFrequency + AutoToolTipPlacement so BIM coordinators see the
+                    // exact slider value (previously "blind" — you dragged and guessed).
+                    var zoomSlider = new Slider
+                    {
+                        Minimum = 1, Maximum = 10, Value = 5, Width = 200,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TickFrequency = 1, TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
+                        IsSnapToTickEnabled = true, AutoToolTipPlacement = AutoToolTipPlacement.TopLeft
+                    };
+                    var zoomValueLabel = new TextBlock
+                    {
+                        Text = $"{zoomSlider.Value:F0}x", Width = 50,
+                        FontWeight = FontWeights.SemiBold, FontSize = 12,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(8, 0, 0, 0), Foreground = navyBrush, TextAlignment = TextAlignment.Right
+                    };
+                    zoomSlider.ValueChanged += (ss, ee) => zoomValueLabel.Text = $"{ee.NewValue:F0}x";
                     zoomRow.Children.Add(zoomSlider);
+                    zoomRow.Children.Add(zoomValueLabel);
                     sp.Children.Add(zoomRow);
 
                     sp.Children.Add(new TextBlock
@@ -4150,10 +4842,19 @@ namespace StingTools.UI
                         Height = 150,
                         Margin = new Thickness(0, 0, 0, 8)
                     };
-                    dg.Columns.Add(new DataGridTextColumn { Header = "Category",  Binding = new System.Windows.Data.Binding("Category"),  Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    dg.Columns.Add(new DataGridTextColumn { Header = "Rate UGX",  Binding = new System.Windows.Data.Binding("RateUGX"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    dg.Columns.Add(new DataGridTextColumn { Header = "Rate USD",  Binding = new System.Windows.Data.Binding("RateUSD"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    dg.Columns.Add(new DataGridTextColumn { Header = "Unit",      Binding = new System.Windows.Data.Binding("Unit"),      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    // Phase 98: Unit column is now a strict dropdown so the
+                    // 5D roll-up doesn't get salted with "m2"/"m²"/"sq.m"/"Sq m"
+                    // inconsistencies that broke cost aggregation by unit.
+                    var costUnitList = new List<string>
+                    {
+                        "m²", "m³", "m", "kg", "tonne", "no.", "item", "ea", "l/s", "kW", "kVA", "hour", "day", "sum"
+                    };
+                    var costUnitStyle = new Style(typeof(ComboBox));
+                    costUnitStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+                    dg.Columns.Add(new DataGridTextColumn     { Header = "Category",  Binding = new System.Windows.Data.Binding("Category"),                                          Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn     { Header = "Rate UGX",  Binding = new System.Windows.Data.Binding("RateUGX"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn     { Header = "Rate USD",  Binding = new System.Windows.Data.Binding("RateUSD"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridComboBoxColumn { Header = "Unit",      ItemsSource = costUnitList, SelectedItemBinding = new System.Windows.Data.Binding("Unit"),       Width = new DataGridLength(1, DataGridLengthUnitType.Star), EditingElementStyle = costUnitStyle });
                     dg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<CostRateRow>
                     {
                         new CostRateRow { Category = "Walls",       RateUGX = "850000",  RateUSD = "230",  Unit = "m²" },
@@ -4164,16 +4865,51 @@ namespace StingTools.UI
                     };
                     sp.Children.Add(dg);
 
+                    // Phase 104: contingency and overhead sliders now show their live % value
+                    // and snap to whole integers via TickFrequency/IsSnapToTickEnabled so the
+                    // resulting cost estimate is reproducible.
                     var contingencyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
                     contingencyRow.Children.Add(new TextBlock { Text = "Contingency %:", Width = 130, VerticalAlignment = VerticalAlignment.Center });
-                    var contingencySlider = new Slider { Minimum = 0, Maximum = 25, Value = 10, Width = 200, VerticalAlignment = VerticalAlignment.Center };
+                    var contingencySlider = new Slider
+                    {
+                        Minimum = 0, Maximum = 25, Value = 10, Width = 200,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TickFrequency = 1, IsSnapToTickEnabled = true,
+                        TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
+                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft
+                    };
+                    var contingencyValueLabel = new TextBlock
+                    {
+                        Text = $"{contingencySlider.Value:F0} %", Width = 55,
+                        FontWeight = FontWeights.SemiBold, FontSize = 12,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(8, 0, 0, 0), Foreground = navyBrush, TextAlignment = TextAlignment.Right
+                    };
+                    contingencySlider.ValueChanged += (ss, ee) => contingencyValueLabel.Text = $"{ee.NewValue:F0} %";
                     contingencyRow.Children.Add(contingencySlider);
+                    contingencyRow.Children.Add(contingencyValueLabel);
                     sp.Children.Add(contingencyRow);
 
                     var overheadRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
                     overheadRow.Children.Add(new TextBlock { Text = "Overhead %:", Width = 130, VerticalAlignment = VerticalAlignment.Center });
-                    var overheadSlider = new Slider { Minimum = 0, Maximum = 20, Value = 8, Width = 200, VerticalAlignment = VerticalAlignment.Center };
+                    var overheadSlider = new Slider
+                    {
+                        Minimum = 0, Maximum = 20, Value = 8, Width = 200,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TickFrequency = 1, IsSnapToTickEnabled = true,
+                        TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
+                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft
+                    };
+                    var overheadValueLabel = new TextBlock
+                    {
+                        Text = $"{overheadSlider.Value:F0} %", Width = 55,
+                        FontWeight = FontWeights.SemiBold, FontSize = 12,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(8, 0, 0, 0), Foreground = navyBrush, TextAlignment = TextAlignment.Right
+                    };
+                    overheadSlider.ValueChanged += (ss, ee) => overheadValueLabel.Text = $"{ee.NewValue:F0} %";
                     overheadRow.Children.Add(overheadSlider);
+                    overheadRow.Children.Add(overheadValueLabel);
                     sp.Children.Add(overheadRow);
 
                     var runBtn = new Button
@@ -4224,46 +4960,127 @@ namespace StingTools.UI
 
                 case "ImportMSProject":
                 {
+                    // Phase 104 rewrite: "Import MS Project" replaced with a
+                    // generic "Import Scheduling Data" panel that accepts
+                    // every major scheduling tool's export format. Each tool
+                    // has a dedicated column template pre-populated so the
+                    // coordinator just picks the source tool, browses to the
+                    // file, reviews the mapping, and imports — without having
+                    // to remember what column number MS Project uses for
+                    // "% Complete" (it's different from Primavera).
                     var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
-                    sp.Children.Add(new TextBlock { Text = "Import MS Project", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+                    sp.Children.Add(new TextBlock { Text = "Import Scheduling Data", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4), Foreground = navyBrush });
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "Supports MS Project, Primavera P6, Asta Powerproject, Synchro 4D, Navisworks TimeLiner, Deltek Open Plan and generic CSV. Pick your source tool to preload a column template; every field is editable.",
+                        FontSize = 10, TextWrapping = TextWrapping.Wrap,
+                        Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                        Margin = new Thickness(0, 0, 0, 8)
+                    });
 
+                    // ── Source tool selector ──────────────────────────────
+                    var toolRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                    toolRow.Children.Add(new TextBlock { Text = "Source Tool:", Width = 110, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold });
+                    var toolCb = new ComboBox { Width = 280, Margin = new Thickness(4, 0, 0, 0) };
+                    string[] toolOptions = new[]
+                    {
+                        "MS Project (*.mpp, *.xml, *.mpx, *.csv)",
+                        "Primavera P6 (*.xer, *.xml, *.xls, *.csv)",
+                        "Asta Powerproject (*.pp, *.astabase, *.csv)",
+                        "Synchro 4D (*.spj, *.spx, *.csv)",
+                        "Navisworks TimeLiner (*.csv, *.nwc TimeLiner export)",
+                        "Deltek Open Plan (*.opp, *.csv)",
+                        "Tilos (*.tlp, *.csv)",
+                        "Elecosoft Powerproject (*.pp, *.csv)",
+                        "Generic CSV (configurable)",
+                        "Excel / XLSX (first sheet)"
+                    };
+                    foreach (var t in toolOptions) toolCb.Items.Add(t);
+                    toolCb.SelectedIndex = 0;
+                    toolRow.Children.Add(toolCb);
+                    sp.Children.Add(toolRow);
+
+                    // ── File browse ───────────────────────────────────────
                     var fileRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
-                    fileRow.Children.Add(new TextBlock { Text = "Project File:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
+                    fileRow.Children.Add(new TextBlock { Text = "Project File:", Width = 110, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold });
                     var fileTb = new System.Windows.Controls.TextBox { Width = 280, Margin = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
                     var browseBtn = new Button { Content = "Browse...", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(Color.FromRgb(0xE0, 0xE0, 0xE8)), BorderThickness = new Thickness(1) };
-                    browseBtn.Click += (s, e) => {
-                        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "MS Project Files|*.mpp;*.xml;*.csv|All Files|*.*", Title = "Open MS Project File" };
+                    browseBtn.Click += (s, e) =>
+                    {
+                        // Filter adapts to the selected source tool so the
+                        // user doesn't have to scroll past 8 extensions that
+                        // aren't theirs.
+                        int ti = toolCb.SelectedIndex;
+                        string filter = ti switch
+                        {
+                            0 => "MS Project|*.mpp;*.xml;*.mpx;*.csv|MPP|*.mpp|XML|*.xml|MPX|*.mpx|CSV|*.csv|All|*.*",
+                            1 => "Primavera P6|*.xer;*.xml;*.xls;*.xlsx;*.csv|XER|*.xer|XML|*.xml|Excel|*.xls;*.xlsx|CSV|*.csv|All|*.*",
+                            2 => "Asta Powerproject|*.pp;*.astabase;*.csv|PP|*.pp|Asta|*.astabase|CSV|*.csv|All|*.*",
+                            3 => "Synchro 4D|*.spj;*.spx;*.csv|Synchro|*.spj;*.spx|CSV|*.csv|All|*.*",
+                            4 => "Navisworks TimeLiner|*.csv;*.xml|CSV|*.csv|XML|*.xml|All|*.*",
+                            5 => "Deltek Open Plan|*.opp;*.csv|OPP|*.opp|CSV|*.csv|All|*.*",
+                            6 => "Tilos|*.tlp;*.csv|TLP|*.tlp|CSV|*.csv|All|*.*",
+                            7 => "Powerproject|*.pp;*.csv|PP|*.pp|CSV|*.csv|All|*.*",
+                            8 => "Generic CSV|*.csv;*.tsv;*.txt|All|*.*",
+                            _ => "Excel|*.xls;*.xlsx;*.xlsm|All|*.*"
+                        };
+                        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = filter, Title = $"Open {toolCb.SelectedItem}" };
                         if (dlg.ShowDialog(this) == true) fileTb.Text = dlg.FileName;
                     };
                     fileRow.Children.Add(fileTb); fileRow.Children.Add(browseBtn);
                     sp.Children.Add(fileRow);
 
-                    sp.Children.Add(new TextBlock { Text = "Column Mapping:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
-                    var mappings = new[] { "Task Name", "Start", "Finish", "Duration", "WBS" };
-                    foreach (var m in mappings)
-                    {
-                        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                        row.Children.Add(new TextBlock { Text = m + ":", Width = 110, VerticalAlignment = VerticalAlignment.Center });
-                        var cb = new ComboBox { Width = 180, Margin = new Thickness(4, 0, 0, 0) };
-                        foreach (var c in new[] { "(auto-detect)", "Column A", "Column B", "Column C", "Column D", "Column E" }) cb.Items.Add(c);
-                        cb.SelectedIndex = 0;
-                        row.Children.Add(cb);
-                        sp.Children.Add(row);
-                    }
+                    // ── Comprehensive column mapping grid ─────────────────
+                    sp.Children.Add(new TextBlock { Text = "Column Mapping (19 STING fields):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
+                    var mapDg = MakeExcelDataGrid(280);
+                    mapDg.IsReadOnly = false;
+                    mapDg.CanUserAddRows = false;
+                    mapDg.CanUserDeleteRows = false;
+                    mapDg.Columns.Add(new DataGridTextColumn     { Header = "STING Field",       Binding = new System.Windows.Data.Binding("StingField"),  Width = new DataGridLength(1.2, DataGridLengthUnitType.Star), IsReadOnly = true });
+                    mapDg.Columns.Add(new DataGridTextColumn     { Header = "Source Column",     Binding = new System.Windows.Data.Binding("SourceColumn"), Width = new DataGridLength(1.8, DataGridLengthUnitType.Star) });
+                    mapDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type",              ItemsSource = new[] { "Text", "Date", "Duration", "Integer", "Decimal", "Percent", "Currency", "Bool" }, SelectedItemBinding = new System.Windows.Data.Binding("DataType"), Width = 100 });
+                    mapDg.Columns.Add(new DataGridCheckBoxColumn { Header = "Required",         Binding = new System.Windows.Data.Binding("Required"),    Width = 70 });
+                    var mapSrc = new System.Collections.ObjectModel.ObservableCollection<ScheduleMappingRow>();
+                    // Default is the MS Project column palette — switching tool
+                    // rewrites SourceColumn below in SelectionChanged.
+                    ReseedScheduleMapping(mapSrc, toolCb.SelectedIndex);
+                    mapDg.ItemsSource = mapSrc;
+                    sp.Children.Add(mapDg);
 
-                    sp.Children.Add(new TextBlock { Text = "Preview (first 10 rows):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
-                    var previewDg = MakeExcelDataGrid(120);
+                    // Re-seed when the user picks a different source tool
+                    toolCb.SelectionChanged += (s, e) => ReseedScheduleMapping(mapSrc, toolCb.SelectedIndex);
+
+                    // ── Options ──────────────────────────────────────────
+                    var optsRow = new WrapPanel { Margin = new Thickness(0, 6, 0, 4) };
+                    optsRow.Children.Add(new CheckBox { Content = "Header row present", IsChecked = true, Margin = new Thickness(0, 0, 14, 0), FontSize = 11 });
+                    optsRow.Children.Add(new CheckBox { Content = "Auto-detect dependencies (FS/SS/FF/SF + lag)", IsChecked = true, Margin = new Thickness(0, 0, 14, 0), FontSize = 11 });
+                    optsRow.Children.Add(new CheckBox { Content = "Match tasks to Revit phases by name", IsChecked = false, Margin = new Thickness(0, 0, 14, 0), FontSize = 11 });
+                    optsRow.Children.Add(new CheckBox { Content = "Create missing phases", IsChecked = false, FontSize = 11 });
+                    sp.Children.Add(optsRow);
+
+                    // ── Preview (first 10 rows) ──────────────────────────
+                    sp.Children.Add(new TextBlock { Text = "Preview (first 10 rows — populated after import):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
+                    var previewDg = MakeExcelDataGrid(140);
                     previewDg.CanUserAddRows = false; previewDg.CanUserDeleteRows = false;
-                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Task Name", Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Start",     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Finish",    Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Duration",  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    previewDg.Columns.Add(new DataGridTextColumn { Header = "WBS",       Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Task ID",    Width = 70 });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Task Name",  Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Start",      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Finish",     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Duration",   Width = 80 });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "% Complete", Width = 70 });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "WBS",        Width = 80 });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Predecessors", Width = 110 });
                     sp.Children.Add(previewDg);
 
-                    var importBtn = new Button { Content = "Import", Height = 32, Padding = new Thickness(16, 0, 16, 0), Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
+                    // ── Action buttons ───────────────────────────────────
+                    var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+                    var importBtn = new Button { Content = "Import", Height = 32, Padding = new Thickness(16, 0, 16, 0), Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0) };
                     importBtn.Click += (s, e) => DispatchAction("ImportMSProject");
-                    sp.Children.Add(importBtn);
+                    var saveMapBtn = new Button { Content = "Save Mapping Template", Height = 32, Padding = new Thickness(12, 0, 12, 0), Background = Br(Color.FromRgb(0x2E, 0x7D, 0x32)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0), ToolTip = "Save the column mapping to project_config.json so future imports reuse it." };
+                    var loadMapBtn = new Button { Content = "Load Mapping Template", Height = 32, Padding = new Thickness(12, 0, 12, 0), Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Load a previously saved mapping template from project_config.json." };
+                    btnRow.Children.Add(importBtn); btnRow.Children.Add(saveMapBtn); btnRow.Children.Add(loadMapBtn);
+                    sp.Children.Add(btnRow);
+
                     panelBorder.Child = sp;
                     return panelBorder;
                 }
@@ -4280,11 +5097,22 @@ namespace StingTools.UI
                     toolbar.Children.Add(addRowBtn); toolbar.Children.Add(delRowBtn); toolbar.Children.Add(exportBtn);
                     sp.Children.Add(toolbar);
 
+                    // Phase 98: strict dropdowns on Discipline + Status so
+                    // milestone reports roll up cleanly ("ARCH" vs "Architecture"
+                    // vs "architecture" have historically fragmented status boards).
+                    var mileDiscList = new List<string>
+                    {
+                        "A", "S", "M", "E", "P", "FP", "LV", "G", "C", "I", "All Disciplines"
+                    };
+                    var mileStatusList = new List<string>
+                    {
+                        "PLANNED", "IN PROGRESS", "AT RISK", "ACHIEVED", "MISSED", "CARRIED FORWARD", "CANCELLED"
+                    };
                     var mileDg = MakeExcelDataGrid(180);
-                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Milestone",   Binding = new System.Windows.Data.Binding("Milestone"),   Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Date",        Binding = new System.Windows.Data.Binding("Date"),        Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Discipline",  Binding = new System.Windows.Data.Binding("Discipline"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Status",      Binding = new System.Windows.Data.Binding("Status"),      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridTextColumn     { Header = "Milestone",   Binding = new System.Windows.Data.Binding("Milestone"),                                            Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridTextColumn     { Header = "Date",        Binding = new System.Windows.Data.Binding("Date"),                                                 Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridComboBoxColumn { Header = "Discipline",  ItemsSource = mileDiscList,   SelectedItemBinding = new System.Windows.Data.Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status",      ItemsSource = mileStatusList, SelectedItemBinding = new System.Windows.Data.Binding("Status"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                     mileDg.Columns.Add(new DataGridTextColumn { Header = "Notes",       Binding = new System.Windows.Data.Binding("Notes"),       Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
                     var mileSource = new System.Collections.ObjectModel.ObservableCollection<MilestoneEditRow>();
                     foreach (var m in _data.Milestones.Take(20))
@@ -4453,11 +5281,18 @@ namespace StingTools.UI
 
                     sp.Children.Add(new TextBlock { Text = "Cost Rates (editable):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
                     var rateDg = MakeExcelDataGrid(160);
-                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Category",    Binding = new System.Windows.Data.Binding("Category"),    Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Unit",        Binding = new System.Windows.Data.Binding("Unit"),        Width = 60 });
-                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Rate UGX",    Binding = new System.Windows.Data.Binding("RateUGX"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Rate USD",    Binding = new System.Windows.Data.Binding("RateUSD"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Description", Binding = new System.Windows.Data.Binding("Description"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    // Phase 98: Unit dropdown — matches the 5D Cost Rates grid above.
+                    var rateUnitList = new List<string>
+                    {
+                        "m²", "m³", "m", "kg", "tonne", "no.", "item", "ea", "l/s", "kW", "kVA", "hour", "day", "sum"
+                    };
+                    var rateUnitStyle = new Style(typeof(ComboBox));
+                    rateUnitStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Category",    Binding = new System.Windows.Data.Binding("Category"),                                          Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    rateDg.Columns.Add(new DataGridComboBoxColumn { Header = "Unit",        ItemsSource = rateUnitList, SelectedItemBinding = new System.Windows.Data.Binding("Unit"),       Width = 70, EditingElementStyle = rateUnitStyle });
+                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Rate UGX",    Binding = new System.Windows.Data.Binding("RateUGX"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Rate USD",    Binding = new System.Windows.Data.Binding("RateUSD"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    rateDg.Columns.Add(new DataGridTextColumn     { Header = "Description", Binding = new System.Windows.Data.Binding("Description"),                                       Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
                     rateDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<ElementCostRow>
                     {
                         new ElementCostRow { Category = "Walls",   Unit = "m²", RateUGX = "850000",  RateUSD = "230",  Description = "Masonry / Blockwork" },
@@ -4625,6 +5460,76 @@ namespace StingTools.UI
             public string RevitCategory { get; set; }
             public string TaskName      { get; set; }
             public string Phase         { get; set; }
+        }
+
+        /// <summary>Phase 104: one row per STING 4D/5D field that the import
+        /// pipeline recognises. 19 fields cover every scheduling tool we
+        /// claim to support — unmapped fields are left blank (so the user
+        /// can opt out of a field) and required fields are flagged for
+        /// validation before import runs.</summary>
+        private class ScheduleMappingRow
+        {
+            public string StingField   { get; set; }
+            public string SourceColumn { get; set; }
+            public string DataType     { get; set; }
+            public bool   Required     { get; set; }
+        }
+
+        /// <summary>Phase 104: per-tool column templates. Each entry maps the
+        /// STING field to the column name the source tool exports by default
+        /// (verified against each product's CSV / XML schema). The user can
+        /// still edit any row after seeding.</summary>
+        private static void ReseedScheduleMapping(
+            System.Collections.ObjectModel.ObservableCollection<ScheduleMappingRow> rows,
+            int toolIndex)
+        {
+            rows.Clear();
+            // Column 1: MS Project, 2: Primavera P6, 3: Asta Powerproject,
+            // 4: Synchro 4D, 5: Navisworks TimeLiner, 6: Deltek Open Plan,
+            // 7: Tilos, 8: Powerproject, 9: Generic CSV, 10: Excel/XLSX.
+            var perTool = new Dictionary<string, string[]>
+            {
+                ["Task ID"]              = new[] { "ID",            "task_id",         "TaskId",       "TaskID",        "Task ID",        "ID",          "ID",          "ID",          "id",          "A" },
+                ["Task Name"]            = new[] { "Name",          "task_name",       "Name",         "TaskName",      "Display Name",   "Name",        "Name",        "Name",        "name",        "B" },
+                ["WBS"]                  = new[] { "WBS",           "wbs_short_name",  "WBS",          "WBS",           "WBS",            "WBS",         "WBS",         "WBS",         "wbs",         "C" },
+                ["Outline Level"]        = new[] { "Outline Level", "wbs_level",       "Level",        "OutlineLevel",  "Level",          "Level",       "Level",       "Level",       "level",       "D" },
+                ["Start"]                = new[] { "Start",         "start_date",      "Start",        "StartDate",     "Planned Start",  "Start",       "Start",       "Start",       "start",       "E" },
+                ["Finish"]               = new[] { "Finish",        "end_date",        "Finish",       "FinishDate",    "Planned End",    "Finish",      "Finish",      "Finish",      "finish",      "F" },
+                ["Duration"]             = new[] { "Duration",      "target_drtn_hr_cnt", "Duration",  "Duration",      "Duration",       "Duration",    "Duration",    "Duration",    "duration",    "G" },
+                ["% Complete"]           = new[] { "% Complete",    "phys_complete_pct", "% Complete","PercentComplete","% Complete",     "% Complete",  "% Complete",  "% Complete",  "percent",     "H" },
+                ["Predecessors"]         = new[] { "Predecessors",  "pred_task_id",    "Predecessors", "Predecessors",  "Predecessor IDs","Predecessors","Predecessors","Predecessors","predecessors","I" },
+                ["Baseline Start"]       = new[] { "Baseline Start","bl1_start_date",  "Baseline St",  "BaselineStart", "Baseline Start", "Baseline Start","Baseline Start","Baseline Start","baseline_start","J" },
+                ["Baseline Finish"]      = new[] { "Baseline Finish","bl1_end_date",   "Baseline Fn",  "BaselineFinish","Baseline End",   "Baseline Finish","Baseline Finish","Baseline Finish","baseline_finish","K" },
+                ["Actual Start"]         = new[] { "Actual Start",  "act_start_date",  "Actual St",    "ActualStart",   "Actual Start",   "Actual Start","Actual Start","Actual Start","actual_start","L" },
+                ["Actual Finish"]        = new[] { "Actual Finish", "act_end_date",    "Actual Fn",    "ActualFinish",  "Actual End",     "Actual Finish","Actual Finish","Actual Finish","actual_finish","M" },
+                ["Resources"]            = new[] { "Resource Names","rsrc_name",       "Resources",    "Resources",     "Resources",      "Resources",   "Resources",   "Resources",   "resources",   "N" },
+                ["Cost"]                 = new[] { "Cost",          "target_total_cost","Cost",        "Cost",          "Cost",           "Cost",        "Cost",        "Cost",        "cost",        "O" },
+                ["Discipline"]           = new[] { "Text1",         "text1_code",      "Discipline",   "Discipline",    "Discipline",     "Discipline",  "Discipline",  "Discipline",  "discipline",  "P" },
+                ["Revit Phase"]          = new[] { "Text2",         "text2_code",      "Phase",        "PhaseId",       "Phase",          "Phase",       "Phase",       "Phase",       "phase",       "Q" },
+                ["Constraint Type"]      = new[] { "Constraint Type","restart_date",   "Constraint",   "ConstraintType","Constraint",     "Constraint Type","Constraint","Constraint","constraint_type","R" },
+                ["Notes"]                = new[] { "Notes",         "notes",           "Notes",        "Notes",         "Notes",          "Notes",       "Notes",       "Notes",       "notes",       "S" }
+            };
+            int col = Math.Max(0, Math.Min(toolIndex, 9));
+            foreach (var kv in perTool)
+            {
+                bool isRequired = kv.Key == "Task Name" || kv.Key == "Start" || kv.Key == "Finish";
+                string defaultType = kv.Key switch
+                {
+                    "Start" or "Finish" or "Baseline Start" or "Baseline Finish" or "Actual Start" or "Actual Finish" => "Date",
+                    "Duration" => "Duration",
+                    "% Complete" => "Percent",
+                    "Cost" => "Currency",
+                    "Outline Level" or "Task ID" => "Integer",
+                    _ => "Text"
+                };
+                rows.Add(new ScheduleMappingRow
+                {
+                    StingField   = kv.Key,
+                    SourceColumn = kv.Value[col],
+                    DataType     = defaultType,
+                    Required     = isRequired
+                });
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -4823,8 +5728,24 @@ namespace StingTools.UI
                     var sp = new StackPanel();
                     sp.Children.Add(new TextBlock { Text = "BCF 2.1 Export", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
                     var platformRow = MakeCtxRow("Target Platform:");
-                    var platCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    foreach (var p in new[] { "Generic BCF 2.1", "Autodesk Construction Cloud (ACC)", "Navisworks", "BIMcollab", "Solibri", "Trimble Connect" }) platCb.Items.Add(p);
+                    var platCb = new System.Windows.Controls.ComboBox { Width = 220 };
+                    // Phase 99: Planscape listed first — BCF 2.1 round-trips through
+                    // the native Planscape server (plugin + mobile) as the primary
+                    // coordination channel; the external platforms remain available
+                    // for exchanges with third parties.
+                    foreach (var p in new[] {
+                        "Planscape (native)",
+                        "Generic BCF 2.1",
+                        "Autodesk Construction Cloud (ACC)",
+                        "Navisworks",
+                        "BIMcollab",
+                        "Solibri",
+                        "Trimble Connect",
+                        "BIM Track",
+                        "Revizto",
+                        "Bentley iTwin",
+                        "Procore"
+                    }) platCb.Items.Add(p);
                     platCb.SelectedIndex = 0;
                     platformRow.Children.Add(platCb);
                     sp.Children.Add(platformRow);
@@ -5674,7 +6595,7 @@ namespace StingTools.UI
         }
 
         // Phase 78 Section 3.1: Scrollable, searchable assignee checkbox grid
-        // Used in RaiseIssue, AssignIssues, UpdateIssue context panels and StingBIM Sharing tab.
+        // Used in RaiseIssue, AssignIssues, UpdateIssue context panels and Planscape Sharing tab.
         private UIElement BuildAssigneeCheckboxGrid(out Func<List<string>> getSelected)
         {
             var outer = new StackPanel();
@@ -6307,15 +7228,24 @@ namespace StingTools.UI
             var delTypes = new List<string> { "Drawing", "Specification", "Report", "Model", "Schedule", "COBie" };
             var delDiscs = new List<string> { "A", "S", "M", "E", "P", "FP", "LV", "C", "G", "All" };
             var delStatuses = new List<string> { "WIP", "FOR REVIEW", "FOR APPROVAL", "APPROVED", "SUPERSEDED" };
-            editDg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("Code"), Width = 80 });
-            editDg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type", ItemsSource = delTypes, SelectedItemBinding = new Binding("Type"), Width = 95 });
-            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Disc", ItemsSource = delDiscs, SelectedItemBinding = new Binding("Suitability"), Width = 55 });
-            editDg.Columns.Add(new DataGridTextColumn { Header = "Rev", Binding = new Binding("DataDrop"), Width = 45 });
-            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status", ItemsSource = delStatuses, SelectedItemBinding = new Binding("Status"), Width = 100 });
-            editDg.Columns.Add(new DataGridTextColumn { Header = "Due Date", Binding = new Binding("DueDate"), Width = 75 });
-            editDg.Columns.Add(new DataGridTextColumn { Header = "Assigned To", Binding = new Binding("Owner"), Width = 90 });
-            editDg.Columns.Add(new DataGridTextColumn { Header = "CDE State", Binding = new Binding("CDE"), Width = 70 });
+            // Phase 96: BCC-Del-01 fix — previously "Disc" was bound to DeliverableRow.Suitability,
+            // so picking a discipline silently overwrote the S0–S7 suitability code.
+            // "Rev" was bound to DataDrop (DD1-DD4) — a separate field.
+            // Re-binding to the correct properties + adding explicit Suitability (S0-S7),
+            // DataDrop (DD1-DD4), and CDE State dropdowns from the canonical ISO 19650 lists.
+            var delSuitabilities = new List<string> { "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7" };
+            var delDataDrops = new List<string> { "DD1", "DD2", "DD3", "DD4", "—" };
+            var delCDEStates = new List<string> { "WIP", "SHARED", "PUBLISHED", "ARCHIVE", "SUPERSEDED", "WITHDRAWN", "OBSOLETE" };
+            editDg.Columns.Add(new DataGridTextColumn     { Header = "ID",          Binding = new Binding("Code"),                                                 Width = 80 });
+            editDg.Columns.Add(new DataGridTextColumn     { Header = "Title",       Binding = new Binding("Name"),                                                 Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type",        ItemsSource = delTypes,          SelectedItemBinding = new Binding("Type"),         Width = 95 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Disc",        ItemsSource = delDiscs,          SelectedItemBinding = new Binding("Discipline"),   Width = 55 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Suit.",       ItemsSource = delSuitabilities,  SelectedItemBinding = new Binding("Suitability"),  Width = 55 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Data Drop",   ItemsSource = delDataDrops,      SelectedItemBinding = new Binding("DataDrop"),     Width = 70 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status",      ItemsSource = delStatuses,       SelectedItemBinding = new Binding("Status"),       Width = 110 });
+            editDg.Columns.Add(new DataGridTextColumn     { Header = "Due Date",    Binding = new Binding("DueDate"),                                               Width = 80 });
+            editDg.Columns.Add(new DataGridTextColumn     { Header = "Assigned To", Binding = new Binding("Owner"),                                                 Width = 90 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "CDE State",   ItemsSource = delCDEStates,      SelectedItemBinding = new Binding("CDE"),          Width = 90 });
             var editDelSource = new System.Collections.ObjectModel.ObservableCollection<DeliverableRow>(_data.Deliverables);
             editDg.ItemsSource = editDelSource;
 
@@ -6618,14 +7548,38 @@ namespace StingTools.UI
             roleToolbar.Children.Add(expMatBtn); roleToolbar.Children.Add(savePermBtn);
             tabBStack.Children.Add(roleToolbar);
 
+            // Phase 96: strict dropdowns on typo-prone fields
+            // Role codes from the canonical ISO 19650 role catalog (GetDefaultRoles) so the Role Code
+            // column stays in lock-step with the CDE Access Matrix role references (A,M,E,S,K,F,…).
+            var roleCodeList = GetDefaultRoles().Select(r => r.Code).Distinct().OrderBy(c => c).ToList();
+            var roleDisciplineList = new List<string>
+            {
+                "—", "Architecture", "Structural", "Mechanical", "Electrical", "Plumbing",
+                "Fire", "Civil", "Landscape", "Interior Design", "Construction", "Cost",
+                "FM", "Health & Safety", "Acoustic", "Fabrication", "Other"
+            };
+            // Comma-separated CDE state combos — covers 95% of real projects; editable for the rest.
+            var cdeAccessPresets = new List<string>
+            {
+                "WIP", "WIP,SHARED", "WIP,SHARED,PUBLISHED", "WIP,SHARED,PUBLISHED,ARCHIVE",
+                "SHARED", "SHARED,PUBLISHED", "SHARED,PUBLISHED,ARCHIVE",
+                "PUBLISHED", "PUBLISHED,ARCHIVE", "ARCHIVE", "None"
+            };
+            var yesNoList = new List<string> { "Yes", "No" };
+            var slaHoursList = new List<string> { "0", "4", "8", "12", "24", "48", "72", "168", "336" };
+
+            // EditingElementStyle lets the comma-separated combos accept custom values too.
+            var editableStyle = new Style(typeof(ComboBox));
+            editableStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+
             var roleDg = MakeExcelDataGrid(180);
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "Role Code",   Binding = new System.Windows.Data.Binding("Code"),       Width = 80 });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "Name",        Binding = new System.Windows.Data.Binding("Name"),       Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "Discipline",  Binding = new System.Windows.Data.Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "CDE Access",  Binding = new System.Windows.Data.Binding("CDEAccess"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "Can Approve", Binding = new System.Windows.Data.Binding("CanApprove"), Width = 85 });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "Can Issue",   Binding = new System.Windows.Data.Binding("CanIssue"),   Width = 75 });
-            roleDg.Columns.Add(new DataGridTextColumn { Header = "SLA Hours",   Binding = new System.Windows.Data.Binding("SLAHours"),   Width = 70 });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "Role Code",   ItemsSource = roleCodeList,      SelectedItemBinding = new System.Windows.Data.Binding("Code"),       Width = 80 });
+            roleDg.Columns.Add(new DataGridTextColumn     { Header = "Name",        Binding = new System.Windows.Data.Binding("Name"),                                                 Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "Discipline",  ItemsSource = roleDisciplineList, SelectedItemBinding = new System.Windows.Data.Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "CDE Access",  ItemsSource = cdeAccessPresets,  SelectedItemBinding = new System.Windows.Data.Binding("CDEAccess"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star), EditingElementStyle = editableStyle });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "Can Approve", ItemsSource = yesNoList,         SelectedItemBinding = new System.Windows.Data.Binding("CanApprove"), Width = 85 });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "Can Issue",   ItemsSource = yesNoList,         SelectedItemBinding = new System.Windows.Data.Binding("CanIssue"),   Width = 75 });
+            roleDg.Columns.Add(new DataGridComboBoxColumn { Header = "SLA Hours",   ItemsSource = slaHoursList,      SelectedItemBinding = new System.Windows.Data.Binding("SLAHours"),   Width = 80, EditingElementStyle = editableStyle });
             var roleSrc = new System.Collections.ObjectModel.ObservableCollection<RoleDefinition>(_data.Roles);
             roleDg.ItemsSource = roleSrc;
             addRoleBtn.Click  += (s, e) => roleSrc.Add(new RoleDefinition());
@@ -6646,14 +7600,45 @@ namespace StingTools.UI
             cdeToolbar.Children.Add(addCdeBtn); cdeToolbar.Children.Add(delCdeBtn); cdeToolbar.Children.Add(expCdeBtn);
             tabCStack.Children.Add(cdeToolbar);
 
+            // Phase 96: strict dropdowns on typo-prone fields for the CDE matrix.
+            // Folder list seeded from the 12 default ISO 19650 folders but kept editable so
+            // projects can add sub-folders (e.g. "05_MODELS/COORDINATION") without leaving the combo.
+            var cdeFolderList = GetDefaultFolderPermissions().Select(f => f.Folder).Distinct().ToList();
+            // CDE states: strict — WIP/SHARED/PUBLISHED/ARCHIVE + 3 ISO 19650-2 terminal states
+            // (SUPERSEDED/WITHDRAWN/OBSOLETE). Matches BIMManagerEngine.CDEStates exactly.
+            var cdeStateList = new List<string>
+            {
+                "WIP", "SHARED", "PUBLISHED", "ARCHIVE",
+                "SUPERSEDED", "WITHDRAWN", "OBSOLETE"
+            };
+            // Role-list presets — match the strings produced by GetDefaultFolderPermissions()
+            // so the matrix renders without diff on first open. Custom entries remain possible
+            // because EditingElementStyle enables ComboBox.IsEditable for these columns.
+            var readRolesPresets = new List<string>
+            {
+                "All team", "All team + Client", "All team + FM", "All team + FM + Client",
+                "BIM Manager only", "Coordinator + BIM Manager", "Originator only", "None"
+            };
+            var writeRolesPresets = new List<string>
+            {
+                "A,M,E,S", "A,M,E,S,H,P,C", "A,M,E,S,H,P,C,I,Q,L",
+                "A,M,E,S (originators)", "All team", "BIM Manager", "BIM Manager only",
+                "Coordinator", "Client only", "None"
+            };
+            var approveRolesPresets = new List<string>
+            {
+                "", "A", "K", "A,K", "K,A", "K,F", "K,F,A", "BIM Manager only", "Client only"
+            };
+
+            var cdeEditableStyle = new Style(typeof(ComboBox));
+            cdeEditableStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+
             var cdeDg = MakeExcelDataGrid(180);
-            // Folder ComboBox column
-            var folderCol = new DataGridTextColumn { Header = "Folder",        Binding = new System.Windows.Data.Binding("Folder"),       Width = new DataGridLength(1.2, DataGridLengthUnitType.Star) };
-            cdeDg.Columns.Add(folderCol);
-            cdeDg.Columns.Add(new DataGridTextColumn { Header = "CDE State",   Binding = new System.Windows.Data.Binding("CDEState"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            cdeDg.Columns.Add(new DataGridTextColumn { Header = "Read Roles",  Binding = new System.Windows.Data.Binding("ReadRoles"),    Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-            cdeDg.Columns.Add(new DataGridTextColumn { Header = "Write Roles", Binding = new System.Windows.Data.Binding("WriteRoles"),   Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-            cdeDg.Columns.Add(new DataGridTextColumn { Header = "Approve Roles",Binding = new System.Windows.Data.Binding("ApproveRoles"),Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            cdeDg.Columns.Add(new DataGridComboBoxColumn { Header = "Folder",        ItemsSource = cdeFolderList,       SelectedItemBinding = new System.Windows.Data.Binding("Folder"),       Width = new DataGridLength(1.2, DataGridLengthUnitType.Star), EditingElementStyle = cdeEditableStyle });
+            cdeDg.Columns.Add(new DataGridComboBoxColumn { Header = "CDE State",     ItemsSource = cdeStateList,        SelectedItemBinding = new System.Windows.Data.Binding("CDEState"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            cdeDg.Columns.Add(new DataGridComboBoxColumn { Header = "Read Roles",    ItemsSource = readRolesPresets,    SelectedItemBinding = new System.Windows.Data.Binding("ReadRoles"),    Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), EditingElementStyle = cdeEditableStyle });
+            cdeDg.Columns.Add(new DataGridComboBoxColumn { Header = "Write Roles",   ItemsSource = writeRolesPresets,   SelectedItemBinding = new System.Windows.Data.Binding("WriteRoles"),   Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), EditingElementStyle = cdeEditableStyle });
+            cdeDg.Columns.Add(new DataGridComboBoxColumn { Header = "Approve Roles", ItemsSource = approveRolesPresets, SelectedItemBinding = new System.Windows.Data.Binding("ApproveRoles"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star), EditingElementStyle = cdeEditableStyle });
             var cdeSrc = new System.Collections.ObjectModel.ObservableCollection<FolderPermission>(_data.FolderPermissions.Count > 0 ? _data.FolderPermissions : GetDefaultFolderPermissions());
             cdeDg.ItemsSource = cdeSrc;
             addCdeBtn.Click += (s, e) => cdeSrc.Add(new FolderPermission());
@@ -7275,15 +8260,31 @@ namespace StingTools.UI
                 "Client Meeting", "Stakeholder Engagement", "Project Board Meeting", "Change Control Meeting",
                 "Lessons Learned", "Weekly Team Meeting", "Issue Resolution Meeting", "Workshop", "Other"
             };
-            var mtgStatuses = new List<string> { "PLANNED", "IN PROGRESS", "COMPLETED", "CANCELLED" };
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("MeetingId"), Width = 70, IsReadOnly = true });
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Title"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type", ItemsSource = mtgTypes, SelectedItemBinding = new Binding("Type"), Width = 140 });
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Date", Binding = new Binding("Date"), Width = 78 });
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Time", Binding = new Binding("Time"), Width = 55 });
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Location / Link", Binding = new Binding("Location"), Width = 100 });
-            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status", ItemsSource = mtgStatuses, SelectedItemBinding = new Binding("Status"), Width = 100 });
-            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Chair", Binding = new Binding("Attendees"), Width = 80 });
+            var mtgStatuses = new List<string> { "PLANNED", "IN PROGRESS", "COMPLETED", "CANCELLED", "POSTPONED", "NO QUORUM" };
+            // Phase 98: strict dropdowns on the remaining typo-prone meeting columns.
+            // Chair: seeded from team directory (so BIM Managers can't be typed as
+            // "BIM Mgr" / "BIMM" / "B. Manager" on different rows) — editable for
+            // client-side chairs not in the team list.
+            var mtgChairList = _data.TeamMembers.Select(m => m.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().OrderBy(n => n).ToList();
+            if (mtgChairList.Count == 0)
+                mtgChairList.AddRange(new[] { "BIM Manager", "Project Manager", "Lead Architect", "Client", "Contractor", "TBC" });
+            var mtgLocationPresets = new List<string>
+            {
+                "Site Meeting Room", "Client Office", "Design Team Office", "Contractor Site Office",
+                "MS Teams", "Zoom", "Google Meet", "Webex", "Hybrid (In-Person + MS Teams)", "Hybrid (In-Person + Zoom)",
+                "Construction Site (Block A)", "Construction Site (Block B)", "BIM Hub", "TBC"
+            };
+            var mtgEditableStyle = new Style(typeof(ComboBox));
+            mtgEditableStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+            mtgDg.Columns.Add(new DataGridTextColumn     { Header = "ID",              Binding = new Binding("MeetingId"),                                        Width = 70, IsReadOnly = true });
+            mtgDg.Columns.Add(new DataGridTextColumn     { Header = "Title",           Binding = new Binding("Title"),                                             Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type",            ItemsSource = mtgTypes,            SelectedItemBinding = new Binding("Type"),     Width = 140, EditingElementStyle = mtgEditableStyle });
+            mtgDg.Columns.Add(new DataGridTextColumn     { Header = "Date",            Binding = new Binding("Date"),                                              Width = 78 });
+            mtgDg.Columns.Add(new DataGridTextColumn     { Header = "Time",            Binding = new Binding("Time"),                                              Width = 55 });
+            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Location / Link", ItemsSource = mtgLocationPresets,  SelectedItemBinding = new Binding("Location"), Width = 140, EditingElementStyle = mtgEditableStyle });
+            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status",          ItemsSource = mtgStatuses,         SelectedItemBinding = new Binding("Status"),   Width = 110 });
+            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Chair",           ItemsSource = mtgChairList,        SelectedItemBinding = new Binding("Chair"),    Width = 130, EditingElementStyle = mtgEditableStyle });
             mtgDg.ItemsSource = mtgSource;
 
             // Row colouring by status
@@ -7464,13 +8465,20 @@ namespace StingTools.UI
             actDg.IsReadOnly = false;
             var actPriorities = new List<string> { "CRITICAL", "HIGH", "MEDIUM", "LOW" };
             var actStatuses = new List<string> { "OPEN", "IN PROGRESS", "PENDING INFO", "CLOSED" };
-            actDg.Columns.Add(new DataGridTextColumn { Header = "Action ID", Binding = new Binding("ActionId"), Width = 80, IsReadOnly = true });
-            actDg.Columns.Add(new DataGridTextColumn { Header = "Description", Binding = new Binding("Description"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            actDg.Columns.Add(new DataGridTextColumn { Header = "Owner", Binding = new Binding("Owner"), Width = 90 });
-            actDg.Columns.Add(new DataGridTextColumn { Header = "Due Date", Binding = new Binding("DueDate"), Width = 75 });
-            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Priority", ItemsSource = actPriorities, SelectedItemBinding = new Binding("Priority"), Width = 80 });
-            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status", ItemsSource = actStatuses, SelectedItemBinding = new Binding("Status"), Width = 95 });
-            actDg.Columns.Add(new DataGridTextColumn { Header = "Mtg Ref", Binding = new Binding("MeetingRef"), Width = 70 });
+            // Phase 96: Owner dropdown seeded from team directory so action items can't be assigned
+            // to a mistyped name. Editable fallback keeps ad-hoc owners possible (e.g. "Client TBC").
+            var actOwnerList = _data.TeamMembers.Select(m => m.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().OrderBy(n => n).ToList();
+            if (actOwnerList.Count == 0)
+                actOwnerList.AddRange(new[] { "BIM Manager", "Project Manager", "Lead Architect", "Lead Engineer", "Client", "Contractor", "TBC" });
+            var actOwnerStyle = new Style(typeof(ComboBox));
+            actOwnerStyle.Setters.Add(new Setter(ComboBox.IsEditableProperty, true));
+            actDg.Columns.Add(new DataGridTextColumn     { Header = "Action ID",   Binding = new Binding("ActionId"),                                           Width = 80, IsReadOnly = true });
+            actDg.Columns.Add(new DataGridTextColumn     { Header = "Description", Binding = new Binding("Description"),                                         Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Owner",       ItemsSource = actOwnerList,  SelectedItemBinding = new Binding("Owner"),        Width = 110, EditingElementStyle = actOwnerStyle });
+            actDg.Columns.Add(new DataGridTextColumn     { Header = "Due Date",    Binding = new Binding("DueDate"),                                              Width = 85 });
+            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Priority",    ItemsSource = actPriorities, SelectedItemBinding = new Binding("Priority"),    Width = 80 });
+            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status",      ItemsSource = actStatuses,   SelectedItemBinding = new Binding("Status"),      Width = 110 });
+            actDg.Columns.Add(new DataGridTextColumn     { Header = "Mtg Ref",     Binding = new Binding("MeetingRef"),                                           Width = 70 });
             actDg.ItemsSource = actSource;
             var actRowStyle = new Style(typeof(DataGridRow));
             var actOverdueT = new DataTrigger { Binding = new Binding("IsOverdue"), Value = true };
@@ -7507,11 +8515,20 @@ namespace StingTools.UI
             minutesPanel.Children.Add(MakeSectionHeader("AGENDA / MINUTES"));
             var agendaDg = MakeExcelDataGrid(160);
             agendaDg.IsReadOnly = false;
-            agendaDg.Columns.Add(new DataGridTextColumn { Header = "#", Binding = new Binding("ActionId"), Width = 35 });
-            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Topic", Binding = new Binding("Description"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Discussion / Notes", Binding = new Binding("Owner"), Width = 170 });
-            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Decision", Binding = new Binding("Status"), Width = 120 });
-            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Action Ref", Binding = new Binding("MeetingRef"), Width = 80 });
+            // Phase 98: Decision column is now a strict dropdown (matching real
+            // meeting-minute practice: each agenda item gets one of a small set
+            // of outcomes). Free text here tends to produce "agreed"/"AGREED"/
+            // "Agreed ✓"/"ok" variants that confuse status reporting.
+            var decisionList = new List<string>
+            {
+                "AGREED", "ACTIONED", "DEFERRED", "REJECTED", "NOTED", "PENDING INFO",
+                "FOR REVIEW", "SUPERSEDED BY", "CARRIED FORWARD", "FOR APPROVAL"
+            };
+            agendaDg.Columns.Add(new DataGridTextColumn     { Header = "#",                  Binding = new Binding("ActionId"),                                             Width = 35 });
+            agendaDg.Columns.Add(new DataGridTextColumn     { Header = "Topic",              Binding = new Binding("Description"),                                           Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            agendaDg.Columns.Add(new DataGridTextColumn     { Header = "Discussion / Notes", Binding = new Binding("Owner"),                                                 Width = 170 });
+            agendaDg.Columns.Add(new DataGridComboBoxColumn { Header = "Decision",           ItemsSource = decisionList, SelectedItemBinding = new Binding("Status"),        Width = 140 });
+            agendaDg.Columns.Add(new DataGridTextColumn     { Header = "Action Ref",         Binding = new Binding("MeetingRef"),                                            Width = 80 });
             agendaDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<ActionItemRow>();
             minutesPanel.Children.Add(agendaDg);
             minutesPanel.Children.Add(MakeSectionHeader("ATTENDEES PRESENT"));
@@ -8250,6 +9267,56 @@ namespace StingTools.UI
             => _data?.TeamMembers?.Select(m => m.Name).Where(n => !string.IsNullOrEmpty(n)).ToList()
                ?? new List<string>();
 
+        /// <summary>Phase 101: dispatch action to rebuild CoordData on the Revit API
+        /// thread and refresh the whole BCC surface (replaces close + reopen).
+        /// Runs through the ActionDispatcher / ExternalEvent pipeline so the data
+        /// rebuild (FilteredElementCollector work) happens on the Revit API
+        /// thread; <see cref="ApplyReloadedData"/> is then called on the WPF
+        /// thread to swap <see cref="_data"/> and re-render.</summary>
+        public void ReloadAll()
+        {
+            try
+            {
+                // Show a brief visual cue so the user sees something happened.
+                if (_statusBar != null) _statusBar.Text = "Refreshing…";
+                ActionDispatcher?.Invoke("BCCReload");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BCC.ReloadAll: {ex.Message}");
+                if (_statusBar != null) _statusBar.Text = $"Refresh failed: {ex.Message}";
+            }
+        }
+
+        /// <summary>Phase 101: invoked from the Revit API thread (via BCCReload
+        /// action) after CoordData has been rebuilt. Swaps the data, clears the
+        /// tab cache, refreshes badges, and re-renders the current tab.</summary>
+        public void ApplyReloadedData(CoordData fresh)
+        {
+            if (fresh == null) return;
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    _data = fresh;
+                    _tabCache.Clear();
+                    _4dPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _revPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _workflowPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _modelHealthActionArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _issueContextArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    RefreshBadges();
+                    if (!string.IsNullOrEmpty(_currentTab)) NavigateTo(_currentTab);
+                    if (_statusBar != null) _statusBar.Text = $"Refreshed \u2713  {DateTime.Now:HH:mm:ss}";
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"BCC.ApplyReloadedData: {ex.Message}");
+                    if (_statusBar != null) _statusBar.Text = $"Refresh failed: {ex.Message}";
+                }
+            });
+        }
+
         /// <summary>Phase 77 Item 11C: Refresh nav panel badge counts from live data.</summary>
         public void RefreshBadges()
         {
@@ -8279,6 +9346,11 @@ namespace StingTools.UI
         /// <summary>
         /// Show the BIM Coordination Center as a modeless window.
         /// Actions are dispatched via ActionDispatcher (ExternalEvent).
+        /// Phase 104: now anchors BCC to Revit's main HWND via WindowInteropHelper
+        /// BEFORE Show() so BCC stays z-ordered above Revit. Without this anchor,
+        /// switching focus to any child dialog let Revit come to the front and
+        /// pushed BCC behind — the user reported "BCC gets behind Revit when its
+        /// child UI is activated".
         /// </summary>
         internal static void Show(CoordData data)
         {
@@ -8294,6 +9366,21 @@ namespace StingTools.UI
                 return;
             }
             var dlg = new BIMCoordinationCenter(data);
+
+            // Phase 104: anchor to Revit main window BEFORE first Show() — this is the
+            // only time WindowInteropHelper.Owner can be assigned. Sets the native
+            // owner so BCC and Revit stay in the same z-group: clicking BCC cannot
+            // push Revit behind, clicking Revit cannot push BCC behind.
+            try
+            {
+                IntPtr revitHwnd = NativeMethods.FindWindow("Rvt_MainWindow", null);
+                if (revitHwnd == IntPtr.Zero)
+                    revitHwnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                if (revitHwnd != IntPtr.Zero)
+                    new System.Windows.Interop.WindowInteropHelper(dlg).Owner = revitHwnd;
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"BCC owner anchor: {ex.Message}"); }
+
             dlg.Show();
             // Bring to front after Revit re-activates (common WPF-in-Revit issue)
             dlg.Dispatcher.BeginInvoke(new Action(() =>
@@ -8311,5 +9398,139 @@ namespace StingTools.UI
     {
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
         internal static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+    }
+
+    /// <summary>Phase 98: Centralised window-owner helper.
+    /// <para>
+    /// Problem: modeless WPF windows opened from Revit commands default to no owner,
+    /// which in Revit produces two bugs — child dialogs open BEHIND the BCC when the
+    /// BCC is visible, and when the child is clicked the BCC disappears behind the
+    /// Revit main window (because its only Z-parent was the Revit HWND).
+    /// </para>
+    /// <para>
+    /// Fix: call <see cref="ApplyOwner"/> on any WPF Window before <c>Show()</c> or
+    /// <c>ShowDialog()</c>. It prefers the BCC (when visible) so child windows stack
+    /// above it; otherwise it sets the Revit main window HWND via
+    /// <see cref="System.Windows.Interop.WindowInteropHelper"/> so the window still
+    /// behaves like a proper Revit child.
+    /// </para>
+    /// </summary>
+    public static class StingWindowHelper
+    {
+        // Phase 104: global class-handler that auto-owns any WPF Window created from
+        // inside Revit. Uses the routed Loaded event (fires after Show but while the
+        // HWND exists) — at that point WindowInteropHelper.Owner can still update the
+        // native owner via SetWindowLongPtr(GWLP_HWNDPARENT), which is sufficient to
+        // fix the z-order. Registered once at plugin load by StingToolsApp.
+        // Without this, every command that opens a dialog without explicitly calling
+        // ApplyOwner drops behind BCC. With this hook, dialogs correctly stack above
+        // BCC and BCC stays above Revit via the anchor set in BIMCoordinationCenter.Show.
+        private static bool _globalHandlerInstalled;
+        public static void InstallGlobalOwnerHandler()
+        {
+            if (_globalHandlerInstalled) return;
+            _globalHandlerInstalled = true;
+            try
+            {
+                EventManager.RegisterClassHandler(typeof(System.Windows.Window),
+                    System.Windows.FrameworkElement.LoadedEvent,
+                    new RoutedEventHandler(OnAnyWindowLoaded));
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"InstallGlobalOwnerHandler: {ex.Message}"); }
+        }
+        private static void OnAnyWindowLoaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!(sender is System.Windows.Window w)) return;
+                // Skip BCC itself — its owner is set explicitly in Show().
+                if (w is BIMCoordinationCenter) return;
+                // Only apply if caller hasn't already set an Owner (WPF or native HWND).
+                if (w.Owner != null) return;
+                var helper = new System.Windows.Interop.WindowInteropHelper(w);
+                if (helper.Owner != IntPtr.Zero) return;
+                // Prefer BCC HWND as native owner when available, so the child stacks
+                // above BCC. Fall back to Revit HWND.
+                IntPtr parentHwnd = IntPtr.Zero;
+                var bcc = BIMCoordinationCenter.CurrentInstance;
+                if (bcc != null && bcc.IsLoaded)
+                    parentHwnd = new System.Windows.Interop.WindowInteropHelper(bcc).Handle;
+                if (parentHwnd == IntPtr.Zero)
+                {
+                    var revitHwnd = NativeMethods.FindWindow("Rvt_MainWindow", null);
+                    parentHwnd = revitHwnd != IntPtr.Zero ? revitHwnd
+                        : System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                }
+                if (parentHwnd != IntPtr.Zero) helper.Owner = parentHwnd;
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"OnAnyWindowLoaded: {ex.Message}"); }
+        }
+
+        /// <summary>Set a sensible owner on <paramref name="w"/> so it always stacks
+        /// above the BCC / Revit main window. Call BEFORE <c>Show()</c> or
+        /// <c>ShowDialog()</c> — WPF doesn't let you change Owner after.</summary>
+        public static void ApplyOwner(System.Windows.Window w)
+        {
+            if (w == null) return;
+            try
+            {
+                // Phase 104 rewrite: use HWND-level owner (via WindowInterop-
+                // Helper) in BOTH cases. The old code set w.Owner=bcc (WPF
+                // property) which in Revit-hosted WPF doesn't translate to a
+                // real HWND owner, so the child was a top-level sibling of
+                // BCC and sometimes ended up BEHIND it. Setting the HWND owner
+                // explicitly makes the child a Windows-managed owned popup —
+                // it's guaranteed to stack above its owner (BCC) while still
+                // respecting Revit as the top-of-chain.
+                var bcc = BIMCoordinationCenter.CurrentInstance;
+                IntPtr ownerHwnd = IntPtr.Zero;
+                if (bcc != null && bcc != w && bcc.IsLoaded)
+                {
+                    try { ownerHwnd = new System.Windows.Interop.WindowInteropHelper(bcc).Handle; }
+                    catch { ownerHwnd = IntPtr.Zero; }
+                }
+                if (ownerHwnd == IntPtr.Zero)
+                {
+                    var revitHwnd = NativeMethods.FindWindow("Rvt_MainWindow", null);
+                    ownerHwnd = revitHwnd != IntPtr.Zero
+                        ? revitHwnd
+                        : System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                }
+                if (ownerHwnd != IntPtr.Zero)
+                {
+                    // Set the HWND owner. Must be assigned BEFORE the window
+                    // is shown (before SourceInitialized). WPF falls through
+                    // to this same mechanism when you set w.Owner, but going
+                    // direct guarantees we hit the HWND chain in Revit hosts.
+                    new System.Windows.Interop.WindowInteropHelper(w).Owner = ownerHwnd;
+
+                    // Also set WPF Owner when the owner IS a managed WPF
+                    // Window (gives us input routing + ShowDialog centering).
+                    if (bcc != null && bcc != w && bcc.IsLoaded)
+                    {
+                        try { w.Owner = bcc; } catch { /* WPF refuses after Show */ }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"StingWindowHelper.ApplyOwner: {ex.Message}");
+            }
+        }
+
+        /// <summary>Convenience wrapper — apply owner then call <c>ShowDialog()</c>.
+        /// Returns the dialog result.</summary>
+        public static bool? ShowDialogOwned(System.Windows.Window w)
+        {
+            ApplyOwner(w);
+            return w.ShowDialog();
+        }
+
+        /// <summary>Convenience wrapper — apply owner then call <c>Show()</c>.</summary>
+        public static void ShowOwned(System.Windows.Window w)
+        {
+            ApplyOwner(w);
+            w.Show();
+        }
     }
 }

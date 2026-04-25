@@ -127,6 +127,16 @@ namespace StingTools.Model
         public int TrussesCreated { get; set; }
         public TimeSpan Duration { get; set; }
 
+        // Phase-78 EaseBit-style counters (populated by StructuralCADPipeline)
+        /// <summary>Number of opening candidates detected in walls.</summary>
+        public int OpeningsDetected { get; set; }
+        /// <summary>Number of openings actually cut as voids in the model.</summary>
+        public int OpeningsCreated { get; set; }
+        /// <summary>Parallel line pairs rejected because the gap fell outside [MinWallThicknessMm, MaxWallThicknessMm].</summary>
+        public int WallsRejectedByThickness { get; set; }
+        /// <summary>True when the run was a dry-run (no elements written).</summary>
+        public bool WasDryRun { get; set; }
+
         public int TotalCreated => ColumnsCreated + BeamsCreated + BracesCreated +
             SlabsCreated + FootingsCreated + WallsCreated + TrussesCreated;
 

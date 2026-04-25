@@ -112,7 +112,10 @@ namespace StingTools.BIMManager
             var result = new CarbonResult();
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
+            // S1.4 (N-G1): pre-filter to carbon-relevant categories via
+            // AllCategoryEnums rather than scanning the whole document.
             var elements = new FilteredElementCollector(doc)
+                .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null)
                 .ToList();

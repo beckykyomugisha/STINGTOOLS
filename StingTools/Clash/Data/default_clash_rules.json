@@ -1,0 +1,38 @@
+[
+  {
+    "Id": "R050_INSULATION_EXPECTED_TOUCH",
+    "Description": "Pipe/duct insulation within 30 mm of its own pipe/duct is expected (thickness + tolerance).",
+    "FilterA": "Category=OST_PipeInsulations",
+    "FilterB": "Category=OST_PipeCurves",
+    "Verdict": "Intentional",
+    "VolumeBelowMm3": 500000.0,
+    "VolumeAboveMm3": null
+  },
+  {
+    "Id": "R051_FLOOR_SLAB_DEPRESSION",
+    "Description": "Floor finish overlapping structural slab — expected at finish zones (< 80 mm overlap).",
+    "FilterA": "Category=OST_Floors",
+    "FilterB": "Category=OST_Floors",
+    "Verdict": "Intentional",
+    "VolumeBelowMm3": 2000000.0,
+    "VolumeAboveMm3": null
+  },
+  {
+    "Id": "R052_WALL_PARTITION_JUNCTION",
+    "Description": "Two walls meeting at a corner — expected interior partition junction (< 2 L of overlap).",
+    "FilterA": "Category=OST_Walls",
+    "FilterB": "Category=OST_Walls",
+    "Verdict": "Intentional",
+    "VolumeBelowMm3": 2000000.0,
+    "VolumeAboveMm3": null
+  },
+  {
+    "Id": "R053_TESSELLATION_FLOOR_WALL",
+    "Description": "Sub-cm³ floor-vs-wall slivers from triangulation rounding — drop.",
+    "FilterA": "Category=OST_Floors",
+    "FilterB": "Category=OST_Walls",
+    "Verdict": "Pseudo",
+    "VolumeBelowMm3": 1000.0,
+    "VolumeAboveMm3": null
+  }
+]

@@ -1,0 +1,11 @@
+<h2 style="margin:0 0 16px 0; color:{{HeaderColor}};">{{IssueCode}} {{IssueTitle}}</h2>
+<p>Hi {{AssigneeName}},</p>
+<p>{{AssignerName}} has assigned <strong>{{IssueCode}}</strong> ({{IssueType}}, priority {{Priority}}) to you on
+  <strong>{{ProjectName}}</strong>.</p>
+{{#if DueDate}}<p><strong>Due:</strong> {{DueDate}}</p>{{/if}}
+<p style="text-align:center; margin:32px 0;">
+  <a href="{{IssueUrl}}" style="background:{{AccentColor}}; color:#ffffff; padding:12px 32px;
+            border-radius:6px; text-decoration:none; font-weight:600; display:inline-block;">
+    Open issue
+  </a>
+</p>

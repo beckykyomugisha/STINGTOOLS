@@ -385,6 +385,7 @@ namespace StingTools.UI
         internal static List<string> Show(List<string> preSelected = null)
         {
             var dlg = new StingRolePickerDialog(preSelected);
+            StingWindowHelper.ApplyOwner(dlg);
             return dlg.ShowDialog() == true ? dlg.SelectedRoles : null;
         }
     }

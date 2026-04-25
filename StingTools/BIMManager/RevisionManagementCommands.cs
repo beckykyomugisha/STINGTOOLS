@@ -572,54 +572,57 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception pEx) { StingLog.Warn($"CreateRevision param parse: {pEx.Message}"); }
 
-                // If no params from BCC, fall back to TaskDialog picker
+                // Phase 101: the stepped TaskDialog picker that used to live here
+                // has been removed — the BCC Revisions tab is now the only entry
+                // point for creating revisions, and it passes ISO code +
+                // discipline + description via the pipe-delimited parser above.
+                // If an external caller invokes this command with no inline
+                // form (e.g. ribbon button) we still pick sensible defaults so
+                // the command never crashes: series = P (Preliminary),
+                // discipline = ALL, description = "New Revision". Users who
+                // need a different code can open the BCC Revisions tab.
                 if (string.IsNullOrEmpty(userDesc))
                 {
-                    var td = new TaskDialog("StingTools Create Revision")
-                    {
-                        MainInstruction = $"Create Revision #{nextSeq}",
-                        MainContent = "Select the ISO 19650 revision series.\n\n" +
-                            "Tip: use the BCC Revisions tab for the full ISO code dropdown and discipline selector.",
-                        CommonButtons = TaskDialogCommonButtons.Cancel
-                    };
-                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, $"Preliminary Issue  (P{nextSeq:D2})");
-                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"Construction Issue (C{nextSeq:D2})");
-                    td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, nextSeq <= 26
-                        ? $"As-Built Issue ({(char)('A' + nextSeq - 1)})"
-                        : $"As-Built Issue (Z{nextSeq - 26})");
-                    var tdResult = td.Show();
-                    if (tdResult == TaskDialogResult.Cancel) return Result.Cancelled;
-                    isoCode = tdResult == TaskDialogResult.CommandLink1 ? $"P{nextSeq:D2}"
-                            : tdResult == TaskDialogResult.CommandLink2 ? $"C{nextSeq:D2}"
-                            : nextSeq <= 26 ? ((char)('A' + nextSeq - 1)).ToString() : $"Z{nextSeq - 26}";
+                    userDesc = $"New Revision {nextSeq}";
+                    StingLog.Info($"CreateRevision called with no BCC params — defaulting to {isoCode} / ALL / '{userDesc}'. Use BCC Revisions tab for the full form.");
                 }
 
                 string prefix = isoCode;
-                string seriesName = isoCode.StartsWith("P") ? "Preliminary"
-                    : isoCode.StartsWith("C") ? "Construction" : "As-Built";
+                // Phase 101: infer the series label for the revision name. The
+                // BCC dropdown now supports 9 series plus custom free-text, so
+                // expand the naive "P → Preliminary / C → Construction / else
+                // → As-Built" heuristic to cover every series prefix. Custom
+                // codes that don't match any prefix default to "Custom" — the
+                // full code still appears verbatim in the description so no
+                // information is lost.
+                string seriesName = InferSeriesName(isoCode);
 
                 string description = string.IsNullOrEmpty(userDesc)
                     ? RevisionEngine.BuildRevisionName(doc, nextSeq, seriesName)
                     : $"{isoCode} \u2014 {userDesc}";
 
-                // WF-03: Pre-revision compliance gate — warn if tag compliance is below threshold
+                // Phase 103: the stepped Pre-Revision Compliance Gate TaskDialog
+                // has been REMOVED. Revit TaskDialogs parent to the main Revit
+                // window, not to BCC, so they opened behind the coordination
+                // centre and broke the user's flow. The BCC Revisions tab now
+                // shows an inline compliance banner before the user clicks
+                // Create (with a checkbox "Create anyway if below threshold"),
+                // so the decision is made IN the inline panel with no popup.
+                //
+                // When this command is invoked with an ACK flag
+                // (UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck")
+                // == "true") we skip the gate entirely; otherwise we still
+                // emit a warning to the STING log for audit traceability.
                 try
                 {
                     var preRevScan = ComplianceScan.Scan(doc);
                     if (preRevScan.CompliancePercent < 80)
                     {
-                        var gateDlg = new TaskDialog("STING Pre-Revision Compliance Gate");
-                        gateDlg.MainInstruction = $"Tag compliance is {preRevScan.CompliancePercent:F0}% (below 80% threshold)";
-                        gateDlg.MainContent =
-                            $"Total elements: {preRevScan.TotalElements}\n" +
-                            $"Tagged: {preRevScan.TaggedComplete} | Untagged: {preRevScan.Untagged}\n" +
-                            $"Stale: {preRevScan.StaleCount}\n\n" +
-                            "Creating a revision with low compliance may result in incomplete COBie data.\n" +
-                            "Recommended: tag to ≥80% before creating revision.";
-                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Create revision anyway");
-                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel — tag first");
-                        if (gateDlg.Show() != TaskDialogResult.CommandLink1)
-                            return Result.Cancelled;
+                        string ack = UI.StingCommandHandler.GetExtraParam("RevisionComplianceAck") ?? "";
+                        StingLog.Warn(
+                            $"Pre-revision compliance gate: {preRevScan.CompliancePercent:F0}% " +
+                            $"(below 80%). Tagged={preRevScan.TaggedComplete} Untagged={preRevScan.Untagged} " +
+                            $"Stale={preRevScan.StaleCount}. User ack='{ack}'. Proceeding.");
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
@@ -648,6 +651,18 @@ namespace StingTools.BIMManager
                         $"Tag snapshot saved ({snapshot.Count} elements tracked).\n" +
                         "Use 'Revision Compare' after changes to see what was modified.");
                 }
+
+                // Phase 108k Item 3 — BOQ × BCC integration. Auto-save a BOQ
+                // snapshot labelled with the revision so every revision has a
+                // matching cost baseline; QS can diff against any revision
+                // from BOQ Cost Manager → Snapshot picker. No-op if the BOQ
+                // engine can't build a document (unlikely on a revision-
+                // worthy model).
+                try
+                {
+                    StingTools.BOQ.BOQBccBridge.OnRevisionCreated(doc, prefix, description);
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ revision hook: {ex.Message}"); }
                 // GAP-FIX: Auto-save warning baseline on revision creation
                 if (TagConfig.AutoSaveBaselineOnRevision)
                 {
@@ -713,6 +728,37 @@ namespace StingTools.BIMManager
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>Phase 101: map a revision ISO code to its series label for
+        /// the human-readable revision name. Covers all 9 series in the BCC
+        /// dropdown (Tender, Preliminary, Contract, Construction, Revision,
+        /// Building, Digital, Approved, As-Built) plus status stamps. Custom
+        /// codes that don't match any known prefix fall back to "Custom" so
+        /// bespoke project series (e.g. "PQ-01", "G3-A") still get a sensible
+        /// label — the full code still appears verbatim in the description.</summary>
+        private static string InferSeriesName(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return "Custom";
+            string c = code.Trim().ToUpperInvariant();
+            // Multi-character prefixes first (must match before single-letter checks).
+            if (c.StartsWith("CO")) return "Contract";
+            if (c.StartsWith("AB")) return "As-Built";
+            if (c.StartsWith("IF") || c == "WD" || c == "SS" || c == "OB") return "Status Stamp";
+            // Single-letter series.
+            switch (c[0])
+            {
+                case 'T': return "Tender";
+                case 'P': return "Preliminary";
+                case 'C': return "Construction";
+                case 'R': return "Revision";
+                case 'B': return "Building";
+                case 'D': return "Digital";
+                case 'A': return "Approved";
+            }
+            // Plain single-letter as-built codes (A–Z without suffix).
+            if (c.Length == 1 && c[0] >= 'A' && c[0] <= 'Z') return "As-Built";
+            return "Custom";
         }
     }
 
@@ -939,17 +985,11 @@ namespace StingTools.BIMManager
                 int cloudsCreated = 0;
                 int cloudsSkipped = 0;
 
-                // Phase 85: Build set of already-clouded element IDs to prevent duplicates on repeated runs
+                // Phase 85: Build set of already-clouded element IDs to prevent duplicates on repeated runs.
+                // RevisionCloud doesn't expose hosted elements directly, so we fingerprint by bounding-box origin.
                 var alreadyClouded = new HashSet<long>();
                 try
                 {
-                    foreach (var rc in new FilteredElementCollector(doc, view.Id)
-                        .OfClass(typeof(RevisionCloud))
-                        .Cast<RevisionCloud>())
-                    {
-                        // RevisionCloud doesn't expose hosted elements directly; track by bounding box center
-                    }
-                    // Track existing clouds by their host element references
                     foreach (RevisionCloud rc in new FilteredElementCollector(doc)
                         .OfClass(typeof(RevisionCloud)))
                     {

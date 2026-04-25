@@ -127,7 +127,6 @@ namespace StingTools.Tags
                 "Overwrite all (force)",
                 "Re-derive all tokens from scratch, overwriting any existing values");
             overDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            overDlg.DefaultButton = TaskDialogResult.CommandLink1;
 
             bool overwrite;
             switch (overDlg.Show())

@@ -1,0 +1,18 @@
+# STING v4 Phase C.4 electrical-wire intelligence shared parameters.
+# Closes the 6 "missing wire params" gap from the wire-annotation
+# audit + adds ELC_CABLE_SEG_CLASS_TXT for BS EN 50174-2 segregation.
+# Loaded via LoadSharedParamsCommand or merged into MR_PARAMETERS.txt.
+# GUIDs are UUIDv5 hashes under the STING fabrication namespace
+# 7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	4	ELC_PWR
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
+PARAM	ed46a7cc-c263-5c60-a109-ff0038c6e59c	ELC_WIRE_PHASE	TEXT		4	1	Phase designation: L1/L2/L3/N/PE per BS 7671	1
+PARAM	ba4aec91-5b10-5681-bc42-1ba03f81cdb3	ELC_WIRE_CORE_COUNT	INTEGER		4	1	Core count: 1/2/3/4/5 (single / twin / 3-core / 4-core / 5-core)	1
+PARAM	c5cb2d07-be9c-532b-bb67-49ce9d46f1f4	ELC_WIRE_CSA_MM2	NUMBER		4	1	Conductor cross-sectional area in mm^2 (1.0 / 1.5 / 2.5 / 4 / 6 / 10 / 16 / 25)	1
+PARAM	812665d3-ac10-56c8-a12d-c128027233fa	ELC_CIRCUIT_LINK_ID	TEXT		4	1	Foreign key to ElectricalSystem.Id of the parent circuit	1
+PARAM	6ef520a6-d904-5ffa-b02b-ad078e78f834	ELC_CABLE_ROUTE_HOME_RUN	TEXT		4	1	Home-run route through cable trays / conduits as a dash-separated element id list	1
+PARAM	cf5ab978-3d5b-5f2c-bf1f-92beddae5be9	ELC_VOLT_DROP_PCT	NUMBER		4	1	Voltage drop percent computed per BS 7671 Appendix 4 (warn > 3% lighting / 5% power)	1
+PARAM	80ef2c3c-fc37-5fa8-97b1-7098ad70607d	ELC_CABLE_SEG_CLASS_TXT	TEXT		4	1	BS EN 50174-2 segregation class: SCREEN / UTP / MULT_SC (screened / unscreened / multi-screened)	1

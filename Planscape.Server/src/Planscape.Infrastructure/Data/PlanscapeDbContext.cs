@@ -38,6 +38,7 @@ public class PlanscapeDbContext : DbContext
     }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<TenantBranding> TenantBrandings => Set<TenantBranding>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<TaggedElement> TaggedElements => Set<TaggedElement>();
@@ -53,10 +54,19 @@ public class PlanscapeDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
     public DbSet<DevicePushToken> DevicePushTokens => Set<DevicePushToken>();
+    public DbSet<UserNotificationPreferences> UserNotificationPreferences => Set<UserNotificationPreferences>();
     public DbSet<IssueAttachment> IssueAttachments => Set<IssueAttachment>();
+    public DbSet<IssueCustomFieldSchema> IssueCustomFieldSchemas => Set<IssueCustomFieldSchema>();
+    public DbSet<ProjectModel> ProjectModels => Set<ProjectModel>();
+    public DbSet<IssueComment> IssueComments => Set<IssueComment>();
+    public DbSet<DocumentMarkup> DocumentMarkups => Set<DocumentMarkup>();
+    public DbSet<ScheduleTask> ScheduleTasks => Set<ScheduleTask>();
+    public DbSet<CostItem> CostItems => Set<CostItem>();
     public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
+    public DbSet<SyncConflict> SyncConflicts => Set<SyncConflict>();
+    public DbSet<SyncWatermark> SyncWatermarks => Set<SyncWatermark>();
 
     // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
@@ -73,6 +83,133 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(t => t.Slug).IsUnique();
             e.Property(t => t.Name).HasMaxLength(200);
             e.Property(t => t.Slug).HasMaxLength(50);
+        });
+
+        // ── IssueCustomFieldSchema (FLEX-13) ──
+        modelBuilder.Entity<IssueCustomFieldSchema>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Key }).IsUnique();
+            e.HasIndex(x => x.ProjectId);
+            e.Property(x => x.Key).HasMaxLength(80);
+            e.Property(x => x.Label).HasMaxLength(200);
+            e.Property(x => x.HelpText).HasMaxLength(500);
+            e.Property(x => x.DefaultValueJson).HasColumnType("jsonb");
+            e.Property(x => x.OptionsJson).HasColumnType("jsonb");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── ProjectModel (MODEL-VIEWER) ──
+        modelBuilder.Entity<ProjectModel>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.ContentHash);
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.FileName).HasMaxLength(260);
+            e.Property(x => x.StoragePath).HasMaxLength(600);
+            e.Property(x => x.ContentHash).HasMaxLength(64);
+            e.Property(x => x.ThumbnailPath).HasMaxLength(600);
+            e.Property(x => x.ElementMapPath).HasMaxLength(600);
+            e.Property(x => x.Units).HasMaxLength(8);
+            e.Property(x => x.Revision).HasMaxLength(30);
+            e.Property(x => x.UploadedBy).HasMaxLength(200);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.UploadedByUser).WithMany().HasForeignKey(x => x.UploadedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Issue → ProjectModel anchor (MODEL-VIEWER)
+        modelBuilder.Entity<BimIssue>(e =>
+        {
+            e.HasIndex(x => x.ModelId);
+            e.Property(x => x.ModelElementGuid).HasMaxLength(80);
+        });
+
+        // ── IssueComment (P2) ──
+        modelBuilder.Entity<IssueComment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.IssueId);
+            e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.Body).HasMaxLength(4000);
+            e.Property(x => x.AuthorName).HasMaxLength(200);
+            e.Property(x => x.Source).HasMaxLength(20);
+            e.HasOne(x => x.Issue).WithMany().HasForeignKey(x => x.IssueId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.AuthorUser).WithMany().HasForeignKey(x => x.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── DocumentMarkup (P3) ──
+        modelBuilder.Entity<DocumentMarkup>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.DocumentId);
+            e.Property(x => x.ShapesJson).HasColumnType("jsonb");
+            e.Property(x => x.Summary).HasMaxLength(2000);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── ScheduleTask (P4) ──
+        modelBuilder.Entity<ScheduleTask>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.Code }).IsUnique();
+            e.Property(x => x.Code).HasMaxLength(80);
+            e.Property(x => x.Name).HasMaxLength(400);
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.LinkedMetric).HasMaxLength(200);
+            e.Property(x => x.PredecessorIds).HasMaxLength(2000);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── CostItem (P5) ──
+        modelBuilder.Entity<CostItem>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.Code });
+            e.Property(x => x.Code).HasMaxLength(80);
+            e.Property(x => x.Description).HasMaxLength(400);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.TradeBucket).HasMaxLength(100);
+            e.Property(x => x.Unit).HasMaxLength(16);
+            e.Property(x => x.Currency).HasMaxLength(3);
+            e.Property(x => x.UnitRate).HasPrecision(18, 4);
+            e.Property(x => x.LineTotal).HasPrecision(18, 2);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.ScheduleTask).WithMany().HasForeignKey(x => x.ScheduleTaskId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── BimIssue.CustomFields JSONB (FLEX-13) ──
+        // Decision 4.5 = (c) — JSONB column with GIN index. The GIN index is
+        // created by the migration (raw SQL) rather than through HasIndex, to
+        // avoid the model snapshot trying to re-create/re-drop it on later
+        // unrelated migrations.
+        modelBuilder.Entity<BimIssue>(e =>
+        {
+            e.Property(x => x.CustomFields).HasColumnType("jsonb");
+        });
+
+        // ── TenantBranding (FLEX-03) ──
+        modelBuilder.Entity<TenantBranding>(e =>
+        {
+            e.HasKey(b => b.Id);
+            e.HasIndex(b => b.TenantId).IsUnique();
+            e.HasOne(b => b.Tenant).WithMany().HasForeignKey(b => b.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(b => b.ProductName).HasMaxLength(100);
+            e.Property(b => b.AccentColor).HasMaxLength(20);
+            e.Property(b => b.HeaderColor).HasMaxLength(20);
+            e.Property(b => b.LogoUrl).HasMaxLength(500);
+            e.Property(b => b.SupportEmail).HasMaxLength(200);
+            e.Property(b => b.EmailFromName).HasMaxLength(100);
+            e.Property(b => b.EmailFromAddress).HasMaxLength(200);
+            e.Property(b => b.EmailSignature).HasMaxLength(2000);
+            e.Property(b => b.DefaultLanguage).HasMaxLength(8);
         });
 
         // ── AppUser ──
@@ -110,6 +247,13 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(i => new { i.ProjectId, i.IssueCode }).IsUnique();
             e.HasIndex(i => new { i.ProjectId, i.Status });
             e.HasIndex(i => i.DueDate).HasFilter("\"Status\" NOT IN ('CLOSED','RESOLVED')");
+            // NEW-SRV-23: nullable FK to AppUser for assignee + creator (SetNull on user delete)
+            e.HasOne(i => i.AssigneeUser).WithMany().HasForeignKey(i => i.AssigneeUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(i => i.CreatedByUser).WithMany().HasForeignKey(i => i.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(i => new { i.ProjectId, i.AssigneeUserId });
+            e.Property(i => i.AssigneeEmail).HasMaxLength(320);
+            e.Property(i => i.DeviceId).HasMaxLength(120);
+            e.Property(i => i.Source).HasMaxLength(20);
         });
 
         // ── IssueAttachment ──
@@ -225,6 +369,19 @@ public class PlanscapeDbContext : DbContext
             e.Property(d => d.DeviceName).HasMaxLength(200);
         });
 
+        // ── UserNotificationPreferences (NEW-FLEX-12) ──
+        modelBuilder.Entity<UserNotificationPreferences>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.UserId).IsUnique();
+            e.HasOne(p => p.User).WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(p => p.Tenant).WithMany().HasForeignKey(p => p.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(p => p.Channel).HasMaxLength(20);
+            e.Property(p => p.QuietHoursStart).HasMaxLength(5);
+            e.Property(p => p.QuietHoursEnd).HasMaxLength(5);
+            e.Property(p => p.TimeZone).HasMaxLength(64);
+        });
+
         // ── PlatformConnection ──
         modelBuilder.Entity<PlatformConnection>(e =>
         {
@@ -246,6 +403,16 @@ public class PlanscapeDbContext : DbContext
             e.HasKey(v => v.Id);
             e.HasOne(v => v.Document).WithMany(d => d.Versions).HasForeignKey(v => v.DocumentId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(v => new { v.DocumentId, v.VersionNumber }).IsUnique();
+        });
+
+        // ── SyncWatermark (S06 — per-device delta-sync cursor) ──
+        modelBuilder.Entity<SyncWatermark>(e =>
+        {
+            e.HasKey(w => w.Id);
+            e.Property(w => w.DeviceId).HasMaxLength(128).IsRequired();
+            // One watermark per (project, device) — upserts key on this pair.
+            e.HasIndex(w => new { w.ProjectId, w.DeviceId }).IsUnique();
+            e.HasOne(w => w.Project).WithMany().HasForeignKey(w => w.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── Planscape MIM Entities ──

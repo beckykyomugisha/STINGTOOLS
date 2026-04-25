@@ -930,6 +930,20 @@ namespace StingTools.BIMManager
             sb.AppendLine("═══════════════════════════════════════════════════════");
             sb.AppendLine();
 
+            // Phase 108k Item 6 — BOQ cost status appears FIRST because
+            // money is always the first item on a BIM coordinator meeting
+            // agenda. Bullet silently omitted when no BOQ snapshots exist.
+            try
+            {
+                string costBullet = StingTools.BOQ.BOQBccBridge.BuildMeetingAgendaBullet(doc);
+                if (!string.IsNullOrEmpty(costBullet))
+                {
+                    sb.Append(costBullet);
+                    sb.AppendLine();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Meeting BOQ bullet: {ex.Message}"); }
+
             // Section 1: Compliance Status
             var comp = ComplianceScan.Scan(doc);
             if (comp != null)

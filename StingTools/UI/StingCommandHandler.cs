@@ -137,6 +137,207 @@ namespace StingTools.UI
                     case "SelectAllTaggable": RunCommand<Select.SelectAllTaggableCommand>(app); break;
                     case "SelectCustomCategory": RunCommand<Select.SelectCustomCategoryCommand>(app); break;
 
+                    // ── v4 MVP: fixture placement (Phase 2) ──
+                    case "Placement_PlaceFixtures": RunCommand<Commands.Placement.PlaceFixturesCommand>(app); break;
+                    case "Placement_LightingGrid":  RunCommand<Commands.Placement.LightingGridCommand>(app); break;
+                    case "Placement_Learn":         RunCommand<Commands.Placement.LearnPlacementV4Command>(app); break;
+
+                    // ── v4 MVP: auto-drop routing (Phase 3) ──
+                    case "Routing_AutoDrop":         RunCommand<Commands.Routing.AutoDropCommand>(app); break;
+                    case "Routing_GenerateLayout":   RunCommand<Commands.Routing.GenerateLayoutCommand>(app); break;
+                    case "Routing_ValidateFills":    RunCommand<Commands.Routing.ValidateFillsCommand>(app); break;
+
+                    // ── v4 MVP: validators (Phase 4) ──
+                    case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
+
+                    // ── Gap 2 / Phase 121 — Extensible Storage migration + diagnostic ──
+                    case "ES_Migrate":               RunCommand<Commands.Storage.MigrateToExtensibleStorageCommand>(app); break;
+                    case "ES_Diagnostic":            RunCommand<Commands.Storage.EsStorageDiagnosticCommand>(app); break;
+
+                    // ── Phase 127 — Placement Centre (modeless WPF window) ──
+                    case "Placement_OpenCentre":     RunCommand<Commands.Placement.OpenPlacementCenterCommand>(app); break;
+
+                    // ── Phase 116: Standards Extensions + Regional + Bulk API wrappers ──
+                    case "StdExt_StageCompliance":  RunCommand<Commands.StandardsExt.StageComplianceAuditCommand>(app); break;
+                    case "StdExt_SetRegion":         RunCommand<Commands.StandardsExt.SetRegionCommand>(app); break;
+                    case "StdExt_AccessibilityAudit":RunCommand<Commands.StandardsExt.AccessibilityAuditCommand>(app); break;
+                    case "StdExt_ParkingAudit":      RunCommand<Commands.StandardsExt.ParkingAuditCommand>(app); break;
+                    case "StdExt_LiveLoadAudit":     RunCommand<Commands.StandardsExt.LiveLoadAuditCommand>(app); break;
+                    case "StdExt_LoadCombinations":  RunCommand<Commands.StandardsExt.LoadCombinationsCommand>(app); break;
+                    case "StdExt_EUIBenchmark":      RunCommand<Commands.StandardsExt.EUIBenchmarkCommand>(app); break;
+                    case "StdExt_WaterUse":           RunCommand<Commands.StandardsExt.WaterUseCommand>(app); break;
+                    case "StdExt_SpaceEff":           RunCommand<Commands.StandardsExt.SpaceEffCommand>(app); break;
+                    case "StdExt_LifecycleCost":      RunCommand<Commands.StandardsExt.LifecycleCostCommand>(app); break;
+                    case "StdBulk_Ventilation":      RunCommand<Commands.StandardsExt.VentilationCommand>(app); break;
+                    case "StdBulk_PlumbingPipe":      RunCommand<Commands.StandardsExt.PlumbingPipeSizeCommand>(app); break;
+                    case "StdBulk_DuctEqualFrict":    RunCommand<Commands.StandardsExt.DuctEqualFrictionCommand>(app); break;
+                    case "StdBulk_Psychrometric":     RunCommand<Commands.StandardsExt.PsychrometricCommand>(app); break;
+                    case "StdBulk_ArcFlash":          RunCommand<Commands.StandardsExt.ArcFlashCommand>(app); break;
+                    case "StdBulk_ConduitFill":       RunCommand<Commands.StandardsExt.ConduitFillCommand>(app); break;
+                    case "StdBulk_SteelBeam":         RunCommand<Commands.StandardsExt.SteelBeamCommand>(app); break;
+                    case "StdBulk_ConcreteBeam":      RunCommand<Commands.StandardsExt.ConcreteBeamCommand>(app); break;
+                    case "StdBulk_Foundation":        RunCommand<Commands.StandardsExt.FoundationCommand>(app); break;
+                    case "StdBulk_Seismic":           RunCommand<Commands.StandardsExt.SeismicCommand>(app); break;
+                    case "StdBulk_OccupantLoad":      RunCommand<Commands.StandardsExt.OccupantLoadCommand>(app); break;
+                    case "StdBulk_TravelDistance":    RunCommand<Commands.StandardsExt.TravelDistanceCommand>(app); break;
+                    case "StdBulk_EgressWidth":       RunCommand<Commands.StandardsExt.EgressWidthCommand>(app); break;
+                    case "StdBulk_SpaceUtil":         RunCommand<Commands.StandardsExt.SpaceUtilizationCommand>(app); break;
+                    case "StdBulk_Hydrant":           RunCommand<Commands.StandardsExt.HydrantCommand>(app); break;
+                    case "StdBulk_MaintenanceCost":   RunCommand<Commands.StandardsExt.MaintenanceCostCommand>(app); break;
+                    case "StdBulk_AccessibleToilet":  RunCommand<Commands.StandardsExt.AccessibleToiletCommand>(app); break;
+                    case "StdBulk_AccessibleFix":     RunCommand<Commands.StandardsExt.AccessibleFixturesCommand>(app); break;
+                    case "StdBulk_EnergyAnalysis":    RunCommand<Commands.StandardsExt.EnergyAnalysisCommand>(app); break;
+                    case "StdBulk_SprinklerCriteria": RunCommand<Commands.StandardsExt.SprinklerCriteriaCommand>(app); break;
+
+                    // ── Phase 115: Fabrication Extensions ──
+                    case "FabExt_ACCPublish":    RunCommand<Commands.FabricationExt.ACCPublishShopCommand>(app); break;
+                    case "FabExt_WeldPath":      RunCommand<Commands.FabricationExt.WeldPathExportCommand>(app); break;
+                    case "FabExt_ExportNC":      RunCommand<Commands.FabricationExt.ExportNCCommand>(app); break;
+                    case "FabExt_DuctSeamAudit": RunCommand<Commands.FabricationExt.DuctSeamAuditCommand>(app); break;
+                    case "FabExt_PipeSupports":  RunCommand<Commands.FabricationExt.PipeSupportGridCommand>(app); break;
+                    case "FabExt_HangerTakedown":RunCommand<Commands.FabricationExt.HangerTakedownCommand>(app); break;
+                    case "FabExt_FlangeRating":  RunCommand<Commands.FabricationExt.FlangeRatingCommand>(app); break;
+                    case "FabExt_SpoolWeight":   RunCommand<Commands.FabricationExt.SpoolWeightCommand>(app); break;
+                    case "FabExt_TitleBlockFill":RunCommand<Commands.FabricationExt.TitleBlockFillCommand>(app); break;
+                    case "FabExt_ISOSymbolsFull":RunCommand<Commands.FabricationExt.ISOSymbolsFullCommand>(app); break;
+
+                    // ── Phase 114: Placement + Routing Extensions ──
+                    case "PlcExt_SprinklerGrid":  RunCommand<Commands.PlacementExt.SprinklerGridCommand>(app); break;
+                    case "PlcExt_AccessibleWC":   RunCommand<Commands.PlacementExt.AccessibleWcCommand>(app); break;
+                    case "PlcExt_FireExt":        RunCommand<Commands.PlacementExt.FireExtinguisherCommand>(app); break;
+                    case "PlcExt_ExitSigns":      RunCommand<Commands.PlacementExt.ExitSignsCommand>(app); break;
+                    case "PlcExt_EmergencyLumAll":RunCommand<Commands.PlacementExt.EmergencyLumAllCommand>(app); break;
+                    case "PlcExt_AccessControl":  RunCommand<Commands.PlacementExt.AccessControlCommand>(app); break;
+                    case "PlcExt_CCTVCoverage":   RunCommand<Commands.PlacementExt.CCTVCoverageCommand>(app); break;
+                    case "RtExt_Manhattan":       RunCommand<Commands.RoutingExt.ManhattanLayoutCommand>(app); break;
+                    case "RtExt_ClashAvoid":      RunCommand<Commands.RoutingExt.ClashAvoidCommand>(app); break;
+                    case "RtExt_CableBundle":     RunCommand<Commands.RoutingExt.CableBundleCommand>(app); break;
+                    case "RtExt_PipeInsulation":  RunCommand<Commands.RoutingExt.PipeInsulationCommand>(app); break;
+                    case "RtExt_AutoFireDamper":  RunCommand<Commands.RoutingExt.AutoFireDamperCommand>(app); break;
+                    case "RtExt_ExpansionLoop":   RunCommand<Commands.RoutingExt.ExpansionLoopCommand>(app); break;
+                    case "RtExt_TrayRiser":       RunCommand<Commands.RoutingExt.TrayRiserCommand>(app); break;
+
+                    // ── Phase 113: MEP Design Extensions ──
+                    case "MepA_CableSizeApply":  RunCommand<Commands.MepDesign.CableSizeApplyCommand>(app); break;
+                    case "MepA_PanelSchedule":    RunCommand<Commands.MepDesign.PanelScheduleBuildCommand>(app); break;
+                    case "MepA_BreakerAutoSize":  RunCommand<Commands.MepDesign.BreakerAutoSizeCommand>(app); break;
+                    case "MepA_AutoSizeConduitAll": RunCommand<Commands.MepDesign.AutoSizeConduitAllCommand>(app); break;
+                    case "MepA_GroundingDesign":  RunCommand<Commands.MepDesign.GroundingDesignCommand>(app); break;
+                    case "MepA_DuctStaticRegain":  RunCommand<Commands.MepDesign.DuctStaticRegainCommand>(app); break;
+                    case "MepA_PumpSize":          RunCommand<Commands.MepDesign.PumpSizeCommand>(app); break;
+                    case "MepA_TransformerSize":   RunCommand<Commands.MepDesign.TransformerSizeCommand>(app); break;
+                    case "MepA_GeneratorSize":     RunCommand<Commands.MepDesign.GeneratorSizeCommand>(app); break;
+                    case "MepA_WaterHeaterSize":   RunCommand<Commands.MepDesign.WaterHeaterSizeCommand>(app); break;
+                    case "MepA_DrainageSize":      RunCommand<Commands.MepDesign.DrainageSizeCommand>(app); break;
+                    case "MepA_BalanceApply":      RunCommand<Commands.MepDesign.BalanceApplyCommand>(app); break;
+
+                    // ── Phase 112: Structural Extensions ──
+                    case "StrExt_AutoSlabRebar":     RunCommand<Commands.StructuralExt.AutoSlabRebarCommand>(app); break;
+                    case "StrExt_FullColumnTakedown":RunCommand<Commands.StructuralExt.FullColumnTakedownCommand>(app); break;
+                    case "StrExt_WindAutoApply":     RunCommand<Commands.StructuralExt.WindAutoApplyCommand>(app); break;
+                    case "StrExt_SeismicAutoApply":  RunCommand<Commands.StructuralExt.SeismicAutoApplyCommand>(app); break;
+                    case "StrExt_PileGroup":         RunCommand<Commands.StructuralExt.PileGroupDesignCommand>(app); break;
+                    case "StrExt_RetainingWall":     RunCommand<Commands.StructuralExt.RetainingWallCheckCommand>(app); break;
+                    case "StrExt_AutoConnection":    RunCommand<Commands.StructuralExt.AutoConnectionCommand>(app); break;
+                    case "StrExt_CompositeBeam":     RunCommand<Commands.StructuralExt.CompositeBeamDesignCommand>(app); break;
+                    case "StrExt_ToleranceCheck":    RunCommand<Commands.StructuralExt.ToleranceCheckCommand>(app); break;
+                    case "StrExt_CreepDeflection":   RunCommand<Commands.StructuralExt.CreepDeflectionCommand>(app); break;
+
+                    // ── Phase 111: Architecture & shell automation ──
+                    case "Arch_AutoStair":       RunCommand<Commands.Architecture.AutoStairCommand>(app); break;
+                    case "Arch_AutoRailing":     RunCommand<Commands.Architecture.AutoRailingCommand>(app); break;
+                    case "Arch_AutoCurtainWall": RunCommand<Commands.Architecture.AutoCurtainWallCommand>(app); break;
+                    case "Arch_AutoOpening":     RunCommand<Commands.Architecture.AutoOpeningCommand>(app); break;
+                    case "Arch_AutoPlaster":     RunCommand<Commands.Architecture.AutoPlasterCommand>(app); break;
+                    case "Arch_CoverAudit":      RunCommand<Commands.Architecture.CoverAuditCommand>(app); break;
+
+                    // ── Phase 110: Standards & compliance calculations ──
+                    case "Std_CalcCableSize":   RunCommand<Commands.Standards.CalcCableSizeCommand>(app); break;
+                    case "Std_CalcWindLoad":    RunCommand<Commands.Standards.CalcWindLoadCommand>(app); break;
+                    case "Std_CalcLighting":    RunCommand<Commands.Standards.CalcLightingCommand>(app); break;
+                    case "Std_CalcCoolingLoad": RunCommand<Commands.Standards.CalcCoolingLoadCommand>(app); break;
+                    case "Std_CalcEgress":      RunCommand<Commands.Standards.CalcEgressCommand>(app); break;
+                    case "Std_DesignSprinkler": RunCommand<Commands.Standards.DesignSprinklerCommand>(app); break;
+
+                    // ── Phase 109: MEP workflow automation ──
+                    case "Mep_PressureDrop":    RunCommand<Commands.Mep.MepPressureDropAnalyseCommand>(app); break;
+                    case "Mep_FittingLoss":     RunCommand<Commands.Mep.MepFittingLossReportCommand>(app); break;
+                    case "Mep_Balance":         RunCommand<Commands.Mep.MepBalanceSystemCommand>(app); break;
+                    case "Mep_VibroAcoustic":   RunCommand<Commands.Mep.MepVibroAcousticCheckCommand>(app); break;
+                    case "Mep_SystemAnalyse":   RunCommand<Commands.Mep.MepSystemAnalyseCommand>(app); break;
+                    case "Mep_SystemTracer":    RunCommand<Commands.Mep.MepSystemTracerCommand>(app); break;
+                    case "Mep_AutoSleeve":      RunCommand<Commands.Mep.AutoSleevePlacementCommand>(app); break;
+                    case "Mep_AutoSizePipe":    RunCommand<Commands.Mep.MepAutoSizePipeCommand>(app); break;
+                    case "Mep_AutoSizeDuct":    RunCommand<Commands.Mep.MepAutoSizeDuctCommand>(app); break;
+                    case "Mep_AutoSizeConduit": RunCommand<Commands.Mep.MepAutoSizeConduitCommand>(app); break;
+                    case "Mep_AutoSizeAll":     RunCommand<Commands.Mep.MepAutoSizeAllCommand>(app); break;
+                    case "Mep_FillLiveCalc":    RunCommand<Commands.Mep.MepFillLiveCalcCommand>(app); break;
+                    case "Mep_NamingAudit":     RunCommand<Commands.Mep.MepNamingAuditCommand>(app); break;
+
+                    // ── v4 MVP: fabrication (Phase 5) ──
+                    case "Fabrication_OpenWorkspace":     RunCommand<Commands.Fabrication.FabricationWorkspaceCommand>(app); break;
+                    case "Fabrication_GeneratePackage":   RunCommand<Commands.Fabrication.GenerateFabPackageCommand>(app); break;
+                    case "Fabrication_ExportCutList":     RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;
+                    case "Fabrication_ExportIsometrics":  RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
+                    case "Fabrication_ExportWeldMap":     RunCommand<Commands.Fabrication.ExportWeldMapCommand>(app); break;
+                    case "Fabrication_ExportMaj":         RunCommand<Commands.Fabrication.ExportMajCommand>(app); break;
+                    case "Fabrication_ExportPcf":         RunCommand<Commands.Fabrication.ExportPcfCommand>(app); break;
+                    case "Fabrication_UndoPackage":       RunCommand<Commands.Fabrication.UndoFabPackageCommand>(app); break;
+                    case "Fabrication_SmartGroup":        RunCommand<Commands.Fabrication.SmartGroupCommand>(app); break;
+                    case "Fabrication_ClashPreflight":    RunCommand<Commands.Fabrication.ClashPreflightCommand>(app); break;
+                    case "Fabrication_IncrementalRebuild":RunCommand<Commands.Fabrication.IncrementalRebuildCommand>(app); break;
+                    case "Fabrication_BomRollup":         RunCommand<Commands.Fabrication.BomRollupCommand>(app); break;
+                    case "Fabrication_LinkDocRegister":   RunCommand<Commands.Fabrication.LinkDocRegisterCommand>(app); break;
+
+                    // ── v4 Phase C: calc engines ──
+                    case "Calc_ConduitFill":  RunCommand<Commands.Routing.CalcConduitFillCommand>(app); break;
+                    case "Calc_DuctFriction": RunCommand<Commands.Routing.CalcDuctFrictionCommand>(app); break;
+                    case "Calc_SlopeCorrect": RunCommand<Commands.Routing.CalcSlopeCorrectCommand>(app); break;
+                    case "Calc_HardyCross":  RunCommand<Commands.Routing.HardyCrossCommand>(app); break;
+                    case "Calc_CableSegregation": RunCommand<Commands.Routing.CableSegregationCommand>(app); break;
+
+                    // ── v4 Phase I: sleeve engine ──
+                    case "Mep_PlaceSleeves":   RunCommand<Commands.Mep.PlaceSleevesCommand>(app); break;
+                    case "Mep_ExportPfvIfc":   RunCommand<Commands.Mep.ExportPfvIfcCommand>(app); break;
+                    case "Mep_ExportSleeveBcf":RunCommand<Commands.Mep.ExportSleeveBcfCommand>(app); break;
+
+                    // ── v4 Phase J: cable-in-tray modelling ──
+                    case "Electrical_AddCable":    RunCommand<Commands.Electrical.AddCableCommand>(app); break;
+                    case "Electrical_ListCables":  RunCommand<Commands.Electrical.ListCablesCommand>(app); break;
+                    case "Electrical_ExportCircuits": RunCommand<Commands.Electrical.ExportCircuitsCommand>(app); break;
+                    case "Electrical_TrayFill":    RunCommand<Commands.Electrical.ShowTrayFillCommand>(app); break;
+
+                    // ── v4 Phase D: hanger placement ──
+                    case "Routing_PlaceHangers": RunCommand<Commands.Routing.PlaceHangersCommand>(app); break;
+                    case "Fabrication_PlaceISOSymbols": TaskDialog.Show("STING v4 — ISO 6412 Symbols", "Place is wired through GenerateFabPackageCommand;\nrun Generate Fabrication Package against your selection."); break;
+                    case "Fabrication_ConfigureShopDrawing":
+                    {
+                        var doc = app?.ActiveUIDocument?.Document;
+                        if (doc == null) { TaskDialog.Show("STING v4", "Open a project first."); break; }
+                        var dlg = new UI.ShopDrawingOptionsDialog(doc);
+                        try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                        if (dlg.ShowDialog() == true)
+                        {
+                            Commands.Fabrication.FabricationOptions.ShopDrawing = dlg.Result;
+                            UI.StingDockPanel.LastInstance?.UpdateFabShopDrawingStatus(doc, dlg.Result);
+                        }
+                        break;
+                    }
+                    case "Fabrication_ClearShopDrawing":
+                    {
+                        Commands.Fabrication.FabricationOptions.ShopDrawing = null;
+                        UI.StingDockPanel.LastInstance?.UpdateFabShopDrawingStatus(null, null);
+                        break;
+                    }
+
+                    // ── Drawing Template Manager (Phase 113) ──
+                    case "DrawingTypes_Inspect": RunCommand<Commands.Drawing.DrawingTypesInspectCommand>(app); break;
+                    case "DrawingTypes_Reload":  RunCommand<Commands.Drawing.DrawingTypesReloadCommand>(app);  break;
+                    case "DrawingTypes_Editor":  RunCommand<Commands.Drawing.DrawingTypeEditorCommand>(app);   break;
+                    case "DrawingTypes_GroupBrowser":  DrawingTypesGroupBrowserInline(app); break;
+                    case "DrawingTypes_SyncStyles":    DrawingTypesSyncStylesInline(app);   break;
+                    case "DrawingTypes_FromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;
+
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;
                     case "SetScopeProject": Select.SelectionScopeHelper.SetScope(true); TaskDialog.Show("Scope", "Selection scope: WHOLE PROJECT"); break;
@@ -429,6 +630,18 @@ namespace StingTools.UI
                     case "ViewOrganizer": RunCommand<Docs.ViewOrganizerCommand>(app); break;
                     case "SheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
                     case "Transmittal": RunCommand<Docs.TransmittalCommand>(app); break;
+
+                    // ── Phase 97 — Title Block System (8 commands per spec v1.0) ──
+                    case "TitleBlockEditCsv":      RunCommand<Docs.TitleBlockEditCsvCommand>(app); break;
+                    case "TitleBlockPopulate":     RunCommand<Docs.TitleBlockPopulateCommand>(app); break;
+                    case "TitleBlockValidate":     RunCommand<Docs.TitleBlockValidateCommand>(app); break;
+                    case "TitleBlockSetVariant":   RunCommand<Docs.TitleBlockSetVariantCommand>(app); break;
+                    case "DisciplineLegendBind":   RunCommand<Docs.DisciplineLegendBindCommand>(app); break;
+                    case "SheetCountAutoUpdate":   RunCommand<Docs.SheetCountAutoUpdateCommand>(app); break;
+                    case "RevisionSync":           RunCommand<Docs.RevisionSyncCommand>(app); break;
+                    case "TransmittalAutoIssue":   RunCommand<Docs.TransmittalAutoIssueCommand>(app); break;
+                    case "PreExportValidate":     RunCommand<Docs.PreExportValidateCommand>(app); break;
+
                     case "HandoverManual": RunCommand<Docs.HandoverManualCommand>(app); break;
                     case "DeleteUnusedViews": RunCommand<Docs.DeleteUnusedViewsCommand>(app); break;
                     case "SheetNamingCheck": RunCommand<Docs.SheetNamingCheckCommand>(app); break;
@@ -781,7 +994,9 @@ namespace StingTools.UI
                     case "ValidateTemplate": RunCommand<Temp.ValidateTemplateCommand>(app); break;
                     case "DynamicBindings": RunCommand<Temp.DynamicBindingsCommand>(app); break;
                     case "SchemaValidate": RunCommand<Temp.SchemaValidateCommand>(app); break;
-                    case "BOQExport": RunCommand<Temp.BOQExportCommand>(app); break;
+                    // "BOQExport" is now routed to BOQ.BOQExportCommand at line ~2547 (new BOQ Cost Manager).
+                    // Legacy Phase 5 Temp.BOQExportCommand accessible via "BOQExportLegacy" tag.
+                    case "BOQExportLegacy": RunCommand<Temp.BOQExportCommand>(app); break;
                     case "TemplateVGAudit": RunCommand<Temp.TemplateVGAuditCommand>(app); break;
                     case "ExportIfcPropertyMap": RunCommand<Temp.ExportIfcPropertyMapCommand>(app); break;
                     case "ValidateBepCompliance": RunCommand<Temp.ValidateBepComplianceCommand>(app); break;
@@ -867,7 +1082,11 @@ namespace StingTools.UI
                     case "CreateTagFamilies": RunCommand<Tags.CreateTagFamiliesCommand>(app); break;
                     case "LoadTagFamilies": RunCommand<Tags.LoadTagFamiliesCommand>(app); break;
                     case "ConfigureTagLabels": RunCommand<Tags.ConfigureTagLabelsCommand>(app); break;
+                    case "ConfigureLoadedFamilies": RunCommand<Tags.ConfigureLoadedFamiliesCommand>(app); break;
                     case "AuditTagFamilies": RunCommand<Tags.AuditTagFamiliesCommand>(app); break;
+                    case "RetrofitProject": RunCommand<Temp.RetrofitProjectCommand>(app); break;
+                    case "MigrateTagFamilies": RunCommand<Commands.TagStudio.MigrateTagFamiliesCommand>(app); break;
+                    case "StyleAudit": RunCommand<Commands.TagStudio.StyleAuditCommand>(app); break;
 
                     // ── Populate tokens ──
                     case "FamilyStagePopulate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
@@ -930,7 +1149,7 @@ namespace StingTools.UI
                     case "CondApply":
                     case "ParamLookupDialog":
                         OpenParameterLookupDialog(app); break;
-                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://stingbim.com"); break;
+                    case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://planscape.com"); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
@@ -1187,8 +1406,13 @@ namespace StingTools.UI
                     case "StrCADPreview": RunCommand<Model.StrCADPreviewCommand>(app); break;
                     case "StrRecommendGrid": RunCommand<Model.StrRecommendGridCommand>(app); break;
                     case "StrCADWizard": RunCommand<Model.StrCADWizardCommand>(app); break;
-                    case "StructuralDWGWizard": RunCommand<Model.StructuralDWGWizardCommand>(app); break;
-                    case "QuickStructuralDWG": RunCommand<Model.QuickStructuralDWGCommand>(app); break;
+                    // Phase-78 note: 7-page stepped wizard removed — use StrCADWizard (legacy single-page CAD wizard) instead.
+                    case "DWGDryRunPreview": RunCommand<Model.DWGDryRunPreviewCommand>(app); break;
+                    case "DWGExplodeImports": RunCommand<Model.DWGExplodeImportsCommand>(app); break;
+                    case "DWGDetectOpenings": RunCommand<Model.DWGDetectOpeningsCommand>(app); break;
+                    case "DWGInteractivePickWall": RunCommand<Model.DWGInteractivePickWallCommand>(app); break;
+                    case "DWGInteractivePickColumn": RunCommand<Model.DWGInteractivePickColumnCommand>(app); break;
+                    case "DWGInteractivePickBeam": RunCommand<Model.DWGInteractivePickBeamCommand>(app); break;
                     case "StrCheckPrerequisites": RunCommand<Model.StrCheckPrerequisitesCommand>(app); break;
                     case "StrBrowseTypeCatalog": RunCommand<Model.StrBrowseTypeCatalogCommand>(app); break;
                     case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;
@@ -1332,6 +1556,17 @@ namespace StingTools.UI
                     case "SelectIssueElements": RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
                     case "IssuesBulkClose": RunCommand<BIMManager.BulkCloseIssuesCommand>(app); break;
 
+                    // Template engine v1.1 — deliverable lifecycle (S12) + orchestrator (S13)
+                    case "IssueDeliverable":       RunCommand<Planscape.Docs.Templates.IssueDeliverableCommand>(app); break;
+                    case "ReIssueDeliverable":     RunCommand<Planscape.Docs.Templates.ReIssueDeliverableCommand>(app); break;
+                    case "PublishDeliverable":     RunCommand<Planscape.Docs.Templates.PublishDeliverableCommand>(app); break;
+                    case "CancelDeliverable":      RunCommand<Planscape.Docs.Templates.CancelDeliverableCommand>(app); break;
+                    case "SupersedeDeliverable":   RunCommand<Planscape.Docs.Templates.SupersedeDeliverableCommand>(app); break;
+                    case "ReplaceDeliverable":     RunCommand<Planscape.Docs.Templates.ReplaceDeliverableCommand>(app); break;
+                    case "CreateTransmittalOrchestrated":
+                        RunCommand<Planscape.Docs.Templates.CreateTransmittalOrchestratedCommand>(app); break;
+                    case "BulkIssueDeliverables":  RunCommand<Planscape.Docs.Templates.BulkIssueDeliverablesCommand>(app); break;
+
                     // COBie & Handover
                     case "COBieExport": RunCommand<BIMManager.COBieExportCommand>(app); break;
                     case "COBieImport": RunCommand<BIMManager.COBieImportCommand>(app); break;
@@ -1348,6 +1583,23 @@ namespace StingTools.UI
                     case "COBieHandoverExport": RunCommand<Docs.COBieHandoverExportCommand>(app); break;
                     case "BulkBIMExport": RunCommand<BIMManager.BulkBIMExportCommand>(app); break;
                     // HandoverManual already wired above
+
+                    // Paragraph Builder / T4-T10 switchable defaults
+                    case "ParagraphBuilder":
+                    {
+                        var dlg = new UI.ParagraphBuilderDialog();
+                        dlg.ShowDialog();
+                        if (dlg.Result != null && dlg.Result.ApplyRequested)
+                        {
+                            SetExtraParam("ParagraphPreset", dlg.Result.PresetKey);
+                            SetExtraParam("ParagraphScope", dlg.Result.Scope);
+                            RunCommand<Tags.ApplyParagraphPresetCommand>(app);
+                        }
+                        break;
+                    }
+                    case "ApplyParagraphPreset": RunCommand<Tags.ApplyParagraphPresetCommand>(app); break;
+                    case "SetHandoverMode": RunCommand<Tags.SetHandoverModeCommand>(app); break;
+                    case "Tag7NarrativeUpdaterToggle": RunCommand<Core.Tag7NarrativeUpdaterToggleCommand>(app); break;
 
                     // Briefcase — Reference Document Viewer
                     case "BriefcaseView": RunCommand<BIMManager.BriefcaseViewCommand>(app); break;
@@ -1389,6 +1641,18 @@ namespace StingTools.UI
                     case "ExportModelHealth": RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
                     case "ExportPermissionMatrix": RunCommand<BIMManager.ExportPermissionMatrixCommand>(app); break;
                     case "ExportCoordLogXlsx":     RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+
+                    // Clash Detection (rec-4/7/16). Inline dispatch promoted
+                    // to real IExternalCommand classes in ClashSessionCommands.cs
+                    // so BCC's DispatchCoordAction (which uses
+                    // WorkflowEngine.GetCommandInstance) resolves them the same
+                    // way the dockable-panel path does.
+                    case "ClashRun":              RunCommand<Core.Clash.ClashRunCommand>(app); break;
+                    case "ClashBcfExport":        RunCommand<Core.Clash.ClashBcfExportCommand>(app); break;
+                    case "ClashSessionRefresh":   RunCommand<Core.Clash.ClashSessionRefreshCommand>(app); break;
+                    case "ClashSessionClear":     RunCommand<Core.Clash.ClashSessionClearCommand>(app); break;
+                    case "ClashMatrixEdit":       RunCommand<Core.Clash.ClashMatrixEditCommand>(app); break;
+                    case "ClashManager":          RunCommand<Commands.Mep.ClashManagerCommand>(app); break;
 
                     // Warnings Manager (Phase 46)
                     case "WarningsDashboard": RunCommand<Core.WarningsDashboardCommand>(app); break;
@@ -1674,6 +1938,7 @@ namespace StingTools.UI
                     case "RunWorkflow_COBieReadiness":
                     case "RunWorkflow_DrawingIssue":
                     case "RunWorkflow_SpatialQA":
+                    case "RunWorkflow_TierConversionHandover":
                     {
                         // Phase 75: Robust name reconstruction — insert spaces before uppercase chars
                         // SCH-CRIT-01 FIX: Use local `tag` snapshot (captured under lock at line 77),
@@ -1869,9 +2134,9 @@ namespace StingTools.UI
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "PlatformSync":
-                        // Route to StingBIM server sync if connected; otherwise local delta sync
-                        if (BIMManager.StingBIMServerClient.Instance.IsConnected)
-                            BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app);
+                        // Route to Planscape server sync if connected; otherwise local delta sync
+                        if (BIMManager.PlanscapeServerClient.Instance.IsConnected)
+                            BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app);
                         else
                             RunCommand<BIMManager.PlatformSyncCommand>(app);
                         break;
@@ -1991,6 +2256,10 @@ namespace StingTools.UI
                     case "TagStudio_ApplyScheme": RunCommand<Tags.ApplyColorSchemeCommand>(app); break;
                     case "TagStudio_ClearOverrides": RunCommand<Tags.ClearColorSchemeCommand>(app); break;
 
+                    // Tag Studio > Scale tab
+                    case "Scale_ApplyTiers":   RunCommand<Tags.ApplyScaleTiersCommand>(app); break;
+                    case "Scale_ApplyTagSize": RunCommand<Tags.SetScaleAwareTagSizeCommand>(app); break;
+
                     // ════════════════════════════════════════════════════════
                     // TIE-IN POINT COMMANDS (TI-01, TI-03)
                     // ════════════════════════════════════════════════════════
@@ -2019,6 +2288,13 @@ namespace StingTools.UI
 
                     // Family tooling (FamilyParamCreatorCommand.cs, StingTools.Tags)
                     case "FamilyParamCreator": RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
+
+                    // Family quick-edit (FamilyQuickEditCommands.cs, StingTools.Tags) —
+                    // rehost, swap category, inject automation pack, quick-edit dialog
+                    case "FamilyQuickEdit":          RunCommand<Tags.OpenFamilyQuickEditCommand>(app); break;
+                    case "FamilyChangeHost":         RunCommand<Tags.ChangeHostCommand>(app); break;
+                    case "FamilySwapCategory":       RunCommand<Tags.SwapCategoryCommand>(app); break;
+                    case "FamilyInjectAutomationPack": RunCommand<Tags.InjectAutomationPackCommand>(app); break;
 
                     // Compliance reporting (TokenWriterCommands.cs, StingTools.Tags)
                     case "DiscComplianceReport": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
@@ -2494,6 +2770,50 @@ namespace StingTools.UI
                     case "LANChangeLog": RunCommand<BIMManager.LANChangeLogCommand>(app); break;
                     case "LANAutoSyncToggle": RunCommand<BIMManager.LANAutoSyncToggleCommand>(app); break;
 
+                    // ── Phase 6b: Speckle Commands ──
+                    case "SpeckleSend":    RunCommand<BIMManager.SpeckleSendCommand>(app);    break;
+                    case "SpeckleReceive": RunCommand<BIMManager.SpeckleReceiveCommand>(app); break;
+                    case "SpeckleDiff":    RunCommand<BIMManager.SpeckleDiffCommand>(app);    break;
+
+                    // ── Phase 91: BOQ & Cost Manager dispatch ──
+                    case "BOQCostManager":
+                    {
+                        // Open the standalone BOQ window on the UI thread.
+                        try
+                        {
+                            var doc = app?.ActiveUIDocument?.Document;
+                            if (doc != null) UI.BOQCostManagerWindow.ShowFor(doc);
+                        }
+                        catch (Exception ex) { StingLog.Error("BOQCostManager dispatch", ex); }
+                        break;
+                    }
+                    case "BOQRefresh":              RunCommand<BOQ.BOQRefreshCommand>(app); break;
+                    case "BOQSetBudget":            RunCommand<BOQ.BOQSetBudgetCommand>(app); break;
+                    case "BOQSnapshotSave":         RunCommand<BOQ.BOQSnapshotSaveCommand>(app); break;
+                    case "BOQAddManualRow":         RunCommand<BOQ.BOQAddManualRowCommand>(app); break;
+                    case "SelectInRevit":           RunCommand<BOQ.BOQSelectInRevitCommand>(app); break;
+                    case "BOQExport":               RunCommand<BOQ.BOQExportCommand>(app); break;
+                    case "BOQImport":               RunCommand<BOQ.BOQImportCommand>(app); break;
+                    case "BOQSnapshotCompare":      RunCommand<BOQ.BOQSnapshotCompareCommand>(app); break;
+                    case "ReconcileProvisionals":   RunCommand<BOQ.BOQReconcileProvisionalsCommand>(app); break;
+                    case "BOQWriteItemParams":      RunCommand<BOQ.BOQWriteItemParamsCommand>(app); break;
+                    case "BOQExportProfessional":   RunCommand<BOQ.BOQProfessionalExportCommand>(app); break;
+                    case "BOQBccRefresh":           RunCommand<BOQ.BOQBccRefreshCommand>(app); break;
+
+                    // Phase 108m — Product + Multi-building roadmap
+                    case "PresetCombinations":      RunCommand<Presets.PresetCombinationCommand>(app); break;
+                    case "FamilyLibraryAudit":      RunCommand<Temp.FamilyLibraryAuditCommand>(app); break;
+                    case "BOQPrepForExport":        RunCommand<BOQ.BOQPrepForExportCommand>(app); break;
+                    case "LODValidation":           RunCommand<Core.LODValidationCommand>(app); break;
+                    case "ApplySectorPack":         RunCommand<Core.ApplySectorPackCommand>(app); break;
+                    case "UnifiedDWGWizard":        RunCommand<Model.UnifiedDWGWizardCommand>(app); break;
+                    case "BOQRateHeatMap":          RunCommand<BOQ.BOQRateSourceHeatMapCommand>(app); break;
+                    case "BuildingCodeSeed":        RunCommand<Core.BuildingCodeSeedCommand>(app); break;
+                    case "PrjVolumeCodeAuto":       RunCommand<Core.ProjectVolumeCodeAutoPopulateCommand>(app); break;
+                    case "FederationReview":        RunCommand<Core.FederationCoordinationReviewCommand>(app); break;
+                    case "SeqRangeValidation":      RunCommand<Core.SeqRangeValidationCommand>(app); break;
+                    case "BuildingAwareCDEFolders": RunCommand<Core.BuildingAwareCDEFoldersCommand>(app); break;
+
                     // ── Phase 42: Coordination Center Commands ──
                     case "CoordinationCenter": RunCommand<BIMManager.CoordinationCenterCommand>(app); break;
                     case "GenerateDashboard": RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
@@ -2808,17 +3128,37 @@ namespace StingTools.UI
                     case "RevisionExportXlsx":    RunCommand<BIMManager.RevisionExportCommand>(app); break;
                     // SaveProjectMembers and EscalateActions are already wired above
 
-                    // ── StingBIM platform ──
-                    case "StingBIMCopyLink":       StingBIMCopyLink(app); break;
-                    case "StingBIMEmail":          ShowInfo(app, "Email Report", "Email report generation requires SMTP configuration.\nConfigure in Settings > Notifications or use 'Copy Link' to share manually."); break;
-                    case "StingBIMTeams":          StingBIMGenerateTeamsMessage(app); break;
-                    case "StingBIMWhatsApp":       StingBIMGenerateWhatsApp(app); break;
-                    case "StingBIMQR":             RunCommand<Tags.QRCodeCommand>(app); break;
-                    case "StingBIMHTML":           StingBIMExportHtml(app); break;
-                    case "StingBIMConnect":        RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
-                    case "StingBIMDisconnect":     BIMManager.StingBIMServerClient.Instance.Disconnect();
-                                                   TaskDialog.Show("StingBIM", "Disconnected from StingBIM server."); break;
-                    case "StingBIMSyncNow":        BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app); break;
+                    // ── Planscape platform ──
+                    case "PlanscapeCopyLink":       PlanscapeCopyLink(app); break;
+                    case "PlanscapeEmail":          ShowInfo(app, "Email Report", "Email report generation requires SMTP configuration.\nConfigure in Settings > Notifications or use 'Copy Link' to share manually."); break;
+                    case "PlanscapeTeams":          PlanscapeGenerateTeamsMessage(app); break;
+                    case "PlanscapeWhatsApp":       PlanscapeGenerateWhatsApp(app); break;
+                    case "PlanscapeQR":             RunCommand<Tags.QRCodeCommand>(app); break;
+                    case "PlanscapeQRCode":         RunCommand<Tags.QRCodeCommand>(app); break;   // Phase 78 alias
+                    case "PlanscapeHTML":           PlanscapeExportHtml(app); break;
+                    case "PlanscapeHTMLDashboard":  PlanscapeExportHtml(app); break;              // Phase 78 alias
+                    case "PlanscapeConnect":        RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeDisconnect":     BIMManager.PlanscapeServerClient.Instance.Disconnect();
+                                                   TaskDialog.Show("Planscape", "Disconnected from Planscape server."); break;
+                    case "PlanscapeSyncNow":        BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
+                    case "PublishModelToPlanscape": RunCommand<BIMManager.PublishModelCommand>(app); break;
+                    // Phase 78 Section 6.1: Additional Planscape action tags (renamed from StingBIM per Phase 88)
+                    case "PlanscapeAddMember":      RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeRemoveMember":   RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeExportTeam":     RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "PlanscapeShareReport":    RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
+                    case "PlanscapeLinkProject":    RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeUnlinkProject":  BIMManager.PlanscapeServerClient.Instance.Disconnect(); break;
+                    case "PlanscapeTestConnection": RunCommand<BIMManager.PlanscapeConnectCommand>(app); break;
+                    case "PlanscapeClearCredentials": BIMManager.PlanscapeServerClient.Instance.Disconnect(); break;
+                    case "PlanscapeExportConfig":   RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "PlanscapeOpenBrowser":    BIMManager.PlatformSyncCommand.SyncToPlanscapeServer(app); break;
+                    // Phase 78 Section 6.1: TeamReport
+                    case "TeamReport":             RunCommand<BIMManager.ExportPermissionMatrixCommand>(app); break;
+                    // Phase 78 Section 6.1: MeetingTemplates
+                    case "MeetingTemplates":       RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    // Phase 78 Section 6.1: ConfigureCostFile
+                    case "ConfigureCostFile":      RunCommand<BIMManager.ConfigureCostFileCommand>(app); break;
                     case "SendMeetingInvites":     TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
                     case "ExportMeetingAnalytics":
                     {
@@ -2826,7 +3166,7 @@ namespace StingTools.UI
                         if (dmDoc != null) { DocumentManagementDialog.ShowMeetingHistory(dmDoc); }
                         break;
                     }
-                    case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect StingBIM or configure email in Settings > Notifications."); break;
+                    case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect Planscape or configure email in Settings > Notifications."); break;
 
                     // ── Unmapped command tag ──
                     default:
@@ -4899,6 +5239,99 @@ namespace StingTools.UI
         }
 
         // ── TitleBlock operations ───────────────────────────────────
+
+        // ── Drawing Type Editor inline helpers (Phase 113.x) ────────────────
+        private static void DrawingTypesGroupBrowserInline(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            try
+            {
+                var lib = StingTools.Core.Drawing.DrawingTypeRegistry.GetLibrary(doc);
+                var types = lib?.DrawingTypes ?? new System.Collections.Generic.List<StingTools.Core.Drawing.DrawingType>();
+                var byDisc = types
+                    .GroupBy(t => string.IsNullOrEmpty(t.Discipline) ? "*" : t.Discipline)
+                    .OrderBy(g => g.Key);
+                var sb = new System.Text.StringBuilder();
+                foreach (var g in byDisc)
+                {
+                    sb.AppendLine($"[{g.Key}]  ({g.Count()} types)");
+                    foreach (var t in g.OrderBy(x => x.Purpose).ThenBy(x => x.Id))
+                        sb.AppendLine($"    {t.Id}  ·  {t.Purpose}  ·  {t.PaperSize} 1:{t.Scale}");
+                    sb.AppendLine();
+                }
+                TaskDialog.Show("Drawing Types — Group Browser",
+                    sb.Length == 0 ? "No drawing types loaded." : sb.ToString());
+            }
+            catch (Exception ex) { StingLog.Error("DrawingTypes_GroupBrowser", ex); }
+        }
+
+        private static void DrawingTypesSyncStylesInline(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            try
+            {
+                // Refresh registry then report which view-template / viewport-type
+                // names referenced by drawing types resolve in the active project.
+                StingTools.Core.Drawing.DrawingTypeRegistry.Reload(doc);
+                var lib = StingTools.Core.Drawing.DrawingTypeRegistry.GetLibrary(doc);
+                int ok = 0, missingTpl = 0, missingVp = 0;
+                var miss = new System.Collections.Generic.List<string>();
+                foreach (var t in lib?.DrawingTypes ?? new System.Collections.Generic.List<StingTools.Core.Drawing.DrawingType>())
+                {
+                    bool tplOk = string.IsNullOrEmpty(t.ViewTemplateName) ||
+                                 new FilteredElementCollector(doc).OfClass(typeof(View))
+                                    .Cast<View>().Any(v => v.IsTemplate &&
+                                        string.Equals(v.Name, t.ViewTemplateName, StringComparison.OrdinalIgnoreCase));
+                    bool vpOk  = string.IsNullOrEmpty(t.ViewportTypeName) ||
+                                 new FilteredElementCollector(doc).OfClass(typeof(ElementType))
+                                    .Cast<ElementType>().Any(et => et.Category?.Id.Value == (long)BuiltInCategory.OST_Viewports &&
+                                        string.Equals(et.Name, t.ViewportTypeName, StringComparison.OrdinalIgnoreCase));
+                    if (tplOk && vpOk) ok++;
+                    else
+                    {
+                        if (!tplOk) { missingTpl++; miss.Add($"  {t.Id}  →  view template '{t.ViewTemplateName}'"); }
+                        if (!vpOk)  { missingVp++;  miss.Add($"  {t.Id}  →  viewport type '{t.ViewportTypeName}'"); }
+                    }
+                }
+                TaskDialog.Show("Drawing Types — Sync Styles",
+                    $"OK: {ok}\nMissing view templates: {missingTpl}\nMissing viewport types: {missingVp}\n\n" +
+                    (miss.Count == 0 ? "All references resolved." : string.Join("\n", miss.Take(40))));
+            }
+            catch (Exception ex) { StingLog.Error("DrawingTypes_SyncStyles", ex); }
+        }
+
+        private static void DrawingTypesFromScopeBoxesInline(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+            try
+            {
+                var sboxes = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                if (sboxes.Count == 0)
+                { TaskDialog.Show("From Scope Boxes", "No scope boxes in the project."); return; }
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Suggested drawing-type stubs (one per scope box):\n");
+                foreach (var sbx in sboxes.OrderBy(s => s.Name))
+                {
+                    var disc = "A";
+                    var nm = (sbx.Name ?? "").ToUpperInvariant();
+                    if      (nm.Contains("MEP") || nm.StartsWith("M-")) disc = "M";
+                    else if (nm.Contains("ELEC")|| nm.StartsWith("E-")) disc = "E";
+                    else if (nm.Contains("PLUMB")||nm.StartsWith("P-")) disc = "P";
+                    else if (nm.Contains("STR") || nm.StartsWith("S-")) disc = "S";
+                    sb.AppendLine($"  {disc.ToLowerInvariant()}-plan-A1-{sbx.Name.Replace(' ', '_')}-1to100");
+                }
+                sb.AppendLine("\nUse + New in the Drawing Types tab to commit these as project-scoped types.");
+                TaskDialog.Show("From Scope Boxes", sb.ToString());
+            }
+            catch (Exception ex) { StingLog.Error("DrawingTypes_FromScopeBoxes", ex); }
+        }
 
         private static void TitleBlockReset(UIApplication app)
         {
@@ -7426,30 +7859,30 @@ namespace StingTools.UI
             TaskDialog.Show($"STING — {title}", msg);
         }
 
-        private static void StingBIMCopyLink(UIApplication app)
+        private static void PlanscapeCopyLink(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             string projectName = doc?.Title ?? "BIMProject";
             string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
-            string link = $"stingbim://dashboard/{projectName}/{timestamp}";
+            string link = $"planscape://dashboard/{projectName}/{timestamp}";
             System.Windows.Clipboard.SetText(link);
-            TaskDialog.Show("STING — StingBIM", $"Dashboard link copied to clipboard:\n{link}\n\nShare this link with your team or embed it in a QR code.");
+            TaskDialog.Show("STING — Planscape", $"Dashboard link copied to clipboard:\n{link}\n\nShare this link with your team or embed it in a QR code.");
         }
 
-        private static void StingBIMGenerateTeamsMessage(UIApplication app)
+        private static void PlanscapeGenerateTeamsMessage(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             string projectName = doc?.Title ?? "BIM Project";
             string msg = $"📊 **{projectName} — BIM Coordination Update**\n" +
                          $"📅 {DateTime.Today:dd MMM yyyy}\n\n" +
-                         "Please review the latest coordination status in StingBIM:\n" +
+                         "Please review the latest coordination status in Planscape:\n" +
                          "• Model health and warnings dashboard\n• Open issues and action items\n• Deliverables tracking\n\n" +
-                         "[View Dashboard] — Use STING > BCC > Platform > StingBIM to export HTML dashboard";
+                         "[View Dashboard] — Use STING > BCC > Platform > Planscape to export HTML dashboard";
             System.Windows.Clipboard.SetText(msg);
             TaskDialog.Show("STING — Teams Message", "Teams message copied to clipboard.\nPaste into your Microsoft Teams or Slack channel.");
         }
 
-        private static void StingBIMGenerateWhatsApp(UIApplication app)
+        private static void PlanscapeGenerateWhatsApp(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             string projectName = doc?.Title ?? "BIM Project";
@@ -7458,21 +7891,21 @@ namespace StingTools.UI
             TaskDialog.Show("STING — WhatsApp", "WhatsApp message copied to clipboard.\nPaste into WhatsApp chat.");
         }
 
-        private static void StingBIMExportHtml(UIApplication app)
+        private static void PlanscapeExportHtml(UIApplication app)
         {
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) return;
             string outputDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(doc.PathName) ?? System.IO.Path.GetTempPath(), "_bim_manager");
             System.IO.Directory.CreateDirectory(outputDir);
-            string htmlPath = System.IO.Path.Combine(outputDir, $"StingBIM_Dashboard_{DateTime.Now:yyyyMMdd}.html");
-            string html = $@"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>StingBIM — {doc.Title}</title>
+            string htmlPath = System.IO.Path.Combine(outputDir, $"Planscape_Dashboard_{DateTime.Now:yyyyMMdd}.html");
+            string html = $@"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Planscape — {doc.Title}</title>
 <style>body{{font-family:Segoe UI,sans-serif;background:#F4F5F7;margin:0;padding:20px}}
 h1{{color:#1A237E;background:#1A237E;color:white;padding:16px 24px;margin:-20px -20px 20px}}
 .card{{background:white;border-radius:8px;padding:16px;margin:12px 0;border:1px solid #E0E0E8}}
 .kpi{{display:inline-block;background:#1A237E;color:white;padding:12px 20px;border-radius:8px;margin:4px;min-width:100px;text-align:center}}
 .kpi-val{{font-size:24px;font-weight:bold}}.kpi-lbl{{font-size:11px;opacity:.8}}
 </style></head><body>
-<h1>🏗 StingBIM — {System.Net.WebUtility.HtmlEncode(doc.Title)}</h1>
+<h1>🏗 Planscape — {System.Net.WebUtility.HtmlEncode(doc.Title)}</h1>
 <p>Generated: {DateTime.Now:dd MMM yyyy HH:mm} | Project: {System.Net.WebUtility.HtmlEncode(doc.Title)}</p>
 <div class='card'><h3>Project Overview</h3>
 <div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>WARNINGS</div></div>
@@ -7480,13 +7913,13 @@ h1{{color:#1A237E;background:#1A237E;color:white;padding:16px 24px;margin:-20px 
 <div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>MEETINGS</div></div>
 <div class='kpi'><div class='kpi-val'>—</div><div class='kpi-lbl'>DELIVERABLES</div></div>
 </div>
-<div class='card'><h3>Instructions</h3><p>This HTML dashboard was generated by StingBIM (STING Tools for Revit).<br>
+<div class='card'><h3>Instructions</h3><p>This HTML dashboard was generated by Planscape (STING Tools for Revit).<br>
 Share this file with your team. No login required — it is a self-contained snapshot.<br>
 For live data, open BCC in Revit and re-export.</p></div>
 </body></html>";
             System.IO.File.WriteAllText(htmlPath, html);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = htmlPath, UseShellExecute = true });
-            TaskDialog.Show("STING — StingBIM", $"HTML dashboard exported and opened:\n{htmlPath}\n\nShare this file with anyone — no login required.");
+            TaskDialog.Show("STING — Planscape", $"HTML dashboard exported and opened:\n{htmlPath}\n\nShare this file with anyone — no login required.");
         }
     }
 }

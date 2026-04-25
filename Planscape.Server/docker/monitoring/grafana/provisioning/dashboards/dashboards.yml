@@ -1,0 +1,14 @@
+# MON-03 — Dashboard provisioning config. Drops any JSON files in the mounted
+# dashboards/ directory into Grafana on startup.
+apiVersion: 1
+
+providers:
+  - name: Planscape
+    orgId: 1
+    folder: Planscape
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards

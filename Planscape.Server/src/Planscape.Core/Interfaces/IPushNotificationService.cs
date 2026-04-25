@@ -5,6 +5,7 @@ public record PushPayload
     public string Title { get; init; } = "";
     public string Body { get; init; } = "";
     public string? Channel { get; init; }
+    public string? Priority { get; init; } // "high" | "normal" (Expo) — FCM ignores
     public Dictionary<string, string> Data { get; init; } = new();
 }
 

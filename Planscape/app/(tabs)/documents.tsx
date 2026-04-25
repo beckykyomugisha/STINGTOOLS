@@ -12,8 +12,10 @@ import {
   Alert,
 } from 'react-native';
 import { theme, getCDEColor } from '@/utils/theme';
-import { listProjects, listDocuments, transitionCDE } from '@/api/endpoints';
+import { listProjects, listDocuments, transitionCDE, requestDocumentApproval, decideDocumentApproval } from '@/api/endpoints';
 import type { DocumentRecord, Project, CDEStatus } from '@/types/api';
+import { crashReporter } from '@/services/crashReporter';
+import { useAuthStore } from '@/stores/authStore';
 
 const CDE_STATES: CDEStatus[] = ['WIP', 'SHARED', 'PUBLISHED', 'ARCHIVE'];
 
@@ -23,6 +25,21 @@ const VALID_TRANSITIONS: Record<CDEStatus, CDEStatus[]> = {
   PUBLISHED: ['ARCHIVE'],
   ARCHIVE: [],
 };
+
+/**
+ * Phase 96 — ISO 19650-2 §5.6 approval gates. Transitions into SHARED and
+ * PUBLISHED state require Task Information Manager / BIM Coordinator sign-off
+ * before the document is released on the CDE. Mobile routes these through
+ * the approval workflow endpoints instead of directly calling transitionCDE.
+ */
+const TRANSITIONS_REQUIRING_APPROVAL = new Set<string>([
+  'WIP->SHARED',
+  'SHARED->PUBLISHED',
+]);
+
+function requiresApproval(from: CDEStatus, to: CDEStatus): boolean {
+  return TRANSITIONS_REQUIRING_APPROVAL.has(`${from}->${to}`);
+}
 
 const SUITABILITY_LABELS: Record<string, string> = {
   S0: 'Initial / WIP',
@@ -110,16 +127,77 @@ export default function DocumentsScreen() {
     return list;
   }, [documents, cdeFilter, search]);
 
+  /**
+   * Phase 96 — CDE transition with ISO 19650 approval routing.
+   *
+   * Gated transitions (WIP→SHARED, SHARED→PUBLISHED) route through the
+   * approval workflow endpoint, creating a pending approval record that
+   * the designated approver (C/K role) must sign off. Non-gated transitions
+   * (e.g. SHARED→WIP rework, PUBLISHED→ARCHIVE retention) call transitionCDE
+   * directly because they don't release new information to the CDE.
+   */
   async function handleTransition(doc: DocumentRecord, newStatus: CDEStatus) {
     if (!activeProject) return;
     setTransitioning(true);
     try {
-      const updated = await transitionCDE(activeProject.id, doc.id, newStatus);
-      setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
-      setSelectedDoc(updated);
+      if (requiresApproval(doc.cdeStatus, newStatus)) {
+        // Fire the approval request — does NOT actually move the CDE state;
+        // the approver's decideDocumentApproval call does that server-side.
+        await requestDocumentApproval(activeProject.id, doc.id, newStatus);
+        Alert.alert(
+          'Approval requested',
+          `CDE transition to ${newStatus} submitted for approval per ISO 19650-2 §5.6. You will be notified when it is approved or rejected.`,
+        );
+        // Refresh so the "approval pending" badge appears if the server renders it
+        await loadData(activeProject.id);
+      } else {
+        const updated = await transitionCDE(activeProject.id, doc.id, newStatus);
+        setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+        setSelectedDoc(updated);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Transition failed';
-      Alert.alert('CDE Transition Failed', msg);
+      // 403 on a gated transition means the user tried to bypass approval
+      if (msg.includes('HTTP 403')) {
+        Alert.alert(
+          'Approval required',
+          'This transition needs BIM Coordinator sign-off. The request has been sent — check back when it is approved.',
+        );
+      } else {
+        Alert.alert('CDE Transition Failed', msg);
+      }
+    } finally {
+      setTransitioning(false);
+    }
+  }
+
+  /**
+   * Approver path — called when an approver receives a push notification or
+   * opens the documents list and sees pending approvals. The `approvalId`
+   * comes from the notification payload or the (separate, future) approvals
+   * inbox. Here we expose it via a confirm dialog at document-detail level
+   * so a coordinator who just pulled-to-refresh the list and sees their own
+   * pending approval can sign off without leaving the screen.
+   */
+  async function handleApprovalDecision(
+    doc: DocumentRecord,
+    approvalId: string,
+    decision: 'APPROVED' | 'REJECTED',
+    comment?: string,
+  ) {
+    if (!activeProject) return;
+    setTransitioning(true);
+    try {
+      await decideDocumentApproval(activeProject.id, doc.id, approvalId, decision, comment);
+      await loadData(activeProject.id);
+      Alert.alert(
+        decision === 'APPROVED' ? 'Approved' : 'Rejected',
+        decision === 'APPROVED'
+          ? 'Document has been moved to the next CDE state.'
+          : 'Document remains at current state. Originator has been notified.',
+      );
+    } catch (err) {
+      Alert.alert('Decision failed', err instanceof Error ? err.message : String(err));
     } finally {
       setTransitioning(false);
     }
@@ -150,7 +228,7 @@ export default function DocumentsScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.emptyTitle}>No Projects</Text>
-        <Text style={styles.emptyText}>Create a project in the StingBIM web portal.</Text>
+        <Text style={styles.emptyText}>Create a project in the Planscape web portal.</Text>
       </View>
     );
   }
@@ -353,6 +431,7 @@ function DocumentDetailModal({
               <View style={styles.transitionRow}>
                 {validNext.map((next) => {
                   const nextColor = getCDEColor(next);
+                  const gated = requiresApproval(doc.cdeStatus, next);
                   return (
                     <TouchableOpacity
                       key={next}
@@ -364,7 +443,7 @@ function DocumentDetailModal({
                         <ActivityIndicator size="small" color="#FFF" />
                       ) : (
                         <Text style={styles.transitionBtnText}>
-                          Move to {next}
+                          {gated ? `Request approval → ${next}` : `Move to ${next}`}
                         </Text>
                       )}
                     </TouchableOpacity>
@@ -404,7 +483,7 @@ function formatDate(iso: string | undefined): string {
   try {
     const d = new Date(iso);
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  } catch {
+  } catch (e) { crashReporter.warn('documents.tsx:407', { e: String(e) });
     return iso;
   }
 }

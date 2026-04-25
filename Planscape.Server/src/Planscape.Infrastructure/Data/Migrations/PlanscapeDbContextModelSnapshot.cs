@@ -128,6 +128,13 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<string>("Assignee")
                     .HasColumnType("text");
 
+                b.Property<string>("AssigneeEmail")
+                    .HasMaxLength(320)
+                    .HasColumnType("character varying(320)");
+
+                b.Property<Guid?>("AssigneeUserId")
+                    .HasColumnType("uuid");
+
                 b.Property<string>("BcfGuid")
                     .HasColumnType("text");
 
@@ -135,8 +142,28 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsRequired()
                     .HasColumnType("text");
 
+                b.Property<Guid?>("CreatedByUserId")
+                    .HasColumnType("uuid");
+
                 b.Property<DateTime>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("DeviceId")
+                    .HasMaxLength(120)
+                    .HasColumnType("character varying(120)");
+
+                b.Property<double?>("Latitude")
+                    .HasColumnType("double precision");
+
+                b.Property<double?>("Longitude")
+                    .HasColumnType("double precision");
+
+                b.Property<double?>("LocationAccuracy")
+                    .HasColumnType("double precision");
+
+                b.Property<string>("Source")
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)");
 
                 b.Property<string>("Description")
                     .HasColumnType("text");
@@ -188,6 +215,8 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsUnique();
 
                 b.HasIndex("ProjectId", "Status");
+
+                b.HasIndex("ProjectId", "AssigneeUserId");
 
                 b.ToTable("Issues");
             });
@@ -302,6 +331,29 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .IsUnique();
 
                 b.ToTable("DevicePushTokens");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.UserNotificationPreferences", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("UserId").HasColumnType("uuid");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<bool>("IssuesEnabled").HasColumnType("boolean");
+                b.Property<bool>("ComplianceEnabled").HasColumnType("boolean");
+                b.Property<bool>("RevisionsEnabled").HasColumnType("boolean");
+                b.Property<bool>("MeetingsEnabled").HasColumnType("boolean");
+                b.Property<bool>("SlaBreachesEnabled").HasColumnType("boolean");
+                b.Property<string>("Channel").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("QuietHoursStart").HasMaxLength(5).HasColumnType("character varying(5)");
+                b.Property<string>("QuietHoursEnd").HasMaxLength(5).HasColumnType("character varying(5)");
+                b.Property<string>("TimeZone").HasMaxLength(64).HasColumnType("character varying(64)");
+                b.Property<DateTime>("UpdatedAt").HasColumnType("timestamp with time zone");
+
+                b.HasKey("Id");
+                b.HasIndex("UserId").IsUnique();
+                b.HasIndex("TenantId");
+
+                b.ToTable("UserNotificationPreferences");
             });
 
             modelBuilder.Entity("Planscape.Core.Entities.IssueAttachment", b =>
@@ -716,6 +768,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<bool>("IsStale")
                     .HasColumnType("boolean");
 
+                b.Property<DateTime?>("LastModifiedUtc")
+                    .HasColumnType("timestamp with time zone");
+
                 b.Property<string>("Level")
                     .HasColumnType("text");
 
@@ -803,6 +858,9 @@ namespace Planscape.Infrastructure.Data.Migrations
                 b.Property<string>("ValidationErrors")
                     .HasColumnType("text");
 
+                b.Property<int>("Version")
+                    .HasColumnType("integer");
+
                 b.Property<string>("Zone")
                     .IsRequired()
                     .HasColumnType("text");
@@ -817,6 +875,8 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.HasIndex("ProjectId", "RevitElementId")
                     .IsUnique();
+
+                b.HasIndex("ProjectId", "LastModifiedUtc");
 
                 b.ToTable("TaggedElements");
             });
@@ -1249,7 +1309,19 @@ namespace Planscape.Infrastructure.Data.Migrations
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
 
+                b.HasOne("Planscape.Core.Entities.AppUser", "AssigneeUser")
+                    .WithMany()
+                    .HasForeignKey("AssigneeUserId")
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                b.HasOne("Planscape.Core.Entities.AppUser", "CreatedByUser")
+                    .WithMany()
+                    .HasForeignKey("CreatedByUserId")
+                    .OnDelete(DeleteBehavior.SetNull);
+
                 b.Navigation("Project");
+                b.Navigation("AssigneeUser");
+                b.Navigation("CreatedByUser");
             });
 
             modelBuilder.Entity("Planscape.Core.Entities.ComplianceSnapshot", b =>
@@ -1279,6 +1351,24 @@ namespace Planscape.Infrastructure.Data.Migrations
 
                 b.Navigation("Tenant");
 
+                b.Navigation("User");
+            });
+
+            modelBuilder.Entity("Planscape.Core.Entities.UserNotificationPreferences", b =>
+            {
+                b.HasOne("Planscape.Core.Entities.AppUser", "User")
+                    .WithMany()
+                    .HasForeignKey("UserId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("Planscape.Core.Entities.Tenant", "Tenant")
+                    .WithMany()
+                    .HasForeignKey("TenantId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("Tenant");
                 b.Navigation("User");
             });
 

@@ -134,8 +134,10 @@ namespace StingTools.Core
         }
 
         /// <summary>Cached parameter lookup. Uses stable document key + element's TypeId + paramName as cache key.
-        /// Falls back to LookupParameter on first access per type, then O(1) thereafter.</summary>
-        private static Parameter CachedLookup(Element el, string paramName)
+        /// Falls back to LookupParameter on first access per type, then O(1) thereafter.
+        /// Exposed as `internal` so sibling classes in this file (NativeParamMapper,
+        /// TagPipelineHelper, SpatialAutoDetect, ...) can share the same cache.</summary>
+        internal static Parameter CachedLookup(Element el, string paramName)
         {
             string docKey = GetStableDocKey(el.Document);
             ElementId typeId = el.GetTypeId();
@@ -207,6 +209,56 @@ namespace StingTools.Core
 
         /// <summary>Tracks cumulative read-only skip count for batch diagnostics (ERR-002).</summary>
         [ThreadStatic] private static int _readOnlySkipCount;
+
+        // PROD-CONCAT-FIX: counter for malformed source-token writes rejected at SetString.
+        private static int _sourceTokenWriteCleanupCount;
+
+        /// <summary>
+        /// PROD-CONCAT-FIX: returns true for the 8 ISO 19650 source-token
+        /// parameter names. Used by <see cref="SetString"/> to apply write-time
+        /// sanitisation. Kept name-based (not GUID-based) so it cannot drift
+        /// when ParamRegistry re-binds GUIDs.
+        /// </summary>
+        private static bool IsSourceTokenParam(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName)) return false;
+            return paramName == ParamRegistry.DISC || paramName == ParamRegistry.LOC
+                || paramName == ParamRegistry.ZONE || paramName == ParamRegistry.LVL
+                || paramName == ParamRegistry.SYS  || paramName == ParamRegistry.FUNC
+                || paramName == ParamRegistry.PROD || paramName == ParamRegistry.SEQ;
+        }
+
+        /// <summary>
+        /// PROD-CONCAT-FIX: shape-guard for source-token writes. Returns the
+        /// same reference when the value is already well-formed, otherwise
+        /// returns a cleaned copy (or empty when the value is irreparable).
+        /// Rules mirror <see cref="ParamRegistry.ReadTokenValues"/>:
+        ///   - Trim whitespace.
+        ///   - Drop anything after the first separator.
+        ///   - Reject values with inner whitespace (e.g. "Plumbing Fixtures").
+        ///   - Reject values longer than 40 characters.
+        /// </summary>
+        private static string SanitiseSourceTokenWrite(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return raw;
+            string sep = !string.IsNullOrEmpty(ParamRegistry.Separator) ? ParamRegistry.Separator : "-";
+
+            string v = raw;
+            int sepIdx = v.IndexOf(sep, StringComparison.Ordinal);
+            bool touched = false;
+            if (sepIdx >= 0) { v = v.Substring(0, sepIdx); touched = true; }
+
+            string trimmed = v.Trim();
+            if (trimmed.Length != v.Length) { v = trimmed; touched = true; }
+
+            for (int j = 0; j < v.Length; j++)
+            {
+                if (char.IsWhiteSpace(v[j])) return string.Empty;
+            }
+            if (v.Length > 40) return string.Empty;
+
+            return touched ? v : raw;
+        }
         /// <summary>Reset read-only skip counter at start of batch operation.</summary>
         public static void ResetReadOnlySkipCount() => _readOnlySkipCount = 0;
         /// <summary>Get cumulative read-only skip count since last reset.</summary>
@@ -217,6 +269,25 @@ namespace StingTools.Core
             bool overwrite = false)
         {
             if (el == null || string.IsNullOrEmpty(paramName)) return false;
+
+            // PROD-CONCAT-FIX: stop corrupt values ever reaching a source-token
+            // parameter (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ). Upstream code paths
+            // that accidentally pass a family+type concatenation, a previously
+            // built full tag, or a value containing the active separator are
+            // silently sanitised here so subsequent tag/container assembly
+            // never propagates the corruption.
+            if (!string.IsNullOrEmpty(value) && IsSourceTokenParam(paramName))
+            {
+                string sanitised = SanitiseSourceTokenWrite(value);
+                if (!ReferenceEquals(sanitised, value))
+                {
+                    int n = System.Threading.Interlocked.Increment(ref _sourceTokenWriteCleanupCount);
+                    if (n <= 3)
+                        StingLog.Warn($"SetString: rejecting malformed {paramName} value '{value}' on {el.Id} — storing '{sanitised}'. (Occurrence {n})");
+                    value = sanitised;
+                }
+            }
+
             Parameter p = CachedLookup(el, paramName);
             if (p == null) return false;
             if (p.IsReadOnly)
@@ -234,9 +305,17 @@ namespace StingTools.Core
             if (existing.Length > 0 && !overwrite)
                 return false;
 
+            // PERF: skip the Parameter.Set round-trip (and undo-journal
+            // entry) when the value is already correct. Meaningful on the
+            // overwrite=true path that BatchTag / ReTag / TagAndCombine use
+            // — thousands of no-op Set() calls otherwise.
+            string newValue = value ?? string.Empty;
+            if (string.Equals(existing, newValue, StringComparison.Ordinal))
+                return true;
+
             try
             {
-                p.Set(value ?? string.Empty);
+                p.Set(newValue);
                 return true;
             }
             catch (Exception ex)
@@ -566,12 +645,49 @@ namespace StingTools.Core
     /// </summary>
     public static class SpatialAutoDetect
     {
+        // PERF: cache the per-document room index so five back-to-back
+        // tagging commands don't each do a fresh Rooms collector scan.
+        // Invalidated by StingAutoTagger when a Room is added / modified /
+        // deleted (see StingAutoTagger.Execute), and by TTL as a fallback
+        // for edits that bypass the updater (journal replay, API scripts).
+        private static readonly TimeSpan _roomCacheTtl = TimeSpan.FromSeconds(30);
+        private static readonly object _roomCacheLock = new object();
+        private static string _roomCacheDocKey;
+        private static DateTime _roomCacheStamp;
+        private static Dictionary<ElementId, Room> _roomCacheIndex;
+
+        /// <summary>
+        /// Invalidate the cached room index — called by
+        /// <c>StingAutoTagger</c> when a Room changes so the next spatial
+        /// auto-detect call rebuilds fresh.
+        /// </summary>
+        public static void InvalidateRoomIndex()
+        {
+            lock (_roomCacheLock)
+            {
+                _roomCacheDocKey = null;
+                _roomCacheIndex = null;
+            }
+        }
+
         /// <summary>
         /// Pre-scan all rooms in the project and build a lookup by ElementId.
-        /// Call once before a batch loop for performance.
+        /// Cached per-document with a 30-second TTL; use
+        /// <see cref="InvalidateRoomIndex"/> to force a rebuild.
         /// </summary>
         public static Dictionary<ElementId, Room> BuildRoomIndex(Document doc)
         {
+            string key = doc?.PathName ?? doc?.Title ?? "";
+            lock (_roomCacheLock)
+            {
+                if (_roomCacheIndex != null
+                    && string.Equals(_roomCacheDocKey, key, StringComparison.Ordinal)
+                    && (DateTime.UtcNow - _roomCacheStamp) < _roomCacheTtl)
+                {
+                    return _roomCacheIndex;
+                }
+            }
+
             var index = new Dictionary<ElementId, Room>();
             try
             {
@@ -592,6 +708,13 @@ namespace StingTools.Core
             // will fall back to project-level defaults instead of room-based spatial detection
             if (index.Count == 0)
                 StingLog.Info("BuildRoomIndex: no placed rooms found — spatial detection (LOC/ZONE) will use project-level defaults");
+
+            lock (_roomCacheLock)
+            {
+                _roomCacheIndex = index;
+                _roomCacheDocKey = key;
+                _roomCacheStamp = DateTime.UtcNow;
+            }
             return index;
         }
 
@@ -1390,8 +1513,12 @@ namespace StingTools.Core
                 }
                 if (allPopulated) return;
 
-                // Walk connectors to find tagged connected elements
-                foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                // Walk connectors to find tagged connected elements.
+                // MEPModel can be non-null while ConnectorManager is null on
+                // hosted fittings; guard the chain to avoid NRE.
+                var connSet = fi.MEPModel?.ConnectorManager?.Connectors;
+                if (connSet == null) return;
+                foreach (Connector conn in connSet)
                 {
                     if (conn == null || !conn.IsConnected) continue;
                     var allRefs = conn.AllRefs;
@@ -1699,6 +1826,29 @@ namespace StingTools.Core
             // F-06: Use SetInt helper instead of manual LookupParameter + Set
             try { ParameterHelpers.SetInt(el, ParamRegistry.SYS_DETECT_LAYER, sysLayer); }
             catch (Exception ex) { StingLog.Warn($"advisory — parameter may not be bound yet: {ex.Message}"); }
+
+            // Pack 124 / Gap G — token lineage. Captures where LOC/ZONE/SYS
+            // were derived from so audit panels can answer "why is this in
+            // BLD2 not BLD3?" without combing StingLog. Best-effort write.
+            // Uses result.* booleans (in scope) rather than the per-token
+            // strings (which fall out of scope at this point in PopulateAll).
+            try
+            {
+                string locSrc  = result.LocDetected  ? "spatial-auto" : "project-info";
+                string zoneSrc = result.ZoneDetected ? "spatial-auto" : "default";
+                string sysSrc  = sysLayer switch
+                {
+                    1 => "category",
+                    2 => "mep-system",
+                    3 => "connector",
+                    4 => "name-keyword",
+                    5 => "type-name",
+                    6 => "family-default",
+                    _ => "fallback",
+                };
+                StingTools.Core.Storage.StingTokenLineageSchema.Stamp(el, locSrc, zoneSrc, sysSrc);
+            }
+            catch (Exception lnEx) { StingLog.Warn($"Token lineage stamp: {lnEx.Message}"); }
 
             // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
             // Guaranteed default: derive from SYS via FuncMap when smart detection is empty
@@ -2460,7 +2610,9 @@ namespace StingTools.Core
         {
             try
             {
-                Parameter p = el.LookupParameter(paramName);
+                // PERF: MapLookup is called dozens of times per element from NativeParamMapper.
+                // Route through the ParameterHelpers cache so repeated types hit the definition cache.
+                Parameter p = ParameterHelpers.CachedLookup(el, paramName);
                 if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return 0;
 
                 double val = p.AsDouble() * conversionFactor;
@@ -2478,7 +2630,9 @@ namespace StingTools.Core
         {
             try
             {
-                Parameter p = el.LookupParameter(sourceName);
+                // PERF: same hot path as MapLookup — definition cache short-circuits
+                // the per-element O(n) parameter scan at batch tagging scale.
+                Parameter p = ParameterHelpers.CachedLookup(el, sourceName);
                 if (p == null || !p.HasValue) return 0;
 
                 string val = p.StorageType == StorageType.String
@@ -3574,85 +3728,102 @@ namespace StingTools.Core
                 // Plugin hook: notify third-party plugins before tagging
                 StingPluginHooks.FireBeforeTag(doc, el);
 
-                // P4: Inherit token values from family type before populating
-                TokenAutoPopulator.TypeTokenInherit(doc, el);
+                // PERF: skip the token-derivation block (TypeTokenInherit +
+                // locked-token snapshot/restore + PopulateAll + overrides)
+                // when the element already has a complete tag and the caller
+                // isn't overwriting. PopulateAll's writes would all short-
+                // circuit via SetIfEmpty anyway, but its detection logic
+                // (room lookup, family-aware PROD resolution, phase detect)
+                // runs regardless. NativeParamMapper + FormulaEngine + the
+                // BuildAndWriteTag / container / audit tail still run below
+                // so side-effect params (cost, carbon, grid-ref) stay fresh.
+                bool skipDerivation = !overwrite
+                    && skipComplete
+                    && TagConfig.TagIsComplete(_prevTag);
 
-                // FIX-DEEP01: Snapshot locked token values AFTER TypeTokenInherit so inherited
-                // values are preserved, but BEFORE PopulateAll/overrides can change them
-                // Phase 74d: Only allocate locked snapshot when token lock is non-empty (rare)
                 Dictionary<string, string> lockedSnapshot = null;
-                try
+
+                if (!skipDerivation)
                 {
-                    string preLockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
-                    if (!string.IsNullOrWhiteSpace(preLockStr))
+                    // P4: Inherit token values from family type before populating
+                    TokenAutoPopulator.TypeTokenInherit(doc, el);
+
+                    // FIX-DEEP01: Snapshot locked token values AFTER TypeTokenInherit so inherited
+                    // values are preserved, but BEFORE PopulateAll/overrides can change them
+                    // Phase 74d: Only allocate locked snapshot when token lock is non-empty (rare)
+                    try
                     {
-                        lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                        string[] lockKeys = preLockStr.Split(',')
-                            .Select(s => s.Trim().ToUpperInvariant()).ToArray();
-                        foreach (string lockKey in lockKeys)
+                        string preLockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                        if (!string.IsNullOrWhiteSpace(preLockStr))
                         {
-                            if (TokenParamMap.TryGetValue(lockKey, out string paramName))
+                            lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            string[] lockKeys = preLockStr.Split(',')
+                                .Select(s => s.Trim().ToUpperInvariant()).ToArray();
+                            foreach (string lockKey in lockKeys)
                             {
-                                string val = ParameterHelpers.GetString(el, paramName);
-                                if (!string.IsNullOrEmpty(val))
-                                    lockedSnapshot[lockKey] = val;
+                                if (TokenParamMap.TryGetValue(lockKey, out string paramName))
+                                {
+                                    string val = ParameterHelpers.GetString(el, paramName);
+                                    if (!string.IsNullOrEmpty(val))
+                                        lockedSnapshot[lockKey] = val;
+                                }
                             }
                         }
                     }
-                }
-                catch (Exception lockEx) { StingLog.Warn($"Token lock read: {lockEx.Message}"); }
+                    catch (Exception lockEx) { StingLog.Warn($"Token lock read: {lockEx.Message}"); }
 
-                // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
-                TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
+                    // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
+                    TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
 
-                // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
-                if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
-                    && !string.IsNullOrEmpty(forcedSys))
-                    ParameterHelpers.SetString(el, ParamRegistry.SYS, forcedSys, overwrite: true);
+                    // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
+                    if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
+                        && !string.IsNullOrEmpty(forcedSys))
+                        ParameterHelpers.SetString(el, ParamRegistry.SYS, forcedSys, overwrite: true);
 
-                // FE-06: Apply full per-category token overrides
-                if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))
-                {
-                    // Check SKIP flag FIRST — avoid writing tokens to skipped categories
-                    if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
-                        && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
-                        return false;
-
-                    foreach (var kv in tokenOverrides)
+                    // FE-06: Apply full per-category token overrides
+                    if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))
                     {
-                        if (kv.Key.Equals("SKIP", StringComparison.OrdinalIgnoreCase)) continue;
-                        string paramName = kv.Key.ToUpperInvariant() switch
-                        {
-                            "DISC" => ParamRegistry.DISC, "LOC" => ParamRegistry.LOC,
-                            "ZONE" => ParamRegistry.ZONE, "LVL" => ParamRegistry.LVL,
-                            "SYS" => ParamRegistry.SYS, "FUNC" => ParamRegistry.FUNC,
-                            "PROD" => ParamRegistry.PROD, "STATUS" => ParamRegistry.STATUS,
-                            _ => null
-                        };
-                        if (!string.IsNullOrEmpty(paramName))
-                            ParameterHelpers.SetString(el, paramName, kv.Value, overwrite: true);
-                    }
-                }
+                        // Check SKIP flag FIRST — avoid writing tokens to skipped categories
+                        if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
+                            && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
+                            return false;
 
-                // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
-                // Phase 74d: Use static TokenParamMap + null check (lockedSnapshot only allocated when lock exists)
-                if (lockedSnapshot != null && lockedSnapshot.Count > 0)
-                {
-                    foreach (var kvp in lockedSnapshot)
-                    {
-                        if (TokenParamMap.TryGetValue(kvp.Key, out string paramName))
+                        foreach (var kv in tokenOverrides)
                         {
-                            try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
-                            catch (Exception lockEx)
+                            if (kv.Key.Equals("SKIP", StringComparison.OrdinalIgnoreCase)) continue;
+                            string paramName = kv.Key.ToUpperInvariant() switch
                             {
-                                StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
-                            }
+                                "DISC" => ParamRegistry.DISC, "LOC" => ParamRegistry.LOC,
+                                "ZONE" => ParamRegistry.ZONE, "LVL" => ParamRegistry.LVL,
+                                "SYS" => ParamRegistry.SYS, "FUNC" => ParamRegistry.FUNC,
+                                "PROD" => ParamRegistry.PROD, "STATUS" => ParamRegistry.STATUS,
+                                _ => null
+                            };
+                            if (!string.IsNullOrEmpty(paramName))
+                                ParameterHelpers.SetString(el, paramName, kv.Value, overwrite: true);
                         }
                     }
-                    // Finding-5 FIX: Throttle locked token log — only log first 5 + every 100th
-                    _lockedTokenRestoreCount++;
-                    if (_lockedTokenRestoreCount <= 5 || _lockedTokenRestoreCount % 100 == 0)
-                        StingLog.Info($"TagPipeline: restored {lockedSnapshot.Count} locked tokens on {el.Id}: {string.Join(",", lockedSnapshot.Keys)} (#{_lockedTokenRestoreCount})");
+
+                    // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
+                    // Phase 74d: Use static TokenParamMap + null check (lockedSnapshot only allocated when lock exists)
+                    if (lockedSnapshot != null && lockedSnapshot.Count > 0)
+                    {
+                        foreach (var kvp in lockedSnapshot)
+                        {
+                            if (TokenParamMap.TryGetValue(kvp.Key, out string paramName))
+                            {
+                                try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
+                                catch (Exception lockEx)
+                                {
+                                    StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
+                                }
+                            }
+                        }
+                        // Finding-5 FIX: Throttle locked token log — only log first 5 + every 100th
+                        _lockedTokenRestoreCount++;
+                        if (_lockedTokenRestoreCount <= 5 || _lockedTokenRestoreCount % 100 == 0)
+                            StingLog.Info($"TagPipeline: restored {lockedSnapshot.Count} locked tokens on {el.Id}: {string.Join(",", lockedSnapshot.Keys)} (#{_lockedTokenRestoreCount})");
+                    }
                 }
 
                 // P2: Bridge Revit native params → STING shared params
@@ -3668,7 +3839,9 @@ namespace StingTools.Core
                         try
                         {
                             // FUT-18: Early-exit skip — avoids expensive BuildContext
-                            Parameter targetParam = el.LookupParameter(formula.ParameterName);
+                            // PERF: cached lookup so the same formula target on repeated types
+                            // doesn't rescan the element's parameter collection each time.
+                            Parameter targetParam = ParameterHelpers.CachedLookup(el, formula.ParameterName);
                             if (targetParam == null || targetParam.IsReadOnly) continue;
 
                             var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
@@ -3721,6 +3894,18 @@ namespace StingTools.Core
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
                         GetCachedTimestamp(), overwrite: true);
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", Environment.UserName, overwrite: true);
+
+                    // Pack 122 / Gap A — dual-write to Extensible Storage. Schema
+                    // landed in Phase 121; this is the deferred hot-path wire-up.
+                    // Reverse-diff and revision-compare can now read a typed
+                    // long ticks instead of parsing the legacy string timestamp.
+                    try
+                    {
+                        string revCode = ParameterHelpers.GetString(el, "ASS_REV_TXT");
+                        StingTools.Core.Storage.StingTagHistorySchema.Write(
+                            el, _prevTag ?? "", DateTime.UtcNow, revCode ?? "");
+                    }
+                    catch (Exception esEx) { StingLog.Warn($"Tag history ES dual-write: {esEx.Message}"); }
                 }
                 catch (Exception dtEx) { StingLog.Warn($"Tag audit trail write: {dtEx.Message}"); }
 

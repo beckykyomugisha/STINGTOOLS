@@ -60,7 +60,7 @@ public class WorkflowsController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(new { id = run.Id, executedAt = run.ExecutedAt });
+        return CreatedAtAction(nameof(GetHistory), new { projectId }, new { id = run.Id, executedAt = run.ExecutedAt });
     }
 
     /// <summary>

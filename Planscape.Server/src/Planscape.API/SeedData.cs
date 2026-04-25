@@ -65,7 +65,16 @@ public static class SeedData
             TotalElements = 12450,
             TaggedElements = 9026,
             WarningCount = 47,
-            RagStatus = "AMBER"
+            RagStatus = "AMBER",
+            // SEED-01 — approx 300m × 300m demo boundary polygon around central London.
+            // GeoJSON-style [lat, lon] pairs (closing coordinate repeated).
+            BoundaryPolygon = @"[
+                [51.5075, -0.1280],
+                [51.5075, -0.1240],
+                [51.5045, -0.1240],
+                [51.5045, -0.1280],
+                [51.5075, -0.1280]
+            ]"
         };
         db.Projects.Add(project);
 

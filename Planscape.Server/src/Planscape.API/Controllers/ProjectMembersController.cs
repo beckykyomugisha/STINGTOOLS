@@ -151,6 +151,13 @@ public class ProjectMembersController : ControllerBase
             if (tenant != null && userCount >= tenant.MaxUsers)
                 return BadRequest($"User limit ({tenant.MaxUsers}) reached. Upgrade your plan to add more users.");
 
+            // P10 — generate an invitation token the user can exchange for an
+            // access token via POST /api/auth/accept-invitation. Stored in
+            // RefreshToken with "INV:" prefix so AuthController.AcceptInvitation
+            // can distinguish it from refresh / reset tokens.
+            var inviteToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
             user = new AppUser
             {
                 TenantId      = tenantId,
@@ -159,7 +166,9 @@ public class ProjectMembersController : ControllerBase
                 PasswordHash  = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString(), 12), // temp password
                 Role          = UserRole.Contributor,
                 Iso19650Role  = req.Iso19650Role ?? "M",
-                IsActive      = false  // awaiting first login / password set
+                IsActive      = false,  // awaiting first login / password set
+                RefreshToken  = $"INV:{inviteToken}",
+                RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(14),
             };
             _db.Users.Add(user);
 

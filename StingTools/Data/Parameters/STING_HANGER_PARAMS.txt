@@ -1,0 +1,21 @@
+# STING v4 Phase D.2 hanger-instance shared parameters.
+# Loaded via LoadSharedParamsCommand or merged into MR_PARAMETERS.txt.
+# Group IDs must exist in the host file (default ASS_MNG=1).
+#
+# GUIDs are UUIDv5 hashes of the parameter name under the STING
+# fabrication namespace 7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00.
+# Regenerate via tools/mint_fab_guids.py --name <PARAM>.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	ASS_MNG
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
+PARAM	1bbf7af6-43f7-5d4c-b37e-7652abeab0ed	STING_HANGER_HOST_ID	TEXT		1	1	Host MEP run ElementId — owning pipe/duct/conduit/tray	1
+PARAM	0c0d8459-4a4d-5058-8c38-a3ea6626f1cf	STING_HANGER_ANCHOR_TXT	TEXT		1	1	Anchor mechanism: CONCRETE_ANCHOR / BEAM_CLAMP / TRAPEZE / GENERIC	1
+PARAM	d85d9355-4a24-58c6-8e2f-85f986b10ea6	STING_HANGER_STRUT_LEN_MM	LENGTH		1	1	Strut rod length in millimetres from hanger to structural host	1
+PARAM	205fce0b-d499-50af-ab19-e4fdecab3fdb	STING_HANGER_SPACING_MM	LENGTH		1	1	Max hanger spacing at this location per MSS SP-58 / HVCA TR/19 / SMACNA	1
+PARAM	f7d793cd-5dea-5e8c-8699-f81ac4c9832e	STING_HANGER_TRAPEZE_BOOL	YESNO		1	1	1 when this hanger is part of a shared trapeze rack (600 mm group)	1
+PARAM	14980e39-2e4e-5691-a589-1792b06b557d	STING_HANGER_POINT_LOAD_KG	NUMBER		1	1	Carried point load in kilograms (shell + content + insulation across span)	1
+PARAM	b263e9ce-9b12-56b6-a780-e4054e495f5e	STING_HANGER_ROD_DIA_MM	LENGTH		1	1	Selected threaded-rod diameter per MSS SP-58 Table 4	1
+PARAM	d20b0ed7-9d3b-557c-9c74-ec79d9f9e6b0	STING_HANGER_ROD_IMPERIAL	TEXT		1	1	Imperial thread designation (3/8 / 1/2 / 5/8 / 3/4 / 7/8 / 1)	1
+PARAM	b608ab99-3a30-54e0-99b9-341fb3b6ecdc	STING_HANGER_COUPLER_BOOL	YESNO		1	1	1 when strut rod length exceeds 3000 mm stock and a coupler must be inserted	1

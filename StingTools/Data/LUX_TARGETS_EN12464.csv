@@ -1,0 +1,70 @@
+# STING v4 MVP — BS EN 12464-1:2021 maintained lux targets by room code.
+# Consumed by LightingGridCalculator when the classifier row has
+# target_lux = 0. Columns: room_code, target_lux_Em, notes.
+room_code,target_lux_Em,notes
+OFFICE_PRIVATE,500,Writing / typing / reading
+OFFICE_OPEN,500,Open-plan workstations
+CONFERENCE,500,Conference / board room
+RECEPTION,300,Entrance hall / reception
+CORRIDOR,100,Circulation route
+STAIR,150,Staircase
+LIFT_LOBBY,200,Lift lobby
+TOILET,200,WC / restroom
+BATHROOM,200,Residential bathroom
+SHOWER,200,Shower / wet room
+KITCHEN_DOMESTIC,500,Residential kitchen
+PANTRY,300,Tea point
+CANTEEN,200,Dining area general
+CAFE,300,Cafe serving area
+RESTAURANT,200,Restaurant dining
+CLASSROOM,300,General classroom
+AUDITORIUM,500,Lecture theatre / auditorium
+LIBRARY,500,Library reading area
+LABORATORY,500,Science laboratory general
+CLEANROOM,1000,Cleanroom workspace
+WARD,100,Hospital ward general (500 at bed head, 1000 at clinical exam)
+EXAM_ROOM,1000,Examination / consulting room
+OPERATING_THEATRE,1000,Operating theatre general
+PHARMACY,500,Pharmacy dispensing
+DENTAL,1000,Dental surgery
+WORKSHOP,300,Workshop general
+PLANT_ROOM,200,Plant room
+SERVER,500,IT / data room
+ELECTRICAL_ROOM,500,Electrical room
+STORAGE,100,Storeroom
+WAREHOUSE,150,Warehouse floor
+LOADING_DOCK,150,Loading dock
+ARCHIVE,200,Archive / records
+PARKING,75,Covered car park
+RETAIL,500,Retail sales floor general
+FITTING_ROOM,500,Fitting / changing room
+GYM,300,Gym / fitness
+CHANGING_ROOM,200,Changing room / locker
+POOL,300,Swimming pool
+BEDROOM_HOTEL,100,Hotel bedroom
+LIVING_ROOM,200,Residential living
+BEDROOM_RESIDENTIAL,100,Residential bedroom
+HOME_OFFICE,500,Home office
+UTILITY,200,Utility / laundry
+GARAGE,75,Residential garage
+NURSERY,300,Nursery / childcare
+WORSHIP,200,Place of worship
+ATRIUM,200,Atrium
+OUTDOOR_COVERED,100,Covered external
+COURTYARD,100,External courtyard
+CONTROL_ROOM,500,Control room console
+SECURITY_ROOM,300,Security / CCTV operations
+JANITOR,100,Cleaner / janitor closet
+REFUSE,100,Refuse store
+POST_ROOM,300,Post / mailroom
+PRINT_ROOM,500,Print / reprographics
+BREAKOUT,300,Breakout / quiet room
+INTERVIEW,300,Interview room
+TRAINING,500,Training room
+GENERAL,300,Fallback default
+MACHINE_SHOP,500,Machine tool shop
+WELDING,300,Welding bay
+ASSEMBLY_COARSE,300,Coarse assembly work
+ASSEMBLY_MEDIUM,500,Medium assembly work
+ASSEMBLY_FINE,1000,Fine assembly (PCB etc)
+DRAUGHTING,750,Technical drawing office

@@ -1,0 +1,39 @@
+{
+  "_note": "Deutsch (de). Unübersetzte Schlüssel greifen auf en.json zurück.",
+
+  "email": {
+    "invite.subject": "Sie wurden zu {project} auf {product} eingeladen",
+    "password_reset.subject": "{product} — Passwort zurücksetzen",
+    "issue_assigned.subject": "[{project}] {code} wurde Ihnen zugewiesen"
+  },
+
+  "notification": {
+    "issue_created.title": "Neuer {type}: {code}",
+    "issue_created.body": "{title} auf {project}",
+    "issue_assigned.title": "{code} wurde Ihnen zugewiesen",
+    "issue_assigned.body": "{title} — Priorität {priority}",
+    "sla_breach.title": "SLA-Verletzung: {code}",
+    "sla_breach.body": "{title} ist seit {hours} Stunden offen",
+    "compliance.title": "Compliance {direction}",
+    "compliance.body": "{project} liegt jetzt bei {percent}% (vorher {previous}%)"
+  },
+
+  "error": {
+    "unauthorized": "Sie sind nicht berechtigt, diese Aktion auszuführen.",
+    "tenant_mismatch": "Diese Ressource gehört zu einer anderen Organisation.",
+    "not_found": "Die angeforderte Ressource wurde nicht gefunden.",
+    "validation": "Ein oder mehrere Felder sind ungültig.",
+    "rate_limited": "Zu viele Anfragen — bitte versuchen Sie es gleich erneut."
+  },
+
+  "audit": {
+    "issue.created": "Vorgang {code} erstellt",
+    "issue.updated": "Vorgang {code} aktualisiert",
+    "issue.assigned": "{code} an {user} zugewiesen",
+    "document.cde_changed": "{name} nach {state} verschoben",
+    "document.approved": "{name} freigegeben",
+    "document.rejected": "{name} abgelehnt",
+    "revision.created": "Revision {name} erstellt",
+    "transmittal.sent": "Begleitschein {code} an {recipients} gesendet"
+  }
+}

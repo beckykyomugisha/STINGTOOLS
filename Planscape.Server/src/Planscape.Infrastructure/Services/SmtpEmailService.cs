@@ -1,6 +1,7 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MimeKit;
 using Planscape.Core.Interfaces;
@@ -8,106 +9,192 @@ using Planscape.Core.Interfaces;
 namespace Planscape.Infrastructure.Services;
 
 /// <summary>
-/// MailKit-based SMTP email service for sending invite, password-reset, and notification emails.
-/// Reads configuration from the "Email" section in appsettings.
+/// MailKit-based SMTP email service. FLEX-03/07 — renders templates from the
+/// on-disk <c>EmailTemplates/</c> directory with per-tenant branding resolved via
+/// <see cref="ITenantBrandingService"/>. Falls back to a hard-coded plain template
+/// when the renderer cannot find a file (never silently fails to send).
 /// </summary>
 public class SmtpEmailService : IEmailService
 {
     private readonly IConfiguration _config;
     private readonly ILogger<SmtpEmailService> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    private string Host        => _config["Email:Host"]!;
-    private int    Port        => int.TryParse(_config["Email:Port"], out var p) ? p : 587;
-    private string Username    => _config["Email:Username"] ?? "";
-    private string Password    => _config["Email:Password"] ?? "";
-    private string FromAddress => _config["Email:FromAddress"] ?? "noreply@planscape.com";
-    private string FromName    => _config["Email:FromName"] ?? "Planscape";
-    private bool   UseSsl      => bool.TryParse(_config["Email:UseSsl"], out var v) && v;
+    // Config keys use either "Smtp:*" (matches the Production template) or "Email:*" (legacy).
+    private string Cfg(string key, string fallback = "") =>
+        _config[$"Smtp:{key}"] ?? _config[$"Email:{key}"] ?? fallback;
 
-    public SmtpEmailService(IConfiguration config, ILogger<SmtpEmailService> logger)
+    private string Host        => Cfg("Host");
+    private int    Port        => int.TryParse(Cfg("Port", "587"), out var p) ? p : 587;
+    private string Username    => Cfg("Username");
+    private string Password    => Cfg("Password");
+    private string FromAddress => Cfg("FromAddress", "noreply@planscape.io");
+    private string FromName    => Cfg("FromName", "Planscape");
+    private bool   UseSsl      => bool.TryParse(Cfg("UseSsl", "true"), out var v) && v;
+
+    public SmtpEmailService(
+        IConfiguration config,
+        ILogger<SmtpEmailService> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _config = config;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     public async Task SendInviteEmailAsync(
         string toEmail, string displayName, string inviterName,
         string projectName, string serverUrl, CancellationToken ct = default)
     {
-        var subject = $"You've been invited to {projectName} on Planscape";
-        var html = WrapInLayout($@"
-            <h2>Welcome to Planscape</h2>
-            <p>Hi {Escape(displayName)},</p>
-            <p><strong>{Escape(inviterName)}</strong> has invited you to collaborate on
-               <strong>{Escape(projectName)}</strong>.</p>
-            <p>To get started, visit the server and set your password:</p>
-            <p style=""text-align:center; margin:32px 0;"">
-              <a href=""{Escape(serverUrl)}/reset-password?email={Uri.EscapeDataString(toEmail)}""
-                 style=""background:#0066cc; color:#ffffff; padding:12px 32px;
-                        border-radius:6px; text-decoration:none; font-weight:600;"">
-                Set Password &amp; Join
-              </a>
-            </p>
-            <p style=""color:#666; font-size:13px;"">
-              If you did not expect this invitation you can safely ignore this email.
-            </p>");
-
-        await SendAsync(toEmail, subject, html, ct);
+        var acceptUrl = $"{serverUrl.TrimEnd('/')}/reset-password?email={Uri.EscapeDataString(toEmail)}";
+        var model = new Dictionary<string, string?>
+        {
+            ["DisplayName"]  = displayName,
+            ["InviterName"]  = inviterName,
+            ["ProjectName"]  = projectName,
+            ["AcceptUrl"]    = acceptUrl,
+            ["ServerUrl"]    = serverUrl,
+        };
+        var rendered = await RenderAsync("invite", model, ct);
+        await SendAsync(toEmail, rendered, ct);
     }
 
     public async Task SendPasswordResetEmailAsync(
         string toEmail, string resetToken, string serverUrl, CancellationToken ct = default)
     {
-        var subject = "Planscape — Password Reset";
-        var html = WrapInLayout($@"
-            <h2>Password Reset</h2>
-            <p>A password reset was requested for your Planscape account.</p>
-            <p style=""text-align:center; margin:32px 0;"">
-              <a href=""{Escape(serverUrl)}/reset-password?token={Uri.EscapeDataString(resetToken)}&amp;email={Uri.EscapeDataString(toEmail)}""
-                 style=""background:#0066cc; color:#ffffff; padding:12px 32px;
-                        border-radius:6px; text-decoration:none; font-weight:600;"">
-                Reset Password
-              </a>
-            </p>
-            <p style=""color:#666; font-size:13px;"">
-              This link expires in 24 hours. If you did not request a password reset, ignore this email.
-            </p>");
-
-        await SendAsync(toEmail, subject, html, ct);
+        var resetUrl = $"{serverUrl.TrimEnd('/')}/reset-password?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(toEmail)}";
+        var model = new Dictionary<string, string?>
+        {
+            ["ResetUrl"]  = resetUrl,
+            ["ServerUrl"] = serverUrl,
+        };
+        var rendered = await RenderAsync("password-reset", model, ct);
+        await SendAsync(toEmail, rendered, ct);
     }
 
     public async Task SendNotificationAsync(
         string toEmail, string subject, string htmlBody, CancellationToken ct = default)
     {
-        var html = WrapInLayout(htmlBody);
-        await SendAsync(toEmail, subject, html, ct);
+        // Ad-hoc notification — wrap the caller's body in the branded layout but skip
+        // template lookup (the caller has already composed the message body).
+        var branding = await ResolveBrandingAsync(ct);
+        var layoutModel = new Dictionary<string, string?>
+        {
+            ["Body"] = htmlBody,
+        };
+        // Use the layout template directly by invoking a synthetic template name.
+        var renderer = GetRenderer();
+        var html = renderer != null
+            ? (await renderer.RenderAsync("_layout", branding.DefaultLanguage, layoutModel, branding, ct)).Html
+            : WrapInLegacyLayout(htmlBody, branding);
+        await SendAsync(toEmail, new RenderedEmail(subject, html, StripHtml(htmlBody)), ct);
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────────
+    // ── Rendering helpers ─────────────────────────────────────────────────────
 
-    private async Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken ct)
+    private async Task<RenderedEmail> RenderAsync(
+        string templateName,
+        Dictionary<string, string?> model,
+        CancellationToken ct)
     {
+        var branding = await ResolveBrandingAsync(ct);
+        var renderer = GetRenderer();
+        if (renderer == null)
+        {
+            // Renderer not wired (DI failure) — emit a plain, branding-aware fallback.
+            var subject = $"{branding.ProductName} — {templateName.Replace('-', ' ')}";
+            var legacyBody = string.Join("\n", model.Select(kv => $"<p>{System.Net.WebUtility.HtmlEncode(kv.Key)}: {System.Net.WebUtility.HtmlEncode(kv.Value ?? "")}</p>"));
+            var html = WrapInLegacyLayout(legacyBody, branding);
+            return new RenderedEmail(subject, html, StripHtml(legacyBody));
+        }
+        // Render the per-template body, then wrap in the layout.
+        var body = await renderer.RenderAsync(templateName, branding.DefaultLanguage, model, branding, ct);
+        var layoutModel = new Dictionary<string, string?>(model, StringComparer.Ordinal)
+        {
+            ["Body"] = body.Html,
+        };
+        var wrapped = await renderer.RenderAsync("_layout", branding.DefaultLanguage, layoutModel, branding, ct);
+        return new RenderedEmail(body.Subject, wrapped.Html, body.Text);
+    }
+
+    private async Task<ResolvedBranding> ResolveBrandingAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var brandingSvc = scope.ServiceProvider.GetService<ITenantBrandingService>();
+        var tenantCtx   = scope.ServiceProvider.GetService<ITenantContext>();
+        var tenantId    = tenantCtx?.TenantId;
+        if (brandingSvc != null && tenantId.HasValue)
+        {
+            try { return await brandingSvc.GetAsync(tenantId.Value, ct); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Branding lookup failed; using defaults"); }
+        }
+        // No tenant in scope (Hangfire job, seed task, etc.) — build defaults manually.
+        return new ResolvedBranding(
+            ProductName:      _config["Tenant:DefaultBranding:ProductName"]      ?? "Planscape",
+            AccentColor:      _config["Tenant:DefaultBranding:AccentColor"]      ?? "#E8912D",
+            HeaderColor:      _config["Tenant:DefaultBranding:HeaderColor"]      ?? "#1A237E",
+            LogoUrl:          _config["Tenant:DefaultBranding:LogoUrl"],
+            SupportEmail:     _config["Tenant:DefaultBranding:SupportEmail"]     ?? "support@planscape.io",
+            EmailFromName:    FromName,
+            EmailFromAddress: FromAddress,
+            EmailSignature:   _config["Tenant:DefaultBranding:EmailSignature"],
+            DefaultLanguage:  _config["Tenant:DefaultBranding:DefaultLanguage"]  ?? "en");
+    }
+
+    private IEmailTemplateRenderer? GetRenderer()
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            return scope.ServiceProvider.GetService<IEmailTemplateRenderer>();
+        }
+        catch { return null; }
+    }
+
+    // ── SMTP transport ────────────────────────────────────────────────────────
+
+    private async Task SendAsync(string toEmail, RenderedEmail email, CancellationToken ct)
+    {
+        var branding = await ResolveBrandingAsync(ct);
+        var fromAddress = !string.IsNullOrWhiteSpace(branding.EmailFromAddress)
+            ? branding.EmailFromAddress
+            : FromAddress;
+        var fromName = !string.IsNullOrWhiteSpace(branding.EmailFromName)
+            ? branding.EmailFromName
+            : FromName;
+
         var message = new MimeMessage();
-        message.From.Add(new MailboxAddress(FromName, FromAddress));
+        message.From.Add(new MailboxAddress(fromName, fromAddress));
         message.To.Add(MailboxAddress.Parse(toEmail));
-        message.Subject = subject;
-        message.Body = new TextPart("html") { Text = htmlBody };
+        message.Subject = email.Subject;
+
+        var bodyBuilder = new BodyBuilder
+        {
+            HtmlBody = email.Html,
+            TextBody = email.Text,
+        };
+        message.Body = bodyBuilder.ToMessageBody();
+
+        if (string.IsNullOrWhiteSpace(Host))
+        {
+            // No SMTP host configured — behave like NullEmailService to avoid a crash.
+            _logger.LogInformation("[Smtp:NoHost] to={ToEmail} subject={Subject}", toEmail, email.Subject);
+            return;
+        }
 
         using var client = new SmtpClient();
         try
         {
             var secureOption = UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
             await client.ConnectAsync(Host, Port, secureOption, ct);
-
             if (!string.IsNullOrEmpty(Username))
                 await client.AuthenticateAsync(Username, Password, ct);
-
             await client.SendAsync(message, ct);
-            _logger.LogInformation("Email sent to {ToEmail}: {Subject}", toEmail, subject);
+            _logger.LogInformation("Email sent to {ToEmail}: {Subject}", toEmail, email.Subject);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email to {ToEmail}: {Subject}", toEmail, subject);
+            _logger.LogError(ex, "Failed to send email to {ToEmail}: {Subject}", toEmail, email.Subject);
             throw;
         }
         finally
@@ -116,7 +203,9 @@ public class SmtpEmailService : IEmailService
         }
     }
 
-    private static string WrapInLayout(string bodyContent) => $@"
+    // ── Legacy layout — used only if the template renderer is unavailable. ──
+
+    private static string WrapInLegacyLayout(string bodyContent, ResolvedBranding branding) => $@"
 <!DOCTYPE html>
 <html lang=""en"">
 <head><meta charset=""utf-8"" /></head>
@@ -125,22 +214,19 @@ public class SmtpEmailService : IEmailService
     <tr><td align=""center"">
       <table width=""600"" cellpadding=""0"" cellspacing=""0""
              style=""background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);"">
-        <!-- Header -->
         <tr>
-          <td style=""background:#0066cc; padding:24px 32px;"">
-            <span style=""color:#ffffff; font-size:22px; font-weight:700; letter-spacing:0.5px;"">Planscape</span>
+          <td style=""background:{branding.HeaderColor}; padding:24px 32px;"">
+            <span style=""color:#ffffff; font-size:22px; font-weight:700; letter-spacing:0.5px;"">{System.Net.WebUtility.HtmlEncode(branding.ProductName)}</span>
           </td>
         </tr>
-        <!-- Body -->
         <tr>
           <td style=""padding:32px;"">
             {bodyContent}
           </td>
         </tr>
-        <!-- Footer -->
         <tr>
           <td style=""padding:16px 32px; background:#f9fafb; border-top:1px solid #e5e7eb; font-size:12px; color:#9ca3af;"">
-            &copy; {DateTime.UtcNow.Year} Planscape &mdash; ISO 19650 compliant BIM collaboration
+            &copy; {DateTime.UtcNow.Year} {System.Net.WebUtility.HtmlEncode(branding.ProductName)}
           </td>
         </tr>
       </table>
@@ -149,8 +235,11 @@ public class SmtpEmailService : IEmailService
 </body>
 </html>";
 
-    private static string Escape(string text) =>
-        System.Net.WebUtility.HtmlEncode(text);
+    private static string StripHtml(string html)
+    {
+        var noTags = System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", "");
+        return System.Net.WebUtility.HtmlDecode(noTags).Trim();
+    }
 }
 
 /// <summary>

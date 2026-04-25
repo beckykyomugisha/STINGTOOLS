@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Planscape — xeokit viewer</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#1a1a1a; color:#fff;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; overflow:hidden; }
+  #viewer-canvas { width:100%; height:100%; display:block; background:#1a1a1a; }
+  #navcube-canvas { position:absolute; right:16px; top:16px; width:160px; height:160px; z-index:5; }
+  #hud { position:absolute; top:8px; left:8px; font-size:12px; opacity:0.9;
+    background:rgba(0,0,0,0.65); padding:6px 10px; border-radius:4px; z-index:10; max-width:320px; }
+  #toolbar { position:absolute; bottom:16px; left:16px; z-index:10;
+    display:flex; gap:8px; font-size:12px; }
+  #toolbar button { background:rgba(0,0,0,0.65); color:#fff; border:1px solid #444;
+    padding:6px 10px; border-radius:4px; cursor:pointer; }
+  #toolbar button:hover { background:rgba(80,80,80,0.8); }
+  #toolbar button.active { background:#e8912d; border-color:#e8912d; }
+</style>
+</head>
+<body>
+<!--
+  PHASE 93 — xeokit model viewer.
+
+  CDN: @xeokit/xeokit-sdk exposes its ES module build at dist/xeokit-sdk.es.js
+  (the path declared in the package's package.json "exports" field; verified
+  against the registry.npmjs.org manifest for v2.6.108). The ".es.min.js"
+  filename suggested in the task spec is not published — only ".es.js" is.
+  We pin a known version so the page keeps working if upstream changes
+  default exports later.
+-->
+<canvas id="viewer-canvas"></canvas>
+<canvas id="navcube-canvas"></canvas>
+<div id="hud">Loading xeokit…</div>
+<div id="toolbar">
+  <button id="btn-fit" title="Zoom to fit">Fit</button>
+  <button id="btn-section" title="Toggle section plane">Section</button>
+  <button id="btn-reset" title="Reset view">Reset</button>
+</div>
+
+<script type="module">
+  import {
+    Viewer,
+    XKTLoaderPlugin,
+    NavCubePlugin,
+    SectionPlanesPlugin,
+  } from "https://cdn.jsdelivr.net/npm/@xeokit/xeokit-sdk@2.6.108/dist/xeokit-sdk.es.js";
+
+  const hud = document.getElementById("hud");
+  const setHud = (msg) => { hud.textContent = msg; };
+
+  const params = new URLSearchParams(location.search);
+  const modelFile = params.get("model");
+  if (!modelFile) {
+    setHud("Missing ?model=<filename> query parameter.");
+    throw new Error("model query missing");
+  }
+
+  // ── Core viewer + plugins ────────────────────────────────────────────
+  const viewer = new Viewer({
+    canvasId: "viewer-canvas",
+    transparent: false,
+    dtxEnabled: true,
+  });
+  viewer.camera.eye = [-3.93, 2.85, 27.0];
+  viewer.camera.look = [4.4, 3.72, 8.89];
+  viewer.camera.up = [-0.01, 0.99, 0.03];
+
+  // OrbitControls-equivalent: xeokit's CameraControl has orbit + pan + zoom
+  // built in. We keep the defaults — reviewers get left-drag orbit,
+  // right-drag pan, scroll zoom.
+  viewer.cameraControl.navMode = "orbit";
+  viewer.cameraControl.followPointer = true;
+
+  // NavCube in the top-right corner for cardinal-direction navigation.
+  new NavCubePlugin(viewer, {
+    canvasId: "navcube-canvas",
+    visible: true,
+    size: 160,
+    alignment: "topRight",
+    bottomMargin: 0,
+    rightMargin: 0,
+  });
+
+  // SectionPlanesPlugin gives us the clip-plane widget reviewers use
+  // to inspect interior geometry without rebuilding the model.
+  const sectionPlanes = new SectionPlanesPlugin(viewer, {
+    overviewCanvasId: undefined, // keep the minimal UI — one plane is enough
+    overviewVisible: false,
+  });
+
+  // ── Load the XKT file from the server ────────────────────────────────
+  const xktLoader = new XKTLoaderPlugin(viewer);
+  const modelUrl = `/api/viewer/models/${encodeURIComponent(modelFile)}`;
+  setHud(`Loading ${modelFile}…`);
+
+  const model = xktLoader.load({
+    id: "model",
+    src: modelUrl,
+    edges: true,
+    saoEnabled: true,
+  });
+
+  model.on("loaded", () => {
+    const aabb = viewer.scene.getAABB();
+    const size = [aabb[3] - aabb[0], aabb[4] - aabb[1], aabb[5] - aabb[2]];
+    const isEmpty = size[0] < 1e-6 && size[1] < 1e-6 && size[2] < 1e-6;
+    if (isEmpty) {
+      // Stub XKT files (placeholder geometry) still load without error —
+      // we just tell the reviewer the model has no geometry yet.
+      setHud(`${modelFile} loaded (empty — awaiting IFC→XKT conversion).`);
+    } else {
+      viewer.cameraFlight.jumpTo(model);
+      setHud(`${modelFile} — ${Math.round(size[0])}×${Math.round(size[1])}×${Math.round(size[2])} m`);
+    }
+  });
+
+  model.on("error", (err) => {
+    setHud(`Load failed: ${err}`);
+  });
+
+  // ── Toolbar wiring ───────────────────────────────────────────────────
+  document.getElementById("btn-fit").addEventListener("click", () => {
+    viewer.cameraFlight.flyTo(viewer.scene);
+  });
+
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    viewer.cameraFlight.jumpTo(model);
+  });
+
+  let sectionPlaneId = null;
+  document.getElementById("btn-section").addEventListener("click", (e) => {
+    if (sectionPlaneId) {
+      sectionPlanes.destroySectionPlane(sectionPlaneId);
+      sectionPlaneId = null;
+      e.target.classList.remove("active");
+    } else {
+      const aabb = viewer.scene.getAABB();
+      const cx = (aabb[0] + aabb[3]) / 2;
+      const cy = (aabb[1] + aabb[4]) / 2;
+      const cz = (aabb[2] + aabb[5]) / 2;
+      sectionPlaneId = "plane-" + Date.now();
+      sectionPlanes.createSectionPlane({
+        id: sectionPlaneId,
+        pos: [cx, cy, cz],
+        dir: [0, -1, 0], // horizontal cut by default
+      });
+      e.target.classList.add("active");
+    }
+  });
+</script>
+</body>
+</html>

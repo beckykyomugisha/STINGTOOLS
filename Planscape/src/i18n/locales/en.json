@@ -1,0 +1,72 @@
+{
+  "_note": "FLEX-15 — English is the canonical bundle. Strings without a translation in another locale fall back here.",
+
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "retry": "Retry",
+    "close": "Close",
+    "edit": "Edit",
+    "share": "Share",
+    "loading": "Loading…",
+    "empty": "Nothing to show yet",
+    "offline": "You're offline",
+    "synced": "Synced {when}",
+    "queued": "Queued for sync"
+  },
+
+  "auth": {
+    "sign_in": "Sign in",
+    "sign_out": "Sign out",
+    "email": "Email",
+    "password": "Password",
+    "forgot_password": "Forgot password?",
+    "session_expired": "Your session has expired — please sign in again.",
+    "invalid_credentials": "Email or password is incorrect."
+  },
+
+  "tabs": {
+    "home": "Home",
+    "issues": "Issues",
+    "documents": "Documents",
+    "scanner": "Scan",
+    "settings": "Settings"
+  },
+
+  "issue": {
+    "create": "Raise issue",
+    "title": "Title",
+    "description": "Description",
+    "priority": "Priority",
+    "priorities": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "status": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "closed": "Closed",
+      "overdue": "Overdue"
+    },
+    "assigned_to": "Assigned to {name}",
+    "days_open": "{n} days open",
+    "no_location": "No location captured",
+    "outside_geofence": "You are outside the project boundary — the issue will be marked for review.",
+    "attach_photo": "Attach photo"
+  },
+
+  "document": {
+    "upload": "Upload",
+    "approve": "Approve",
+    "reject": "Reject",
+    "cde": {
+      "wip": "WIP",
+      "shared": "Shared",
+      "published": "Published",
+      "archive": "Archive"
+    }
+  }
+}

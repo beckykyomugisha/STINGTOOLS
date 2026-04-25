@@ -11,10 +11,16 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { theme, getRAGColor } from '@/utils/theme';
-import { listProjects, lookupElement } from '@/api/endpoints';
-import type { Project, TaggedElement } from '@/types/api';
+import { listProjects, lookupElement, listIssues, _getBaseUrl } from '@/api/endpoints';
+import type { Project, TaggedElement, BimIssue } from '@/types/api';
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
+import { parseQr } from '@/services/qrParser';
+import { crashReporter } from '@/services/crashReporter';
+import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 
 interface ScanHistoryEntry {
   query: string;
@@ -43,10 +49,59 @@ export default function ScannerScreen() {
   const [searching, setSearching] = useState(false);
   const [history, setHistory] = useState<ScanHistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
 
   useEffect(() => {
     loadProjects();
   }, []);
+
+  async function openScanner() {
+    if (!permission?.granted) {
+      const res = await requestPermission();
+      if (!res.granted) {
+        Alert.alert(
+          'Camera permission required',
+          'Enable camera access in Settings to scan QR codes on site.',
+        );
+        return;
+      }
+    }
+    setScanning(true);
+  }
+
+  async function onBarcodeScanned(result: BarcodeScanningResult) {
+    if (!scanning) return;
+    setScanning(false);
+    const parsed = parseQr(result.data);
+    if (parsed.type === 'unknown' || !parsed.id) {
+      // Drop the raw payload into the search box so users can refine
+      setQuery(result.data);
+      Alert.alert('Unrecognised code', `Scanned: ${result.data}`);
+      return;
+    }
+    // Treat element/issue/document QR payloads as element tag lookup
+    setQuery(parsed.id);
+    if (activeProject) {
+      setSearching(true);
+      setError(null);
+      try {
+        const elements = await lookupElement(activeProject.id, parsed.id);
+        setResults(elements);
+        setHistory(prev => [
+          { query: parsed.id!, resultCount: elements.length, timestamp: new Date().toISOString() },
+          ...prev.slice(0, 19),
+        ]);
+        if (elements.length === 0) {
+          Alert.alert('No match', `Scanned ${parsed.id} — no element in this project.`);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Lookup failed');
+      } finally {
+        setSearching(false);
+      }
+    }
+  }
 
   async function loadProjects() {
     setLoading(true);
@@ -174,21 +229,49 @@ export default function ScannerScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* QR scan button (mock - real camera would use expo-camera) */}
+        {/* QR scan button (MOB-01: live expo-camera) */}
         <TouchableOpacity
           style={styles.qrButton}
-          onPress={() =>
-            Alert.alert(
-              'QR Scanner',
-              'Camera-based QR scanning requires a physical device with expo-camera.\n\nUse the text input above to look up assets by tag code.',
-              [{ text: 'OK' }]
-            )
-          }
+          onPress={openScanner}
+          accessibilityRole="button"
+          accessibilityLabel="Open QR code scanner"
         >
           <Text style={styles.qrIcon}>[ ]</Text>
           <Text style={styles.qrButtonText}>Scan QR Code</Text>
-          <Text style={styles.qrHint}>Requires device camera</Text>
+          <Text style={styles.qrHint}>
+            {permission?.granted ? 'Tap to open camera' : 'Camera access required'}
+          </Text>
         </TouchableOpacity>
+
+        {/* Live camera scanner modal */}
+        <Modal visible={scanning} animationType="slide" onRequestClose={() => setScanning(false)}>
+          <View style={{ flex: 1, backgroundColor: '#000' }}>
+            <CameraView
+              style={{ flex: 1 }}
+              barcodeScannerSettings={{ barcodeTypes: ['qr', 'pdf417', 'code128', 'code39', 'ean13'] }}
+              onBarcodeScanned={onBarcodeScanned}
+            />
+            <View style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              padding: 24, alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)',
+            }}>
+              <Text style={{ color: '#fff', marginBottom: 12, fontSize: 14 }}>
+                Point at an asset QR or barcode
+              </Text>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: theme.colors.accent,
+                  paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8,
+                }}
+                onPress={() => setScanning(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel scanning"
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {error && (
           <View style={styles.errorBanner}>
@@ -197,8 +280,12 @@ export default function ScannerScreen() {
         )}
 
         {/* Selected element detail */}
-        {selectedElement && (
-          <ElementDetail element={selectedElement} onClose={() => setSelectedElement(null)} />
+        {selectedElement && activeProject && (
+          <ElementDetail
+            element={selectedElement}
+            project={activeProject}
+            onClose={() => setSelectedElement(null)}
+          />
         )}
 
         {/* Search results */}
@@ -275,8 +362,71 @@ export default function ScannerScreen() {
   );
 }
 
-function ElementDetail({ element, onClose }: { element: TaggedElement; onClose: () => void }) {
+function ElementDetail({
+  element, project, onClose,
+}: { element: TaggedElement; project: Project; onClose: () => void }) {
   const discLabel = DISCIPLINE_LABELS[element.discipline] || element.discipline;
+
+  /**
+   * Phase 96 — action handlers. These give BIM coordinators on site the three
+   * things they actually need after scanning an element: raise an issue against
+   * it, see what issues already exist, or frame it in the 3D model.
+   */
+  async function createIssueHere() {
+    try {
+      // Pre-fill the elementIds and use the tag as title prefix. The issues
+      // screen reads the ?elementIds/title params to pre-populate the create
+      // modal. We route through the tab so the bottom bar stays visible.
+      router.push({
+        pathname: '/(tabs)/issues',
+        params: {
+          createForElement: element.uniqueId || element.id,
+          elementTag: element.assTag1,
+          projectId: project.id,
+        },
+      });
+    } catch (err) {
+      Alert.alert('Could not start issue', err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function viewLinkedIssues() {
+    try {
+      const all = await listIssues(project.id);
+      const needle = (element.uniqueId || element.id || '').toLowerCase();
+      const tag = (element.assTag1 || '').toLowerCase();
+      const linked = all.filter((i: BimIssue) => {
+        const ids = (i.elementIds || '').toLowerCase();
+        return (!!needle && ids.includes(needle)) || (!!tag && ids.includes(tag));
+      });
+      if (linked.length === 0) {
+        Alert.alert('No linked issues', `No issues are linked to ${element.assTag1}.`);
+        return;
+      }
+      // Push the first hit for quick triage; the list remains searchable by tag.
+      router.push(`/issue-detail?id=${linked[0].id}`);
+    } catch (err) {
+      Alert.alert('Lookup failed', err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function viewIn3D() {
+    try {
+      const base = await _getBaseUrl();
+      const params = new URLSearchParams();
+      params.set('model', `${project.code}.xkt`);
+      // uniqueId maps to the xeokit entity id when the plugin exports the xkt
+      if (element.uniqueId) params.set('element', element.uniqueId);
+      params.set('zoom', 'fit');
+      await WebBrowser.openBrowserAsync(`${base}/viewer/index.html?${params.toString()}`, {
+        toolbarColor: theme.colors.primary,
+        controlsColor: theme.colors.accent,
+        dismissButtonStyle: 'close',
+      });
+    } catch (err) {
+      Alert.alert('Viewer unavailable', err instanceof Error ? err.message : String(err));
+    }
+  }
 
   return (
     <View style={styles.detailCard}>
@@ -295,6 +445,36 @@ function ElementDetail({ element, onClose }: { element: TaggedElement; onClose: 
       {/* Tag */}
       <View style={styles.tagBanner}>
         <Text style={styles.tagBannerText}>{element.assTag1}</Text>
+      </View>
+
+      {/* Phase 96 — on-site action row. Primary actions surface BEFORE the
+          token breakdown so a coordinator can act on the scanned element
+          without scrolling through metadata first. */}
+      <View style={styles.elementActionRow}>
+        <TouchableOpacity
+          style={[styles.elementActionBtn, styles.elementActionPrimary]}
+          onPress={createIssueHere}
+          accessibilityRole="button"
+          accessibilityLabel="Raise an issue for this element"
+        >
+          <Text style={styles.elementActionPrimaryText}>⚠  Raise Issue</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.elementActionBtn, styles.elementActionSecondary]}
+          onPress={viewLinkedIssues}
+          accessibilityRole="button"
+          accessibilityLabel="Show issues linked to this element"
+        >
+          <Text style={styles.elementActionSecondaryText}>🔗  Linked Issues</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.elementActionBtn, styles.elementActionSecondary]}
+          onPress={viewIn3D}
+          accessibilityRole="button"
+          accessibilityLabel="Frame this element in the 3D viewer"
+        >
+          <Text style={styles.elementActionSecondaryText}>🧊  View in 3D</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Token breakdown */}
@@ -392,7 +572,7 @@ function formatTime(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch {
+  } catch (e) { crashReporter.warn('scanner.tsx:475', { e: String(e) });
     return '';
   }
 }
@@ -401,7 +581,7 @@ function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch {
+  } catch (e) { crashReporter.warn('scanner.tsx:484', { e: String(e) });
     return iso;
   }
 }
@@ -643,6 +823,36 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+  },
+  // Phase 96 — on-site element action row
+  elementActionRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  elementActionBtn: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+  },
+  elementActionPrimary: {
+    backgroundColor: theme.colors.danger,
+  },
+  elementActionPrimaryText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  elementActionSecondary: {
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  elementActionSecondaryText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '600',
+    color: theme.colors.text,
   },
   detailHeader: {
     flexDirection: 'row',

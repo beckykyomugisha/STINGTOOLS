@@ -354,12 +354,9 @@ namespace StingTools.UI
 
             var dlg = new StingModePicker(title, subtitle, options, extraInfo);
 
-            try
-            {
-                var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
-                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
-            }
-            catch (Exception ex) { StingLog.Warn($"Non-critical: dialog still works without owner: {ex.Message}"); }
+            // Phase 98: prefer BCC as owner when open so the mode picker sits
+            // above BCC instead of getting buried behind it.
+            StingWindowHelper.ApplyOwner(dlg);
 
             dlg.ShowDialog();
             return dlg._result;

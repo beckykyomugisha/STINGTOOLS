@@ -23,6 +23,12 @@ public class MeetingsController : ControllerBase
     public async Task<ActionResult> GetMeetings(Guid projectId)
     {
         var tenantId = GetTenantId();
+
+        // Tenant isolation: 404 if the project does not belong to this tenant
+        var projectExists = await _db.Projects
+            .AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (!projectExists) return NotFound("Project not found");
+
         var meetings = await _db.Meetings
             .Where(m => m.ProjectId == projectId && m.Project!.TenantId == tenantId)
             .OrderByDescending(m => m.ScheduledAt)
@@ -91,7 +97,7 @@ public class MeetingsController : ControllerBase
 
         _db.MeetingActionItems.Add(item);
         await _db.SaveChangesAsync();
-        return Ok(item);
+        return CreatedAtAction(nameof(GetOpenActions), new { projectId }, item);
     }
 
     [HttpPut("{meetingId}/actions/{actionId}")]
@@ -120,6 +126,11 @@ public class MeetingsController : ControllerBase
             .Select(a => new
             {
                 a.Id, a.Description, a.Assignee, a.DueDate, a.Status, a.LinkedIssueId,
+                // Phase 96 — mobile needs MeetingId to call PUT .../actions/{id}
+                // without re-fetching the parent meeting. Previously only
+                // MeetingTitle was projected which meant the mobile tick-off
+                // action silently failed because the route required a meetingId.
+                MeetingId = a.MeetingId,
                 MeetingTitle = a.Meeting!.Title,
                 IsOverdue = a.DueDate.HasValue && a.DueDate < DateTime.UtcNow
             })

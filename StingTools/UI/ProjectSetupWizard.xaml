@@ -217,15 +217,52 @@
 
                         <Border Style="{StaticResource WizGroupBox}">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Level Definitions"/>
-                                <TextBlock Text="Name | Elevation (m) | Type (one per line)"
-                                           FontSize="10" Foreground="#777" Margin="0,0,0,4"/>
-                                <TextBox x:Name="txtLevels" AcceptsReturn="True" TextWrapping="Wrap"
-                                         Height="220" FontSize="11" FontFamily="Consolas"
-                                         VerticalScrollBarVisibility="Auto"
-                                         Padding="6" BorderBrush="#CCC"/>
-                                <TextBlock Text="Format: Name | Elevation(m)   Example: Ground Floor | 0.0"
-                                           FontSize="9" Foreground="#999" Margin="0,4,0,0"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Style="{StaticResource WizSubHeader}" Text="Level Definitions"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <Button Content="+ Add" Click="LevelAdd_Click" Padding="8,2" Margin="2,0" FontSize="10"
+                                                ToolTip="Insert a new level row below the selection"/>
+                                        <Button Content="Delete" Click="LevelDelete_Click" Padding="8,2" Margin="2,0" FontSize="10"
+                                                ToolTip="Delete selected rows"/>
+                                        <Button Content="▲" Click="LevelMoveUp_Click" Padding="6,2" Margin="2,0" FontSize="10"
+                                                ToolTip="Move selection up"/>
+                                        <Button Content="▼" Click="LevelMoveDown_Click" Padding="6,2" Margin="2,0" FontSize="10"
+                                                ToolTip="Move selection down"/>
+                                        <Button Content="Sort by Elev." Click="LevelSort_Click" Padding="8,2" Margin="2,0" FontSize="10"
+                                                ToolTip="Sort rows by elevation ascending"/>
+                                        <Button Content="ISO Normalize" Click="LevelIsoNormalize_Click" Padding="8,2" Margin="2,0" FontSize="10"
+                                                Background="#E1BEE7" ToolTip="Rewrite level names to ISO 19650 codes (B##/GF/L##/MZ##/RF). Existing ISO-conformant names are kept."/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="Edit any cell inline. Name must be unique; elevation in metres. ISO 19650: use codes like B01, GF, L01, L02, MZ01, RF."
+                                           FontSize="10" Foreground="#777" Margin="0,2,0,4"/>
+                                <DataGrid x:Name="dgLevels"
+                                          Height="240" FontSize="11"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="True"
+                                          CanUserDeleteRows="True"
+                                          HeadersVisibility="Column"
+                                          GridLinesVisibility="Horizontal"
+                                          AlternatingRowBackground="#F7F3FA"
+                                          RowHeaderWidth="0"
+                                          SelectionMode="Extended" SelectionUnit="FullRow"
+                                          BorderBrush="#CCC">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding Index, Mode=OneWay}" Width="30" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+                                        <DataGridTextColumn Header="Elevation (m)" Binding="{Binding ElevationText, UpdateSourceTrigger=PropertyChanged}" Width="110"/>
+                                        <DataGridComboBoxColumn x:Name="colLevelType" Header="Type"
+                                                                SelectedValueBinding="{Binding LevelType}" Width="140"/>
+                                        <DataGridCheckBoxColumn Header="Story" Binding="{Binding IsStory}" Width="60"
+                                                                ElementStyle="{x:Null}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <TextBlock Text="Tip: the 'Story' checkbox marks the level as a building story (affects rooms, views, scheduling). Untick for sub-levels/reference planes."
+                                           FontSize="9" Foreground="#999" Margin="0,4,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
@@ -297,6 +334,67 @@
                                 </Grid>
                             </StackPanel>
                         </Border>
+
+                        <!-- ─── Scope Box Integration ─── -->
+                        <TextBlock Style="{StaticResource WizSubHeader}" Text="Scope Box Integration" Margin="0,10,0,2"/>
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Text="Keep drawings clean on tilted scope boxes: grids, sections and elevations align to the box direction, and grids can be scoped to selected boxes only."
+                                           FontSize="10" Foreground="#777" Margin="0,0,0,6" TextWrapping="Wrap"/>
+
+                                <CheckBox x:Name="chkAlignToScopeBoxes" Style="{StaticResource WizCheck}"
+                                          Content="Align grids / sections / elevations to scope-box orientation (handles tilted boxes)"/>
+                                <CheckBox x:Name="chkAssignGridsToScopeBoxes" Style="{StaticResource WizCheck}"
+                                          Content="Scope created grids to the ticked scope boxes (uses the checked rows below)"/>
+                                <CheckBox x:Name="chkTwoSectionsPerScopeBox" Style="{StaticResource WizCheck}"
+                                          Content="Create two building sections per scope box (through centre, both directions)"/>
+                                <CheckBox x:Name="chkRenameScopeBoxes" Style="{StaticResource WizCheck}"
+                                          Content="Rename scope boxes to the standard pattern on Run"/>
+
+                                <TextBlock x:Name="lblScopeBoxEmpty"
+                                           Text="No scope boxes in this project yet. Create scope boxes first, or skip this section."
+                                           FontSize="10" Foreground="#B71C1C" FontStyle="Italic"
+                                           Margin="0,6,0,2" Visibility="Collapsed"/>
+
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Scope Boxes in Project" FontWeight="Normal" Margin="0,6,0,2"/>
+                                <DataGrid x:Name="dgScopeBoxes"
+                                          Height="130" FontSize="11"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          CanUserDeleteRows="False"
+                                          HeadersVisibility="Column"
+                                          GridLinesVisibility="Horizontal"
+                                          AlternatingRowBackground="#F7F3FA"
+                                          RowHeaderWidth="0"
+                                          SelectionMode="Extended" SelectionUnit="FullRow"
+                                          BorderBrush="#CCC">
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn Header="Use" Binding="{Binding Include}" Width="40"/>
+                                        <DataGridTextColumn Header="Current Name" Binding="{Binding CurrentName, Mode=OneWay}" Width="*" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="Rename To" Binding="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+                                        <DataGridTextColumn Header="Angle" Binding="{Binding RotationText, Mode=OneWay}" Width="60" IsReadOnly="True"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <Grid Margin="0,6,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="140"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Style="{StaticResource WizLabel}" Text="Rename pattern:"
+                                               ToolTip="Supported tokens: {BLD}, {LOC}, {ZONE}, {INDEX}, {NAME}"/>
+                                    <TextBox Grid.Column="1" x:Name="txtScopeBoxPattern" Style="{StaticResource WizInput}"
+                                             Text="{}{BLD}-{ZONE}-{INDEX}"/>
+                                    <Button Grid.Column="2" Content="Apply to checked"
+                                            Click="ScopeBoxPatternApply_Click"
+                                            Padding="8,2" Margin="4,2,0,2" FontSize="10"
+                                            ToolTip="Regenerate the 'Rename To' column from the pattern for ticked rows"/>
+                                </Grid>
+                                <TextBlock Text="Tokens: {BLD}=first LOC code · {LOC}=location code (cycles) · {ZONE}=zone code (cycles) · {INDEX}=1,2,3… · {NAME}=current name"
+                                           FontSize="9" Foreground="#999" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -327,11 +425,51 @@
                         <Border Style="{StaticResource WizGroupBox}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource WizSubHeader}" Text="Title Block"/>
-                                <TextBlock Text="Select which title block to use for sheets (first loaded will be used if not specified):"
+                                <TextBlock Text="Default title block for all sheets (used as fallback when no per-discipline block is set):"
                                            FontSize="10" Foreground="#777" Margin="0,0,0,4"/>
                                 <ComboBox x:Name="cmbTitleBlock" Style="{StaticResource WizCombo}">
                                     <ComboBoxItem Content="(Use first available)" IsSelected="True"/>
                                 </ComboBox>
+
+                                <Expander x:Name="expTitleBlockPerDisc" Header="Per-discipline title blocks (advanced)"
+                                          IsExpanded="False" Margin="0,6,0,0" FontSize="10">
+                                    <StackPanel Margin="0,4,0,0">
+                                        <TextBlock Text="Override the title block for each discipline's sheets. Sheets are routed by discipline code (A/S/M/E/P/FP/LV/G). Leave blank to use the default above."
+                                                   FontSize="10" Foreground="#777" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="120"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="[A] Architectural" Style="{StaticResource WizLabel}"/>
+                                            <ComboBox  Grid.Row="0" Grid.Column="1" x:Name="cmbTbArch"   Style="{StaticResource WizCombo}" Margin="0,2"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="[S] Structural"    Style="{StaticResource WizLabel}"/>
+                                            <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="cmbTbStruct" Style="{StaticResource WizCombo}" Margin="0,2"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="[M] Mechanical"    Style="{StaticResource WizLabel}"/>
+                                            <ComboBox  Grid.Row="2" Grid.Column="1" x:Name="cmbTbMech"   Style="{StaticResource WizCombo}" Margin="0,2"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="[E] Electrical"    Style="{StaticResource WizLabel}"/>
+                                            <ComboBox  Grid.Row="3" Grid.Column="1" x:Name="cmbTbElec"   Style="{StaticResource WizCombo}" Margin="0,2"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="[P] Plumbing"      Style="{StaticResource WizLabel}"/>
+                                            <ComboBox  Grid.Row="4" Grid.Column="1" x:Name="cmbTbPlumb"  Style="{StaticResource WizCombo}" Margin="0,2"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Text="[FP] Fire"         Style="{StaticResource WizLabel}"/>
+                                            <ComboBox  Grid.Row="5" Grid.Column="1" x:Name="cmbTbFire"   Style="{StaticResource WizCombo}" Margin="0,2"/>
+                                            <TextBlock Grid.Row="6" Grid.Column="0" Text="[LV] Low Voltage"  Style="{StaticResource WizLabel}"/>
+                                            <ComboBox  Grid.Row="6" Grid.Column="1" x:Name="cmbTbLV"     Style="{StaticResource WizCombo}" Margin="0,2"/>
+                                            <TextBlock Grid.Row="7" Grid.Column="0" Text="[G] Generic"       Style="{StaticResource WizLabel}"/>
+                                            <ComboBox  Grid.Row="7" Grid.Column="1" x:Name="cmbTbGen"    Style="{StaticResource WizCombo}" Margin="0,2"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
@@ -386,11 +524,77 @@
                                   FontWeight="SemiBold" FontSize="11" Foreground="#1565C0">
                             <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="HVAC Systems" FontWeight="Normal"/>
-                                    <CheckBox x:Name="chkMechHVAC" Style="{StaticResource WizCheck}" Content="HVAC (Supply / Return / Exhaust / Fresh Air)" IsChecked="True"/>
-                                    <CheckBox x:Name="chkMechHWS" Style="{StaticResource WizCheck}" Content="HWS — Heating Water System" IsChecked="True"/>
-                                    <CheckBox x:Name="chkMechDHW" Style="{StaticResource WizCheck}" Content="DHW — Domestic Hot Water"/>
-                                    <CheckBox x:Name="chkMechGAS" Style="{StaticResource WizCheck}" Content="GAS — Gas Supply"/>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="HVAC Systems — pick material per system" FontWeight="Normal"/>
+
+                                    <!-- HVAC (ducts + coil pipes) -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkMechHVAC" Style="{StaticResource WizCheck}" Content="HVAC (Supply / Return / Exhaust / Fresh Air)" IsChecked="True"/>
+                                        <TextBlock Grid.Column="1" Text="Duct:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbMechDuctMat" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="Duct material for the HVAC air systems">
+                                            <ComboBoxItem Content="Galvanised Steel" IsSelected="True"/>
+                                            <ComboBoxItem Content="Aluminium"/>
+                                            <ComboBoxItem Content="Stainless Steel"/>
+                                            <ComboBoxItem Content="Fabric"/>
+                                            <ComboBoxItem Content="Pre-Insulated Panel"/>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- HWS (heating water pipes) -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkMechHWS" Style="{StaticResource WizCheck}" Content="HWS — Heating Water System" IsChecked="True"/>
+                                        <TextBlock Grid.Column="1" Text="Pipe:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbMechHWSPipeMat" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="HWS pipe material (flow + return)">
+                                            <ComboBoxItem Content="Steel (Black)" IsSelected="True"/>
+                                            <ComboBoxItem Content="Copper"/>
+                                            <ComboBoxItem Content="Stainless Steel"/>
+                                            <ComboBoxItem Content="PEX"/>
+                                            <ComboBoxItem Content="PPR"/>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- DHW (domestic hot water) -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkMechDHW" Style="{StaticResource WizCheck}" Content="DHW — Domestic Hot Water"/>
+                                        <TextBlock Grid.Column="1" Text="Pipe:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbMechDHWPipeMat" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="DHW pipe material (potable — lead-free)">
+                                            <ComboBoxItem Content="Copper" IsSelected="True"/>
+                                            <ComboBoxItem Content="Stainless Steel"/>
+                                            <ComboBoxItem Content="PEX"/>
+                                            <ComboBoxItem Content="PPR"/>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- GAS -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkMechGAS" Style="{StaticResource WizCheck}" Content="GAS — Gas Supply"/>
+                                        <TextBlock Grid.Column="1" Text="Pipe:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbMechGASPipeMat" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="Gas pipe material — BS 6891 / IGEM/G/5">
+                                            <ComboBoxItem Content="Steel (Black)" IsSelected="True"/>
+                                            <ComboBoxItem Content="Copper"/>
+                                            <ComboBoxItem Content="Medium Density PE (Underground)"/>
+                                            <ComboBoxItem Content="Corrugated Stainless (TracPipe)"/>
+                                        </ComboBox>
+                                    </Grid>
 
                                     <TextBlock Style="{StaticResource WizSubHeader}" Text="Design Parameters" FontWeight="Normal" Margin="0,6,0,3"/>
                                     <Grid>
@@ -400,26 +604,9 @@
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Duct material:"/>
-                                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbMechDuctMat" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
-                                            <ComboBoxItem Content="Galvanised Steel" IsSelected="True"/>
-                                            <ComboBoxItem Content="Aluminium"/>
-                                            <ComboBoxItem Content="Stainless Steel"/>
-                                            <ComboBoxItem Content="Fabric"/>
-                                        </ComboBox>
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Pipe material:"/>
-                                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbMechPipeMat" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
-                                            <ComboBoxItem Content="Copper" IsSelected="True"/>
-                                            <ComboBoxItem Content="Steel"/>
-                                            <ComboBoxItem Content="PVC"/>
-                                            <ComboBoxItem Content="PPR"/>
-                                            <ComboBoxItem Content="Stainless Steel"/>
-                                        </ComboBox>
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Insulation (mm):"/>
-                                        <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtMechInsulation" Style="{StaticResource WizInput}" Width="80" Text="25" HorizontalAlignment="Left"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Insulation (mm):"/>
+                                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtMechInsulation" Style="{StaticResource WizInput}" Width="80" Text="25" HorizontalAlignment="Left"/>
                                     </Grid>
                                 </StackPanel>
                             </Border>
@@ -430,9 +617,43 @@
                                   FontWeight="SemiBold" FontSize="11" Foreground="#F9A825">
                             <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Electrical Systems" FontWeight="Normal"/>
-                                    <CheckBox x:Name="chkElecPower" Style="{StaticResource WizCheck}" Content="Power Distribution (MSB, DB, circuits)" IsChecked="True"/>
-                                    <CheckBox x:Name="chkElecLighting" Style="{StaticResource WizCheck}" Content="Lighting (fixtures, controls, emergency)" IsChecked="True"/>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Electrical Systems — pick cable type per system" FontWeight="Normal"/>
+
+                                    <!-- Power -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkElecPower" Style="{StaticResource WizCheck}" Content="Power Distribution (MSB, DB, circuits)" IsChecked="True"/>
+                                        <TextBlock Grid.Column="1" Text="Cable:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbElecPowerCable" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="Power cable type — BS 7671 / IEC 60502">
+                                            <ComboBoxItem Content="XLPE/SWA (LSZH)" IsSelected="True"/>
+                                            <ComboBoxItem Content="XLPE/SWA (PVC)"/>
+                                            <ComboBoxItem Content="Twin &amp; Earth (6242Y)"/>
+                                            <ComboBoxItem Content="MICC (Mineral)"/>
+                                            <ComboBoxItem Content="Bus Bar Trunking"/>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- Lighting -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkElecLighting" Style="{StaticResource WizCheck}" Content="Lighting (fixtures, controls, emergency)" IsChecked="True"/>
+                                        <TextBlock Grid.Column="1" Text="Cable:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbElecLightingCable" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="Lighting cable type">
+                                            <ComboBoxItem Content="Twin &amp; Earth (6242Y)" IsSelected="True"/>
+                                            <ComboBoxItem Content="LSZH Flex (3183Y)"/>
+                                            <ComboBoxItem Content="XLPE/SWA (LSZH)"/>
+                                            <ComboBoxItem Content="FP200 (Fire Rated)"/>
+                                            <ComboBoxItem Content="DALI / Lighting Control"/>
+                                        </ComboBox>
+                                    </Grid>
 
                                     <TextBlock Style="{StaticResource WizSubHeader}" Text="Design Parameters" FontWeight="Normal" Margin="0,6,0,3"/>
                                     <Grid>
@@ -484,12 +705,63 @@
                                   FontWeight="SemiBold" FontSize="11" Foreground="#2E7D32">
                             <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Plumbing Systems" FontWeight="Normal"/>
-                                    <CheckBox x:Name="chkPlumbDCW" Style="{StaticResource WizCheck}" Content="DCW — Domestic Cold Water" IsChecked="True"/>
-                                    <CheckBox x:Name="chkPlumbSAN" Style="{StaticResource WizCheck}" Content="SAN — Sanitary Drainage" IsChecked="True"/>
-                                    <CheckBox x:Name="chkPlumbRWD" Style="{StaticResource WizCheck}" Content="RWD — Rainwater Drainage"/>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Plumbing Systems — pick material per system" FontWeight="Normal"/>
 
-                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Design Parameters" FontWeight="Normal" Margin="0,6,0,3"/>
+                                    <!-- DCW -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="240"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkPlumbDCW" Style="{StaticResource WizCheck}" Content="DCW — Domestic Cold Water" IsChecked="True"/>
+                                        <TextBlock Grid.Column="1" Text="Pipe:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbPlumbDCWMat" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="DCW material — WRAS approved">
+                                            <ComboBoxItem Content="Copper" IsSelected="True"/>
+                                            <ComboBoxItem Content="PEX"/>
+                                            <ComboBoxItem Content="PPR"/>
+                                            <ComboBoxItem Content="MDPE (Mains)"/>
+                                            <ComboBoxItem Content="Stainless Steel"/>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- SAN -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="240"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkPlumbSAN" Style="{StaticResource WizCheck}" Content="SAN — Sanitary Drainage" IsChecked="True"/>
+                                        <TextBlock Grid.Column="1" Text="Pipe:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbPlumbSANMat" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="Sanitary pipe material — BS EN 12056">
+                                            <ComboBoxItem Content="Cast Iron" IsSelected="True"/>
+                                            <ComboBoxItem Content="HDPE"/>
+                                            <ComboBoxItem Content="uPVC"/>
+                                            <ComboBoxItem Content="Polypropylene"/>
+                                            <ComboBoxItem Content="Clay (External)"/>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- RWD -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="240"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkPlumbRWD" Style="{StaticResource WizCheck}" Content="RWD — Rainwater Drainage"/>
+                                        <TextBlock Grid.Column="1" Text="Pipe:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbPlumbRWDMat" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="Rainwater pipe material — BS EN 12056-3">
+                                            <ComboBoxItem Content="uPVC" IsSelected="True"/>
+                                            <ComboBoxItem Content="Cast Iron"/>
+                                            <ComboBoxItem Content="Aluminium"/>
+                                            <ComboBoxItem Content="HDPE"/>
+                                            <ComboBoxItem Content="Galvanised Steel"/>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Fixture Standard" FontWeight="Normal" Margin="0,6,0,3"/>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="140"/>
@@ -497,18 +769,9 @@
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Pipe material:"/>
-                                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbPlumbPipeMat" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
-                                            <ComboBoxItem Content="Copper" IsSelected="True"/>
-                                            <ComboBoxItem Content="PVC"/>
-                                            <ComboBoxItem Content="HDPE"/>
-                                            <ComboBoxItem Content="Cast Iron"/>
-                                            <ComboBoxItem Content="PPR"/>
-                                        </ComboBox>
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Fixture standard:"/>
-                                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbPlumbStd" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource WizLabel}" Text="Fixture standard:"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbPlumbStd" Style="{StaticResource WizCombo}" Width="180" HorizontalAlignment="Left">
                                             <ComboBoxItem Content="Commercial Grade" IsSelected="True"/>
                                             <ComboBoxItem Content="Residential Grade"/>
                                             <ComboBoxItem Content="Healthcare/Clinical"/>
@@ -608,10 +871,58 @@
                                   FontWeight="SemiBold" FontSize="11" Foreground="#E65100">
                             <Border Style="{StaticResource WizGroupBox}" Margin="0,4">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Fire Protection Systems" FontWeight="Normal"/>
-                                    <CheckBox x:Name="chkFireSprinkler" Style="{StaticResource WizCheck}" Content="Sprinkler system (wet)" IsChecked="True"/>
-                                    <CheckBox x:Name="chkFireAlarm" Style="{StaticResource WizCheck}" Content="Fire alarm and detection" IsChecked="True"/>
-                                    <CheckBox x:Name="chkFireSuppress" Style="{StaticResource WizCheck}" Content="Suppression (dry, deluge, FM200)"/>
+                                    <TextBlock Style="{StaticResource WizSubHeader}" Text="Fire Protection Systems — pick material per system" FontWeight="Normal"/>
+
+                                    <!-- Sprinkler -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="220"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkFireSprinkler" Style="{StaticResource WizCheck}" Content="Sprinkler system (wet)" IsChecked="True"/>
+                                        <TextBlock Grid.Column="1" Text="Pipe:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbFireSprinklerMat" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="Sprinkler pipe — BS EN 12845 / LPC Rules">
+                                            <ComboBoxItem Content="Steel (Black, Welded)" IsSelected="True"/>
+                                            <ComboBoxItem Content="Steel (Galvanised)"/>
+                                            <ComboBoxItem Content="CPVC"/>
+                                            <ComboBoxItem Content="Stainless Steel"/>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- Alarm -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="220"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkFireAlarm" Style="{StaticResource WizCheck}" Content="Fire alarm and detection" IsChecked="True"/>
+                                        <TextBlock Grid.Column="1" Text="Cable:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbFireAlarmCable" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="Fire alarm cable — BS 5839 / BS 6387">
+                                            <ComboBoxItem Content="FP200 Gold (Std Fire)" IsSelected="True"/>
+                                            <ComboBoxItem Content="FP Plus (Enhanced Fire)"/>
+                                            <ComboBoxItem Content="MICC (Mineral)"/>
+                                            <ComboBoxItem Content="Firetuf OHLS"/>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- Suppression -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="220"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" x:Name="chkFireSuppress" Style="{StaticResource WizCheck}" Content="Suppression (dry, deluge, FM200)"/>
+                                        <TextBlock Grid.Column="1" Text="Pipe:" Margin="6,3,4,0" FontSize="10" Foreground="#555"/>
+                                        <ComboBox Grid.Column="2" x:Name="cmbFireSuppressMat" Style="{StaticResource WizCombo}" Width="160" HorizontalAlignment="Left" ToolTip="Suppression agent pipe — NFPA 2001 / ISO 14520">
+                                            <ComboBoxItem Content="Steel (Galvanised)" IsSelected="True"/>
+                                            <ComboBoxItem Content="Stainless Steel (Sch 40)"/>
+                                            <ComboBoxItem Content="Stainless Steel (Sch 80)"/>
+                                            <ComboBoxItem Content="Copper (CO2)"/>
+                                        </ComboBox>
+                                    </Grid>
 
                                     <TextBlock Style="{StaticResource WizSubHeader}" Text="Design Parameters" FontWeight="Normal" Margin="0,6,0,3"/>
                                     <Grid>
@@ -692,6 +1003,18 @@
                         <TextBlock Text="Choose what to automate. Uncheck items you want to do manually later."
                                    FontSize="10" Foreground="#777" Margin="0,0,0,8"/>
 
+                        <Border Style="{StaticResource WizGroupBox}" Background="#F3E5F5">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Performance"/>
+                                <CheckBox x:Name="chkFastMode" Style="{StaticResource WizCheck}"
+                                          Content="Fast setup (skip bulk steps when project already populated — recommended)" IsChecked="True"
+                                          ToolTip="Scans document first; if materials/schedules/templates already exist at ≥80% of target, the step is skipped. Can reduce 30+ min runs to under 5 min on re-runs."/>
+                                <CheckBox x:Name="chkSuspendUIUpdates" Style="{StaticResource WizCheck}"
+                                          Content="Suspend view refresh during setup (recommended for models &gt; 100 MB)" IsChecked="True"
+                                          ToolTip="Switches to a blank drafting view while setup runs so Revit doesn't regenerate the active view on every transaction."/>
+                            </StackPanel>
+                        </Border>
+
                         <Border Style="{StaticResource WizGroupBox}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource WizSubHeader}" Text="Parameters &amp; Data"/>
@@ -709,6 +1032,10 @@
                         <Border Style="{StaticResource WizGroupBox}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource WizSubHeader}" Text="Styles &amp; Templates"/>
+                                <CheckBox x:Name="chkUseLatestTemplateSetup" Style="{StaticResource WizCheck}"
+                                          Content="Use latest Template Setup pipeline (15-step: fill/line/object/text/dim styles + filters + 23 templates + VG + family params + schedules)"
+                                          IsChecked="True"
+                                          ToolTip="Runs the full TemplateSetupWizard ordering. Overrides the individual steps below when checked."/>
                                 <CheckBox x:Name="chkCreateStyles" Style="{StaticResource WizCheck}"
                                           Content="Create styles (fill/line patterns, line/text/dimension/object styles)" IsChecked="True"/>
                                 <CheckBox x:Name="chkCreateFilters" Style="{StaticResource WizCheck}"

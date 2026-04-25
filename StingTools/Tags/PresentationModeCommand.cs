@@ -126,11 +126,24 @@ namespace StingTools.Tags
 
         private static bool SetBool(Element el, string paramName, bool value)
         {
+            // Tag-formula BOOLs ship as TEXT in MR_PARAMETERS v5.3+ so Revit label
+            // Calculated Values can reference them inside if(...); legacy YESNO
+            // families still resolve via the Integer branch.
             Parameter p = el.LookupParameter(paramName);
             if (p == null || p.IsReadOnly) return false;
+            if (p.StorageType == StorageType.String)
+            {
+                string target = value ? "Yes" : "No";
+                string cur = p.AsString() ?? "";
+                if (string.Equals(cur, target, StringComparison.OrdinalIgnoreCase)) return false;
+                p.Set(target);
+                return true;
+            }
             if (p.StorageType == StorageType.Integer)
             {
-                p.Set(value ? 1 : 0);
+                int target = value ? 1 : 0;
+                if (p.AsInteger() == target) return false;
+                p.Set(target);
                 return true;
             }
             return false;
@@ -268,6 +281,28 @@ namespace StingTools.Tags
             sb.AppendLine("  Calculated value (Type: Text): if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
             FormatTierParams(sb, catDef["tier_3"] as JArray, paramText);
 
+            // Tier 4..10 (shared across all families — commissioning / cost / carbon /
+            // fabrication / clash / as-built / compliance)
+            string[] tierLabels = new[]
+            {
+                "TIER 4 (Commissioning & handover)",
+                "TIER 5 (Cost & procurement)",
+                "TIER 6 (Carbon & sustainability — BS EN 15978)",
+                "TIER 7 (Fabrication & QC — ISO 6412)",
+                "TIER 8 (Clash & coordination)",
+                "TIER 9 (As-built & health)",
+                "TIER 10 (Compliance / audit trail)",
+            };
+            for (int i = 0; i < 7; i++)
+            {
+                int t = i + 4;
+                var arr = catDef[$"tier_{t}"] as JArray;
+                if (arr == null || arr.Count == 0) continue;
+                sb.AppendLine($"  ── {tierLabels[i]} (Gated by TAG_PARA_STATE_{t}_BOOL) ──");
+                sb.AppendLine($"  Calculated value (Type: Text): if(TAG_PARA_STATE_{t}_BOOL, <param>, \"\")");
+                FormatTierParams(sb, arr, paramText);
+            }
+
             sb.AppendLine();
         }
 
@@ -280,8 +315,23 @@ namespace StingTools.Tags
                 return;
             }
 
-            sb.AppendLine("  Parameter            | Prefix      | Suffix      | Spc | Brk");
-            sb.AppendLine("  " + new string('-', 70));
+            bool anyStyle = false;
+            foreach (JObject e in tierParams)
+            {
+                if (e["style"] != null || e["color"] != null || e["size"] != null)
+                { anyStyle = true; break; }
+            }
+
+            if (anyStyle)
+            {
+                sb.AppendLine("  Parameter            | Prefix      | Suffix      | Spc | Brk | Style  | Color  | Sz");
+                sb.AppendLine("  " + new string('-', 92));
+            }
+            else
+            {
+                sb.AppendLine("  Parameter            | Prefix      | Suffix      | Spc | Brk");
+                sb.AppendLine("  " + new string('-', 70));
+            }
 
             foreach (JObject entry in tierParams)
             {
@@ -302,9 +352,21 @@ namespace StingTools.Tags
                 suffix = suffix ?? "";
 
                 string paramShort = param.Length > 20 ? param.Substring(0, 17) + "..." : param;
-                sb.AppendLine($"  {paramShort,-20} | \"{prefix}\"" +
-                    $"{new string(' ', Math.Max(0, 10 - prefix.Length - 2))}| \"{suffix}\"" +
-                    $"{new string(' ', Math.Max(0, 10 - suffix.Length - 2))}| {spaces}   | {(brk ? "YES" : "")}");
+                string prefixCell = "\"" + prefix + "\"" + new string(' ', Math.Max(0, 10 - prefix.Length - 2));
+                string suffixCell = "\"" + suffix + "\"" + new string(' ', Math.Max(0, 10 - suffix.Length - 2));
+                string baseLine = $"  {paramShort,-20} | {prefixCell}| {suffixCell}| {spaces}   | {(brk ? "YES" : "")}";
+
+                if (anyStyle)
+                {
+                    string style = entry["style"]?.ToString() ?? "";
+                    string color = entry["color"]?.ToString() ?? "";
+                    string size  = entry["size"]?.ToString() ?? "";
+                    sb.AppendLine(baseLine.PadRight(50) + $" | {style,-6} | {color,-6} | {size}");
+                }
+                else
+                {
+                    sb.AppendLine(baseLine);
+                }
             }
         }
 
@@ -479,6 +541,24 @@ namespace StingTools.Tags
                 "if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
             FormatTier(sb, "TIER 3 — Comprehensive (gate: TAG_PARA_STATE_3_BOOL)", catDef["tier_3"] as JArray, paramText,
                 "if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
+            // Tiers 4..10: shared commissioning / cost / carbon / fabrication / clash /
+            // as-built / compliance rows (v5.3 schema).
+            string[] extTitles = new[]
+            {
+                "TIER 4 — Commissioning & handover (gate: TAG_PARA_STATE_4_BOOL)",
+                "TIER 5 — Cost & procurement (gate: TAG_PARA_STATE_5_BOOL)",
+                "TIER 6 — Carbon & sustainability (gate: TAG_PARA_STATE_6_BOOL)",
+                "TIER 7 — Fabrication & QC (gate: TAG_PARA_STATE_7_BOOL)",
+                "TIER 8 — Clash & coordination (gate: TAG_PARA_STATE_8_BOOL)",
+                "TIER 9 — As-built & health (gate: TAG_PARA_STATE_9_BOOL)",
+                "TIER 10 — Compliance / audit trail (gate: TAG_PARA_STATE_10_BOOL)",
+            };
+            for (int i = 0; i < 7; i++)
+            {
+                int t = i + 4;
+                FormatTier(sb, extTitles[i], catDef[$"tier_{t}"] as JArray, paramText,
+                    $"if(TAG_PARA_STATE_{t}_BOOL, <param>, \"\")");
+            }
 
             sb.AppendLine();
         }
@@ -498,8 +578,23 @@ namespace StingTools.Tags
                 return;
             }
 
-            sb.AppendLine($"  {"Parameter",-40} {"Prefix",-15} {"Suffix",-12} {"Spc",3} {"Brk",4}");
-            sb.AppendLine("  " + new string('─', 75));
+            bool anyStyle = false;
+            foreach (JObject e in tierParams)
+            {
+                if (e["style"] != null || e["color"] != null || e["size"] != null)
+                { anyStyle = true; break; }
+            }
+
+            if (anyStyle)
+            {
+                sb.AppendLine($"  {"Parameter",-40} {"Prefix",-15} {"Suffix",-12} {"Spc",3} {"Brk",4}  {"Style",-6}  {"Color",-6}  Sz");
+                sb.AppendLine("  " + new string('─', 102));
+            }
+            else
+            {
+                sb.AppendLine($"  {"Parameter",-40} {"Prefix",-15} {"Suffix",-12} {"Spc",3} {"Brk",4}");
+                sb.AppendLine("  " + new string('─', 75));
+            }
 
             foreach (JObject entry in tierParams)
             {
@@ -518,8 +613,20 @@ namespace StingTools.Tags
                 prefix = prefix ?? "";
                 suffix = suffix ?? "";
 
-                sb.AppendLine($"  {param,-40} \"{prefix}\"{new string(' ', Math.Max(0, 12 - prefix.Length))} " +
-                    $"\"{suffix}\"{new string(' ', Math.Max(0, 9 - suffix.Length))} {spaces,3} {(brk ? "YES" : ""),4}");
+                string baseLine = $"  {param,-40} \"{prefix}\"{new string(' ', Math.Max(0, 12 - prefix.Length))} " +
+                    $"\"{suffix}\"{new string(' ', Math.Max(0, 9 - suffix.Length))} {spaces,3} {(brk ? "YES" : ""),4}";
+
+                if (anyStyle)
+                {
+                    string style = entry["style"]?.ToString() ?? "";
+                    string color = entry["color"]?.ToString() ?? "";
+                    string size  = entry["size"]?.ToString() ?? "";
+                    sb.AppendLine(baseLine + $"  {style,-6}  {color,-6}  {size}");
+                }
+                else
+                {
+                    sb.AppendLine(baseLine);
+                }
             }
 
             sb.AppendLine();
@@ -837,16 +944,18 @@ namespace StingTools.Tags
 
             var catDef = cats[categoryName] as JObject;
 
-            // Visibility control params (always added)
-            result.Add("TAG_PARA_STATE_1_BOOL");
-            result.Add("TAG_PARA_STATE_2_BOOL");
-            result.Add("TAG_PARA_STATE_3_BOOL");
+            // Visibility control params (always added) — full 1..10 set matches
+            // TagFamilyCreatorCommand.VisibilityParams and SetParagraphDepthCommand (MaxTier=10).
+            for (int t = 1; t <= 10; t++)
+                result.Add($"TAG_PARA_STATE_{t}_BOOL");
             result.Add("TAG_WARN_VISIBLE_BOOL");
 
-            // Collect params from all tiers
-            foreach (string tierKey in new[] { "tier_1", "tier_2", "tier_3" })
+            // Collect params from all tiers (tier_1..tier_10). Tiers 4-10 hold the cross-family
+            // commissioning / cost / carbon / fabrication / clash / as-built / compliance rows
+            // mirrored from STING_TAG_CONFIG_v5_0_*.csv schema v5.3.
+            for (int t = 1; t <= 10; t++)
             {
-                var tier = catDef[tierKey] as JArray;
+                var tier = catDef[$"tier_{t}"] as JArray;
                 if (tier == null) continue;
                 foreach (JObject entry in tier)
                 {

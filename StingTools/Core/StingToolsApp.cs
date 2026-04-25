@@ -3,11 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.Attributes;
+using Newtonsoft.Json.Linq;
 using StingTools.UI;
+using StingTools.BIMManager;
+using StingTools.Clash;
+using Planscape.PluginSync;
 
 namespace StingTools.Core
 {
@@ -17,6 +22,8 @@ namespace StingTools.Core
     /// SELECT, ORGANISE, DOCS, TEMP, CREATE, VIEW.
     /// The ribbon tab contains only a single toggle button to show/hide the panel.
     /// </summary>
+    // Note: CA1416 coverage is provided assembly-wide by
+    // [assembly: SupportedOSPlatform("windows")] in Properties/AssemblyInfo.cs.
     public class StingToolsApp : IExternalApplication
     {
         public static string AssemblyPath { get; private set; }
@@ -37,11 +44,34 @@ namespace StingTools.Core
                 // Pre-flight: log assembly environment for crash diagnostics
                 LogAssemblyEnvironment();
 
+                // Pack 0 — establish offline-first defaults. Per-project config
+                // loads later in OnDocumentOpened and can flip the flag off.
+                StingOfflineConfig.ApplyDefaults();
+
+                // Pack 7 — wire the DocumentChanged cascade handler (room
+                // renumbers, level changes, sheet ISO violations). Gated by
+                // StingOfflineConfig.RealtimeCascadesEnabled at callback time.
+                StingDocumentChangedHandler.Register(application);
+
+                // Pack 8 — wire the Idling scheduler. Commands enqueue jobs
+                // via StingIdlingScheduler.Enqueue(job).
+                StingIdlingScheduler.Register(application);
+
                 // Register the dockable panel — the single unified UI
                 RegisterDockablePanel(application);
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
+
+                // Register the Tag 7 narrative auto-updater (IUpdater) — starts disabled.
+                // Keeps ASS_TAG_7_TXT in sync with the active paragraph preset when
+                // source parameters change. Users enable it from Tag Studio.
+                StingTag7NarrativeUpdater.Register(application);
+
+                // Phase 106: reserve the Live Clash Updater id. Triggers are
+                // deferred to a follow-on phase so models that don't use clash
+                // detection pay zero cost at startup.
+                LiveClashUpdater.Register(application);
 
                 // CRASH FIX: Eagerly load ParamRegistry at startup instead of lazy-loading
                 // on first command. This ensures:
@@ -67,6 +97,12 @@ namespace StingTools.Core
                 try { ProjectFolderEngine.LoadRootFromConfig(); }
                 catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine config load: {ex.Message}"); }
 
+                // Route BcfEngine warnings into StingLog. BcfEngine.cs lives in
+                // Planscape.Shared.dll (server-compatible, no Revit dependency),
+                // so it can't reference StingLog directly — the hook bridges the
+                // two assemblies without creating a namespace dependency.
+                Planscape.Shared.BCF.BcfEngine.Warn = msg => StingLog.Warn(msg);
+
                 // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.
@@ -82,8 +118,52 @@ namespace StingTools.Core
                 // R-02: Retry deferred auto-tag elements after sync-to-central
                 application.ControlledApplication.DocumentSynchronizedWithCentral += OnDocumentSynchronizedWithCentral;
 
+                // INT-03: Auto-sync to Planscape server after every successful STC.
+                // Separate handler from OnDocumentSynchronizedWithCentral so the
+                // deferred auto-tag retry stays isolated from the server sync concern.
+                application.ControlledApplication.DocumentSynchronizedWithCentral += OnPlanscapeSyncAfterSTC;
+
                 // AUTO-SYNC: Queue lightweight compliance sync on document save
                 application.ControlledApplication.DocumentSaved += OnDocumentSaved;
+
+                // S03b / Phase 91 — Start the Planscape sync scheduler if the plugin has
+                // already authenticated with the server (persisted from a previous session).
+                // Runs on a 5-min timer in-process: on each tick PluginSyncTickBridge builds
+                // a payload from the active document and enqueues it for drain. Safe no-op
+                // if not configured — in that case PlanscapeConnectCommand will lazy-start
+                // the scheduler after LoginAsync succeeds.
+                try
+                {
+                    // Always wire the tick bridge so whichever path starts the scheduler
+                    // (OnStartup persisted creds, PlanscapeConnect, or SyncToPlanscapeServer
+                    // lazy-start) gets the OnTick callback marshalled to the Revit thread.
+                    StingTools.BIMManager.PluginSyncTickBridge.EnsureWired();
+
+                    var serverUrl = PlanscapeServerClient.Instance?.ServerUrl;
+                    var authToken = PlanscapeServerClient.Instance?.AuthToken;
+                    if (!string.IsNullOrEmpty(serverUrl) && !string.IsNullOrEmpty(authToken))
+                    {
+                        if (SyncScheduler.Instance == null)
+                        {
+                            SyncScheduler.Start(serverUrl, authToken);
+                            StingLog.Info($"SyncScheduler started against {serverUrl} (5-min tick, offline queue enabled)");
+                        }
+
+                        // INT-07 — keep the dock-panel sync chip in step with each sync attempt.
+                        if (SyncScheduler.Instance != null)
+                        {
+                            SyncScheduler.Instance.OnSyncComplete += _ =>
+                            {
+                                StingDockPanel.LastInstance?.RefreshSyncIndicator();
+                            };
+                        }
+                    }
+                    else
+                    {
+                        StingLog.Info("SyncScheduler not started — no server URL / auth token yet; PlanscapeConnect will start it after login");
+                    }
+                }
+                catch (Exception syncEx) { StingLog.Warn($"SyncScheduler start failed: {syncEx.Message}"); }
 
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
@@ -210,6 +290,72 @@ namespace StingTools.Core
             }
         }
 
+        // GAP 1-B (INT-02) — debounce state for OnPlanscapeSyncAfterSTC.
+        // STC can fire multiple times in quick succession (user hitting
+        // Sync-to-Central twice, or worksharing-initiated re-syncs); we
+        // throttle to at most one full payload every DebounceSeconds per
+        // document path. The _pendingSyncDoc field tracks the document
+        // whose sync is being held so a subsequent same-doc STC during
+        // the window is a no-op, but a different doc's STC still fires.
+        private static readonly object _planscapeSyncLock = new object();
+        private static Document _pendingSyncDoc;
+        private static DateTime _lastPlanscapeSync = DateTime.MinValue;
+        private const int PlanscapeSyncDebounceSeconds = 60;
+
+        /// <summary>INT-03: After a successful STC, trigger a Planscape server sync.
+        /// Exits silently if the plugin isn't authenticated; otherwise delegates to the
+        /// existing PlatformSyncCommand.SyncToPlanscapeServer() path which collects tags,
+        /// builds the payload, and hands off to Planscape.PluginSync.SyncScheduler
+        /// (queueing for retry on network failure).</summary>
+        private static void OnPlanscapeSyncAfterSTC(object sender,
+            Autodesk.Revit.DB.Events.DocumentSynchronizedWithCentralEventArgs e)
+        {
+            try
+            {
+                var client = PlanscapeServerClient.Instance;
+                if (client == null || !client.IsConnected) return; // silent — not authenticated
+
+                Document doc = e.Document;
+                if (doc == null || !doc.IsValidObject || doc.IsFamilyDocument) return;
+
+                // GAP 1-B — 60s debounce. Multiple STCs in the same window collapse
+                // into a single sync. Doc-scoped so swapping documents still syncs.
+                lock (_planscapeSyncLock)
+                {
+                    var sincePrev = DateTime.UtcNow - _lastPlanscapeSync;
+                    bool sameDocPending = _pendingSyncDoc != null
+                        && _pendingSyncDoc.IsValidObject
+                        && string.Equals(_pendingSyncDoc.PathName, doc.PathName, StringComparison.OrdinalIgnoreCase);
+                    if (sameDocPending && sincePrev.TotalSeconds < PlanscapeSyncDebounceSeconds)
+                    {
+                        StingLog.Info($"Planscape STC sync debounced ({sincePrev.TotalSeconds:F0}s < {PlanscapeSyncDebounceSeconds}s) for {doc.Title}");
+                        return;
+                    }
+                    _pendingSyncDoc = doc;
+                    _lastPlanscapeSync = DateTime.UtcNow;
+                }
+
+                StingLog.Info("Planscape: auto-sync triggered by STC");
+
+                // UIApplication fallback chain:
+                //   1. StingCommandHandler.CurrentApp (set during any prior command)
+                //   2. Construct from the document's Application (available in event args)
+                UIApplication uiApp = UI.StingCommandHandler.CurrentApp;
+                if (uiApp == null)
+                {
+                    var revitApp = doc.Application;
+                    if (revitApp != null) uiApp = new UIApplication(revitApp);
+                }
+                if (uiApp == null) { StingLog.Warn("Planscape STC auto-sync: no UIApplication available"); return; }
+
+                PlatformSyncCommand.SyncToPlanscapeServer(uiApp);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"OnPlanscapeSyncAfterSTC: {ex.Message}");
+            }
+        }
+
         /// <summary>BUG-05: Clear param cache on document open to prevent cross-document collisions.</summary>
         private static void OnDocumentOpened(object sender,
             Autodesk.Revit.DB.Events.DocumentOpenedEventArgs e)
@@ -278,6 +424,69 @@ namespace StingTools.Core
                     });
                 }
                 catch (Exception pwEx) { StingLog.Warn($"FUT-19 pre-warm launch: {pwEx.Message}"); }
+
+                // GAP 1-C (INT-01) — Lazy-start SyncScheduler on document open.
+                // OnStartup only succeeds if credentials were in memory before any
+                // document was loaded. When the user connects AFTER plugin start and
+                // THEN opens the project document, OnStartup's check already missed.
+                // This hook retries: if the client is authenticated, the project is
+                // linked (planscape_connection.json present with a projectId), and
+                // the scheduler is still idle, start it now.
+                try
+                {
+                    if (Planscape.PluginSync.SyncScheduler.Instance == null)
+                    {
+                        var pClient = PlanscapeServerClient.Instance;
+                        bool connected = pClient != null && pClient.IsConnected
+                            && !string.IsNullOrEmpty(pClient.ServerUrl)
+                            && !string.IsNullOrEmpty(pClient.AuthToken);
+                        if (connected)
+                        {
+                            string docPath = e.Document?.PathName;
+                            string projectDir = !string.IsNullOrEmpty(docPath)
+                                ? System.IO.Path.GetDirectoryName(docPath)
+                                : null;
+                            string cfgPath = null;
+                            if (!string.IsNullOrEmpty(projectDir))
+                            {
+                                // Preferred: _bim_manager/planscape_connection.json
+                                string bimDir = System.IO.Path.Combine(projectDir, "_bim_manager");
+                                cfgPath = System.IO.Path.Combine(bimDir, "planscape_connection.json");
+                                if (!System.IO.File.Exists(cfgPath)) cfgPath = null;
+                            }
+                            bool hasProjectLink = false;
+                            if (cfgPath != null)
+                            {
+                                try
+                                {
+                                    var jc = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(cfgPath));
+                                    string pid = jc["projectId"]?.Value<string>();
+                                    hasProjectLink = !string.IsNullOrWhiteSpace(pid)
+                                        && Guid.TryParse(pid, out var _g) && _g != Guid.Empty;
+                                }
+                                catch (Exception cfgReadEx) { StingLog.Warn($"GAP 1-C cfg read: {cfgReadEx.Message}"); }
+                            }
+                            if (hasProjectLink)
+                            {
+                                Planscape.PluginSync.SyncScheduler.Start(pClient.ServerUrl, pClient.AuthToken);
+                                StingTools.BIMManager.PluginSyncTickBridge.EnsureWired();
+                                StingLog.Info($"GAP 1-C: SyncScheduler lazy-started on DocumentOpened against {pClient.ServerUrl}");
+                                try
+                                {
+                                    if (Planscape.PluginSync.SyncScheduler.Instance != null)
+                                    {
+                                        Planscape.PluginSync.SyncScheduler.Instance.OnSyncComplete += _ =>
+                                        {
+                                            StingTools.UI.StingDockPanel.LastInstance?.RefreshSyncIndicator();
+                                        };
+                                    }
+                                }
+                                catch (Exception icEx) { StingLog.Warn($"GAP 1-C OnSyncComplete wire: {icEx.Message}"); }
+                            }
+                        }
+                    }
+                }
+                catch (Exception lzEx) { StingLog.Warn($"GAP 1-C SyncScheduler lazy-start: {lzEx.Message}"); }
 
                 // FIX-B10: Restore auto-tagger state from persisted config
                 try
@@ -362,6 +571,35 @@ namespace StingTools.Core
                 {
                     StingLog.Warn($"Morning briefing defer: {mbEx.Message}");
                 }
+
+                // Template engine v1.1 (S11/S15): extract default templates,
+                // workflows, and manifest on first open per project.
+                try
+                {
+                    Planscape.Docs.Templates.EmbeddedTemplates.ExtractIfMissing(e.Document);
+                }
+                catch (Exception tEx)
+                {
+                    StingLog.Warn($"DocumentOpened template extraction: {tEx.Message}");
+                }
+
+                // Pack 0 — project-scoped offline config override. File is at
+                // <project>/_BIM_COORD/sting_config.json. Missing file keeps defaults.
+                try
+                {
+                    string bimDir = BIMManager.BIMManagerEngine.GetBIMManagerDir(e.Document);
+                    StingOfflineConfig.LoadFromProject(bimDir);
+                    UI.StingDockPanel.UpdateOfflineStatus(StingOfflineConfig.IsOffline, StingOfflineConfig.Source);
+                }
+                catch (Exception ocEx)
+                {
+                    StingLog.Warn($"DocumentOpened offline-config reload: {ocEx.Message}");
+                }
+
+                // Pack 8 — drip-feed a compliance refresh through the Idling
+                // scheduler so the dashboard is live within a second of open.
+                try { StingIdlingScheduler.Enqueue(new ComplianceRefreshJob()); }
+                catch (Exception schEx) { StingLog.Warn($"DocumentOpened Idling enqueue: {schEx.Message}"); }
             }
             catch (Exception ex)
             {
@@ -479,7 +717,8 @@ namespace StingTools.Core
         {
             try
             {
-                Document currentDoc = e.CurrentActiveView?.Document;
+                Autodesk.Revit.DB.View view = e.CurrentActiveView;
+                Document currentDoc = view?.Document;
                 if (currentDoc != null && currentDoc != _lastActiveDoc)
                 {
                     _lastActiveDoc = currentDoc;
@@ -490,6 +729,9 @@ namespace StingTools.Core
                     ParameterHelpers.ClearParamCache();
                     StingLog.Info("ViewActivated: document switch detected — caches invalidated");
                 }
+
+                if (view != null) UpdateScaleTabInfo(view);
+                if (view != null && currentDoc != null) MaybeAutoApplyScaleSize(currentDoc, view);
             }
             catch (Exception ex)
             {
@@ -497,15 +739,80 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Push the active view's scale, resolved tier, and offset to the
+        /// three Scale-tab info labels. Safe to call from any thread — marshals
+        /// onto the Dispatcher and tolerates a closed / detached panel.
+        /// </summary>
+        private static void UpdateScaleTabInfo(Autodesk.Revit.DB.View view)
+        {
+            try
+            {
+                var panel = UI.StingDockPanel.LastInstance;
+                if (panel == null || !panel.IsLoaded) return;
+                ScaleTiers.Tier tier = ScaleTiers.ForView(view);
+                int scale = view.Scale > 0 ? view.Scale : 100;
+                double offsetFt = (tier.OffsetMm / 304.8) * scale;
+                double cappedFt = System.Math.Min(offsetFt, ScaleTiers.OffsetCapFt);
+
+                string scaleTxt  = $"Scale: 1:{scale}";
+                string tierTxt   = $"Tier: {tier.Label}  (size {tier.TextSizeMm}mm)";
+                string offsetTxt = $"Offset: {tier.OffsetMm:F1} mm ({cappedFt:F2} ft)";
+
+                panel.Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    try { panel.UpdateScaleInfoLabels(scaleTxt, tierTxt, offsetTxt); }
+                    catch (Exception ex) { StingLog.Warn($"UpdateScaleTabInfo dispatch: {ex.Message}"); }
+                }));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"UpdateScaleTabInfo: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// When <c>TAG_SCALE_TIER_AUTO_BOOL</c> is set on Project Information,
+        /// auto-apply <see cref="Tags.SetScaleAwareTagSizeCommand"/> to the
+        /// activated view. Defaults to Instance mode so the switch is
+        /// side-effect free across views. Suppresses the task dialog.
+        /// </summary>
+        private static void MaybeAutoApplyScaleSize(Document doc, Autodesk.Revit.DB.View view)
+        {
+            try
+            {
+                Element projInfo = doc.ProjectInformation;
+                if (projInfo == null) return;
+                Parameter flag = projInfo.LookupParameter(ParamRegistry.TAG_SCALE_TIER_AUTO);
+                if (flag == null || flag.StorageType != StorageType.Integer) return;
+                if (flag.AsInteger() == 0) return;
+
+                ScaleTiers.Tier tier = ScaleTiers.ForView(view);
+                if (!ParamRegistry.TagStyleSizes.Contains(tier.TextSizeMm)) return;
+
+                var result = Tags.SetScaleAwareTagSizeCommand.ApplyToView(
+                    doc, view, tier.TextSizeMm, "Auto");
+                int total = result.InstanceSwitches + result.TypeMatrixFlips;
+                if (total > 0)
+                    StingLog.Info($"AutoScaleTagSize on view activation: view='{view.Name}' " +
+                                  $"changed={total} (instances={result.InstanceSwitches}, " +
+                                  $"typeFlips={result.TypeMatrixFlips})");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MaybeAutoApplyScaleSize: {ex.Message}");
+            }
+        }
+
         // ── Auto-Sync on DocumentSaved ─────────────────────────────
         private static volatile bool _isSyncing;
-        internal static string _pendingSyncDoc;
-        internal static DateTime _pendingSyncTime;
 
         /// <summary>
         /// AUTO-SYNC: Collect a lightweight compliance summary when the user saves
-        /// and queue the data for the next SyncScheduler tick.
-        /// HTTP calls must NOT happen inside Revit event handlers — they block the UI.
+        /// and hand it to the Planscape OfflineQueue — the SyncScheduler drains the
+        /// queue on its own timer. HTTP calls must NEVER happen inside Revit event
+        /// handlers (S03c/d: replaced the old _pendingSyncDoc / _pendingSyncTime
+        /// dead-code fields with a proper enqueue).
         /// </summary>
         private static void OnDocumentSaved(object sender,
             Autodesk.Revit.DB.Events.DocumentSavedEventArgs e)
@@ -522,15 +829,24 @@ namespace StingTools.Core
                 // Collect lightweight compliance summary (cached scan — fast path)
                 int totalElements = 0;
                 int taggedCount = 0;
-                double compliancePct = 0;
+                int staleCount = 0;
+                int placeholderCount = 0;
+                int warningCount = 0;
+                double tagPct = 0;
+                double strictPct = 0;
+                double containerPct = 0;
+                string ragStatus = "RED";
                 try
                 {
                     var comp = ComplianceScan.Scan(doc);
                     if (comp != null)
                     {
-                        totalElements = comp.TotalElements;
-                        taggedCount = comp.TaggedComplete;
-                        compliancePct = comp.CompliancePercent;
+                        totalElements    = comp.TotalElements;
+                        taggedCount      = comp.TaggedComplete;
+                        staleCount       = comp.StaleCount;
+                        placeholderCount = comp.PlaceholderCount;
+                        tagPct           = comp.CompliancePercent;
+                        ragStatus        = comp.RAGStatus ?? "RED";
                     }
                 }
                 catch (Exception compEx)
@@ -538,13 +854,70 @@ namespace StingTools.Core
                     StingLog.Warn($"DocumentSaved compliance scan: {compEx.Message}");
                 }
 
-                // Queue sync data for next SyncScheduler tick
-                // (Don't make HTTP calls inside Revit events — they block the UI)
-                _pendingSyncDoc = doc.Title;
-                _pendingSyncTime = DateTime.UtcNow;
+                // C3 — also populate TagElements so SyncNow has something to push
+                // besides the compliance summary. Capped at 5000 elements to keep
+                // the save → queue latency in the sub-second range.
+                List<Planscape.Shared.Models.TagElementSync> tagElements = null;
+                try { tagElements = CollectTagElements(doc, max: 5000); }
+                catch (Exception tagEx) { StingLog.Warn($"DocumentSaved tag collect: {tagEx.Message}"); }
 
-                StingLog.Info($"DocumentSaved: {doc.Title} — compliance {compliancePct:F1}% " +
-                    $"({taggedCount}/{totalElements}) queued for sync");
+                // Build the sync payload and hand it to the offline queue.
+                // If SyncScheduler hasn't been started yet (user isn't logged in),
+                // OfflineQueue.Shared is null and we log+skip.
+                try
+                {
+                    var client = PlanscapeServerClient.Instance;
+                    var payload = new Planscape.Shared.Models.PluginSyncPayload
+                    {
+                        ProjectId     = Guid.Empty, // server resolves via auth/tenant scope
+                        UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
+                        RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
+                                          .GetName().Version?.ToString() ?? "",
+                        PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
+                        Timestamp     = DateTime.UtcNow,
+                        TagElements   = tagElements,
+                        Compliance    = new Planscape.Shared.Models.ComplianceSync
+                        {
+                            TotalElements     = totalElements,
+                            TaggedComplete    = taggedCount,
+                            StaleCount        = staleCount,
+                            PlaceholderCount  = placeholderCount,
+                            WarningCount      = warningCount,
+                            TagPercent        = tagPct,
+                            StrictPercent     = strictPct,
+                            ContainerPercent  = containerPct,
+                            RagStatus         = ragStatus
+                        }
+                    };
+
+                    var queue = OfflineQueue.Shared;
+                    if (queue != null)
+                    {
+                        queue.Enqueue(payload);
+                        StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
+                            $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} tag elements enqueued " +
+                            $"(queue depth: {queue.Count})");
+
+                        // C3 — drain immediately instead of waiting for the 5-min timer.
+                        // Fire-and-forget; the scheduler handles retry on failure.
+                        if (SyncScheduler.Instance != null)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                try { await SyncScheduler.Instance.SyncNowAsync(); }
+                                catch (Exception dEx) { StingLog.Warn($"DocumentSaved immediate drain: {dEx.Message}"); }
+                            });
+                        }
+                    }
+                    else
+                    {
+                        StingLog.Info($"DocumentSaved: {doc.Title} — SyncScheduler not running, sync skipped");
+                    }
+                }
+                catch (Exception qEx)
+                {
+                    StingLog.Warn($"DocumentSaved enqueue: {qEx.Message}");
+                }
             }
             catch (Exception ex)
             {
@@ -556,6 +929,50 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// C3 — Collect lightweight tag element records for the sync payload.
+        /// Includes only elements with ASS_TAG_1_TXT populated (tagged elements)
+        /// and caps at <paramref name="max"/> to keep the save path fast.
+        /// </summary>
+        private static List<Planscape.Shared.Models.TagElementSync> CollectTagElements(
+            Autodesk.Revit.DB.Document doc, int max = 5000)
+        {
+            var results = new List<Planscape.Shared.Models.TagElementSync>();
+            if (doc == null) return results;
+
+            var collector = new Autodesk.Revit.DB.FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WhereElementIsViewIndependent();
+
+            foreach (var el in collector)
+            {
+                if (results.Count >= max) break;
+
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag1)) continue;
+
+                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch { return ""; } }
+
+                results.Add(new Planscape.Shared.Models.TagElementSync
+                {
+                    RevitElementId = el.Id.Value,
+                    UniqueId       = el.UniqueId,
+                    Disc           = FromReg(ParamRegistry.DISC),
+                    Loc            = FromReg(ParamRegistry.LOC),
+                    Zone           = FromReg(ParamRegistry.ZONE),
+                    Lvl            = FromReg(ParamRegistry.LVL),
+                    Sys            = FromReg(ParamRegistry.SYS),
+                    Func           = FromReg(ParamRegistry.FUNC),
+                    Prod           = FromReg(ParamRegistry.PROD),
+                    Seq            = FromReg(ParamRegistry.SEQ),
+                    Tag1           = tag1,
+                    CategoryName   = el.Category?.Name ?? "",
+                    FamilyName     = ParameterHelpers.GetFamilyName(el) ?? "",
+                });
+            }
+            return results;
+        }
+
         public Result OnShutdown(UIControlledApplication application)
         {
             StingLog.Info("STING Tools shutting down");
@@ -564,8 +981,34 @@ namespace StingTools.Core
             try { application.ControlledApplication.DocumentSaved -= OnDocumentSaved; }
             catch (Exception ex) { StingLog.Warn($"DocumentSaved unhook: {ex.Message}"); }
 
+            // S03 / Phase 91 — Tear down the sync scheduler and its background timer.
+            // Acceptance criterion 2: call SyncScheduler.Stop() if SyncScheduler.Instance != null.
+            // StopShared() is the correct static facade (there's no static Stop()); the explicit
+            // guard is belt-and-braces since StopShared() is already null-safe internally.
+            try
+            {
+                if (SyncScheduler.Instance != null)
+                {
+                    SyncScheduler.StopShared();
+                    StingLog.Info("SyncScheduler stopped (Phase 91)");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SyncScheduler stop: {ex.Message}"); }
+
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
+            StingTag7NarrativeUpdater.Unregister();
+
+            // Clash rec-2: Unregister the live clash IUpdater. Safe against re-entry
+            // and no-op if never registered.
+            try
+            {
+                Autodesk.Revit.DB.UpdaterRegistry.UnregisterUpdater(
+                    StingTools.Core.Clash.LiveClashUpdater.UpdaterGuid);
+                StingLog.Info("LiveClashUpdater unregistered");
+            }
+            catch (Exception ex) { StingLog.Warn($"LiveClashUpdater unregister: {ex.Message}"); }
+
             UI.ThemeManager.ClearTarget(); // H-02: Prevent memory leak from static WPF reference
             StingLog.Shutdown();
             return Result.Succeeded;
@@ -703,14 +1146,12 @@ namespace StingTools.Core
                 catch (Exception ex) { StingLog.Warn($"PyRevit manifest check: {ex.Message}"); }
             }
 
-            // DATA-01: Validate schema version headers on TAG_CONFIG CSVs
-            string[] versionedCsvs = new[]
-            {
-                "STING_TAG_CONFIG_v5_0_GEN.csv",
-                "STING_TAG_CONFIG_v5_0_ARCH.csv",
-                "STING_TAG_CONFIG_v5_0_STR.csv",
-                "STING_TAG_CONFIG_v5_0_MEP.csv",
-            };
+            // DATA-01: Validate schema version headers on TAG_CONFIG CSVs.
+            // Routed through HandoverModeHelper so the active preset's CSVs
+            // (Handover default, or DesignConstruction variant) are the ones
+            // checked at startup.
+            // doc is null at startup; helper falls back to PARAGRAPH_PRESETS.json active_preset.
+            string[] versionedCsvs = HandoverModeHelper.GetAllTagConfigCsvs(null);
             foreach (string csv in versionedCsvs)
             {
                 string path = FindDataFile(csv);

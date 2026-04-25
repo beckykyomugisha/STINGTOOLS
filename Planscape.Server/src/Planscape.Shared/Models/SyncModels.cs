@@ -49,6 +49,18 @@ public class TagElementSync
     public bool IsComplete { get; set; }
     public bool IsFullyResolved { get; set; }
     public bool IsStale { get; set; }
+
+    /// <summary>
+    /// Client-supplied wall-clock timestamp of the most recent modification to
+    /// this element's STING tokens. Serialised as <c>lastModifiedUtc</c> to
+    /// match <c>Planscape.Core.DTOs.TagElementDto.LastModifiedUtc</c>; the
+    /// server uses it for last-write-wins conflict detection and to return
+    /// only true deltas on <c>GET /api/tagsync/elements/{projectId}</c>.
+    /// Nullable so pre-INT-03 plugin builds that never populate it still
+    /// deserialise cleanly (the server treats <c>null</c> as "legacy client —
+    /// always accept").
+    /// </summary>
+    public DateTime? LastModifiedUtc { get; set; }
 }
 
 public class ComplianceSync

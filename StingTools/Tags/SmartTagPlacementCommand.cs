@@ -211,35 +211,163 @@ namespace StingTools.Tags
             };
         }
 
-        /// <summary>Configurable maximum offset cap in feet (default 30.0).</summary>
-        public static double MaxOffsetCapFt { get; set; } = 30.0;
+        /// <summary>
+        /// Pack 4 — anchor-aware candidate generator. Reads STING_TAG_ANCHOR_X_MM
+        /// and STING_TAG_ANCHOR_Y_MM off the host element's family type and
+        /// shifts the whole 16-candidate ring by that vector. Families that
+        /// declare no anchor (the majority today) fall back to the zero-offset
+        /// ring. Pack 2 directional clearance and Pack 3 variant resolution
+        /// are independent — tag anchor only changes where the ring sits
+        /// relative to the element centroid.
+        /// </summary>
+        public static XYZ[] GetCandidateOffsetsWithAnchor(double offset, Element host)
+        {
+            var ring = GetCandidateOffsets(offset);
+            if (host == null) return ring;
+            double dxMm = ReadAnchorMm(host, "STING_TAG_ANCHOR_X_MM");
+            double dyMm = ReadAnchorMm(host, "STING_TAG_ANCHOR_Y_MM");
+            if (dxMm == 0 && dyMm == 0) return ring;
+            double dxFt = dxMm / 304.8;
+            double dyFt = dyMm / 304.8;
+            var shifted = new XYZ[ring.Length];
+            for (int i = 0; i < ring.Length; i++)
+                shifted[i] = new XYZ(ring[i].X + dxFt, ring[i].Y + dyFt, ring[i].Z);
+            return shifted;
+        }
 
         /// <summary>
-        /// Scale-tier-aware offset: uses mm-based tiers that scale with view scale.
-        /// Tiers: 1:1–1:50 = 2mm, 1:50–1:100 = 5mm, 1:100–1:200 = 8mm,
-        ///        1:200–1:500 = 12mm, 1:500+ = 20mm.
-        /// Result is converted to feet and multiplied by viewScale, capped at MaxOffsetCapFt.
+        /// Pack 4 — reads an integer priority from TAG_PRIORITY_INT on the
+        /// element's type, falling back to 5 (mid-range). Higher wins when
+        /// two tags compete for the same location.
+        /// </summary>
+        public static int ReadTagPriority(Element host)
+        {
+            if (host == null) return 5;
+            try
+            {
+                Element type = null;
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch { }
+                var p = type?.LookupParameter("TAG_PRIORITY_INT");
+                if (p != null && p.HasValue && p.StorageType == StorageType.Integer)
+                {
+                    int v = p.AsInteger();
+                    if (v >= 0 && v <= 10) return v;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadTagPriority {host?.Id}: {ex.Message}"); }
+            return 5;
+        }
+
+        /// <summary>
+        /// Pack 4 — reads the clustering key that identifies tags which can
+        /// collapse into a single "group" annotation. Empty string means no
+        /// clustering. DeclusterTagsCommand reads this to decide merging.
+        /// </summary>
+        public static string ReadTagClusterKey(Element host)
+        {
+            if (host == null) return "";
+            try
+            {
+                Element type = null;
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch { }
+                return type?.LookupParameter("TAG_CLUSTER_KEY_TXT")?.AsString()
+                    ?? host.LookupParameter("TAG_CLUSTER_KEY_TXT")?.AsString()
+                    ?? "";
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>
+        /// Pack 4 — reads the family hint steering DrawingDispatcher to prefer a
+        /// particular tag family for this category. Returns empty when not set.
+        /// </summary>
+        public static string ReadTagFamilyHint(Element host)
+        {
+            if (host == null) return "";
+            try
+            {
+                Element type = null;
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch { }
+                return type?.LookupParameter("TAG_FAMILY_HINT_TXT")?.AsString()
+                    ?? host.LookupParameter("TAG_FAMILY_HINT_TXT")?.AsString()
+                    ?? "";
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>
+        /// Pack 4 — reads display-scale limits (1:N). Tags honour these in
+        /// view visibility filtering. Returns (min, max) or (0, 0) for
+        /// "no constraint".
+        /// </summary>
+        public static (int min, int max) ReadTagScaleRange(Element host)
+        {
+            if (host == null) return (0, 0);
+            try
+            {
+                Element type = null;
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch { }
+                int mn = ReadIntInternal(type, "TAG_DISPLAY_SCALE_MIN_INT");
+                int mx = ReadIntInternal(type, "TAG_DISPLAY_SCALE_MAX_INT");
+                return (mn, mx);
+            }
+            catch { return (0, 0); }
+        }
+
+        private static int ReadIntInternal(Element el, string paramName)
+        {
+            if (el == null) return 0;
+            try
+            {
+                var p = el.LookupParameter(paramName);
+                if (p == null || !p.HasValue || p.StorageType != StorageType.Integer) return 0;
+                return p.AsInteger();
+            }
+            catch { return 0; }
+        }
+
+        private static double ReadAnchorMm(Element host, string paramName)
+        {
+            try
+            {
+                Element type = null;
+                try { type = host.Document.GetElement(host.GetTypeId()); } catch { }
+                var p = type?.LookupParameter(paramName) ?? host.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return 0;
+                if (p.StorageType == StorageType.Double) return p.AsDouble() * 304.8;  // feet → mm
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadAnchorMm({paramName}) {host?.Id}: {ex.Message}");
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Back-compat shim. Reads the cap from <see cref="Core.ScaleTiers.OffsetCapFt"/>,
+        /// which is driven by <c>Data/SCALE_TIERS.json</c> or a per-project
+        /// <c>project_config.json:SCALE_TIERS.offset_cap_ft</c> override. Writing
+        /// to the setter is ignored — use <c>ScaleTiers.SaveProjectOverride</c>.
+        /// </summary>
+        public static double MaxOffsetCapFt
+        {
+            get => Core.ScaleTiers.OffsetCapFt;
+            set { /* cap is config-driven now; setter kept for API back-compat */ }
+        }
+
+        /// <summary>
+        /// Scale-tier-aware offset. Tier mm and cap come from
+        /// <see cref="Core.ScaleTiers"/>, which resolves per-project
+        /// overrides then the bundled SCALE_TIERS.json then a hardcoded
+        /// fallback. Result is mm → ft × viewScale, clamped to the cap.
         /// </summary>
         public static double GetModelOffset(View view, double baseOffset = 0.01)
         {
-            int viewScale = view.Scale > 0 ? view.Scale : 100;
-
-            // Determine base mm from scale tier
-            double baseMm;
-            if (viewScale <= 50)
-                baseMm = 2.0;
-            else if (viewScale <= 100)
-                baseMm = 5.0;
-            else if (viewScale <= 200)
-                baseMm = 8.0;
-            else if (viewScale <= 500)
-                baseMm = 12.0;
-            else
-                baseMm = 20.0;
-
-            // Convert mm to feet, then multiply by view scale for model-space distance
-            double offsetFt = (baseMm / 304.8) * viewScale;
-            return Math.Min(offsetFt, MaxOffsetCapFt);
+            int viewScale = (view != null && view.Scale > 0) ? view.Scale : 100;
+            Core.ScaleTiers.Tier tier = Core.ScaleTiers.ForView(view);
+            double offsetFt = (tier.OffsetMm / 304.8) * viewScale;
+            return Math.Min(offsetFt, Core.ScaleTiers.OffsetCapFt);
         }
 
         /// <summary>Get element center point in view coordinates.</summary>
@@ -649,12 +777,34 @@ namespace StingTools.Tags
         // ── Enhanced batch placement ─────────────────────────────────
 
         /// <summary>
+        /// Categorised skip reasons populated by the most recent <see cref="PlaceTagsInView"/> call.
+        /// Lets callers report a precise breakdown instead of "no tag family or invalid".
+        /// </summary>
+        public class SkipBreakdown
+        {
+            public int NoCenter;             // element center at origin / outside view bounds
+            public int NoTagFamily;          // no FamilySymbol (tag) resolved for category
+            public int TagCreationFailed;    // Revit InvalidOperationException during IndependentTag.Create
+            public int OtherException;       // any other exception during placement
+            public int Total => NoCenter + NoTagFamily + TagCreationFailed + OtherException;
+            public string Format()
+                => Total == 0 ? "0"
+                              : $"{Total} (no tag family: {NoTagFamily}, creation failed: {TagCreationFailed}, " +
+                                $"outside bounds: {NoCenter}, other: {OtherException})";
+        }
+
+        /// <summary>Skip breakdown from the most recent PlaceTagsInView invocation.</summary>
+        public static SkipBreakdown LastSkipBreakdown { get; private set; } = new SkipBreakdown();
+
+        /// <summary>
         /// Enhanced tag placement with grid spatial index, 16 candidates, alignment
         /// bonus, view crop boundary awareness, and performance optimization.
         /// </summary>
         public static (int placed, int skipped, int collisions) PlaceTagsInView(
             Document doc, View view, bool addLeaders, bool tagOnlyUntagged)
         {
+            var sb = new SkipBreakdown();
+            LastSkipBreakdown = sb;
             int placed = 0, skipped = 0, collisions = 0;
 
             var existingTags = new FilteredElementCollector(doc, view.Id)
@@ -774,7 +924,8 @@ namespace StingTools.Tags
                 XYZ center = GetElementCenter(elem, view);
                 if (center.IsAlmostEqualTo(XYZ.Zero))
                 {
-                    skipped++;
+                    sb.NoCenter++; skipped++;
+                    StingLog.Info($"SmartPlace skip (no center): element {elem.Id} category='{elem.Category?.Name}'");
                     continue;
                 }
 
@@ -785,7 +936,28 @@ namespace StingTools.Tags
                     tagTypeId = tagType?.Id ?? ElementId.InvalidElementId;
                     tagTypeCache[catId] = tagTypeId;
                 }
-                if (tagTypeId == ElementId.InvalidElementId) { skipped++; continue; }
+                if (tagTypeId == ElementId.InvalidElementId)
+                {
+                    sb.NoTagFamily++; skipped++;
+                    StingLog.Info($"SmartPlace skip (no tag family loaded): element {elem.Id} category='{elem.Category?.Name}'");
+                    continue;
+                }
+
+                // Task 5: resolve the Tag Studio size/style/colour/arrowhead/depth combo
+                // to a specific type variant BEFORE IndependentTag.Create. Falls back to
+                // the base type when the variant does not exist in the family (run
+                // Migrate Tag Families to create it).
+                try
+                {
+                    var baseType = doc.GetElement(tagTypeId) as FamilySymbol;
+                    if (baseType != null)
+                    {
+                        string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                        ElementId variantId = TagStyleEngine.ResolveTagTypeForPlacement(doc, baseType, disc);
+                        if (variantId != ElementId.InvalidElementId) tagTypeId = variantId;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement: {ex.Message}"); }
 
                 string catName = elem.Category?.Name ?? "";
                 // Apply per-category scale multiplier to offset
@@ -886,11 +1058,15 @@ namespace StingTools.Tags
                         placed++;
                     }
                 }
-                catch (Autodesk.Revit.Exceptions.InvalidOperationException) { skipped++; }
+                catch (Autodesk.Revit.Exceptions.InvalidOperationException iopEx)
+                {
+                    sb.TagCreationFailed++; skipped++;
+                    StingLog.Info($"SmartPlace skip (tag creation failed): element {elem.Id} - {iopEx.Message}");
+                }
                 catch (Exception ex)
                 {
+                    sb.OtherException++; skipped++;
                     StingLog.Warn($"Tag placement failed for {elem.Id}: {ex.Message}");
-                    skipped++;
                 }
             }
 
@@ -966,8 +1142,18 @@ namespace StingTools.Tags
                             XYZ[] candidates = GetCandidateOffsets(offset);
                             XYZ tagPos = center + candidates[preferred < candidates.Length ? preferred : 0];
 
+                            // Task 5: Pick the correct style/size/colour/arrow/depth variant
+                            // BEFORE creating the tag so placement is atomic.
+                            ElementId tagTypeIdLink = tagType.Id;
+                            try
+                            {
+                                ElementId vId = TagStyleEngine.ResolveTagTypeForPlacement(doc, tagType, null);
+                                if (vId != ElementId.InvalidElementId) tagTypeIdLink = vId;
+                            }
+                            catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement (linked): {ex.Message}"); }
+
                             IndependentTag tag = IndependentTag.Create(
-                                doc, tagType.Id, view.Id, linkRef,
+                                doc, tagTypeIdLink, view.Id, linkRef,
                                 false, TagOrientation.Horizontal, tagPos);
 
                             if (tag != null) placed++;
@@ -1150,6 +1336,19 @@ namespace StingTools.Tags
                     tagTypeCache[catId] = tagTypeId;
                 }
                 if (tagTypeId == ElementId.InvalidElementId) { skipped++; continue; }
+
+                // Task 5: resolve style/size/colour/arrow/depth variant before IndependentTag.Create
+                try
+                {
+                    var baseType = doc.GetElement(tagTypeId) as FamilySymbol;
+                    if (baseType != null)
+                    {
+                        string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                        ElementId vId = TagStyleEngine.ResolveTagTypeForPlacement(doc, baseType, disc);
+                        if (vId != ElementId.InvalidElementId) tagTypeId = vId;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement (apply preset): {ex.Message}"); }
 
                 // Look up category rule
                 double dx = 0, dy = 0;
@@ -1433,8 +1632,24 @@ namespace StingTools.Tags
                         }
                         if (tagTypeId == ElementId.InvalidElementId) { skipped++; continue; }
 
+                        // Task 5: variant resolution before placement
+                        try
+                        {
+                            var baseType = doc.GetElement(tagTypeId) as FamilySymbol;
+                            if (baseType != null)
+                            {
+                                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                                ElementId vId = TagStyleEngine.ResolveTagTypeForPlacement(doc, baseType, disc);
+                                if (vId != ElementId.InvalidElementId) tagTypeId = vId;
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement (smart sel): {ex.Message}"); }
+
                         XYZ center = TagPlacementEngine.GetElementCenter(elem, view);
-                        var offsets = TagPlacementEngine.GetCandidateOffsets(offset);
+                        // Pack 4 — anchor-aware candidates. Reads STING_TAG_ANCHOR_{X,Y}_MM
+                        // off the host element's family type and shifts the whole 16-candidate
+                        // ring. Elements with no anchor behave exactly as before.
+                        var offsets = TagPlacementEngine.GetCandidateOffsetsWithAnchor(offset, elem);
                         string catName = elem.Category?.Name ?? "";
                         int preferred = TagPlacementEngine.GetPreferredSide(catName);
 
@@ -1531,7 +1746,13 @@ namespace StingTools.Tags
             sw.Stop();
             var report = new StringBuilder();
             report.AppendLine($"Placed: {placed} annotation tags");
-            if (skipped > 0) report.AppendLine($"Skipped: {skipped} (no tag family or invalid)");
+            if (skipped > 0)
+            {
+                var bd = TagPlacementEngine.LastSkipBreakdown;
+                report.AppendLine($"Skipped: {bd.Format()}");
+                if (bd.NoTagFamily > 0)
+                    report.AppendLine("  Hint: load STING tag families for the affected categories (Tags → Load Tag Families).");
+            }
             if (collisions > 0) report.AppendLine($"Overlaps: {collisions} (best effort placement)");
             report.AppendLine($"Time: {sw.Elapsed.TotalSeconds:F1}s");
 
@@ -2550,6 +2771,24 @@ namespace StingTools.Tags
                         Element typeEl = doc.GetElement(typeId);
                         Parameter p = typeEl?.LookupParameter(ParamRegistry.TAG_POS);
                         if (p != null && !p.IsReadOnly) { p.Set(posValue); updated++; }
+
+                        // Gap 2 — dual-write to ES so post-migration reads see the
+                        // same value. ES write is best-effort; a failure here does
+                        // not abort the shared-parameter update above.
+                        try
+                        {
+                            if (typeEl != null)
+                            {
+                                var existing = StingTools.Core.Storage.StingPositionSchema.Read(typeEl);
+                                StingTools.Core.Storage.StingPositionSchema.Write(typeEl,
+                                    new StingTools.Core.Storage.StingPositionSchema.PositionData
+                                    {
+                                        TagPos        = posValue,
+                                        TokenPresence = existing?.TokenPresence ?? 0,
+                                    });
+                            }
+                        }
+                        catch (Exception esEx) { StingLog.Warn($"ES dual-write TAG_POS on {typeId}: {esEx.Message}"); }
                     }
                     catch (Exception ex) { StingLog.Warn($"Set TAG_POS on type {typeId}: {ex.Message}"); }
                 }
@@ -2989,10 +3228,9 @@ namespace StingTools.Tags
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Attempts to set arrowhead style on annotation tag types.
-    /// The Revit API does not directly expose ArrowheadType on IndependentTag,
-    /// so this command provides line weight control on annotation categories
-    /// as the closest available alternative.
+    /// Set arrowhead style on selected tags by overriding the instance
+    /// LEADER_ARROWHEAD parameter (Task 4). When nothing is selected, falls
+    /// back to the legacy pen/line-weight control on annotation categories.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3004,6 +3242,34 @@ namespace StingTools.Tags
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
+
+            // ── Selection-first path: instance-level arrowhead override on tags ──
+            var selIds = uidoc?.Selection?.GetElementIds();
+            var tagIds = new List<ElementId>();
+            if (selIds != null)
+            {
+                foreach (var id in selIds)
+                {
+                    if (doc.GetElement(id) is IndependentTag) tagIds.Add(id);
+                }
+            }
+
+            string arrowName = UI.StingCommandHandler.GetExtraParam("ArrowStyle");
+            if (tagIds.Count > 0 && !string.IsNullOrEmpty(arrowName) && tagIds.Count <= 200)
+            {
+                int updated;
+                using (var tx = new Transaction(doc, "STING Override Tag Arrowhead"))
+                {
+                    tx.Start();
+                    updated = TagStyleEngine.OverrideArrowheadOnSelection(doc, tagIds, arrowName);
+                    tx.Commit();
+                }
+                TaskDialog.Show("STING — Set Arrowhead Style",
+                    $"Overrode arrowhead on {updated}/{tagIds.Count} selected tags.\n" +
+                    "Other tags in the view are unaffected.");
+                return Result.Succeeded;
+            }
 
             StingLog.Warn("SetArrowheadStyle: The Revit API does not expose IndependentTag.ArrowheadType " +
                 "directly. Providing line weight control on annotation categories as alternative.");
@@ -3281,10 +3547,12 @@ namespace StingTools.Tags
                                     {
                                         for (int tier = 1; tier <= 3; tier++)
                                         {
+                                            // TAG_PARA_STATE_N_BOOL is TEXT in v5.3+ (Revit label
+                                            // Calculated Values cannot reference YESNO). Route through
+                                            // SetYesNo so both TEXT and legacy INTEGER storage work.
                                             string boolParam = $"TAG_PARA_STATE_{tier}_BOOL";
-                                            Parameter p = host.LookupParameter(boolParam);
-                                            if (p != null && !p.IsReadOnly)
-                                                p.Set(tier <= ParaDepth ? 1 : 0);
+                                            ParameterHelpers.SetYesNo(host, boolParam,
+                                                tier <= ParaDepth, overwrite: true);
                                         }
                                     }
                                 }

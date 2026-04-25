@@ -1,0 +1,11 @@
+{{IssueCode}} — {{IssueTitle}}
+
+Hi {{AssigneeName}},
+
+{{AssignerName}} has assigned {{IssueCode}} ({{IssueType}}, priority {{Priority}}) to you
+on {{ProjectName}}.
+
+Open issue: {{IssueUrl}}
+
+--
+{{ProductName}} — {{SupportEmail}}

@@ -12,6 +12,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Planscape.Shared.BCF;
 using StingTools.Core;
 using StingTools.Select;
 using StingTools.UI;
@@ -213,6 +214,112 @@ namespace StingTools.BIMManager
             sb.AppendLine("═══════════════════════════════════════════════════════════════");
 
             return sb.ToString();
+        }
+
+        // ── STING issue JObject ⇌ Planscape.Shared.BCF.CoordIssue adapters ──
+        // Phase 95: convert the STING issues.json JObject shape into the pure-C#
+        // CoordIssue model that BcfEngine understands. Kept as an adapter (not
+        // baked into CoordIssue itself) so CoordIssue stays Newtonsoft-free and
+        // usable from Planscape.Shared.
+        internal static CoordIssue StingIssueToCoord(JToken issue)
+        {
+            if (issue == null) return new CoordIssue();
+
+            // Preserve BCF GUID across round-trips — critical for dedup on re-import.
+            string guid = issue["bcf_guid"]?.ToString();
+            if (string.IsNullOrWhiteSpace(guid)) guid = Guid.NewGuid().ToString();
+
+            var ci = new CoordIssue
+            {
+                Guid          = guid,
+                Title         = issue["title"]?.ToString() ?? "Untitled",
+                Description   = issue["description"]?.ToString(),
+                Priority      = (issue["priority"]?.ToString() ?? "MEDIUM").ToUpperInvariant(),
+                Type          = (issue["type"]?.ToString() ?? "COMMENT").ToUpperInvariant(),
+                Status        = (issue["status"]?.ToString() ?? "OPEN").ToUpperInvariant(),
+                Assignee      = issue["assigned_to"]?.ToString(),
+                Author        = issue["raised_by"]?.ToString(),
+                ReferenceLink = issue["issue_id"]?.ToString(),
+                CreationDate  = ParseStingDate(issue["date_raised"]?.ToString()),
+            };
+
+            if (issue["comments"] is JArray comments)
+            {
+                foreach (var c in comments)
+                {
+                    string text = c["text"]?.ToString() ?? "";
+                    if (string.IsNullOrWhiteSpace(text)) continue;
+                    ci.Comments.Add(new CoordComment
+                    {
+                        Author = c["author"]?.ToString() ?? "",
+                        Text   = text,
+                        Date   = ParseStingDate(c["date"]?.ToString()),
+                    });
+                }
+            }
+            return ci;
+        }
+
+        /// <summary>Convert an imported <see cref="CoordIssue"/> back into a STING issue JObject.</summary>
+        internal static JObject CoordToStingIssue(CoordIssue ci, string nextId)
+        {
+            if (ci == null) return null;
+
+            string stingType = ci.Type ?? "COMMENT";
+            string stingPriority = ci.Priority ?? "MEDIUM";
+            string stingStatus = ci.Status ?? "OPEN";
+            string created = ci.CreationDate == default
+                ? DateTime.Now.ToString("yyyy-MM-dd HH:mm")
+                : ci.CreationDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+            var issue = new JObject
+            {
+                ["issue_id"]         = nextId,
+                ["type"]             = stingType,
+                ["type_description"] = BIMManagerEngine.IssueTypes.TryGetValue(stingType, out var itDesc) ? itDesc : stingType,
+                ["priority"]         = stingPriority,
+                ["title"]            = ci.Title ?? "(untitled)",
+                ["description"]      = ci.Description ?? "",
+                ["status"]           = stingStatus,
+                ["assigned_to"]      = ci.Assignee ?? "",
+                ["discipline"]       = "",
+                ["raised_by"]        = string.IsNullOrEmpty(ci.Author) ? Environment.UserName : ci.Author,
+                ["date_raised"]      = created,
+                ["date_due"]         = stingPriority == "CRITICAL" ? DateTime.Now.AddDays(1).ToString("yyyy-MM-dd") :
+                                       stingPriority == "HIGH"     ? DateTime.Now.AddDays(3).ToString("yyyy-MM-dd") :
+                                       stingPriority == "MEDIUM"   ? DateTime.Now.AddDays(7).ToString("yyyy-MM-dd") :
+                                                                     DateTime.Now.AddDays(14).ToString("yyyy-MM-dd"),
+                ["date_closed"]      = stingStatus == "CLOSED" ? DateTime.Now.ToString("yyyy-MM-dd HH:mm") : "",
+                ["response"]         = "",
+                ["element_ids"]      = new JArray(),
+                ["view_name"]        = "",
+                ["bcf_guid"]         = ci.Guid ?? "",
+                ["import_source"]    = "BCF 2.1",
+                ["comments"]         = new JArray(),
+            };
+
+            foreach (var c in ci.Comments ?? new List<CoordComment>())
+            {
+                if (c == null || string.IsNullOrEmpty(c.Text)) continue;
+                ((JArray)issue["comments"]).Add(new JObject
+                {
+                    ["text"]   = c.Text,
+                    ["author"] = c.Author ?? "",
+                    ["date"]   = c.Date == default
+                        ? DateTime.Now.ToString("yyyy-MM-dd HH:mm")
+                        : c.Date.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
+                });
+            }
+            return issue;
+        }
+
+        private static DateTime ParseStingDate(string dateStr)
+        {
+            if (string.IsNullOrWhiteSpace(dateStr)) return DateTime.UtcNow;
+            if (DateTime.TryParse(dateStr, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out var dt))
+                return dt;
+            return DateTime.UtcNow;
         }
 
         // ── Create BCF markup.bcf XML for a single issue ──
@@ -741,7 +848,8 @@ namespace StingTools.BIMManager
             }
             catch (Exception ex)
             {
-                try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); } catch { }
+                try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); }
+                catch (Exception cleanupEx) { StingLog.Warn($"BCF extract-dir cleanup suppressed: {cleanupEx.Message}"); }
                 return $"Failed to extract BCF: {ex.Message}";
             }
 
@@ -1000,6 +1108,11 @@ namespace StingTools.BIMManager
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
+
+                // Pack 0 — offline gate
+                if (StingOfflineConfig.RefuseIfOffline("ACC Publish",
+                    "CDE Package (BIM tab) creates a local ACC-ready bundle you can upload via the Autodesk web UI."))
+                    return Result.Cancelled;
 
                 StingLog.Info("PlatformLink: Starting ACC publish package creation...");
 
@@ -1370,111 +1483,52 @@ namespace StingTools.BIMManager
                     return Result.Cancelled;
                 }
 
-                // Create BCF ZIP
+                // Phase 95: delegate the BCF 2.1 ZIP assembly to BcfEngine, the
+                // shared pure-C# serialiser that also runs server-side. No more
+                // temp-directory shuffling — BcfEngine writes directly to disk
+                // via ZipArchive. Snapshots are omitted from the shared engine
+                // (the spec permits topics without snapshot.png); if a future
+                // phase needs visual previews, the Revit-side ImageExport call
+                // can be layered on top as an optional post-write step.
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string bcfPath = Path.Combine(bimDir, $"STING_Issues_{timestamp}.bcfzip");
 
-                // Build BCF in a temp directory, then zip
-                string tempDir = Path.Combine(Path.GetTempPath(), $"STING_BCF_{timestamp}");
+                int exported;
                 try
                 {
-                    Directory.CreateDirectory(tempDir);
-
-                    // Write bcf.version
-                    var versionDoc = PlatformLinkEngine.CreateBcfVersion();
-                    versionDoc.Save(Path.Combine(tempDir, "bcf.version"));
-
-                    // Write project.bcfp
-                    var projectDoc = PlatformLinkEngine.CreateBcfProject(doc);
-                    projectDoc.Save(Path.Combine(tempDir, "project.bcfp"));
-
-                    // Write each issue as a topic folder
-                    int exported = 0;
-                    byte[] placeholderPng = PlatformLinkEngine.CreatePlaceholderPng();
-
-                    foreach (var issue in exportIssues)
-                    {
-                        string topicGuid = Guid.NewGuid().ToString();
-                        string topicDir = Path.Combine(tempDir, topicGuid);
-                        Directory.CreateDirectory(topicDir);
-
-                        // markup.bcf
-                        var markupDoc = PlatformLinkEngine.CreateBcfMarkup(issue, topicGuid);
-                        markupDoc.Save(Path.Combine(topicDir, "markup.bcf"));
-
-                        // viewpoint.bcfv
-                        string vpGuid = Guid.NewGuid().ToString();
-                        var vpDoc = PlatformLinkEngine.CreateBcfViewpoint(vpGuid);
-                        vpDoc.Save(Path.Combine(topicDir, "viewpoint.bcfv"));
-
-                        // snapshot.png — attempt active view export, fallback to placeholder
-                        // Note: Revit ExportImage requires active view context and is not
-                        // reliable in all scenarios (e.g., API-only context, family editor).
-                        bool snapshotCaptured = false;
-                        try
-                        {
-                            var activeView = doc.ActiveView;
-                            if (activeView != null)
-                            {
-                                string snapPath = Path.Combine(topicDir, "snapshot");
-                                var imgOpts = new ImageExportOptions
-                                {
-                                    FilePath = snapPath,
-                                    HLRandWFViewsFileType = ImageFileType.PNG,
-                                    ImageResolution = ImageResolution.DPI_150,
-                                    ZoomType = ZoomFitType.FitToPage,
-                                    PixelSize = 640,
-                                    ExportRange = ExportRange.CurrentView
-                                };
-                                doc.ExportImage(imgOpts);
-                                // ExportImage appends view name — find the generated file
-                                string snapDir = Path.GetDirectoryName(snapPath) ?? topicDir;
-                                var pngFiles = Directory.GetFiles(snapDir, "snapshot*.png");
-                                if (pngFiles.Length > 0)
-                                {
-                                    string target = Path.Combine(topicDir, "snapshot.png");
-                                    if (pngFiles[0] != target)
-                                    {
-                                        if (File.Exists(target)) File.Delete(target);
-                                        File.Move(pngFiles[0], target);
-                                    }
-                                    snapshotCaptured = true;
-                                }
-                            }
-                        }
-                        catch (Exception snapEx) { StingLog.Warn($"BCF snapshot capture: {snapEx.Message}"); }
-                        if (!snapshotCaptured)
-                            File.WriteAllBytes(Path.Combine(topicDir, "snapshot.png"), placeholderPng);
-
-                        exported++;
-                    }
-
-                    // Create ZIP
-                    if (File.Exists(bcfPath)) File.Delete(bcfPath);
-                    ZipFile.CreateFromDirectory(tempDir, bcfPath, CompressionLevel.Optimal, false);
+                    var coordIssues = exportIssues
+                        .Select(PlatformLinkEngine.StingIssueToCoord)
+                        .Where(ci => ci != null)
+                        .ToList();
+                    exported = BcfEngine.Export(coordIssues, bcfPath);
                 }
-                finally
+                catch (Exception zipEx)
                 {
-                    // Clean up temp directory
-                    try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
-                    catch (Exception cleanEx) { StingLog.Warn($"BCF temp cleanup: {cleanEx.Message}"); }
+                    StingLog.Error("BcfEngine.Export failed", zipEx);
+                    TaskDialog.Show("STING Error", $"BCF export failed: {zipEx.Message}");
+                    return Result.Failed;
                 }
 
                 // Auto-register
                 BIMManagerEngine.AutoRegisterExport(doc, bcfPath, "RP",
-                    $"BCF 2.1 export — {exportIssues.Count} issues");
+                    $"BCF 2.1 export — {exported} issues");
 
                 long fileSize = new FileInfo(bcfPath).Length;
                 string sizeStr = fileSize < 1024 * 1024
                     ? $"{fileSize / 1024.0:F1} KB"
                     : $"{fileSize / (1024.0 * 1024.0):F1} MB";
 
-                StingLog.Info($"PlatformLink: BCF export complete — {exportIssues.Count} issues, {sizeStr}");
+                StingLog.Info($"PlatformLink: BCF export complete — {exported} issues, {sizeStr}");
+
+                // Reveal the containing folder so the coordinator can grab the .bcfzip
+                // without leaving the dialog — mirrors Windows "Show in folder" UX.
+                try { Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{bcfPath}\"") { UseShellExecute = true }); }
+                catch (Exception openEx) { StingLog.Warn($"Open BCF folder: {openEx.Message}"); }
 
                 var resultDlg = new TaskDialog("STING BCF Export — Complete");
-                resultDlg.MainInstruction = $"BCF 2.1 export: {exportIssues.Count} issues";
+                resultDlg.MainInstruction = $"BCF 2.1 export: {exported} issues";
                 resultDlg.MainContent =
-                    $"Issues exported: {exportIssues.Count}\n" +
+                    $"Issues exported: {exported}\n" +
                     $"File: {Path.GetFileName(bcfPath)}\n" +
                     $"Size: {sizeStr}\n\n" +
                     "Compatible with: Navisworks, Solibri, BIMcollab, BIM Track,\n" +
@@ -1561,73 +1615,101 @@ namespace StingTools.BIMManager
                 // Load existing issues
                 string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
                 var existingIssues = BIMManagerEngine.LoadJsonArray(issuesPath);
+                var existingGuids = new HashSet<string>(
+                    existingIssues.Select(i => i["bcf_guid"]?.ToString() ?? "")
+                                  .Where(g => !string.IsNullOrEmpty(g)),
+                    StringComparer.OrdinalIgnoreCase);
 
-                // Extract and process BCF
-                string extractDir = Path.Combine(Path.GetTempPath(), $"STING_BCF_IMPORT_{Guid.NewGuid():N}");
+                // Phase 95: delegate parsing to the shared BcfEngine. It never
+                // throws, returns an empty list on malformed ZIPs, and ignores
+                // viewpoints (stub camera data is not round-trippable).
+                List<CoordIssue> parsed = BcfEngine.Import(selectedBcf);
+                if (parsed.Count == 0)
+                {
+                    TaskDialog.Show("STING BCF Import",
+                        $"No topics found in:\n{Path.GetFileName(selectedBcf)}\n\n" +
+                        "The file may be malformed, empty, or not a valid BCF 2.1 archive.");
+                    return Result.Cancelled;
+                }
+
+                // Build a review picker: users tick which topics to merge. Topics
+                // already present in issues.json (matched by BCF GUID) are
+                // pre-unselected with a "[duplicate]" detail tag so the coordinator
+                // sees them but doesn't re-import by default.
+                int duplicateCount = 0;
+                var pickerItems = new List<StingListPicker.ListItem>();
+                foreach (var ci in parsed)
+                {
+                    bool isDup = !string.IsNullOrEmpty(ci.Guid) && existingGuids.Contains(ci.Guid);
+                    if (isDup) duplicateCount++;
+
+                    string labelPrefix = isDup ? "[duplicate] " : "";
+                    string label = $"{labelPrefix}{ci.Type} — {ci.Title ?? "(untitled)"}";
+                    string detail = $"Priority: {ci.Priority}  |  Status: {ci.Status}  |  " +
+                                    $"Author: {ci.Author ?? "?"}  |  GUID: {ci.Guid?.Substring(0, Math.Min(8, ci.Guid?.Length ?? 0))}";
+
+                    pickerItems.Add(new StingListPicker.ListItem
+                    {
+                        Label      = label,
+                        Detail     = detail,
+                        Tag        = ci,
+                        IsSelected = !isDup,   // default: import everything except duplicates
+                    });
+                }
+
+                var selected = StingListPicker.Show(
+                    "BCF Import — Review Topics",
+                    $"{parsed.Count} topic(s) found in {Path.GetFileName(selectedBcf)}" +
+                        (duplicateCount > 0 ? $"  ({duplicateCount} duplicate by GUID)" : "") +
+                        "\nTick the topics you want to merge into this project's issues.json.",
+                    pickerItems,
+                    allowMultiSelect: true);
+
+                if (selected == null || selected.Count == 0)
+                {
+                    StingLog.Info("PlatformLink: BCF import cancelled by user (no topics selected)");
+                    return Result.Cancelled;
+                }
+
                 int imported = 0;
-                int skipped = 0;
+                int skipped = parsed.Count - selected.Count;
 
-                try
+                foreach (var picked in selected)
                 {
-                    ZipFile.ExtractToDirectory(selectedBcf, extractDir);
+                    var ci = picked?.Tag as CoordIssue;
+                    if (ci == null) continue;
 
-                    // Each subdirectory with a markup.bcf is a topic
-                    foreach (string topicDir in Directory.GetDirectories(extractDir))
+                    // Skip duplicate GUIDs even if the coordinator accidentally
+                    // re-ticked them — dedup is the non-negotiable half of BCF
+                    // round-trip integrity.
+                    if (!string.IsNullOrEmpty(ci.Guid) && existingGuids.Contains(ci.Guid))
                     {
-                        string markupPath = Path.Combine(topicDir, "markup.bcf");
-                        if (!File.Exists(markupPath)) continue;
-
-                        try
-                        {
-                            var markupDoc = XDocument.Load(markupPath);
-                            var topic = markupDoc.Root?.Element("Topic");
-                            if (topic == null) continue;
-
-                            string bcfGuid = topic.Attribute("Guid")?.Value ?? "";
-
-                            // Skip if already imported (check by BCF GUID)
-                            if (!string.IsNullOrEmpty(bcfGuid) &&
-                                existingIssues.Any(i => i["bcf_guid"]?.ToString() == bcfGuid))
-                            {
-                                skipped++;
-                                continue;
-                            }
-
-                            string nextId = BIMManagerEngine.GetNextIssueId(existingIssues, "BCF");
-                            var issue = PlatformLinkEngine.ParseBcfTopicToIssue(markupDoc, nextId, doc);
-                            if (issue != null)
-                            {
-                                existingIssues.Add(issue);
-                                imported++;
-                            }
-                        }
-                        catch (Exception topicEx)
-                        {
-                            StingLog.Warn($"BCF Import: failed to parse topic {Path.GetFileName(topicDir)}: {topicEx.Message}");
-                            skipped++;
-                        }
+                        skipped++;
+                        continue;
                     }
 
-                    // Save updated issues
-                    if (imported > 0)
+                    string nextId = BIMManagerEngine.GetNextIssueId(existingIssues, "BCF");
+                    var jo = PlatformLinkEngine.CoordToStingIssue(ci, nextId);
+                    if (jo != null)
                     {
-                        BIMManagerEngine.SaveJsonFile(issuesPath, existingIssues);
+                        existingIssues.Add(jo);
+                        if (!string.IsNullOrEmpty(ci.Guid)) existingGuids.Add(ci.Guid);
+                        imported++;
                     }
                 }
-                finally
-                {
-                    try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); }
-                    catch (Exception cleanEx) { StingLog.Warn($"BCF extract cleanup: {cleanEx.Message}"); }
-                }
 
-                StingLog.Info($"PlatformLink: BCF import complete — {imported} imported, {skipped} skipped");
+                if (imported > 0)
+                    BIMManagerEngine.SaveJsonFile(issuesPath, existingIssues);
+
+                StingLog.Info($"PlatformLink: BCF import complete — {imported} imported, {skipped} skipped (from {parsed.Count} topics in ZIP)");
 
                 var resultDlg = new TaskDialog("STING BCF Import — Complete");
                 resultDlg.MainInstruction = $"BCF import: {imported} issues imported";
                 resultDlg.MainContent =
                     $"Source: {Path.GetFileName(selectedBcf)}\n" +
+                    $"Topics in file: {parsed.Count}\n" +
                     $"Imported: {imported}\n" +
-                    $"Skipped (duplicate/invalid): {skipped}\n" +
+                    $"Skipped (duplicate/unselected): {skipped}\n" +
                     $"Total issues now: {existingIssues.Count}\n\n" +
                     "View imported issues with 'Issue Dashboard' in the BIM tab.";
                 resultDlg.Show();
@@ -1744,6 +1826,11 @@ namespace StingTools.BIMManager
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
+
+                // Pack 0 — offline gate
+                if (StingOfflineConfig.RefuseIfOffline("Platform Sync",
+                    "Transmittal bundle (BIM tab) produces a file-based handover that can be shared manually."))
+                    return Result.Cancelled;
 
                 StingLog.Info("PlatformLink: Starting platform sync...");
 
@@ -1869,128 +1956,195 @@ namespace StingTools.BIMManager
             }
         }
 
-        // ── StingBIM Server Sync ──────────────────────────────────────────────
+        // ── Planscape Server Sync ──────────────────────────────────────────────
         /// <summary>
-        /// Push all tagged elements in the document to the connected StingBIM server.
-        /// Called when the "Sync Now" button is pressed on the StingBIM platform panel.
-        /// Requires prior authentication via StingBIMConnectCommand.
+        /// Push all tagged elements in the document to the connected Planscape server.
+        /// Called when the "Sync Now" button is pressed on the Planscape platform panel.
+        /// Requires prior authentication via PlanscapeConnectCommand.
         /// </summary>
-        internal static void SyncToStingBIMServer(UIApplication app)
+        internal static void SyncToPlanscapeServer(UIApplication app)
         {
-            var client = StingBIMServerClient.Instance;
+            var client = PlanscapeServerClient.Instance;
             if (!client.IsConnected)
             {
-                TaskDialog.Show("StingBIM", "Not connected to StingBIM server.\n\nUse the PLATFORM tab → StingBIM → Connect to authenticate first.");
+                TaskDialog.Show("Planscape", "Not connected to Planscape server.\n\nUse the PLATFORM tab → Planscape → Connect to authenticate first.");
                 return;
             }
 
             var doc = app.ActiveUIDocument?.Document;
-            if (doc == null) { TaskDialog.Show("StingBIM", "No document open."); return; }
-
-            // Collect all elements that have a Tag1 parameter
-            var elements = new List<TagElementPayload>();
-            using var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-            foreach (Element el in collector)
-            {
-                string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
-                if (string.IsNullOrEmpty(tag1)) continue;
-
-                string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
-                string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
-                string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
-                string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
-                string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
-                string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
-                string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
-                string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
-                string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
-                string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
-                string rev   = ParameterHelpers.GetString(el, "ASS_REV")    ?? "";
-                string cat   = ParameterHelpers.GetCategoryName(el);
-                string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
-
-                bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
-                bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
-
-                elements.Add(new TagElementPayload
-                {
-                    RevitElementId  = el.Id.Value,
-                    UniqueId        = el.UniqueId,
-                    Disc            = disc, Loc = loc, Zone = zone, Lvl = lvl,
-                    Sys = sys, Func = func, Prod = prod, Seq = seq,
-                    Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
-                    CategoryName    = cat, FamilyName = fam,
-                    Status          = string.IsNullOrEmpty(status) ? null : status,
-                    Rev             = string.IsNullOrEmpty(rev) ? null : rev,
-                    IsComplete      = isComplete, IsFullyResolved = isFullyResolved
-                });
-            }
-
-            if (elements.Count == 0)
-            {
-                TaskDialog.Show("StingBIM", "No tagged elements found.\n\nRun Tag → Auto Tag or Batch Tag first to populate ASS_TAG_1 parameters.");
-                return;
-            }
+            if (doc == null) { TaskDialog.Show("Planscape", "No document open."); return; }
 
             // Load project ID from connection config
             string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
-            string cfgPath = Path.Combine(bimDir, "stingbim_connection.json");
-            Guid projectId = LoadStingBIMProjectId(cfgPath);
+            string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
+            Guid projectId = LoadPlanscapeProjectId(cfgPath);
 
             if (projectId == Guid.Empty)
             {
-                TaskDialog.Show("StingBIM", "No StingBIM project linked.\n\nIn the StingBIM connection settings, select or create a project on the server first.");
+                TaskDialog.Show("Planscape", "No Planscape project linked.\n\nIn the Planscape connection settings, select or create a project on the server first.");
                 return;
             }
 
-            string revitVer = app.Application.VersionNumber;
-            string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
+            // Phase 91 — shared payload-build path (also used by PluginSyncTickBridge
+            // on the scheduler's 5-min tick). Reads ASS_* parameters and maps them
+            // onto Planscape.Shared.Models.TagElementSync.
+            var payload = BuildPluginSyncPayload(doc, app, projectId);
+            var tagSync = payload.TagElements ?? new List<Planscape.Shared.Models.TagElementSync>();
 
-            // Blocking async call — safe in ExternalEvent context
-            SyncResult result;
+            if (tagSync.Count == 0)
+            {
+                TaskDialog.Show("Planscape", "No tagged elements found.\n\nRun Tag → Auto Tag or Batch Tag first to populate ASS_TAG_1 parameters.");
+                return;
+            }
+
+            // Lazy-start the scheduler if the plugin connected after OnStartup.
+            if (Planscape.PluginSync.SyncScheduler.Instance == null
+                && !string.IsNullOrEmpty(client.ServerUrl)
+                && !string.IsNullOrEmpty(client.AuthToken))
+            {
+                Planscape.PluginSync.SyncScheduler.Start(client.ServerUrl, client.AuthToken);
+                PluginSyncTickBridge.EnsureWired();
+                StingLog.Info($"Planscape: SyncScheduler lazy-started against {client.ServerUrl} (5-min tick)");
+            }
+
+            Planscape.Shared.Models.SyncResult sResult;
             try
             {
-                result = client.SyncElementsAsync(projectId, revitVer, pluginVer, elements)
-                               .GetAwaiter().GetResult();
+                sResult = Planscape.PluginSync.SyncScheduler.SyncNow(payload).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("StingBIM Sync Error", $"Sync failed: {ex.Message}");
+                TaskDialog.Show("Planscape Sync Error", $"Sync failed: {ex.Message}");
                 return;
             }
 
-            if (!result.Success)
+            if (!sResult.Success)
             {
-                TaskDialog.Show("StingBIM Sync Failed", $"The server returned an error:\n\n{result.Error}");
+                TaskDialog.Show("Planscape Sync Failed",
+                    $"The scheduler could not reach the server:\n\n{sResult.ErrorMessage}\n\n" +
+                    $"Payload was queued for automatic retry on the next 5-min sync tick.");
                 return;
             }
 
-            // Update sync timestamp
+            // Update sync timestamp (server-returned compliance metrics are now delivered
+            // via the ComplianceHub — we store the request-side counts only).
             try
             {
                 var cfg = File.Exists(cfgPath)
                     ? JObject.Parse(File.ReadAllText(cfgPath))
                     : new JObject();
                 cfg["lastSyncAt"] = DateTime.UtcNow.ToString("o");
-                cfg["lastSyncElements"] = result.Received;
-                cfg["lastCompliancePct"] = result.CompliancePercent;
-                cfg["lastRagStatus"] = result.RagStatus;
+                cfg["lastSyncElements"] = tagSync.Count;
                 File.WriteAllText(cfgPath, cfg.ToString(Formatting.Indented));
             }
-            catch { /* non-fatal */ }
+            catch (Exception ex) { StingLog.Warn($"Planscape sync timestamp update: {ex.Message}"); }
 
-            string ragEmoji = result.RagStatus == "GREEN" ? "🟢" : result.RagStatus == "AMBER" ? "🟡" : "🔴";
-            TaskDialog.Show("StingBIM Sync — Complete",
-                $"✅ Sync to StingBIM server complete!\n\n" +
-                $"Elements sent:    {result.Received:N0}\n" +
-                $"New records:      {result.Created:N0}\n" +
-                $"Updated records:  {result.Updated:N0}\n\n" +
-                $"{ragEmoji} Project compliance: {result.CompliancePercent:F1}% ({result.RagStatus})\n\n" +
+            TaskDialog.Show("Planscape Sync — Complete",
+                $"Sync to Planscape server complete!\n\n" +
+                $"Elements sent:    {tagSync.Count:N0}\n" +
+                $"Drained payloads: {sResult.TagsCreated:N0}\n\n" +
                 $"Server: {client.ServerUrl}\n" +
-                $"User: {client.ConnectedUser}");
+                $"User: {client.ConnectedUser}\n\n" +
+                $"Compliance metrics will arrive on the ComplianceHub.");
         }
 
-        private static Guid LoadStingBIMProjectId(string cfgPath)
+        /// <summary>
+        /// Phase 91 — shared payload-build path. Iterates tagged elements in
+        /// <paramref name="doc"/> and returns a <see cref="Planscape.Shared.Models.PluginSyncPayload"/>
+        /// ready for enqueue/drain. Called by <see cref="SyncToPlanscapeServer"/>
+        /// (Sync Now button) and by <see cref="PluginSyncTickBridge"/> on the
+        /// scheduler's 5-min tick. Must run on the Revit API thread.
+        /// </summary>
+        internal static Planscape.Shared.Models.PluginSyncPayload BuildPluginSyncPayload(
+            Document doc, UIApplication app, Guid projectId)
+        {
+            var client = PlanscapeServerClient.Instance;
+
+            var elements = new List<TagElementPayload>();
+            using (var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                foreach (Element el in collector)
+                {
+                    string tag1 = ParameterHelpers.GetString(el, "ASS_TAG_1") ?? "";
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    string disc = ParameterHelpers.GetString(el, "ASS_DISC") ?? "";
+                    string loc  = ParameterHelpers.GetString(el, "ASS_LOC")  ?? "";
+                    string zone = ParameterHelpers.GetString(el, "ASS_ZONE") ?? "";
+                    string lvl  = ParameterHelpers.GetString(el, "ASS_LVL")  ?? "";
+                    string sys  = ParameterHelpers.GetString(el, "ASS_SYS")  ?? "";
+                    string func = ParameterHelpers.GetString(el, "ASS_FUNC") ?? "";
+                    string prod = ParameterHelpers.GetString(el, "ASS_PROD") ?? "";
+                    string seq  = ParameterHelpers.GetString(el, "ASS_SEQ")  ?? "";
+                    string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7") ?? "";
+                    string status = ParameterHelpers.GetString(el, "ASS_STATUS") ?? "";
+                    string rev   = ParameterHelpers.GetString(el, "ASS_REV")    ?? "";
+                    string cat   = ParameterHelpers.GetCategoryName(el);
+                    string fam   = (el as FamilyInstance)?.Symbol?.FamilyName ?? "";
+
+                    bool isComplete     = !string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(seq);
+                    bool isFullyResolved = isComplete && !string.IsNullOrEmpty(loc) && !string.IsNullOrEmpty(lvl);
+
+                    elements.Add(new TagElementPayload
+                    {
+                        RevitElementId  = el.Id.Value,
+                        UniqueId        = el.UniqueId,
+                        Disc            = disc, Loc = loc, Zone = zone, Lvl = lvl,
+                        Sys = sys, Func = func, Prod = prod, Seq = seq,
+                        Tag1 = tag1, Tag7 = string.IsNullOrEmpty(tag7) ? null : tag7,
+                        CategoryName    = cat, FamilyName = fam,
+                        Status          = string.IsNullOrEmpty(status) ? null : status,
+                        Rev             = string.IsNullOrEmpty(rev) ? null : rev,
+                        IsComplete      = isComplete, IsFullyResolved = isFullyResolved,
+                        // INT-03 (Phase 91): per-element wall-clock timestamp from
+                        // ASS_TAG_MODIFIED_DT audit trail, with DateTime.UtcNow
+                        // fallback. Enables server-side delta detection.
+                        LastModifiedUtc = ResolveElementLastModifiedUtc(el)
+                    });
+                }
+            }
+
+            string revitVer = app?.Application?.VersionNumber ?? "";
+            string pluginVer = typeof(PlatformSyncCommand).Assembly.GetName().Version?.ToString() ?? "2.2.0";
+
+            // Convert to the shared TagElementSync shape consumed by the scheduler.
+            var tagSync = new List<Planscape.Shared.Models.TagElementSync>(elements.Count);
+            foreach (var p in elements)
+            {
+                tagSync.Add(new Planscape.Shared.Models.TagElementSync
+                {
+                    RevitElementId  = p.RevitElementId,
+                    UniqueId        = p.UniqueId ?? "",
+                    Disc = p.Disc ?? "", Loc = p.Loc ?? "",
+                    Zone = p.Zone ?? "", Lvl = p.Lvl ?? "",
+                    Sys  = p.Sys ?? "",  Func = p.Func ?? "",
+                    Prod = p.Prod ?? "", Seq  = p.Seq ?? "",
+                    Tag1 = p.Tag1 ?? "", Tag7 = p.Tag7,
+                    CategoryName = p.CategoryName ?? "",
+                    FamilyName   = p.FamilyName ?? "",
+                    Status       = p.Status,
+                    Rev          = p.Rev,
+                    IsComplete       = p.IsComplete,
+                    IsFullyResolved  = p.IsFullyResolved,
+                    // INT-03 (Phase 91): forward per-element timestamp into
+                    // the Shared DTO so SyncClient → /api/tagsync/sync
+                    // carries meaningful LastModifiedUtc on every element.
+                    LastModifiedUtc  = p.LastModifiedUtc
+                });
+            }
+
+            return new Planscape.Shared.Models.PluginSyncPayload
+            {
+                ProjectId     = projectId,
+                UserName      = client.ConnectedUser ?? Environment.UserName,
+                RevitVersion  = revitVer,
+                PluginVersion = pluginVer,
+                Timestamp     = DateTime.UtcNow,
+                TagElements   = tagSync
+            };
+        }
+
+        internal static Guid LoadPlanscapeProjectId(string cfgPath)
         {
             try
             {
@@ -1999,8 +2153,198 @@ namespace StingTools.BIMManager
                 string id = json["projectId"]?.Value<string>();
                 return Guid.TryParse(id, out var g) ? g : Guid.Empty;
             }
-            catch { return Guid.Empty; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadPlanscapeProjectId: {ex.Message}");
+                return Guid.Empty;
+            }
         }
+
+        /// <summary>
+        /// Phase 91/INT-03 — resolve the wall-clock "last modified" time for a
+        /// tagged element for the Planscape sync payload.
+        /// Called from <see cref="BuildPluginSyncPayload"/>.
+        /// Phase 100 fix: was previously only defined inside
+        /// <c>PluginSyncTickBridge</c> (different class scope) so the call
+        /// from <c>BuildPluginSyncPayload</c> produced CS0103. Duplicated here
+        /// as a private static member of <c>PlatformSyncCommand</c> since the
+        /// bridge never actually calls this method itself (it delegates to
+        /// <c>BuildPluginSyncPayload</c> which owns the payload assembly).
+        ///
+        /// Priority chain:
+        ///   1. <c>ASS_TAG_MODIFIED_DT</c> — STING audit-trail stamp written
+        ///      by <c>TagPipelineHelper.RunFullPipeline</c> (Phase 77 #748).
+        ///   2. <c>DateTime.UtcNow</c> — fallback so the server always sees a
+        ///      non-null timestamp and can still last-write-wins-reconcile.
+        /// </summary>
+        private static DateTime ResolveElementLastModifiedUtc(Element el)
+        {
+            if (el == null) return DateTime.UtcNow;
+
+            try
+            {
+                string stamp = ParameterHelpers.GetString(el, "ASS_TAG_MODIFIED_DT");
+                if (!string.IsNullOrWhiteSpace(stamp)
+                    && DateTime.TryParse(stamp,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AssumeUniversal
+                            | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                        out var parsed))
+                {
+                    return parsed;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ResolveElementLastModifiedUtc: ASS_TAG_MODIFIED_DT parse failed on {el.Id.Value}: {ex.Message}");
+            }
+
+            return DateTime.UtcNow;
+        }
+    }
+
+    #endregion
+
+    // ═══════════════════════════════════════════════════════════════
+    //  Phase 91 — PluginSync Tick Bridge
+    // ═══════════════════════════════════════════════════════════════
+    #region ── PluginSync Tick Bridge ──
+
+    /// <summary>
+    /// Phase 91 (INT-01/INT-02) — bridges the <see cref="Planscape.PluginSync.SyncScheduler"/>
+    /// 5-minute timer tick (which fires on a ThreadPool thread) to the Revit API
+    /// thread via <see cref="ExternalEvent"/>. The scheduler invokes
+    /// <c>SyncScheduler.OnTick</c> before each offline-queue drain; this bridge
+    /// raises an external event so a handler can build a current-document
+    /// payload on the Revit thread and enqueue it for the very next drain.
+    ///
+    /// Activates the previously-dead <c>Planscape.PluginSync</c> project — see
+    /// CLAUDE.md § "DEAD CODE" note under Planscape.PluginSync.
+    /// </summary>
+    internal static class PluginSyncTickBridge
+    {
+        private static readonly object _lock = new object();
+        private static bool _wired;
+        private static ExternalEvent _tickEvent;
+        private static SyncTickExternalEventHandler _tickHandler;
+
+        /// <summary>Idempotent: first call creates the ExternalEvent and wires
+        /// <see cref="Planscape.PluginSync.SyncScheduler.OnTick"/>. Subsequent
+        /// calls are no-ops so the PlanscapeConnect, Sync Now, and OnStartup
+        /// paths can all call this without stepping on each other.</summary>
+        internal static void EnsureWired()
+        {
+            lock (_lock)
+            {
+                if (_wired) return;
+                try
+                {
+                    _tickHandler = new SyncTickExternalEventHandler();
+                    _tickEvent = ExternalEvent.Create(_tickHandler);
+                    Planscape.PluginSync.SyncScheduler.OnTick = RaiseTick;
+                    _wired = true;
+                    StingLog.Info("PluginSyncTickBridge: wired — 5-min scheduler ticks will marshal to Revit API thread");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PluginSyncTickBridge.EnsureWired: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>Fired by SyncScheduler on its Timer thread. MUST NOT touch
+        /// Revit API — just raise the external event so the handler can run
+        /// on the Revit API thread when it next goes idle.</summary>
+        private static void RaiseTick()
+        {
+            try
+            {
+                var ev = _tickEvent;
+                if (ev == null) { StingLog.Warn("PluginSyncTickBridge tick: ExternalEvent not created"); return; }
+                StingLog.Info("PluginSyncTickBridge: 5-min tick — raising ExternalEvent to build payload on Revit thread");
+                ev.Raise();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PluginSyncTickBridge.RaiseTick: {ex.Message}");
+            }
+        }
+
+        /// <summary>Runs on the Revit API thread courtesy of ExternalEvent.
+        /// Guards <c>app.ActiveUIDocument?.Document != null</c> per acceptance
+        /// criteria — if no document is open the tick exits silently with a
+        /// log line only (no TaskDialog, no exception). Builds a payload via
+        /// <see cref="PlatformSyncCommand.BuildPluginSyncPayload"/> and enqueues
+        /// it on the shared <see cref="Planscape.PluginSync.OfflineQueue"/>;
+        /// the scheduler's drain step (already in progress on this tick, or
+        /// the next one) will deliver it to the server.</summary>
+        private sealed class SyncTickExternalEventHandler : IExternalEventHandler
+        {
+            public void Execute(UIApplication app)
+            {
+                try
+                {
+                    // Guard (acceptance criterion 4) — no document, exit silently
+                    var doc = app?.ActiveUIDocument?.Document;
+                    if (doc == null)
+                    {
+                        StingLog.Info("PluginSyncTickBridge tick: no active document, skipping payload build");
+                        return;
+                    }
+
+                    var client = PlanscapeServerClient.Instance;
+                    if (!client.IsConnected)
+                    {
+                        StingLog.Info("PluginSyncTickBridge tick: Planscape client not authenticated, skipping payload build");
+                        return;
+                    }
+
+                    string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
+                    string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
+                    Guid projectId = PlatformSyncCommand.LoadPlanscapeProjectId(cfgPath);
+                    if (projectId == Guid.Empty)
+                    {
+                        StingLog.Info($"PluginSyncTickBridge tick: no Planscape project linked for {doc.Title}, skipping payload build");
+                        return;
+                    }
+
+                    // Same payload-build path as SyncToPlanscapeServer (acceptance criterion 3)
+                    var payload = PlatformSyncCommand.BuildPluginSyncPayload(doc, app, projectId);
+                    int count = payload?.TagElements?.Count ?? 0;
+                    if (count == 0)
+                    {
+                        StingLog.Info($"PluginSyncTickBridge tick: 0 tagged elements in {doc.Title}, nothing to enqueue");
+                        return;
+                    }
+
+                    var queue = Planscape.PluginSync.OfflineQueue.Shared;
+                    if (queue == null)
+                    {
+                        StingLog.Info("PluginSyncTickBridge tick: OfflineQueue.Shared is null (scheduler not started), skipping enqueue");
+                        return;
+                    }
+
+                    queue.Enqueue(payload);
+                    StingLog.Info($"PluginSyncTickBridge tick: enqueued payload with {count:N0} tagged elements for {doc.Title} (queue depth: {queue.Count})");
+                }
+                catch (Exception ex)
+                {
+                    // Must never crash — scheduler timer will keep firing and we need
+                    // to keep logging silently per acceptance criterion 4.
+                    StingLog.Warn($"PluginSyncTickBridge.Execute: {ex.Message}");
+                }
+            }
+
+            public string GetName() => "STING PluginSync Tick";
+        }
+
+        // Phase 100: the duplicate ResolveElementLastModifiedUtc that used to
+        // live here was unused inside PluginSyncTickBridge (nothing here calls
+        // it) and was the cause of CS0103 from PlatformSyncCommand, because
+        // private static is not cross-class visible. The canonical copy now
+        // lives inside PlatformSyncCommand next to its sole caller
+        // (BuildPluginSyncPayload). See PlatformSyncCommand for the
+        // implementation and documentation.
     }
 
     #endregion
@@ -2023,6 +2367,11 @@ namespace StingTools.BIMManager
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
+
+                // Pack 0 — offline gate
+                if (StingOfflineConfig.RefuseIfOffline("SharePoint / Teams Export",
+                    "Document Package (BIM tab) writes the same deliverables to a local folder for manual upload."))
+                    return Result.Cancelled;
 
                 StingLog.Info("PlatformLink: Starting SharePoint/Teams export...");
 
@@ -2131,45 +2480,50 @@ namespace StingTools.BIMManager
     #endregion
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //  StingBIM Server — Connect / Authenticate
+    //  Planscape Server — Connect / Authenticate
     // ═══════════════════════════════════════════════════════════════════════════
 
-    #region ── StingBIM Connect ──
+    #region ── Planscape Connect ──
 
     /// <summary>
-    /// Authenticates the current user with the StingBIM server.
+    /// Authenticates the current user with the Planscape server.
     /// The server URL, email, and project ID are passed via SetExtraParam before raising this command.
     /// Password is never written to disk — only held in memory for the Revit session.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class StingBIMConnectCommand : IExternalCommand
+    public class PlanscapeConnectCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
             try
             {
-                string serverUrl = StingCommandHandler.GetExtraParam("StingBIMServerUrl") ?? "";
-                string email     = StingCommandHandler.GetExtraParam("StingBIMEmail")     ?? "";
-                string password  = StingCommandHandler.GetExtraParam("StingBIMPassword")  ?? "";
-                string projectId = StingCommandHandler.GetExtraParam("StingBIMProjectId") ?? "";
+                // Pack 0 — offline gate (this is the PlanscapeServerClient login entry point)
+                if (StingOfflineConfig.RefuseIfOffline("Planscape Connect",
+                    "Planscape login requires network access. Work offline with local BCF / transmittal flows."))
+                    return Result.Cancelled;
+
+                string serverUrl = StingCommandHandler.GetExtraParam("PlanscapeServerUrl") ?? "";
+                string email     = StingCommandHandler.GetExtraParam("PlanscapeEmail")     ?? "";
+                string password  = StingCommandHandler.GetExtraParam("PlanscapePassword")  ?? "";
+                string projectId = StingCommandHandler.GetExtraParam("PlanscapeProjectId") ?? "";
 
                 if (string.IsNullOrWhiteSpace(serverUrl) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
                 {
-                    TaskDialog.Show("StingBIM Connect", "Please enter the server URL, email, and password.");
+                    TaskDialog.Show("Planscape Connect", "Please enter the server URL, email, and password.");
                     return Result.Cancelled;
                 }
 
                 // Blocking async call — safe in ExternalEvent context
-                bool ok = StingBIMServerClient.Instance
+                bool ok = PlanscapeServerClient.Instance
                     .LoginAsync(serverUrl.Trim(), email.Trim(), password)
                     .GetAwaiter().GetResult();
 
                 if (!ok)
                 {
-                    TaskDialog.Show("StingBIM Connect — Failed",
-                        $"Authentication failed.\n\n{StingBIMServerClient.Instance.LastError ?? "Unknown error"}\n\n" +
+                    TaskDialog.Show("Planscape Connect — Failed",
+                        $"Authentication failed.\n\n{PlanscapeServerClient.Instance.LastError ?? "Unknown error"}\n\n" +
                         $"Please check:\n  • Server URL is reachable\n  • Email and password are correct\n  • Network connection is available");
                     return Result.Failed;
                 }
@@ -2179,8 +2533,8 @@ namespace StingTools.BIMManager
                 if (doc != null)
                 {
                     string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
-                    string cfgPath = Path.Combine(bimDir, "stingbim_connection.json");
-                    StingBIMServerClient.Instance.SaveConnectionSettings(cfgPath, email.Trim());
+                    string cfgPath = Path.Combine(bimDir, "planscape_connection.json");
+                    PlanscapeServerClient.Instance.SaveConnectionSettings(cfgPath, email.Trim());
 
                     // Save the project ID if provided
                     if (!string.IsNullOrWhiteSpace(projectId))
@@ -2197,22 +2551,57 @@ namespace StingTools.BIMManager
                     }
                 }
 
-                var client = StingBIMServerClient.Instance;
-                TaskDialog.Show("StingBIM — Connected",
-                    $"✅ Successfully connected to StingBIM!\n\n" +
+                var client = PlanscapeServerClient.Instance;
+
+                // Phase 91 (INT-01/INT-02) — activate the previously-dead
+                // Planscape.PluginSync.SyncScheduler so periodic background sync
+                // starts running immediately after authentication. Guard per
+                // acceptance criterion 1: only Start if Instance is null
+                // (i.e. scheduler not already running). Start() is internally
+                // idempotent too, so this is belt-and-braces.
+                try
+                {
+                    if (Planscape.PluginSync.SyncScheduler.Instance == null)
+                    {
+                        Planscape.PluginSync.SyncScheduler.Start(client.ServerUrl, client.AuthToken);
+                        StingLog.Info($"Planscape: SyncScheduler started against {client.ServerUrl} (5-min tick, offline queue enabled)");
+                        PluginSyncTickBridge.EnsureWired();
+
+                        // INT-07 — keep the dock-panel sync chip in step with each attempt.
+                        if (Planscape.PluginSync.SyncScheduler.Instance != null)
+                        {
+                            Planscape.PluginSync.SyncScheduler.Instance.OnSyncComplete += _ =>
+                            {
+                                UI.StingDockPanel.LastInstance?.RefreshSyncIndicator();
+                            };
+                        }
+                    }
+                    else
+                    {
+                        StingLog.Info("Planscape: SyncScheduler already running, skipping start (re-auth refresh only)");
+                        PluginSyncTickBridge.EnsureWired();
+                    }
+                }
+                catch (Exception schEx)
+                {
+                    StingLog.Warn($"SyncScheduler start from PlanscapeConnect: {schEx.Message}");
+                }
+
+                TaskDialog.Show("Planscape — Connected",
+                    $"✅ Successfully connected to Planscape!\n\n" +
                     $"Server:  {client.ServerUrl}\n" +
                     $"User:    {client.ConnectedUser}\n" +
                     $"Tier:    {client.TierName}\n" +
                     $"MIM:     {(client.MimEnabled ? "Enabled" : "Not enabled")}\n\n" +
                     "You can now use 'Sync Now' to push tagged elements to the server.");
 
-                StingLog.Info($"StingBIM: Connected — {client.ConnectedUser} @ {client.ServerUrl}");
+                StingLog.Info($"Planscape: Connected — {client.ConnectedUser} @ {client.ServerUrl}");
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                StingLog.Error("StingBIMConnectCommand failed", ex);
-                TaskDialog.Show("StingBIM Connect Error", $"Connection error: {ex.Message}");
+                StingLog.Error("PlanscapeConnectCommand failed", ex);
+                TaskDialog.Show("Planscape Connect Error", $"Connection error: {ex.Message}");
                 return Result.Failed;
             }
         }

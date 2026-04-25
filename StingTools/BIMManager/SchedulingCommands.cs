@@ -275,14 +275,16 @@ namespace StingTools.BIMManager
             schedule["project_start"] = projectStart.ToString("yyyy-MM-dd");
             schedule["generated_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
 
-            // Get all levels ordered by elevation
+            // Get all levels ordered by elevation — iterated once, so an
+            // OrderedEnumerable is enough; .ToList() was allocating a list
+            // we never indexed into.
             var levels = new FilteredElementCollector(doc)
                 .OfClass(typeof(Level)).Cast<Level>()
-                .OrderBy(l => l.Elevation).ToList();
+                .OrderBy(l => l.Elevation);
 
-            // Get phases
+            // Get phases — same: single-pass iteration below.
             var phases = doc.Phases.Cast<Phase>()
-                .OrderBy(p => p.Id.Value).ToList();
+                .OrderBy(p => p.Id.Value);
 
             // Collect element counts by category and level
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
@@ -701,6 +703,16 @@ namespace StingTools.BIMManager
             int skippedCount = 0;
             var skippedCategories = new Dictionary<string, int>();
 
+            // Phase 108k Item 5 — BOQ × 4D/5D cash-flow integration.
+            // Prefer the LIVE BOQ rates (per-category averages of the
+            // modeled BOQLineItem rates, picks up the P0 "Override" edits
+            // the QS made inline) over cost_rates_5d.csv / DefaultCostRates
+            // so the cash-flow curve and 4D timeline stay consistent with
+            // the BOQ Cost Manager's totals.
+            Dictionary<string, (double rate, string unit, string description)> boqRateMap = null;
+            try { boqRateMap = StingTools.BOQ.BOQBccBridge.GetBOQCostRateTable(doc); }
+            catch (Exception ex) { StingLog.Warn($"BOQ rate-table lookup: {ex.Message}"); }
+
             // GAP-024: Build sets of phase IDs for cost exclusion
             var temporaryPhaseIds = new HashSet<long>();
             foreach (Phase ph in doc.Phases.Cast<Phase>())
@@ -756,7 +768,13 @@ namespace StingTools.BIMManager
 
                 double rate;
                 string unit;
-                if (costRates != null && costRates.TryGetValue(cat, out var crVal))
+                // Phase 108k Item 5 priority: LIVE BOQ override rates first.
+                if (boqRateMap != null && boqRateMap.TryGetValue(cat, out var bqVal) && bqVal.rate > 0)
+                {
+                    rate = bqVal.rate;
+                    unit = bqVal.unit;
+                }
+                else if (costRates != null && costRates.TryGetValue(cat, out var crVal))
                 {
                     rate = crVal.rate;
                     unit = crVal.unit;
@@ -1790,8 +1808,12 @@ namespace StingTools.BIMManager
 
                 if (targetPhase == null) return Result.Cancelled;
 
-                // Find elements in target phase
+                // Find elements in target phase.
+                // S1.4 (N-G1): pre-filter with ElementMulticategoryFilter so
+                // the per-element PHASE_CREATED lookup only runs on tagged
+                // physical categories, not every element in the document.
                 var matchIds = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                     .WhereElementIsNotElementType()
                     .Where(e =>
                     {
@@ -1834,7 +1856,11 @@ namespace StingTools.BIMManager
                 var phases = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase)).Cast<Phase>().ToList();
 
+                // S1.4 (N-G1): pre-filter to tagged categories so the phase
+                // summary iterates ~10k tagged elements instead of scanning
+                // hundreds of thousands of element-type rows.
                 var allElements = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                     .WhereElementIsNotElementType()
                     .Where(e => e.Category != null)
                     .ToList();
@@ -2402,6 +2428,24 @@ namespace StingTools.BIMManager
                             $"{grandTotal:F2}", overwrite: true);
                         ParameterHelpers.SetString(el, "ASS_COST_SOURCE_TXT",
                             $"cost_rates_5d.csv:{cat}", overwrite: true);
+
+                        // ── Phase 91 gap closures (G1 / G2 / G3 / G9) ──
+                        // Populate the BOQ-aligned parameters that the BOQ panel,
+                        // Excel exporter and live dashboard all read from. Stays
+                        // consistent with BOQCostManager.WriteElementParameters
+                        // so Cost Trace and BOQ Build remain interchangeable.
+                        ParameterHelpers.SetString(el, "CST_UNIT_RATE_UGX",
+                            rate.UnitRate.ToString("F0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
+                        double exRate = Core.TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
+                        double rateUsd = exRate > 0 ? System.Math.Round(rate.UnitRate / exRate, 2) : 0;
+                        ParameterHelpers.SetString(el, "CST_UNIT_RATE_USD",
+                            rateUsd.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
+                        ParameterHelpers.SetString(el, "CST_QTY_MEASURED",
+                            $"{qty:F3} {rate.Unit}", overwrite: true);
+                        ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "CSV", overwrite: true);
+                        Parameter totalP = el.LookupParameter("CST_MODELED_TOTAL_UGX");
+                        if (totalP != null && !totalP.IsReadOnly && totalP.StorageType == StorageType.Double)
+                            totalP.Set(subtotal);
 
                         projectTotal += grandTotal;
                         string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "X";

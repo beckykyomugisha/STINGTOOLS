@@ -1,0 +1,42 @@
+{
+  "id": "deliverable_issue_default",
+  "name": "Deliverable issue default",
+  "start_state": "WIP",
+  "states": [
+    {
+      "name": "WIP",
+      "sla_hours": null
+    },
+    {
+      "name": "Shared",
+      "sla_hours": 72
+    },
+    {
+      "name": "Published",
+      "sla_hours": null,
+      "is_terminal": true
+    },
+    {
+      "name": "Archived",
+      "sla_hours": null,
+      "is_terminal": true
+    }
+  ],
+  "transitions": [
+    {
+      "from": "WIP",
+      "to": "Shared",
+      "action": "share"
+    },
+    {
+      "from": "Shared",
+      "to": "Published",
+      "action": "publish"
+    },
+    {
+      "from": "Published",
+      "to": "Archived",
+      "action": "archive"
+    }
+  ]
+}

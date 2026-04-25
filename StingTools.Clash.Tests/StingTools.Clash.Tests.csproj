@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!-- Pure-logic test project. Does NOT reference Revit API or WPF. Instead,
+         links the pure-logic .cs files from the main StingTools project via
+         <Compile Include>, avoiding the need for Revit DLLs on the test host. -->
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <Nullable>disable</Nullable>
+    <!-- Suppress warnings for unused `event` handler declarations on ClashSession
+         (we don't include the Revit-flavoured ClashSession here anyway, but other
+         pure-logic files declare events that tests don't subscribe to). -->
+    <NoWarn>CS0067;CS0168</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- xUnit + runner — standard configuration. -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Same version as the main plugin to avoid transitive mismatch. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="RBush" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Rec-24: Link the pure-logic clash files directly. None of these pull in
+         Autodesk.Revit.* so they compile cleanly against net8.0. We exclude the
+         Revit-flavoured files (MeshExtractor, ClashExportContext, BcfSnapshotter,
+         LiveClash*, ClashSession, ClashScheduler, ClashKernel, ClashRun/BcfExport
+         commands) since they are Revit-bound. -->
+    <Compile Include="..\StingTools\Clash\ClashMeshBuffer.cs"      Link="Clash\ClashMeshBuffer.cs" />
+    <Compile Include="..\StingTools\Clash\MollerSat.cs"            Link="Clash\MollerSat.cs" />
+    <Compile Include="..\StingTools\Clash\ObbTree.cs"              Link="Clash\ObbTree.cs" />
+    <Compile Include="..\StingTools\Clash\AabbSweep.cs"            Link="Clash\AabbSweep.cs" />
+    <Compile Include="..\StingTools\Clash\ClashKernel.cs"          Link="Clash\ClashKernel.cs" />
+    <Compile Include="..\StingTools\Clash\ClashIdentity.cs"        Link="Clash\ClashIdentity.cs" />
+    <Compile Include="..\StingTools\Clash\ClashMatrix.cs"          Link="Clash\ClashMatrix.cs" />
+    <Compile Include="..\StingTools\Clash\ClashRule.cs"            Link="Clash\ClashRule.cs" />
+    <Compile Include="..\StingTools\Clash\ClashRuleEngine.cs"      Link="Clash\ClashRuleEngine.cs" />
+    <Compile Include="..\StingTools\Clash\ClashExclusions.cs"      Link="Clash\ClashExclusions.cs" />
+    <Compile Include="..\StingTools\Clash\ClashRecord.cs"          Link="Clash\ClashRecord.cs" />
+    <Compile Include="..\StingTools\Clash\ClashPersistence.cs"     Link="Clash\ClashPersistence.cs" />
+    <Compile Include="..\StingTools\Clash\ClashHistory.cs"         Link="Clash\ClashHistory.cs" />
+    <Compile Include="..\StingTools\Clash\ClashGrouper.cs"         Link="Clash\ClashGrouper.cs" />
+    <Compile Include="..\StingTools\Clash\ResolutionHeuristics.cs" Link="Clash\ResolutionHeuristics.cs" />
+    <!-- AabbSweep logs via StingTools.Core.StingLog. TestHelpers/StingLogShim.cs
+         is auto-included by the net8.0 SDK default Compile glob; no explicit
+         <Compile> entry needed. -->
+  </ItemGroup>
+
+</Project>

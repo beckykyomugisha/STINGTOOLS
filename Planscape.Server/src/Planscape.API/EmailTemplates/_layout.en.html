@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /></head>
+<body style="margin:0; padding:0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; background:#f4f5f7;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7; padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0"
+             style="background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:{{HeaderColor}}; padding:24px 32px;">
+            {{#if HasLogo}}<img src="{{LogoUrl}}" alt="{{ProductName}}" style="max-height:40px;">{{/if}}
+            {{#if HasLogo}}{{/if}}
+            <span style="color:#ffffff; font-size:22px; font-weight:700; letter-spacing:0.5px;">{{ProductName}}</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px; color:#111; line-height:1.55;">
+            {{Body}}
+            {{#if HasSignature}}<hr style="border:0; border-top:1px solid #e5e7eb; margin:32px 0;">
+            <p style="white-space:pre-line; color:#4b5563; font-size:13px;">{{EmailSignature}}</p>{{/if}}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px; background:#f9fafb; border-top:1px solid #e5e7eb; font-size:12px; color:#9ca3af;">
+            &copy; {{Year}} {{ProductName}} &mdash; <a href="mailto:{{SupportEmail}}" style="color:#9ca3af;">{{SupportEmail}}</a>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

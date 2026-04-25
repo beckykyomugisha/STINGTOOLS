@@ -2,9 +2,11 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.SignalR;
 
 namespace Planscape.API.Controllers;
 
@@ -18,8 +20,13 @@ namespace Planscape.API.Controllers;
 public class ComplianceController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    private readonly IHubContext<NotificationHub> _hub;
 
-    public ComplianceController(PlanscapeDbContext db) => _db = db;
+    public ComplianceController(PlanscapeDbContext db, IHubContext<NotificationHub> hub)
+    {
+        _db = db;
+        _hub = hub;
+    }
 
     /// <summary>
     /// Push a compliance snapshot from the Revit plugin.
@@ -77,7 +84,22 @@ public class ComplianceController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
-        return Ok(new { id = snapshot.Id, capturedAt = snapshot.CapturedAt });
+
+        // C2 — real-time push to everyone watching this project so Revit + mobile
+        // dashboards refresh without polling.
+        _ = _hub.Clients.Group($"project-{projectId}").SendAsync("ComplianceChanged", new
+        {
+            projectId,
+            tagPercent       = req.TagPercent,
+            strictPercent    = req.StrictPercent,
+            containerPercent = req.ContainerPercent,
+            ragStatus        = req.RagStatus,
+            warningCount     = req.WarningCount,
+            capturedAt       = snapshot.CapturedAt,
+            capturedBy       = snapshot.CapturedBy,
+        });
+
+        return CreatedAtAction(nameof(GetLatest), new { projectId }, new { id = snapshot.Id, capturedAt = snapshot.CapturedAt });
     }
 
     /// <summary>

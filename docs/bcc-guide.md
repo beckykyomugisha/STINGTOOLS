@@ -42,6 +42,134 @@ The BCC covers the full BIM coordinator lifecycle:
 
 ---
 
+## 2a. Complete Abbreviations and Acronyms
+
+This reference covers every abbreviation you will encounter in the BCC and StingTools documentation.
+
+### Standards and Frameworks
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **ISO 19650** | International Standard for information management using BIM | The rulebook that governs how building data is created, named, shared, and archived across a project's lifecycle |
+| **BIM** | Building Information Modelling | A process that uses 3D models enriched with data — not just geometry but cost, material, maintenance, and performance attributes |
+| **BEP** | BIM Execution Plan | The project's BIM playbook: who does what, when, to what level of detail, and how information is exchanged — StingTools generates 22 sector-specific BEP presets |
+| **EIR** | Exchange Information Requirements | The client's wish-list: what data they need, at what RIBA stage, in what format — the BEP responds to the EIR |
+| **OIR** | Organisational Information Requirements | The client organisation's high-level data needs (e.g. "we need asset data for CAFM integration") |
+| **PIR** | Project Information Requirements | OIR translated into project-specific deliverables (e.g. "COBie for every MEP asset by DD3") |
+| **AIR** | Asset Information Requirements | Data needed for ongoing operations and maintenance after handover |
+| **MIDP** | Master Information Delivery Plan | The overall timetable for who produces what information, by when, at what suitability |
+| **TIDP** | Task Information Delivery Plan | Each discipline's detailed plan that feeds into the MIDP |
+| **PAS 1192** | Publicly Available Specification 1192 | The predecessor to ISO 19650, still referenced in legacy UK contracts |
+| **BS 1192** | British Standard 1192 | Naming conventions and CDE folder structures — now superseded by ISO 19650 but still widely used for file naming |
+| **LOD** | Level of Detail | How geometrically detailed a model element needs to be (LOD 100 = conceptual box, LOD 400 = fabrication-ready) |
+| **LOI** | Level of Information | How much non-geometric data (parameters, specifications) an element carries |
+| **LOA** | Level of Accuracy | How precisely geometry matches real-world as-built dimensions |
+| **RIBA** | Royal Institute of British Architects | Their Plan of Work defines 8 project stages (0–7) that govern when information is due |
+| **CDM 2015** | Construction Design and Management Regulations | UK H&S legislation requiring hazard data in BIM models |
+| **CIBSE** | Chartered Institution of Building Services Engineers | Publishes guides for MEP system design — StingTools uses CIBSE velocity limits and TM40 function codes |
+| **COBie** | Construction Operations Building Information Exchange | A 17-worksheet spreadsheet format for handing asset data to facilities managers — StingTools exports with 22 project-type presets |
+| **IFC** | Industry Foundation Classes | A vendor-neutral file format (ISO 16739) for exchanging BIM data between Revit, ArchiCAD, Tekla, etc. |
+| **BCF** | BIM Collaboration Format | An XML format for sharing clash/issue data between tools — StingTools exports BCF 2.1 with camera viewpoints |
+| **SFG20** | Standard for Good Practice in Maintenance | Defines maintenance task schedules — referenced in COBie Job worksheet |
+| **BS 8210** | Guide to Facilities Maintenance Management | UK standard for planned preventive maintenance — referenced in COBie spare parts data |
+| **Uniclass** | Unified Classification for the Construction Industry | A UK classification system with codes for systems (Ss), products (Pr), and spaces — used in STING SYS and FUNC codes |
+
+### CDE and Document Management
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **CDE** | Common Data Environment | The shared digital filing system — all project information lives here, moving through states (WIP → SHARED → PUBLISHED → ARCHIVE) |
+| **WIP** | Work In Progress | CDE state: file is being developed by the originator — not visible to other parties |
+| **S0** | Suitability Code: Work In Progress | Document is incomplete and not ready for coordination |
+| **S1** | Suitability Code: Fit for Coordination | Ready for checking against other disciplines |
+| **S2** | Suitability Code: Fit for Information | For reference only — not for design decisions |
+| **S3** | Suitability Code: Fit for Review and Comment | Issued for formal review with tracked comments |
+| **S4** | Suitability Code: Fit for Stage Approval | Design freeze — submitted for client or stage sign-off |
+| **S5** | Suitability Code: Fit for Manufacturing/Procurement | Approved for procurement, fabrication, or ordering |
+| **S6** | Suitability Code: Fit for PIM Authorization | Authorised for the Project Information Model |
+| **S7** | Suitability Code: Fit for AIM Authorization | Authorised for the Asset Information Model (handover to FM) |
+| **CR** | Code: Correspondence | Document type code for letters, emails, and formal communications |
+| **AB** | Code: As-Built | Indicates a document reflects the constructed (not designed) state |
+| **DD1** | Data Drop 1 — Concept (RIBA Stage 2) | First milestone: ≥30% tag compliance required |
+| **DD2** | Data Drop 2 — Design (RIBA Stage 3) | Second milestone: ≥60% tag compliance, COBie Type and System sheets required |
+| **DD3** | Data Drop 3 — Construction (RIBA Stage 4–5) | Third milestone: ≥85% tag compliance, full COBie export, O&M data |
+| **DD4** | Data Drop 4 — Handover (RIBA Stage 6) | Final milestone: ≥95% tag compliance, complete COBie, digital twin ready |
+| **TX** | Transmittal | A formal document exchange record with unique ID (TX-0001), tracking who sent what to whom |
+| **DR** | Drawing (2D) | Document type code for traditional 2D drawings and plans |
+| **M3** | 3D Model | Document type code for a three-dimensional Revit/IFC model |
+| **CM** | Combined Model (Federated) | Document type code for a federated model merging multiple discipline models |
+| **BQ** | Bill of Quantities | Document type code for priced quantities of materials and labour |
+| **CA** | Calculations | Document type code for engineering calculations and analysis reports |
+| **IE** | Information Exchange (COBie) | Document type code specifically for COBie data exchange files |
+| **MI** | Minutes / Action Notes | Document type code for meeting records and follow-up actions |
+| **HS** | Health and Safety | Document type code for CDM documentation, risk assessments, and H&S plans |
+
+### Issue Types
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **NCR** | Non-Conformance Report | Something does not meet the BEP, EIR, or agreed standard — **default priority: HIGH** |
+| **RFI** | Request for Information | A formal question requiring a documented answer — **default priority: MEDIUM** |
+| **RFA** | Request for Approval | Formal submission requiring sign-off from client or lead designer |
+| **TQ** | Technical Query | Technical question needing a specialist response |
+| **SI** | Site Instruction | On-site directive to change or clarify construction work |
+| **EWN** | Early Warning Notice | NEC-contractual alert: a risk that may affect time, cost, or quality |
+| **CE** | Compensation Event | NEC contract: a change event with cost or programme implications |
+| **VO** | Variation Order | JCT/FIDIC contract: formal instruction to change the scope of works |
+| **AI** | Architect's Instruction | Formal instruction issued by the lead designer |
+| **PMI** | Project Manager's Instruction | Instruction from the project manager directing action |
+| **CVI** | Confirmation of Verbal Instruction | Written confirmation of a previously spoken instruction |
+| **SLA** | Service Level Agreement | Time thresholds for issue resolution: CRITICAL = 4 hours, HIGH = 24 hours, MEDIUM = 7 days, LOW = 14 days |
+
+### Discipline Codes
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **M** | Mechanical | HVAC, heating, cooling, ventilation — covers ductwork, air handling, heat exchangers |
+| **E** | Electrical | Power distribution, lighting, fire alarm, data/comms |
+| **P** | Plumbing | Domestic water, sanitary drainage, rainwater, gas |
+| **A** | Architectural | Walls, doors, windows, ceilings, finishes |
+| **S** | Structural | Columns, beams, slabs, foundations, steelwork |
+| **FP** | Fire Protection | Sprinklers, fire suppression, fire-rated barriers |
+| **LV** | Low Voltage | Data, security, comms, access control systems |
+| **G** | General | Elements that don't fit a specific discipline |
+
+### Status and Tracking
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **RAG** | Red / Amber / Green | Traffic-light status: RED <50% compliance, AMBER 50–80%, GREEN ≥80% |
+| **KPI** | Key Performance Indicator | Measurable metric — the BCC overview shows 5 KPIs: elements, compliance %, warnings, issues, containers |
+| **SEQ** | Sequence Number | The 4-digit serial number at the end of a tag (e.g. `0003`) — auto-incremented per discipline/system group |
+| **EVM** | Earned Value Management | 4D/5D metric: CPI (Cost Performance Index) and SPI (Schedule Performance Index) measure project efficiency |
+| **CPI** | Cost Performance Index | EVM metric: CPI > 1.0 = under budget, CPI < 1.0 = over budget |
+| **SPI** | Schedule Performance Index | EVM metric: SPI > 1.0 = ahead of schedule, SPI < 1.0 = behind schedule |
+
+### MEP System and Equipment Codes
+
+| Abbreviation | Full Term | Context |
+|-------------|-----------|---------|
+| **HVAC** | Heating, Ventilation and Air Conditioning | System code for ductwork, AHUs, FCUs, VAVs — the largest MEP system group |
+| **HWS** | Hot Water Supply | System code for domestic hot water distribution |
+| **DHW** | Domestic Hot Water | System code for heated potable water (boilers, calorifiers, cylinders) |
+| **DCW** | Domestic Cold Water | System code for potable cold water supply from mains |
+| **SAN** | Sanitary | System code for waste drainage — toilets, basins, showers |
+| **RWD** | Rainwater Drainage | System code for roof drainage, gutters, and downpipes |
+| **GAS** | Gas Supply | System code for natural gas distribution |
+| **FP** | Fire Protection (system) | System code for sprinkler and suppression systems |
+| **LV** | Low Voltage (system) | System code for data, telecoms, security, AV systems |
+| **FLS** | Fire Life Safety | System code for fire detection, alarm panels, emergency lighting |
+| **COM** | Communications | System code for structured cabling and telecoms |
+| **ICT** | Information and Communications Technology | System code for data networks, server rooms, Wi-Fi |
+| **AHU** | Air Handling Unit | Product code: large HVAC unit with fans, filters, heating/cooling coils |
+| **FCU** | Fan Coil Unit | Product code: small terminal HVAC unit serving a single zone |
+| **VAV** | Variable Air Volume | Product code: duct terminal that varies airflow to a zone |
+| **DB** | Distribution Board | Product code: electrical panel distributing power to circuits |
+| **WC** | Water Closet (Toilet) | Product code: sanitary fitting for plumbing discipline |
+| **WHB** | Wash Hand Basin | Product code: sanitary basin fitting |
+| **SPR** | Sprinkler Head | Product code: fire suppression discharge point |
+
+
 ## 3. Opening the BCC
 
 1. In Revit, look at the **STING Tools dockable panel** on the right side of your screen.
@@ -205,7 +333,7 @@ A weighted score from 0–100 displayed at the top:
 
 The **Issues** tab is your issue tracker — like a simplified Jira inside Revit. Every RFI, clash, snagging item, and non-conformance lives here.
 
-### Issue Types (20 types)
+### Issue Types (33 types)
 
 Issues are colour-coded by type. Common types include:
 
@@ -214,9 +342,9 @@ Issues are colour-coded by type. Common types include:
 | Request for Information | RFI | When design information is unclear |
 | Non-Conformance Report | NCR | When something does not meet the standard |
 | Site Instruction | SI | When issuing a directive on-site |
-| Clash | CLASH | When two elements occupy the same space |
-| Snagging | SNAG | Defects found during inspection |
-| Design Change | DCR | When the design is formally changed |
+| Clash | CLH | When two elements occupy the same space |
+| Snagging Item | SNI | Defects found during inspection |
+| Design Issue | DSN | When the design requires resolution or change |
 | Health & Safety | HSE | Safety-related observations |
 
 ### Issue DataGrid
@@ -806,3 +934,454 @@ Every button in the BCC dispatches an **action tag** — a short code that maps 
 | AddDocument | Register new deliverable in document register |
 | DocumentRegister | View/manage document register entries |
 | DocumentManager | Open Document Management Center |
+
+---
+
+## Appendix E — Real-World Workflow Examples
+
+These 5 scenarios show the BCC solving actual coordination problems. Each one includes the situation, the step-by-step solution, and the measurable outcome.
+
+---
+
+### Example 1: Monday Morning Model Health Check
+
+**Situation:** You arrive at 8:30 AM on a Monday. The MEP subcontractor worked over the weekend, adding 400+ ductwork elements. You need to know the model's state before the 10:00 AM design team meeting.
+
+**Solution — 4 clicks, 12 minutes:**
+
+1. **Open Revit → Open the project file**
+   - StingTools runs a morning briefing automatically — a dialog shows overnight compliance changes, stale element count, and any SLA violations.
+
+2. **Open BCC** (BIM tab → Coordination Center)
+   - The **Overview tab** loads instantly. You see 5 KPI cards:
+     - Total Elements: **14,280**
+     - Tag Compliance: **76%** (AMBER — was 82% GREEN on Friday)
+     - Warnings: **47** (up from 31)
+     - Open Issues: **3** (1 overdue)
+     - Container Compliance: **71%**
+
+3. **Click "Run Morning Check" in the Quick Actions toolbar**
+   - This triggers the `MorningHealthCheck` preset (10 steps):
+     - Retag 400 stale elements → auto-fix 12 warnings → tag 400 new elements → validate → template check → model health → issues review → revision check → compliance dashboard
+   - **Progress bar shows each step** — total run time: ~8 minutes on 14K elements
+
+4. **Check the result**
+   - Tag Compliance: **76% → 91%** (GREEN)
+   - Warnings: **47 → 29** (12 auto-fixed, 6 suppressed nuisance warnings)
+   - Stale elements: **412 → 0**
+   - The BCC stays open — you can drill into any tab for detail
+
+**Result:** In **12 minutes** you went from a weekend-disrupted model to **91% GREEN compliance**, ready for the 10 AM meeting. Without StingTools, manually tagging 400 elements and checking warnings would take **3–4 hours**.
+
+---
+
+### Example 2: Clash Coordination Meeting Prep
+
+**Situation:** You have a fortnightly clash coordination meeting at 2:00 PM. The structural engineer raised 8 RFIs last week, and Navisworks found 23 clashes between MEP and structure. You need an agenda, the latest compliance state, and BCF files for discussion.
+
+**Solution — 6 clicks, 18 minutes:**
+
+1. **Open BCC → Meetings tab**
+   - Click **"Auto Agenda"** — StingTools generates an agenda from:
+     - 8 open RFIs (grouped by discipline)
+     - 23 CLH (clash) issues (from BCF import)
+     - 2 pending transmittals
+     - Current compliance: **88%** (up from 82% last meeting)
+     - 4 overdue action items from the last meeting
+
+2. **Switch to Issues tab**
+   - Filter by **Status: Open** — see all 31 active issues
+   - Double-click the highest-priority CLH issue → BCC zooms to the clash location in a 3D section box view
+   - Right-click → **"Zoom to 3D Section Box"** on 3 more clashes to screenshot for the meeting slides
+
+3. **Click "BCF Export"** in the Issues action bar
+   - Exports all 23 CLH (clash) issues as BCF 2.1 XML with camera viewpoints
+   - File saved next to the project: `ProjectName_BCF_2026-04-11.bcf`
+
+4. **Switch to Model Health tab → Click "Export Health"**
+   - Generates an HTML report with per-discipline compliance, warning summary, and KPI cards
+   - Share the `.html` file with attendees — **no Revit licence needed** to view it
+
+5. **During the meeting — log minutes directly in BCC**
+   - Meetings tab → **"Log Minutes"** → type decisions and notes
+   - **"Add Action Item"** → assign follow-ups with due dates
+
+6. **After the meeting — Click "Export Minutes"**
+   - Saves timestamped `.txt` file with all minutes and new action items
+
+**Result:** Meeting prep completed in **18 minutes** instead of the usual **2 hours** of manual screenshot-taking, spreadsheet-updating, and email-chasing. The BCF export means the structural engineer can **see exact clash locations** in their own BIM tool.
+
+---
+
+### Example 3: RIBA Stage 3 → Stage 4 Gate
+
+**Situation:** The client has a Stage 3 design freeze deadline on Friday. To pass the stage gate, the BEP requires ≥85% tag compliance, complete COBie Type and System sheets, and zero CRITICAL warnings. Your model is at 78%.
+
+**Solution — 3 sessions over 3 days, ~90 minutes total:**
+
+**Day 1 (Wednesday) — Assess the gap:**
+
+1. **Open BCC → Click "Stage Gate" in Overview Quick Actions**
+   - The `StageComplianceGate` command auto-detects RIBA Stage 3 → DD2 requirements:
+     - Tag compliance: **78%** — needs ≥85% (gap: **840 elements**)
+     - Container compliance: **72%** — needs ≥70% (PASS ✓)
+     - CRITICAL warnings: **4** — needs 0 (FAIL ✗)
+     - COBie Type sheet: **62 of 85 types populated** (FAIL ✗)
+
+2. **Run the `HandoverReadiness` workflow preset**
+   - Retags stale elements → full batch tag → validate → COBie export (preview mode)
+   - Tag compliance jumps: **78% → 86%** after batch tagging 840 previously untagged elements
+   - COBie preview shows 23 type records still missing manufacturer data
+
+3. **Switch to Warnings tab → Click "Auto Fix"**
+   - 3 of 4 CRITICAL warnings auto-fixed (duplicate instances, overlapping room separations)
+   - 1 remaining CRITICAL: "Host has been deleted" — needs manual fix (element reference lost)
+
+**Day 2 (Thursday) — Fix remaining gaps:**
+
+4. **Manually fix the 1 CRITICAL warning** (delete orphaned annotation referencing deleted host)
+
+5. **Open BCC → QA Dashboard tab**
+   - Token coverage matrix shows: DISC 100%, SYS 98%, FUNC 94%, PROD 91%
+   - 23 elements have placeholder PROD codes (GEN/XX) — switch to Issues tab, raise a bulk DATA issue
+
+6. **Run `COBieReadiness` workflow**
+   - Validates ISO codes → writes containers → exports COBie preview
+   - COBie Type sheet: **85 of 85 populated** (PASS ✓ after manufacturer data entry)
+
+**Day 3 (Friday) — Final check and submit:**
+
+7. **Open BCC → Click "Stage Gate" again**
+   - Tag compliance: **92%** (GREEN ✓)
+   - Container compliance: **89%** (GREEN ✓)
+   - CRITICAL warnings: **0** (GREEN ✓)
+   - COBie Type: **complete** (GREEN ✓)
+   - **Verdict: STAGE 3 GATE PASSED**
+
+8. **Click "Create Revision"** → CDE status → SHARED (S4: Fit for Stage Approval)
+
+**Result:** Stage gate passed in **~90 minutes of actual work** spread over 3 days. Compliance rose from **78% to 92%**. The COBie export was complete on first submission — **no client rejection and resubmission cycle**. Manual equivalent: 2–3 full days of a senior BIM coordinator's time.
+
+---
+
+### Example 4: Emergency Snagging Issue on Site
+
+**Situation:** It's Thursday afternoon. The site manager calls: "There's a sprinkler head clashing with a cable tray at Level 3, grid intersection C-7. We need a formal response before the ceiling goes up tomorrow morning."
+
+**Solution — 5 clicks, 8 minutes:**
+
+1. **Open BCC → Issues tab → Click "Raise Issue"**
+   - Issue Type: **CLH** (hard clash, cross-discipline)
+   - Priority: **CRITICAL** (SLA = 4 hours)
+   - Title: "Sprinkler head / cable tray clash at L03 C-7"
+   - Select the 2 affected elements in the Revit model → they're auto-linked to the issue
+
+2. **The issue is auto-assigned** to the MEP lead (based on DISC=FP discipline detection from the selected elements)
+
+3. **Click "BCF Export"** — export the single issue as BCF with a 3D section box viewpoint centred on grid C-7
+   - Email the `.bcf` file to the MEP subcontractor for immediate review
+
+4. **Switch to Meetings tab → Click "Add Action Item"**
+   - Description: "Resolve sprinkler/cable tray clash at L03 C-7"
+   - Assignee: MEP Lead
+   - Due: Tomorrow 8:00 AM
+   - Priority: CRITICAL
+
+5. **The MEP subcontractor resolves the clash**, updates the model, and you **re-run AutoTag on the affected area**
+   - Come back to BCC → Issues tab → right-click the issue → **"Update Status" → CLOSED**
+   - StingTools auto-links the resolution to the latest revision snapshot
+
+**Result:** Issue raised, assigned, exported, and tracked in **8 minutes**. The 4-hour SLA was met. The full audit trail (issue → BCF → action item → resolution → revision) satisfies **ISO 19650-2 Section 5.6** requirements. Without BCC, the coordinator would spend **45+ minutes** writing emails, attaching screenshots, and manually logging the issue in a spreadsheet.
+
+---
+
+### Example 5: COBie Handover to Facilities Management
+
+**Situation:** The project is at RIBA Stage 6 (Handover). The FM team needs a complete COBie V2.4 workbook covering 2,400 MEP assets across 6 floors. The BEP requires DD4 compliance (≥95% tag completeness).
+
+**Solution — 2 sessions, ~45 minutes total:**
+
+**Session 1 — Validate readiness:**
+
+1. **Open BCC → Click "Data Drop Readiness" in Overview**
+   - Auto-detects DD4 milestone:
+     - Tag compliance: **93%** — needs ≥95% (gap: **168 elements**)
+     - Container compliance: **91%** — needs ≥95%
+     - Placeholders (GEN/XX/ZZ): **42 elements** — needs 0
+     - Stale elements: **7** — needs 0
+
+2. **Run `COBieReadiness` workflow (7 steps)**
+   - Retag 7 stale → resolve 42 placeholders → validate → write containers → schema validate → COBie preview → tag register
+   - Tag compliance: **93% → 97%** (GREEN ✓)
+   - Placeholders: **42 → 3** (3 elements in unmapped custom categories — raise DATA issue for manual resolution)
+
+3. **Fix the 3 remaining placeholders manually** (assign correct PROD codes via dockable panel TOKEN section)
+
+**Session 2 — Export and deliver:**
+
+4. **Open BCC → 4D/5D tab → Click "COBie Export"**
+   - StingTools runs a **pre-export compliance gate**: tag ≥95% ✓, containers ≥95% ✓, 0 CRITICAL warnings ✓, 0 stale ✓
+   - A **pre-export container staleness check** samples 200 elements — all containers current
+   - COBie V2.4 export generates **17 worksheets**:
+     - Instruction (metadata), Facility, Floor, Space, Zone, Type, Component (2,400 rows), System, Assembly, Connection, Spare, Resource, Job, Document, Coordinate, Attribute, Impact
+   - File saved: `ProjectName_COBie_2026-04-11.xlsx` (2.8 MB)
+
+5. **Verify the export**
+   - Open the Excel file — check Component sheet has 2,400 rows with SerialNumber, BarCode, InstallationDate populated
+   - Check Type sheet — all 85 equipment types have Manufacturer, ModelNumber, WarrantyDuration
+   - Check System sheet — 14 MEP systems grouped by actual SYS token distribution
+
+6. **Create final transmittal**
+   - BCC → Click "Create Transmittal" → recipient: FM Team → attach the COBie file
+   - CDE Status → PUBLISHED → ARCHIVE (S7: Fit for AIM Authorization)
+   - BCC → Click "Create Revision" — final handover revision with compliance snapshot
+
+**Result:** Complete **17-worksheet COBie V2.4 handover** delivered in **45 minutes** with **97% tag compliance**. The FM team receives a validated dataset that imports directly into their CAFM system — **no manual data re-entry**. Manual COBie population from scratch typically takes **2–3 weeks** for a project of this size.
+
+
+---
+
+## Appendix F — Complete Workflow Preset Reference
+
+StingTools ships with **26 built-in workflow presets** that chain multiple commands into single-click automation sequences. Each preset runs inside an atomic `TransactionGroup` — if any critical step fails, the entire sequence rolls back. Presets support **19 conditional operators** for adaptive execution (e.g., skip retag if no stale elements exist).
+
+### How to Run a Workflow Preset
+
+1. Open the **BCC → WORKFLOWS** tab
+2. Click a **Quick Workflow** button, or type a preset name in the command bar
+3. Monitor progress via `StingProgressDialog` — press **Escape** to cancel between steps
+4. Review the execution summary showing pass/fail/skip counts and compliance delta
+
+### General-Purpose Presets
+
+| Preset | Steps | When to Use | Time Saved |
+|--------|-------|-------------|------------|
+| **ProjectKickoff** | 26 | First-time model setup: loads params, creates materials, schedules, templates, filters, worksets, then tags everything | **4–6 hours** vs manual setup |
+| **DailyQA** | 9 | Daily quality gate: retag stale → pre-tag audit → batch tag → validate → completeness dashboard. Conditional steps skip when compliance >95% | **25–40 min**/day |
+| **DocumentPackage** | 6 | Pre-issue document assembly: sheet naming → auto-number → drawing register → sheet register → batch print → export | **30–45 min** per issue |
+| **MorningHealthCheck** | 10 | BIM coordinator morning routine: retag stale → audit → tag new → validate → sheet naming → model health → template audit → issues → revisions → dashboard | **35–50 min**/morning |
+| **HandoverReadiness** | 9 | Pre-handover validation: retag → full tag → validate → template validate → COBie export → drawing register → BOQ → update BEP → create revision | **2–3 hours** per data drop |
+| **WeeklyDataDrop** | 10 | ISO 19650 weekly information exchange: retag → resolve placeholders → validate → audit CSV → COBie → Excel export → sheet compliance → register → model health → dashboard | **1.5–2 hours**/week |
+| **PostTaggingQA** | 5 | After any major tagging operation: pre-tag audit → validate → completeness dashboard → tag register export → validate template | **15–20 min** per QA cycle |
+
+### Coordination & Review Presets
+
+| Preset | Steps | When to Use | Time Saved |
+|--------|-------|-------------|------------|
+| **ModelAuditDeep** | 8 | Comprehensive model audit: warnings → templates → data pipeline → schedules → schema → tags → sheets → compliance | **1–2 hours** per audit |
+| **MEPCoordination** | 6 | MEP clash resolution: clash detection → system push → retag → validate → warnings → compliance | **45–60 min** per coordination round |
+| **CDE_Submission** | 8 | CDE package preparation: retag → resolve → validate → sheet naming → doc naming → register → sheet register → transmittal | **1–1.5 hours** per submission |
+| **DesignReviewPrep** | 5 | Pre-design review: auto-assign templates → warnings fix → sheet naming → compliance scores → completeness | **20–30 min** before reviews |
+| **IssueResolution** | 4 | Targeted issue fix: retag stale → auto-fix → resolve all → validate. Loops until compliance gate passes | **15–25 min** per resolution cycle |
+| **ClientReviewPrep** | 7 | Client presentation prep: clear stale → templates → naming → print → register → BEP → revision | **30–45 min** before client meetings |
+| **RegulatoryScan** | 3 | Standards compliance: Part B fire + Part L energy + Part M access + BS 7671 + CIBSE checks | **20–30 min** per scan |
+| **FederatedModelAudit** | 7 | Linked model audit: federated compliance → cross-model clash → naming audit → MEP clearance → spatial connectivity → warnings → coordinator report | **1–2 hours** per federated audit |
+| **PreMeetingPrep** | 7 | Quick pre-meeting prep: stale fix → warnings fix → validate → warnings summary → issues → revisions → HTML report | **15–20 min** before any meeting |
+
+### Deliverable-Specific Presets
+
+| Preset | Steps | When to Use | Time Saved |
+|--------|-------|-------------|------------|
+| **COBieReadiness** | 7 | COBie export prep: retag stale → resolve placeholders → write containers → validate ISO → schema validate → COBie export → tag register | **45–60 min** per COBie drop |
+| **DrawingIssue** | 7 | Drawing package: auto-assign templates → naming check → fix annotation warnings → sheet compliance → batch print PDF → sheet register → create revision | **30–45 min** per issue |
+| **SpatialQA** | 6 | Spatial data audit: room audit → spatial connectivity → fix room warnings → re-populate spatial tokens → validate → dashboard | **20–30 min** per audit |
+| **EndOfDaySync** | 8 | End-of-day wrap-up: retag stale → validate → save baseline → export registers → model health → warnings export → create revision | **20–30 min**/evening |
+
+### Sector-Specific Presets
+
+| Preset | Steps | When to Use | Time Saved |
+|--------|-------|-------------|------------|
+| **Healthcare_NHS** | 8 | NHS healthcare: HTM compliance → medical gas systems → infection control zones → ventilation → fire compartmentation → COBie for CAFM → tag all → validate | **2–3 hours** per NHS audit |
+| **DataCentre** | 7 | Data centre: power distribution → cooling systems → cable tray routing → Uptime Institute tier checks → redundancy → tag all → validate | **1.5–2 hours** per DC audit |
+| **CommercialOffice** | 7 | Commercial office: BCO Guide area checks → BREEAM evidence → lease demise boundaries → occupancy loads → fit-out standards → tag all → validate | **1–1.5 hours** per office audit |
+| **Residential** | 6 | Residential: Part L thermal → Part M access → Part B fire → plot numbering → sales schedules → tag all | **45–60 min** per residential audit |
+| **Education** | 7 | Education: BB103 area guidelines → DfE output specs → safeguarding zones → FF&E schedules → BREEAM → tag all → validate | **1–1.5 hours** per school audit |
+
+### Workflow Condition Operators
+
+Workflow steps support **19 condition types** that control execution:
+
+| Condition | Effect |
+|-----------|--------|
+| `has_stale` | Skip if no stale elements detected |
+| `has_untagged` | Skip if all elements already tagged |
+| `has_warnings` | Skip if model has zero warnings |
+| `has_critical_warnings` | Skip if no CRITICAL-severity warnings |
+| `has_open_issues` | Skip if no open issues in tracker |
+| `has_overdue_issues` | Skip if no SLA-breached issues |
+| `has_links` | Skip if model has no linked Revit files |
+| `has_cad_imports` | Skip if no DWG/DXF imports detected |
+| `has_placeholders` | Skip if no GEN/XX/ZZ placeholder tokens |
+| `has_container_gaps` | Skip if containers ≥95% complete |
+| `has_rooms` | Skip if no rooms placed in model |
+| `has_sheets` | Skip if no sheets in model |
+| `compliance_above_80` | Skip if compliance already ≥80% |
+| `compliance_above_90` | Skip if compliance already ≥90% |
+| `compliance_below_50` | Skip if model too early-stage (<50%) |
+| `compliance_below_70` | Skip if compliance below 70% |
+| `has_spatial_warnings` | Skip if no spatial-category warnings |
+| `has_mep_warnings` | Skip if no MEP-category warnings |
+| `tag_compliance_below_threshold` | Skip if compliance meets `MinCompliancePct` |
+
+> **Tip**: Create custom presets by saving JSON files to `Data/WORKFLOW_*.json`. See `WORKFLOW_DailyQA_Enhanced.json` for the conditional step syntax.
+
+
+---
+
+## Appendix G — Issue Type Reference
+
+The BCC supports **33 standardised issue types** organised into 8 categories. Each type has a default priority and SLA threshold per ISO 19650 / NEC / JCT conventions.
+
+### Construction & Quality Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| RFI | Request for Information | Clarification needed on design intent, specification, or coordination | MEDIUM | 1 week |
+| NCR | Non-Conformance Report | Work not matching approved drawings, specs, or standards | HIGH | 24 hours |
+| SI | Site Instruction | Formal instruction to contractor for changed or additional work | MEDIUM | 1 week |
+| TQ | Technical Query | Technical question about buildability, materials, or methods | MEDIUM | 1 week |
+| SNI | Snagging Item | Defect or incomplete work identified during inspection | HIGH | 24 hours |
+| DFT | Defect Notice | Post-handover defect requiring rectification | HIGH | 24 hours |
+| CLH | Clash | Geometric or spatial conflict between building elements | CRITICAL | 4 hours |
+
+### Design Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| DSN | Design Issue | Design development or change requiring resolution | MEDIUM | 1 week |
+| VRN | Variation | Scope change affecting cost, programme, or specification | HIGH | 24 hours |
+| CRN | Concession | Acceptance of non-conforming work as-is with justification | MEDIUM | 1 week |
+| CDI | Coordination Issue | Multi-discipline coordination requiring resolution | HIGH | 24 hours |
+
+### Compliance Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| HSE | Health & Safety | Safety risk requiring immediate attention per CDM 2015 | CRITICAL | 4 hours |
+| ENV | Environmental | Environmental impact or regulation breach | HIGH | 24 hours |
+| REG | Regulatory | Building regulation or planning condition non-compliance | HIGH | 24 hours |
+| ACC | Accessibility | Accessibility standard non-compliance (BS 8300 / Part M) | MEDIUM | 1 week |
+| FIR | Fire Safety | Fire safety issue (Part B / BS 9999 / BS 9991) | CRITICAL | 4 hours |
+
+### Data & BIM Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| TAG | Tagging Issue | Missing, incomplete, or invalid ISO 19650 asset tags | MEDIUM | 1 week |
+| DAT | Data Quality | Parameter data inconsistency or missing information | MEDIUM | 1 week |
+| MOD | Model Issue | Model structure, performance, or standards non-compliance | HIGH | 24 hours |
+| COB | COBie Issue | COBie data gap blocking FM handover | HIGH | 24 hours |
+| IFC | IFC Issue | IFC export or property set mapping problem | MEDIUM | 1 week |
+
+### Programme & Commercial Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| DLY | Delay Notice | Programme delay notification per NEC/JCT contract | HIGH | 24 hours |
+| CST | Cost Issue | Cost overrun, underestimate, or budget variance | HIGH | 24 hours |
+| PRG | Programme | Programme milestone risk or dependency conflict | MEDIUM | 1 week |
+| PRO | Procurement | Material or equipment procurement issue | MEDIUM | 1 week |
+
+### Contractual Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| EWN | Early Warning Notice | NEC early warning of risk to cost, time, or quality | HIGH | 24 hours |
+| CEN | Compensation Event | NEC compensation event notification | HIGH | 24 hours |
+| PMI | Project Manager Instruction | NEC project manager instruction | MEDIUM | 1 week |
+
+### Handover & Operations Issues
+
+| Code | Full Name | Description | Default Priority | SLA |
+|------|-----------|-------------|-----------------|-----|
+| COM | Commissioning | Equipment commissioning issue or test failure | HIGH | 24 hours |
+| TNO | Training Need | O&M training requirement for FM team | LOW | 2 weeks |
+| DOC | Documentation | Missing or incomplete handover documentation | MEDIUM | 1 week |
+| WTY | Warranty | Warranty claim or defects liability period issue | HIGH | 24 hours |
+| MNT | Maintenance | Planned or reactive maintenance requirement | MEDIUM | 1 week |
+
+### Priority Levels & SLA Thresholds
+
+| Priority | Response SLA | Resolution Target | Escalation | BCC Colour |
+|----------|-------------|-------------------|------------|------------|
+| **CRITICAL** | 4 hours | Same working day | Auto-escalate to BIM Manager after 2h | Red (#E53935) |
+| **HIGH** | 24 hours | 3 working days | Auto-escalate after 12h | Orange (#FF8F00) |
+| **MEDIUM** | 1 week | 10 working days | Auto-escalate after 5 days | Amber (#FFC107) |
+| **LOW** | 2 weeks | 20 working days | Review at next coordination meeting | Blue (#42A5F5) |
+
+> SLA thresholds are configurable per project via `WARNING_SLA_CRITICAL_HOURS`, `WARNING_SLA_HIGH_HOURS`, `WARNING_SLA_MEDIUM_HOURS`, `WARNING_SLA_LOW_HOURS` in `project_config.json`.
+
+---
+
+## Appendix H — BCC Action Tags Quick Reference
+
+Every button in the BCC dispatches an **action tag** through `StingCommandHandler`. Use these tags in workflow presets or the NLP command bar.
+
+### Overview Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `RunDailyQA` | Run Daily QA | Executes the DailyQA workflow preset |
+| `MorningHealthCheck` | Morning Check | Runs the MorningHealthCheck preset |
+| `FullComplianceDashboard` | Full Dashboard | Opens the full compliance report |
+| `DocumentManager` | Document Center | Opens the Document Management Center |
+| `RepeatLastWorkflow` | Repeat Last | Re-runs the last executed workflow |
+| `TakeModelSnapshot` | Take Snapshot | Captures compliance state for trend tracking |
+| `NewMeeting` | New Meeting | Creates a new coordination meeting record |
+| `ValidateTags` | Validate Tags | Runs full ISO 19650 tag validation |
+
+### Model Health Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `RefreshHealth` | Refresh | Re-scans model health metrics |
+| `ExportHealth` | Export | Exports model health report to CSV |
+| `RunFullCheck` | Full Check | Runs comprehensive 45-point validation |
+| `RetagStale` | Fix Stale | Re-tags elements with changed geometry |
+| `BatchTag` | Tag All | Tags all untagged elements in the project |
+| `WarningsAutoFix` | Auto-Fix | Applies safe automatic warning fixes |
+
+### Warnings Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `WarningsDashboard` | Dashboard | Shows warnings breakdown by category |
+| `WarningsAutoFix` | Auto-Fix | Batch-fixes duplicate instances, marks, overlaps |
+| `WarningsExport` | Export CSV | Exports all warnings to CSV for BIM 360 |
+| `WarningsBaseline` | Save Baseline | Saves current warning count as baseline |
+| `WarningsCompliance` | ISO Check | Maps warnings to ISO/BS standard requirements |
+
+### Issues Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `RaiseIssue` | New Issue | Creates a new issue from selected elements |
+| `IssueDashboard` | Dashboard | Shows issue summary with SLA status |
+| `UpdateIssue` | Update | Bulk-updates issue status/priority |
+| `SelectIssueElements` | Select | Selects elements linked to an issue |
+
+### 4D/5D Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `AutoSchedule4D` | Auto Schedule | Generates 4D construction sequence |
+| `AutoCost5D` | Auto Cost | Calculates 5D cost estimates from model |
+| `ViewTimeline4D` | View Timeline | Displays Gantt-style timeline |
+| `CostReport5D` | Cost Report | Generates detailed cost breakdown |
+| `CashFlow5D` | Cash Flow | Projects cash flow over construction phases |
+| `ExportSchedule4D` | Export | Exports schedule to CSV/MS Project format |
+
+### Platform Tab Actions
+
+| Action Tag | Button Label | Effect |
+|------------|-------------|--------|
+| `ACCPublish` | ACC Publish | Packages model for Autodesk Construction Cloud |
+| `BCFExport` | BCF Export | Exports issues as BCF 2.1 for external tools |
+| `BCFImport` | BCF Import | Imports BCF issues with deduplication |
+| `CDEPackage` | CDE Package | Creates ISO 19650 CDE folder structure |
+| `PlatformSync` | Sync | Bidirectional sync with connected platform |
+| `SharePointExport` | SharePoint | Exports to SharePoint/Teams document library |
+| `ExportCOBie` | COBie Export | Full 17-worksheet COBie V2.4 export |
+
+> **Tip**: Use `NLPCommandProcessor` to search for action tags by description — type natural language queries like "export my model health" in the command bar.
+

@@ -420,9 +420,9 @@ namespace StingTools.Docs
                 {
                     try
                     {
-                        // Resolve title block
-                        FamilySymbol tbSym = tbLookup.ContainsKey(row.TitleBlock)
-                            ? tbLookup[row.TitleBlock]
+                        // Resolve title block (single-lookup path).
+                        FamilySymbol tbSym = tbLookup.TryGetValue(row.TitleBlock, out var resolvedTb)
+                            ? resolvedTb
                             : tbTypes.First();
 
                         // Activate if needed

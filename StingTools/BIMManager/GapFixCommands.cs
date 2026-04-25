@@ -45,14 +45,14 @@ namespace StingTools.BIMManager
         {
             if (!File.Exists(path)) return new JArray();
             try { return JArray.Parse(File.ReadAllText(path)); }
-            catch (Exception ex) { StingLog.Warn($"LoadJsonArray failed: {ex.Message}"); return new JArray(); }
+            catch (Exception ex) { StingLog.Error($"LoadJsonArray failed ({path})", ex); return new JArray(); }
         }
 
         internal static JObject LoadJsonObject(string path)
         {
             if (!File.Exists(path)) return new JObject();
             try { return JObject.Parse(File.ReadAllText(path)); }
-            catch (Exception ex) { StingLog.Warn($"LoadJsonObject failed: {ex.Message}"); return new JObject(); }
+            catch (Exception ex) { StingLog.Error($"LoadJsonObject failed ({path})", ex); return new JObject(); }
         }
 
         /// <summary>Atomic JSON write using temp file + replace. GF-001 FIX:
@@ -418,11 +418,15 @@ namespace StingTools.BIMManager
                     w.Name.Equals("Component", StringComparison.OrdinalIgnoreCase));
                 if (ws == null) return "No 'Component' worksheet found in COBie file.";
 
-                // Read headers
+                // Read headers — guard against null header cells (ClosedXML can
+                // return null for a completely blank cell in some paths).
                 var headers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 int lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0;
                 for (int c = 1; c <= lastCol; c++)
-                    headers[ws.Cell(1, c).GetString().Trim()] = c;
+                {
+                    string hdr = (ws.Cell(1, c).GetString() ?? string.Empty).Trim();
+                    if (hdr.Length > 0) headers[hdr] = c;
+                }
 
                 if (!headers.ContainsKey("Name") && !headers.ContainsKey("ExternalIdentifier"))
                     return "COBie Component sheet missing Name or ExternalIdentifier column.";
@@ -1005,7 +1009,7 @@ namespace StingTools.BIMManager
             double m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
             double b = (sumY - m * sumX) / n;
 
-            double current = y.Last();
+            double current = y.Length > 0 ? y[y.Length - 1] : 0;
             var sb = new StringBuilder();
             sb.AppendLine("COMPLIANCE FORECAST\n");
             sb.AppendLine($"Current: {current:F1}%");

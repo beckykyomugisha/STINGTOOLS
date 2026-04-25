@@ -53,6 +53,12 @@ public class TaggedElement
     public DateTime SyncedAt { get; set; } = DateTime.UtcNow;
     public string SyncedBy { get; set; } = "";
 
+    // Optimistic-concurrency / last-write-wins support for bidirectional sync.
+    // LastModifiedUtc is the client-supplied wall-clock modification time; the
+    // server uses it to detect stale updates from out-of-date clients.
+    public DateTime? LastModifiedUtc { get; set; }
+    public int Version { get; set; } = 1;
+
     // Navigation
     public Project? Project { get; set; }
 }

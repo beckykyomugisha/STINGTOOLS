@@ -1,0 +1,176 @@
+// StingTools v4 MVP — AutoDropCommand.
+//
+// Single IExternalCommand that inspects the current selection, groups
+// elements by discipline (Electrical / Plumbing / HVAC) based on
+// their Category and dispatches each group to the matching drop
+// engine. Shows an aggregate result via StingResultPanel.
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using StingTools.Core;
+using StingTools.Core.Routing;
+using StingTools.UI;
+
+namespace StingTools.Commands.Routing
+{
+    /// <summary>
+    /// Shared options surface for Auto-drop, populated by the Routing
+    /// tab UI before Execute is invoked. Static — read-only session
+    /// singleton, mirrors the pattern used elsewhere in StingTools
+    /// (e.g. TagConfig) so that UI wiring can be incremental.
+    /// </summary>
+    public static class AutoDropOptions
+    {
+        public static bool   SnapToCorridorBand { get; set; } = true;
+        public static bool   EnforceSeparation  { get; set; } = true;
+        public static double MaxSearchRadiusMm  { get; set; } = 3000.0;
+        public static bool   IncludeElectrical  { get; set; } = true;
+        public static bool   IncludePlumbing    { get; set; } = true;
+        public static bool   IncludeHvac        { get; set; } = true;
+        public static string ConduitInstallMethod { get; set; } = "CLIPPED";
+        public static string DuctSeamType       { get; set; } = "A";
+        public static string PipeHangerType     { get; set; } = "CLEVIS_ROD";
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class AutoDropCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { message = "No active document."; return Result.Failed; }
+            var doc = ctx.Doc;
+            var uidoc = ctx.UIDoc;
+
+            var selIds = uidoc.Selection.GetElementIds();
+            if (selIds == null || selIds.Count == 0)
+            {
+                TaskDialog.Show("STING v4 — Auto-drop",
+                    "Select one or more fixtures before running Auto-drop.");
+                return Result.Cancelled;
+            }
+
+            var byDisc = new Dictionary<string, List<Element>>
+            {
+                { "Electrical", new List<Element>() },
+                { "Plumbing",   new List<Element>() },
+                { "HVAC",       new List<Element>() }
+            };
+
+            foreach (var id in selIds)
+            {
+                var el = doc.GetElement(id);
+                if (el?.Category == null) continue;
+                string disc = DisciplineFor((BuiltInCategory)el.Category.Id.Value);
+                if (disc != null && byDisc.ContainsKey(disc)) byDisc[disc].Add(el);
+            }
+
+            if (byDisc.Values.All(v => v.Count == 0))
+            {
+                TaskDialog.Show("STING v4 — Auto-drop",
+                    "Selection contains no electrical / plumbing / HVAC fixtures.");
+                return Result.Cancelled;
+            }
+
+            var allResults = new List<DropResult>();
+            try
+            {
+                if (AutoDropOptions.IncludeElectrical && byDisc["Electrical"].Count > 0)
+                {
+                    var eng = new AutoConduitDrop(doc)
+                    {
+                        SnapToCorridorBand = AutoDropOptions.SnapToCorridorBand,
+                        EnforceSeparation  = AutoDropOptions.EnforceSeparation,
+                        SearchRadiusMm     = AutoDropOptions.MaxSearchRadiusMm,
+                        InstallMethod      = AutoDropOptions.ConduitInstallMethod,
+                    };
+                    allResults.Add(eng.Execute(byDisc["Electrical"]));
+                }
+                if (AutoDropOptions.IncludePlumbing && byDisc["Plumbing"].Count > 0)
+                {
+                    var eng = new AutoPipeDrop(doc)
+                    {
+                        SnapToCorridorBand = AutoDropOptions.SnapToCorridorBand,
+                        EnforceSeparation  = AutoDropOptions.EnforceSeparation,
+                        SearchRadiusMm     = AutoDropOptions.MaxSearchRadiusMm,
+                        HangerType         = AutoDropOptions.PipeHangerType,
+                    };
+                    allResults.Add(eng.Execute(byDisc["Plumbing"]));
+                }
+                if (AutoDropOptions.IncludeHvac && byDisc["HVAC"].Count > 0)
+                {
+                    var eng = new AutoDuctDrop(doc)
+                    {
+                        SnapToCorridorBand = AutoDropOptions.SnapToCorridorBand,
+                        EnforceSeparation  = AutoDropOptions.EnforceSeparation,
+                        SearchRadiusMm     = AutoDropOptions.MaxSearchRadiusMm,
+                        SeamType           = AutoDropOptions.DuctSeamType,
+                    };
+                    allResults.Add(eng.Execute(byDisc["HVAC"]));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("AutoDropCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+
+            ShowResult(allResults);
+            return Result.Succeeded;
+        }
+
+        private static string DisciplineFor(BuiltInCategory bic)
+        {
+            switch (bic)
+            {
+                case BuiltInCategory.OST_ElectricalFixtures:
+                case BuiltInCategory.OST_ElectricalEquipment:
+                case BuiltInCategory.OST_LightingFixtures:
+                case BuiltInCategory.OST_LightingDevices:
+                case BuiltInCategory.OST_CommunicationDevices:
+                case BuiltInCategory.OST_DataDevices:
+                case BuiltInCategory.OST_SecurityDevices:
+                case BuiltInCategory.OST_FireAlarmDevices:
+                case BuiltInCategory.OST_NurseCallDevices:
+                    return "Electrical";
+
+                case BuiltInCategory.OST_PlumbingFixtures:
+                case BuiltInCategory.OST_Sprinklers:
+                    return "Plumbing";
+
+                case BuiltInCategory.OST_DuctTerminal:
+                case BuiltInCategory.OST_MechanicalEquipment:
+                    return "HVAC";
+            }
+            return null;
+        }
+
+        private void ShowResult(List<DropResult> results)
+        {
+            var panel = StingResultPanel.Create("v4 Auto-drop");
+            panel.SetSubtitle("Auto-drop across Electrical / Plumbing / HVAC");
+
+            foreach (var r in results)
+            {
+                panel.AddSection(r.Discipline.ToUpperInvariant())
+                     .Metric("Created",       r.CreatedIds.Count.ToString())
+                     .Metric("Connected",     r.ConnectedCount.ToString())
+                     .Metric("Takeoffs",      r.TakeoffCount.ToString())
+                     .Metric("Skipped",       r.SkippedCount.ToString())
+                     .Metric("Failed",        r.FailedCount.ToString());
+                if (r.Warnings.Count > 0)
+                {
+                    foreach (var w in r.Warnings.Take(10)) panel.Text(w);
+                    if (r.Warnings.Count > 10) panel.Text($"(+{r.Warnings.Count - 10} more — see StingLog)");
+                }
+            }
+            panel.Show();
+        }
+    }
+}

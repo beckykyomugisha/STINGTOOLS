@@ -361,7 +361,8 @@ namespace StingTools.Model
         ///   4. Return closest available with warning
         /// </summary>
         public TypeMatchResult FindOrCreateColumnType(
-            double widthMm, double depthMm = 0, string preferredFamily = null)
+            double widthMm, double depthMm = 0, string preferredFamily = null,
+            bool allowDuplicate = true)
         {
             if (depthMm <= 0) depthMm = widthMm; // Square column default
             EnsureCatalog();
@@ -401,17 +402,21 @@ namespace StingTools.Model
             // Close match (within tolerance)
             if (best.entry.DimensionDistance(widthMm, depthMm) < Math.Max(widthMm, depthMm) * RelativeDuplicateTolerance)
             {
-                // Try to duplicate and resize
-                var dupResult = DuplicateAndResize(best.entry, widthMm, depthMm,
-                    $"{best.entry.FamilyName} {widthMm:F0}x{depthMm:F0}");
-
-                if (dupResult.Success)
+                // Phase-97: allowDuplicate=false → reuse closest existing
+                // column type as-is; do NOT duplicate & resize.
+                if (allowDuplicate)
                 {
-                    _createdTypes[cacheKey] = dupResult.TypeId;
-                    return dupResult;
+                    var dupResult = DuplicateAndResize(best.entry, widthMm, depthMm,
+                        $"{best.entry.FamilyName} {widthMm:F0}x{depthMm:F0}");
+
+                    if (dupResult.Success)
+                    {
+                        _createdTypes[cacheKey] = dupResult.TypeId;
+                        return dupResult;
+                    }
                 }
 
-                // Duplication failed — return close match
+                // Duplication not allowed or failed — return close match
                 EnsureActive(best.entry);
                 return TypeMatchResult.Found(best.entry.TypeId, best.entry.FamilyName,
                     best.entry.TypeName, TypeMatchMethod.CloseMatch, best.score);
@@ -432,7 +437,8 @@ namespace StingTools.Model
         /// Finds or creates a structural beam/framing type matching target dimensions.
         /// </summary>
         public TypeMatchResult FindOrCreateBeamType(
-            double depthMm, double widthMm = 0, string preferredFamily = null)
+            double depthMm, double widthMm = 0, string preferredFamily = null,
+            bool allowDuplicate = true)
         {
             if (widthMm <= 0) widthMm = depthMm * 0.5; // Default width = half depth
             EnsureCatalog();
@@ -468,12 +474,17 @@ namespace StingTools.Model
 
             if (best.entry.DimensionDistance(widthMm, depthMm) < Math.Max(widthMm, depthMm) * RelativeDuplicateTolerance)
             {
-                var dupResult = DuplicateAndResize(best.entry, widthMm, depthMm,
-                    $"{best.entry.FamilyName} {depthMm:F0}x{widthMm:F0}");
-                if (dupResult.Success)
+                // Phase-97: allowDuplicate=false → reuse closest existing
+                // beam type; do NOT duplicate & resize.
+                if (allowDuplicate)
                 {
-                    _createdTypes[cacheKey] = dupResult.TypeId;
-                    return dupResult;
+                    var dupResult = DuplicateAndResize(best.entry, widthMm, depthMm,
+                        $"{best.entry.FamilyName} {depthMm:F0}x{widthMm:F0}");
+                    if (dupResult.Success)
+                    {
+                        _createdTypes[cacheKey] = dupResult.TypeId;
+                        return dupResult;
+                    }
                 }
             }
 
@@ -489,7 +500,8 @@ namespace StingTools.Model
         /// For system families, duplicates and adjusts compound structure.
         /// </summary>
         public TypeMatchResult FindOrCreateWallType(double thicknessMm,
-            bool isStructural = true, string preferredName = null)
+            bool isStructural = true, string preferredName = null,
+            bool allowDuplicate = true)
         {
             EnsureCatalog();
 
@@ -522,6 +534,16 @@ namespace StingTools.Model
             if (exact != null)
                 return TypeMatchResult.Found(exact.Id, "System Wall", exact.Name,
                     TypeMatchMethod.ExactMatch, 1.0);
+
+            // Phase-97: when allowDuplicate is false, the caller has asked us
+            // to pick from the existing catalogue only — no new wall types.
+            // Return the closest existing type with a CloseMatch result.
+            if (!allowDuplicate && closest != null)
+            {
+                _createdTypes[cacheKey] = closest.Id;
+                return TypeMatchResult.Found(closest.Id, "System Wall", closest.Name,
+                    TypeMatchMethod.CloseMatch, 0.6);
+            }
 
             // Duplicate closest and adjust thickness
             if (closest != null)
@@ -593,7 +615,7 @@ namespace StingTools.Model
         /// Finds or creates a floor type matching target thickness.
         /// </summary>
         public TypeMatchResult FindOrCreateFloorType(double thicknessMm,
-            string preferredName = null)
+            string preferredName = null, bool allowDuplicate = true)
         {
             EnsureCatalog();
 
@@ -631,6 +653,15 @@ namespace StingTools.Model
             if (exact != null)
                 return TypeMatchResult.Found(exact.Id, "System Floor", exact.Name,
                     TypeMatchMethod.ExactMatch, 1.0);
+
+            // Phase-97: allowDuplicate=false → skip straight to closest
+            // existing floor type without duplicating.
+            if (!allowDuplicate && closest != null)
+            {
+                _createdTypes[cacheKey] = closest.Id;
+                return TypeMatchResult.Found(closest.Id, "System Floor", closest.Name,
+                    TypeMatchMethod.CloseMatch, 0.6);
+            }
 
             // Duplicate and adjust
             if (closest != null && closestDiff < 500)
@@ -699,7 +730,7 @@ namespace StingTools.Model
         /// Finds or creates a foundation type matching target dimensions.
         /// </summary>
         public TypeMatchResult FindOrCreateFoundationType(
-            double widthMm, double depthMm = 0)
+            double widthMm, double depthMm = 0, bool allowDuplicate = true)
         {
             if (depthMm <= 0) depthMm = widthMm;
             EnsureCatalog();
@@ -726,9 +757,9 @@ namespace StingTools.Model
                     best.entry.TypeName, TypeMatchMethod.ExactMatch, best.score);
             }
 
-            // Try to duplicate and resize
+            // Try to duplicate and resize (unless the caller has opted out).
             double maxDup = Math.Max(widthMm, depthMm) * RelativeDuplicateTolerance;
-            if (best.entry.DimensionDistance(widthMm, depthMm) < maxDup)
+            if (allowDuplicate && best.entry.DimensionDistance(widthMm, depthMm) < maxDup)
             {
                 var dupResult = DuplicateAndResize(best.entry, widthMm, depthMm,
                     $"{best.entry.FamilyName} {widthMm:F0}x{depthMm:F0}");

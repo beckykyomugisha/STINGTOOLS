@@ -241,6 +241,120 @@ namespace StingTools.Core
         // Phase 79: MEP Sleeve Container
         public const string SLV_TAG = "SLV_TAG";
 
+        // ── Phase 97: Title Block parameters (per STING TB spec v1.0, 2026-04-19) ──
+        // GUIDs are UUIDv5 with fixed namespace; values mirror MR_PARAMETERS.txt entries.
+        // All bound to ViewSheet category; runtime dispatch via TitleBlockCommands.cs.
+        public const string TB_VARIANT             = "PRJ_TB_VARIANT_TXT";
+        public const string TB_VARIANT_GUID        = "e4c060c3-1c31-5860-b0d0-ef9472016895";
+        public const string TB_SCHEMA_VERSION      = "PRJ_TB_SCHEMA_VERSION_TXT";
+        public const string TB_SCHEMA_VERSION_GUID = "9832b76e-07df-509e-b139-d402bc50ba68";
+        public const string TB_LOGO_PATH           = "PRJ_TB_LOGO_PATH_TXT";
+        public const string TB_LOGO_PATH_GUID      = "3bb5edc1-54f9-56ff-92c9-405a8dde646c";
+        public const string TB_LAST_SYNC           = "PRJ_TB_LAST_SYNC_TXT";
+        public const string TB_LAST_SYNC_GUID      = "1817eeb3-4c56-50c2-b386-6b3be3d98fc4";
+        public const string TB_LAST_SYNC_BY        = "PRJ_TB_LAST_SYNC_BY_TXT";
+        public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
+        public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
+        public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
+        public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEYPLAN_BOOL";
+        public const string TB_SHOW_KEYPLAN_GUID   = "8dd6b517-7173-5a8d-b951-a08807fed830";
+        public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALEBAR_BOOL";
+        public const string TB_SHOW_SCALEBAR_GUID  = "fa841ad5-15e1-5ec2-91bc-a69d70cf9c42";
+        public const string TB_SHOW_NORTHARROW     = "PRJ_TB_SHOW_NORTHARROW_BOOL";
+        public const string TB_SHOW_NORTHARROW_GUID= "58c6e51f-6f22-546b-ac02-086ab6f6fbbf";
+        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
+        public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
+        public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
+        public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
+        public const string TB_ISSUE_SUMMARY       = "PRJ_TB_ISSUE_SUMMARY_TXT";
+        public const string TB_ISSUE_SUMMARY_GUID  = "a3408dee-9ced-5ccd-970c-0958bcc713a9";
+        public const string TB_DELIVERABLE_DATADROP      = "PRJ_TB_DELIVERABLE_DATADROP_TXT";
+        public const string TB_DELIVERABLE_DATADROP_GUID = "d63919e8-7cf5-5202-bd59-1dc03554fee4";
+        public const string TB_DELIVERABLE_STATUS        = "PRJ_TB_DELIVERABLE_STATUS_TXT";
+        public const string TB_DELIVERABLE_STATUS_GUID   = "5fea853a-6ed7-505e-a677-50fb83f435b0";
+        public const string TB_DELIVERABLE_DUE           = "PRJ_TB_DELIVERABLE_DUE_TXT";
+        public const string TB_DELIVERABLE_DUE_GUID      = "525f8b24-26eb-52ae-8760-c6aa1621815a";
+        public const string TB_DELIVERABLE_CDE           = "PRJ_TB_DELIVERABLE_CDE_TXT";
+        public const string TB_DELIVERABLE_CDE_GUID      = "0d917e49-c6f6-5951-b2b7-7a00bdb3b0df";
+        public const string TB_LAST_TRANSMITTAL          = "PRJ_TB_LAST_TRANSMITTAL_TXT";
+        public const string TB_LAST_TRANSMITTAL_GUID     = "953d56bb-e854-5817-9fa0-90ed013f276c";
+        public const string TB_LAST_TRANSMITTAL_DATE     = "PRJ_TB_LAST_TRANSMITTAL_DATE_TXT";
+        public const string TB_LAST_TRANSMITTAL_DATE_GUID= "8edb7300-d8a4-5df3-b0ba-b21710da9724";
+        public const string TB_NOTES_LEGEND_REF          = "PRJ_TB_NOTES_LEGEND_REF_TXT";
+        public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
+
+        /// <summary>All 19 PRJ_TB_* parameters added in STING Title Block System v1.0.</summary>
+        public static readonly string[] AllTitleBlockParams = new[]
+        {
+            TB_VARIANT, TB_SCHEMA_VERSION, TB_LOGO_PATH, TB_LAST_SYNC, TB_LAST_SYNC_BY,
+            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
+            TB_SCALE_OVERRIDE, TB_ISSUE_SUMMARY,
+            TB_DELIVERABLE_DATADROP, TB_DELIVERABLE_STATUS, TB_DELIVERABLE_DUE, TB_DELIVERABLE_CDE,
+            TB_LAST_TRANSMITTAL, TB_LAST_TRANSMITTAL_DATE, TB_NOTES_LEGEND_REF
+        };
+
+        /// <summary>Subset of TB params that are YESNO flags (for TitleBlockPopulate type coercion).</summary>
+        public static readonly HashSet<string> TitleBlockBoolParams = new HashSet<string>(StringComparer.Ordinal)
+        {
+            TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND
+        };
+
+        // ── Organisation parameters (v1.1 template engine + workflow) ──
+        // Thirteen PRJ_ORG_* shared parameters scoped to ProjectInformation.
+        // GUIDs are deterministic UUIDv5 in the Planscape docs namespace
+        // UUID('a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a'). Originator code defaults to
+        // "PLNS"; company name to "Planscape Limited". These feed TemplateManifest,
+        // DocumentIdentityGenerator, TokenContext.FromDeliverable, and WorkflowEngine.
+        public const string ORG_PROJECT_CODE            = "PRJ_ORG_PROJECT_CODE_TXT";
+        public const string ORG_PROJECT_CODE_GUID       = "d72513d3-2aed-5048-a949-b262fcd51a39";
+        public const string ORG_ORIGINATOR_CODE         = "PRJ_ORG_ORIGINATOR_CODE_TXT";
+        public const string ORG_ORIGINATOR_CODE_GUID    = "d9b568c8-0dcf-5226-add0-a6e3643589e8";
+        public const string ORG_COMPANY_NAME            = "PRJ_ORG_COMPANY_NAME_TXT";
+        public const string ORG_COMPANY_NAME_GUID       = "f08b9a37-5e44-5074-a9e1-0a0f6418a305";
+        public const string ORG_COMPANY_ADDRESS         = "PRJ_ORG_COMPANY_ADDRESS_TXT";
+        public const string ORG_COMPANY_ADDRESS_GUID    = "834df80b-0472-5724-afab-1c90ce7eac80";
+        public const string ORG_CLIENT_NAME             = "PRJ_ORG_CLIENT_NAME_TXT";
+        public const string ORG_CLIENT_NAME_GUID        = "32487484-61c4-5043-aec1-0851720902a6";
+        public const string ORG_APPOINTING_PARTY        = "PRJ_ORG_APPOINTING_PARTY_TXT";
+        public const string ORG_APPOINTING_PARTY_GUID   = "b9df91ba-d8ee-561c-9786-d0ce3c74c55e";
+        public const string ORG_LEAD_APPOINTED_PARTY    = "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT";
+        public const string ORG_LEAD_APPOINTED_PARTY_GUID = "77069632-0604-5cb1-b6ef-5e2211f6b3f4";
+        public const string ORG_PARTICIPANTS            = "PRJ_ORG_PARTICIPANTS_TXT";
+        public const string ORG_PARTICIPANTS_GUID       = "a4c8ef52-5bb2-579f-9308-8a6c2177bf52";
+        public const string ORG_PHASE                   = "PRJ_ORG_PHASE_TXT";
+        public const string ORG_PHASE_GUID              = "d187fdbd-f701-5334-90da-1ab6694c5034";
+        public const string ORG_CLASS                   = "PRJ_ORG_CLASS_TXT";
+        public const string ORG_CLASS_GUID              = "cef45220-b201-5c44-baed-275a0fd556a7";
+        public const string ORG_WORKFLOW_PROFILE        = "PRJ_ORG_WORKFLOW_PROFILE_TXT";
+        public const string ORG_WORKFLOW_PROFILE_GUID   = "48a26ee9-211d-5525-8fbb-9f8eb1f38878";
+        public const string ORG_SIGNATURE_PROVIDER      = "PRJ_ORG_SIGNATURE_PROVIDER_TXT";
+        public const string ORG_SIGNATURE_PROVIDER_GUID = "e669eea3-d1fa-51b7-b820-83fa21d40877";
+        public const string ORG_AI_EXTRACT_ENABLED      = "PRJ_ORG_AI_EXTRACT_ENABLED_BOOL";
+        public const string ORG_AI_EXTRACT_ENABLED_GUID = "a7c93ee1-9df2-5531-b873-1df826526e82";
+
+        /// <summary>All 13 PRJ_ORG_* parameters added in template engine v1.1 (S01).</summary>
+        public static readonly string[] AllOrganisationParams = new[]
+        {
+            ORG_PROJECT_CODE, ORG_ORIGINATOR_CODE, ORG_COMPANY_NAME, ORG_COMPANY_ADDRESS,
+            ORG_CLIENT_NAME, ORG_APPOINTING_PARTY, ORG_LEAD_APPOINTED_PARTY, ORG_PARTICIPANTS,
+            ORG_PHASE, ORG_CLASS, ORG_WORKFLOW_PROFILE, ORG_SIGNATURE_PROVIDER,
+            ORG_AI_EXTRACT_ENABLED
+        };
+
+        /// <summary>Default values for PRJ_ORG_* parameters (used by TemplateManifest.CreateDefault).</summary>
+        public static readonly Dictionary<string, string> OrganisationDefaults = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            { ORG_ORIGINATOR_CODE,      "PLNS" },
+            { ORG_COMPANY_NAME,         "Planscape Limited" },
+            { ORG_COMPANY_ADDRESS,      "Kampala, Uganda" },
+            { ORG_LEAD_APPOINTED_PARTY, "Planscape Limited" },
+            { ORG_PHASE,                "DE" },
+            { ORG_CLASS,                "2" },
+            { ORG_WORKFLOW_PROFILE,     "default" },
+            { ORG_SIGNATURE_PROVIDER,   "" },
+            { ORG_AI_EXTRACT_ENABLED,   "0" }
+        };
+
         // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
         // Loaded from extended_params section. Keys map to param_name values.
         private static Dictionary<string, string> _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -421,6 +535,18 @@ namespace StingTools.Core
         public static string WARN_VISIBLE { get; private set; } = "TAG_WARN_VISIBLE_BOOL";
         /// <summary>Warning severity filter: CRITICAL, HIGH, MEDIUM, ALL.</summary>
         public static string WARN_SEVERITY_FILTER { get; private set; } = "TAG_WARN_SEVERITY_FILTER_TXT";
+
+        // ── Paragraph pattern selectors (2026-04, dual-wire T4-T10) ──
+        // Families carry BOTH the Handover and Design & Construction row sets.
+        // Each row's formula AND-gates TAG_PARA_STATE_N_BOOL with one of these so
+        // flipping the pattern is a project-level BOOL toggle instead of a
+        // family re-author pass.
+        /// <summary>Pattern selector — Handover / FM T4-T10 payload is visible.</summary>
+        public static string MODE_HANDOVER { get; private set; } = "HANDOVER_MODE_HANDOVER_BOOL";
+        /// <summary>Pattern selector — Design & Construction T4-T10 payload is visible.</summary>
+        public static string MODE_DC { get; private set; } = "HANDOVER_MODE_DC_BOOL";
+        /// <summary>Pattern selector — Custom (user-defined) T4-T10 payload is visible.</summary>
+        public static string MODE_CUSTOM { get; private set; } = "HANDOVER_MODE_CUSTOM_BOOL";
 
         // ── Warning threshold definitions (v5.5) ─────────────────────────
         // Loaded from warning_thresholds section of PARAMETER_REGISTRY.json.
@@ -614,6 +740,10 @@ namespace StingTools.Core
         public static string TAG_LEADER_COLOR_G { get; private set; } = "TAG_LEADER_COLOR_G_INT";
         /// <summary>Tag leader line color — Blue channel (0-255).</summary>
         public static string TAG_LEADER_COLOR_B { get; private set; } = "TAG_LEADER_COLOR_B_INT";
+        /// <summary>Tag scale tier auto-selection flag (type BOOL).</summary>
+        public static string TAG_SCALE_TIER_AUTO { get; private set; } = "TAG_SCALE_TIER_AUTO_BOOL";
+        /// <summary>Active depth tier cached on tag family type (1-10, type INTEGER).</summary>
+        public static string TAG_DEPTH_TIER { get; private set; } = "TAG_DEPTH_TIER_INT";
 
         // ── Semantic color meaning registry ──────────────────────────────
         // Maps colors to what they represent in each context:
@@ -1706,7 +1836,7 @@ namespace StingTools.Core
             _extendedParams["HVC_INSULATION"] = "HVC_INS_THICKNESS_MM"; _extendedParams["HVC_DUCT_LENGTH"] = "HVC_DCT_LENGTH_M";
             // ISO 19650 naming
             _extendedParams["PROJECT_COD"] = "ASS_PROJECT_COD_TXT"; _extendedParams["ORIGINATOR_COD"] = "ASS_ORIGINATOR_COD_TXT";
-            _extendedParams["VOLUME_COD"] = "ASS_VOLUME_COD_TXT"; _extendedParams["STATUS_COD"] = "ASS_STATUS_COD_TXT";
+            _extendedParams["VOLUME_COD"] = "ASS_VOLUME_COD_TXT"; _extendedParams["STATUS_COD"] = "ASS_STATUS_TXT";
             _extendedParams["REV_COD"] = "ASS_REV_COD_TXT";
             // Paragraph containers
             _extendedParams["PARA_WALL"] = "ARCH_TAG_7_PARA_WALL_TXT"; _extendedParams["PARA_FLOOR"] = "ARCH_TAG_7_PARA_FLOOR_TXT";
@@ -1771,7 +1901,6 @@ namespace StingTools.Core
             _extendedParams["PARA_STAIR_LAND"] = "BLE_TAG_7_PARA_STAIR_LANDINGS_TXT";
             _extendedParams["PARA_STAIR_SUPP"] = "BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT";
             // Warning thresholds
-            _extendedParams["ELC_PNL_RATED"] = "ELC_PNL_RATED_BOOL";
             _extendedParams["WARN_RAMP_SLOPE"] = "WARN_BLE_RAMP_SLOPE_PCT_RAMPS";
             _extendedParams["WARN_VLT_DROP"] = "WARN_ELC_VLT_DROP_PCT_ELECTRICAL_EQUI";
             _extendedParams["WARN_SPR_COVER"] = "WARN_FLS_SFTY_COVERAGE_AREA_SQ_M_SPRINKLERS__FIR";
@@ -1790,7 +1919,7 @@ namespace StingTools.Core
             _extendedParams["PRJ_REV_COD"] = "PRJ_REV_COD_TXT";
             // COBie / warranty / commissioning / asset management
             _extendedParams["BARCODE"] = "ASS_BARCODE_TXT"; _extendedParams["ASSET_ID"] = "ASS_ASSET_ID_TXT";
-            _extendedParams["CONDITION"] = "ASS_CONDITION_TXT"; _extendedParams["WARRANTY_START"] = "ASS_WARRANTY_START_TXT";
+            _extendedParams["CONDITION"] = "ASS_CONDITION_TXT"; _extendedParams["WARRANTY_START"] = "COM_WARRANTY_START_TXT";
             _extendedParams["WARR_GUAR_PARTS"] = "ASS_WARRANTY_PARTS_TXT"; _extendedParams["WARR_DUR_PARTS"] = "ASS_WARRANTY_DURATION_PARTS_YRS";
             _extendedParams["WARR_GUAR_LABOR"] = "ASS_WARRANTY_LABOR_TXT"; _extendedParams["WARR_DUR_LABOR"] = "ASS_WARRANTY_DURATION_LABOR_YRS";
             _extendedParams["WARR_DUR_UNIT"] = "ASS_WARRANTY_DUR_UNIT_TXT"; _extendedParams["MODEL_REF"] = "ASS_MODEL_REF_TXT";
@@ -1820,10 +1949,12 @@ namespace StingTools.Core
                 }
             }
 
-            // CRASH FIX: Initialize CategoryEnumMap with all 124 taggable categories.
+            // CRASH FIX: Initialize CategoryEnumMap with all taggable categories
+            // plus the 137 tag-family aliases produced by TagFamilyCreatorCommand.
             // Without this, ResolveUniversalCategoryEnums() returns empty array →
             // AllCategoryEnums = empty → BuildCategorySet = empty → 0 params bound →
             // LoadSharedParamsCommand silently does nothing, leaving project unconfigured.
+            // The Tag Categories sub-tab in the dockable panel reads from this map.
             CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "Air Terminals", "OST_DuctTerminal" },
@@ -1969,14 +2100,84 @@ namespace StingTools.Core
                 { "Windows", "OST_Windows" },
                 { "Wire", "OST_Wire" },
                 { "Zones", "OST_Zones" },
+
+                // ════════════════════════════════════════════════════════════════
+                // TAG-FAMILY-CREATOR ALIGNMENT (Phase 78 follow-up)
+                //
+                // The CreateTagFamilies command in Tags/TagFamilyCreatorCommand.cs
+                // creates 137 .rfa tag families: 121 unique BuiltInCategory bases
+                // plus 16 variants (8 tie-in + 3 sheet + 4 structural + 1 MEP).
+                //
+                // The 13 base entries below cover BICs that the TagFamilyCreator
+                // produces but were missing from the original 124-entry map. Some
+                // are alias enums (Revit ships overlapping enum names for the same
+                // category — e.g. OST_Cornices and OST_WallSweeps both resolve to
+                // "Wall Sweeps"). Adding both keys is safe because BuildCategorySet
+                // uses CategorySet.Insert which dedupes by Category.Id.
+                //
+                // The 16 variant display names share their BIC with an existing
+                // base entry. They surface in the Tag Categories sub-tab so the
+                // checkbox count matches the 137 tag families a coordinator has
+                // just created.
+                //
+                // CATEGORY_SKIP semantic note: skipping a variant entry (e.g.
+                // "Floors (Structural)") via the runtime element-category filter
+                // also skips its base ("Floors") because Revit reports the base
+                // category at element level. Variants are presented for parity
+                // with the tag-family list, not for independent runtime gating.
+                // ════════════════════════════════════════════════════════════════
+
+                // ── Missing base BICs created by TagFamilyCreator ─────────────
+                { "Materials", "OST_Materials" },                       // Material Tag.rft (excluded from UniversalCategories below)
+                { "Sheets", "OST_Sheets" },                             // Generic Tag.rft — base sheet document tag
+                { "Structural Connection Bolts", "OST_StructConnectionBolts" },
+                { "Structural Connection Welds", "OST_StructConnectionWelds" },
+
+                // ── Alias enums (different BIC name, same Revit category) ─────
+                // Both forms compile against current Revit API; exposing both
+                // ensures Tags created with either spelling resolve correctly.
+                { "Mechanical Equipment Set", "OST_MechanicalEquipmentSet" }, // alias of OST_MechanicalEquipmentSets
+                { "Analytical Opening", "OST_AnalyticalOpening" },            // alias of OST_AnalyticalOpenings
+                { "Analytical Panel", "OST_AnalyticalPanel" },                // alias of OST_AnalyticalPanels
+                { "Rigid Links (Analytical)", "OST_RigidLinksAnalytical" },   // alias of OST_AnalyticalLinks
+                { "Hand Rail", "OST_RailingHandRail" },                       // alias of OST_StairsRailingHandRail
+                { "Railings (Std)", "OST_Railings" },                         // alias of OST_StairsRailing
+                { "Rebar Coupler", "OST_Coupler" },                           // alias of OST_RebarCoupler
+                { "Cornices", "OST_Cornices" },                               // alias of OST_WallSweeps
+                { "Toposolid Link", "OST_ToposolidLink" },                    // distinct enum — was previously folded into OST_Toposolid
+
+                // ── Tie-in point variant tag families (ISO 19650-3) ───────────
+                { "Tie-In Point (Pipe)", "OST_PipeCurves" },
+                { "Tie-In Point (Duct)", "OST_DuctCurves" },
+                { "Tie-In Point (Conduit)", "OST_Conduit" },
+                { "Tie-In Point (Cable Tray)", "OST_CableTray" },
+                { "Tie-In Point (Fire Protection)", "OST_Sprinklers" },
+                { "Tie-In Point (Gas)", "OST_GenericModel" },
+                { "Tie-In Point (Fire Protection Pipe)", "OST_PipeCurves" },
+                { "Tie-In Point (Gas Pipe)", "OST_PipeCurves" },
+
+                // ── Discipline-specific sheet tag variants ────────────────────
+                { "Sheets (Architectural)", "OST_Sheets" },
+                { "Sheets (MEP)", "OST_Sheets" },
+                { "Sheets (Structural)", "OST_Sheets" },
+
+                // ── Structural variant tag families ───────────────────────────
+                { "Floors (Structural)", "OST_Floors" },
+                { "Walls (Structural/Load-bearing)", "OST_Walls" },
+                { "Structural Framing (Bracing)", "OST_StructuralFraming" },
+                { "Columns (Architectural)", "OST_Columns" },
+
+                // ── MEP variant tag family ────────────────────────────────────
+                { "MEP Sleeve (Fire-rated penetration)", "OST_GenericModel" },
             };
 
             // Set UniversalCategories to the full category list so
             // ResolveUniversalCategoryEnums returns all categories even without JSON.
-            // CRITICAL: Exclude "Materials" — material-specific params are bound via
-            // BuildGroupCategoryOverrides() in LoadSharedParamsCommand. Including Materials
-            // here would bind ALL 2300+ parameters to OST_Materials, polluting every
-            // material's custom properties panel in Revit.
+            // CRITICAL: Exclude "Materials" and any "Materials"-suffix variant —
+            // material-specific params are bound via BuildGroupCategoryOverrides()
+            // in LoadSharedParamsCommand. Including Materials here would bind
+            // ALL 2300+ parameters to OST_Materials, polluting every material's
+            // custom properties panel in Revit.
             UniversalCategories = CategoryEnumMap.Keys
                 .Where(k => !k.Equals("Materials", StringComparison.OrdinalIgnoreCase))
                 .ToArray();
@@ -2014,14 +2215,101 @@ namespace StingTools.Core
 
         /// <summary>
         /// Read all 8 token values from an element into an array matching AllTokenParams order.
+        /// Sanitises each value so malformed upstream writes (e.g. a PROD token
+        /// accidentally set to "Plumbing FixturesRAINSHOWER Shower Set" or to a
+        /// previously-assembled full tag) cannot propagate into TAG1 / TAG7 /
+        /// discipline containers on subsequent pipeline runs.
+        ///
+        /// Sanitisation rules (applied per-slot, only touching obviously malformed data):
+        ///   1. Strip any content after the configured separator — a token may
+        ///      never contain the separator since that produces a double-join.
+        ///   2. Trim whitespace; reject values that still contain inner whitespace
+        ///      (real ISO 19650 codes are whitespace-free identifiers like DCW,
+        ///      AHU, BLD1) — replaced with empty so BuildAndWriteTag re-derives.
+        ///   3. Cap length at 40 chars (real codes are ≤ 8). Longer values are
+        ///      treated as corruption and cleared.
+        /// The first three occurrences per session are logged; further instances
+        /// are counted but not spammed into the log.
         /// </summary>
         public static string[] ReadTokenValues(Element el)
         {
             EnsureLoaded();
             string[] values = new string[AllTokenParams.Length];
             for (int i = 0; i < AllTokenParams.Length; i++)
-                values[i] = ParameterHelpers.GetString(el, AllTokenParams[i]);
+            {
+                string raw = ParameterHelpers.GetString(el, AllTokenParams[i]);
+                values[i] = SanitiseTokenValue(raw, AllTokenParams[i], el);
+            }
             return values;
+        }
+
+        // PROD-CONCAT-FIX: session-scoped counters so a noisy batch doesn't drown
+        // the log but operators can still see that sanitisation was needed.
+        private static int _tokenSanitiseLogCount = 0;
+        private static int _tokenSanitiseSuppressed = 0;
+        private const int _tokenSanitiseLogCap = 3;
+
+        /// <summary>
+        /// PROD-CONCAT-FIX: Defensive token sanitiser. Returns a clean token value
+        /// (possibly empty) whenever the stored parameter looks like a concatenation
+        /// or a carry-over of an earlier full tag. Callers treat an empty string
+        /// as "re-derive on next tag build", which is the safe behaviour.
+        /// </summary>
+        private static string SanitiseTokenValue(string raw, string paramName, Element el)
+        {
+            if (string.IsNullOrEmpty(raw)) return "";
+            string v = raw;
+            string sep = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+
+            // Rule 1: drop anything after the separator — a well-formed token
+            // can never contain it.
+            int sepIdx = v.IndexOf(sep, StringComparison.Ordinal);
+            if (sepIdx >= 0)
+            {
+                LogTokenSanitise(paramName, raw, "contains separator", el);
+                v = v.Substring(0, sepIdx);
+            }
+
+            // Rule 2: reject values with inner whitespace.
+            string trimmed = v.Trim();
+            if (trimmed.Length != v.Length) v = trimmed;
+            if (!string.IsNullOrEmpty(v))
+            {
+                for (int j = 0; j < v.Length; j++)
+                {
+                    if (char.IsWhiteSpace(v[j]))
+                    {
+                        LogTokenSanitise(paramName, raw, "contains whitespace", el);
+                        return "";
+                    }
+                }
+            }
+
+            // Rule 3: cap length. Real ISO 19650 codes are ≤ 8 chars;
+            // 40 leaves head-room for unusual but legitimate values.
+            if (v.Length > 40)
+            {
+                LogTokenSanitise(paramName, raw, $"length {v.Length} exceeds safe cap", el);
+                return "";
+            }
+
+            return v;
+        }
+
+        private static void LogTokenSanitise(string paramName, string raw, string reason, Element el)
+        {
+            int n = System.Threading.Interlocked.Increment(ref _tokenSanitiseLogCount);
+            if (n <= _tokenSanitiseLogCap)
+            {
+                string elRef = el != null ? $"element {el.Id.Value}" : "(no element)";
+                StingLog.Warn($"Token sanitise: '{paramName}'='{raw}' on {elRef} — {reason}. Cleaning before reuse.");
+            }
+            else
+            {
+                System.Threading.Interlocked.Increment(ref _tokenSanitiseSuppressed);
+                if (n == _tokenSanitiseLogCap + 1)
+                    StingLog.Warn("Token sanitise: further occurrences suppressed this session (counter kept in ParamRegistry._tokenSanitiseSuppressed).");
+            }
         }
 
         /// <summary>
@@ -2042,7 +2330,7 @@ namespace StingTools.Core
                 ["S"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "STR_", "MAT_" },
                 ["FP"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "FLS_", "MAT_" },
                 ["LV"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "COM_", "SEC_", "NCL_", "ICT_", "MAT_" },
-                ["G"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "MAT_" },
+                ["G"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "MAT_", "SLV_" },
             };
 
         /// <summary>FUT-20: Check if a container param is relevant for the given discipline.</summary>
@@ -2058,6 +2346,10 @@ namespace StingTools.Core
             return false;
         }
 
+        /// <summary>FUT-20 public accessor for ComplianceScan discipline filtering.</summary>
+        public static bool IsContainerRelevantForDiscPublic(string paramName, string disc)
+            => IsContainerRelevantForDisc(paramName, disc);
+
         public static int WriteContainers(Element el, string[] tokenValues, string categoryName,
             bool overwrite = true, string skipParam = null)
         {
@@ -2066,6 +2358,10 @@ namespace StingTools.Core
 
             // FUT-20: Get discipline code for selective container writes (60-80% fewer writes)
             string disc = tokenValues.Length > 0 ? tokenValues[0] : null;
+
+            // ORPHAN-FIX: honour the Tokens & Depth sub-tab container checkboxes.
+            // User can disable any group (ARCH / MEP / STR / GEN / discipline / TAG1..7).
+            HashSet<string> allowedGroupCodes = LoadAllowedContainerGroups();
 
             var containers = ContainersForCategory(categoryName);
             foreach (var c in containers)
@@ -2077,6 +2373,10 @@ namespace StingTools.Core
                 // FUT-20: Skip containers not relevant for this element's discipline
                 if (!IsContainerRelevantForDisc(c.ParamName, disc)) continue;
 
+                // ORPHAN-FIX: Skip containers whose group the user has de-selected.
+                if (allowedGroupCodes != null && !IsContainerInAllowedGroup(c.ParamName, allowedGroupCodes))
+                    continue;
+
                 string assembled = AssembleContainer(c, tokenValues);
                 if (!string.IsNullOrEmpty(assembled))
                 {
@@ -2087,6 +2387,68 @@ namespace StingTools.Core
                 }
             }
             return written;
+        }
+
+        /// <summary>
+        /// ORPHAN-FIX: Parse the TagContainers ExtraParam (set by the Tokens &amp;
+        /// Depth sub-tab) into a HashSet of allowed group codes. Returns null
+        /// when the user hasn't pushed a selection yet — callers treat null as
+        /// "accept everything".
+        /// </summary>
+        private static HashSet<string> LoadAllowedContainerGroups()
+        {
+            try
+            {
+                string csv = StingTools.UI.StingCommandHandler.GetExtraParam("TagContainers");
+                if (string.IsNullOrWhiteSpace(csv)) return null;
+                var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (string raw in csv.Split(','))
+                {
+                    string tok = raw?.Trim();
+                    if (!string.IsNullOrEmpty(tok)) set.Add(tok);
+                }
+                return set.Count == 0 ? null : set;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// ORPHAN-FIX: Decide whether a given container parameter name belongs
+        /// to one of the allowed groups. TAG1..TAG6 are treated as a separate
+        /// group code each (matching the sub-tab checkboxes); everything else
+        /// is matched against discipline prefixes so that a user-disabled
+        /// "MEP" group suppresses HVC_* / PLM_* / ELC_* containers.
+        /// </summary>
+        private static bool IsContainerInAllowedGroup(string paramName, HashSet<string> allowed)
+        {
+            if (string.IsNullOrEmpty(paramName) || allowed == null) return true;
+            // Universal TAG1..TAG6
+            for (int i = 1; i <= 6; i++)
+            {
+                string t = "ASS_TAG_" + i;
+                if (paramName.StartsWith(t, StringComparison.OrdinalIgnoreCase))
+                    return allowed.Contains("TAG" + i);
+            }
+            // Discipline-keyed containers
+            bool MEP = paramName.StartsWith("HVC_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("PLM_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("ELC_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("ELE_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("LTG_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("FLS_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("COM_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("SEC_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("NCL_", StringComparison.OrdinalIgnoreCase)
+                    || paramName.StartsWith("ICT_", StringComparison.OrdinalIgnoreCase);
+            if (MEP) return allowed.Contains("MEP") || allowed.Contains("M") || allowed.Contains("E")
+                || allowed.Contains("P") || allowed.Contains("FP") || allowed.Contains("LV");
+            bool ARCH = paramName.StartsWith("ARC_", StringComparison.OrdinalIgnoreCase)
+                     || paramName.StartsWith("ASS_", StringComparison.OrdinalIgnoreCase);
+            if (ARCH) return allowed.Contains("ARCH") || allowed.Contains("A") || allowed.Contains("GEN");
+            bool STR = paramName.StartsWith("STR_", StringComparison.OrdinalIgnoreCase);
+            if (STR) return allowed.Contains("STR") || allowed.Contains("S");
+            // Unknown prefix — allow unless user has fully locked down (no GEN ticked either)
+            return allowed.Contains("GEN") || allowed.Contains("G");
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -2122,5 +2484,128 @@ namespace StingTools.Core
             public string Description { get; set; }
             public string[] Categories { get; set; }
         }
+
+        #region V4 placement + CPC parameters
+
+        // ASS_PLACE_ANCHOR_TXT — anchor reference used by FixturePlacementEngine (e.g. "DOOR_HINGE", "ROOM_CENTRE", "WALL_MIDPOINT")
+        public const string PLACE_ANCHOR = "ASS_PLACE_ANCHOR_TXT";
+        public const string PLACE_ANCHOR_GUID = "a4b5c6d7-e8f9-4a0b-8c1d-2e3f4a5b6c7d";
+
+        // ASS_PLACE_OFFSET_X_MM — signed horizontal offset from anchor in millimetres
+        public const string PLACE_OFFSET_X_MM = "ASS_PLACE_OFFSET_X_MM";
+        public const string PLACE_OFFSET_X_MM_GUID = "b5c6d7e8-f9a0-4b1c-9d2e-3f4a5b6c7d8e";
+
+        // ASS_PLACE_SIDE_TXT — wall/host side flag ("LEFT", "RIGHT", "EITHER")
+        public const string PLACE_SIDE = "ASS_PLACE_SIDE_TXT";
+        public const string PLACE_SIDE_GUID = "c6d7e8f9-a0b1-4c2d-ae3f-4a5b6c7d8e9f";
+
+        // ELC_CPC_SZ_MM — circuit protective conductor size in mm² per BS 7671
+        public const string CPC_SZ_MM = "ELC_CPC_SZ_MM";
+        public const string CPC_SZ_MM_GUID = "d7e8f9a0-b1c2-4d3e-bf4a-5b6c7d8e9fa0";
+
+        // PLM_PPE_INSULATION_THK_MM — pipe insulation thickness in millimetres
+        public const string PPE_INSULATION_THK_MM = "PLM_PPE_INSULATION_THK_MM";
+        public const string PPE_INSULATION_THK_MM_GUID = "e8f9a0b1-c2d3-4e4f-ca5b-6c7d8e9fa0b1";
+
+        // PLM_SLOPE_PCT — drainage pipe slope per BS EN 12056 (1:80 default for sanitary)
+        public const string PLM_SLOPE_PCT_V4 = "PLM_SLOPE_PCT";
+        public const string PLM_SLOPE_PCT_V4_GUID = "f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2";
+
+        #endregion
+
+        #region V6 / Tier 4-10 parameters
+        //
+        // Parameters backing tag label tiers T4..T10 (schema v5.3 — see STING_TAG_CONFIG_v5_0_*.csv).
+        // All GUIDs follow the placeholder pattern `5753b5aa-000T-4000-8000-0000000000PP`
+        // where T is the tier (4..a hex) and PP is the per-tier row index. Pattern is valid hex
+        // so Guid.TryParse succeeds — essential for the families to bind via shared parameters.
+        // Each constant is also mirrored into PARAMETER_REGISTRY.json extended_params.tier_4_10
+        // so ParamRegistry.GetGuid() resolves correctly at runtime.
+        //
+        // NOTE: The earlier `v6-0001-...` pseudo-GUIDs were invalid hex and silently dropped out
+        // of _guidByName. This region replaces them with valid-hex placeholders. Real stable
+        // GUIDs will be assigned during family-library authoring (same policy as the v4 region).
+
+        // --- T4: Commissioning & handover (N-G16 QR workflow) ---
+        public const string COMM_STATE_TXT               = "COMM_STATE_TXT";
+        public const string COMM_STATE_TXT_GUID          = "5753b5aa-0004-4000-8000-000000000001";
+        public const string COMM_DATE_TXT                = "COMM_DATE_TXT";
+        public const string COMM_DATE_TXT_GUID           = "5753b5aa-0004-4000-8000-000000000002";
+        public const string COMM_OPERATIVE_TXT           = "COMM_OPERATIVE_TXT";
+        public const string COMM_OPERATIVE_TXT_GUID      = "5753b5aa-0004-4000-8000-000000000003";
+        public const string COMM_WITNESS_TXT             = "COMM_WITNESS_TXT";
+        public const string COMM_WITNESS_TXT_GUID        = "5753b5aa-0004-4000-8000-000000000010";
+        public const string COMM_NOTES_TXT               = "COMM_NOTES_TXT";
+        public const string COMM_NOTES_TXT_GUID          = "5753b5aa-0004-4000-8000-000000000011";
+
+        // --- T5: Cost & procurement (N-G12 install/labour + UGX/USD quote) ---
+        public const string CST_UG_PRICE_UGX             = "CST_UG_PRICE_UGX";
+        public const string CST_UG_PRICE_UGX_GUID        = "5753b5aa-0005-4000-8000-000000000001";
+        public const string CST_INTL_PRICE_USD           = "CST_INTL_PRICE_USD";
+        public const string CST_INTL_PRICE_USD_GUID      = "5753b5aa-0005-4000-8000-000000000002";
+        public const string CST_QUOTE_REF_TXT            = "CST_QUOTE_REF_TXT";
+        public const string CST_QUOTE_REF_TXT_GUID       = "5753b5aa-0005-4000-8000-000000000003";
+        public const string CST_INSTALL_HRS              = "CST_INSTALL_HRS";
+        public const string CST_INSTALL_HRS_GUID         = "5753b5aa-0005-4000-8000-000000000010";
+        public const string CST_LABOUR_CREW_TXT          = "CST_LABOUR_CREW_TXT";
+        public const string CST_LABOUR_CREW_TXT_GUID     = "5753b5aa-0005-4000-8000-000000000011";
+        public const string CST_LABOUR_RATE_GBP          = "CST_LABOUR_RATE_GBP";
+        public const string CST_LABOUR_RATE_GBP_GUID     = "5753b5aa-0005-4000-8000-000000000012";
+
+        // --- T6: Carbon & sustainability (N-G13 — ISO 14064 / BS EN 15978) ---
+        public const string CBN_A1_A3_KG_CO2E            = "CBN_A1_A3_KG_CO2E";
+        public const string CBN_A1_A3_KG_CO2E_GUID       = "5753b5aa-0006-4000-8000-000000000001";
+        public const string CBN_A4_KG_CO2E               = "CBN_A4_KG_CO2E";
+        public const string CBN_A4_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000002";
+        public const string CBN_B6_KG_CO2E_YR            = "CBN_B6_KG_CO2E_YR";
+        public const string CBN_B6_KG_CO2E_YR_GUID       = "5753b5aa-0006-4000-8000-000000000003";
+        public const string CBN_A5_KG_CO2E               = "CBN_A5_KG_CO2E";
+        public const string CBN_A5_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000010";
+        public const string CBN_C1_KG_CO2E               = "CBN_C1_KG_CO2E";
+        public const string CBN_C1_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000011";
+        public const string CBN_C2_KG_CO2E               = "CBN_C2_KG_CO2E";
+        public const string CBN_C2_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000012";
+        public const string CBN_C3_C4_KG_CO2E            = "CBN_C3_C4_KG_CO2E";
+        public const string CBN_C3_C4_KG_CO2E_GUID       = "5753b5aa-0006-4000-8000-000000000013";
+
+        // --- T7: Fabrication & QC (BS EN ISO 6412 spool / QC inspector chain) ---
+        public const string ASS_SPOOL_NR_TXT             = "ASS_SPOOL_NR_TXT";
+        public const string ASS_SPOOL_NR_TXT_GUID        = "5753b5aa-0007-4000-8000-000000000001";
+        public const string ASS_FAB_STATUS_TXT           = "ASS_FAB_STATUS_TXT";
+        public const string ASS_FAB_STATUS_TXT_GUID      = "5753b5aa-0007-4000-8000-000000000002";
+        public const string ASS_QC_INSPECTOR_TXT         = "ASS_QC_INSPECTOR_TXT";
+        public const string ASS_QC_INSPECTOR_TXT_GUID    = "5753b5aa-0007-4000-8000-000000000003";
+
+        // --- T8: Clash triage + resolution (N-G5 / N-G6) ---
+        public const string CLASH_TRIAGE_SEVERITY_NR     = "CLASH_TRIAGE_SEVERITY_NR";
+        public const string CLASH_TRIAGE_SEVERITY_NR_GUID = "5753b5aa-0008-4000-8000-000000000001";
+        public const string CLASH_TRIAGE_CATEGORY_TXT    = "CLASH_TRIAGE_CATEGORY_TXT";
+        public const string CLASH_TRIAGE_CATEGORY_TXT_GUID = "5753b5aa-0008-4000-8000-000000000002";
+        public const string CLASH_RESOLUTION_STATUS_TXT  = "CLASH_RESOLUTION_STATUS_TXT";
+        public const string CLASH_RESOLUTION_STATUS_TXT_GUID = "5753b5aa-0008-4000-8000-000000000003";
+        public const string CLASH_TRIAGE_SCORE           = "CLASH_TRIAGE_SCORE";
+        public const string CLASH_TRIAGE_SCORE_GUID      = "5753b5aa-0008-4000-8000-000000000010";
+        public const string CLASH_RESOLUTION_ACTION_TXT  = "CLASH_RESOLUTION_ACTION_TXT";
+        public const string CLASH_RESOLUTION_ACTION_TXT_GUID = "5753b5aa-0008-4000-8000-000000000011";
+
+        // --- T9: As-built reconciliation & model health (N-G4 / N-G9) ---
+        public const string ASBUILT_DEVIATION_MM         = "ASBUILT_DEVIATION_MM";
+        public const string ASBUILT_DEVIATION_MM_GUID    = "5753b5aa-0009-4000-8000-000000000001";
+        public const string ASBUILT_CAPTURE_DATE_TXT     = "ASBUILT_CAPTURE_DATE_TXT";
+        public const string ASBUILT_CAPTURE_DATE_TXT_GUID = "5753b5aa-0009-4000-8000-000000000002";
+        public const string HEALTH_SCORE_LAST_NR         = "HEALTH_SCORE_LAST_NR";
+        public const string HEALTH_SCORE_LAST_NR_GUID    = "5753b5aa-0009-4000-8000-000000000003";
+        public const string HEALTH_SCORE_DATE_TXT        = "HEALTH_SCORE_DATE_TXT";
+        public const string HEALTH_SCORE_DATE_TXT_GUID   = "5753b5aa-0009-4000-8000-000000000010";
+
+        // --- T10: Compliance / audit trail (N-G8 ACC round-trip + N-G14 IFC PSet) ---
+        public const string IFC_PSET_OVERRIDE_TXT        = "IFC_PSET_OVERRIDE_TXT";
+        public const string IFC_PSET_OVERRIDE_TXT_GUID   = "5753b5aa-000a-4000-8000-000000000001";
+        public const string ACC_ISSUE_ID_TXT             = "ACC_ISSUE_ID_TXT";
+        public const string ACC_ISSUE_ID_TXT_GUID        = "5753b5aa-000a-4000-8000-000000000002";
+        public const string ACC_SYNC_STATUS_TXT          = "ACC_SYNC_STATUS_TXT";
+        public const string ACC_SYNC_STATUS_TXT_GUID     = "5753b5aa-000a-4000-8000-000000000003";
+
+        #endregion
     }
 }

@@ -12,6 +12,15 @@ public class OfflineQueue
     private readonly string _queueDir;
     private readonly object _lock = new();
 
+    // ── Static facade ─────────────────────────────────────────────────────
+    // The SyncScheduler sets a process-wide shared instance when it starts, so
+    // plugin code (e.g. OnDocumentSaved hooks) can enqueue without holding a
+    // direct reference to the scheduler. Null when the scheduler isn't running
+    // — callers should null-check before enqueueing.
+    private static OfflineQueue? _shared;
+    public static OfflineQueue? Shared => _shared;
+    internal static void SetShared(OfflineQueue? queue) => _shared = queue;
+
     public OfflineQueue(string queueDirectory)
     {
         _queueDir = queueDirectory;
@@ -101,14 +110,44 @@ public class OfflineQueue
     /// Drain all queued payloads through the sync client.
     /// Returns the number of successfully synced payloads.
     /// </summary>
-    public async Task<int> DrainAsync(SyncClient client)
+    public Task<int> DrainAsync(SyncClient client) => DrainAsync(client, null);
+
+    /// <summary>
+    /// Drain queued payloads, optionally filtering elements by discipline (INT-08).
+    /// When <paramref name="disciplineFilter"/> is non-null, payloads keep only the
+    /// elements matching the allow-list. Empty payloads after filtering are skipped
+    /// (they remain in the queue for the next drain that uses a wider filter).
+    /// </summary>
+    public async Task<int> DrainAsync(SyncClient client, HashSet<string>? disciplineFilter)
     {
         var queued = PeekAll();
         int synced = 0;
 
         foreach (var (filePath, payload) in queued)
         {
-            var result = await client.SyncAsync(payload);
+            var toSend = payload;
+            if (disciplineFilter != null && disciplineFilter.Count > 0 && payload.TagElements != null)
+            {
+                var filtered = payload.TagElements
+                    .Where(el => string.IsNullOrEmpty(el.Disc) || disciplineFilter.Contains(el.Disc))
+                    .ToList();
+                if (filtered.Count == 0) continue;       // leave for a later, wider drain
+                toSend = new PluginSyncPayload
+                {
+                    ProjectId = payload.ProjectId,
+                    PluginVersion = payload.PluginVersion,
+                    RevitVersion = payload.RevitVersion,
+                    UserName = payload.UserName,
+                    Timestamp = payload.Timestamp,
+                    SeqCounters = payload.SeqCounters,
+                    Compliance = payload.Compliance,
+                    Issues = payload.Issues,
+                    WorkflowRuns = payload.WorkflowRuns,
+                    TagElements = filtered,
+                };
+            }
+
+            var result = await client.SyncAsync(toSend);
             if (result.Success)
             {
                 Dequeue(filePath);
@@ -116,8 +155,7 @@ public class OfflineQueue
             }
             else
             {
-                // Stop on first failure — server likely down
-                break;
+                break; // server likely down
             }
         }
 

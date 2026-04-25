@@ -408,6 +408,17 @@ namespace StingTools.Core
                     return;
                 }
 
+                // Cache per-event properties we'd otherwise resolve for every
+                // element: Application.Username crosses a P/Invoke boundary and
+                // IsWorkshared walks the document state.
+                string currentUser = null;
+                bool isWorkshared = false;
+                try { isWorkshared = doc.IsWorkshared; } catch { }
+                if (isWorkshared)
+                {
+                    try { currentUser = doc.Application.Username; } catch { }
+                }
+
                 foreach (ElementId id in addedIds)
                 {
                     // Skip recently processed (avoid re-trigger loops)
@@ -429,7 +440,7 @@ namespace StingTools.Core
                     }
 
                     // Workset filter — R-02: defer elements on unowned worksets instead of dropping
-                    if (doc.IsWorkshared)
+                    if (isWorkshared)
                     {
                         try
                         {
@@ -438,11 +449,11 @@ namespace StingTools.Core
                             {
                                 var wsInfo = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
                                 if (!string.IsNullOrEmpty(wsInfo.Owner)
-                                    && wsInfo.Owner != doc.Application.Username
+                                    && wsInfo.Owner != currentUser
                                     && wsInfo.Owner != "")
                                 {
                                     EnqueueDeferred(id);
-                                    StingLog.Info($"AutoTagger: deferred {id.Value} (workset not owned by {doc.Application.Username}) — will retry after sync");
+                                    StingLog.Info($"AutoTagger: deferred {id.Value} (workset not owned by {currentUser}) — will retry after sync");
                                     continue;
                                 }
                             }
@@ -570,8 +581,18 @@ namespace StingTools.Core
                                                 XYZ[] candidates = Tags.TagPlacementEngine.GetCandidateOffsets(offset);
                                                 XYZ bestPos = elCenter + candidates[preferred < candidates.Length ? preferred : 0];
 
+                                                // Task 5: variant resolution before IndependentTag.Create
+                                                ElementId tagTypeId = tagType.Id;
+                                                try
+                                                {
+                                                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                                                    ElementId vId = Tags.TagStyleEngine.ResolveTagTypeForPlacement(doc, tagType, disc);
+                                                    if (vId != ElementId.InvalidElementId) tagTypeId = vId;
+                                                }
+                                                catch (Exception ex) { StingLog.Warn($"ResolveTagTypeForPlacement (autotagger): {ex.Message}"); }
+
                                                 IndependentTag.Create(
-                                                    doc, tagType.Id, view.Id, new Reference(el),
+                                                    doc, tagTypeId, view.Id, new Reference(el),
                                                     false, TagOrientation.Horizontal, bestPos);
                                             }
                                         }
@@ -798,6 +819,8 @@ namespace StingTools.Core
         /// <summary>Build a multi-category filter covering all tagged categories.</summary>
         private static ElementMulticategoryFilter CreateMultiCategoryFilter()
         {
+            // Built-in default list. Mutated in place when the Categories sub-tab
+            // has pushed TagCategoryFilter / TagCategoryExclusions ExtraParams.
             var cats = new List<BuiltInCategory>
             {
                 BuiltInCategory.OST_MechanicalEquipment,
@@ -823,7 +846,57 @@ namespace StingTools.Core
                 BuiltInCategory.OST_CableTray,
                 BuiltInCategory.OST_Conduit,
             };
+
+            // ORPHAN-FIX: honour the Categories sub-tab selection. Include list
+            // replaces the default set; exclude list is subtracted from whatever
+            // remains. Unknown tokens are logged once and skipped.
+            try
+            {
+                string includeCsv = StingTools.UI.StingCommandHandler.GetExtraParam("TagCategoryFilter");
+                string excludeCsv = StingTools.UI.StingCommandHandler.GetExtraParam("TagCategoryExclusions");
+                if (!string.IsNullOrWhiteSpace(includeCsv))
+                {
+                    var parsed = ParseBuiltInCategoryCsv(includeCsv);
+                    if (parsed.Count > 0) cats = parsed;
+                }
+                if (!string.IsNullOrWhiteSpace(excludeCsv))
+                {
+                    var excl = ParseBuiltInCategoryCsv(excludeCsv);
+                    if (excl.Count > 0)
+                        cats = cats.Where(c => !excl.Contains(c)).ToList();
+                }
+                if (cats.Count == 0)
+                {
+                    // Safety net: never hand Revit an empty filter, which would match nothing.
+                    StingLog.Warn("CreateMultiCategoryFilter: user selection produced empty list — falling back to single-category placeholder.");
+                    cats.Add(BuiltInCategory.OST_GenericModel);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CreateMultiCategoryFilter: applying Categories sub-tab selection failed ({ex.Message}) — using built-in list.");
+            }
+
             return new ElementMulticategoryFilter(cats);
+        }
+
+        /// <summary>
+        /// Parse a comma-separated list of BuiltInCategory names (e.g.
+        /// "OST_PlumbingFixtures,OST_Doors") to a deduplicated list. Invalid
+        /// tokens are silently skipped — callers warn when the result is empty.
+        /// </summary>
+        private static List<BuiltInCategory> ParseBuiltInCategoryCsv(string csv)
+        {
+            var seen = new HashSet<BuiltInCategory>();
+            var result = new List<BuiltInCategory>();
+            foreach (string raw in csv.Split(','))
+            {
+                string tok = raw?.Trim();
+                if (string.IsNullOrEmpty(tok)) continue;
+                if (Enum.TryParse<BuiltInCategory>(tok, ignoreCase: true, out var bic) && seen.Add(bic))
+                    result.Add(bic);
+            }
+            return result;
         }
     }
 

@@ -220,6 +220,23 @@ namespace StingTools.Core
             items.Add(new DeliverableItem { Name = "Drawing Register", Milestone = "DD2", CommandTag = "DrawingRegisterSync" });
             items.Add(new DeliverableItem { Name = "Schedule Validation", Milestone = "DD2", CommandTag = "CrossScheduleValidate" });
 
+            // Phase 108k Item 9 — Bill of Quantities (NRM2) sits at DD2 per
+            // RIBA Plan of Work. Completion = BOQ snapshot saved AND a
+            // Tender BOQ XLSX has been exported at least once.
+            try
+            {
+                var boqRow = StingTools.BOQ.BOQBccBridge.GetBOQDeliverableRow(doc, "DD2");
+                items.Add(new DeliverableItem
+                {
+                    Name = boqRow.Name,
+                    Milestone = boqRow.Milestone,
+                    CommandTag = boqRow.CommandTag,
+                    Status = boqRow.Complete ? "Complete" : "InProgress",
+                    CompletionPct = boqRow.Complete ? 100 : 40
+                });
+            }
+            catch (Exception ex) { StingLog.Warn($"BOQ deliverable row: {ex.Message}"); }
+
             // DD3 — Production
             items.Add(new DeliverableItem { Name = "COBie V2.4 Export", Milestone = "DD3", CommandTag = "COBieExport" });
             items.Add(new DeliverableItem { Name = "Tag Register CSV", Milestone = "DD3", CommandTag = "TagRegisterExport" });

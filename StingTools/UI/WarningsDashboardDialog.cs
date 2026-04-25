@@ -418,49 +418,45 @@ namespace StingTools.UI
                 // Store per-group checkbox list
                 var groupChecks = new List<CheckBox>();
 
-                // Sample warning items — these will be populated at runtime by the dispatch handler
-                // which reads actual Revit warnings. Here we create placeholder structure.
+                // Phase 104 fix: consume real CoordData.Warnings from the
+                // live BCC instance instead of the hardcoded sample arrays
+                // that used to fall through here. Previously the tree
+                // rendered the same 18 warning types for every project
+                // because the dispatch handler was supposed to rewrite them
+                // at runtime but never did. Now we group the real
+                // WarningRow list (populated from WarningsEngine.ScanWarnings
+                // in BuildCoordData) by severity and emit one entry per
+                // unique description within the group, with real FailingElement
+                // IDs already stored on each row for the ZoomToWarning path
+                // to use.
+                var realWarnings = BIMCoordinationCenter.GetLastCoordWarnings() ?? new List<BIMCoordinationCenter.WarningRow>();
+                var groupedWarnings = realWarnings
+                    .Where(w => w != null && string.Equals(w.Severity, severity, StringComparison.OrdinalIgnoreCase))
+                    .GroupBy(w => w.Description ?? "(unknown)")
+                    .Select(g => new {
+                        Desc = g.Key,
+                        Cat  = g.FirstOrDefault()?.Category ?? "Unknown",
+                        Count = g.Sum(w => w.ElementCount),
+                        Ids   = g.SelectMany(w => w.ElementIds ?? new List<long>()).Distinct().ToList()
+                    })
+                    .OrderByDescending(g => g.Count)
+                    .ToList();
+
                 string[] sampleWarnings;
-                switch (severity)
+                if (groupedWarnings.Count > 0)
                 {
-                    case "CRITICAL":
-                        sampleWarnings = new[]
-                        {
-                            "Host has been deleted|Data|1",
-                            "Room is not in a properly enclosed region|Spatial|3",
-                            "Highlighted walls overlap|Geometric|2",
-                            "Elements have duplicate instance values|Data|5"
-                        };
-                        break;
-                    case "HIGH":
-                        sampleWarnings = new[]
-                        {
-                            "Room separation line overlaps another|Spatial|4",
-                            "Duplicate mark values|Data|8",
-                            "Elements are joined but do not intersect|Geometric|2",
-                            "Cannot be placed on non-structural host|Geometric|1",
-                            "Minimum clearance not met|Compliance|3"
-                        };
-                        break;
-                    case "MEDIUM":
-                        sampleWarnings = new[]
-                        {
-                            "Wall is slightly off axis|Geometric|6",
-                            "Room tag is outside of its room|Spatial|2",
-                            "Calculated size not available|MEP|4",
-                            "Model Line is too short|Geometric|3",
-                            "Opening cut is not perpendicular|Geometric|1"
-                        };
-                        break;
-                    default: // LOW
-                        sampleWarnings = new[]
-                        {
-                            "Wall join produces an odd result|Geometric|7",
-                            "Wall is attached|Geometric|2",
-                            "Coincident lines or edges|Geometric|3",
-                            "Not properly associated|Data|1"
-                        };
-                        break;
+                    sampleWarnings = groupedWarnings
+                        .Select(g => $"{g.Desc}|{g.Cat}|{g.Count}")
+                        .ToArray();
+                }
+                else
+                {
+                    // Fallback — model is clean for this severity, or the BCC
+                    // wasn't initialised through BIMCoordinationCenterCommand
+                    // (e.g. the Warnings dashboard was opened standalone).
+                    // Render an explicit "no warnings" placeholder instead of
+                    // the misleading sample list.
+                    sampleWarnings = new[] { $"(no {severity.ToLower()} warnings in this model)|—|0" };
                 }
 
                 int groupTotal = 0;
@@ -534,6 +530,29 @@ namespace StingTools.UI
                             capturedSeverity, capturedCategory, capturedCount);
                     };
 
+                    // Phase 101: double-click a warning row now FIRES the
+                    // action immediately instead of only flagging it and
+                    // waiting for the user to click Run. The action resolves
+                    // real element IDs via doc.GetWarnings() description
+                    // matching inside BIMCoordinationCenterCommand.ProcessAction
+                    // (ZoomToWarning_ pattern), so this works even though the
+                    // tree itself is still populated from the sample-warnings
+                    // catalogue — the lookup is against the live document.
+                    warnItem.MouseDoubleClick += (s, e) =>
+                    {
+                        e.Handled = true;
+                        string encoded = (capturedDesc ?? "").Replace("|", "/");
+                        string op = $"ZoomToWarning_{encoded}";
+                        if (state != null)
+                        {
+                            state.SelectedOperation = op;
+                            if (state.StatusText != null)
+                                state.StatusText.Text = $"Zoom to: {capturedDesc}";
+                        }
+                        else _selectedOperation = op;
+                        BIMCoordinationCenter.ActionDispatcher?.Invoke(op);
+                    };
+
                     // Lazy expand: placeholder child replaced with element IDs on expand
                     warnItem.Items.Add(new TreeViewItem { Header = new TextBlock { Text = "Loading elements...", FontSize = 10, FontStyle = FontStyles.Italic, Foreground = BrFgSubtle } });
                     warnItem.Expanded += (s, e) =>
@@ -552,11 +571,31 @@ namespace StingTools.UI
                                     Header = new TextBlock { Text = $"Element #{capturedEid}", FontSize = 10, Foreground = BrFgSubtle },
                                     Cursor = Cursors.Hand, ToolTip = "Double-click: Select & Zoom | Right-click for options"
                                 };
+                                // Phase 101: double-click an element row now
+                                // FIRES a ZoomToWarning action against the
+                                // parent warning's description — the sample
+                                // tree uses placeholder element IDs that
+                                // don't resolve, so dispatching the parent
+                                // description-level action through
+                                // doc.GetWarnings() selects the real matching
+                                // elements in the model instead of silently
+                                // failing on the fake IDs.
                                 eidItem.MouseDoubleClick += (s2, e2) =>
                                 {
                                     e2.Handled = true;
-                                    if (state != null) { state.SelectedOperation = $"SelectElement_{capturedEid}"; state.StatusText?.Dispatcher.Invoke(() => { if (state.StatusText != null) state.StatusText.Text = $"Select element {capturedEid}. Click Run."; }); }
-                                    else { _selectedOperation = $"SelectElement_{capturedEid}"; }
+                                    string parentDesc = (capturedDesc ?? "").Replace("|", "/");
+                                    string op = $"ZoomToWarning_{parentDesc}";
+                                    if (state != null)
+                                    {
+                                        state.SelectedOperation = op;
+                                        state.StatusText?.Dispatcher.Invoke(() =>
+                                        {
+                                            if (state.StatusText != null)
+                                                state.StatusText.Text = $"Zoom to elements affected by: {capturedDesc}";
+                                        });
+                                    }
+                                    else _selectedOperation = op;
+                                    BIMCoordinationCenter.ActionDispatcher?.Invoke(op);
                                 };
                                 var eidCtx = new ContextMenu();
                                 var eidSelect = new MenuItem { Header = "Select & Zoom in Model" };
@@ -574,19 +613,32 @@ namespace StingTools.UI
 
                     // Right-click context menu on warning item
                     var warnCtx = new ContextMenu();
+                    // Phase 101: the context-menu actions now FIRE the action
+                    // straight away (BCC ActionDispatcher -> ExternalEvent) so
+                    // the user sees immediate feedback. Previously they set
+                    // SelectedOperation and required the user to then click
+                    // "Run Selected Action", which was confusing enough for
+                    // coordinators to report double-click / browse as broken.
                     var ctxSelectModel = new MenuItem { Header = "Select in Model" };
                     ctxSelectModel.Click += (s2, e2) =>
                     {
-                        string op = $"WarningsSelectElements";
-                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = $"Select elements for: {capturedDesc}. Click Run."; }
-                        else { _selectedOperation = op; }
+                        string encoded = (capturedDesc ?? "").Replace("|", "/");
+                        string op = $"ZoomToWarning_{encoded}";
+                        if (state != null)
+                        {
+                            state.SelectedOperation = op;
+                            if (state.StatusText != null) state.StatusText.Text = $"Selecting elements for: {capturedDesc}";
+                        }
+                        else _selectedOperation = op;
+                        BIMCoordinationCenter.ActionDispatcher?.Invoke(op);
                     };
                     var ctxAutoFix = new MenuItem { Header = "Auto-Fix This Warning" };
                     ctxAutoFix.Click += (s2, e2) =>
                     {
                         string op = "AutoFixWarnings";
-                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = $"Auto-Fix: {capturedDesc}. Click Run."; }
-                        else { _selectedOperation = op; }
+                        if (state != null) { state.SelectedOperation = op; if (state.StatusText != null) state.StatusText.Text = $"Auto-fixing: {capturedDesc}"; }
+                        else _selectedOperation = op;
+                        BIMCoordinationCenter.ActionDispatcher?.Invoke(op);
                     };
                     var ctxSuppress = new MenuItem { Header = "Ignore / Suppress" };
                     ctxSuppress.Click += (s2, e2) =>

@@ -41,6 +41,49 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="ClosedXML" Version="0.104.2" />
     <PackageReference Include="ZXing.Net" Version="0.16.9" />
+    <!-- C2 — Real-time updates from Planscape Server (issues / compliance / revisions). -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.11" />
+    <!-- Clash v1.0 Stage 1 — sweep-and-prune broad-phase R-tree. Bumped to 4.0.0
+         to match ClosedXML 0.104.2's transitive dependency and silence NU1605. -->
+    <PackageReference Include="RBush" Version="4.0.0" />
+    <!-- Template engine v1.1 (S06): MiniWord replaces the hand-rolled OpenXml
+         renderer. Kept a small DocumentFormat.OpenXml dep via ClosedXML already. -->
+    <PackageReference Include="MiniWord" Version="0.9.0" />
+    <!-- Template engine v1.1 (S17): Lucene-backed document index.
+         QueryParser ships in its own NuGet package in 4.8.0-beta* (it is
+         the home of Lucene.Net.QueryParsers.Classic used by DocumentIndex).
+    -->
+    <PackageReference Include="Lucene.Net" Version="4.8.0-beta00016" />
+    <PackageReference Include="Lucene.Net.Analysis.Common" Version="4.8.0-beta00016" />
+    <PackageReference Include="Lucene.Net.QueryParser" Version="4.8.0-beta00016" />
+  </ItemGroup>
+
+  <!-- Template engine v1.1 (S11/S14/S15): embedded default templates + workflow JSON.
+       Paths are relative to the .csproj; files live in Docs/_template_sources
+       and Docs/_workflow_sources to keep the nested repo layout intact. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Docs\_template_sources\*.docx" />
+    <EmbeddedResource Include="Docs\_template_sources\*.xlsx" />
+    <EmbeddedResource Include="Docs\_workflow_sources\*.json" />
+  </ItemGroup>
+
+  <!-- S03: bring in the Planscape plugin-sync client (SyncScheduler / SyncClient /
+       OfflineQueue) and the shared sync payload contracts. Both are plain net8.0
+       libraries, consumable from this net8.0-windows plugin. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Planscape.Server\src\Planscape.Shared\Planscape.Shared.csproj" />
+    <ProjectReference Include="..\Planscape.Server\src\Planscape.PluginSync\Planscape.PluginSync.csproj" />
+    <!-- Phase 110: Standards & compliance calc library. Pure C#, no
+         Revit dependency; StingTools commands wrap the APIs. -->
+    <ProjectReference Include="..\StingTools.Standards\StingTools.Standards.csproj" />
+  </ItemGroup>
+
+  <!-- Phase 95: BcfEngine physically lives here but is compiled into
+       Planscape.Shared.dll (via <Compile Include="..\..\..\StingTools\..."/>
+       in Planscape.Shared.csproj). Exclude it from the StingTools assembly to
+       avoid a duplicate-type collision with the Planscape.Shared reference. -->
+  <ItemGroup>
+    <Compile Remove="BIMManager\BcfEngine.cs" />
   </ItemGroup>
 
   <!--

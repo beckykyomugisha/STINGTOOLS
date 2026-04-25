@@ -303,8 +303,12 @@ namespace StingTools.BIMManager
                 return (elements, $"selection ({elements.Count} of {selIds.Count})");
             }
 
-            // All taggable elements in the project
+            // All taggable elements in the project.
+            // S1.4 (N-G1): pre-filter with ElementMulticategoryFilter on
+            // AllCategoryEnums so .Where() only runs on tagged categories,
+            // not the entire document.
             var allElements = new FilteredElementCollector(doc)
+                .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null && knownCatNames.Contains(e.Category.Name))
                 .ToList();
@@ -669,14 +673,16 @@ namespace StingTools.BIMManager
             // Read data rows
             for (int r = 2; r <= lastRow; r++)
             {
-                string idStr = ws.Cell(r, elementIdCol.Value).GetString().Trim();
+                // ClosedXML.GetString() returns null for truly-empty cells in some paths;
+                // null-coalesce before Trim to avoid NRE on empty rows.
+                string idStr = (ws.Cell(r, elementIdCol.Value).GetString() ?? string.Empty).Trim();
                 if (string.IsNullOrEmpty(idStr)) continue;
                 if (!long.TryParse(idStr, out long elementId)) continue;
 
                 var rowData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var kvp in headerMap)
                 {
-                    rowData[kvp.Value] = ws.Cell(r, kvp.Key).GetString();
+                    rowData[kvp.Value] = ws.Cell(r, kvp.Key).GetString() ?? string.Empty;
                 }
 
                 result[elementId] = rowData;

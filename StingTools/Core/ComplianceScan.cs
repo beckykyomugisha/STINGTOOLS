@@ -375,9 +375,14 @@ namespace StingTools.Core
                                 var containers = ParamRegistry.ContainersForCategory(cat);
                                 if (containers != null && containers.Length > 0)
                                 {
+                                    // FUT-20: Mirror WriteContainers discipline filtering so only
+                                    // containers that would have been written are checked.
+                                    string elemDisc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                                     int emptyCount = 0;
                                     for (int ci = 0; ci < containers.Length; ci++)
                                     {
+                                        if (!ParamRegistry.IsContainerRelevantForDiscPublic(containers[ci].ParamName, elemDisc))
+                                            continue;
                                         result.TotalContainerChecks++;
                                         if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
                                         {
@@ -437,6 +442,32 @@ namespace StingTools.Core
                     _cached = result;
                     _cacheTime = DateTime.UtcNow;
                 }
+
+                // Pack 125 / Gap L — persist the snapshot to ES so trends
+                // survive Revit restarts and the control / placement centre
+                // can read live data without re-scanning. Best-effort write
+                // inside its own transaction; failure does not invalidate the
+                // in-memory cache above.
+                try
+                {
+                    using (var t = new Transaction(doc, "STING ES: persist compliance snapshot"))
+                    {
+                        t.Start();
+                        var snap = new Storage.StingComplianceBaselineSchema.Snapshot
+                        {
+                            LastScanUtcTicks = DateTime.UtcNow.Ticks,
+                            CompliancePct    = result.CompliancePercent,
+                            StrictPct        = result.StrictPercent,
+                            RevisionPct      = result.RevisionPercent,
+                            UntaggedCount    = result.Untagged,
+                            RagStatus        = result.RAGStatus ?? "",
+                        };
+                        Storage.StingComplianceBaselineSchema.Write(doc, snap);
+                        t.Commit();
+                    }
+                }
+                catch (Exception persistEx) { StingLog.Warn($"ComplianceScan ES persist: {persistEx.Message}"); }
+
                 return result;
             }
             finally
@@ -800,7 +831,7 @@ namespace StingTools.Core
                 string dir = delta > 2 ? "improving" : delta < -2 ? "declining" : "stable";
                 return (dir, delta);
             }
-            catch (Exception ex) { StingLog.Warn($"Compliance trend calc: {ex.Message}"); return ("unknown", 0); }
+            catch (Exception ex) { StingLog.Error("Compliance trend calc failed", ex); return ("unknown", 0); }
         }
 
         private static List<TrendEntry> LoadEntries(string path)

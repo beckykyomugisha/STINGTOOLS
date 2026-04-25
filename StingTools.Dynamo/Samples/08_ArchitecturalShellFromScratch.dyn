@@ -1,0 +1,39 @@
+{
+  "Uuid": "a1b2c3d4-0008-4a5b-8c6d-0000000000e8",
+  "IsCustomNode": false,
+  "Description": "STING — BuildingShell + CreateRoom + PlaceDoor + PlaceWindow + AutoTag + BOQ.Refresh.",
+  "Name": "08_ArchitecturalShellFromScratch",
+  "ElementResolver": { "ResolutionMap": {} },
+  "Inputs": [], "Outputs": [],
+  "Nodes": [
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"r1","Inputs":[],"Outputs":[{"Id":"or1","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Model.BuildingShell","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"r2","Inputs":[],"Outputs":[{"Id":"or2","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Model.CreateRoom","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"r3","Inputs":[],"Outputs":[{"Id":"or3","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Model.PlaceDoor","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"r4","Inputs":[],"Outputs":[{"Id":"or4","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Model.PlaceWindow","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"r5","Inputs":[],"Outputs":[{"Id":"or5","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.Tag.AutoTag","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" },
+    { "ConcreteType":"Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore","Id":"r6","Inputs":[],"Outputs":[{"Id":"or6","Name":"","Description":"","UsingDefaultValue":false,"Level":2,"UseLevels":false,"KeepListStructure":false}],"FunctionSignature":"StingTools.Dynamo.BOQ.Refresh","Replication":"Disabled","DisplayLabels":false,"NodeType":"FunctionNode" }
+  ],
+  "Connectors": [], "Dependencies": [],
+  "NodeLibraryDependencies": [
+    { "Name":"STING Tools","Version":"1.0.0","ReferenceType":"Package","Nodes":["r1","r2","r3","r4","r5","r6"] }
+  ],
+  "Thumbnail":"","GraphDocumentationURL":null,"ExtensionWorkspaceData":[],"Author":"STING Tools v4",
+  "Linting":{ "activeLinter":"None","activeLinterId":"7b75fb44-43fd-4631-a878-29f4d5d8399a","warningCount":0,"errorCount":0 },"Bindings":[],
+  "View": {
+    "Dynamo":{ "ScaleFactor":1.0,"HasRunWithoutCrash":true,"IsVisibleInDynamoLibrary":true,"Version":"2.17.0","RunType":"Manual","RunPeriod":"1000" },
+    "Camera":{ "Name":"_Background Preview","EyeX":-17.0,"EyeY":24.0,"EyeZ":50.0,"LookX":12.0,"LookY":-13.0,"LookZ":-58.0,"UpX":0.0,"UpY":1.0,"UpZ":0.0 },
+    "ConnectorPins":[],
+    "NodeViews":[
+      { "Name":"Model.BuildingShell","ShowGeometry":true,"Id":"r1","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":100.0, "Y":220.0 },
+      { "Name":"Model.CreateRoom",    "ShowGeometry":true,"Id":"r2","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":380.0, "Y":220.0 },
+      { "Name":"Model.PlaceDoor",     "ShowGeometry":true,"Id":"r3","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":660.0, "Y":220.0 },
+      { "Name":"Model.PlaceWindow",   "ShowGeometry":true,"Id":"r4","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":940.0, "Y":220.0 },
+      { "Name":"Tag.AutoTag",         "ShowGeometry":true,"Id":"r5","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":1220.0,"Y":220.0 },
+      { "Name":"BOQ.Refresh",         "ShowGeometry":true,"Id":"r6","IsSetAsInput":false,"IsSetAsOutput":false,"Excluded":false,"X":1500.0,"Y":220.0 }
+    ],
+    "Annotations":[
+      { "Id":"a1","Title":"Architectural shell from scratch","DescriptionText":"End-to-end architectural pass. BuildingShell drops 4 walls + floor + roof for a rectangular enclosure. CreateRoom bakes the Room element. PlaceDoor + PlaceWindow add openings. Tag.AutoTag runs the ISO 19650 pipeline across everything created. BOQ.Refresh closes with an up-to-date quantity takeoff.","IsExpanded":true,"WidthAdjustment":0.0,"HeightAdjustment":0.0,"Nodes":["r1","r2","r3","r4","r5","r6"],"HasNestedGroups":false,"Left":80.0,"Top":180.0,"Width":1540.0,"Height":200.0,"FontSize":22.0,"GroupStyleId":"00000000-0000-0000-0000-000000000000","Background":"#FFFFD59E","TextBlockHeight":28.0,"InitialTop":190.0,"InitialHeight":20.0 }
+    ],
+    "X":0.0,"Y":0.0,"Zoom":1.0
+  }
+}

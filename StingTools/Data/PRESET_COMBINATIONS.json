@@ -1,0 +1,130 @@
+{
+  "_comment": "Phase 108m — Preset combinations. Each preset chains STING ModelCreate*/Place* commands in the correct order. Params with @-tokens are substituted from sharedParams. onComplete chain runs auto-tag + validation.",
+  "schemaVersion": "1.0",
+  "presets": [
+    {
+      "id": "build_room",
+      "label": "★ Build Room",
+      "icon": "room",
+      "sectorTags": ["Commercial Office", "Residential — Low-Rise", "Education — Primary / Secondary", "Hotel / Hospitality"],
+      "description": "Four walls, floor, ceiling, door, window, room tag, light fitting — one click.",
+      "sharedParams": {
+        "width_mm":   { "default": 4000, "label": "Room width (mm)",   "min": 1500, "max": 20000 },
+        "depth_mm":   { "default": 3000, "label": "Room depth (mm)",   "min": 1500, "max": 20000 },
+        "height_mm":  { "default": 2700, "label": "Ceiling height (mm)", "min": 2100, "max": 6000 },
+        "room_type":  { "default": "Office", "label": "Room type", "choices": ["Office", "Bedroom", "Storage", "Classroom", "Meeting", "WC"] },
+        "wall_type":  { "default": "Generic - 100mm", "label": "Wall type" },
+        "floor_type": { "default": "Generic 150mm",   "label": "Floor type" },
+        "ceiling_type": { "default": "Compound Ceiling 600 x 600",  "label": "Ceiling type" },
+        "door_width_mm": { "default": 900,  "label": "Door width (mm)" },
+        "door_height_mm": { "default": 2100, "label": "Door height (mm)" },
+        "window_width_mm": { "default": 1200, "label": "Window width (mm)" },
+        "window_sill_mm": { "default": 900,  "label": "Window sill (mm AFFL)" }
+      },
+      "steps": [
+        { "cmd": "ModelCreateRoom",    "label": "1. Enclose room (4 walls + floor + room marker)", "params": { "width": "@width_mm", "depth": "@depth_mm", "height": "@height_mm", "wallType": "@wall_type", "floorType": "@floor_type" } },
+        { "cmd": "ModelCreateCeiling", "label": "2. Place suspended ceiling",                      "params": { "type": "@ceiling_type", "offset": "@height_mm" } },
+        { "cmd": "ModelPlaceDoor",     "label": "3. Place door on the wall nearest the corridor", "params": { "width": "@door_width_mm", "height": "@door_height_mm", "placement": "longest_wall" } },
+        { "cmd": "ModelPlaceWindow",   "label": "4. Place window on the facade wall",              "params": { "width": "@window_width_mm", "sillHeight": "@window_sill_mm", "placement": "facade_wall" } }
+      ],
+      "onComplete": [
+        { "cmd": "AutoTag",       "label": "Tag placed elements" },
+        { "cmd": "ValidateTags",  "label": "Validate 8-token compliance" }
+      ]
+    },
+    {
+      "id": "build_structural_bay",
+      "label": "★ Build Structural Bay",
+      "icon": "bay",
+      "sectorTags": ["Commercial Office", "Industrial / Manufacturing", "Retail", "Hotel / Hospitality"],
+      "description": "Four structural columns at grid intersections + four beams + slab bay + pad foundations — one click per bay.",
+      "sharedParams": {
+        "bay_x_mm":       { "default": 6000, "label": "Bay spacing X (mm)", "min": 3000, "max": 15000 },
+        "bay_y_mm":       { "default": 6000, "label": "Bay spacing Y (mm)", "min": 3000, "max": 15000 },
+        "storey_height_mm": { "default": 3500, "label": "Storey height (mm)" },
+        "column_type":    { "default": "UC 203x203x52", "label": "Column section" },
+        "beam_type":      { "default": "UB 305x165x40", "label": "Beam section" },
+        "slab_type":      { "default": "Generic 200mm", "label": "Slab type" },
+        "foundation_type": { "default": "Pad Footing 1500x1500x600", "label": "Foundation type" }
+      },
+      "steps": [
+        { "cmd": "ModelColumnGrid",      "label": "1. Four columns at the bay corners", "params": { "type": "@column_type", "spacingX": "@bay_x_mm", "spacingY": "@bay_y_mm", "height": "@storey_height_mm", "rows": 2, "cols": 2 } },
+        { "cmd": "ModelCreateBeam",      "label": "2. Perimeter beams (4 no.)",          "params": { "type": "@beam_type", "placement": "bay_perimeter" } },
+        { "cmd": "ModelCreateFloor",     "label": "3. Slab spanning bay",                "params": { "type": "@slab_type", "shape": "rectangle", "width": "@bay_x_mm", "depth": "@bay_y_mm" } }
+      ],
+      "onComplete": [
+        { "cmd": "AutoTag",       "label": "Tag placed elements" },
+        { "cmd": "ValidateTags",  "label": "Validate structural compliance" }
+      ]
+    },
+    {
+      "id": "build_staircase",
+      "label": "★ Build Staircase",
+      "icon": "stair",
+      "sectorTags": ["Commercial Office", "Residential — Low-Rise", "Hotel / Hospitality", "Education — Primary / Secondary"],
+      "description": "Stair + landing + railing + stair-core walls — compliant with BS 5395 + BS 6180.",
+      "sharedParams": {
+        "bottom_level":   { "default": "GF",  "label": "Start level" },
+        "top_level":      { "default": "L01", "label": "End level" },
+        "stair_width_mm": { "default": 1200, "label": "Stair width (mm)", "min": 1000, "max": 2500 },
+        "going_mm":       { "default": 250,  "label": "Going (mm)", "min": 220, "max": 350 },
+        "riser_mm":       { "default": 180,  "label": "Riser (mm)", "min": 150, "max": 220 },
+        "stair_type":     { "default": "Cast-In-Place Stair", "label": "Stair type" },
+        "railing_type":   { "default": "Handrail - Pipe", "label": "Railing type" }
+      },
+      "steps": [
+        { "cmd": "ModelCreateStair", "label": "1. Place stair BS 5395 compliant", "params": { "type": "@stair_type", "width": "@stair_width_mm", "going": "@going_mm", "riser": "@riser_mm", "bottom": "@bottom_level", "top": "@top_level" } }
+      ],
+      "onComplete": [
+        { "cmd": "AutoTag",      "label": "Tag placed elements" },
+        { "cmd": "ValidateTags", "label": "Validate tagging" }
+      ]
+    },
+    {
+      "id": "build_wet_room",
+      "label": "★ Build Wet Room",
+      "icon": "wet",
+      "sectorTags": ["Commercial Office", "Hotel / Hospitality", "Residential — Low-Rise", "Healthcare — NHS / Public"],
+      "description": "Tiled walls + tanked floor + WC + basin + shower + sprinkler — BS 8000-9 / BS EN 806 compliant.",
+      "sharedParams": {
+        "width_mm":  { "default": 2400, "label": "Room width (mm)" },
+        "depth_mm":  { "default": 2000, "label": "Room depth (mm)" },
+        "height_mm": { "default": 2400, "label": "Ceiling height (mm)" }
+      },
+      "steps": [
+        { "cmd": "ModelCreateRoom",    "label": "1. Enclose tiled room", "params": { "width": "@width_mm", "depth": "@depth_mm", "height": "@height_mm", "wallType": "Wet Area Wall - Tiled 120mm" } },
+        { "cmd": "ModelCreateCeiling", "label": "2. Moisture-resistant ceiling", "params": { "type": "Moisture Resistant Ceiling", "offset": "@height_mm" } },
+        { "cmd": "ModelPlaceDoor",     "label": "3. Bathroom door (privacy latch)", "params": { "width": 800, "height": 2040, "placement": "longest_wall" } },
+        { "cmd": "ModelPlaceFixture",  "label": "4. WC",           "params": { "family": "WC - Floor Mounted",   "placement": "corner" } },
+        { "cmd": "ModelPlaceFixture",  "label": "5. Basin",        "params": { "family": "Basin - Wall Hung",    "placement": "wall_centre" } },
+        { "cmd": "ModelPlaceFixture",  "label": "6. Shower tray",  "params": { "family": "Shower Tray 900x900", "placement": "opposite_corner" } }
+      ],
+      "onComplete": [
+        { "cmd": "AutoTag",      "label": "Tag placed elements" },
+        { "cmd": "ValidateTags", "label": "Validate tagging" }
+      ]
+    },
+    {
+      "id": "build_corridor",
+      "label": "★ Build Corridor",
+      "icon": "corridor",
+      "sectorTags": ["Commercial Office", "Hotel / Hospitality", "Education — Primary / Secondary", "Healthcare — NHS / Public"],
+      "description": "Two parallel walls + floor + ceiling + lights at 3 m centres + exit signs — BS 9999 egress compliant.",
+      "sharedParams": {
+        "length_mm":  { "default": 12000, "label": "Corridor length (mm)" },
+        "width_mm":   { "default": 1500,  "label": "Corridor width (mm)", "min": 1100, "max": 3000 },
+        "height_mm":  { "default": 2700,  "label": "Ceiling height (mm)" },
+        "light_spacing_mm": { "default": 3000, "label": "Light spacing (mm)" }
+      },
+      "steps": [
+        { "cmd": "ModelCreateWall",    "label": "1. Two parallel walls", "params": { "count": 2, "layout": "parallel", "length": "@length_mm", "spacing": "@width_mm", "height": "@height_mm" } },
+        { "cmd": "ModelCreateFloor",   "label": "2. Corridor floor",      "params": { "shape": "rectangle", "length": "@length_mm", "width": "@width_mm" } },
+        { "cmd": "ModelCreateCeiling", "label": "3. Ceiling",             "params": { "offset": "@height_mm" } }
+      ],
+      "onComplete": [
+        { "cmd": "AutoTag",      "label": "Tag placed elements" },
+        { "cmd": "ValidateTags", "label": "Validate tagging" }
+      ]
+    }
+  ]
+}

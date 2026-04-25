@@ -1,0 +1,42 @@
+{
+  "id": "mr_default",
+  "name": "Material Requisition default",
+  "start_state": "Draft",
+  "states": [
+    {
+      "name": "Draft",
+      "sla_hours": 24
+    },
+    {
+      "name": "Submitted",
+      "sla_hours": 72
+    },
+    {
+      "name": "Approved",
+      "sla_hours": null,
+      "is_terminal": true
+    },
+    {
+      "name": "Rejected",
+      "sla_hours": null,
+      "is_terminal": true
+    }
+  ],
+  "transitions": [
+    {
+      "from": "Draft",
+      "to": "Submitted",
+      "action": "submit"
+    },
+    {
+      "from": "Submitted",
+      "to": "Approved",
+      "action": "approve"
+    },
+    {
+      "from": "Submitted",
+      "to": "Rejected",
+      "action": "reject"
+    }
+  ]
+}

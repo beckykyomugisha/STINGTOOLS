@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "description": "Scale tier table for tag placement offset and text size selection. Each tier covers view-scale denominators up to max_denominator inclusive; the last tier catches everything larger. text_size_mm must be one of ParamRegistry.TagStyleSizes (\"2\", \"2.5\", \"3\", \"3.5\") so it maps directly to TAG_{size}{style}_{color}_BOOL.",
+  "offset_cap_ft": 30.0,
+  "tiers": [
+    { "max_denominator": 50,         "label": "1:1–1:50",    "offset_mm": 2.0,  "text_size_mm": "3.5" },
+    { "max_denominator": 100,        "label": "1:50–1:100",  "offset_mm": 5.0,  "text_size_mm": "3"   },
+    { "max_denominator": 200,        "label": "1:100–1:200", "offset_mm": 8.0,  "text_size_mm": "2.5" },
+    { "max_denominator": 500,        "label": "1:200–1:500", "offset_mm": 12.0, "text_size_mm": "2"   },
+    { "max_denominator": 2147483647, "label": "1:500+",      "offset_mm": 20.0, "text_size_mm": "2"   }
+  ]
+}

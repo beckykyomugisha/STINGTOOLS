@@ -1,0 +1,74 @@
+# STING v4 MVP shared-parameter fragment.
+# Merge these PARAM rows into MR_PARAMETERS.txt or load directly
+# via LoadSharedParamsCommand. Group IDs must exist in the host file
+# (ASS_MNG=1, ELC_PWR=4, PLM_DRN=6, CST_PROC=2 in current MR_PARAMETERS.txt).
+#
+# NOTE: 46 fabrication / LPS / cost parameter GUIDs are UUIDv5
+# LPS / cost parameters declared in StingTools/Core/Fabrication/
+# hashes of the parameter name under the fixed STING namespace
+# 7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00 (see Core/Fabrication/
+# FabricationParamsV4.cs for details and regeneration script).
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	ASS_MNG
+GROUP	2	CST_PROC
+GROUP	4	ELC_PWR
+GROUP	6	PLM_DRN
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE
+# --- v4 Section 3: placement + CPC (ParamRegistry.cs V4 region) ---
+PARAM	a4b5c6d7-e8f9-4a0b-8c1d-2e3f4a5b6c7d	ASS_PLACE_ANCHOR_TXT	TEXT		1	1	Anchor reference used by FixturePlacementEngine (e.g. DOOR_HINGE, ROOM_CENTRE, WALL_MIDPOINT)	1
+PARAM	b5c6d7e8-f9a0-4b1c-9d2e-3f4a5b6c7d8e	ASS_PLACE_OFFSET_X_MM	LENGTH		1	1	Signed horizontal offset from placement anchor in millimetres	1
+PARAM	c6d7e8f9-a0b1-4c2d-ae3f-4a5b6c7d8e9f	ASS_PLACE_SIDE_TXT	TEXT		1	1	Wall or host side constraint (LEFT / RIGHT / EITHER)	1
+PARAM	d7e8f9a0-b1c2-4d3e-bf4a-5b6c7d8e9fa0	ELC_CPC_SZ_MM	TEXT		4	1	Circuit protective conductor size in mm2 per BS 7671	1
+PARAM	e8f9a0b1-c2d3-4e4f-ca5b-6c7d8e9fa0b1	PLM_PPE_INSULATION_THK_MM	LENGTH		6	1	Pipe insulation thickness in millimetres	1
+PARAM	f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2	PLM_SLOPE_PCT	TEXT		6	1	Drainage pipe slope percentage per BS EN 12056 (1:80 default for sanitary)	1
+# --- v4 Section 2: assembly / spool parameters (FabricationParamsV4.AssyParams) ---
+PARAM	1a4353be-eaaa-5e46-95ee-b64a74667194	ASS_SPOOL_NR_TXT	TEXT		1	1	Spool or bundle number assigned by AssemblyBuilder	1
+PARAM	eacedb67-b65b-58f7-a5b7-f1b0253ac6c9	ASS_WEIGHT_KG	MASS		1	1	Assembly total weight in kilograms (sum of member volume x material density)	1
+PARAM	3e3624d3-c79d-5dd5-8014-46c8d273b9ea	ASS_TEST_PRESSURE_BAR	NUMBER		1	1	Hydrostatic or pneumatic test pressure for the assembly in bar	1
+PARAM	e420804b-d43f-593c-91b1-fd00a18aa584	ASS_FAB_LOC_TXT	TEXT		1	1	Fabrication location (SHOP / FIELD / VENDOR)	1
+PARAM	5fc70bc2-9955-583c-9d96-5b54c8f34f53	ASS_FAB_SEQ_NR	INTEGER		1	1	Fabrication sequence number within the fabrication package	1
+PARAM	29ba93ba-238e-5aad-930a-a621b0f43b5b	ASS_FAB_STATUS_TXT	TEXT		1	1	Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)	1
+PARAM	c2fc8e62-b793-517c-94c6-d2d7ae7584fe	ASS_SHIP_DATE_TXT	TEXT		1	1	ISO 8601 date when assembly was shipped to site	1
+PARAM	953575a9-1d0c-5bb5-a4d2-c52b4b4adf96	ASS_INSTALL_DATE_TXT	TEXT		1	1	ISO 8601 date when assembly was installed on site	1
+PARAM	0293f487-2ca9-5514-9b18-ac98b1a20b27	ASS_BOM_REV_TXT	TEXT		1	1	Bill of materials revision code (e.g. P01, C01)	1
+PARAM	a028f908-b100-53bc-b21a-1a0a6a03ffac	ASS_QC_INSPECTOR_TXT	TEXT		1	1	Name or ID of QC inspector who released the assembly	1
+PARAM	6c77833e-4b97-57f5-9a8b-97cc20d6cb61	ASS_WELD_COUNT_NR	INTEGER		1	1	Total number of welds in the assembly	1
+PARAM	77c9f963-0164-5c71-879d-ee7308091866	ASS_BOLT_COUNT_NR	INTEGER		1	1	Total number of bolted connections in the assembly	1
+PARAM	016faa7f-1e8f-5a5d-acfb-14983937de69	ASS_FLANGE_COUNT_NR	INTEGER		1	1	Total number of flanged connections in the assembly	1
+PARAM	ead7d5f3-68fa-58c6-8a21-fa8c6a1ff318	ASS_FITTING_COUNT_NR	INTEGER		1	1	Total number of inline fittings in the assembly	1
+PARAM	2605366f-f56b-5843-b8cb-9781b42a4345	ASS_LENGTH_TOTAL_MM	LENGTH		1	1	Total linear length of the assembly in millimetres	1
+PARAM	16e7224e-cab9-5233-b155-3fbe194a3d56	ASS_CUT_COUNT_NR	INTEGER		1	1	Number of cut operations required to fabricate the assembly	1
+PARAM	21a49d34-9ae2-5058-8d7e-43db4dabd545	ASS_INSULATION_AREA_M2	AREA		1	1	External insulation surface area in square metres	1
+PARAM	9fadd466-7dfa-5845-9a18-d618c77c418d	ASS_SUPPORT_COUNT_NR	INTEGER		1	1	Number of supports / hangers referenced by the assembly	1
+PARAM	9107dff2-054c-5371-b3ae-6d329aa12542	ASS_FAB_NOTES_TXT	TEXT		1	1	Free-text fabrication notes consumed by ShopDrawingComposer	1
+PARAM	c1a5983c-333d-53ff-94d1-4326d9ffff86	ASS_SPOOL_DRAWING_REF_TXT	TEXT		1	1	Reference to the generated shop / spool drawing sheet number	1
+# --- v4 Section 4: lightning protection system (FabricationParamsV4.LpsParams, BS EN 62305) ---
+PARAM	081c2e86-3af9-5658-8a26-63da9c1eccc2	ELC_LPS_CLASS_TXT	TEXT		4	1	LPS class per BS EN 62305 (I / II / III / IV)	1
+PARAM	c4eeed34-608c-56a5-b97f-7c899d76f208	ELC_LPS_ROLLING_SPHERE_RADIUS_M	LENGTH		4	1	Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60)	1
+PARAM	d6a9566f-eda9-5e6d-9dcf-fd14440c395b	ELC_LPS_MESH_SIZE_M	LENGTH		4	1	Air terminal mesh grid size in metres per BS EN 62305 class	1
+PARAM	36889f59-a8ba-55c8-8777-6ba332b39bff	ELC_LPS_AIR_TERMINAL_COUNT_NR	INTEGER		4	1	Count of air terminals / lightning rods on the protected zone	1
+PARAM	157527ba-17a8-5014-b6c5-f70273ccd5f5	ELC_LPS_DOWN_CONDUCTOR_COUNT_NR	INTEGER		4	1	Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)	1
+PARAM	d02bca9d-9159-5477-8488-48f9076841fa	ELC_LPS_EARTH_ELECTRODE_COUNT_NR	INTEGER		4	1	Count of earth electrodes serving the LPS	1
+PARAM	80da349f-708b-5165-bb2e-f369dec80e4b	ELC_LPS_EARTH_RESISTANCE_OHM	NUMBER		4	1	Measured earth resistance in ohms (target <10 ohm per BS EN 62305)	1
+PARAM	1cb4c3d3-8c12-5be3-9eeb-4072b4be3240	ELC_LPS_BOND_TYPE_TXT	TEXT		4	1	Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP)	1
+PARAM	0063477e-cda5-58a3-a802-061838e57a47	ELC_LPS_PROTECTION_ANGLE_DEG	NUMBER		4	1	Protection cone half-angle in degrees per BS EN 62305 class	1
+PARAM	a01025f4-6155-524e-8514-72507f5e04ef	ELC_LPS_ZONE_TXT	TEXT		4	1	Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3)	1
+PARAM	330d6fb5-2891-5a28-8ec6-e04618c9d1e4	ELC_LPS_RISK_ASSESSMENT_TXT	TEXT		4	1	Risk assessment reference document per BS EN 62305-2	1
+PARAM	c1605d30-bdcb-560e-9d97-bae3303a078e	ELC_LPS_SURGE_PROTECTION_LVL_TXT	TEXT		4	1	Surge protection device level (Type 1 / Type 2 / Type 3)	1
+PARAM	441346ff-828f-5298-9fbb-96f27feb22ef	ELC_LPS_SEPARATION_DISTANCE_MM	LENGTH		4	1	Separation distance (s) between LPS and services in millimetres	1
+PARAM	423133ca-7535-521d-9c37-65ec7ae68166	ELC_LPS_CONDUCTOR_CROSS_SECT_MM2	NUMBER		4	1	Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305)	1
+PARAM	3703245d-a866-5e05-8737-72babfbb85a4	ELC_LPS_EARTH_TYPE_TXT	TEXT		4	1	Earth electrode type (ROD / RING / FOUNDATION / MESH)	1
+PARAM	5339fe4f-caa3-5edc-99b1-53c0defd4ad8	ELC_LPS_INSPECTION_INTERVAL_MONTHS	INTEGER		4	1	Inspection interval in months (12 for class I/II, 24 for class III/IV)	1
+PARAM	d654df13-0913-5e8f-8dfe-98b3971beb86	ELC_LPS_TEST_DATE_TXT	TEXT		4	1	ISO 8601 date of last LPS test / inspection	1
+PARAM	0a8dbcfb-6f73-5c8c-94eb-b72606feae87	ELC_LPS_CERT_REF_TXT	TEXT		4	1	Certificate reference for the LPS inspection / commissioning	1
+# --- v4 Section 5: dual-currency pricing (FabricationParamsV4.CostParams) ---
+PARAM	c40720fa-3e80-5880-86c3-a82f43055fbf	CST_INTL_PRICE_USD	NUMBER		2	1	International supplier unit price in USD	1
+PARAM	694fcd57-d0c2-5ed3-afca-f225781b3bc8	CST_UG_PRICE_UGX	NUMBER		2	1	Local Uganda unit price in UGX	1
+PARAM	d4e003e1-1f43-5d22-93c1-d9e91d672c52	CST_FX_RATE_USD_UGX	NUMBER		2	1	USD to UGX exchange rate snapshot used on quote date	1
+PARAM	cb945ed3-ff4d-531c-89fa-c06f503ab46c	CST_LABOUR_HOURS	NUMBER		2	1	Estimated labour hours per element for install takeoff	1
+PARAM	3d736d48-cba0-570b-a521-844539bd998c	CST_LABOUR_RATE_UGX	NUMBER		2	1	Labour rate in UGX per hour	1
+PARAM	5758facf-7a3f-5900-b3ea-abf487990b25	CST_SHIPPING_UGX	NUMBER		2	1	Shipping cost component in UGX	1
+PARAM	c26d2b96-a012-50d6-bcb9-6a32f24212e0	CST_DUTY_PCT	NUMBER		2	1	Import duty percentage applied to USD price	1
+PARAM	4de58d8f-38e2-584f-b8aa-5a5744a80fcd	CST_QUOTE_REF_TXT	TEXT		2	1	Supplier quote reference number	1
