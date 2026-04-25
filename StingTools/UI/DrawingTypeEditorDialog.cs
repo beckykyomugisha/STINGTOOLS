@@ -194,6 +194,13 @@ namespace StingTools.UI
             }
             catch { }
 
+            // Phase 136 — _packs initialised here (before BuildLayout) so the
+            // Drawing Types tab's ViewStylePackId combo is populated on first
+            // render. Was previously created inside BuildViewStylePacksTab,
+            // which fires AFTER BuildDrawingTypesTab.
+            _packs = LoadViewStylePacks();
+            BuildCategoryTrees();   // Phase 136 — VG editor trees + pattern lists
+
             Content = BuildLayout();
             if (_types.Count > 0) SelectType(_types[0]);
         }
@@ -297,7 +304,8 @@ namespace StingTools.UI
 
         private UIElement BuildViewStylePacksTab()
         {
-            _packs = LoadViewStylePacks();
+            // _packs is initialised in the constructor before BuildLayout()
+            // so the Drawing Types tab can also use it.
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -398,41 +406,13 @@ namespace StingTools.UI
                 _currentPack.ColorScheme, v => _currentPack.ColorScheme = v));
             _packFormHost.Children.Add(Card("Appearance", apBody));
 
-            // Filter rules
-            var frBody = new StackPanel();
+            // Phase 136 — full Revit-style VG editor (replaces the old
+            // row-grid for both Filter rules and VG overrides). Four-tab
+            // layout with category tree, Override... sub-dialogs, per-tab
+            // All/None/Invert/Expand actions.
             _currentPack.FilterRules = _currentPack.FilterRules ?? new List<PackFilterRule>();
-            frBody.Children.Add(new TextBlock {
-                Text = "Per-filter graphic overrides. Filters must already exist in the project (ParameterFilterElement). Colours in #RRGGBB.",
-                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 4) });
-            frBody.Children.Add(MakeFilterRuleHeader());
-            foreach (var fr in _currentPack.FilterRules.ToList())
-                frBody.Children.Add(MakeFilterRuleRow(fr));
-            frBody.Children.Add(MakeSmallBtn("＋ Add filter rule", () =>
-            {
-                _currentPack.FilterRules.Add(new PackFilterRule { Name = "NewFilter", Visible = true,
-                    ProjColor = "#000000", ProjWeight = 1, CutColor = "#000000", CutWeight = 1 });
-                RenderPackForm();
-            }));
-            _packFormHost.Children.Add(Card("Filter rules", frBody));
-
-            // VG Overrides per category
-            var vgBody = new StackPanel();
             _currentPack.VgOverrides = _currentPack.VgOverrides ?? new Dictionary<string, PackCategoryOverride>();
-            vgBody.Children.Add(new TextBlock {
-                Text = "Per-category graphic overrides. Key = category name (Walls / Grids / Rooms), BuiltInCategory enum, or <Room Separation> for subcategories. Colours in #RRGGBB.",
-                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 4) });
-            vgBody.Children.Add(MakeVgHeader());
-            foreach (var kv in _currentPack.VgOverrides.ToList())
-                vgBody.Children.Add(MakeVgRow(kv.Key, kv.Value));
-            vgBody.Children.Add(MakeSmallBtn("＋ Add VG override", () =>
-            {
-                var key = "NewCategory" + _currentPack.VgOverrides.Count;
-                _currentPack.VgOverrides[key] = new PackCategoryOverride { Visible = true, ProjWeight = 1 };
-                RenderPackForm();
-            }));
-            _packFormHost.Children.Add(Card("VG overrides (per category)", vgBody));
+            _packFormHost.Children.Add(BuildFullVgEditor());
 
             // Phase 135 — Tag Appearance card
             _packFormHost.Children.Add(BuildPackTagAppearanceCard());
@@ -569,109 +549,18 @@ namespace StingTools.UI
             return host;
         }
 
-        // ── Filter rule row ──
-        private UIElement MakeFilterRuleHeader()
-        {
-            var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
-            string[] headers = { "Filter name", "Visible", "Halftone", "Proj-Col", "Proj-Wt", "Cut-Col", "Cut-Wt", "Trans%" };
-            double[] widths  = { 160, 56, 56, 70, 50, 70, 50, 56 };
-            for (int i = 0; i < widths.Length; i++)
-                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
-            for (int i = 0; i < headers.Length; i++)
-            {
-                var t = new TextBlock { Text = headers[i], FontSize = 10,
-                    Foreground = new SolidColorBrush(SubtleColor) };
-                Grid.SetColumn(t, i); g.Children.Add(t);
-            }
-            return g;
-        }
-
-        private UIElement MakeFilterRuleRow(PackFilterRule fr)
-        {
-            var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-            double[] widths = { 160, 56, 56, 70, 50, 70, 50, 56 };
-            for (int i = 0; i < widths.Length; i++)
-                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
-
-            var filterNames = Merge(ProjectAssetPicker.ParameterFilterNames(_doc),
-                                    CommonStingFilters).ToArray();
-            var name = SmallCombo(fr.Name, v => fr.Name = v, filterNames);
-            var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);
-            var ht   = MakeChk(fr.Halftone, v => fr.Halftone = v);
-            var pc   = SmallTb(fr.ProjColor, v => fr.ProjColor = v);
-            var pw   = SmallTb(fr.ProjWeight.ToString(), v => fr.ProjWeight = TryInt(v));
-            var cc   = SmallTb(fr.CutColor, v => fr.CutColor = v);
-            var cw   = SmallTb(fr.CutWeight.ToString(), v => fr.CutWeight = TryInt(v));
-            var tr   = SmallTb(fr.Transparency.ToString(), v => fr.Transparency = TryInt(v));
-
-            var ctrls = new UIElement[] { name, vis, ht, pc, pw, cc, cw, tr };
-            for (int i = 0; i < ctrls.Length; i++)
-            {
-                Grid.SetColumn(ctrls[i], i);
-                if (ctrls[i] is FrameworkElement fe) fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
-                g.Children.Add(ctrls[i]);
-            }
-            return g;
-        }
-
-        // ── VG override row ──
-        private UIElement MakeVgHeader()
-        {
-            var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
-            string[] headers = { "Category", "Visible", "Halftone", "Proj-Col", "Proj-Wt", "Cut-Col", "Cut-Wt", "Trans%" };
-            double[] widths  = { 160, 56, 56, 70, 50, 70, 50, 56 };
-            for (int i = 0; i < widths.Length; i++)
-                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
-            for (int i = 0; i < headers.Length; i++)
-            {
-                var t = new TextBlock { Text = headers[i], FontSize = 10,
-                    Foreground = new SolidColorBrush(SubtleColor) };
-                Grid.SetColumn(t, i); g.Children.Add(t);
-            }
-            return g;
-        }
-
-        private UIElement MakeVgRow(string key, PackCategoryOverride v)
-        {
-            var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-            double[] widths = { 160, 56, 56, 70, 50, 70, 50, 56 };
-            for (int i = 0; i < widths.Length; i++)
-                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[i]) });
-
-            // Category column: editable combo sourced from KnownRevitCategories
-            // ∪ live ProjectAssetPicker.CategoryNames so users pick from
-            // real categories but can still type "OST_Walls" or
-            // subcategory "<Room Separation>".
-            var categories = Merge(ProjectAssetPicker.CategoryNames(_doc),
-                                   KnownRevitCategories).ToArray();
-            var keyBox = SmallCombo(key, newKey =>
-            {
-                if (string.IsNullOrWhiteSpace(newKey) || newKey == key) return;
-                _currentPack.VgOverrides.Remove(key);
-                _currentPack.VgOverrides[newKey] = v;
-            }, categories);
-            var vis = MakeChk(v.Visible, b => v.Visible = b);
-            var ht  = MakeChk(v.Halftone,b => v.Halftone = b);
-            var pc  = SmallTb(v.ProjColor,  s => v.ProjColor = s);
-            var pw  = SmallTb(v.ProjWeight.ToString(), s => v.ProjWeight = TryInt(s));
-            var cc  = SmallTb(v.CutColor,   s => v.CutColor = s);
-            var cw  = SmallTb(v.CutWeight.ToString(), s => v.CutWeight = TryInt(s));
-            var tr  = SmallTb(v.Transparency.ToString(), s => v.Transparency = TryInt(s));
-
-            var ctrls = new UIElement[] { keyBox, vis, ht, pc, pw, cc, cw, tr };
-            for (int i = 0; i < ctrls.Length; i++)
-            {
-                Grid.SetColumn(ctrls[i], i);
-                if (ctrls[i] is FrameworkElement fe) fe.Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0);
-                g.Children.Add(ctrls[i]);
-            }
-            return g;
-        }
-
+        // Phase 136 — old MakeVgHeader / MakeVgRow / MakeFilterRuleHeader /
+        // MakeFilterRuleRow row-grid helpers replaced by the full Revit-style
+        // VG editor (BuildFullVgEditor + nested helpers, below). MakeChk is
+        // kept for the AnnotationRules grid, which still uses a flat bool.
         private CheckBox MakeChk(bool value, Action<bool> setter)
         {
-            var cb = new CheckBox { IsChecked = value, VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center };
+            var cb = new CheckBox
+            {
+                IsChecked = value,
+                VerticalAlignment   = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
             cb.Checked   += (s, e) => setter?.Invoke(true);
             cb.Unchecked += (s, e) => setter?.Invoke(false);
             return cb;
@@ -804,27 +693,98 @@ namespace StingTools.UI
             [JsonProperty("hatchPalette")]    public string HatchPalette { get; set; }
         }
 
+        // Phase 136 — PackFilterRule mirrors StyleFilterRule's full Revit-style
+        // override surface: line override (color + weight + pattern) and
+        // surface fg/bg pattern (name + color + visibility) for both
+        // projection and cut. Legacy projColor/projWeight/cutColor/cutWeight
+        // kept for backward compat with existing JSON files.
         private class PackFilterRule
         {
             [JsonProperty("name")]         public string Name { get; set; }
             [JsonProperty("visible")]      public bool Visible { get; set; } = true;
             [JsonProperty("halftone")]     public bool Halftone { get; set; }
-            [JsonProperty("projColor")]    public string ProjColor { get; set; }
-            [JsonProperty("projWeight")]   public int ProjWeight { get; set; }
-            [JsonProperty("cutColor")]     public string CutColor { get; set; }
-            [JsonProperty("cutWeight")]    public int CutWeight { get; set; }
-            [JsonProperty("transparency")] public int Transparency { get; set; }
+
+            // ── legacy short field names (kept for back-compat) ──
+            [JsonProperty("projColor",  NullValueHandling = NullValueHandling.Ignore)] public string ProjColor { get; set; }
+            [JsonProperty("projWeight", NullValueHandling = NullValueHandling.Ignore)] public int    ProjWeight { get; set; }
+            [JsonProperty("cutColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutColor { get; set; }
+            [JsonProperty("cutWeight",  NullValueHandling = NullValueHandling.Ignore)] public int    CutWeight { get; set; }
+            [JsonProperty("transparency", NullValueHandling = NullValueHandling.Ignore)] public int  Transparency { get; set; }
+
+            // ── new full Revit-style fields ──
+            [JsonProperty("projLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string ProjLinePattern { get; set; }
+
+            [JsonProperty("surfaceFgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternName { get; set; }
+            [JsonProperty("surfaceFgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternColor { get; set; }
+            [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  SurfaceFgPatternVisible { get; set; }
+
+            [JsonProperty("surfaceBgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternName { get; set; }
+            [JsonProperty("surfaceBgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternColor { get; set; }
+            [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  SurfaceBgPatternVisible { get; set; }
+
+            [JsonProperty("cutLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string CutLinePattern { get; set; }
+
+            [JsonProperty("cutFgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternName { get; set; }
+            [JsonProperty("cutFgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternColor { get; set; }
+            [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  CutFgPatternVisible { get; set; }
+
+            [JsonProperty("cutBgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternName { get; set; }
+            [JsonProperty("cutBgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternColor { get; set; }
+            [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  CutBgPatternVisible { get; set; }
         }
 
+        // Phase 136 — PackCategoryOverride mirrors StyleVgOverride's full
+        // Revit-style override surface. Visibility / Halftone now nullable
+        // (null = inherited / not set). Legacy projColor/projWeight/cutColor/
+        // cutWeight kept for backward compat with existing JSON files.
         private class PackCategoryOverride
         {
-            [JsonProperty("visible")]      public bool Visible { get; set; } = true;
-            [JsonProperty("halftone")]     public bool Halftone { get; set; }
-            [JsonProperty("projColor")]    public string ProjColor { get; set; }
-            [JsonProperty("projWeight")]   public int ProjWeight { get; set; }
-            [JsonProperty("cutColor")]     public string CutColor { get; set; }
-            [JsonProperty("cutWeight")]    public int CutWeight { get; set; }
-            [JsonProperty("transparency")] public int Transparency { get; set; }
+            [JsonProperty("visible",  NullValueHandling = NullValueHandling.Ignore)] public bool?  Visible  { get; set; }
+            [JsonProperty("halftone", NullValueHandling = NullValueHandling.Ignore)] public bool?  Halftone { get; set; }
+            [JsonProperty("detailLevel", NullValueHandling = NullValueHandling.Ignore)] public string DetailLevel { get; set; }
+
+            // ── legacy short field names (kept for back-compat) ──
+            [JsonProperty("projColor",  NullValueHandling = NullValueHandling.Ignore)] public string ProjColor  { get; set; }
+            [JsonProperty("projWeight", NullValueHandling = NullValueHandling.Ignore)] public int    ProjWeight { get; set; }
+            [JsonProperty("cutColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutColor   { get; set; }
+            [JsonProperty("cutWeight",  NullValueHandling = NullValueHandling.Ignore)] public int    CutWeight  { get; set; }
+            [JsonProperty("transparency", NullValueHandling = NullValueHandling.Ignore)] public int  Transparency { get; set; }
+
+            // ── new full Revit-style fields ──
+            [JsonProperty("projLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string ProjLinePattern { get; set; }
+
+            [JsonProperty("surfaceFgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternName { get; set; }
+            [JsonProperty("surfaceFgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternColor { get; set; }
+            [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  SurfaceFgPatternVisible { get; set; }
+
+            [JsonProperty("surfaceBgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternName { get; set; }
+            [JsonProperty("surfaceBgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternColor { get; set; }
+            [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  SurfaceBgPatternVisible { get; set; }
+
+            [JsonProperty("cutLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string CutLinePattern { get; set; }
+
+            [JsonProperty("cutFgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternName { get; set; }
+            [JsonProperty("cutFgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternColor { get; set; }
+            [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  CutFgPatternVisible { get; set; }
+
+            [JsonProperty("cutBgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternName { get; set; }
+            [JsonProperty("cutBgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternColor { get; set; }
+            [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  CutBgPatternVisible { get; set; }
+
+            /// <summary>True when no field is overridden — used to keep JSON sparse.</summary>
+            public bool IsEmpty()
+            {
+                return !Visible.HasValue && !Halftone.HasValue && string.IsNullOrEmpty(DetailLevel)
+                    && string.IsNullOrEmpty(ProjColor) && ProjWeight == 0
+                    && string.IsNullOrEmpty(CutColor)  && CutWeight  == 0
+                    && Transparency == 0
+                    && string.IsNullOrEmpty(ProjLinePattern)
+                    && string.IsNullOrEmpty(SurfaceFgPatternName) && string.IsNullOrEmpty(SurfaceFgPatternColor) && !SurfaceFgPatternVisible.HasValue
+                    && string.IsNullOrEmpty(SurfaceBgPatternName) && string.IsNullOrEmpty(SurfaceBgPatternColor) && !SurfaceBgPatternVisible.HasValue
+                    && string.IsNullOrEmpty(CutLinePattern)
+                    && string.IsNullOrEmpty(CutFgPatternName) && string.IsNullOrEmpty(CutFgPatternColor) && !CutFgPatternVisible.HasValue
+                    && string.IsNullOrEmpty(CutBgPatternName) && string.IsNullOrEmpty(CutBgPatternColor) && !CutBgPatternVisible.HasValue;
+            }
         }
 
         private UIElement BuildViewportToolsTab()
@@ -1355,6 +1315,50 @@ namespace StingTools.UI
                 _current.ViewportTypeName, v => _current.ViewportTypeName = v,
                 ProjectAssetPicker.ViewportTypeNames(_doc),
                 "ElementType where Category = OST_Viewports in the active project."));
+
+            // Phase 136 — ViewStylePackId picker + edit link.
+            var packItems = new[] { "(none)" }
+                .Concat((_packs ?? new List<ViewStylePack>()).Select(p => $"{p.Id}  —  {p.Name ?? p.Id}"))
+                .ToArray();
+            var currentPackDisplay = string.IsNullOrEmpty(_current.ViewStylePackId)
+                ? "(none)"
+                : packItems.FirstOrDefault(s => s.StartsWith(_current.ViewStylePackId + " "))
+                  ?? _current.ViewStylePackId;
+            body.Children.Add(LabeledProjectAssetCombo(
+                "View style pack",
+                currentPackDisplay,
+                v =>
+                {
+                    if (string.IsNullOrEmpty(v) || v == "(none)") { _current.ViewStylePackId = null; return; }
+                    var id = v.Contains("  —  ")
+                        ? v.Split(new[] { "  —  " }, 2, StringSplitOptions.None)[0].Trim()
+                        : v.Trim();
+                    _current.ViewStylePackId = string.IsNullOrEmpty(id) ? null : id;
+                },
+                packItems,
+                "The ViewStylePack that supplies VG overrides, filter rules and tag style defaults. " +
+                "Packs are defined in the View Style Packs tab."));
+
+            var navLink = new TextBlock
+            {
+                Text = "→ Edit selected pack",
+                Foreground = new SolidColorBrush(AccentColor),
+                FontSize = 11,
+                Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 2, 4, 6),
+            };
+            navLink.MouseLeftButtonUp += (s, e) =>
+            {
+                if (string.IsNullOrEmpty(_current.ViewStylePackId)) return;
+                var target = (_packs ?? new List<ViewStylePack>()).FirstOrDefault(p =>
+                    string.Equals(p.Id, _current.ViewStylePackId, StringComparison.OrdinalIgnoreCase));
+                if (target == null) return;
+                _rootTabs.SelectedIndex = 1;            // switch to View Style Packs tab
+                SelectPack(target);                     // highlight the matching pack in the list
+            };
+            body.Children.Add(navLink);
+
             return Card("Views", body);
         }
 
@@ -2250,5 +2254,1119 @@ namespace StingTools.UI
             var json = JsonConvert.SerializeObject(src);
             return JsonConvert.DeserializeObject<DrawingType>(json);
         }
+
+        // ───────────────────────────────────────────────────────────────
+        //  PHASE 136 — FULL REVIT-STYLE VG EDITOR
+        //  4-tab layout (Model / Annotation / Imported / Filters) with
+        //  category tree, Override... sub-dialogs (Lines + Patterns),
+        //  per-category Halftone + DetailLevel, All/None/Invert/Expand bulk.
+        // ───────────────────────────────────────────────────────────────
+
+        // ── VgCategoryNode — internal model for the editor tree ──
+        private sealed class VgCategoryNode
+        {
+            public string CategoryName { get; set; }       // display name
+            public string CategoryKey  { get; set; }       // key into VgOverrides dict
+            public bool IsSubcategory  { get; set; }
+            public List<VgCategoryNode> Children { get; set; } = new List<VgCategoryNode>();
+            public bool IsExpanded { get; set; }            // UI state for [+]/[-]
+        }
+
+        // Cached tree state (built once in the constructor, reused).
+        private List<VgCategoryNode> _modelCatNodes      = new List<VgCategoryNode>();
+        private List<VgCategoryNode> _annotationCatNodes = new List<VgCategoryNode>();
+        private List<VgCategoryNode> _importedCatNodes   = new List<VgCategoryNode>();
+        private string[] _linePatternNames = new[] { "(No Override)", "Solid" };
+        private string[] _fillPatternNames = new[] { "(No Override)" };
+
+        // Build the three category trees + line/fill pattern lists from the
+        // active document. Called once from the constructor (before BuildLayout).
+        private void BuildCategoryTrees()
+        {
+            try
+            {
+                if (_doc == null) return;
+
+                // Model categories ----------------------------------------
+                foreach (Category cat in _doc.Settings.Categories)
+                {
+                    if (cat == null) continue;
+                    if (cat.CategoryType != CategoryType.Model) continue;
+                    var node = new VgCategoryNode { CategoryName = cat.Name, CategoryKey = cat.Name };
+                    foreach (Category sub in cat.SubCategories)
+                    {
+                        if (sub == null) continue;
+                        node.Children.Add(new VgCategoryNode
+                        {
+                            CategoryName  = sub.Name,
+                            CategoryKey   = "<" + sub.Name + ">",
+                            IsSubcategory = true,
+                        });
+                    }
+                    _modelCatNodes.Add(node);
+                }
+                _modelCatNodes = _modelCatNodes.OrderBy(n => n.CategoryName).ToList();
+
+                // Annotation categories -----------------------------------
+                foreach (Category cat in _doc.Settings.Categories)
+                {
+                    if (cat == null) continue;
+                    if (cat.CategoryType != CategoryType.Annotation) continue;
+                    var node = new VgCategoryNode { CategoryName = cat.Name, CategoryKey = cat.Name };
+                    foreach (Category sub in cat.SubCategories)
+                    {
+                        if (sub == null) continue;
+                        node.Children.Add(new VgCategoryNode
+                        {
+                            CategoryName  = sub.Name,
+                            CategoryKey   = "<" + sub.Name + ">",
+                            IsSubcategory = true,
+                        });
+                    }
+                    _annotationCatNodes.Add(node);
+                }
+                _annotationCatNodes = _annotationCatNodes.OrderBy(n => n.CategoryName).ToList();
+
+                // Imported (DWG / DXF) categories --------------------------
+                // Group by import file name; subcats are the layers.
+                var imports = new FilteredElementCollector(_doc)
+                    .OfClass(typeof(ImportInstance))
+                    .Cast<ImportInstance>()
+                    .Where(i => i?.Category != null)
+                    .ToList();
+                var byFile = new Dictionary<string, VgCategoryNode>(StringComparer.OrdinalIgnoreCase);
+                foreach (var imp in imports)
+                {
+                    var c = imp.Category;
+                    if (c == null) continue;
+                    if (!byFile.TryGetValue(c.Name, out var parent))
+                    {
+                        parent = new VgCategoryNode { CategoryName = c.Name, CategoryKey = c.Name };
+                        byFile[c.Name] = parent;
+                        foreach (Category sub in c.SubCategories)
+                        {
+                            if (sub == null) continue;
+                            parent.Children.Add(new VgCategoryNode
+                            {
+                                CategoryName  = sub.Name,
+                                CategoryKey   = "<" + sub.Name + ">",
+                                IsSubcategory = true,
+                            });
+                        }
+                    }
+                }
+                _importedCatNodes = byFile.Values.OrderBy(n => n.CategoryName).ToList();
+
+                // Line + fill patterns ------------------------------------
+                _linePatternNames = new[] { "(No Override)", "Solid" }
+                    .Concat(new FilteredElementCollector(_doc)
+                        .OfClass(typeof(LinePatternElement))
+                        .Cast<LinePatternElement>()
+                        .Select(lp => lp.Name).OrderBy(n => n))
+                    .Distinct().ToArray();
+
+                _fillPatternNames = new[] { "(No Override)" }
+                    .Concat(new FilteredElementCollector(_doc)
+                        .OfClass(typeof(FillPatternElement))
+                        .Cast<FillPatternElement>()
+                        .Select(fp => fp.Name).OrderBy(n => n))
+                    .Distinct().ToArray();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("DrawingTypeEditor.BuildCategoryTrees: " + ex.Message);
+            }
+        }
+
+
+        // ── BuildFullVgEditor — replaces the old VG/Filter row-grids ──
+        // 4 tabs: Model Categories / Annotation Categories / Imported / Filters
+        private UIElement BuildFullVgEditor()
+        {
+            var border = new Border
+            {
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                Background  = new SolidColorBrush(CardBg),
+                Margin = new Thickness(0, 6, 0, 6),
+            };
+
+            var outer = new DockPanel();
+            border.Child = outer;
+
+            var title = new TextBlock
+            {
+                Text = "VG overrides (per category)",
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(AccentColor),
+                Margin = new Thickness(8, 6, 8, 2),
+            };
+            DockPanel.SetDock(title, Dock.Top);
+            outer.Children.Add(title);
+
+            var note = new TextBlock
+            {
+                Text = "Categories not overridden are drawn according to Object Styles settings. " +
+                       "Colours in #RRGGBB. Patterns resolved by name from the active project.",
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(8, 0, 8, 4),
+            };
+            DockPanel.SetDock(note, Dock.Top);
+            outer.Children.Add(note);
+
+            var tabs = new TabControl
+            {
+                Background  = new SolidColorBrush(BgColor),
+                Foreground  = new SolidColorBrush(FgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                Margin      = new Thickness(4),
+            };
+            tabs.Items.Add(MakeVgTab("Model Categories",      BuildVgTreeTab(_modelCatNodes)));
+            tabs.Items.Add(MakeVgTab("Annotation Categories", BuildVgTreeTab(_annotationCatNodes)));
+            tabs.Items.Add(MakeVgTab("Imported Categories",   BuildVgTreeTab(_importedCatNodes)));
+            tabs.Items.Add(MakeVgTab("Filters",               BuildFiltersTab()));
+            DockPanel.SetDock(tabs, Dock.Top);
+            outer.Children.Add(tabs);
+
+            return border;
+        }
+
+        private TabItem MakeVgTab(string header, UIElement content)
+        {
+            return new TabItem
+            {
+                Header = header, Content = content,
+                Background = new SolidColorBrush(CardBg),
+                Foreground = new SolidColorBrush(FgColor),
+            };
+        }
+
+
+        // Column widths shared by the header row + every category row so
+        // the columns line up regardless of dialog width. Order:
+        // [vis-chk, name, lines, patterns, transparency, cut-lines, cut-patterns, halftone, detail-lvl]
+        private static readonly double[] _vgColWidths =
+            { 22, 180, 90, 90, 50, 90, 90, 60, 80 };
+
+        private UIElement BuildVgTreeTab(List<VgCategoryNode> nodes)
+        {
+            var dock = new DockPanel { Margin = new Thickness(2), LastChildFill = true };
+
+            // Column header row
+            var hdrRow = MakeVgHeaderRow();
+            DockPanel.SetDock(hdrRow, Dock.Top);
+            dock.Children.Add(hdrRow);
+
+            // Action button row at bottom: All / None / Invert / Expand All
+            var actions = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 4, 0, 2),
+            };
+            actions.Children.Add(MakeSmallBtn("All",        () => BulkSetVisibility(nodes, true)));
+            actions.Children.Add(MakeSmallBtn("None",       () => BulkSetVisibility(nodes, false)));
+            actions.Children.Add(MakeSmallBtn("Invert",     () => BulkInvertVisibility(nodes)));
+            actions.Children.Add(MakeSmallBtn("Expand All", () => BulkExpand(nodes, true)));
+            actions.Children.Add(MakeSmallBtn("Collapse All", () => BulkExpand(nodes, false)));
+            DockPanel.SetDock(actions, Dock.Bottom);
+            dock.Children.Add(actions);
+
+            // Scrollable category rows
+            var scroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                MaxHeight = 380,
+            };
+            var rows = new StackPanel();
+            scroll.Content = rows;
+            dock.Children.Add(scroll);
+
+            RenderVgRows(rows, nodes);
+            return dock;
+        }
+
+        // Render the rows for the given node list. Subcat rows render only
+        // when the parent is expanded. Re-called whenever override state
+        // changes that affects visibility / structure.
+        private void RenderVgRows(StackPanel host, List<VgCategoryNode> nodes)
+        {
+            host.Children.Clear();
+            foreach (var n in nodes)
+            {
+                host.Children.Add(MakeVgCategoryRow(n, host, nodes, indent: 0));
+                if (n.IsExpanded)
+                {
+                    foreach (var sub in n.Children)
+                        host.Children.Add(MakeVgCategoryRow(sub, host, nodes, indent: 16));
+                }
+            }
+        }
+
+        private UIElement MakeVgHeaderRow()
+        {
+            var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
+            for (int i = 0; i < _vgColWidths.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_vgColWidths[i]) });
+
+            // Header labels (matching Revit's VG dialog headings)
+            string[] headers = { "", "Visibility", "Lines", "Patterns", "Trans%", "Cut Lines", "Cut Patterns", "Halftone", "Detail Level" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var t = new TextBlock
+                {
+                    Text = headers[i], FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0),
+                };
+                Grid.SetColumn(t, i); g.Children.Add(t);
+            }
+            return g;
+        }
+
+
+        // Build the row for one category (model / annotation / imported).
+        // Has: visibility-checkbox, name (with [+]/[-] for parents), Lines
+        // Override... button, Patterns Override... button, Transparency tb,
+        // Cut Lines Override... button, Cut Patterns Override... button,
+        // Halftone checkbox, DetailLevel combo.
+        private UIElement MakeVgCategoryRow(VgCategoryNode node, StackPanel host,
+            List<VgCategoryNode> rootList, int indent)
+        {
+            var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            for (int i = 0; i < _vgColWidths.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_vgColWidths[i]) });
+
+            var ovr = GetOrCreateOverride(node.CategoryKey);
+
+            // Col 0 — visibility checkbox
+            var visCb = new CheckBox
+            {
+                IsChecked = ovr.Visible ?? true,
+                VerticalAlignment   = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            visCb.Checked   += (s, e) => { ovr.Visible = true;  CleanupIfEmpty(node.CategoryKey); };
+            visCb.Unchecked += (s, e) => { ovr.Visible = false; CleanupIfEmpty(node.CategoryKey); };
+            Grid.SetColumn(visCb, 0); g.Children.Add(visCb);
+
+            // Col 1 — category name with optional expand/collapse triangle
+            var namePanel = new DockPanel { Margin = new Thickness(indent + 2, 0, 0, 0) };
+            if (!node.IsSubcategory && node.Children.Count > 0)
+            {
+                var tri = new TextBlock
+                {
+                    Text = node.IsExpanded ? "▼" : "▶",
+                    Width = 12, FontSize = 10,
+                    Foreground = new SolidColorBrush(AccentColor),
+                    Cursor = Cursors.Hand,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                tri.MouseLeftButtonUp += (s, e) =>
+                {
+                    node.IsExpanded = !node.IsExpanded;
+                    RenderVgRows(host, rootList);
+                };
+                DockPanel.SetDock(tri, Dock.Left);
+                namePanel.Children.Add(tri);
+            }
+            else
+            {
+                var spacer = new TextBlock { Width = 12 };
+                DockPanel.SetDock(spacer, Dock.Left);
+                namePanel.Children.Add(spacer);
+            }
+            namePanel.Children.Add(new TextBlock
+            {
+                Text = node.CategoryName, FontSize = 11,
+                Foreground = new SolidColorBrush(FgColor),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            Grid.SetColumn(namePanel, 1); g.Children.Add(namePanel);
+
+            // Col 2 — Projection Lines override button
+            var btnLines = MakeOverrideBtn(SummariseLineOverride(
+                ovr.ProjColor, ovr.ProjWeight, ovr.ProjLinePattern), () =>
+            {
+                if (LineOverrideSubDialog.ShowEditor(this, "Line Graphics",
+                    ovr.ProjColor, ovr.ProjWeight, ovr.ProjLinePattern,
+                    _linePatternNames,
+                    out var newColor, out var newWeight, out var newPattern))
+                {
+                    ovr.ProjColor       = newColor;
+                    ovr.ProjWeight      = newWeight;
+                    ovr.ProjLinePattern = newPattern;
+                    CleanupIfEmpty(node.CategoryKey);
+                    RenderVgRows(host, rootList);
+                }
+            });
+            Grid.SetColumn(btnLines, 2); g.Children.Add(btnLines);
+
+            // Col 3 — Surface Patterns override button (fg + bg)
+            var btnPats = MakeOverrideBtn(SummarisePatternOverride(
+                ovr.SurfaceFgPatternName, ovr.SurfaceFgPatternColor, ovr.SurfaceFgPatternVisible,
+                ovr.SurfaceBgPatternName, ovr.SurfaceBgPatternColor, ovr.SurfaceBgPatternVisible), () =>
+            {
+                var fg = (ovr.SurfaceFgPatternName, ovr.SurfaceFgPatternColor, ovr.SurfaceFgPatternVisible);
+                var bg = (ovr.SurfaceBgPatternName, ovr.SurfaceBgPatternColor, ovr.SurfaceBgPatternVisible);
+                if (PatternOverrideSubDialog.ShowEditor(this, "Surface Patterns",
+                    fg, bg, _fillPatternNames, out var newFg, out var newBg))
+                {
+                    ovr.SurfaceFgPatternName    = newFg.name;
+                    ovr.SurfaceFgPatternColor   = newFg.color;
+                    ovr.SurfaceFgPatternVisible = newFg.visible;
+                    ovr.SurfaceBgPatternName    = newBg.name;
+                    ovr.SurfaceBgPatternColor   = newBg.color;
+                    ovr.SurfaceBgPatternVisible = newBg.visible;
+                    CleanupIfEmpty(node.CategoryKey);
+                    RenderVgRows(host, rootList);
+                }
+            });
+            Grid.SetColumn(btnPats, 3); g.Children.Add(btnPats);
+
+            // Col 4 — transparency text box
+            var transTb = new TextBox
+            {
+                Text = ovr.Transparency == 0 ? "" : ovr.Transparency.ToString(),
+                FontSize = 10, Height = 20,
+                ToolTip = "0–100. Empty = no override.",
+            };
+            DarkDialogTheme.StyleInput(transTb, CardBg, FgColor, CardBorder);
+            transTb.LostFocus += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(transTb.Text)) { ovr.Transparency = 0; }
+                else if (int.TryParse(transTb.Text, out var n)) ovr.Transparency = Math.Max(0, Math.Min(100, n));
+                CleanupIfEmpty(node.CategoryKey);
+            };
+            Grid.SetColumn(transTb, 4); g.Children.Add(transTb);
+
+            // Col 5 — Cut Lines override button
+            var btnCutLines = MakeOverrideBtn(SummariseLineOverride(
+                ovr.CutColor, ovr.CutWeight, ovr.CutLinePattern), () =>
+            {
+                if (LineOverrideSubDialog.ShowEditor(this, "Cut Line Graphics",
+                    ovr.CutColor, ovr.CutWeight, ovr.CutLinePattern,
+                    _linePatternNames,
+                    out var newColor, out var newWeight, out var newPattern))
+                {
+                    ovr.CutColor       = newColor;
+                    ovr.CutWeight      = newWeight;
+                    ovr.CutLinePattern = newPattern;
+                    CleanupIfEmpty(node.CategoryKey);
+                    RenderVgRows(host, rootList);
+                }
+            });
+            Grid.SetColumn(btnCutLines, 5); g.Children.Add(btnCutLines);
+
+            // Col 6 — Cut Patterns override button (fg + bg)
+            var btnCutPats = MakeOverrideBtn(SummarisePatternOverride(
+                ovr.CutFgPatternName, ovr.CutFgPatternColor, ovr.CutFgPatternVisible,
+                ovr.CutBgPatternName, ovr.CutBgPatternColor, ovr.CutBgPatternVisible), () =>
+            {
+                var fg = (ovr.CutFgPatternName, ovr.CutFgPatternColor, ovr.CutFgPatternVisible);
+                var bg = (ovr.CutBgPatternName, ovr.CutBgPatternColor, ovr.CutBgPatternVisible);
+                if (PatternOverrideSubDialog.ShowEditor(this, "Cut Patterns",
+                    fg, bg, _fillPatternNames, out var newFg, out var newBg))
+                {
+                    ovr.CutFgPatternName    = newFg.name;
+                    ovr.CutFgPatternColor   = newFg.color;
+                    ovr.CutFgPatternVisible = newFg.visible;
+                    ovr.CutBgPatternName    = newBg.name;
+                    ovr.CutBgPatternColor   = newBg.color;
+                    ovr.CutBgPatternVisible = newBg.visible;
+                    CleanupIfEmpty(node.CategoryKey);
+                    RenderVgRows(host, rootList);
+                }
+            });
+            Grid.SetColumn(btnCutPats, 6); g.Children.Add(btnCutPats);
+
+            // Col 7 — Halftone checkbox (3-state via context: null = not overridden)
+            var htCb = new CheckBox
+            {
+                IsChecked = ovr.Halftone,
+                IsThreeState = true,
+                VerticalAlignment   = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ToolTip = "Indeterminate = no override; checked = halftone; unchecked = no halftone.",
+            };
+            htCb.Checked   += (s, e) => { ovr.Halftone = true;  CleanupIfEmpty(node.CategoryKey); };
+            htCb.Unchecked += (s, e) => { ovr.Halftone = false; CleanupIfEmpty(node.CategoryKey); };
+            htCb.Indeterminate += (s, e) => { ovr.Halftone = null; CleanupIfEmpty(node.CategoryKey); };
+            Grid.SetColumn(htCb, 7); g.Children.Add(htCb);
+
+            // Col 8 — Detail Level combo
+            var dlItems = new[] { "(By View)", "Coarse", "Medium", "Fine" };
+            var dlCb = new ComboBox { Height = 20, FontSize = 10, IsEditable = false };
+            DarkDialogTheme.StyleInput(dlCb, CardBg, FgColor, CardBorder);
+            foreach (var it in dlItems) dlCb.Items.Add(it);
+            dlCb.SelectedItem = string.IsNullOrEmpty(ovr.DetailLevel)
+                ? "(By View)"
+                : (dlItems.FirstOrDefault(d => d.Equals(ovr.DetailLevel, StringComparison.OrdinalIgnoreCase)) ?? "(By View)");
+            dlCb.SelectionChanged += (s, e) =>
+            {
+                if (dlCb.SelectedItem is string ss)
+                {
+                    ovr.DetailLevel = ss == "(By View)" ? null : ss;
+                    CleanupIfEmpty(node.CategoryKey);
+                }
+            };
+            Grid.SetColumn(dlCb, 8); g.Children.Add(dlCb);
+
+            return g;
+        }
+
+
+        // ── Override-state helpers ──
+        private PackCategoryOverride GetOrCreateOverride(string key)
+        {
+            if (_currentPack.VgOverrides == null)
+                _currentPack.VgOverrides = new Dictionary<string, PackCategoryOverride>();
+            if (!_currentPack.VgOverrides.TryGetValue(key, out var ovr) || ovr == null)
+            {
+                ovr = new PackCategoryOverride();
+                _currentPack.VgOverrides[key] = ovr;
+            }
+            return ovr;
+        }
+
+        // If the override has no fields set, remove it from the dict so the
+        // serialised JSON stays sparse — mirrors Revit's behaviour.
+        private void CleanupIfEmpty(string key)
+        {
+            if (_currentPack.VgOverrides == null) return;
+            if (!_currentPack.VgOverrides.TryGetValue(key, out var ovr) || ovr == null) return;
+            if (ovr.IsEmpty()) _currentPack.VgOverrides.Remove(key);
+        }
+
+        private void BulkSetVisibility(List<VgCategoryNode> nodes, bool visible)
+        {
+            foreach (var n in nodes)
+            {
+                var ovr = GetOrCreateOverride(n.CategoryKey);
+                ovr.Visible = visible;
+                CleanupIfEmpty(n.CategoryKey);
+                foreach (var sub in n.Children)
+                {
+                    var so = GetOrCreateOverride(sub.CategoryKey);
+                    so.Visible = visible;
+                    CleanupIfEmpty(sub.CategoryKey);
+                }
+            }
+            RenderPackForm();
+        }
+
+        private void BulkInvertVisibility(List<VgCategoryNode> nodes)
+        {
+            foreach (var n in nodes)
+            {
+                var ovr = GetOrCreateOverride(n.CategoryKey);
+                ovr.Visible = !(ovr.Visible ?? true);
+                CleanupIfEmpty(n.CategoryKey);
+            }
+            RenderPackForm();
+        }
+
+        private void BulkExpand(List<VgCategoryNode> nodes, bool expand)
+        {
+            foreach (var n in nodes) n.IsExpanded = expand;
+            RenderPackForm();
+        }
+
+        // ── UI factory helpers ──
+        private Button MakeOverrideBtn(string label, Action onClick)
+        {
+            var b = new Button
+            {
+                Content = label, Height = 20, FontSize = 10,
+                Padding = new Thickness(4, 0, 4, 0),
+                Background  = new SolidColorBrush(CardBg),
+                Foreground  = new SolidColorBrush(FgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(2, 0, 0, 0),
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+            };
+            b.Click += (s, e) => onClick?.Invoke();
+            return b;
+        }
+
+        private static string SummariseLineOverride(string color, int weight, string pattern)
+        {
+            bool any = !string.IsNullOrEmpty(color) || weight > 0 || !string.IsNullOrEmpty(pattern);
+            if (!any) return "Override...";
+            var parts = new List<string>();
+            if (weight > 0) parts.Add($"Wt:{weight}");
+            if (!string.IsNullOrEmpty(color)) parts.Add(color);
+            if (!string.IsNullOrEmpty(pattern)) parts.Add(pattern);
+            return string.Join(" ", parts);
+        }
+
+        private static string SummarisePatternOverride(
+            string fgName, string fgColor, bool? fgVisible,
+            string bgName, string bgColor, bool? bgVisible)
+        {
+            bool anyFg = !string.IsNullOrEmpty(fgName) || !string.IsNullOrEmpty(fgColor) || fgVisible.HasValue;
+            bool anyBg = !string.IsNullOrEmpty(bgName) || !string.IsNullOrEmpty(bgColor) || bgVisible.HasValue;
+            if (!anyFg && !anyBg) return "Override...";
+            var bits = new List<string>();
+            if (anyFg) bits.Add($"fg:{fgName ?? ""}");
+            if (anyBg) bits.Add($"bg:{bgName ?? ""}");
+            return string.Join(" ", bits);
+        }
+
+
+        // Filters tab — VG-style override surface for ParameterFilterElements.
+        // Same column layout as VG categories (without the category-tree
+        // expand/collapse) so the editor reads consistently across tabs.
+        private static readonly double[] _filterColWidths =
+            { 200, 22, 90, 90, 50, 60 };
+        // [Filter name, visible-chk, lines, patterns, trans%, halftone]
+
+        private UIElement BuildFiltersTab()
+        {
+            var dock = new DockPanel { Margin = new Thickness(2), LastChildFill = true };
+
+            // Header
+            var hdr = new Grid { Margin = new Thickness(0, 4, 0, 2) };
+            for (int i = 0; i < _filterColWidths.Length; i++)
+                hdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_filterColWidths[i]) });
+            string[] hd = { "Filter Name", "", "Lines", "Patterns", "Trans%", "Halftone" };
+            for (int i = 0; i < hd.Length; i++)
+            {
+                var t = new TextBlock
+                {
+                    Text = hd[i], FontSize = 10,
+                    Foreground = new SolidColorBrush(SubtleColor),
+                    Margin = new Thickness(i == 0 ? 0 : 4, 0, 0, 0),
+                };
+                Grid.SetColumn(t, i); hdr.Children.Add(t);
+            }
+            DockPanel.SetDock(hdr, Dock.Top);
+            dock.Children.Add(hdr);
+
+            // "Add filter rule" + Remove-all bottom row
+            var actions = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 4, 0, 2),
+            };
+            actions.Children.Add(MakeSmallBtn("＋ Add filter rule", () =>
+            {
+                _currentPack.FilterRules.Add(new PackFilterRule
+                {
+                    Name = "NewFilter", Visible = true, Halftone = false,
+                });
+                RenderPackForm();
+            }));
+            DockPanel.SetDock(actions, Dock.Bottom);
+            dock.Children.Add(actions);
+
+            // Scrollable filter rows
+            var scroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                MaxHeight = 380,
+            };
+            var rows = new StackPanel();
+            scroll.Content = rows;
+            dock.Children.Add(scroll);
+
+            var filterNames = Merge(ProjectAssetPicker.ParameterFilterNames(_doc),
+                                    CommonStingFilters).ToArray();
+            foreach (var fr in _currentPack.FilterRules.ToList())
+                rows.Children.Add(MakeFilterRow(fr, filterNames));
+
+            return dock;
+        }
+
+        private UIElement MakeFilterRow(PackFilterRule fr, string[] filterNames)
+        {
+            var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            for (int i = 0; i < _filterColWidths.Length; i++)
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_filterColWidths[i]) });
+
+            // Col 0 — filter name combo
+            var nameBox = SmallCombo(fr.Name ?? "", v => fr.Name = v, filterNames);
+            Grid.SetColumn(nameBox, 0); g.Children.Add(nameBox);
+
+            // Col 1 — visibility checkbox
+            var visCb = new CheckBox
+            {
+                IsChecked = fr.Visible,
+                VerticalAlignment   = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            visCb.Checked   += (s, e) => fr.Visible = true;
+            visCb.Unchecked += (s, e) => fr.Visible = false;
+            Grid.SetColumn(visCb, 1); g.Children.Add(visCb);
+
+            // Col 2 — Projection Lines override button
+            var btnLines = MakeOverrideBtn(
+                SummariseLineOverride(fr.ProjColor, fr.ProjWeight, fr.ProjLinePattern), () =>
+                {
+                    if (LineOverrideSubDialog.ShowEditor(this, "Filter Line Graphics",
+                        fr.ProjColor, fr.ProjWeight, fr.ProjLinePattern,
+                        _linePatternNames,
+                        out var nc, out var nw, out var np))
+                    {
+                        fr.ProjColor = nc; fr.ProjWeight = nw; fr.ProjLinePattern = np;
+                        RenderPackForm();
+                    }
+                });
+            Grid.SetColumn(btnLines, 2); g.Children.Add(btnLines);
+
+            // Col 3 — Surface Patterns override button (fg + bg)
+            var btnPats = MakeOverrideBtn(SummarisePatternOverride(
+                fr.SurfaceFgPatternName, fr.SurfaceFgPatternColor, fr.SurfaceFgPatternVisible,
+                fr.SurfaceBgPatternName, fr.SurfaceBgPatternColor, fr.SurfaceBgPatternVisible), () =>
+            {
+                var fg = (fr.SurfaceFgPatternName, fr.SurfaceFgPatternColor, fr.SurfaceFgPatternVisible);
+                var bg = (fr.SurfaceBgPatternName, fr.SurfaceBgPatternColor, fr.SurfaceBgPatternVisible);
+                if (PatternOverrideSubDialog.ShowEditor(this, "Filter Surface Patterns",
+                    fg, bg, _fillPatternNames, out var newFg, out var newBg))
+                {
+                    fr.SurfaceFgPatternName    = newFg.name;
+                    fr.SurfaceFgPatternColor   = newFg.color;
+                    fr.SurfaceFgPatternVisible = newFg.visible;
+                    fr.SurfaceBgPatternName    = newBg.name;
+                    fr.SurfaceBgPatternColor   = newBg.color;
+                    fr.SurfaceBgPatternVisible = newBg.visible;
+                    RenderPackForm();
+                }
+            });
+            Grid.SetColumn(btnPats, 3); g.Children.Add(btnPats);
+
+            // Col 4 — transparency
+            var transTb = new TextBox
+            {
+                Text = fr.Transparency == 0 ? "" : fr.Transparency.ToString(),
+                FontSize = 10, Height = 20,
+            };
+            DarkDialogTheme.StyleInput(transTb, CardBg, FgColor, CardBorder);
+            transTb.LostFocus += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(transTb.Text)) fr.Transparency = 0;
+                else if (int.TryParse(transTb.Text, out var n)) fr.Transparency = Math.Max(0, Math.Min(100, n));
+            };
+            Grid.SetColumn(transTb, 4); g.Children.Add(transTb);
+
+            // Col 5 — halftone
+            var htCb = new CheckBox
+            {
+                IsChecked = fr.Halftone,
+                VerticalAlignment   = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            htCb.Checked   += (s, e) => fr.Halftone = true;
+            htCb.Unchecked += (s, e) => fr.Halftone = false;
+            Grid.SetColumn(htCb, 5); g.Children.Add(htCb);
+
+            return g;
+        }
+
+
+        // ── LineOverrideSubDialog — modal "Override Lines" editor ──
+        // Color (square swatch + #RRGGBB textbox + native ColorDialog),
+        // Weight (combo: (No Override) | 1..16),
+        // Pattern (combo from doc's LinePatternElements; Solid + No Override).
+        // Static ShowEditor() takes existing values, returns user-chosen values.
+        private sealed class LineOverrideSubDialog : Window
+        {
+            private string _color;
+            private int    _weight;
+            private string _pattern;
+            private TextBox _hexBox;
+            private Border  _swatch;
+            private ComboBox _weightCb;
+            private ComboBox _patternCb;
+            private bool _ok;
+
+            public static bool ShowEditor(Window owner, string title,
+                string currentColor, int currentWeight, string currentPattern,
+                string[] linePatternNames,
+                out string newColor, out int newWeight, out string newPattern)
+            {
+                var dlg = new LineOverrideSubDialog(owner, title,
+                    currentColor, currentWeight, currentPattern, linePatternNames);
+                dlg.ShowDialog();
+                newColor   = dlg._ok ? dlg._color   : currentColor;
+                newWeight  = dlg._ok ? dlg._weight  : currentWeight;
+                newPattern = dlg._ok ? dlg._pattern : currentPattern;
+                return dlg._ok;
+            }
+
+            private LineOverrideSubDialog(Window owner, string title,
+                string color, int weight, string pattern, string[] linePatternNames)
+            {
+                _color = color ?? "";
+                _weight = weight;
+                _pattern = pattern ?? "";
+
+                Title = title;
+                Width = 360; Height = 220;
+                WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                Owner = owner;
+                Background = new SolidColorBrush(Color.FromRgb(0xFA, 0xFA, 0xFA));
+                FontFamily = new FontFamily("Segoe UI");
+                ResizeMode = ResizeMode.NoResize;
+
+                var grid = new Grid { Margin = new Thickness(12) };
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                // Row 0 — color
+                var lblColor = new TextBlock { Text = "Color:", VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetRow(lblColor, 0); Grid.SetColumn(lblColor, 0); grid.Children.Add(lblColor);
+
+                var colorPanel = new DockPanel { LastChildFill = true };
+                _swatch = new Border
+                {
+                    Width = 24, Height = 24,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0xCF, 0xD8, 0xDC)),
+                    BorderThickness = new Thickness(1),
+                    Background = HexToBrush(_color),
+                    Margin = new Thickness(0, 0, 6, 0),
+                    Cursor = Cursors.Hand,
+                };
+                _swatch.MouseLeftButtonUp += (s, e) => OpenColorPicker();
+                DockPanel.SetDock(_swatch, Dock.Left);
+                colorPanel.Children.Add(_swatch);
+
+                _hexBox = new TextBox { Text = _color, Height = 22 };
+                _hexBox.LostFocus += (s, e) =>
+                {
+                    _color = (_hexBox.Text ?? "").Trim();
+                    _swatch.Background = HexToBrush(_color);
+                };
+                colorPanel.Children.Add(_hexBox);
+                Grid.SetRow(colorPanel, 0); Grid.SetColumn(colorPanel, 1); grid.Children.Add(colorPanel);
+
+                var lnkClearColor = new TextBlock
+                {
+                    Text = "(No Override)",
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D)),
+                    Cursor = Cursors.Hand, FontSize = 10,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(8, 0, 0, 0),
+                };
+                lnkClearColor.MouseLeftButtonUp += (s, e) =>
+                {
+                    _color = ""; _hexBox.Text = ""; _swatch.Background = Brushes.Transparent;
+                };
+                Grid.SetRow(lnkClearColor, 0); Grid.SetColumn(lnkClearColor, 2); grid.Children.Add(lnkClearColor);
+
+                // Row 1 — weight
+                var lblWeight = new TextBlock { Text = "Weight:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
+                Grid.SetRow(lblWeight, 1); Grid.SetColumn(lblWeight, 0); grid.Children.Add(lblWeight);
+
+                _weightCb = new ComboBox { Height = 22, Margin = new Thickness(0, 8, 0, 0) };
+                _weightCb.Items.Add("(No Override)");
+                for (int i = 1; i <= 16; i++) _weightCb.Items.Add(i.ToString());
+                _weightCb.SelectedItem = _weight > 0 ? _weight.ToString() : "(No Override)";
+                _weightCb.SelectionChanged += (s, e) =>
+                {
+                    if (_weightCb.SelectedItem is string ss)
+                        _weight = ss == "(No Override)" ? 0 : int.Parse(ss);
+                };
+                Grid.SetRow(_weightCb, 1); Grid.SetColumn(_weightCb, 1); Grid.SetColumnSpan(_weightCb, 2);
+                grid.Children.Add(_weightCb);
+
+                // Row 2 — pattern
+                var lblPattern = new TextBlock { Text = "Pattern:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
+                Grid.SetRow(lblPattern, 2); Grid.SetColumn(lblPattern, 0); grid.Children.Add(lblPattern);
+
+                _patternCb = new ComboBox { Height = 22, Margin = new Thickness(0, 8, 0, 0) };
+                foreach (var n in linePatternNames ?? new[] { "(No Override)", "Solid" })
+                    _patternCb.Items.Add(n);
+                _patternCb.SelectedItem = string.IsNullOrEmpty(_pattern) ? "(No Override)" : _pattern;
+                _patternCb.SelectionChanged += (s, e) =>
+                {
+                    if (_patternCb.SelectedItem is string ss)
+                        _pattern = ss == "(No Override)" ? "" : ss;
+                };
+                Grid.SetRow(_patternCb, 2); Grid.SetColumn(_patternCb, 1); Grid.SetColumnSpan(_patternCb, 2);
+                grid.Children.Add(_patternCb);
+
+                // Row 4 — OK / Cancel
+                var btns = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                };
+                var ok = new Button { Content = "OK", Width = 80, Height = 26, IsDefault = true,
+                    Margin = new Thickness(0, 0, 6, 0) };
+                ok.Click += (s, e) => { _ok = true; Close(); };
+                var cancel = new Button { Content = "Cancel", Width = 80, Height = 26, IsCancel = true };
+                cancel.Click += (s, e) => { _ok = false; Close(); };
+                btns.Children.Add(ok); btns.Children.Add(cancel);
+                Grid.SetRow(btns, 4); Grid.SetColumn(btns, 0); Grid.SetColumnSpan(btns, 3);
+                grid.Children.Add(btns);
+
+                Content = grid;
+            }
+
+            private static SolidColorBrush HexToBrush(string hex)
+            {
+                if (string.IsNullOrWhiteSpace(hex)) return new SolidColorBrush(Colors.Transparent);
+                var s = hex.TrimStart('#');
+                if (s.Length != 6) return new SolidColorBrush(Colors.Transparent);
+                try
+                {
+                    byte r = Convert.ToByte(s.Substring(0, 2), 16);
+                    byte g = Convert.ToByte(s.Substring(2, 2), 16);
+                    byte b = Convert.ToByte(s.Substring(4, 2), 16);
+                    return new SolidColorBrush(Color.FromRgb(r, g, b));
+                }
+                catch { return new SolidColorBrush(Colors.Transparent); }
+            }
+
+            private void OpenColorPicker()
+            {
+                using (var cd = new System.Windows.Forms.ColorDialog())
+                {
+                    if (!string.IsNullOrEmpty(_color))
+                    {
+                        var s = _color.TrimStart('#');
+                        if (s.Length == 6)
+                        {
+                            try
+                            {
+                                byte r = Convert.ToByte(s.Substring(0, 2), 16);
+                                byte g = Convert.ToByte(s.Substring(2, 2), 16);
+                                byte b = Convert.ToByte(s.Substring(4, 2), 16);
+                                cd.Color = System.Drawing.Color.FromArgb(r, g, b);
+                            }
+                            catch { }
+                        }
+                    }
+                    if (cd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                    {
+                        _color = $"#{cd.Color.R:X2}{cd.Color.G:X2}{cd.Color.B:X2}";
+                        _hexBox.Text = _color;
+                        _swatch.Background = HexToBrush(_color);
+                    }
+                }
+            }
+        }
+
+
+        // ── PatternOverrideSubDialog — modal "Override Patterns" editor ──
+        // Two stacked sections (Foreground / Background); each section has
+        // Visible CheckBox + Color row (swatch + hex + native ColorDialog) +
+        // Pattern combo. ShowEditor takes/returns (name, color, visible).
+        private sealed class PatternOverrideSubDialog : Window
+        {
+            private string _fgName, _fgColor; private bool? _fgVisible;
+            private string _bgName, _bgColor; private bool? _bgVisible;
+            private bool _ok;
+
+            // Foreground UI
+            private CheckBox _fgVisCb; private TextBox _fgHex;
+            private Border _fgSwatch; private ComboBox _fgPatCb;
+            // Background UI
+            private CheckBox _bgVisCb; private TextBox _bgHex;
+            private Border _bgSwatch; private ComboBox _bgPatCb;
+
+            public static bool ShowEditor(Window owner, string title,
+                (string name, string color, bool? visible) fg,
+                (string name, string color, bool? visible) bg,
+                string[] fillPatternNames,
+                out (string name, string color, bool? visible) newFg,
+                out (string name, string color, bool? visible) newBg)
+            {
+                var dlg = new PatternOverrideSubDialog(owner, title, fg, bg, fillPatternNames);
+                dlg.ShowDialog();
+                newFg = dlg._ok ? (dlg._fgName, dlg._fgColor, dlg._fgVisible) : fg;
+                newBg = dlg._ok ? (dlg._bgName, dlg._bgColor, dlg._bgVisible) : bg;
+                return dlg._ok;
+            }
+
+            private PatternOverrideSubDialog(Window owner, string title,
+                (string name, string color, bool? visible) fg,
+                (string name, string color, bool? visible) bg,
+                string[] fillPatternNames)
+            {
+                _fgName = fg.name ?? ""; _fgColor = fg.color ?? ""; _fgVisible = fg.visible;
+                _bgName = bg.name ?? ""; _bgColor = bg.color ?? ""; _bgVisible = bg.visible;
+
+                Title = title;
+                Width = 420; Height = 320;
+                WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                Owner = owner;
+                Background = new SolidColorBrush(Color.FromRgb(0xFA, 0xFA, 0xFA));
+                FontFamily = new FontFamily("Segoe UI");
+                ResizeMode = ResizeMode.NoResize;
+
+                var stack = new StackPanel { Margin = new Thickness(12) };
+                stack.Children.Add(BuildSection("Foreground pattern", true,  fillPatternNames));
+                stack.Children.Add(BuildSection("Background pattern", false, fillPatternNames));
+
+                var btns = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    Margin = new Thickness(0, 8, 0, 0),
+                };
+                var ok = new Button { Content = "OK", Width = 80, Height = 26, IsDefault = true,
+                    Margin = new Thickness(0, 0, 6, 0) };
+                ok.Click += (s, e) => { _ok = true; Close(); };
+                var cancel = new Button { Content = "Cancel", Width = 80, Height = 26, IsCancel = true };
+                cancel.Click += (s, e) => { _ok = false; Close(); };
+                btns.Children.Add(ok); btns.Children.Add(cancel);
+                stack.Children.Add(btns);
+
+                Content = stack;
+            }
+
+            private UIElement BuildSection(string title, bool isFg, string[] fillPatternNames)
+            {
+                var border = new Border
+                {
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0xCF, 0xD8, 0xDC)),
+                    Padding = new Thickness(8),
+                    Margin = new Thickness(0, 0, 0, 6),
+                };
+                var inner = new StackPanel();
+                inner.Children.Add(new TextBlock
+                {
+                    Text = title, FontWeight = FontWeights.SemiBold,
+                    Margin = new Thickness(0, 0, 0, 6),
+                });
+
+                // Visible row
+                var visCb = new CheckBox
+                {
+                    Content = "Visible", IsThreeState = true,
+                    IsChecked = isFg ? _fgVisible : _bgVisible,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    ToolTip = "Indeterminate = no override.",
+                };
+                visCb.Checked      += (s, e) => SetVisible(isFg, true);
+                visCb.Unchecked    += (s, e) => SetVisible(isFg, false);
+                visCb.Indeterminate += (s, e) => SetVisible(isFg, null);
+                if (isFg) _fgVisCb = visCb; else _bgVisCb = visCb;
+                inner.Children.Add(visCb);
+
+                // Color row
+                var colorRow = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 4) };
+                var lbl = new TextBlock { Text = "Color:", Width = 50, VerticalAlignment = VerticalAlignment.Center };
+                DockPanel.SetDock(lbl, Dock.Left);
+                colorRow.Children.Add(lbl);
+
+                var swatch = new Border
+                {
+                    Width = 24, Height = 24,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0xCF, 0xD8, 0xDC)),
+                    BorderThickness = new Thickness(1),
+                    Background = LineOverrideSubDialog_HexToBrush(isFg ? _fgColor : _bgColor),
+                    Cursor = Cursors.Hand,
+                    Margin = new Thickness(0, 0, 6, 0),
+                };
+                DockPanel.SetDock(swatch, Dock.Left);
+                colorRow.Children.Add(swatch);
+                if (isFg) _fgSwatch = swatch; else _bgSwatch = swatch;
+
+                var hex = new TextBox { Text = isFg ? _fgColor : _bgColor, Height = 22 };
+                hex.LostFocus += (s, e) =>
+                {
+                    var v = (hex.Text ?? "").Trim();
+                    if (isFg) { _fgColor = v; _fgSwatch.Background = LineOverrideSubDialog_HexToBrush(v); }
+                    else      { _bgColor = v; _bgSwatch.Background = LineOverrideSubDialog_HexToBrush(v); }
+                };
+                colorRow.Children.Add(hex);
+                if (isFg) _fgHex = hex; else _bgHex = hex;
+
+                swatch.MouseLeftButtonUp += (s, e) => OpenColorPicker(isFg);
+                inner.Children.Add(colorRow);
+
+                // Pattern row
+                var patRow = new DockPanel { LastChildFill = true };
+                var lbl2 = new TextBlock { Text = "Pattern:", Width = 50, VerticalAlignment = VerticalAlignment.Center };
+                DockPanel.SetDock(lbl2, Dock.Left);
+                patRow.Children.Add(lbl2);
+
+                var patCb = new ComboBox { Height = 22 };
+                foreach (var n in fillPatternNames ?? new[] { "(No Override)" })
+                    patCb.Items.Add(n);
+                patCb.SelectedItem = string.IsNullOrEmpty(isFg ? _fgName : _bgName)
+                    ? "(No Override)"
+                    : (isFg ? _fgName : _bgName);
+                patCb.SelectionChanged += (s, e) =>
+                {
+                    if (patCb.SelectedItem is string ss)
+                    {
+                        var v = ss == "(No Override)" ? "" : ss;
+                        if (isFg) _fgName = v; else _bgName = v;
+                    }
+                };
+                if (isFg) _fgPatCb = patCb; else _bgPatCb = patCb;
+                patRow.Children.Add(patCb);
+                inner.Children.Add(patRow);
+
+                border.Child = inner;
+                return border;
+            }
+
+            private void SetVisible(bool isFg, bool? v)
+            {
+                if (isFg) _fgVisible = v;
+                else      _bgVisible = v;
+            }
+
+            private void OpenColorPicker(bool isFg)
+            {
+                var current = isFg ? _fgColor : _bgColor;
+                using (var cd = new System.Windows.Forms.ColorDialog())
+                {
+                    if (!string.IsNullOrEmpty(current))
+                    {
+                        var s = current.TrimStart('#');
+                        if (s.Length == 6)
+                        {
+                            try
+                            {
+                                byte r = Convert.ToByte(s.Substring(0, 2), 16);
+                                byte g = Convert.ToByte(s.Substring(2, 2), 16);
+                                byte b = Convert.ToByte(s.Substring(4, 2), 16);
+                                cd.Color = System.Drawing.Color.FromArgb(r, g, b);
+                            }
+                            catch { }
+                        }
+                    }
+                    if (cd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                    {
+                        var hex = $"#{cd.Color.R:X2}{cd.Color.G:X2}{cd.Color.B:X2}";
+                        if (isFg) { _fgColor = hex; _fgHex.Text = hex; _fgSwatch.Background = LineOverrideSubDialog_HexToBrush(hex); }
+                        else      { _bgColor = hex; _bgHex.Text = hex; _bgSwatch.Background = LineOverrideSubDialog_HexToBrush(hex); }
+                    }
+                }
+            }
+
+            // Reusable hex→brush converter (kept inside the dialog so the
+            // sub-dialog stays self-contained).
+            private static SolidColorBrush LineOverrideSubDialog_HexToBrush(string hex)
+            {
+                if (string.IsNullOrWhiteSpace(hex)) return new SolidColorBrush(Colors.Transparent);
+                var s = hex.TrimStart('#');
+                if (s.Length != 6) return new SolidColorBrush(Colors.Transparent);
+                try
+                {
+                    byte r = Convert.ToByte(s.Substring(0, 2), 16);
+                    byte g = Convert.ToByte(s.Substring(2, 2), 16);
+                    byte b = Convert.ToByte(s.Substring(4, 2), 16);
+                    return new SolidColorBrush(Color.FromRgb(r, g, b));
+                }
+                catch { return new SolidColorBrush(Colors.Transparent); }
+            }
+        }
+
     }
 }

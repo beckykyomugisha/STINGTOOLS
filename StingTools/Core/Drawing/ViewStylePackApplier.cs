@@ -68,12 +68,92 @@ namespace StingTools.Core.Drawing
                     var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
                     var src = kv.Value;
 
-                    if (src.Halftone.HasValue)             ogs.SetHalftone(src.Halftone.Value);
-                    if (src.ProjectionLineWeight.HasValue) ogs.SetProjectionLineWeight(src.ProjectionLineWeight.Value);
-                    if (!string.IsNullOrEmpty(src.ProjectionLineColor)) ogs.SetProjectionLineColor(HexColor(src.ProjectionLineColor));
-                    if (src.CutLineWeight.HasValue)        ogs.SetCutLineWeight(src.CutLineWeight.Value);
-                    if (!string.IsNullOrEmpty(src.CutLineColor))        ogs.SetCutLineColor(HexColor(src.CutLineColor));
-                    if (src.Transparency.HasValue)         ogs.SetSurfaceTransparency(Clamp(src.Transparency.Value, 0, 100));
+                    // Visibility
+                    if (src.Visible.HasValue)
+                    {
+                        try { view.SetCategoryHidden(catId, !src.Visible.Value); }
+                        catch (Exception ex) { r.Warnings.Add($"Visibility '{kv.Key}': {ex.Message}"); }
+                    }
+
+                    // Projection line
+                    if (!string.IsNullOrEmpty(src.ProjectionLineColor))
+                        ogs.SetProjectionLineColor(HexColor(src.ProjectionLineColor));
+                    if (src.ProjectionLineWeight.HasValue)
+                        ogs.SetProjectionLineWeight(src.ProjectionLineWeight.Value);
+                    if (!string.IsNullOrEmpty(src.ProjectionLinePattern))
+                    {
+                        var lpId = ResolveLinePatternId(doc, src.ProjectionLinePattern);
+                        if (lpId != ElementId.InvalidElementId) ogs.SetProjectionLinePatternId(lpId);
+                    }
+
+                    // Surface foreground pattern
+                    if (!string.IsNullOrEmpty(src.SurfaceFgPatternName))
+                    {
+                        var fpId = ResolveFillPatternId(doc, src.SurfaceFgPatternName);
+                        if (fpId != ElementId.InvalidElementId) ogs.SetSurfaceForegroundPatternId(fpId);
+                    }
+                    if (!string.IsNullOrEmpty(src.SurfaceFgPatternColor))
+                        ogs.SetSurfaceForegroundPatternColor(HexColor(src.SurfaceFgPatternColor));
+                    if (src.SurfaceFgPatternVisible.HasValue)
+                        ogs.SetSurfaceForegroundPatternVisible(src.SurfaceFgPatternVisible.Value);
+
+                    // Surface background pattern
+                    if (!string.IsNullOrEmpty(src.SurfaceBgPatternName))
+                    {
+                        var fpId = ResolveFillPatternId(doc, src.SurfaceBgPatternName);
+                        if (fpId != ElementId.InvalidElementId) ogs.SetSurfaceBackgroundPatternId(fpId);
+                    }
+                    if (!string.IsNullOrEmpty(src.SurfaceBgPatternColor))
+                        ogs.SetSurfaceBackgroundPatternColor(HexColor(src.SurfaceBgPatternColor));
+                    if (src.SurfaceBgPatternVisible.HasValue)
+                        ogs.SetSurfaceBackgroundPatternVisible(src.SurfaceBgPatternVisible.Value);
+
+                    // Transparency
+                    if (src.Transparency.HasValue)
+                        ogs.SetSurfaceTransparency(Clamp(src.Transparency.Value, 0, 100));
+
+                    // Halftone
+                    if (src.Halftone.HasValue) ogs.SetHalftone(src.Halftone.Value);
+
+                    // Cut line
+                    if (!string.IsNullOrEmpty(src.CutLineColor))
+                        ogs.SetCutLineColor(HexColor(src.CutLineColor));
+                    if (src.CutLineWeight.HasValue)
+                        ogs.SetCutLineWeight(src.CutLineWeight.Value);
+                    if (!string.IsNullOrEmpty(src.CutLinePattern))
+                    {
+                        var lpId = ResolveLinePatternId(doc, src.CutLinePattern);
+                        if (lpId != ElementId.InvalidElementId) ogs.SetCutLinePatternId(lpId);
+                    }
+
+                    // Cut foreground pattern
+                    if (!string.IsNullOrEmpty(src.CutFgPatternName))
+                    {
+                        var fpId = ResolveFillPatternId(doc, src.CutFgPatternName);
+                        if (fpId != ElementId.InvalidElementId) ogs.SetCutForegroundPatternId(fpId);
+                    }
+                    if (!string.IsNullOrEmpty(src.CutFgPatternColor))
+                        ogs.SetCutForegroundPatternColor(HexColor(src.CutFgPatternColor));
+                    if (src.CutFgPatternVisible.HasValue)
+                        ogs.SetCutForegroundPatternVisible(src.CutFgPatternVisible.Value);
+
+                    // Cut background pattern
+                    if (!string.IsNullOrEmpty(src.CutBgPatternName))
+                    {
+                        var fpId = ResolveFillPatternId(doc, src.CutBgPatternName);
+                        if (fpId != ElementId.InvalidElementId) ogs.SetCutBackgroundPatternId(fpId);
+                    }
+                    if (!string.IsNullOrEmpty(src.CutBgPatternColor))
+                        ogs.SetCutBackgroundPatternColor(HexColor(src.CutBgPatternColor));
+                    if (src.CutBgPatternVisible.HasValue)
+                        ogs.SetCutBackgroundPatternVisible(src.CutBgPatternVisible.Value);
+
+                    // Per-category detail level
+                    if (!string.IsNullOrEmpty(src.DetailLevel))
+                    {
+                        if (Enum.TryParse<ViewDetailLevel>(src.DetailLevel, true, out var dl))
+                            ogs.SetDetailLevel(dl);
+                    }
 
                     view.SetCategoryOverrides(catId, ogs);
                     r.OverridesSet++;
@@ -139,6 +219,28 @@ namespace StingTools.Core.Drawing
             }
             catch { }
             return ElementId.InvalidElementId;
+        }
+
+        private static ElementId ResolveLinePatternId(Document doc, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
+            if (name.Equals("Solid", StringComparison.OrdinalIgnoreCase))
+                return LinePatternElement.GetSolidPatternId();
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(LinePatternElement))
+                .Cast<LinePatternElement>()
+                .FirstOrDefault(lp => string.Equals(lp.Name, name, StringComparison.OrdinalIgnoreCase))
+                ?.Id ?? ElementId.InvalidElementId;
+        }
+
+        private static ElementId ResolveFillPatternId(Document doc, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .FirstOrDefault(fp => string.Equals(fp.Name, name, StringComparison.OrdinalIgnoreCase))
+                ?.Id ?? ElementId.InvalidElementId;
         }
 
         private static Autodesk.Revit.DB.Color HexColor(string hex)
