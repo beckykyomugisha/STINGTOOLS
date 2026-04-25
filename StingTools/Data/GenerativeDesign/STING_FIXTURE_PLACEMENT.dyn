@@ -1,0 +1,93 @@
+{
+  "Uuid": "8d2a1b6c-4e9f-4e41-9c3f-5b8c7a2d1e4f",
+  "IsCustomNode": false,
+  "Description": "STING Pack 11 — multi-objective fixture placement study.\n\nWraps Core/Placement/FixturePlacementEngine as a Generative Design\nNSGA-II study. Consumes STING_PLACEMENT_RULES.json + family-type\nPLACE_HOST_TYPE_TXT / PLACE_MOUNT_HEIGHT_MM / PLACE_SPACING_RULE_TXT\ndeclarations. Optimises for three objectives:\n\n  1. Spacing variance (minimise) — consistent coverage\n  2. Coverage (maximise) — highest number of rooms with >= target density\n  3. Clearance violations (minimise) — count of STING_CLEARANCE_MM\n     infringements (directional Pack-2 params honoured)\n\nStudy results (Pareto front) viewable in the Generative Design studio.",
+  "Name": "STING_FIXTURE_PLACEMENT",
+  "ElementResolver": {
+    "ResolutionMap": {}
+  },
+  "Inputs": [
+    {
+      "Id": "01a-spacing-bias",
+      "Name": "SpacingBias",
+      "Type": "number",
+      "Value": "1.0",
+      "Description": "Weight on spacing-variance objective. Range 0.0..2.0.",
+      "SelectedIndex": 0
+    },
+    {
+      "Id": "02a-coverage-target",
+      "Name": "CoverageTarget",
+      "Type": "number",
+      "Value": "0.95",
+      "Description": "Fraction of rooms that should reach target density. 0.0..1.0.",
+      "SelectedIndex": 0
+    },
+    {
+      "Id": "03a-clearance-penalty",
+      "Name": "ClearancePenalty",
+      "Type": "number",
+      "Value": "5.0",
+      "Description": "Penalty multiplier per clearance infringement. Higher = stricter.",
+      "SelectedIndex": 0
+    }
+  ],
+  "Outputs": [
+    {
+      "Id": "out-spacing-variance",
+      "Name": "SpacingVariance",
+      "Description": "Lower is better — std-dev of inter-fixture distance."
+    },
+    {
+      "Id": "out-coverage-pct",
+      "Name": "CoveragePct",
+      "Description": "Higher is better — fraction of rooms at target density."
+    },
+    {
+      "Id": "out-clearance-violations",
+      "Name": "ClearanceViolations",
+      "Description": "Lower is better — count of STING_CLEARANCE_MM infringements."
+    }
+  ],
+  "Nodes": [
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Id": "node-sting-invoke",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        { "Id": "in-bias",    "Name": "spacingBias",    "UsingDefaultValue": false, "Level": 2 },
+        { "Id": "in-target",  "Name": "coverageTarget", "UsingDefaultValue": false, "Level": 2 },
+        { "Id": "in-penalty", "Name": "penalty",        "UsingDefaultValue": false, "Level": 2 }
+      ],
+      "Outputs": [
+        { "Id": "out-tuple",  "Name": "metrics",        "UsingDefaultValue": false, "Level": 2 }
+      ],
+      "Code": "# STING Pack 11 — Generative Design bridge.\n#\n# Calls into StingTools.Core.Placement.FixturePlacementEngine via the\n# CLR adapter. Generative Design evaluates this script N times across\n# the input parameter ranges; we return the three objective scalars.\n#\n# The heavy lifting stays in C# — this file is only the GD harness.\n\nimport clr\ntry:\n    clr.AddReferenceToFileAndPath(r'StingTools.dll')\n    from StingTools.Core.Placement import FixturePlacementEngine\n    from StingTools.Core.Placement import PlacementRuleLoader\nexcept Exception as ex:\n    # Generative Design sandbox sometimes loads the DLL from a different\n    # directory — fall back to Current load context.\n    from Autodesk.DesignScript.Runtime import IsVisibleInDynamoLibraryAttribute\n    raise\n\n# Inputs from the DYN Input nodes — wired by Generative Design.\nspacingBias    = IN[0]\ncoverageTarget = IN[1]\npenalty        = IN[2]\n\n# Active Revit document is injected by Dynamo's RevitServices layer.\nimport RevitServices\nfrom RevitServices.Persistence import DocumentManager\ndoc = DocumentManager.Instance.CurrentDBDocument\n\nrules = PlacementRuleLoader.Load(doc.PathName)\nresult = FixturePlacementEngine.RunStudy(\n    doc, rules, spacingBias, coverageTarget, penalty)\n\n# Output: three objective scalars. Generative Design writes them into the\n# Outputs declared at top of this .dyn file.\nOUT = (result.SpacingVariance, result.CoveragePct, result.ClearanceViolations)\n"
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "01a-spacing-bias",
+      "End": "in-bias"
+    },
+    {
+      "Start": "02a-coverage-target",
+      "End": "in-target"
+    },
+    {
+      "Start": "03a-clearance-penalty",
+      "End": "in-penalty"
+    }
+  ],
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 1.0,
+      "HasRunWithoutCrash": true,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "2.16.1.6226",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    }
+  }
+}

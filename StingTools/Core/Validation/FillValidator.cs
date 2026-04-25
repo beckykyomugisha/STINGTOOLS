@@ -61,13 +61,30 @@ namespace StingTools.Core.Validation
                         if (p == null) continue;
                         double val = ReadDouble(p);
                         if (val <= 0) continue;
-                        if (val > maxValue)
+
+                        // §5.3 — family-level override via FILL_MAX_PCT.
+                        // Lets a fire-alarm-only conduit type declare a
+                        // tighter 25% limit (BS 5839) without touching the
+                        // global BS 7671 ConduitMaxFillPct default. Electrical
+                        // categories honour the override; velocity-based pipe
+                        // and duct checks keep their CIBSE defaults because
+                        // velocity isn't a fill ratio.
+                        double effectiveMax = maxValue;
+                        if (cat == BuiltInCategory.OST_Conduit || cat == BuiltInCategory.OST_CableTray)
                         {
+                            var routing = Routing.RoutingParamReader.Read(el);
+                            if (routing.FillMaxPct > 0 && routing.FillMaxPct < effectiveMax)
+                                effectiveMax = routing.FillMaxPct;
+                        }
+
+                        if (val > effectiveMax)
+                        {
+                            string note = effectiveMax < maxValue ? $" (family FILL_MAX_PCT override)" : "";
                             results.Add(new ValidationResult(
                                 el.Id,
                                 ValidationSeverity.Warning,
                                 codeOver,
-                                $"{paramName} = {val:F1} exceeds {maxValue:F1}",
+                                $"{paramName} = {val:F1} exceeds {effectiveMax:F1}{note}",
                                 ValidatorTag));
                         }
                     }

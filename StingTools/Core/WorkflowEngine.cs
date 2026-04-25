@@ -1093,6 +1093,23 @@ namespace StingTools.Core
                 // GAP-09: Save data hash sidecar after workflow to mark data as processed
                 SaveDataHashSidecar(doc);
 
+                // Pack 122 / Gap B — stamp the last-run scalars onto ES so the
+                // morning briefing, dock panel, and Idling SLA scanner can read
+                // workflow state without parsing STING_WORKFLOW_LOG.jsonl.
+                try
+                {
+                    string status = cancelled ? "Cancelled" :
+                                    failed > 0 ? "Failed" : "Succeeded";
+                    using (var t = new Transaction(doc, "STING ES: stamp workflow last-run"))
+                    {
+                        t.Start();
+                        StingTools.Core.Storage.StingWorkflowStateSchema
+                            .StampLastRun(doc, preset.Name ?? "", status);
+                        t.Commit();
+                    }
+                }
+                catch (Exception esEx) { StingLog.Warn($"WorkflowState ES stamp: {esEx.Message}"); }
+
                 // Phase 49: Log to coordination log for audit trail
                 try
                 {

@@ -29,6 +29,14 @@ namespace StingTools.Core.Placement
         public string CategoryFilter { get; set; } = "";
 
         /// <summary>
+        /// Pack 3 — optional family-type variant hint. When set, the placement
+        /// engine prefers a FamilySymbol whose STING_FIXTURE_VARIANT_TXT (type
+        /// parameter) equals this value before falling back to the first match.
+        /// Examples: "FLUSH", "SURFACE", "RECESSED", "IP65".
+        /// </summary>
+        public string VariantHint { get; set; } = "";
+
+        /// <summary>
         /// Room-name regex (case-insensitive). Empty string matches any
         /// room. Regex is pre-compiled by PlacementScorer.
         /// </summary>
@@ -93,6 +101,7 @@ namespace StingTools.Core.Placement
             return new PlacementRule
             {
                 CategoryFilter   = this.CategoryFilter,
+                VariantHint      = this.VariantHint,
                 RoomFilter       = this.RoomFilter,
                 AnchorType       = this.AnchorType,
                 OffsetXMm        = this.OffsetXMm,
@@ -107,9 +116,11 @@ namespace StingTools.Core.Placement
 
         /// <summary>
         /// Merge-key tuple used by PlacementRuleLoader to deduplicate
-        /// project-level overrides against the default library.
+        /// project-level overrides against the default library. Variant is
+        /// part of the key so two rules targeting the same category / room /
+        /// anchor but different family-type variants coexist.
         /// </summary>
-        public string MergeKey => $"{CategoryFilter}::{RoomFilter}::{AnchorType}";
+        public string MergeKey => $"{CategoryFilter}::{VariantHint}::{RoomFilter}::{AnchorType}";
     }
 
     /// <summary>

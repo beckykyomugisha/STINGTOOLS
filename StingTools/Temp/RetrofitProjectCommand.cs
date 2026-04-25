@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;          // CS1061 — Cast<T> + Count<T> extension methods
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;

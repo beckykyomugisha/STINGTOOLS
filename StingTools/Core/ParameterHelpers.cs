@@ -1827,6 +1827,29 @@ namespace StingTools.Core
             try { ParameterHelpers.SetInt(el, ParamRegistry.SYS_DETECT_LAYER, sysLayer); }
             catch (Exception ex) { StingLog.Warn($"advisory — parameter may not be bound yet: {ex.Message}"); }
 
+            // Pack 124 / Gap G — token lineage. Captures where LOC/ZONE/SYS
+            // were derived from so audit panels can answer "why is this in
+            // BLD2 not BLD3?" without combing StingLog. Best-effort write.
+            // Uses result.* booleans (in scope) rather than the per-token
+            // strings (which fall out of scope at this point in PopulateAll).
+            try
+            {
+                string locSrc  = result.LocDetected  ? "spatial-auto" : "project-info";
+                string zoneSrc = result.ZoneDetected ? "spatial-auto" : "default";
+                string sysSrc  = sysLayer switch
+                {
+                    1 => "category",
+                    2 => "mep-system",
+                    3 => "connector",
+                    4 => "name-keyword",
+                    5 => "type-name",
+                    6 => "family-default",
+                    _ => "fallback",
+                };
+                StingTools.Core.Storage.StingTokenLineageSchema.Stamp(el, locSrc, zoneSrc, sysSrc);
+            }
+            catch (Exception lnEx) { StingLog.Warn($"Token lineage stamp: {lnEx.Message}"); }
+
             // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
             // Guaranteed default: derive from SYS via FuncMap when smart detection is empty
             string func = TagConfig.GetSmartFuncCode(el, sys);
@@ -3871,6 +3894,18 @@ namespace StingTools.Core
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
                         GetCachedTimestamp(), overwrite: true);
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", Environment.UserName, overwrite: true);
+
+                    // Pack 122 / Gap A — dual-write to Extensible Storage. Schema
+                    // landed in Phase 121; this is the deferred hot-path wire-up.
+                    // Reverse-diff and revision-compare can now read a typed
+                    // long ticks instead of parsing the legacy string timestamp.
+                    try
+                    {
+                        string revCode = ParameterHelpers.GetString(el, "ASS_REV_TXT");
+                        StingTools.Core.Storage.StingTagHistorySchema.Write(
+                            el, _prevTag ?? "", DateTime.UtcNow, revCode ?? "");
+                    }
+                    catch (Exception esEx) { StingLog.Warn($"Tag history ES dual-write: {esEx.Message}"); }
                 }
                 catch (Exception dtEx) { StingLog.Warn($"Tag audit trail write: {dtEx.Message}"); }
 

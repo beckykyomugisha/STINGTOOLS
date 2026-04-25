@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;     // CS0246 — StingListPicker lives in StingTools.Select despite the UI/ folder
 using StingTools.UI;
 
 namespace StingTools.Tags

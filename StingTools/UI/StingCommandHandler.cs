@@ -150,6 +150,13 @@ namespace StingTools.UI
                     // ── v4 MVP: validators (Phase 4) ──
                     case "Validation_RunAll":        RunCommand<Commands.Validation.RunAllValidatorsCommand>(app); break;
 
+                    // ── Gap 2 / Phase 121 — Extensible Storage migration + diagnostic ──
+                    case "ES_Migrate":               RunCommand<Commands.Storage.MigrateToExtensibleStorageCommand>(app); break;
+                    case "ES_Diagnostic":            RunCommand<Commands.Storage.EsStorageDiagnosticCommand>(app); break;
+
+                    // ── Phase 127 — Placement Centre (modeless WPF window) ──
+                    case "Placement_OpenCentre":     RunCommand<Commands.Placement.OpenPlacementCenterCommand>(app); break;
+
                     // ── Phase 116: Standards Extensions + Regional + Bulk API wrappers ──
                     case "StdExt_StageCompliance":  RunCommand<Commands.StandardsExt.StageComplianceAuditCommand>(app); break;
                     case "StdExt_SetRegion":         RunCommand<Commands.StandardsExt.SetRegionCommand>(app); break;

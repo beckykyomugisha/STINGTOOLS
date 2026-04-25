@@ -442,6 +442,32 @@ namespace StingTools.Core
                     _cached = result;
                     _cacheTime = DateTime.UtcNow;
                 }
+
+                // Pack 125 / Gap L — persist the snapshot to ES so trends
+                // survive Revit restarts and the control / placement centre
+                // can read live data without re-scanning. Best-effort write
+                // inside its own transaction; failure does not invalidate the
+                // in-memory cache above.
+                try
+                {
+                    using (var t = new Transaction(doc, "STING ES: persist compliance snapshot"))
+                    {
+                        t.Start();
+                        var snap = new Storage.StingComplianceBaselineSchema.Snapshot
+                        {
+                            LastScanUtcTicks = DateTime.UtcNow.Ticks,
+                            CompliancePct    = result.CompliancePercent,
+                            StrictPct        = result.StrictPercent,
+                            RevisionPct      = result.RevisionPercent,
+                            UntaggedCount    = result.Untagged,
+                            RagStatus        = result.RAGStatus ?? "",
+                        };
+                        Storage.StingComplianceBaselineSchema.Write(doc, snap);
+                        t.Commit();
+                    }
+                }
+                catch (Exception persistEx) { StingLog.Warn($"ComplianceScan ES persist: {persistEx.Message}"); }
+
                 return result;
             }
             finally

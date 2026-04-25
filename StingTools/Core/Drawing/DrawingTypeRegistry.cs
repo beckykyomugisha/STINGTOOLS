@@ -106,20 +106,35 @@ namespace StingTools.Core.Drawing
             if (doc == null) return null;
             try
             {
+                // Pack 122 / Gap C — Extensible Storage first. Survives "Save As"
+                // and project renames; only falls back to the on-disk JSON for
+                // pre-migration projects.
+                var esJson = StingTools.Core.Storage.StingDrawingTypesSchema.Read(doc)?.OverridesJson;
+                if (!string.IsNullOrEmpty(esJson))
+                {
+                    var lib = JsonConvert.DeserializeObject<DrawingTypeLibrary>(esJson);
+                    if (lib != null)
+                    {
+                        foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
+                            if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                    }
+                    return lib;
+                }
+
                 var projPath = doc.PathName;
                 if (string.IsNullOrEmpty(projPath)) return null;
                 var dir = Path.GetDirectoryName(projPath);
                 if (string.IsNullOrEmpty(dir)) return null;
                 var path = Path.Combine(dir, "_BIM_COORD", "drawing_types.json");
                 if (!File.Exists(path)) return null;
-                var json = File.ReadAllText(path);
-                var lib = JsonConvert.DeserializeObject<DrawingTypeLibrary>(json);
-                if (lib != null)
+                var jsonOnDisk = File.ReadAllText(path);
+                var libOnDisk = JsonConvert.DeserializeObject<DrawingTypeLibrary>(jsonOnDisk);
+                if (libOnDisk != null)
                 {
-                    foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
+                    foreach (var t in libOnDisk.DrawingTypes ?? new List<DrawingType>())
                         if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
                 }
-                return lib;
+                return libOnDisk;
             }
             catch (Exception ex)
             {

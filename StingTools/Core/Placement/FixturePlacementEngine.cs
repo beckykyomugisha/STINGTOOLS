@@ -36,7 +36,7 @@ namespace StingTools.Core.Placement
     /// Stateless engine. Reads the rule library via PlacementRuleLoader
     /// and delegates per-candidate scoring to PlacementScorer.
     /// </summary>
-    public static class FixturePlacementEngine
+    public static partial class FixturePlacementEngine
     {
         private const double MmToFt = 1.0 / 304.8;
 
@@ -206,7 +206,7 @@ namespace StingTools.Core.Placement
                 return;
             }
 
-            FamilySymbol symbol = ResolveSymbol(doc, rule.CategoryFilter, perCategorySymbol, result);
+            FamilySymbol symbol = ResolveSymbol(doc, rule.CategoryFilter, rule, perCategorySymbol, result);
             if (symbol == null) return;
 
             if (!symbol.IsActive)
@@ -232,6 +232,14 @@ namespace StingTools.Core.Placement
                     }
 
                     WriteAnchorParameters(fi, rule);
+                    // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
+                    // audit can identify auto-created fixtures.
+                    try
+                    {
+                        StingTools.Core.Storage.StingProvenanceSchema.Stamp(
+                            fi, "FixturePlacementEngine", rule?.MergeKey ?? "");
+                    }
+                    catch (Exception pvEx) { result.Warnings.Add($"Provenance stamp: {pvEx.Message}"); }
                     result.PlacedIds.Add(fi.Id);
                     result.CountsByRule[rule.MergeKey] = result.CountsByRule.TryGetValue(rule.MergeKey, out var n) ? n + 1 : 1;
                     result.CountsByRoom[roomKey] = result.CountsByRoom.TryGetValue(roomKey, out var m) ? m + 1 : 1;
@@ -248,39 +256,59 @@ namespace StingTools.Core.Placement
         private static FamilySymbol ResolveSymbol(
             Document doc,
             string categoryName,
+            PlacementRule rule,
             Dictionary<string, FamilySymbol> cache,
             PlacementResult result)
         {
-            if (cache.TryGetValue(categoryName, out var cached)) return cached;
+            // Pack 3 — cache key now includes the variant hint so one
+            // category can resolve to different symbols for different rules.
+            string hint = rule?.VariantHint ?? "";
+            string cacheKey = string.IsNullOrEmpty(hint) ? categoryName : $"{categoryName}|{hint}";
+            if (cache.TryGetValue(cacheKey, out var cached)) return cached;
 
             FamilySymbol picked = null;
+            FamilySymbol firstForCategory = null;
             try
             {
-                // TODO-VERIFY-API: this picks the FIRST family symbol whose
-                // owning category matches. Production code should use a
-                // configurable default per category stored in project_config.json.
+                // Pack 3 — reads STING_FIXTURE_VARIANT_TXT (type parameter) on every
+                // FamilySymbol of the target category. Prefers a variant match
+                // over the first symbol. Falls back to the first symbol when no
+                // variant is declared on either side, preserving the previous
+                // behaviour for families that haven't been processed by
+                // InjectAutomationPresentationPack.
                 var collector = new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilySymbol));
                 foreach (var el in collector)
                 {
                     if (!(el is FamilySymbol fs)) continue;
                     if (fs.Category == null) continue;
-                    if (string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (firstForCategory == null) firstForCategory = fs;
+
+                    if (!string.IsNullOrEmpty(hint))
                     {
-                        picked = fs;
-                        break;
+                        string variant = fs.LookupParameter("STING_FIXTURE_VARIANT_TXT")?.AsString() ?? "";
+                        if (string.Equals(variant, hint, StringComparison.OrdinalIgnoreCase))
+                        {
+                            picked = fs;
+                            break;
+                        }
                     }
                 }
+                if (picked == null) picked = firstForCategory;
             }
             catch (Exception ex)
             {
-                result.Warnings.Add($"Resolve symbol for '{categoryName}': {ex.Message}");
+                result.Warnings.Add($"Resolve symbol for '{categoryName}' (hint='{hint}'): {ex.Message}");
             }
 
             if (picked == null)
                 result.Warnings.Add($"No FamilySymbol found for category '{categoryName}' — skipping its rules.");
+            else if (!string.IsNullOrEmpty(hint) && firstForCategory != null && picked == firstForCategory)
+                result.Warnings.Add($"No FamilySymbol with STING_FIXTURE_VARIANT_TXT='{hint}' in category '{categoryName}' — using first available symbol.");
 
-            cache[categoryName] = picked;
+            cache[cacheKey] = picked;
             return picked;
         }
 

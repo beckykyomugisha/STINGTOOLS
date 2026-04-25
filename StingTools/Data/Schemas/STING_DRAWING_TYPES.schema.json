@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://planscape.app/schemas/STING_DRAWING_TYPES.schema.json",
+  "title": "STING Drawing Type Library",
+  "description": "Schema for Data/STING_DRAWING_TYPES.json + project _BIM_COORD/drawing_types.json overrides. Pack 126 / Gap I.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["version", "drawingTypes"],
+  "properties": {
+    "version":      { "type": "integer", "minimum": 1, "default": 1 },
+    "drawingTypes": { "type": "array", "items": { "$ref": "#/$defs/DrawingType" } },
+    "routing":      { "type": "array", "items": { "$ref": "#/$defs/RoutingRule" } }
+  },
+  "$defs": {
+    "DrawingType": {
+      "type": "object",
+      "required": ["id", "name", "purpose"],
+      "properties": {
+        "id":               { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "name":             { "type": "string" },
+        "purpose":          { "type": "string", "enum": ["Plan", "RCP", "Section", "Elevation", "Detail", "Schedule", "Spool", "Coordination", "Legend", "ThreeD"] },
+        "discipline":       { "type": "string" },
+        "phase":            { "type": "string" },
+        "paperSize":        { "type": "string", "enum": ["A0", "A1", "A2", "A3", "A4"] },
+        "titleBlockFamily": { "type": "string" },
+        "orientation":      { "type": "string", "enum": ["Landscape", "Portrait"] },
+        "scale":            { "type": "integer", "minimum": 1 },
+        "detailLevel":      { "type": "string", "enum": ["Coarse", "Medium", "Fine"] },
+        "viewTemplateName": { "type": "string" },
+        "viewportTypeName": { "type": "string" },
+        "sheetNumberPattern": { "type": "string" },
+        "sheetNamePattern":   { "type": "string" },
+        "crop": {
+          "type": "object",
+          "properties": {
+            "mode":    { "type": "string", "enum": ["ScopeBox", "ScopeBoxOrBbox", "TightBbox", "RoomBoundary", "None"] },
+            "marginMm": { "type": "number", "minimum": 0 },
+            "scopeBoxName": { "type": "string" }
+          }
+        },
+        "origin": { "type": "string", "enum": ["corporate", "project"] }
+      }
+    },
+    "RoutingRule": {
+      "type": "object",
+      "required": ["drawingTypeId"],
+      "properties": {
+        "discipline":    { "type": "string" },
+        "phase":         { "type": "string" },
+        "docType":       { "type": "string" },
+        "drawingTypeId": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+      }
+    }
+  }
+}

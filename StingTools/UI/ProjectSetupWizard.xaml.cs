@@ -14,6 +14,10 @@ using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 using TaskDialogCommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons;
 using TaskDialogCommandLinkId = Autodesk.Revit.UI.TaskDialogCommandLinkId;
 using TaskDialogResult = Autodesk.Revit.UI.TaskDialogResult;
+// CS0104 — both Autodesk.Revit.DB and System.Windows.Media define Transform.
+// The wizard reads BoundingBoxXYZ.Transform (Revit) for scope-box rotation
+// math; alias the bare name to the Revit type so existing code resolves.
+using Transform = Autodesk.Revit.DB.Transform;
 
 namespace StingTools.UI
 {
@@ -155,7 +159,7 @@ namespace StingTools.UI
                     });
                 }
                 lblScopeBoxEmpty.Visibility = ScopeBoxRows.Count == 0
-                    ? Visibility.Visible : Visibility.Collapsed;
+                    ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             }
             catch (Exception ex)
             {
