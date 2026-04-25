@@ -207,6 +207,56 @@ namespace StingTools.UI.PlacementCenter
             OnPropertyChanged(nameof(DirtyCount));
         }
 
+        /// <summary>Bulk-delete a set of rules. Caller is responsible for
+        /// confirming with the user; the VM just removes them and updates
+        /// status/categories/dirty count.</summary>
+        public int DeleteMany(IEnumerable<PlacementRuleViewModel> victims)
+        {
+            int n = 0;
+            foreach (var v in (victims ?? System.Array.Empty<PlacementRuleViewModel>()).ToList())
+            {
+                if (v == null || !Rules.Contains(v)) continue;
+                Rules.Remove(v);
+                n++;
+            }
+            if (n > 0)
+            {
+                Selected = Rules.Count > 0 ? Rules[0] : null;
+                RebuildCategories();
+                Status = $"Removed {n} rule(s) (not yet persisted).";
+                OnPropertyChanged(nameof(DirtyCount));
+            }
+            return n;
+        }
+
+        /// <summary>Clone a set of rules. The new rules carry the original
+        /// category + " (copy)" so they're easy to find and the user can
+        /// rename. All clones are flagged dirty.</summary>
+        public int CloneMany(IEnumerable<PlacementRuleViewModel> sources)
+        {
+            int n = 0;
+            PlacementRuleViewModel last = null;
+            foreach (var s in (sources ?? System.Array.Empty<PlacementRuleViewModel>()).ToList())
+            {
+                if (s == null) continue;
+                var copy = s.Clone();
+                copy.CategoryFilter = string.IsNullOrEmpty(s.CategoryFilter)
+                    ? "(new category)"
+                    : s.CategoryFilter + " (copy)";
+                Rules.Add(copy);
+                last = copy;
+                n++;
+            }
+            if (n > 0)
+            {
+                Selected = last;
+                RebuildCategories();
+                Status = $"Cloned {n} rule(s) — fix the category names then save.";
+                OnPropertyChanged(nameof(DirtyCount));
+            }
+            return n;
+        }
+
         /// <summary>
         /// Persist rules to &lt;project&gt;/STING_PLACEMENT_RULES.project.json
         /// next to the .rvt file. Uses the existing PlacementRuleSet wrapper

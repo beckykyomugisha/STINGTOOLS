@@ -97,7 +97,8 @@
                     <DataGrid x:Name="gridRules"
                               AutoGenerateColumns="False"
                               IsReadOnly="True"
-                              SelectionMode="Single"
+                              SelectionMode="Extended"
+                              SelectionUnit="FullRow"
                               SelectionChanged="OnGrid_SelectionChanged"
                               GridLinesVisibility="Horizontal"
                               HeadersVisibility="Column"
@@ -108,7 +109,17 @@
                               Background="{DynamicResource PrimaryBg}"
                               Foreground="{DynamicResource PrimaryFg}"
                               RowBackground="{DynamicResource PrimaryBg}"
-                              AlternatingRowBackground="{DynamicResource SecondaryBg}">
+                              AlternatingRowBackground="{DynamicResource SecondaryBg}"
+                              ToolTip="Ctrl+click / Shift+click to multi-select. Right-click for bulk actions.">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Clone selected" Click="OnCloneSelected_Click"/>
+                                <MenuItem Header="Delete selected" Click="OnDeleteSelected_Click"/>
+                                <Separator/>
+                                <MenuItem Header="Select invalid"  Click="OnSelectInvalid_Click"/>
+                                <MenuItem Header="Select dirty"    Click="OnSelectDirty_Click"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="●"
                                                 Binding="{Binding IsDirty, Converter={StaticResource DirtyDotConverter}}"

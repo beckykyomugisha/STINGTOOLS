@@ -598,6 +598,47 @@ namespace StingTools.UI.PlacementCenter
             }
         }
 
+        private void OnCloneSelected_Click(object sender, RoutedEventArgs e)
+        {
+            var picks = gridRules.SelectedItems
+                .OfType<PlacementRuleViewModel>().ToList();
+            if (picks.Count == 0) return;
+            int n = VM.CloneMany(picks);
+            UpdateStatus();
+            if (n > 0) gridRules.ScrollIntoView(VM.Selected);
+        }
+
+        private void OnDeleteSelected_Click(object sender, RoutedEventArgs e)
+        {
+            var picks = gridRules.SelectedItems
+                .OfType<PlacementRuleViewModel>().ToList();
+            if (picks.Count == 0) return;
+            var confirm = new TaskDialog("STING — Delete selected rules")
+            {
+                MainInstruction = $"Remove {picks.Count} rule(s)?",
+                MainContent = "The rules are removed from the in-memory set; click Save Project to persist.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No,
+            };
+            if (confirm.Show() != TaskDialogResult.Yes) return;
+            VM.DeleteMany(picks);
+            UpdateStatus();
+        }
+
+        private void OnSelectInvalid_Click(object sender, RoutedEventArgs e)
+        {
+            gridRules.SelectedItems.Clear();
+            foreach (var r in VM.Rules.Where(r => !r.IsValid))
+                gridRules.SelectedItems.Add(r);
+        }
+
+        private void OnSelectDirty_Click(object sender, RoutedEventArgs e)
+        {
+            gridRules.SelectedItems.Clear();
+            foreach (var r in VM.Rules.Where(r => r.IsDirty))
+                gridRules.SelectedItems.Add(r);
+        }
+
         private void OnSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
             VM.SearchText = txtSearch.Text;
