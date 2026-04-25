@@ -108,7 +108,7 @@ namespace StingTools.UI.PlacementCenter
 
             // Phase D — populate history grid on first open so the
             // panel surface isn't a wall of empties.
-            try { gridHistory.ItemsSource = HistoryBridge.ReadHistory(_doc); }
+            try { VM.SetHistory(HistoryBridge.ReadHistory(_doc)); }
             catch (Exception hEx) { StingLog.Warn($"History first-load: {hEx.Message}"); }
 
             UpdateStatus();
@@ -282,7 +282,7 @@ namespace StingTools.UI.PlacementCenter
             // History panel is the source of truth for "what just happened" —
             // refresh it so the new bucket appears immediately, before any
             // dialog steals focus.
-            try { gridHistory.ItemsSource = HistoryBridge.ReadHistory(_doc); }
+            try { VM.SetHistory(HistoryBridge.ReadHistory(_doc)); }
             catch (Exception hEx) { StingLog.Warn($"PlacementCenter post-run history refresh: {hEx.Message}"); }
 
             // Auto-paint the AVF compliance heat-map when the toggle is on so
@@ -387,7 +387,7 @@ namespace StingTools.UI.PlacementCenter
             if (_doc == null) { TaskDialog.Show("STING — Placement Centre", "No document open."); return; }
             if (VM.Selected == null || string.IsNullOrEmpty(VM.Selected.CategoryFilter))
             {
-                gridFamilyHints.ItemsSource = null;
+                VM.SetFamilyHints(null);
                 VM.Status = "Pick a rule with a non-empty CategoryFilter first.";
                 UpdateStatus();
                 return;
@@ -395,7 +395,7 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 var rows = FamilyHintsBridge.Inspect(_doc, VM.Selected.CategoryFilter);
-                gridFamilyHints.ItemsSource = rows;
+                VM.SetFamilyHints(rows);
                 int populated = rows.Count(r => !string.IsNullOrEmpty(r.Value));
                 VM.Status = $"Inspected {VM.Selected.CategoryFilter} · {populated} of {rows.Count} hint param(s) populated";
                 UpdateStatus();
@@ -501,7 +501,7 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 var rows = HistoryBridge.ReadHistory(_doc);
-                gridHistory.ItemsSource = rows;
+                VM.SetHistory(rows);
                 int total = rows.Sum(r => r.Count);
                 VM.Status = $"History · {rows.Count} bucket(s), {total} placement(s) on record";
                 UpdateStatus();
@@ -510,6 +510,35 @@ namespace StingTools.UI.PlacementCenter
             {
                 StingLog.Error("PlacementCenter.OnHistoryRefresh", ex);
                 TaskDialog.Show("STING — Placement Centre", $"History refresh failed: {ex.Message}");
+            }
+        }
+
+        // Double-click any history row to select its placed instances in
+        // Revit. Uses the ids the bucket already carries — no second
+        // provenance scan. Skips ids that have since been deleted.
+        private void OnHistory_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (_uiDoc == null) return;
+            var row = gridHistory.SelectedItem as HistoryBridge.HistoryRow;
+            if (row == null || row.Ids == null || row.Ids.Count == 0)
+            {
+                VM.Status = "History row has no element ids attached.";
+                UpdateStatus();
+                return;
+            }
+            try
+            {
+                var live = row.Ids
+                    .Where(id => id != null && id != ElementId.InvalidElementId &&
+                                 _doc.GetElement(id) != null)
+                    .ToList();
+                _uiDoc.Selection.SetElementIds(live);
+                VM.Status = $"Selected {live.Count} of {row.Ids.Count} element(s) from history bucket {row.CreatedUtc}";
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementCenter.OnHistory_DoubleClick: {ex.Message}");
             }
         }
 

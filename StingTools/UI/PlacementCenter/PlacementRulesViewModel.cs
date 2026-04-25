@@ -74,6 +74,29 @@ namespace StingTools.UI.PlacementCenter
 
         public RunOptions RunOpts { get; } = new RunOptions();
 
+        // Live-bound grids (gap 12) — drained + repopulated by the centre's
+        // bridges. ObservableCollection means UI refreshes without an
+        // imperative gridX.ItemsSource = ... reassignment per call.
+        public ObservableCollection<FamilyHintsBridge.HintRow> FamilyHints { get; }
+            = new ObservableCollection<FamilyHintsBridge.HintRow>();
+
+        public ObservableCollection<HistoryBridge.HistoryRow> History { get; }
+            = new ObservableCollection<HistoryBridge.HistoryRow>();
+
+        public void SetFamilyHints(System.Collections.Generic.IEnumerable<FamilyHintsBridge.HintRow> rows)
+        {
+            FamilyHints.Clear();
+            if (rows == null) return;
+            foreach (var r in rows) FamilyHints.Add(r);
+        }
+
+        public void SetHistory(System.Collections.Generic.IEnumerable<HistoryBridge.HistoryRow> rows)
+        {
+            History.Clear();
+            if (rows == null) return;
+            foreach (var r in rows) History.Add(r);
+        }
+
         // ── Selection ────────────────────────────────────────────────
 
         private PlacementRuleViewModel _selected;
