@@ -438,6 +438,9 @@ namespace StingTools.UI
             actions.Children.Add(MakeSmallBtn("＋ New",  () => ActionNewPack()));
             actions.Children.Add(MakeSmallBtn("Clone",   () => ActionClonePack()));
             actions.Children.Add(MakeSmallBtn("Delete",  () => ActionDeletePack()));
+            // Phase 136 — bidirectional view-template copy.
+            actions.Children.Add(MakeSmallBtn("Push template → bound types",
+                () => ActionPushPackTemplateToBoundTypes()));
             DockPanel.SetDock(actions, Dock.Top); dock.Children.Add(actions);
 
             _lbPacks = new ListBox
@@ -766,6 +769,55 @@ namespace StingTools.UI
             _lbPacks.Items.Remove(_currentPack);
             _currentPack = _packs.FirstOrDefault();
             if (_currentPack != null) SelectPack(_currentPack); else _packFormHost.Children.Clear();
+        }
+
+        // Phase 136 — push pack.ViewTemplate down to every DrawingType bound
+        // to this pack. Useful when you've changed the pack default and want
+        // every drawing using it to pick up the new template explicitly
+        // (rather than relying on the runtime fallback).
+        private void ActionPushPackTemplateToBoundTypes()
+        {
+            if (_currentPack == null) return;
+            if (string.IsNullOrWhiteSpace(_currentPack.ViewTemplate))
+            {
+                System.Windows.MessageBox.Show(
+                    "Set the pack's view template first (Appearance card).",
+                    "STING — push template", MessageBoxButton.OK);
+                return;
+            }
+            var bound = _types.Where(t => string.Equals(t.ViewStylePackId, _currentPack.Id,
+                                                         StringComparison.OrdinalIgnoreCase)).ToList();
+            if (bound.Count == 0)
+            {
+                System.Windows.MessageBox.Show(
+                    $"No Drawing Types are bound to pack '{_currentPack.Id}'. Bind some first.",
+                    "STING — push template", MessageBoxButton.OK);
+                return;
+            }
+
+            // Show preview list and confirm.
+            var preview = string.Join("\n", bound.Take(10).Select(t => $"  • {t.Id}"
+                + (string.IsNullOrEmpty(t.ViewTemplateName) ? "  (currently inherits)" : $"  (overwrites '{t.ViewTemplateName}')")));
+            if (bound.Count > 10) preview += $"\n  …and {bound.Count - 10} more";
+            var resp = System.Windows.MessageBox.Show(
+                $"Set ViewTemplateName = '{_currentPack.ViewTemplate}' on {bound.Count} Drawing Type(s) bound to '{_currentPack.Id}'?\n\n"
+                + preview + "\n\nDrawing Types that already have an explicit template will be OVERWRITTEN.",
+                "STING — push template to bound types", MessageBoxButton.YesNo);
+            if (resp != MessageBoxResult.Yes) return;
+
+            int n = 0;
+            foreach (var t in bound)
+            {
+                t.ViewTemplateName = _currentPack.ViewTemplate;
+                if (!string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                    t.Origin = "project";   // edits land in project override on save
+                n++;
+            }
+            // Refresh the Drawing Types tab list display.
+            RefreshList();
+            System.Windows.MessageBox.Show(
+                $"Updated {n} Drawing Type(s).\nSave to persist to <project>/_BIM_COORD/drawing_types.json.",
+                "STING — push template", MessageBoxButton.OK);
         }
 
         // ── JSON load ──
@@ -1421,6 +1473,70 @@ namespace StingTools.UI
             return Card("Identity", body);
         }
 
+        // Phase 136 — small accent-coloured hyperlink used inside the pack
+        // picker hint row. ToolTip optional; clicks fire onClick.
+        private TextBlock MakePackInlineLink(string text, string tooltip, Action onClick)
+        {
+            var t = new TextBlock
+            {
+                Text = "  " + text,
+                Foreground = new SolidColorBrush(AccentColor),
+                FontSize = 11,
+                Cursor = Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0),
+                ToolTip = tooltip,
+            };
+            t.MouseLeftButtonUp += (s, e) => onClick?.Invoke();
+            return t;
+        }
+
+        // Phase 136 — push the active DrawingType's ViewTemplateName up to
+        // its bound pack (sets pack.ViewTemplate). Useful when the user
+        // has authored a template they want adopted as the pack default.
+        private void ActionPushTypeTemplateToPack()
+        {
+            if (_current == null) return;
+            if (string.IsNullOrWhiteSpace(_current.ViewStylePackId))
+            {
+                System.Windows.MessageBox.Show(
+                    "Bind this Drawing Type to a View Style Pack first.",
+                    "STING — push template", MessageBoxButton.OK);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(_current.ViewTemplateName))
+            {
+                System.Windows.MessageBox.Show(
+                    "This Drawing Type has no ViewTemplateName set — nothing to push.",
+                    "STING — push template", MessageBoxButton.OK);
+                return;
+            }
+            var pack = _packs.FirstOrDefault(p =>
+                string.Equals(p.Id, _current.ViewStylePackId, StringComparison.OrdinalIgnoreCase));
+            if (pack == null)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Bound pack '{_current.ViewStylePackId}' not found in the editor's pack list.",
+                    "STING — push template", MessageBoxButton.OK);
+                return;
+            }
+            var prev = pack.ViewTemplate ?? "(unset)";
+            var resp = System.Windows.MessageBox.Show(
+                $"Set pack '{pack.Id}'.ViewTemplate = '{_current.ViewTemplateName}'?\n\n" +
+                $"Previous pack value: {prev}\n\n" +
+                "Every Drawing Type bound to this pack that doesn't override its own template " +
+                "will fall through to the new pack value.",
+                "STING — push template to pack", MessageBoxButton.YesNo);
+            if (resp != MessageBoxResult.Yes) return;
+
+            pack.ViewTemplate = _current.ViewTemplateName;
+            if (!string.Equals(pack.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                pack.Origin = "project";
+            System.Windows.MessageBox.Show(
+                $"Updated pack '{pack.Id}'.\nSave to persist to <project>/_BIM_COORD/view_style_packs.json.",
+                "STING — push template", MessageBoxButton.OK);
+        }
+
         // Dedicated, prominent View style pack chooser. Non-editable
         // dropdown listing every loaded pack ("(none)" + every entry from
         // STING_VIEW_STYLE_PACKS.json — corporate baseline + project
@@ -1486,24 +1602,38 @@ namespace StingTools.UI
             DockPanel.SetDock(count, Dock.Left);
             hint.Children.Add(count);
 
-            var link = new TextBlock {
-                Text = "→ Edit selected pack",
-                Foreground = new SolidColorBrush(AccentColor),
-                FontSize = 11,
-                Cursor = Cursors.Hand,
+            // Right-side link group — three actions, each space-separated.
+            var linkRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center,
             };
-            link.MouseLeftButtonUp += (s, e) =>
-            {
-                if (string.IsNullOrEmpty(_current.ViewStylePackId)) return;
-                var target = (_packs ?? new List<ViewStylePack>()).FirstOrDefault(p =>
-                    string.Equals(p.Id, _current.ViewStylePackId, StringComparison.OrdinalIgnoreCase));
-                if (target == null) return;
-                _rootTabs.SelectedIndex = 1;
-                SelectPack(target);
-            };
-            hint.Children.Add(link);
+            linkRow.Children.Add(MakePackInlineLink("Use pack template",
+                "Clear my ViewTemplateName so I inherit from the pack's fallback.",
+                () =>
+                {
+                    if (string.IsNullOrEmpty(_current.ViewStylePackId)) return;
+                    _current.ViewTemplateName = null;
+                    if (!string.Equals(_current.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                        _current.Origin = "project";
+                    RenderForm();   // refresh to show the cleared field
+                }));
+            linkRow.Children.Add(MakePackInlineLink("↑ Push to pack",
+                "Set the bound pack's ViewTemplate = this DrawingType's ViewTemplateName.",
+                () => ActionPushTypeTemplateToPack()));
+            linkRow.Children.Add(MakePackInlineLink("→ Edit pack", null,
+                () =>
+                {
+                    if (string.IsNullOrEmpty(_current.ViewStylePackId)) return;
+                    var target = (_packs ?? new List<ViewStylePack>()).FirstOrDefault(p =>
+                        string.Equals(p.Id, _current.ViewStylePackId, StringComparison.OrdinalIgnoreCase));
+                    if (target == null) return;
+                    _rootTabs.SelectedIndex = 1;
+                    SelectPack(target);
+                }));
+            DockPanel.SetDock(linkRow, Dock.Right);
+            hint.Children.Add(linkRow);
             stack.Children.Add(hint);
 
             return stack;

@@ -3229,3 +3229,24 @@ relationship at a glance. New status strip in the View Style Pack Appearance
 card: "Patterns from active project — N line pattern(s), M fill pattern(s)
 loaded" so the user can confirm the VG editor is sourcing patterns from the
 live document.
+
+#### Completed (Phase 136 — follow-up: pack ↔ type template copy + AEC strategy doc)
+
+**Bidirectional template copy.**
+- View Style Packs tab gained a "Push template → bound types" button: takes the
+  pack's `ViewTemplate` and writes it onto every Drawing Type bound to this
+  pack. Confirms with a preview of affected types.
+- Drawing Types tab gained "↑ Push to pack" + "Use pack template" links next
+  to the View style pack picker. The first writes the Drawing Type's
+  `ViewTemplateName` up to the bound pack's `ViewTemplate`; the second clears
+  the Drawing Type's value so it inherits the pack fallback.
+- Both push operations flip affected entries' `Origin` to `project` so saves
+  land in `<project>/_BIM_COORD/` overrides, never the corporate baseline.
+
+**`docs/AEC_PRODUCTION_SET_STRATEGY.md`** — new reference catalogue laying out
+a complete AEC production-set strategy: 11 ViewStylePacks (corp-base + 10
+specialised: construction / presentation / coordination / fabrication-shop /
+survey / authority / clarification / asbuilt / handover / presentation-mono),
+plus an 80+ DrawingType matrix indexed by RIBA stage × discipline × output.
+Recommended sequencing: baseline 4 packs first, Stage 4 IFC types next, then
+routing rules, then specialised packs as projects need them.
