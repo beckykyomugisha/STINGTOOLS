@@ -63,13 +63,27 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex) { r.Warnings.Add($"Scale 1:{dt.Scale}: {ex.Message}"); }
             }
 
-            // Detail level -----------------------------------------------
-            if (!string.IsNullOrWhiteSpace(dt.DetailLevel))
+            // Phase 136 — resolve the pack EARLY so its DetailLevel /
+            // ViewTemplate can be used as a fallback when the DrawingType
+            // does not set its own. Pack VG/filter application still
+            // happens later (after crop) so there's no behaviour regression.
+            ViewStylePack earlyPack = null;
+            if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            {
+                try { earlyPack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId); }
+                catch (Exception ex) { r.Warnings.Add($"Pack lookup '{dt.ViewStylePackId}': {ex.Message}"); }
+            }
+
+            // Detail level — DrawingType wins, pack falls through ---------
+            var effectiveDetail = !string.IsNullOrWhiteSpace(dt.DetailLevel)
+                ? dt.DetailLevel
+                : earlyPack?.DetailLevel;
+            if (!string.IsNullOrWhiteSpace(effectiveDetail))
             {
                 try
                 {
                     ViewDetailLevel parsed;
-                    switch (dt.DetailLevel.Trim().ToLowerInvariant())
+                    switch (effectiveDetail.Trim().ToLowerInvariant())
                     {
                         case "coarse": parsed = ViewDetailLevel.Coarse; break;
                         case "fine":   parsed = ViewDetailLevel.Fine;   break;
@@ -78,11 +92,14 @@ namespace StingTools.Core.Drawing
                     view.DetailLevel = parsed;
                     r.DetailLevelApplied = true;
                 }
-                catch (Exception ex) { r.Warnings.Add($"DetailLevel {dt.DetailLevel}: {ex.Message}"); }
+                catch (Exception ex) { r.Warnings.Add($"DetailLevel {effectiveDetail}: {ex.Message}"); }
             }
 
-            // View template ----------------------------------------------
-            if (!string.IsNullOrWhiteSpace(dt.ViewTemplateName))
+            // View template — DrawingType wins, pack falls through --------
+            var effectiveTemplate = !string.IsNullOrWhiteSpace(dt.ViewTemplateName)
+                ? dt.ViewTemplateName
+                : earlyPack?.ViewTemplate;
+            if (!string.IsNullOrWhiteSpace(effectiveTemplate))
             {
                 try
                 {
@@ -90,7 +107,7 @@ namespace StingTools.Core.Drawing
                         .OfClass(typeof(View))
                         .Cast<View>()
                         .FirstOrDefault(v => v.IsTemplate
-                            && string.Equals(v.Name, dt.ViewTemplateName, StringComparison.OrdinalIgnoreCase));
+                            && string.Equals(v.Name, effectiveTemplate, StringComparison.OrdinalIgnoreCase));
                     if (tpl != null)
                     {
                         view.ViewTemplateId = tpl.Id;
@@ -98,7 +115,7 @@ namespace StingTools.Core.Drawing
                     }
                     else
                     {
-                        r.Warnings.Add($"View template '{dt.ViewTemplateName}' not found in project.");
+                        r.Warnings.Add($"View template '{effectiveTemplate}' not found in project.");
                     }
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewTemplate: {ex.Message}"); }
@@ -117,21 +134,23 @@ namespace StingTools.Core.Drawing
             }
 
             // View Style Pack (shared graphic overrides) ---------------
-            ViewStylePack resolvedPack = null;
-            if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            // Reuse the early-resolved pack (already used for the
+            // DetailLevel / ViewTemplate fallback above) so we only walk
+            // the registry + extends-chain once per Apply call.
+            ViewStylePack resolvedPack = earlyPack;
+            if (resolvedPack != null)
             {
                 try
                 {
-                    resolvedPack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
-                    if (resolvedPack != null)
-                    {
-                        var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack);
-                        r.PackApplied = true;
-                        r.Warnings.AddRange(packStats.Warnings);
-                    }
-                    else r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
+                    var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack);
+                    r.PackApplied = true;
+                    r.Warnings.AddRange(packStats.Warnings);
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewStylePack: {ex.Message}"); }
+            }
+            else if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            {
+                r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
             }
 
             // Token Profile (Phase 135) — Step 7.5 -----------------------

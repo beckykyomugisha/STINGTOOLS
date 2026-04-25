@@ -68,7 +68,10 @@ namespace StingTools.Core.Drawing
                     if (lib?.Packs != null && lib.Packs.Count > 0)
                     {
                         foreach (var p in lib.Packs)
+                        {
                             if (string.IsNullOrEmpty(p.Origin)) p.Origin = "corporate";
+                            PromoteAppearance(p);
+                        }
                         return lib;
                     }
                 }
@@ -92,7 +95,10 @@ namespace StingTools.Core.Drawing
                 var lib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(path));
                 if (lib?.Packs != null)
                     foreach (var p in lib.Packs)
+                    {
                         if (string.IsNullOrEmpty(p.Origin)) p.Origin = "project";
+                        PromoteAppearance(p);
+                    }
                 return lib;
             }
             catch (Exception ex)
@@ -154,6 +160,13 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(p.TextStyle))      merged.TextStyle      = p.TextStyle;
                 if (!string.IsNullOrEmpty(p.DimensionStyle)) merged.DimensionStyle = p.DimensionStyle;
                 if (!string.IsNullOrEmpty(p.HatchPalette))   merged.HatchPalette   = p.HatchPalette;
+
+                // Phase 136 — pack-level fallbacks (used by DrawingTypePresentation
+                // when DrawingType doesn't set its own ViewTemplateName / DetailLevel).
+                if (!string.IsNullOrEmpty(p.ViewTemplate)) merged.ViewTemplate = p.ViewTemplate;
+                if (!string.IsNullOrEmpty(p.DetailLevel))  merged.DetailLevel  = p.DetailLevel;
+                if (!string.IsNullOrEmpty(p.ScaleHint))    merged.ScaleHint    = p.ScaleHint;
+                if (!string.IsNullOrEmpty(p.ColorScheme))  merged.ColorScheme  = p.ColorScheme;
                 if (p.Filters != null) foreach (var f in p.Filters) merged.Filters.Add(f);
                 if (p.VgOverrides != null)
                     foreach (var kv in p.VgOverrides) merged.VgOverrides[kv.Key] = kv.Value;
@@ -171,6 +184,22 @@ namespace StingTools.Core.Drawing
                 }
             }
             return merged;
+        }
+
+        /// <summary>
+        /// Phase 136 — fold the dialog-emitted "appearance" object into the
+        /// top-level pack fields (TextStyle / DimensionStyle / etc.) so the
+        /// runtime reads the same values regardless of which JSON shape
+        /// was used. Only fills empty top-level fields — never overwrites.
+        /// </summary>
+        private static void PromoteAppearance(ViewStylePack p)
+        {
+            if (p?.Appearance == null) return;
+            var a = p.Appearance;
+            if (a.LineWeightScale.HasValue && p.LineWeightScale == 1.0) p.LineWeightScale = a.LineWeightScale.Value;
+            if (string.IsNullOrEmpty(p.TextStyle)      && !string.IsNullOrEmpty(a.TextStyleName))      p.TextStyle = a.TextStyleName;
+            if (string.IsNullOrEmpty(p.DimensionStyle) && !string.IsNullOrEmpty(a.DimensionStyleName)) p.DimensionStyle = a.DimensionStyleName;
+            if (string.IsNullOrEmpty(p.HatchPalette)   && !string.IsNullOrEmpty(a.HatchPalette))       p.HatchPalette = a.HatchPalette;
         }
 
         private static string DocKey(Document doc)
