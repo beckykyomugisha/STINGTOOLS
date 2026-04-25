@@ -2,21 +2,21 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using StingBIM.Infrastructure.Data;
-using StingBIM.Core.Entities;
+using Planscape.Infrastructure.Data;
+using Planscape.Core.Entities;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-namespace StingBIM.Tests;
+namespace Planscape.Tests;
 
 /// <summary>
 /// Custom WebApplicationFactory that replaces PostgreSQL with EF InMemory,
 /// removes Hangfire, and seeds test data.
 /// </summary>
-public class StingBimWebApplicationFactory : WebApplicationFactory<Program>
+public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
 {
-    private readonly string _dbName = $"StingBimTest_{Guid.NewGuid():N}";
+    private readonly string _dbName = $"PlanscapeTest_{Guid.NewGuid():N}";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -26,7 +26,7 @@ public class StingBimWebApplicationFactory : WebApplicationFactory<Program>
         {
             // Remove the real DbContext registration
             var dbDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<StingBimDbContext>));
+                d => d.ServiceType == typeof(DbContextOptions<PlanscapeDbContext>));
             if (dbDescriptor != null) services.Remove(dbDescriptor);
 
             // Remove Hangfire services (they require PostgreSQL)
@@ -37,19 +37,19 @@ public class StingBimWebApplicationFactory : WebApplicationFactory<Program>
             foreach (var d in hangfireDescriptors) services.Remove(d);
 
             // Add InMemory database
-            services.AddDbContext<StingBimDbContext>(options =>
+            services.AddDbContext<PlanscapeDbContext>(options =>
                 options.UseInMemoryDatabase(_dbName));
 
             // Build the service provider and seed test data
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
             db.Database.EnsureCreated();
             SeedTestData(db);
         });
     }
 
-    private static void SeedTestData(StingBimDbContext db)
+    private static void SeedTestData(PlanscapeDbContext db)
     {
         // Create test tenant
         var tenant = new Tenant
