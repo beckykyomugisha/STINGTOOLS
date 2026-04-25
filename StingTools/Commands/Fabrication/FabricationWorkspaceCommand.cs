@@ -22,8 +22,24 @@ namespace StingTools.Commands.Fabrication
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                // RunCommand<T> on the dock panel passes null for `data` and
+                // expects callers to fall back to StingCommandHandler.CurrentApp.
+                var app = data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp;
+                if (app == null)
+                {
+                    msg = "No active Revit application.";
+                    StingLog.Warn("FabricationWorkspaceCommand: no UIApplication available.");
+                    return Result.Failed;
+                }
+                var doc = app.ActiveUIDocument?.Document;
+
                 var dlg = new FabricationWorkspaceDialog(doc);
+                try
+                {
+                    var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
+                    helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                }
+                catch { }
                 dlg.ShowDialog();
                 return Result.Succeeded;
             }
