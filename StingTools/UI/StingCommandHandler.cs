@@ -5279,7 +5279,7 @@ namespace StingTools.UI
                                         string.Equals(v.Name, t.ViewTemplateName, StringComparison.OrdinalIgnoreCase));
                     bool vpOk  = string.IsNullOrEmpty(t.ViewportTypeName) ||
                                  new FilteredElementCollector(doc).OfClass(typeof(ElementType))
-                                    .Cast<ElementType>().Any(et => et.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_Viewports &&
+                                    .Cast<ElementType>().Any(et => et.Category?.Id.Value == (long)BuiltInCategory.OST_Viewports &&
                                         string.Equals(et.Name, t.ViewportTypeName, StringComparison.OrdinalIgnoreCase));
                     if (tplOk && vpOk) ok++;
                     else
