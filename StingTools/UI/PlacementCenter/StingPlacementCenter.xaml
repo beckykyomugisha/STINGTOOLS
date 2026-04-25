@@ -284,9 +284,9 @@
                             <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource LabelStyle}" Text="Min/Max Area (m²)"/>
                             <DockPanel Grid.Row="2" Grid.Column="3" Margin="0,2">
                                 <TextBox x:Name="txtMinArea" Width="60" Margin="0,0,4,0"
-                                         ToolTip="Skip rooms whose Area < MinAreaM2 (0 = no minimum)."/>
+                                         ToolTip="Skip rooms whose Area &lt; MinAreaM2 (0 = no minimum)."/>
                                 <TextBox x:Name="txtMaxArea"
-                                         ToolTip="Skip rooms whose Area > MaxAreaM2 (0 = no maximum)."/>
+                                         ToolTip="Skip rooms whose Area &gt; MaxAreaM2 (0 = no maximum)."/>
                             </DockPanel>
                         </Grid>
                     </GroupBox>
