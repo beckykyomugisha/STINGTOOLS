@@ -3172,3 +3172,30 @@ button continues to invoke the Centre as a modeless window.
    `Core/Drawing/DrawingDriftDetector.cs`. Compares STING_VIEW_TAG_STYLE +
    TAG_SEG_MASK_TXT on stamped views against the resolved profile/pack pair; SyncStyles
    re-runs `DrawingTypePresentation.Apply` to heal the drift.
+
+#### Completed (Phase 136 — Drawing Type Editor: ViewStylePack dropdown + full Revit VG editor)
+
+**ViewStylePackId dropdown** added to Drawing Types > Views card. Lists all packs by
+id + name (including unsaved new packs created in the same session). Includes
+"→ Edit pack" link that switches to View Style Packs tab and selects the matching pack.
+`_packs` initialised before `BuildLayout()` so the combo is populated on first render.
+
+**Full Revit-style VG editor** replaces the old row-grid in View Style Packs tab.
+4-tab structure (Model Categories / Annotation Categories / Imported Categories / Filters)
+with full category tree from live `doc.Settings.Categories`, subcategory expand/collapse,
+Override... sub-dialogs for Lines (color + weight + pattern) and Patterns
+(fg/bg color + fg/bg pattern + visibility per layer), per-category Detail Level,
+Halftone, Transparency, All/None/Invert/Expand All bulk actions.
+
+**StyleVgOverride POCO extended** with 16 new fields covering line patterns, surface and
+cut fill patterns (fg+bg), pattern visibility, category visibility, and per-category
+detail level. `ViewStylePackApplier.Apply()` wired to apply all new fields via
+`OverrideGraphicSettings`; `ResolveLinePatternId()` and `ResolveFillPatternId()` helpers
+added.
+
+**Local PackCategoryOverride / PackFilterRule** mirror the new field set so the editor
+roundtrips cleanly through `STING_VIEW_STYLE_PACKS.json`. Empty overrides are pruned at
+edit-time to keep the JSON sparse, matching Revit's own VG dialog behaviour.
+
+**csproj** — added `<UseWindowsForms>true</UseWindowsForms>` so the new sub-dialogs can
+launch the native `System.Windows.Forms.ColorDialog` colour picker.

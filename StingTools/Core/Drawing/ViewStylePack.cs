@@ -102,12 +102,74 @@ namespace StingTools.Core.Drawing
 
     public sealed class StyleVgOverride
     {
-        [JsonProperty("halftone",              NullValueHandling = NullValueHandling.Ignore)] public bool?   Halftone { get; set; }
-        [JsonProperty("projectionLineWeight",  NullValueHandling = NullValueHandling.Ignore)] public int?    ProjectionLineWeight { get; set; }
-        [JsonProperty("projectionLineColor",   NullValueHandling = NullValueHandling.Ignore)] public string  ProjectionLineColor { get; set; }
-        [JsonProperty("cutLineWeight",         NullValueHandling = NullValueHandling.Ignore)] public int?    CutLineWeight { get; set; }
-        [JsonProperty("cutLineColor",          NullValueHandling = NullValueHandling.Ignore)] public string  CutLineColor { get; set; }
-        [JsonProperty("transparency",          NullValueHandling = NullValueHandling.Ignore)] public int?    Transparency { get; set; }
+        // ── Visibility ─────────────────────────────────────────────────────────
+        [JsonProperty("visible", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? Visible { get; set; }                  // null = inherited / not set
+
+        [JsonProperty("halftone", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? Halftone { get; set; }
+
+        [JsonProperty("detailLevel", NullValueHandling = NullValueHandling.Ignore)]
+        public string DetailLevel { get; set; }             // "ByView"|"Coarse"|"Medium"|"Fine"
+
+        // ── Projection / Surface ────────────────────────────────────────────────
+        [JsonProperty("projectionLineColor",   NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjectionLineColor { get; set; }     // "#RRGGBB"
+
+        [JsonProperty("projectionLineWeight",  NullValueHandling = NullValueHandling.Ignore)]
+        public int? ProjectionLineWeight { get; set; }      // 1–16
+
+        [JsonProperty("projectionLinePattern", NullValueHandling = NullValueHandling.Ignore)]
+        public string ProjectionLinePattern { get; set; }   // LinePatternElement.Name or "Solid"
+
+        [JsonProperty("surfaceFgPatternName",  NullValueHandling = NullValueHandling.Ignore)]
+        public string SurfaceFgPatternName { get; set; }    // FillPatternElement.Name
+
+        [JsonProperty("surfaceFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string SurfaceFgPatternColor { get; set; }
+
+        [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? SurfaceFgPatternVisible { get; set; }
+
+        [JsonProperty("surfaceBgPatternName",  NullValueHandling = NullValueHandling.Ignore)]
+        public string SurfaceBgPatternName { get; set; }
+
+        [JsonProperty("surfaceBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string SurfaceBgPatternColor { get; set; }
+
+        [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? SurfaceBgPatternVisible { get; set; }
+
+        [JsonProperty("transparency", NullValueHandling = NullValueHandling.Ignore)]
+        public int? Transparency { get; set; }              // 0–100
+
+        // ── Cut ────────────────────────────────────────────────────────────────
+        [JsonProperty("cutLineColor",   NullValueHandling = NullValueHandling.Ignore)]
+        public string CutLineColor { get; set; }
+
+        [JsonProperty("cutLineWeight",  NullValueHandling = NullValueHandling.Ignore)]
+        public int? CutLineWeight { get; set; }
+
+        [JsonProperty("cutLinePattern", NullValueHandling = NullValueHandling.Ignore)]
+        public string CutLinePattern { get; set; }
+
+        [JsonProperty("cutFgPatternName",  NullValueHandling = NullValueHandling.Ignore)]
+        public string CutFgPatternName { get; set; }
+
+        [JsonProperty("cutFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string CutFgPatternColor { get; set; }
+
+        [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? CutFgPatternVisible { get; set; }
+
+        [JsonProperty("cutBgPatternName",  NullValueHandling = NullValueHandling.Ignore)]
+        public string CutBgPatternName { get; set; }
+
+        [JsonProperty("cutBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+        public string CutBgPatternColor { get; set; }
+
+        [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? CutBgPatternVisible { get; set; }
     }
 
     public sealed class ViewStylePackLibrary
