@@ -56,6 +56,7 @@ namespace StingTools.UI
         private TextBox _tbSearch;
         private StackPanel _formHost;                    // right-hand form container
         private TextBlock _validationStrip;
+        private TabControl _rootTabs;                    // top-level tab host
 
         public DrawingTypeEditorDialog(Document doc)
         {
@@ -91,24 +92,350 @@ namespace StingTools.UI
         private UIElement BuildLayout()
         {
             var root = new Grid { Margin = new Thickness(12) };
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            root.Children.Add(BuildLeftPanel());
-            Grid.SetColumn(root.Children[root.Children.Count - 1], 0);
-            Grid.SetRow(root.Children[root.Children.Count - 1], 0);
-
-            var right = BuildRightPanel();
-            Grid.SetColumn(right, 1); Grid.SetRow(right, 0);
-            root.Children.Add(right);
+            _rootTabs = new TabControl
+            {
+                Background = new SolidColorBrush(BgColor),
+                Foreground = new SolidColorBrush(FgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                Padding = new Thickness(6),
+            };
+            _rootTabs.Items.Add(MakeTab("Drawing Types",   BuildDrawingTypesTab()));
+            _rootTabs.Items.Add(MakeTab("View Style Packs", BuildViewStylePacksTab()));
+            _rootTabs.Items.Add(MakeTab("Viewport Tools",   BuildViewportToolsTab()));
+            _rootTabs.Items.Add(MakeTab("Sheet Tools",      BuildSheetToolsTab()));
+            _rootTabs.Items.Add(MakeTab("Title Block",      BuildTitleBlockTab()));
+            _rootTabs.Items.Add(MakeTab("Sheet Manager",    BuildSheetManagerTab()));
+            Grid.SetRow(_rootTabs, 0);
+            root.Children.Add(_rootTabs);
 
             var footer = BuildFooter();
-            Grid.SetColumn(footer, 0); Grid.SetRow(footer, 1); Grid.SetColumnSpan(footer, 2);
+            Grid.SetRow(footer, 1);
             root.Children.Add(footer);
 
             return root;
+        }
+
+        private TabItem MakeTab(string header, UIElement content)
+        {
+            return new TabItem
+            {
+                Header = header,
+                Content = content,
+                Background = new SolidColorBrush(CardBg),
+                Foreground = new SolidColorBrush(FgColor),
+            };
+        }
+
+        // The original 2-column Drawing Types layout, now hosted inside the
+        // first tab. The toolbar above the search row exposes the docs-panel
+        // DRAWING TYPES section (Inspect / Reload JSON / Group Browser /
+        // Sync Styles / From Scope Boxes / Edit Types alias).
+        private UIElement BuildDrawingTypesTab()
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            // Toolbar — corp ribbon style
+            var toolbar = BuildSectionToolbar(new (string label, string tag)[]
+            {
+                ("Inspect",         "DrawingTypes_Inspect"),
+                ("Reload JSON",     "DrawingTypes_Reload"),
+                ("Group Browser",   "DrawingTypes_GroupBrowser"),
+                ("Sync Styles",     "DrawingTypes_SyncStyles"),
+                ("From Scope Boxes","DrawingTypes_FromScopeBoxes"),
+            });
+            Grid.SetRow(toolbar, 0); Grid.SetColumnSpan(toolbar, 2);
+            grid.Children.Add(toolbar);
+
+            var left = BuildLeftPanel();
+            Grid.SetRow(left, 1); Grid.SetColumn(left, 0);
+            grid.Children.Add(left);
+
+            var right = BuildRightPanel();
+            Grid.SetRow(right, 1); Grid.SetColumn(right, 1);
+            grid.Children.Add(right);
+
+            return grid;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  ACTION TABS — mirror the dock-panel DOCS sections so users can
+        //  drive the entire docs surface without leaving this dialog.
+        //  Every button dispatches via StingDockPanel.DispatchCommand,
+        //  which raises the same IExternalEventHandler the dock panel uses.
+        // ═══════════════════════════════════════════════════════════════
+
+        private UIElement BuildViewStylePacksTab()
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Left list — read STING_VIEW_STYLE_PACKS.json from data folder
+            var dock = new DockPanel { Margin = new Thickness(0, 0, 8, 0), LastChildFill = true };
+            var hdr = new TextBlock { Text = "Style packs", FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(AccentColor), Margin = new Thickness(0, 0, 0, 6) };
+            DockPanel.SetDock(hdr, Dock.Top); dock.Children.Add(hdr);
+            var lb = new ListBox
+            {
+                Background = new SolidColorBrush(CardBg),
+                Foreground = new SolidColorBrush(FgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+            };
+            var detail = new StackPanel { Margin = new Thickness(8, 0, 0, 0) };
+            try
+            {
+                var path = Path.Combine(StingTools.Core.StingToolsApp.DataPath ?? "", "STING_VIEW_STYLE_PACKS.json");
+                if (File.Exists(path))
+                {
+                    var json = JsonConvert.DeserializeObject<dynamic>(File.ReadAllText(path));
+                    var packs = json?.stylePacks;
+                    if (packs != null)
+                        foreach (var p in packs)
+                            lb.Items.Add(new ViewStylePackItem { Id = (string)p.id, Name = (string)p.name, Json = p.ToString() });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn("ViewStylePacks load: " + ex.Message); }
+            lb.SelectionChanged += (s, e) =>
+            {
+                detail.Children.Clear();
+                if (!(lb.SelectedItem is ViewStylePackItem it)) return;
+                detail.Children.Add(new TextBlock { Text = it.Name, FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(AccentColor), FontSize = 13, Margin = new Thickness(0,0,0,6) });
+                var tb = new TextBox
+                {
+                    Text = it.Json, IsReadOnly = true, AcceptsReturn = true,
+                    TextWrapping = TextWrapping.NoWrap,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    FontFamily = new FontFamily("Consolas"),
+                    Height = 540,
+                };
+                DarkDialogTheme.StyleInput(tb, CardBg, FgColor, CardBorder);
+                detail.Children.Add(tb);
+            };
+            dock.Children.Add(lb);
+
+            Grid.SetColumn(dock, 0); grid.Children.Add(dock);
+            var scroll = new ScrollViewer { Content = detail, Margin = new Thickness(8, 0, 0, 0),
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            Grid.SetColumn(scroll, 1); grid.Children.Add(scroll);
+            return grid;
+        }
+
+        private class ViewStylePackItem
+        {
+            public string Id { get; set; }
+            public string Name { get; set; }
+            public string Json { get; set; }
+            public override string ToString() => $"{Id}  ·  {Name}";
+        }
+
+        private UIElement BuildViewportToolsTab()
+        {
+            var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel { Margin = new Thickness(8) };
+            stack.Children.Add(SectionCard("Alignment", new (string,string)[]
+            {
+                ("↑ Top",     "VPAlignTop"),    ("↕ MidY",   "VPAlignMidY"),
+                ("↓ Bot",     "VPAlignBot"),    ("← Left",   "VPAlignLeft"),
+                ("↔ MidX",    "VPAlignMidX"),   ("→ Right",  "VPAlignRight"),
+            }));
+            stack.Children.Add(SectionCard("Numbering", new (string,string)[]
+            {
+                ("L→R",     "VPNumLR"),     ("T→B",      "VPNumTB"),
+                ("+1",      "VPNumPlus"),   ("-1",       "VPNumMinus"),
+                ("Prefix",  "VPPrefix"),    ("Suffix",   "VPSuffix"),
+                ("Renum VP","RenumberViewports"),
+            }));
+            stack.Children.Add(SectionCard("Spacing", new (string,string)[]
+            {
+                ("Auto-Place",    "AutoPlaceViewports"),
+                ("Batch Align",   "BatchAlignViewports"),
+                ("Align VP",      "AlignViewports"),
+                ("Crop to Content","CropToContent"),
+                ("Move VP",       "MoveViewport"),
+            }));
+            host.Content = stack;
+            return host;
+        }
+
+        private UIElement BuildSheetToolsTab()
+        {
+            var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel { Margin = new Thickness(8) };
+            stack.Children.Add(SectionCard("Sheet Tools", new (string,string)[]
+            {
+                ("Organizer",   "SheetOrganizer"),
+                ("Index",       "SheetIndex"),
+                ("Transmittal", "Transmittal"),
+                ("Journal",     "JournalParser"),
+                ("Naming",      "SheetNamingCheck"),
+                ("Auto-Num",    "AutoNumberSheets"),
+                ("Map Sheets",  "MapSheets"),
+                ("Tag Sheets",  "TagSheets"),
+                ("View Organizer","ViewOrganizer"),
+                ("Delete Unused","DeleteUnusedViews"),
+            }));
+            stack.Children.Add(SectionCard("Sheet Number", new (string,string)[]
+            {
+                ("Reset Title",    "SheetResetTitle"),
+                ("+1",             "SheetNumPlus"),
+                ("-1",             "SheetNumMinus"),
+                ("Prefix",         "SheetPrefix"),
+                ("Suffix",         "SheetSuffix"),
+                ("Rem Pre",        "SheetRemovePrefix"),
+                ("Rem Suf",        "SheetRemoveSuffix"),
+                ("Find&Replace",   "SheetFindReplace"),
+            }));
+            stack.Children.Add(SectionCard("View Automation", new (string,string)[]
+            {
+                ("Duplicate View",   "DuplicateView"),
+                ("Batch Rename",     "BatchRenameViews"),
+                ("Copy View Settings","CopyViewSettings"),
+                ("Magic Rename",     "MagicRename"),
+                ("View Tab Colour",  "ViewTabColour"),
+                ("Text Case",        "TextCase"),
+                ("Sum Areas",        "SumAreas"),
+            }));
+            host.Content = stack;
+            return host;
+        }
+
+        private UIElement BuildTitleBlockTab()
+        {
+            var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel { Margin = new Thickness(8) };
+            stack.Children.Add(SectionCard("Title Block (Phase 97)", new (string,string)[]
+            {
+                ("Edit CSV…",      "TitleBlockEditCsv"),
+                ("Populate",       "TitleBlockPopulate"),
+                ("Validate",       "TitleBlockValidate"),
+                ("Set Variant",    "TitleBlockSetVariant"),
+                ("Legend Bind",    "DisciplineLegendBind"),
+                ("Count Sheets",   "SheetCountAutoUpdate"),
+                ("Revision Sync",  "RevisionSync"),
+                ("Stamp TX",       "TransmittalAutoIssue"),
+                ("Pre-Export",     "PreExportValidate"),
+            }));
+            stack.Children.Add(SectionCard("Repair", new (string,string)[]
+            {
+                ("Reset Position", "TitleBlockReset"),
+                ("Rescue",         "TitleBlockRescue"),
+            }));
+            stack.Children.Add(InfoCard(
+                "Tip — for the layered author guide (cover page, start-up page, fabrication, " +
+                "technical / client / IFC / IFT / as-built / authority / marketing variants, plus " +
+                "every TB_/PRJ_TB_ shared parameter explained) see " +
+                "docs/guides/TITLE_BLOCK_CREATION_GUIDE.md."));
+            host.Content = stack;
+            return host;
+        }
+
+        private UIElement BuildSheetManagerTab()
+        {
+            var host = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel { Margin = new Thickness(8) };
+            stack.Children.Add(SectionCard("Sheet Manager", new (string,string)[]
+            {
+                ("Sheet Manager",  "SheetManager"),
+                ("Auto-Layout",    "AutoLayout"),
+                ("Clone Sheet",    "CloneSheet"),
+                ("Place Unplaced", "PlaceUnplacedViews"),
+                ("Optimal Scale",  "OptimalScale"),
+                ("Sheet Audit",    "SheetAudit"),
+                ("Batch Arrange",  "BatchArrange"),
+                ("Move VP",        "MoveViewport"),
+            }));
+            stack.Children.Add(SectionCard("Advanced", new (string,string)[]
+            {
+                ("MaxRects",       "MaxRectsLayout"),
+                ("Save Layout",    "SaveLayoutPreset"),
+                ("Apply Layout",   "ApplyLayoutPreset"),
+                ("Overflow",       "PlaceWithOverflow"),
+                ("Batch Clone",    "BatchCloneSheets"),
+                ("Renumber",       "BatchRenumberSheets"),
+                ("VP Types",       "AutoAssignVPTypes"),
+                ("Export CSV",     "ExportSheetSet"),
+            }));
+            stack.Children.Add(SectionCard("Templates & Compliance", new (string,string)[]
+            {
+                ("From Template",  "CreateFromTemplate"),
+                ("Save Template",  "SaveSheetTemplate"),
+                ("ISO Check",      "SheetComplianceCheck"),
+                ("Tag Sheets",     "TagSheets"),
+                ("Sheet Register", "ExportSheetRegister"),
+                ("Grid Align",     "GridAlignViewports"),
+                ("Align Edges",    "AlignViewportEdges"),
+                ("Distribute",     "DistributeViewports"),
+                ("Batch Print",    "BatchPrintSheets"),
+            }));
+            host.Content = stack;
+            return host;
+        }
+
+        // ── Section card helpers shared by every action tab ──
+
+        private UIElement SectionCard(string title, (string label, string tag)[] buttons)
+        {
+            var body = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+            foreach (var (label, tag) in buttons)
+                body.Children.Add(MakeActionBtn(label, tag));
+            return Card(title, body);
+        }
+
+        private UIElement InfoCard(string text)
+        {
+            var body = new TextBlock
+            {
+                Text = text,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(SubtleColor),
+                FontSize = 11,
+            };
+            return Card("Reference", body);
+        }
+
+        // Toolbar row for the Drawing Types tab — same dispatcher.
+        private UIElement BuildSectionToolbar((string label, string tag)[] buttons)
+        {
+            var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            foreach (var (label, tag) in buttons)
+                bar.Children.Add(MakeActionBtn(label, tag));
+            return bar;
+        }
+
+        // Action button — dispatches via the dock panel's external-event
+        // handler so the same Revit API thread runs the work, exactly as
+        // the dock panel does. Works while this dialog is modal because
+        // WPF runs its own message pump.
+        private Button MakeActionBtn(string label, string tag)
+        {
+            var b = new Button
+            {
+                Content = label, MinWidth = 92, Height = 26,
+                Margin = new Thickness(0, 0, 6, 6),
+                Background = new SolidColorBrush(CardBg),
+                Foreground = new SolidColorBrush(FgColor),
+                BorderBrush = new SolidColorBrush(CardBorder),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 0, 8, 0),
+                FontSize = 11,
+                ToolTip = $"Dispatch tag: {tag}",
+            };
+            b.Click += (s, e) =>
+            {
+                try { StingDockPanel.DispatchCommand(tag); }
+                catch (Exception ex) { StingLog.Error("Dispatch:" + tag, ex); }
+            };
+            return b;
         }
 
         private UIElement BuildLeftPanel()
@@ -456,8 +783,9 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 10, 0, 0), LastChildFill = false };
 
             var hint = new TextBlock {
-                Text = "Save writes to <project>/_BIM_COORD/drawing_types.json (project override). " +
-                       "Corporate baseline on disk is never mutated.",
+                Text = "Save writes the active tab to <project>/_BIM_COORD/drawing_types.json or view_style_packs.json — " +
+                       "project override only. Corporate baseline on disk is never mutated. " +
+                       "Action tabs dispatch directly via the dock-panel external-event queue.",
                 Foreground = new SolidColorBrush(SubtleColor),
                 FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
                 TextWrapping = TextWrapping.Wrap };
