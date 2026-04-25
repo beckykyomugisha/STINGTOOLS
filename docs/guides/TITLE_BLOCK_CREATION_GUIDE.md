@@ -5,6 +5,20 @@
 > **Plain-language goal:** by the end of this guide you will own a *family of title blocks* that auto-fill from project data, route the right viewports into the right slots, and present correctly for **fabrication, technical review, client review, construction issue, tender, as-built, authority submission and marketing.**
 >
 > **Repository scope:** `StingTools/` (Revit plugin) and `Families/AssemblyTitleBlocks/` (the `.rfa` author-source folder).
+>
+> **Companion guide:** read [`DRAWING_TYPE_MANAGER_GUIDE.md`](DRAWING_TYPE_MANAGER_GUIDE.md) for the catalogue of 40 drawing-type recipes + 11 view-style packs that *consume* the title blocks you author here. Title blocks are the **inputs**; drawing types are the **recipes**; the engine joins them at sheet-creation time.
+
+> ### What changed in the latest workflow (Phase 113 + UX improvements, Apr 2026)
+>
+> 1.  **Drawing Type Editor dialog** is now the primary surface for binding a title block to a recipe. Open via dock-panel **DOCS ▸ Drawing Types ▸ Edit Types**. Two tabs: *Drawing Types* and *View Style Packs* — each with a list on the left, a form on the right, footer pinned (Save/Close never clipped on resize).
+> 2.  **View Style Packs registry** (`STING_VIEW_STYLE_PACKS.json`) — the corporate visual library. 11 packs (corp-base + 10 children) with full extends-chain inheritance. Edit a single field in `corp-base` and every drawing type that descends from it picks up the change.
+> 3.  **Per-category Annotation rules grid** replaces the legacy 9 boolean flags (`AutoDimGrids`, `AutoTagRooms`, …). Add as many `(Category, Rule type)` rows as you need — 21 rule types covering AutoTag / AutoDim / AutoAnnotateSlope / AutoAnnotateFlowArrow / AutoTagGridBubble / etc. Old projects auto-migrate at load time.
+> 4.  **Per-category TAG7 paragraph depth** (`tagDepths` field on the rule pack) — set tag depth per category so a spool drawing tags Pipes at depth 5 (full specs) but Walls at depth 1 (outline label).
+> 5.  **Live combo dropdowns everywhere** — title-block family, view template, viewport type, scope-box name, section-marker family, dimension style, text style, parameter filter, category, tag family — all sourced from `ProjectAssetPicker` against the active project (merged with STING corporate defaults).
+> 6.  **Title-block params declarative binding** — `titleBlockParams` field on the recipe maps title-block instance parameter names to value templates with `${PRJ_ORG_…}` and `{disc}/{lvl}/{seq:Dn}` substitution. Editor card surfaces this as a row-per-param grid.
+> 7.  **Slots grid** column widths now align between header and rows pixel-for-pixel; footer Save/Close never clip on narrow windows.
+>
+> If you used STING before April 2026 and your project still has the legacy 9 boolean fields in `_BIM_COORD/drawing_types.json`, opening the editor and clicking Save once auto-migrates the project file to the new Rules schema (idempotent).
 
 ---
 
@@ -29,6 +43,7 @@
 17. [Reference — required nested families](#17-reference--required-nested-families)
 18. [Troubleshooting](#18-troubleshooting)
 19. [File map](#19-file-map)
+20. [Bind a title block to a recipe via the Drawing Type Editor (latest workflow)](#20-bind-a-title-block-to-a-recipe-via-the-drawing-type-editor-latest-workflow)
 
 ---
 
@@ -126,25 +141,45 @@ Tick every box before opening the Family Editor. Each item exists because skippi
 
 You will not author a single title block — you will author **one family per *purpose × paper size*** combination, then ship them as a *kit*. A kit is reusable, swappable per sheet, and validated as a whole.
 
-### 4.1 The recommended kit
+### 4.1 The recommended kit (15 title blocks, layman-detailed)
 
-| File name | Purpose | Paper | Authority | Audience |
-|---|---|---|---|---|
-| `STING_TB_COVER_A3.rfa` | Project cover page | A3 portrait | – | Front of any deliverable bundle |
-| `STING_TB_STARTUP_A3.rfa` | Start-up / project info page | A3 portrait | – | Page 2 of any deliverable bundle |
-| `STING_TB_ASSEMBLY_PIPE.rfa` | Pipe spool fabrication | A1 landscape | – | Workshop floor |
-| `STING_TB_ASSEMBLY_DUCT.rfa` | Duct spool fabrication | A1 landscape | – | Workshop floor |
-| `STING_TB_ASSEMBLY_COND.rfa` | Conduit / electrical fabrication | A1 landscape | – | Workshop floor |
-| `STING_TB_ASSEMBLY_HANGER.rfa` | Hanger-only fabrication | A2 landscape | – | Workshop floor |
-| `STING_TB_TECHNICAL_A1.rfa` | Technical / coordination presentation | A1 landscape | – | Internal IDR / TDR meetings |
-| `STING_TB_CLIENT_A1.rfa` | Client-presentation | A1 landscape | – | Client steering committee |
-| `STING_TB_IFC_A1.rfa` | Issued For Construction | A1 landscape | – | Site team |
-| `STING_TB_IFT_A1.rfa` | Issued For Tender | A1 landscape | – | Tender pack |
-| `STING_TB_AS_BUILT_A1.rfa` | As-built / record | A1 landscape | – | Client handover |
-| `STING_TB_SUBMISSION_KCCA.rfa` | Authority — KCCA | A1 landscape | KCCA | Permit submission |
-| `STING_TB_SUBMISSION_ERA.rfa` | Authority — ERA | A1 landscape | ERA | Permit submission |
-| `STING_TB_SUBMISSION_NEMA.rfa` | Authority — NEMA | A1 landscape | NEMA | Permit submission |
-| `STING_TB_MARKETING_A2.rfa` | Marketing / render | A2 landscape | – | Brochure, website |
+The kit ships as 15 `.rfa` families covering every deliverable surface a typical AEC office produces. Each block binds via `TB_DRAWING_TYPE_ID_TXT` to one or more recipes in `STING_DRAWING_TYPES.json` and is plated by a view style pack in `STING_VIEW_STYLE_PACKS.json` (see [`DRAWING_TYPE_MANAGER_GUIDE.md`](DRAWING_TYPE_MANAGER_GUIDE.md) §3 and §4 for the full catalogue).
+
+| # | File name | Purpose | Paper | Authority | Bound recipes (examples) | Style pack | Audience |
+|---|---|---|---|---|---|---|---|
+| 1 | `STING_TB_COVER_A3.rfa` | Project cover page | A3 portrait | – | Cover purpose recipes | corp-base | Front of any deliverable bundle |
+| 2 | `STING_TB_STARTUP_A3.rfa` | Start-up / project info page | A3 portrait | – | Startup purpose recipes | corp-base | Page 2 of any deliverable bundle |
+| 3 | `STING_TB_ASSEMBLY_PIPE.rfa` | Pipe spool fabrication | A1 landscape | – | `pipe-spool-A1-1to50` | corp-fabrication-shop | Workshop floor |
+| 4 | `STING_TB_ASSEMBLY_DUCT.rfa` | Duct spool fabrication | A1 landscape | – | `duct-spool-A1-1to50` | corp-fabrication-shop | Workshop floor |
+| 5 | `STING_TB_ASSEMBLY_COND.rfa` | Conduit / electrical fabrication | A1 landscape | – | (project-scoped recipe) | corp-fabrication-shop | Workshop floor |
+| 6 | `STING_TB_ASSEMBLY_HANGER.rfa` | Hanger-only fabrication | A2 landscape | – | (project-scoped recipe) | corp-fabrication-shop | Workshop floor |
+| 7 | `STING_TB_TECHNICAL_A1.rfa` | Technical / coordination presentation | A1 landscape | – | `mep-coord-A1-1to50`, `mep-plan-A1-1to100`, `mep-plantroom-A1-1to50`, `mep-hvac-duct-A1-1to100`, `coord-clash-A1-1to50` | corp-coordination | Internal IDR / TDR meetings |
+| 8 | `STING_TB_CLIENT_A1.rfa` | Client presentation | A1 landscape | – | `pres-3d-axon-A1`, `pres-perspective-A1`, `pres-context-site-A1`, `pres-render-board-A1`, `pres-exterior-elev-A1` | corp-presentation-rich / corp-presentation-mono | Client steering committee |
+| 9 | `STING_TB_IFC_A1.rfa` | Issued For Construction | A1 landscape | – | `arch-plan-A1-1to100`, `mep-plan-A1-1to100`, `struct-plan-A1-1to100` (phase=Construction routing) | corp-standard-plan / corp-coordination | Site team |
+| 10 | `STING_TB_IFT_A1.rfa` | Issued For Tender | A1 landscape | – | Same recipe set as IFC, phase=Tender routing | corp-standard-plan | Tender pack |
+| 11 | `STING_TB_AS_BUILT_A1.rfa` | As-built / record | A1 landscape | – | All production recipes, phase=As-Built routing | corp-standard-plan (existing un-halftoned) | Client handover |
+| 12 | `STING_TB_SUBMISSION_KCCA.rfa` | Authority — KCCA (Kampala City Council) | A1 landscape | KCCA | All production recipes with `authorityCode=KCCA` predicate | corp-standard-plan | Permit submission |
+| 13 | `STING_TB_SUBMISSION_ERA.rfa` | Authority — ERA (Electricity Regulatory Authority) | A1 landscape | ERA | `elec-power-A1-1to100`, `elec-lighting-A1-1to100`, `elec-fire-alarm-A1-1to100` | corp-standard-plan | Permit submission |
+| 14 | `STING_TB_SUBMISSION_NEMA.rfa` | Authority — NEMA (Environment) | A1 landscape | NEMA | `arch-fire-strategy-A1-1to100`, `arch-site-A1-1to500`, `plumb-drainage-A1-1to100` | corp-standard-plan | Permit submission |
+| 15 | `STING_TB_MARKETING_A2.rfa` | Marketing / render | A2 landscape | – | (marketing-render-A2 — project-scoped) | corp-presentation-rich | Brochure, website |
+
+#### 4.1.1 Layman-friendly description of every kit member
+
+1. **Cover page (`STING_TB_COVER_A3`)** — the front sheet of any deliverable bundle. Big logo, project name banner, deliverable code, revision number. *No drawable zone* (so the engine refuses to drop viewports on it). Auto-fills from `PRJ_NAME_TXT`, `PRJ_NUMBER_TXT`, `PRJ_TB_DELIVERABLE_STATUS_TXT`, `PRJ_TB_REVISION_NR_TXT`. QR code links back to the CDE record.
+2. **Start-up page (`STING_TB_STARTUP_A3`)** — page 2. "About this deliverable" paragraph, project team table, sheet-index placeholder, revision-history placeholder. The DocAutomation `BuildStartupPage` command fills the placeholder rectangles with live `DrawingRegisterSchedule` and `RevisionSchedule` views at issue time.
+3. **Pipe spool (`STING_TB_ASSEMBLY_PIPE`)** — workshop drawing for one spool of pipe. 5 viewport slots (PLAN / ISO / ELEV0 / ELEV90 / 3D) plus a 200 mm BOM strip on the right. BOM auto-fills from `AssyParams` (spool#, weight, weld count, bolt count, fitting count, test pressure, fab status, BOM rev, QC inspector). Bound to `pipe-spool-A1-1to50`.
+4. **Duct spool (`STING_TB_ASSEMBLY_DUCT`)** — same shape as pipe spool but discipline = DUCT. Bound to `duct-spool-A1-1to50`. Engine swaps the discipline-tagged grid bubble (`STING_GRID_HVAC`) and the title-block colour band (HVAC blue).
+5. **Conduit / electrical fabrication (`STING_TB_ASSEMBLY_COND`)** — same shape, discipline = COND. Tagged for cable runs, conduit fittings and electrical equipment.
+6. **Hanger-only fabrication (`STING_TB_ASSEMBLY_HANGER`)** — A2 (smaller) because hanger packages are simpler. Used for drawing lone support / hanger / bracket assemblies.
+7. **Technical presentation (`STING_TB_TECHNICAL_A1`)** — internal IDR / TDR. Discipline colour band on the right edge (Mech blue / Elec yellow / Plumb green / Arch grey / Struct red), key plan top-left, north arrow top-right (auto-rotates to True North), revision history bottom-left, project info bottom-right. Hosts MEP coord, mech plan, plant rooms, clash sheets.
+8. **Client presentation (`STING_TB_CLIENT_A1`)** — softer typography (Arial 18 pt minimum), client logo top, no grids/levels/sections visible, big breathing room. Hosts presentation 3Ds, perspectives, context-site, render boards, exterior elevations. Style pack flips between `corp-presentation-rich` (full colour) and `corp-presentation-mono` (greyscale) per deliverable.
+9. **Issued For Construction (`STING_TB_IFC_A1`)** — solid red 25 mm "ISSUED FOR CONSTRUCTION" banner across the top. Revision table on, QR code links to RFI portal. Validator refuses to ship if `PRJ_TB_DESIGN_STAGE_TXT != "C"`.
+10. **Issued For Tender (`STING_TB_IFT_A1`)** — diagonal "ISSUED FOR TENDER" watermark at 8 % opacity. Required seals from Lead Architect / Structural Engineer / MEP Engineer. CDE state pinned to `S3`.
+11. **As-built (`STING_TB_AS_BUILT_A1`)** — green "AS-BUILT — RECORD" status banner. Existing-phase elements show un-halftoned (the record IS the existing fabric). Frozen rev table.
+12. **KCCA submission (`STING_TB_SUBMISSION_KCCA`)** — authority-specific. Required `PRJ_PLOT_NUMBER`, `PRJ_LRV_NUMBER`, `PRJ_PHYSICAL_ADDRESS` non-empty. KCCA-tagged grid bubble. Revision pattern `P\d{2}`. Form version baked in (`KCCA-2024-Rev3`).
+13. **ERA submission (`STING_TB_SUBMISSION_ERA`)** — Electricity Regulatory Authority. ERA-tagged grid bubble, revision pattern `R\d{2}`. Required seals: Electrical Engineer.
+14. **NEMA submission (`STING_TB_SUBMISSION_NEMA`)** — Environment authority. Required impact-assessment cross-reference. Used for fire-strategy, site, drainage submissions.
+15. **Marketing render (`STING_TB_MARKETING_A2`)** — full-bleed render, only the company strip at the bottom. No grids / no annotations / no revision table. Used for brochures, web, social media.
 
 > **Why so many?** Because each row above maps to a different *visual style pack* (`STING_VIEW_STYLE_PACKS.json`) and a different *drawing-type recipe* (`STING_DRAWING_TYPES.json`). One title block per recipe means the engine never has to guess.
 
@@ -962,18 +997,125 @@ Drop the eight families into `Families/Annotations/` (or your project's annotati
 |---|---|
 | `StingTools/Data/MR_PARAMETERS.txt` (GROUP 26) | 37 `TB_*` shared params, all with stable UUIDv5 GUIDs in Planscape namespace |
 | `StingTools/Data/TITLE_BLOCK.csv` | Per-discipline default values for `PRJ_TB_*` |
-| `StingTools/Data/STING_DRAWING_TYPES.json` | 15 drawing-type recipes + routing |
-| `StingTools/Data/STING_VIEW_STYLE_PACKS.json` | 9 visual-style packs incl. `corp-base` (this guide ships an editable default) |
-| `Families/AssemblyTitleBlocks/*.params.txt` | Author-source spec for the 8 fabrication / submission families |
-| `Families/AssemblyTitleBlocks/*.rfa` | Authored title-block families (the kit) |
-| `<project>/_BIM_COORD/drawing_types.json` | Per-project override for routing |
+| `StingTools/Data/STING_DRAWING_TYPES.json` | **40** drawing-type recipes + routing (latest, Apr 2026) |
+| `StingTools/Data/STING_VIEW_STYLE_PACKS.json` | **11** visual-style packs incl. `corp-base` (full extends chain, comprehensive vgOverrides) |
+| `Families/AssemblyTitleBlocks/*.params.txt` | Author-source spec for the fabrication / submission families |
+| `Families/AssemblyTitleBlocks/*.rfa` | Authored title-block families (the kit, 15 members) |
+| `<project>/_BIM_COORD/drawing_types.json` | Per-project override for drawing types + routing |
 | `<project>/_BIM_COORD/view_style_packs.json` | Per-project override for visual style |
-| `StingTools/Core/Drawing/DrawingTypeRegistry.cs` | Loader + SHA-256 corp-lock + project-merge |
-| `StingTools/Core/Fabrication/ShopDrawingComposer.cs` | Reads `TB_VIEWPORT_SLOTS_JSON_TXT` for fabrication |
+| `StingTools/Core/Drawing/DrawingType.cs` | POCO models — DrawingType, AnnotationRulePack (Rules + TagDepths), AutoAnnotationRule |
+| `StingTools/Core/Drawing/DrawingTypeRegistry.cs` | Loader + SHA-256 corp-lock + project-merge + MigrateFromLegacy invocation |
+| `StingTools/Core/Drawing/DrawingTypePresentation.cs` | The 8-step apply pipeline used by every sheet-creating command |
+| `StingTools/Core/Drawing/ViewStylePack.cs` + `ViewStylePackRegistry.cs` + `ViewStylePackApplier.cs` | View-style-pack POCO + loader + applier |
+| `StingTools/Core/Drawing/TitleBlockParamApplier.cs` | Resolves `${PRJ_ORG_…}` and `{disc}/{lvl}/{seq:Dn}` tokens into title-block instance parameters |
 | `StingTools/Core/Drawing/DrawingTypeValidator.cs` | Pre-flight checks for missing nested families and required params |
+| `StingTools/Core/Fabrication/ShopDrawingComposer.cs` | Reads `TB_VIEWPORT_SLOTS_JSON_TXT` for fabrication route |
+| `StingTools/UI/DrawingTypeEditorDialog.cs` | The editor dialog (two tabs: Drawing Types + View Style Packs) |
+| `StingTools/UI/ProjectAssetPicker.cs` | Live readers — title-block families, view templates, viewport types, scope boxes, section markers, dimension styles, text styles, parameter filters, tag families, levels, phases, worksets, **categories**, **taggable categories** |
+| `docs/guides/DRAWING_TYPE_MANAGER_GUIDE.md` | **Companion guide** — Drawing Type Manager catalogue + automation procedures |
 | `docs/guides/TITLE_BLOCK_CREATION_GUIDE.md` | This file |
 
 ---
 
 > **Final layman summary:**
 > A title block in STING is a self-describing database row. You author it once per *purpose × paper size*, you let the engine read it, and you ship the kit as a folder of `.rfa` files plus a `manifest.json`. The corporate `STING_VIEW_STYLE_PACKS.json` defines the *house style*; per-project overrides go in `_BIM_COORD/view_style_packs.json`. The validator is your gate-keeper. Day-to-day issue is four clicks because every other piece of state is wired to the family.
+
+---
+
+## 20. Bind a title block to a recipe via the Drawing Type Editor (latest workflow)
+
+Title-block authoring (Stages 1–10 above) gets you a `.rfa` family in the kit. **Binding** is the act of telling the engine "for `arch-plan-A1-1to100`, use `STING_TB_TECHNICAL_A1`." Two ways:
+
+### 20.1 Through the editor dialog (recommended)
+
+1. Dock panel ▸ **DOCS ▸ Drawing Types ▸ Edit Types**.
+2. The editor opens. Drawing Types tab is selected.
+3. Type the recipe id in the search box (e.g. `arch-plan-A1-1to100`). Pick the entry on the left.
+4. Right-side form: **Sheet** card ▸ **Title block family** combo. The dropdown lists every `OST_TitleBlocks` family loaded in the active project, sorted alphabetically.
+5. Pick `STING_TB_TECHNICAL_A1`.
+6. Footer ▸ **Save**. The dialog writes only project-origin entries to `<project>/_BIM_COORD/drawing_types.json`; the corporate baseline on disk stays pristine.
+
+If the dropdown does not list your title-block family, it isn't loaded in the active project. Open the family from the kit folder via **Insert ▸ Load Family**, then re-open the editor (the picker re-queries on each open).
+
+### 20.2 Through the JSON file (advanced)
+
+Edit `<project>/_BIM_COORD/drawing_types.json`:
+
+```jsonc
+{
+  "id": "arch-plan-A1-1to100",
+  "origin": "project",
+  "titleBlockFamily": "STING_TB_TECHNICAL_A1",
+  "...": "..."
+}
+```
+
+Save. Run dock panel ▸ **DOCS ▸ Drawing Types ▸ Reload** to flush the registry cache.
+
+### 20.3 The `titleBlockParams` declarative bind
+
+The latest workflow exposes a `titleBlockParams` field on each recipe — a map of title-block instance parameter name → value template. The engine writes these onto the title-block instance at sheet-creation time via `TitleBlockParamApplier`.
+
+Example (from `arch-plan-A1-1to100`):
+
+```jsonc
+"titleBlockParams": {
+  "Client Name":      "${PRJ_ORG_CLIENT_NAME}",
+  "Project Code":     "${PRJ_ORG_PROJECT_CODE}",
+  "Originator":       "${PRJ_ORG_ORIGINATOR_CODE}",
+  "Company Name":     "${PRJ_ORG_COMPANY_NAME}",
+  "Company Address":  "${PRJ_ORG_COMPANY_ADDRESS}",
+  "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+  "Discipline":       "Architectural",
+  "Suitability":      "S2",
+  "Sheet Status":     "WIP",
+  "Revision":         "P01",
+  "Sheet Number":     "A-{lvl}-{seq:D3}"
+}
+```
+
+Substitution kinds:
+
+| Token | Resolved by |
+|---|---|
+| `${PRJ_ORG_xxx}` | Reads `ProjectInformation` parameter `PRJ_ORG_xxx` (e.g. `PRJ_ORG_CLIENT_NAME`) |
+| `{disc}` / `{discipline}` | ISO discipline single-letter / full name from the resolved recipe |
+| `{lvl}` | Caller-supplied level code from the level-aware overload of the dispatcher |
+| `{sys}` | Caller-supplied system code (sanitised) |
+| `{spool}` | `AssyParams.SPOOL_NR_TXT` for fabrication path |
+| `{mark}` | Section / elevation / detail mark |
+| `{seq}` / `{seq:D2}` / `{seq:D3}` / `{seq:D4}` | Zero-padded sequence number |
+
+Edit the map in the editor's **Title-block parameter binding** card (row-per-param grid; rename-key-preserves-value).
+
+> **Layman tip:** the title block stops needing hand-typed labels for `Client Name` / `Project Code` / etc. — those cells become parameter labels in the family and the engine fills them automatically per sheet. Author once, populate forever.
+
+### 20.4 One picture in your head
+
+```
+        ┌─────────────────────────────────────────────────┐
+        │ STING_TB_TECHNICAL_A1.rfa                       │
+        │ (a family — Stages 1–10 of this guide)          │
+        └─────────────────────────────────────────────────┘
+                          │
+                          │ TB_DRAWING_TYPE_ID_TXT
+                          ▼
+        ┌─────────────────────────────────────────────────┐
+        │ Drawing Type "mep-coord-A1-1to50"                │
+        │ titleBlockFamily: STING_TB_TECHNICAL_A1          │
+        │ viewStylePackId:  corp-coordination              │
+        │ slots[]:          4-up coord layout              │
+        │ annotation.rules: 12 auto rules                  │
+        │ titleBlockParams: 11 declarative bindings        │
+        └─────────────────────────────────────────────────┘
+                          │
+                          │ resolved by routing
+                          ▼
+        ┌─────────────────────────────────────────────────┐
+        │ Sheet generated — title block placed,            │
+        │ slots filled, view template + style pack applied,│
+        │ rules fired, params written, sheet number stamped│
+        └─────────────────────────────────────────────────┘
+```
+
+For a deeper dive into the drawing-type catalogue, the 11 view style packs, the 21-vocabulary auto-annotation rules and 5 worked automation procedures, read the companion guide [`DRAWING_TYPE_MANAGER_GUIDE.md`](DRAWING_TYPE_MANAGER_GUIDE.md).
