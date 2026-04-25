@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
@@ -140,6 +141,42 @@ namespace StingTools.Commands.Fabrication
             // Clear record so Undo can't be pressed twice by mistake.
             try { File.Delete(ResolvePath(doc)); } catch { }
             return removed;
+        }
+    }
+
+    /// <summary>
+    /// IExternalCommand wrapper around <see cref="FabricationUndoManager.UndoLast"/>
+    /// so the Fabrication Workspace's "Undo last package" button can dispatch
+    /// through StingCommandHandler on the Revit API thread.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class UndoFabPackageCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            try
+            {
+                var app = data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp;
+                var uidoc = app?.ActiveUIDocument;
+                if (uidoc == null)
+                {
+                    msg = "No active Revit document.";
+                    return Result.Failed;
+                }
+                int removed = FabricationUndoManager.UndoLast(uidoc);
+                TaskDialog.Show("STING v4 — Undo Fabrication",
+                    removed == 0
+                        ? "Nothing to undo. Run Generate Package first."
+                        : $"Removed {removed} fabrication element(s) from the last package.");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("UndoFabPackageCommand", ex);
+                msg = ex.Message;
+                return Result.Failed;
+            }
         }
     }
 
