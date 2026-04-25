@@ -261,28 +261,33 @@ namespace StingTools.Commands.Fabrication
             return ids;
         }
 
+        /// <summary>
+        /// Light-themed result dialog matching the Fabrication Workspace's
+        /// visual language: white background, orange section accents,
+        /// card-based summary with Open last sheet / View log / Open
+        /// Workspace / Close action row. Replaces the previous heavy
+        /// StingResultPanel pop-up (dark-blue header) and the interim
+        /// TaskDialog summary.
+        /// </summary>
         private void ShowResult(FabricationResult res)
         {
-            var panel = StingResultPanel.Create("v4 Fabrication Package");
-            panel.SetSubtitle(res.FormatSummary());
-            panel.AddSection("ASSEMBLIES BY DISCIPLINE");
-            if (res.AssembliesByDiscipline.Count == 0)
-                panel.Text("No assemblies created.");
-            else
-                foreach (var kv in res.AssembliesByDiscipline)
-                    panel.Metric(kv.Key, kv.Value.ToString());
+            // Always log every warning so the audit trail stays
+            // intact even though we no longer render them all in the UI.
+            foreach (var w in res.Warnings) StingLog.Warn($"GenerateFabPackage: {w}");
 
-            panel.AddSection("SHEETS")
-                 .Metric("Generated", res.SheetIds.Count.ToString())
-                 .Metric("Failed",    res.FailedCount.ToString());
-
-            if (res.Warnings.Count > 0)
+            try
             {
-                panel.AddSection("WARNINGS");
-                foreach (var w in res.Warnings.Take(40)) panel.Text(w);
-                if (res.Warnings.Count > 40) panel.Text($"(+{res.Warnings.Count - 40} more — see StingLog)");
+                var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                var dlg = new StingTools.UI.FabricationResultDialog(doc, res);
+                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                dlg.ShowDialog();
             }
-            panel.Show();
+            catch (Exception ex)
+            {
+                StingLog.Error("GenerateFabPackage.ShowResult", ex);
+                // Last-resort fallback: never silently swallow the result.
+                TaskDialog.Show("STING v4 — Fabrication Package", res.FormatSummary());
+            }
         }
     }
 }
