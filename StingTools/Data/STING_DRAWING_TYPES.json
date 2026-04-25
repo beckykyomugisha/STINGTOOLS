@@ -4,7 +4,7 @@
   "drawingTypes": [
     {
       "id": "arch-plan-A1-1to100",
-      "name": "Architectural Plan \u2014 A1 @ 1:100",
+      "name": "Architectural Plan — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -17,7 +17,7 @@
       "viewTemplateName": "STING - Architectural Plan",
       "viewportTypeName": "STING - Standard Viewport",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "ARCHITECTURAL PLAN \u2014 {lvl}",
+      "sheetNamePattern": "ARCHITECTURAL PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -50,10 +50,6 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": true,
-        "autoTagRooms": true,
-        "autoTagDoors": true,
-        "autoTagWindows": true,
         "dimensionStrategy": "Linear",
         "dimensionStyle": "STING - Linear",
         "tagFamilies": {
@@ -61,7 +57,84 @@
           "Doors": "STING_TAG_DOOR",
           "Windows": "STING_TAG_WINDOW"
         },
-        "denseUntilScale": 100
+        "denseUntilScale": 100,
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Stairs",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Railings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Furniture",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Casework",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Areas",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoDimWallLength",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomName",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -86,7 +159,7 @@
     },
     {
       "id": "arch-rcp-A1-1to100",
-      "name": "Architectural RCP \u2014 A1 @ 1:100",
+      "name": "Architectural RCP — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "RCP",
       "discipline": "A",
@@ -96,7 +169,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Reflected Ceiling Plan",
       "sheetNumberPattern": "A-RCP-{lvl}-{seq:D3}",
-      "sheetNamePattern": "REFLECTED CEILING PLAN \u2014 {lvl}",
+      "sheetNamePattern": "REFLECTED CEILING PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -121,19 +194,94 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": true,
-        "autoTagRooms": true,
         "tagFamilies": {
           "Rooms": "STING_TAG_ROOM",
           "Ceilings": "STING_TAG_CEILING",
           "LightingFixtures": "STING_TAG_LIGHT"
         },
-        "denseUntilScale": 100
+        "denseUntilScale": 100,
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Stairs",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Railings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Furniture",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Casework",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Areas",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoDimWallLength",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomName",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "arch-section-A1-1to50",
-      "name": "Architectural Section \u2014 A1 @ 1:50",
+      "name": "Architectural Section — A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Section",
       "discipline": "A",
@@ -166,10 +314,85 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": true,
-        "autoDimLevels": true,
         "dimensionStrategy": "Linear",
-        "denseUntilScale": 100
+        "denseUntilScale": 100,
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Stairs",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Railings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Furniture",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Casework",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Areas",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoDimWallLength",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomName",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          }
+        ]
       },
       "isoNaming": {
         "volume": "01",
@@ -181,7 +404,7 @@
     },
     {
       "id": "arch-elev-A1-1to100",
-      "name": "Architectural Elevation \u2014 A1 @ 1:100",
+      "name": "Architectural Elevation — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Elevation",
       "discipline": "A",
@@ -237,13 +460,89 @@
         }
       ],
       "annotation": {
-        "autoDimLevels": true,
-        "dimensionStrategy": "Linear"
+        "dimensionStrategy": "Linear",
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Stairs",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Railings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Furniture",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Casework",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Areas",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoDimWallLength",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomName",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "arch-detail-A3-1to20",
-      "name": "Architectural Detail \u2014 A3 @ 1:20",
+      "name": "Architectural Detail — A3 @ 1:20",
       "origin": "corporate",
       "purpose": "Detail",
       "discipline": "A",
@@ -299,14 +598,90 @@
         }
       ],
       "annotation": {
-        "autoDimLevels": true,
         "dimensionStrategy": "Chain",
-        "denseUntilScale": 50
+        "denseUntilScale": 50,
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Stairs",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Railings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Furniture",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Casework",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Areas",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoDimWallLength",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomName",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "struct-plan-A1-1to100",
-      "name": "Structural Plan \u2014 A1 @ 1:100",
+      "name": "Structural Plan — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "S",
@@ -316,7 +691,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Structural Plan",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "STRUCTURAL PLAN \u2014 {lvl}",
+      "sheetNamePattern": "STRUCTURAL PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -333,14 +708,49 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": true,
-        "autoTagEquipment": true,
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "StructuralColumns": "STING_TAG_COL",
           "StructuralFraming": "STING_TAG_BEAM",
           "StructuralFoundations": "STING_TAG_FTG"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Structural Columns",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Framing",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Foundations",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Rebar",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Columns",
+            "ruleType": "AutoDimColumnGrid",
+            "enabled": true
+          }
+        ]
       },
       "isoNaming": {
         "volume": "01",
@@ -352,7 +762,7 @@
     },
     {
       "id": "struct-section-A1-1to50",
-      "name": "Structural Section \u2014 A1 @ 1:50",
+      "name": "Structural Section — A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Section",
       "discipline": "S",
@@ -385,13 +795,49 @@
         }
       ],
       "annotation": {
-        "autoDimLevels": true,
-        "dimensionStrategy": "Linear"
+        "dimensionStrategy": "Linear",
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Structural Columns",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Framing",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Foundations",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Rebar",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Columns",
+            "ruleType": "AutoDimColumnGrid",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "mep-plan-A1-1to100",
-      "name": "MEP Plan \u2014 A1 @ 1:100",
+      "name": "MEP Plan — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "M",
@@ -401,7 +847,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - MEP Plan",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "MEP PLAN \u2014 {lvl}",
+      "sheetNamePattern": "MEP PLAN — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -426,15 +872,75 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": false,
-        "autoTagEquipment": true,
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "DuctSystem": "STING_TAG_DUCT",
           "PipeSystem": "STING_TAG_PIPE",
           "ElectricalEquipment": "STING_TAG_ELEC"
         },
-        "denseUntilScale": 100
+        "denseUntilScale": 100,
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Air Terminals",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Spaces",
+            "ruleType": "AutoAnnotateSpaceNumber",
+            "enabled": true
+          },
+          {
+            "category": "Ducts",
+            "ruleType": "AutoAnnotateFlowArrow",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoAnnotateSlope",
+            "enabled": true
+          }
+        ]
       },
       "isoNaming": {
         "volume": "01",
@@ -446,7 +952,7 @@
     },
     {
       "id": "mep-coord-A1-1to50",
-      "name": "MEP Coordination \u2014 A1 @ 1:50",
+      "name": "MEP Coordination — A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Coordination",
       "discipline": "M",
@@ -456,7 +962,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - MEP Coordination",
       "sheetNumberPattern": "M-CO-{lvl}-{seq:D3}",
-      "sheetNamePattern": "MEP COORDINATION \u2014 {lvl}",
+      "sheetNamePattern": "MEP COORDINATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -473,9 +979,69 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": true,
-        "autoTagEquipment": true,
-        "denseUntilScale": 50
+        "denseUntilScale": 50,
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Air Terminals",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Spaces",
+            "ruleType": "AutoAnnotateSpaceNumber",
+            "enabled": true
+          },
+          {
+            "category": "Ducts",
+            "ruleType": "AutoAnnotateFlowArrow",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoAnnotateSlope",
+            "enabled": true
+          }
+        ]
       },
       "print": {
         "halftoneLinks": true
@@ -483,7 +1049,7 @@
     },
     {
       "id": "pipe-spool-A1-1to50",
-      "name": "Pipe Spool \u2014 A1 @ 1:50",
+      "name": "Pipe Spool — A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Spool",
       "discipline": "P",
@@ -549,15 +1115,44 @@
         }
       ],
       "annotation": {
-        "autoTagWelds": true,
-        "autoTagBends": true,
-        "autoTagSupports": true,
         "dimensionStrategy": "Ordinate",
         "tagFamilies": {
           "PipeFitting": "STING_TAG_WELD",
           "PipeAccessory": "STING_TAG_FIT"
         },
-        "denseUntilScale": 100
+        "denseUntilScale": 100,
+        "rules": [
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoAnnotateSlope",
+            "enabled": true
+          },
+          {
+            "category": "Ducts",
+            "ruleType": "AutoAnnotateFlowArrow",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -584,7 +1179,7 @@
     },
     {
       "id": "duct-spool-A1-1to50",
-      "name": "Duct Spool \u2014 A1 @ 1:50",
+      "name": "Duct Spool — A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Spool",
       "discipline": "M",
@@ -650,17 +1245,48 @@
         }
       ],
       "annotation": {
-        "autoTagSupports": true,
         "dimensionStrategy": "Ordinate",
         "tagFamilies": {
           "DuctFitting": "STING_TAG_DUCT_FIT",
           "DuctAccessory": "STING_TAG_DMP"
-        }
+        },
+        "rules": [
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoAnnotateSlope",
+            "enabled": true
+          },
+          {
+            "category": "Ducts",
+            "ruleType": "AutoAnnotateFlowArrow",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "elec-riser-A2-1to100",
-      "name": "Electrical Riser \u2014 A2 @ 1:100",
+      "name": "Electrical Riser — A2 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "E",
@@ -695,13 +1321,53 @@
         }
       ],
       "annotation": {
-        "autoDimLevels": true,
-        "autoTagEquipment": true
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Conduits",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Cable Trays",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Fire Alarm Devices",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "door-schedule-A2",
-      "name": "Door Schedule \u2014 A2",
+      "name": "Door Schedule — A2",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "A",
@@ -723,11 +1389,14 @@
           "normH": 0.9,
           "required": true
         }
-      ]
+      ],
+      "annotation": {
+        "rules": []
+      }
     },
     {
       "id": "handover-A1",
-      "name": "Handover Sheet \u2014 A1",
+      "name": "Handover Sheet — A1",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "*",
@@ -737,7 +1406,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Handover",
       "sheetNumberPattern": "HO-{seq:D3}",
-      "sheetNamePattern": "HANDOVER \u2014 {lvl}",
+      "sheetNamePattern": "HANDOVER — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
@@ -777,13 +1446,12 @@
         }
       ],
       "annotation": {
-        "autoTagRooms": true,
-        "autoTagEquipment": true
+        "rules": []
       }
     },
     {
       "id": "legend-A2",
-      "name": "Legend Sheet \u2014 A2",
+      "name": "Legend Sheet — A2",
       "origin": "corporate",
       "purpose": "Legend",
       "discipline": "*",
@@ -805,11 +1473,14 @@
           "normH": 0.9,
           "required": true
         }
-      ]
+      ],
+      "annotation": {
+        "rules": []
+      }
     },
     {
       "id": "arch-site-A1-1to500",
-      "name": "Site / Location Plan \u2014 A1 @ 1:500",
+      "name": "Site / Location Plan — A1 @ 1:500",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -836,16 +1507,37 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": false,
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "Site": "STING_TAG_SITE"
-        }
+        },
+        "rules": [
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Topography",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Site",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Parking",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "arch-roof-A1-1to100",
-      "name": "Architectural Roof Plan \u2014 A1 @ 1:100",
+      "name": "Architectural Roof Plan — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -880,17 +1572,38 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": true,
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "RainwaterOutlets": "STING_TAG_RWO",
           "RoofLights": "STING_TAG_RFL"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Roofs",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Roofs",
+            "ruleType": "AutoAnnotateSlope",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "arch-floor-finishes-A1-1to100",
-      "name": "Floor Finishes Plan \u2014 A1 @ 1:100",
+      "name": "Floor Finishes Plan — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -900,7 +1613,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Finishes Plan",
       "sheetNumberPattern": "A-FF-{lvl}-{seq:D3}",
-      "sheetNamePattern": "FLOOR FINISHES \u2014 {lvl}",
+      "sheetNamePattern": "FLOOR FINISHES — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -925,15 +1638,41 @@
         }
       ],
       "annotation": {
-        "autoTagRooms": true,
         "tagFamilies": {
           "Rooms": "STING_TAG_FINISH"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomName",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          },
+          {
+            "category": "Floors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "arch-fire-strategy-A1-1to100",
-      "name": "Fire Strategy Plan \u2014 A1 @ 1:100",
+      "name": "Fire Strategy Plan — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -943,7 +1682,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Fire Strategy",
       "sheetNumberPattern": "A-FS-{lvl}-{seq:D3}",
-      "sheetNamePattern": "FIRE STRATEGY \u2014 {lvl}",
+      "sheetNamePattern": "FIRE STRATEGY — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -968,16 +1707,37 @@
         }
       ],
       "annotation": {
-        "autoTagRooms": true,
         "tagFamilies": {
           "Rooms": "STING_TAG_FIRE_COMPT",
           "Doors": "STING_TAG_FIRE_DOOR"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "arch-accessibility-A1-1to100",
-      "name": "Accessibility Plan (Part M) \u2014 A1 @ 1:100",
+      "name": "Accessibility Plan (Part M) — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -987,7 +1747,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Accessibility",
       "sheetNumberPattern": "A-AC-{lvl}-{seq:D3}",
-      "sheetNamePattern": "ACCESSIBILITY \u2014 {lvl}",
+      "sheetNamePattern": "ACCESSIBILITY — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -1012,18 +1772,47 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": true,
-        "autoTagDoors": true,
-        "autoTagRooms": true,
         "tagFamilies": {
           "Doors": "STING_TAG_DDA",
           "Rooms": "STING_TAG_ROOM"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Ramps",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Stairs",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Railings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "arch-interior-elev-A1-1to50",
-      "name": "Interior Elevation \u2014 A1 @ 1:50",
+      "name": "Interior Elevation — A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Elevation",
       "discipline": "A",
@@ -1079,13 +1868,89 @@
         }
       ],
       "annotation": {
-        "autoDimLevels": true,
-        "dimensionStrategy": "Linear"
+        "dimensionStrategy": "Linear",
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Stairs",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Railings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Furniture",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Casework",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Areas",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoDimWallLength",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoDimOpenings",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomName",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "arch-window-schedule-A2",
-      "name": "Window Schedule \u2014 A2",
+      "name": "Window Schedule — A2",
       "origin": "corporate",
       "purpose": "Schedule",
       "discipline": "A",
@@ -1107,11 +1972,14 @@
           "normH": 0.9,
           "required": true
         }
-      ]
+      ],
+      "annotation": {
+        "rules": []
+      }
     },
     {
       "id": "struct-foundation-A1-1to100",
-      "name": "Foundation Plan \u2014 A1 @ 1:100",
+      "name": "Foundation Plan — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "S",
@@ -1138,18 +2006,53 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": true,
-        "autoTagEquipment": true,
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "StructuralFoundations": "STING_TAG_FTG",
           "StructuralColumns": "STING_TAG_COL"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Structural Columns",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Framing",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Foundations",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Rebar",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Columns",
+            "ruleType": "AutoDimColumnGrid",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "struct-rebar-detail-A3-1to20",
-      "name": "Rebar Detail \u2014 A3 @ 1:20",
+      "name": "Rebar Detail — A3 @ 1:20",
       "origin": "corporate",
       "purpose": "Detail",
       "discipline": "S",
@@ -1182,17 +2085,28 @@
         }
       ],
       "annotation": {
-        "autoDimLevels": true,
         "dimensionStrategy": "Chain",
         "tagFamilies": {
           "StructuralRebar": "STING_TAG_BAR"
         },
-        "denseUntilScale": 50
+        "denseUntilScale": 50,
+        "rules": [
+          {
+            "category": "Structural Rebar",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Structural Foundations",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "mep-hvac-duct-A1-1to100",
-      "name": "HVAC Duct Layout \u2014 A1 @ 1:100",
+      "name": "HVAC Duct Layout — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "M",
@@ -1202,7 +2116,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - HVAC Duct",
       "sheetNumberPattern": "M-DC-{lvl}-{seq:D3}",
-      "sheetNamePattern": "HVAC DUCT \u2014 {lvl}",
+      "sheetNamePattern": "HVAC DUCT — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -1227,19 +2141,80 @@
         }
       ],
       "annotation": {
-        "autoTagEquipment": true,
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "DuctSystem": "STING_TAG_DUCT",
           "DuctFitting": "STING_TAG_DUCT_FIT",
           "AirTerminals": "STING_TAG_AIRTERM"
         },
-        "denseUntilScale": 100
+        "denseUntilScale": 100,
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Air Terminals",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Spaces",
+            "ruleType": "AutoAnnotateSpaceNumber",
+            "enabled": true
+          },
+          {
+            "category": "Ducts",
+            "ruleType": "AutoAnnotateFlowArrow",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoAnnotateSlope",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "mep-plantroom-A1-1to50",
-      "name": "Plant Room Plan \u2014 A1 @ 1:50",
+      "name": "Plant Room Plan — A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "M",
@@ -1249,7 +2224,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Plant Room",
       "sheetNumberPattern": "M-PR-{seq:D3}",
-      "sheetNamePattern": "PLANT ROOM \u2014 {mark}",
+      "sheetNamePattern": "PLANT ROOM — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -1281,18 +2256,78 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": true,
-        "autoTagEquipment": true,
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "MechanicalEquipment": "STING_TAG_MECH_EQ",
           "PipeSystem": "STING_TAG_PIPE"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Air Terminals",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Spaces",
+            "ruleType": "AutoAnnotateSpaceNumber",
+            "enabled": true
+          },
+          {
+            "category": "Ducts",
+            "ruleType": "AutoAnnotateFlowArrow",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoAnnotateSlope",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "elec-power-A1-1to100",
-      "name": "Electrical Power Layout \u2014 A1 @ 1:100",
+      "name": "Electrical Power Layout — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "E",
@@ -1302,7 +2337,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Power Layout",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "POWER LAYOUT \u2014 {lvl}",
+      "sheetNamePattern": "POWER LAYOUT — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -1327,11 +2362,52 @@
         }
       ],
       "annotation": {
-        "autoTagEquipment": true,
         "tagFamilies": {
           "ElectricalEquipment": "STING_TAG_ELEC",
           "ElectricalFixtures": "STING_TAG_SOCKET"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Conduits",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Cable Trays",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Fire Alarm Devices",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "isoNaming": {
         "volume": "01",
@@ -1343,7 +2419,7 @@
     },
     {
       "id": "elec-lighting-A1-1to100",
-      "name": "Lighting Layout \u2014 A1 @ 1:100",
+      "name": "Lighting Layout — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "E",
@@ -1353,7 +2429,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Lighting Layout",
       "sheetNumberPattern": "E-LT-{lvl}-{seq:D3}",
-      "sheetNamePattern": "LIGHTING LAYOUT \u2014 {lvl}",
+      "sheetNamePattern": "LIGHTING LAYOUT — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -1378,16 +2454,57 @@
         }
       ],
       "annotation": {
-        "autoTagEquipment": true,
         "tagFamilies": {
           "LightingFixtures": "STING_TAG_LIGHT",
           "LightingDevices": "STING_TAG_SWITCH"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Conduits",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Cable Trays",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Fire Alarm Devices",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "elec-fire-alarm-A1-1to100",
-      "name": "Fire Alarm Layout \u2014 A1 @ 1:100",
+      "name": "Fire Alarm Layout — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "E",
@@ -1397,7 +2514,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Fire Alarm",
       "sheetNumberPattern": "E-FA-{lvl}-{seq:D3}",
-      "sheetNamePattern": "FIRE ALARM \u2014 {lvl}",
+      "sheetNamePattern": "FIRE ALARM — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -1422,15 +2539,56 @@
         }
       ],
       "annotation": {
-        "autoTagEquipment": true,
         "tagFamilies": {
           "FireAlarmDevices": "STING_TAG_FA_DEV"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Conduits",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Cable Trays",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Fire Alarm Devices",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "plumb-drainage-A1-1to100",
-      "name": "Drainage Layout \u2014 A1 @ 1:100",
+      "name": "Drainage Layout — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "P",
@@ -1440,7 +2598,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Drainage",
       "sheetNumberPattern": "P-DR-{lvl}-{seq:D3}",
-      "sheetNamePattern": "DRAINAGE \u2014 {lvl}",
+      "sheetNamePattern": "DRAINAGE — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -1465,18 +2623,49 @@
         }
       ],
       "annotation": {
-        "autoTagEquipment": true,
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "PipeSystem": "STING_TAG_PIPE",
           "PipeFitting": "STING_TAG_GULLY",
           "PlumbingFixtures": "STING_TAG_SAN"
-        }
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoAnnotateSlope",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       }
     },
     {
       "id": "fm-asset-location-A1-1to100",
-      "name": "FM Asset Location Plan \u2014 A1 @ 1:100",
+      "name": "FM Asset Location Plan — A1 @ 1:100",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "*",
@@ -1486,7 +2675,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - FM Asset",
       "sheetNumberPattern": "FM-AS-{lvl}-{seq:D3}",
-      "sheetNamePattern": "ASSET LOCATION \u2014 {lvl}",
+      "sheetNamePattern": "ASSET LOCATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -1511,15 +2700,30 @@
         }
       ],
       "annotation": {
-        "autoTagRooms": true,
-        "autoTagEquipment": true,
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "MechanicalEquipment": "STING_TAG_FM_QR",
           "ElectricalEquipment": "STING_TAG_FM_QR",
           "PlumbingFixtures": "STING_TAG_FM_QR",
           "Rooms": "STING_TAG_ROOM"
-        }
+        },
+        "rules": [
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "print": {
         "halftoneLinks": true
@@ -1527,7 +2731,7 @@
     },
     {
       "id": "coord-clash-A1-1to50",
-      "name": "Coordination Clash Plan \u2014 A1 @ 1:50",
+      "name": "Coordination Clash Plan — A1 @ 1:50",
       "origin": "corporate",
       "purpose": "Coordination",
       "discipline": "*",
@@ -1537,7 +2741,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Clash Coordination",
       "sheetNumberPattern": "CO-CL-{lvl}-{seq:D3}",
-      "sheetNamePattern": "CLASH COORDINATION \u2014 {lvl}",
+      "sheetNamePattern": "CLASH COORDINATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -1570,9 +2774,69 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": true,
-        "autoTagEquipment": true,
-        "denseUntilScale": 50
+        "denseUntilScale": 50,
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Air Terminals",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Spaces",
+            "ruleType": "AutoAnnotateSpaceNumber",
+            "enabled": true
+          },
+          {
+            "category": "Ducts",
+            "ruleType": "AutoAnnotateFlowArrow",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoAnnotateSlope",
+            "enabled": true
+          }
+        ]
       },
       "print": {
         "halftoneLinks": true
@@ -1580,7 +2844,7 @@
     },
     {
       "id": "pres-3d-axon-A1",
-      "name": "Presentation 3D Axonometric \u2014 A1",
+      "name": "Presentation 3D Axonometric — A1",
       "origin": "corporate",
       "purpose": "3D",
       "discipline": "*",
@@ -1591,7 +2855,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation 3D",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
-      "sheetNamePattern": "3D AXONOMETRIC \u2014 {mark}",
+      "sheetNamePattern": "3D AXONOMETRIC — {mark}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 500
@@ -1624,8 +2888,7 @@
         }
       ],
       "annotation": {
-        "autoTagRooms": false,
-        "autoDimGrids": false
+        "rules": []
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -1642,7 +2905,7 @@
         "Discipline": "Presentation",
         "Suitability": "S1",
         "Sheet Status": "ISSUED FOR INFORMATION",
-        "Sheet Title": "3D AXONOMETRIC \u2014 {mark}"
+        "Sheet Title": "3D AXONOMETRIC — {mark}"
       },
       "isoNaming": {
         "volume": "01",
@@ -1654,7 +2917,7 @@
     },
     {
       "id": "pres-perspective-A1",
-      "name": "Presentation Perspective \u2014 A1",
+      "name": "Presentation Perspective — A1",
       "origin": "corporate",
       "purpose": "3D",
       "discipline": "A",
@@ -1664,7 +2927,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation Perspective",
       "sheetNumberPattern": "PR-PV-{seq:D2}",
-      "sheetNamePattern": "PERSPECTIVE \u2014 {mark}",
+      "sheetNamePattern": "PERSPECTIVE — {mark}",
       "crop": {
         "kind": "None"
       },
@@ -1687,7 +2950,9 @@
           "normH": 0.07
         }
       ],
-      "annotation": {},
+      "annotation": {
+        "rules": []
+      },
       "print": {
         "colourScheme": "PresentationRich",
         "halftoneLinks": false,
@@ -1696,7 +2961,7 @@
     },
     {
       "id": "pres-exterior-elev-A1",
-      "name": "Presentation Exterior Elevation \u2014 A1",
+      "name": "Presentation Exterior Elevation — A1",
       "origin": "corporate",
       "purpose": "Elevation",
       "discipline": "A",
@@ -1706,7 +2971,7 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation Elevation",
       "sheetNumberPattern": "PR-EL-{seq:D2}",
-      "sheetNamePattern": "EXTERIOR ELEVATION \u2014 {mark}",
+      "sheetNamePattern": "EXTERIOR ELEVATION — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 300
@@ -1737,11 +3002,11 @@
         }
       ],
       "annotation": {
-        "autoDimLevels": true,
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "Walls": "STING_TAG_MAT_CALLOUT"
-        }
+        },
+        "rules": []
       },
       "print": {
         "colourScheme": "PresentationMono",
@@ -1751,7 +3016,7 @@
     },
     {
       "id": "pres-render-board-A1",
-      "name": "Presentation Render Board \u2014 A1 (4-up)",
+      "name": "Presentation Render Board — A1 (4-up)",
       "origin": "corporate",
       "purpose": "3D",
       "discipline": "A",
@@ -1799,7 +3064,9 @@
           "normH": 0.43
         }
       ],
-      "annotation": {},
+      "annotation": {
+        "rules": []
+      },
       "print": {
         "colourScheme": "PresentationRich",
         "halftoneLinks": false,
@@ -1808,7 +3075,7 @@
     },
     {
       "id": "pres-context-site-A1",
-      "name": "Presentation Context / Site \u2014 A1 @ 1:500",
+      "name": "Presentation Context / Site — A1 @ 1:500",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -1818,7 +3085,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Presentation Context",
       "sheetNumberPattern": "PR-CX-{seq:D2}",
-      "sheetNamePattern": "CONTEXT PLAN \u2014 {mark}",
+      "sheetNamePattern": "CONTEXT PLAN — {mark}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 3000
@@ -1861,7 +3128,8 @@
       "annotation": {
         "tagFamilies": {
           "Site": "STING_TAG_SITE_CALLOUT"
-        }
+        },
+        "rules": []
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -1871,7 +3139,7 @@
     },
     {
       "id": "clar-markup-A1",
-      "name": "Clarification / Markup Plan \u2014 A1",
+      "name": "Clarification / Markup Plan — A1",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -1881,7 +3149,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Clarification Markup",
       "sheetNumberPattern": "CL-MK-{lvl}-{seq:D3}",
-      "sheetNamePattern": "CLARIFICATION \u2014 {mark}",
+      "sheetNamePattern": "CLARIFICATION — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -1914,10 +3182,16 @@
         }
       ],
       "annotation": {
-        "autoDimGrids": false,
         "tagFamilies": {
           "Rooms": "STING_TAG_ROOM"
-        }
+        },
+        "rules": [
+          {
+            "category": "Generic Annotations",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "print": {
         "colourScheme": "ClarificationRed",
@@ -1926,7 +3200,7 @@
     },
     {
       "id": "clar-rfi-A3",
-      "name": "RFI Sketch \u2014 A3",
+      "name": "RFI Sketch — A3",
       "origin": "corporate",
       "purpose": "Detail",
       "discipline": "*",
@@ -1975,10 +3249,15 @@
         }
       ],
       "annotation": {
-        "autoDimLevels": true,
-        "autoDimGrids": true,
         "dimensionStrategy": "Linear",
-        "denseUntilScale": 100
+        "denseUntilScale": 100,
+        "rules": [
+          {
+            "category": "Generic Annotations",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "print": {
         "colourScheme": "ClarificationRed",
@@ -1987,7 +3266,7 @@
     },
     {
       "id": "clar-design-intent-A1",
-      "name": "Design Intent Presentation \u2014 A1",
+      "name": "Design Intent Presentation — A1",
       "origin": "corporate",
       "purpose": "Plan",
       "discipline": "A",
@@ -1997,7 +3276,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Design Intent",
       "sheetNumberPattern": "DI-{seq:D3}",
-      "sheetNamePattern": "DESIGN INTENT \u2014 {mark}",
+      "sheetNamePattern": "DESIGN INTENT — {mark}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
@@ -2045,7 +3324,13 @@
         }
       ],
       "annotation": {
-        "autoTagRooms": false
+        "rules": [
+          {
+            "category": "Generic Annotations",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "print": {
         "colourScheme": "PresentationRich",

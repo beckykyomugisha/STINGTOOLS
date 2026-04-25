@@ -178,6 +178,52 @@ namespace StingTools.UI
             return result.OrderBy(s => s).ToList();
         }
 
+        // ── Categories with bindable parameters (every category that
+        // can host shared parameters — used by VG override + tag-family
+        // editors to populate the Category column dropdown). ──
+        public static IEnumerable<string> CategoryNames(Document doc)
+        {
+            if (doc == null) return System.Linq.Enumerable.Empty<string>();
+            var result = new HashSet<string>();
+            try
+            {
+                foreach (Category c in doc.Settings.Categories)
+                {
+                    if (c == null) continue;
+                    if (!c.AllowsBoundParameters) continue;
+                    if (string.IsNullOrWhiteSpace(c.Name)) continue;
+                    result.Add(c.Name);
+                }
+            }
+            catch { }
+            return result.OrderBy(s => s).ToList();
+        }
+
+        // ── Model categories that can host tags (every model category
+        // with bindable parameters). Used by the Annotation tab tag-
+        // families + rules grids. We can't reliably reverse-map "Door
+        // Tags" → "Doors" for every locale, so we just expose every
+        // bindable model category and let the merged static
+        // KnownTaggableCategories list curate the typical picks. ──
+        public static IEnumerable<string> TaggableCategoryNames(Document doc)
+        {
+            if (doc == null) return System.Linq.Enumerable.Empty<string>();
+            var result = new HashSet<string>();
+            try
+            {
+                foreach (Category c in doc.Settings.Categories)
+                {
+                    if (c == null) continue;
+                    if (!c.AllowsBoundParameters) continue;
+                    if (c.CategoryType != CategoryType.Model) continue;
+                    if (string.IsNullOrWhiteSpace(c.Name)) continue;
+                    result.Add(c.Name);
+                }
+            }
+            catch { }
+            return result.OrderBy(s => s).ToList();
+        }
+
         // ── Levels ──
         public static IEnumerable<string> LevelNames(Document doc)
         {
