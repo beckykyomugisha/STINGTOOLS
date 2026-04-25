@@ -1,5 +1,8 @@
 # Placement Centre — Review of Flexibility, Functionality & Automation Gaps
 
+> **Looking for the user guide?** This document is a developer-facing gap audit.
+> The plain-English walk-through for end users lives at [`PLACEMENT_CENTRE_GUIDE.md`](PLACEMENT_CENTRE_GUIDE.md).
+
 > Review date: 2026-04-25 · Branch: `claude/placement-centre-review-cKDOD`
 >
 > Scope: `StingTools/UI/PlacementCenter/*`, `StingTools/Core/Placement/*`,
