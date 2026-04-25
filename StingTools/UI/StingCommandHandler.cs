@@ -275,12 +275,19 @@ namespace StingTools.UI
                     case "Mep_NamingAudit":     RunCommand<Commands.Mep.MepNamingAuditCommand>(app); break;
 
                     // ── v4 MVP: fabrication (Phase 5) ──
-                    case "Fabrication_GeneratePackage": RunCommand<Commands.Fabrication.GenerateFabPackageCommand>(app); break;
-                    case "Fabrication_ExportCutList":   RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;
-                    case "Fabrication_ExportIsometrics":RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
-                    case "Fabrication_ExportWeldMap":   RunCommand<Commands.Fabrication.ExportWeldMapCommand>(app); break;
-                    case "Fabrication_ExportMaj":       RunCommand<Commands.Fabrication.ExportMajCommand>(app); break;
-                    case "Fabrication_ExportPcf":       RunCommand<Commands.Fabrication.ExportPcfCommand>(app); break;
+                    case "Fabrication_OpenWorkspace":     RunCommand<Commands.Fabrication.FabricationWorkspaceCommand>(app); break;
+                    case "Fabrication_GeneratePackage":   RunCommand<Commands.Fabrication.GenerateFabPackageCommand>(app); break;
+                    case "Fabrication_ExportCutList":     RunCommand<Commands.Fabrication.ExportCutListCommand>(app); break;
+                    case "Fabrication_ExportIsometrics":  RunCommand<Commands.Fabrication.ExportIsometricsCommand>(app); break;
+                    case "Fabrication_ExportWeldMap":     RunCommand<Commands.Fabrication.ExportWeldMapCommand>(app); break;
+                    case "Fabrication_ExportMaj":         RunCommand<Commands.Fabrication.ExportMajCommand>(app); break;
+                    case "Fabrication_ExportPcf":         RunCommand<Commands.Fabrication.ExportPcfCommand>(app); break;
+                    case "Fabrication_UndoPackage":       RunCommand<Commands.Fabrication.UndoFabPackageCommand>(app); break;
+                    case "Fabrication_SmartGroup":        RunCommand<Commands.Fabrication.SmartGroupCommand>(app); break;
+                    case "Fabrication_ClashPreflight":    RunCommand<Commands.Fabrication.ClashPreflightCommand>(app); break;
+                    case "Fabrication_IncrementalRebuild":RunCommand<Commands.Fabrication.IncrementalRebuildCommand>(app); break;
+                    case "Fabrication_BomRollup":         RunCommand<Commands.Fabrication.BomRollupCommand>(app); break;
+                    case "Fabrication_LinkDocRegister":   RunCommand<Commands.Fabrication.LinkDocRegisterCommand>(app); break;
 
                     // ── v4 Phase C: calc engines ──
                     case "Calc_ConduitFill":  RunCommand<Commands.Routing.CalcConduitFillCommand>(app); break;

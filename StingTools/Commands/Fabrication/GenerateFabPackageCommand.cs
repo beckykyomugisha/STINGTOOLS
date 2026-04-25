@@ -62,45 +62,50 @@ namespace StingTools.Commands.Fabrication
             var doc = ctx.Doc;
             var uidoc = ctx.UIDoc;
 
-            // Scope resolution — Fabrication sub-tab radio buttons drive
-            // which MEP elements feed the engine. Selection (default)
-            // means "current uidoc selection"; Active view means "all
-            // MEP curves visible in the active view"; Project means
-            // "every MEP curve in the document".
-            var ids = CollectScope(doc, uidoc);
+            // Scope resolution — Fabrication tab radio buttons drive which
+            // MEP elements feed the engine: Selection / Active view /
+            // Project. CollectScopeWithFallback honours the chosen scope
+            // first, then falls back through Selection → Active view →
+            // Project so a click on Generate package never silently fails
+            // when the user simply forgot to pre-select.
+            string scopeLabelUsed;
+            var ids = CollectScopeWithFallback(doc, uidoc, out scopeLabelUsed);
             if (ids == null || ids.Count == 0)
             {
-                string scopeLabel =
-                    FabricationOptions.ScopeProject    ? "project"       :
-                    FabricationOptions.ScopeActiveView ? "active view"   :
-                                                         "current selection";
-                TaskDialog.Show("STING v4 — Generate Fabrication Package",
-                    $"Scope '{scopeLabel}' contains no MEP elements to package.\n\n" +
-                    "FabricationEngine will:\n" +
-                    "  1. Group elements per discipline rules (STING_FAB_RULES.json)\n" +
-                    "  2. Create AssemblyInstances with SP-{DISC}-{SYS}-{LVL}-{SEQ} naming\n" +
-                    "  3. Generate 5 views per assembly + BOM schedule\n" +
-                    "  4. Lay out shop drawing sheets with title block populated\n" +
-                    "  5. Emit per-discipline CSV sidecars (bend / weld / seam)");
+                // Last-resort: open the Fabrication Workspace instead of
+                // showing an error dialog. The workspace surfaces live
+                // category counts + scope radios so the user can see the
+                // 341 pipes that exist and pick a scope that includes
+                // them. This eliminates the "no MEP elements" dead-end
+                // that happens when Selection scope is on with nothing
+                // selected.
+                try
+                {
+                    var dlg = new StingTools.UI.FabricationWorkspaceDialog(doc);
+                    try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
+                    dlg.ShowDialog();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"GenerateFabPackage: workspace fallback failed: {ex.Message}");
+                    TaskDialog.Show("STING v4 — Generate Fabrication Package",
+                        "No MEP elements found in selection, active view, or the project.\n\n" +
+                        "Open a view containing pipes / ducts / conduits and try again.");
+                }
                 return Result.Cancelled;
             }
+            StingLog.Info($"GenerateFabPackage: collected {ids.Count} element(s) via {scopeLabelUsed} scope.");
 
-            // Shop-drawing composition dialog — lets users pick a
-            // specific title block + view template + sheet-number
-            // pattern instead of the per-discipline STING_TB_ASSEMBLY_*
-            // default. Cancelling the dialog aborts the command.
-            //
-            // Skipped when the Fabrication tab's "Configure…" button has
-            // already populated FabricationOptions.ShopDrawing — that
-            // inline picker is the persistent path; the popup is only the
-            // one-shot fallback when no panel choice exists.
-            if (FabricationOptions.GenerateSheets && FabricationOptions.ShopDrawing == null)
-            {
-                var dlg = new StingTools.UI.ShopDrawingOptionsDialog(doc);
-                try { dlg.Owner = System.Windows.Application.Current?.MainWindow; } catch { }
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
-                FabricationOptions.ShopDrawing = dlg.Result;
-            }
+            // Shop-drawing composition is now configured up front via the
+            // Fabrication Workspace (Configure… button on the Title Block
+            // strip) or the dock panel's Configure… button — both
+            // populate FabricationOptions.ShopDrawing for the Revit
+            // session. When ShopDrawing is null the engine falls back to
+            // per-discipline STING_TB_ASSEMBLY_* auto-resolution, so we
+            // no longer pop a one-shot picker mid-command (which used to
+            // surface the basic Shop Drawing Composition dialog every
+            // time the user clicked Generate Package without first
+            // configuring).
 
             FabricationResult res;
             try
@@ -131,66 +136,128 @@ namespace StingTools.Commands.Fabrication
             return Result.Succeeded;
         }
 
-        private static List<ElementId> CollectScope(Document doc, Autodesk.Revit.UI.UIDocument uidoc)
+        private static readonly BuiltInCategory[] MepCats = new[]
+        {
+            BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_FlexPipeCurves,
+            BuiltInCategory.OST_PipeFitting,
+            BuiltInCategory.OST_PipeAccessory,
+            BuiltInCategory.OST_DuctCurves,
+            BuiltInCategory.OST_FlexDuctCurves,
+            BuiltInCategory.OST_DuctFitting,
+            BuiltInCategory.OST_DuctAccessory,
+            BuiltInCategory.OST_Conduit,
+            BuiltInCategory.OST_ConduitFitting,
+            BuiltInCategory.OST_CableTray,
+            BuiltInCategory.OST_CableTrayFitting,
+        };
+
+        /// <summary>
+        /// Resolve elements honouring FabricationOptions, then auto-fall
+        /// back through Selection → Active view → Project so a click on
+        /// Generate package never silently fails when the user simply
+        /// forgot to pre-select.
+        /// </summary>
+        private static List<ElementId> CollectScopeWithFallback(
+            Document doc,
+            Autodesk.Revit.UI.UIDocument uidoc,
+            out string scopeLabelUsed)
+        {
+            scopeLabelUsed = "selection";
+
+            // 1) Honour the chosen scope first.
+            if (FabricationOptions.ScopeProject)
+            {
+                scopeLabelUsed = "project";
+                return CollectFromProject(doc);
+            }
+            if (FabricationOptions.ScopeActiveView)
+            {
+                scopeLabelUsed = "active view";
+                var v = CollectFromActiveView(doc);
+                if (v.Count > 0) return v;
+                // Fallback: view was empty / non-graphical → try project.
+                scopeLabelUsed = "project (active view empty)";
+                return CollectFromProject(doc);
+            }
+
+            // 2) Selection scope.
+            var sel = CollectFromSelection(doc, uidoc);
+            if (sel.Count > 0) { scopeLabelUsed = "selection"; return sel; }
+
+            // 3) Auto-fallback: active view.
+            var view = CollectFromActiveView(doc);
+            if (view.Count > 0)
+            {
+                scopeLabelUsed = "active view (auto-fallback from empty selection)";
+                return view;
+            }
+
+            // 4) Auto-fallback: project.
+            var proj = CollectFromProject(doc);
+            if (proj.Count > 0)
+            {
+                scopeLabelUsed = "project (auto-fallback from empty selection)";
+                return proj;
+            }
+
+            scopeLabelUsed = "selection";
+            return new List<ElementId>();
+        }
+
+        private static List<ElementId> CollectFromProject(Document doc)
         {
             var ids = new List<ElementId>();
-            var mepCats = new[]
-            {
-                BuiltInCategory.OST_PipeCurves,
-                BuiltInCategory.OST_FlexPipeCurves,
-                BuiltInCategory.OST_PipeFitting,
-                BuiltInCategory.OST_PipeAccessory,
-                BuiltInCategory.OST_DuctCurves,
-                BuiltInCategory.OST_FlexDuctCurves,
-                BuiltInCategory.OST_DuctFitting,
-                BuiltInCategory.OST_DuctAccessory,
-                BuiltInCategory.OST_Conduit,
-                BuiltInCategory.OST_ConduitFitting,
-                BuiltInCategory.OST_CableTray,
-                BuiltInCategory.OST_CableTrayFitting,
-            };
             try
             {
-                if (FabricationOptions.ScopeProject)
-                {
-                    var col = new FilteredElementCollector(doc)
-                        .WherePasses(new ElementMulticategoryFilter(mepCats))
-                        .WhereElementIsNotElementType();
-                    foreach (var e in col) ids.Add(e.Id);
-                }
-                else if (FabricationOptions.ScopeActiveView)
-                {
-                    var view = doc.ActiveView;
-                    if (view != null)
-                    {
-                        var col = new FilteredElementCollector(doc, view.Id)
-                            .WherePasses(new ElementMulticategoryFilter(mepCats))
-                            .WhereElementIsNotElementType();
-                        foreach (var e in col) ids.Add(e.Id);
-                    }
-                }
-                else
-                {
-                    var sel = uidoc.Selection.GetElementIds();
-                    if (sel != null)
-                    {
-                        foreach (var id in sel)
-                        {
-                            var el = doc.GetElement(id);
-                            if (el?.Category == null) continue;
-                            int bic = (int)el.Category.Id.Value;
-                            foreach (var c in mepCats)
-                            {
-                                if ((int)c == bic) { ids.Add(id); break; }
-                            }
-                        }
-                    }
-                }
+                var col = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(MepCats))
+                    .WhereElementIsNotElementType();
+                foreach (var e in col) ids.Add(e.Id);
             }
-            catch (Exception ex)
+            catch (Exception ex) { StingLog.Warn($"GenerateFabPackage.CollectFromProject: {ex.Message}"); }
+            return ids;
+        }
+
+        private static List<ElementId> CollectFromActiveView(Document doc)
+        {
+            var ids = new List<ElementId>();
+            try
             {
-                StingLog.Warn($"GenerateFabPackage.CollectScope: {ex.Message}");
+                var view = doc?.ActiveView;
+                if (view == null) return ids;
+                // Sheet views aren't valid view filters for the
+                // collector — bail early so the caller falls through
+                // to the project-level fallback.
+                if (view is ViewSheet) return ids;
+                var col = new FilteredElementCollector(doc, view.Id)
+                    .WherePasses(new ElementMulticategoryFilter(MepCats))
+                    .WhereElementIsNotElementType();
+                foreach (var e in col) ids.Add(e.Id);
             }
+            catch (Exception ex) { StingLog.Warn($"GenerateFabPackage.CollectFromActiveView: {ex.Message}"); }
+            return ids;
+        }
+
+        private static List<ElementId> CollectFromSelection(Document doc, Autodesk.Revit.UI.UIDocument uidoc)
+        {
+            var ids = new List<ElementId>();
+            try
+            {
+                var sel = uidoc?.Selection?.GetElementIds();
+                if (sel == null) return ids;
+                foreach (var id in sel)
+                {
+                    var el = doc.GetElement(id);
+                    if (el?.Category == null) continue;
+                    int bic = (int)el.Category.Id.Value;
+                    foreach (var c in MepCats)
+                    {
+                        if ((int)c == bic) { ids.Add(id); break; }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GenerateFabPackage.CollectFromSelection: {ex.Message}"); }
             return ids;
         }
 
