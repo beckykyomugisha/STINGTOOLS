@@ -1,0 +1,93 @@
+{
+  "Version": "v4",
+  "Description": "PC-18 / PC-20 — mechanical placement baseline (Air Terminals, Duct Accessories, Mechanical Equipment, Mechanical Control Devices, Plumbing Equipment, Sprinklers, Fire Protection). Cited against BS EN 1366, BS 6700, BS 8300, BS EN 12845.",
+  "Rules": [
+    {
+      "RuleId": "mech-duct-firedamper",
+      "CategoryFilter": "Duct Accessories",
+      "RoomFilter": "(?i)corridor|stair|escape|riser",
+      "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 2400.0, "OffsetXMm": 0.0,
+      "SideConstraint": "EITHER", "MinSpacingMm": 0.0, "MaxPerRoom": 0, "Priority": 75,
+      "StandardRef": "BS EN 1366-2", "Notes": "Fire damper at every fire-compartment wall penetration."
+    },
+    {
+      "RuleId": "mech-duct-vcd",
+      "CategoryFilter": "Duct Accessories",
+      "RoomFilter": "(?i)plant|riser",
+      "AnchorType": "ROOM_CENTRE", "MountingHeightMm": 2400.0,
+      "MinSpacingMm": 1500.0, "MaxPerRoom": 0, "Priority": 60,
+      "StandardRef": "CIBSE Guide B1", "Notes": "VCD on every branch take-off in plant rooms."
+    },
+    {
+      "RuleId": "mech-control-thermostat",
+      "CategoryFilter": "Mechanical Control Devices",
+      "RoomFilter": "(?i)office|meeting|conference|board",
+      "AnchorType": "OPPOSITE_WALL", "MountingHeightMm": 1200.0,
+      "SideConstraint": "EITHER", "MinSpacingMm": 0.0, "MaxPerRoom": 1, "Priority": 65,
+      "StandardRef": "BS 8300-2 reach", "Notes": "Thermostat at 1200 mm on internal wall opposite door."
+    },
+    {
+      "RuleId": "mech-control-zone-vav",
+      "CategoryFilter": "Mechanical Control Devices",
+      "RuleKind": "Density", "RoomFilter": "(?i)open *plan|workstation|office",
+      "AnchorType": "CEILING_CENTRE", "PerAreaM2": 50.0,
+      "MountingHeightMm": 0.0, "MinSpacingMm": 4000.0, "Priority": 55,
+      "StandardRef": "CIBSE Guide B1", "Notes": "1 zone controller per 50 m² of open-plan."
+    },
+    {
+      "RuleId": "mech-plumbing-cylinder",
+      "CategoryFilter": "Plumbing Equipment",
+      "RoomFilter": "(?i)plant|tank *room|airing",
+      "AnchorType": "WALL_CORNER", "MountingHeightMm": 0.0, "OffsetXMm": 1500.0,
+      "MinSpacingMm": 1500.0, "MaxPerRoom": 0, "Priority": 60,
+      "StandardRef": "BS 6700", "Notes": "Hot-water cylinder in plant room corner with 1.5 m service zone."
+    },
+    {
+      "RuleId": "mech-plumbing-expansion",
+      "CategoryFilter": "Plumbing Equipment",
+      "RoomFilter": "(?i)plant", "AnchorType": "WALL_CORNER",
+      "MountingHeightMm": 1800.0, "OffsetXMm": 600.0,
+      "MaxPerRoom": 1, "Priority": 55,
+      "StandardRef": "BS 6700", "Notes": "Expansion vessel high level beside cylinder."
+    },
+    {
+      "RuleId": "mech-air-extract-grille-wc",
+      "CategoryFilter": "Air Terminals",
+      "RoomFilter": "(?i)wc|toilet|bathroom|shower",
+      "AnchorType": "CEILING_CENTRE", "MountingHeightMm": 0.0,
+      "MinSpacingMm": 0.0, "MaxPerRoom": 1, "Priority": 65,
+      "StandardRef": "Part F / Approved Doc F",
+      "Notes": "Mechanical extract per Approved Doc F: 6 L/s WC, 8 L/s bathroom."
+    },
+    {
+      "RuleId": "mech-air-kitchen-extract",
+      "CategoryFilter": "Air Terminals",
+      "RoomFilter": "(?i)kitchen|canteen", "AnchorType": "CEILING_CENTRE",
+      "MountingHeightMm": 0.0, "MinSpacingMm": 2000.0, "MaxPerRoom": 0, "Priority": 65,
+      "StandardRef": "BS EN 16282", "Notes": "Kitchen extract grille over hood line."
+    },
+    {
+      "RuleId": "mech-fire-extinguisher-classA",
+      "CategoryFilter": "Fire Protection",
+      "RoomFilter": "(?i)corridor|circulation|escape",
+      "AnchorType": "DOOR_JAMB", "MountingHeightMm": 1100.0,
+      "SideConstraint": "EITHER", "MinSpacingMm": 23000.0, "MaxPerRoom": 0, "Priority": 70,
+      "StandardRef": "BS 5306-8 / NFPA 10", "Notes": "Class A extinguisher within 23 m travel."
+    },
+    {
+      "RuleId": "mech-fire-extinguisher-kitchen",
+      "CategoryFilter": "Fire Protection",
+      "RoomFilter": "(?i)kitchen|canteen", "AnchorType": "DOOR_JAMB",
+      "MountingHeightMm": 1100.0, "SideConstraint": "EITHER",
+      "MinSpacingMm": 9000.0, "MaxPerRoom": 1, "Priority": 80,
+      "StandardRef": "BS 5306-8 (Class K)", "Notes": "Class K (cooking media) within 9 m of cooking station."
+    },
+    {
+      "RuleId": "mech-fire-blanket-kitchen",
+      "CategoryFilter": "Fire Protection",
+      "RoomFilter": "(?i)kitchen", "AnchorType": "WALL_MIDPOINT",
+      "MountingHeightMm": 1500.0, "MaxPerRoom": 1, "Priority": 75,
+      "StandardRef": "BS EN 1869", "Notes": "Fire blanket beside cooker at 1500 mm AFF."
+    }
+  ]
+}

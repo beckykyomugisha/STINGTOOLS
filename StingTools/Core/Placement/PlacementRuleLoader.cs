@@ -26,13 +26,36 @@ namespace StingTools.Core.Placement
         private const string ProjectOverrideFileName = "STING_PLACEMENT_RULES.project.json";
         private const string LearnedOverrideFileName = "STING_PLACEMENT_RULES.learned.json";
 
+        // PC-20 — per-discipline packs that ship alongside the baseline.
+        // The Centre's first-run flow can offer them as a sector picker;
+        // for now they're auto-merged so the engine sees ~110 rules instead
+        // of ~43.
+        private static readonly string[] DisciplinePacks = new[]
+        {
+            "STING_PLACEMENT_RULES.architecture.json",
+            "STING_PLACEMENT_RULES.mechanical.json",
+            "STING_PLACEMENT_RULES.electrical.json",
+            "STING_PLACEMENT_RULES.healthcare-education.json",
+        };
+
         /// <summary>
-        /// Load the default rule set only (no project override).
+        /// Load the default rule set + every discipline pack (PC-20).
+        /// Project overrides apply on top via <see cref="Load"/>.
         /// </summary>
         public static List<PlacementRule> LoadDefaults()
         {
-            string path = StingToolsApp.FindDataFile(DefaultFileName);
-            return LoadFromFileSafe(path);
+            string baseline = StingToolsApp.FindDataFile(DefaultFileName);
+            var merged = LoadFromFileSafe(baseline);
+
+            foreach (var packName in DisciplinePacks)
+            {
+                string p = StingToolsApp.FindDataFile(packName);
+                if (string.IsNullOrEmpty(p)) continue;
+                var packRules = LoadFromFileSafe(p);
+                if (packRules == null || packRules.Count == 0) continue;
+                merged = MergeRules(merged, packRules);
+            }
+            return merged;
         }
 
         /// <summary>
