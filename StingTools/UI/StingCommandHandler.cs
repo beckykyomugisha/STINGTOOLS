@@ -337,6 +337,10 @@ namespace StingTools.UI
                     case "DrawingTypes_GroupBrowser":  DrawingTypesGroupBrowserInline(app); break;
                     case "DrawingTypes_SyncStyles":    DrawingTypesSyncStylesInline(app);   break;
                     case "DrawingTypes_FromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;
+                    // Phase 137 — STING-Managed View Templates
+                    case "DrawingTypes_ConvertToManaged":    RunCommand<Commands.Drawing.ConvertPackToManagedCommand>(app);     break;
+                    case "DrawingTypes_DetachManaged":       RunCommand<Commands.Drawing.DetachFromManagedCommand>(app);        break;
+                    case "DrawingTypes_RegenerateTemplates": RunCommand<Commands.Drawing.RegeneratePackTemplatesCommand>(app);  break;
 
                     // ── Selection scope ──
                     case "SetScopeView": Select.SelectionScopeHelper.SetScope(false); TaskDialog.Show("Scope", "Selection scope: ACTIVE VIEW"); break;

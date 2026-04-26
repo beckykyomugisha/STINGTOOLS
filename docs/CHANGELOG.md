@@ -3267,3 +3267,99 @@ commands, Phase 4 polish. Phase 1 is the smallest piece that delivers the
 "don't go back to Revit for VG/templates" promise.
 
 Implementation pending user approval — no runtime change yet.
+
+---
+
+#### Completed (Phase 137 — STING-Managed View Templates)
+
+Each `ViewStylePack` now carries a `templateMode` field (`managed` | `external`).
+In **managed mode** STING auto-generates and maintains Revit view templates named
+`STING:<pack-id>:<ViewType>` — the pack JSON is the single source of truth.
+`DrawingTypePresentation.Apply` routes through `ManagedTemplateSyncer.EnsureTemplate`,
+which creates (by copying a seed template — `View.IsTemplate` is read-only so a
+seed of the same `ViewType` is duplicated and renamed), diffs (SHA-256 checksum
+of the pack JSON), and updates templates on demand. Supported managed fields:
+`vg`, `filters`, `detailLevel`, `discipline`, `visualStyle`, `phaseFilter`,
+`phaseName`, `annotationCrop`, `farClipMm`, `viewRange`, `underlay`.
+
+1. **`ViewStylePack` extended** (`Core/Drawing/ViewStylePack.cs`) with
+   `TemplateMode`, `ManagedFields[]`, and the managed-mode settings tree:
+   `Discipline`, `VisualStyle`, `PhaseFilter`, `PhaseName`, `AnnotationCrop`,
+   `FarClipMm`, `ViewRange` (`PackViewRange` POCO), `Underlay` (`PackUnderlay`
+   POCO), `DisplayOptions` (`PackDisplayOptions` POCO), `Background`,
+   `ManagedChecksum` (runtime stamp). `IsManaged` computed property short-cuts
+   the `templateMode == "managed"` check.
+
+2. **`ManagedTemplateSyncer`** added at `Core/Drawing/ManagedTemplateSyncer.cs`
+   (~310 lines). `EnsureTemplate(doc, pack, viewType)` is idempotent:
+   absent → copy a seed template of the right ViewType and rename to
+   `STING:<pack-id>:<viewType>`; present + checksum match → no-op;
+   present + drift → re-apply pack settings + restamp. Stamps two shared
+   parameters on the template (`STING_PACK_ID_TXT`, `STING_PACK_CHECKSUM_TXT`)
+   for downstream drift detection. `displayOptions` (shadows / sketchy lines
+   / ambient shadows) are flagged as warnings — no public API for them.
+
+3. **`ViewStylePackApplier` overloads** —
+   `ApplyCategoryOverridesOnly(doc, view, pack)` and
+   `ApplyFilterRulesOnly(doc, view, pack)` let the syncer apply only what the
+   pack's `managedFields` whitelist allows. The original `Apply` is unchanged.
+
+4. **`DrawingTypePresentation.Apply` Step 7 routing** — when the resolved
+   pack has `IsManaged == true`, the applier path is replaced with a
+   `ManagedTemplateSyncer.EnsureTemplate` call followed by
+   `view.ViewTemplateId = result.TemplateId`. Falls back to the legacy
+   per-view applier if no seed template of the right ViewType exists.
+   `ApplyResult` grew `ManagedTemplateId`, `ManagedTemplateCreated`,
+   `ManagedTemplateUpdated`.
+
+5. **Editor UI** (`UI/DrawingTypeEditorDialog.cs`) — View Style Packs tab
+   gains a `templateMode` toggle at the top of the Appearance card. Managed
+   mode hides the now-irrelevant "View template name" combo and reveals:
+   Visual style / View discipline / Phase filter / Phase / View range
+   sub-card (top / cut plane / bottom / depth in mm) / Far clip offset /
+   Annotation crop / Managed-fields multi-select grid (12 candidate fields,
+   default subset auto-checked) / blue info strip showing how many
+   `STING:<pack-id>:*` templates this pack already manages + a "Regenerate
+   now" button. Pack list `ToString()` now prefixes managed packs with `●`.
+
+6. **Three migration commands** (`Commands/Drawing/ManagedTemplateCommands.cs`):
+   - `ConvertPackToManagedCommand` (`DrawingTypes_ConvertToManaged`): user
+     picks an external pack + a Revit template; reads VG/filters/discipline/
+     visual style/phase filter into the pack; flips `templateMode` to
+     `managed` and renames the source template to `<name>_legacy`.
+   - `DetachFromManagedCommand` (`DrawingTypes_DetachManaged`): renames every
+     `STING:<pack-id>:*` template to `<pack-name> — <viewType>`, flips
+     `templateMode` back to `external`.
+   - `RegeneratePackTemplatesCommand` (`DrawingTypes_RegenerateTemplates`):
+     force-resyncs every `STING:<pack-id>:<ViewType>` template across all
+     managed packs, all common ViewTypes (FloorPlan / CeilingPlan / Section /
+     Elevation / ThreeD / Detail / DraftingView). Heals checksum drift.
+   All three persist the pack edit to `<project>/_BIM_COORD/view_style_packs.json`
+   (project override only).
+
+7. **Drift detection** — `MANAGED_TEMPLATE` drift kind added to
+   `Core/Drawing/DrawingDriftDetector.cs`. Compares the live template's
+   `STING_PACK_CHECKSUM_TXT` against `ManagedTemplateSyncer.ComputePackChecksum`;
+   reports both missing-template and checksum-drift cases. SyncStyles heals
+   automatically because it calls `DrawingTypePresentation.Apply`, which now
+   routes through the syncer.
+
+8. **`PhaseFilterNames` helper** added to `UI/ProjectAssetPicker.cs` so the
+   editor's phase-filter combo lists live `PhaseFilter` elements from the
+   active project.
+
+9. **Dock-panel buttons** — three new buttons added to the DRAWING TYPES
+   wrap-panel in `UI/StingDockPanel.xaml`: `Convert→Managed` /
+   `Detach Managed` / `Regen Templates`. Mirror buttons added to the
+   `BuildDrawingTypesTab()` toolbar in `DrawingTypeEditorDialog`. All three
+   wire through `StingCommandHandler` `case "DrawingTypes_*"` dispatch to
+   the new `IExternalCommand` classes.
+
+10. **Caveats** — built without `dotnet build` verification (Linux sandbox).
+    `displayOptions` is intentionally not implemented (no public Revit API
+    for shadows / sketchy lines / ambient shadows in all versions); the
+    syncer warns the user. Templates ship as project-override JSON in the
+    `Core` library format (`viewStylePacks` root); the editor reads its own
+    `stylePacks` format from the corporate baseline at `Data/STING_VIEW_STYLE_PACKS.json`
+    — the two formats diverge for historical reasons; the migration commands
+    write through the registry so live pack lookups stay consistent.

@@ -55,7 +55,31 @@ namespace StingTools.Core.Drawing
             return r;
         }
 
-        private static void ApplyCategoryOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        /// <summary>VG category overrides only — no filter rules.
+        /// Used by ManagedTemplateSyncer when its `vg` managed-field is
+        /// active but `filters` is not.</summary>
+        public static PackApplyResult ApplyCategoryOverridesOnly(
+            Document doc, View view, ViewStylePack pack)
+        {
+            var r = new PackApplyResult();
+            if (doc == null || view == null || pack == null) return r;
+            ApplyCategoryOverrides(doc, view, pack, r);
+            return r;
+        }
+
+        /// <summary>Filter rules only — no category overrides.
+        /// Used by ManagedTemplateSyncer when its `filters` managed-field
+        /// is active but `vg` is not.</summary>
+        public static PackApplyResult ApplyFilterRulesOnly(
+            Document doc, View view, ViewStylePack pack)
+        {
+            var r = new PackApplyResult();
+            if (doc == null || view == null || pack == null) return r;
+            ApplyFilterRules(doc, view, pack, r);
+            return r;
+        }
+
+        internal static void ApplyCategoryOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)
         {
             if (pack.VgOverrides == null) return;
             foreach (var kv in pack.VgOverrides)
@@ -162,7 +186,7 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        private static void ApplyFilterRules(Document doc, View view, ViewStylePack pack, PackApplyResult r)
+        internal static void ApplyFilterRules(Document doc, View view, ViewStylePack pack, PackApplyResult r)
         {
             if (pack.Filters == null) return;
             foreach (var rule in pack.Filters)

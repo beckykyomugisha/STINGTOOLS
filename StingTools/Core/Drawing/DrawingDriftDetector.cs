@@ -81,10 +81,58 @@ namespace StingTools.Core.Drawing
                 // through TokenProfileApplier and heals the drift.
                 AppendTokenProfileDrift(doc, v, dt, report);
 
+                // Phase 137 — managed-template drift. Compares the
+                // STING-managed Revit template's STING_PACK_CHECKSUM_TXT
+                // against the live pack checksum. SyncStyles re-runs
+                // DrawingTypePresentation.Apply which routes through
+                // ManagedTemplateSyncer and heals the drift.
+                AppendManagedTemplateDrift(doc, v, dt, report);
+
                 if (report.Any) reports.Add(report);
             }
             return reports;
         }
+
+        private static void AppendManagedTemplateDrift(Document doc, View v, DrawingType dt, DriftReport report)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(dt.ViewStylePackId)) return;
+                var pack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
+                if (pack == null || !pack.IsManaged) return;
+
+                var templateName = $"STING:{pack.Id}:{v.ViewType}";
+                var template = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .FirstOrDefault(t => t.IsTemplate
+                                      && t.ViewType == v.ViewType
+                                      && string.Equals(t.Name, templateName, StringComparison.Ordinal));
+
+                if (template == null)
+                {
+                    report.Drifts.Add(
+                        $"MANAGED_TEMPLATE: '{templateName}' missing — pack is managed but template not generated.");
+                    return;
+                }
+
+                var stored = ReadStringParam(template, "STING_PACK_CHECKSUM_TXT");
+                var expected = ManagedTemplateSyncer.ComputePackChecksum(pack);
+                if (!string.Equals(stored, expected, StringComparison.Ordinal))
+                {
+                    report.Drifts.Add(
+                        $"MANAGED_TEMPLATE: checksum drift on '{templateName}' " +
+                        $"(stored {Truncate(stored, 8)} vs current {Truncate(expected, 8)})");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"AppendManagedTemplateDrift({v.Id}): {ex.Message}");
+            }
+        }
+
+        private static string Truncate(string s, int n)
+            => string.IsNullOrEmpty(s) ? "(empty)" : (s.Length <= n ? s : s.Substring(0, n));
 
         private static void AppendTokenProfileDrift(Document doc, View v, DrawingType dt, DriftReport report)
         {
