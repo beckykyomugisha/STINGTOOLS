@@ -8,6 +8,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Tags;
 
 namespace StingTools.Temp
 {
@@ -3016,10 +3017,21 @@ namespace StingTools.Temp
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 "Process all .rfa files in a folder",
                 "Opens a folder browser to select a directory (processes all .rfa files recursively)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "STING Tag Families",
+                "Add missing style parameters (128 BOOLs + tiers 4-10) to all configured " +
+                ".rfa files in Data/TagFamilies/ without modifying Labels or existing parameters.");
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             TaskDialogResult tdResult = td.Show();
             var familyPaths = new List<string>();
+
+            if (tdResult == TaskDialogResult.CommandLink3)
+            {
+                Document activeDoc = uiApp.ActiveUIDocument?.Document;
+                ProcessStingTagFamilies(commandData, activeDoc, spfPath, defFile);
+                return Result.Succeeded;
+            }
 
             if (tdResult == TaskDialogResult.CommandLink1)
             {
@@ -3325,6 +3337,266 @@ namespace StingTools.Temp
                 // Restore the original shared parameter file path
                 app.SharedParametersFilename = previousSpf;
             }
+        }
+
+        /// <summary>
+        /// Inject the full STING style + visibility parameter set into already-configured
+        /// tag .rfa files in Data/TagFamilies/. Existing Labels and existing correct-type
+        /// parameters are preserved; existing _BOOL parameters stored as String (TEXT) are
+        /// removed and re-added so they carry the correct YES/NO storage type.
+        /// </summary>
+        private void ProcessStingTagFamilies(
+            ExternalCommandData commandData,
+            Document doc,
+            string sharedParamFile,
+            DefinitionFile defFile)
+        {
+            Autodesk.Revit.ApplicationServices.Application app = commandData.Application.Application;
+
+            // ── Step 1: Resolve Data/TagFamilies/ ───────────────────────────
+            string tagDir = TagFamilyConfig.GetOutputDirectory();
+            if (string.IsNullOrEmpty(tagDir) || !Directory.Exists(tagDir))
+            {
+                TaskDialog.Show("STING Tag Families",
+                    "Tag families directory not found:\n" + (tagDir ?? "<null>") +
+                    "\n\nRun 'Create Tag Families' first to generate the configured .rfa files.");
+                return;
+            }
+
+            // Exclude any Seeds/ subdirectory; only process top-level "STING - *.rfa".
+            string[] candidateRfas;
+            try
+            {
+                candidateRfas = Directory.GetFiles(tagDir, "STING - *.rfa", SearchOption.AllDirectories);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ProcessStingTagFamilies: enumerate failed", ex);
+                TaskDialog.Show("STING Tag Families",
+                    "Failed to enumerate .rfa files in:\n" + tagDir + "\n\n" + ex.Message);
+                return;
+            }
+
+            var rfaPaths = new List<string>();
+            foreach (string p in candidateRfas)
+            {
+                string rel = Path.GetDirectoryName(p) ?? "";
+                if (rel.IndexOf("Seeds", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                rfaPaths.Add(p);
+            }
+
+            if (rfaPaths.Count == 0)
+            {
+                TaskDialog.Show("STING Tag Families",
+                    "No 'STING - *.rfa' files found in:\n" + tagDir +
+                    "\n\nRun 'Create Tag Families' first to generate the configured .rfa files.");
+                return;
+            }
+
+            // ── Step 2: Confirm with user ───────────────────────────────────
+            var confirm = new TaskDialog("STING Tag Families");
+            confirm.MainContent =
+                $"Found {rfaPaths.Count} .rfa files in:\n{tagDir}\n\n" +
+                "Missing style parameters will be added.\n" +
+                "Existing Labels and parameters are preserved.\n\n" +
+                "Continue?";
+            confirm.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.Cancel;
+            confirm.DefaultButton = TaskDialogResult.Yes;
+            if (confirm.Show() != TaskDialogResult.Yes)
+                return;
+
+            // ── Step 3: Pre-build the universal STING param list ────────────
+            // (TagParams + visibility + 128 _BOOL style params + leader/box/scale).
+            // The per-family loop appends category-specific params on top of this.
+            var universalParams = TagFamilyConfig.GetAllFamilyParams(
+                categoryDisplayName: "",
+                familyName: null);
+            StingLog.Info($"STING Tag Families: universal param count = {universalParams.Count}, " +
+                $"families to process = {rfaPaths.Count}");
+
+            // ── Step 4: Process each .rfa ───────────────────────────────────
+            int injected = 0;
+            int alreadyComplete = 0;
+            int failed = 0;
+            int totalParamsAdded = 0;
+            int totalParamsFixed = 0;
+            var perFamily = new List<string>();
+
+            foreach (string rfaPath in rfaPaths)
+            {
+                string rfaFileName = Path.GetFileName(rfaPath);
+                string baseName = Path.GetFileNameWithoutExtension(rfaFileName);
+
+                // Parse the category display name from the filename.
+                // "STING - Electrical Equipment Tag.rfa" → "Electrical Equipment"
+                string categoryDisplay = baseName;
+                if (categoryDisplay.StartsWith("STING - ", StringComparison.OrdinalIgnoreCase))
+                    categoryDisplay = categoryDisplay.Substring("STING - ".Length);
+                if (categoryDisplay.EndsWith(" Tag", StringComparison.OrdinalIgnoreCase))
+                    categoryDisplay = categoryDisplay.Substring(0, categoryDisplay.Length - " Tag".Length);
+                categoryDisplay = categoryDisplay.Trim();
+
+                // Per-category param list (universal + category-specific).
+                List<string> paramList;
+                try
+                {
+                    paramList = TagFamilyConfig.GetAllFamilyParams(categoryDisplay, baseName);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"GetAllFamilyParams failed for {rfaFileName}: {ex.Message}");
+                    paramList = new List<string>(universalParams);
+                }
+
+                Document famDoc = null;
+                try
+                {
+                    famDoc = app.OpenDocumentFile(rfaPath);
+                    if (famDoc == null || !famDoc.IsFamilyDocument)
+                    {
+                        perFamily.Add($"[FAIL] {rfaFileName} — could not open as family");
+                        failed++;
+                        try { famDoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"Close non-family: {ex.Message}"); }
+                        continue;
+                    }
+
+                    FamilyManager famMan = famDoc.FamilyManager;
+
+                    // Build name → FamilyParameter map of existing params.
+                    var existing = new Dictionary<string, FamilyParameter>(StringComparer.OrdinalIgnoreCase);
+                    foreach (FamilyParameter fp in famMan.Parameters)
+                    {
+                        string nm = fp?.Definition?.Name;
+                        if (!string.IsNullOrEmpty(nm))
+                            existing[nm] = fp;
+                    }
+
+                    int familyAdded = 0;
+                    int familyFixed = 0;
+                    int familyMissingDefs = 0;
+
+                    using (Transaction tx = new Transaction(famDoc, "STING Inject Style Params"))
+                    {
+                        tx.Start();
+
+                        foreach (string paramName in paramList)
+                        {
+                            bool isPresent = existing.TryGetValue(paramName, out FamilyParameter fp);
+
+                            // Case 1: missing → add from defFile.
+                            // Case 2: present + ends with _BOOL + storage is String → fix
+                            //         (remove + re-add so storage becomes Integer/YesNo).
+                            // Case 3: present + correct type → leave alone.
+                            bool needsFix = false;
+                            if (isPresent &&
+                                paramName.EndsWith("_BOOL", StringComparison.OrdinalIgnoreCase) &&
+                                fp.StorageType == StorageType.String)
+                            {
+                                needsFix = true;
+                            }
+
+                            if (isPresent && !needsFix)
+                                continue;
+
+                            ExternalDefinition extDef = null;
+                            foreach (DefinitionGroup grp in defFile.Groups)
+                            {
+                                foreach (Definition d in grp.Definitions)
+                                {
+                                    if (d is ExternalDefinition ed &&
+                                        ed.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        extDef = ed;
+                                        break;
+                                    }
+                                }
+                                if (extDef != null) break;
+                            }
+
+                            if (extDef == null)
+                            {
+                                StingLog.Warn($"[{rfaFileName}] shared definition not found: {paramName}");
+                                familyMissingDefs++;
+                                continue;
+                            }
+
+                            try
+                            {
+                                if (needsFix)
+                                {
+                                    try
+                                    {
+                                        famMan.RemoveParameter(fp);
+                                    }
+                                    catch (Exception exRem)
+                                    {
+                                        StingLog.Warn($"[{rfaFileName}] cannot remove TEXT _BOOL '{paramName}' " +
+                                            $"(likely formula/label dependency): {exRem.Message}");
+                                        continue;
+                                    }
+                                }
+
+                                famMan.AddParameter(extDef, GroupTypeId.General, true);
+                                if (needsFix) familyFixed++; else familyAdded++;
+                            }
+                            catch (Exception exAdd)
+                            {
+                                StingLog.Warn($"[{rfaFileName}] failed to add '{paramName}': {exAdd.Message}");
+                            }
+                        }
+
+                        tx.Commit();
+                    }
+
+                    if (familyAdded == 0 && familyFixed == 0)
+                    {
+                        alreadyComplete++;
+                        perFamily.Add($"[--] {rfaFileName} — already complete" +
+                            (familyMissingDefs > 0 ? $" ({familyMissingDefs} defs missing in SP file)" : ""));
+                    }
+                    else
+                    {
+                        injected++;
+                        totalParamsAdded += familyAdded;
+                        totalParamsFixed += familyFixed;
+                        perFamily.Add($"[OK] {rfaFileName} — " +
+                            $"{familyAdded} added, {familyFixed} fixed (TEXT→INT)" +
+                            (familyMissingDefs > 0 ? $", {familyMissingDefs} missing defs" : ""));
+                    }
+
+                    // Save in place (preserves Labels — we never SaveAs).
+                    famDoc.Save();
+                    famDoc.Close(false);
+                    famDoc = null;
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    StingLog.Error($"ProcessStingTagFamilies: {rfaFileName} failed", ex);
+                    perFamily.Add($"[FAIL] {rfaFileName} — {ex.Message}");
+                    try { famDoc?.Close(false); } catch (Exception ex2) { StingLog.Warn($"Close after failure: {ex2.Message}"); }
+                }
+            }
+
+            // ── Step 5: Report ──────────────────────────────────────────────
+            var report = new StringBuilder();
+            report.AppendLine($"Processed {rfaPaths.Count} families.");
+            report.AppendLine($"Injected params into: {injected}");
+            report.AppendLine($"Already complete:     {alreadyComplete}");
+            report.AppendLine($"Failed:               {failed}");
+            report.AppendLine();
+            report.AppendLine($"Parameters added:        {totalParamsAdded}");
+            report.AppendLine($"Parameters fixed (TEXT→INT): {totalParamsFixed}");
+            report.AppendLine();
+            report.AppendLine("Next: run Configure Labels to set up Label rows for Tiers 4-10.");
+            report.AppendLine();
+            report.AppendLine("Per-family results:");
+            foreach (string r in perFamily)
+                report.AppendLine($"  {r}");
+
+            TaskDialog.Show("STING Tag Families", report.ToString());
+            StingLog.Info($"STING Tag Families: {injected} injected, {alreadyComplete} complete, " +
+                $"{failed} failed, {totalParamsAdded} added, {totalParamsFixed} fixed");
         }
 
         /// <summary>
