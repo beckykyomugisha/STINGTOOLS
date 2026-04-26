@@ -206,7 +206,7 @@ namespace StingTools.Core.Drawing
                             StringComparison.OrdinalIgnoreCase));
                     if (pf != null)
                     {
-                        var pfParam = template.get_Parameter(BuiltInParameter.VIEWER_PHASE_FILTER);
+                        var pfParam = template.get_Parameter(BuiltInParameter.VIEW_PHASE_FILTER);
                         if (pfParam != null && !pfParam.IsReadOnly) pfParam.Set(pf.Id);
                         else result.Warnings.Add("phaseFilter: parameter is read-only on this view type.");
                     }

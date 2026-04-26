@@ -146,7 +146,7 @@ namespace StingTools.Commands.Drawing
             // PhaseFilter is not on the View base class; read via parameter.
             try
             {
-                var pfParam = tpl.get_Parameter(BuiltInParameter.VIEWER_PHASE_FILTER);
+                var pfParam = tpl.get_Parameter(BuiltInParameter.VIEW_PHASE_FILTER);
                 if (pfParam != null && pfParam.HasValue)
                 {
                     var pfId = pfParam.AsElementId();
