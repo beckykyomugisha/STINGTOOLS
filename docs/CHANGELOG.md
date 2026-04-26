@@ -3372,3 +3372,84 @@ button continues to invoke the Centre as a modeless window.
 - `ProduceSectionsCommand` "ManualSelection" auto-place mode shows a
   TaskDialog hint and exits; full `PickObjects` integration would need
   a deferred-pick re-entry flow.
+
+---
+
+#### Completed (Phase 138 — Branch consolidation + Revit VG editor parity)
+
+**Branch merges**
+
+Consolidated all outstanding feature branches into
+`claude/merge-branches-update-docs-fRhIx` so the working tree carries
+every Phase 113 → Phase 137 enhancement plus the residual April-17
+work that had been parked on side branches:
+
+- `claude/implementation-prompt-phase-137-OrI6I` — Phase 137 VG editor
+  enhancements + production engine final state (fast-forward).
+- `claude/merge-branches-main-HB2FF` — older April-17 consolidation
+  branch carrying MEP-symbol guide work, Phase 91 / 92 template
+  manager additions, and server S02 TagSync conflict resolution.
+  Twelve content conflicts resolved with `--ours` to keep the
+  newer Phase 113-137 state; HB2FF additions that didn't conflict
+  (`docs/MEP_SYMBOL_GUIDE.md`, `docs/PARAMETER_DUPLICATES.md`,
+  `docs/TAGGING_WORKFLOW_GUIDE.md`, `CompiledPlugin/Data/mep_symbols.csv`,
+  `Planscape.Server/src/Planscape.Core/Entities/SyncConflict.cs`,
+  `Planscape.Server/tests/Planscape.Tests/TagSyncConflictTests.cs`,
+  `StingTools/Temp/PresentationStyleHelper.cs` — already present via
+  earlier merges) flow through cleanly.
+- `claude/review-template-manager-JEiuF` — Phase 92 reference-palette
+  presentation templates. One trivial variable-name conflict
+  (`paletteAccent` vs `accent`) resolved with `--ours`.
+
+After the consolidation pass `git for-each-ref` reports zero remote
+branches with unique commits not in HEAD.
+
+**Revit VG editor parity (Phase 137 follow-up)**
+
+The Phase 137 entry above flagged the Revit-VG-cell-style grid as
+deferred. That follow-up has now landed:
+
+- `UI/RevitVgEditor.cs` (new, 1,194 lines) — full Revit VG dialog
+  replica embedded inline in the View Style Pack form: line styles,
+  working chevron expanders, modeless editor, dispatch surfacing,
+  category tree backed by `RevitCategoryTree.TaggableCategories` +
+  `CategoriesWithCut`. Honours discipline filtering, supports
+  per-pack inheritance previews, and surfaces the Cut Fg/Bg /
+  Projection Fg/Bg / Halftone / Transparency / Detail-Level cells.
+- `UI/VgFillPatternDialog.cs` (new, 197 lines) — Fill Pattern Graphics
+  popup mirroring Revit's Override… cell. Resolves
+  `FillPatternElement` ids by name, falls back to solid-fill, and
+  writes the pattern + colour pair atomically.
+- `UI/VgLineGraphicsDialog.cs` (new, 157 lines) — Line Graphics
+  Override popup with line-pattern dropdown, colour picker, weight
+  spinner.
+- `UI/VgColorPicker.cs` (new, 120 lines) — Windows colour picker
+  shell with a recent-colours strip and the discipline-palette
+  swatches sourced from `ColorHelper`.
+- `UI/TitleBlockSlotLoader.cs` (new, 146 lines) — slot-dropdown helper
+  that lazy-loads `<project>/Title Blocks/*.rfa` slot definitions and
+  exposes a sorted `GetSlotsForFamily(...)` API; replaces the previous
+  hard-coded slot index in `DrawingProductionConfigDialog`.
+- `RevitVgEditor` typo-prevention pass adds dropdowns for fill
+  pattern / line pattern / colour rather than free-text TextBoxes,
+  filter rule rows enforce a known-filter list, override-cell
+  previews render the resolved colour swatch in-grid, and per-row
+  colour swatches update live on edit.
+
+**Design documents**
+
+- `docs/AEC_PRODUCTION_SET_STRATEGY.md` — production-set strategy
+  doc describing how Pack ↔ DrawingType template copy interacts
+  with discipline / phase / scope-box routing.
+- `docs/STING_MANAGED_TEMPLATES_DESIGN.md` — STING-managed view
+  templates design doc (advisory; the implementation lives in
+  `Core/Drawing/ManagedTemplateSyncer.cs`).
+
+**Caveats**
+
+- Built without `dotnet build` verification (Linux sandbox).
+- The HB2FF branch's MEP-symbols documentation (`mep_symbols.csv`,
+  `MEP_SYMBOL_GUIDE.md`) ships under `CompiledPlugin/Data/` —
+  the runtime mirror — and is not yet referenced by an
+  `IExternalCommand`. A Phase 139 follow-up will add a
+  `MepSymbolBrowser` command that surfaces these in the Tags tab.
