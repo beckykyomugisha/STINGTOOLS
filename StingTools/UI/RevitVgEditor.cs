@@ -40,6 +40,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
+// Resolve type collision between Autodesk.Revit.DB.Visibility (a Workset
+// enum) and System.Windows.Visibility (the WPF UIElement state enum).
+using Visibility = System.Windows.Visibility;
 
 namespace StingTools.UI
 {
