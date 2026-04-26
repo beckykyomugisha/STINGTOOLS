@@ -40,9 +40,13 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
-// Resolve type collision between Autodesk.Revit.DB.Visibility (a Workset
-// enum) and System.Windows.Visibility (the WPF UIElement state enum).
+// Resolve type collisions between WPF and the Revit API:
+//   System.Windows.Visibility       vs Autodesk.Revit.DB.Visibility (Workset enum)
+//   System.Windows.Data.Binding     vs Autodesk.Revit.DB.Binding   (parameter binding)
+//   System.Windows.Media.Color      vs Autodesk.Revit.DB.Color     (Revit colour)
 using Visibility = System.Windows.Visibility;
+using Binding    = System.Windows.Data.Binding;
+using Color      = System.Windows.Media.Color;
 
 namespace StingTools.UI
 {
@@ -450,9 +454,12 @@ namespace StingTools.UI
             try
             {
                 if (c.Id == null) return null;
-                var v = c.Id.IntegerValue;
+                // Revit 2024+ deprecated ElementId.IntegerValue in favour of
+                // ElementId.Value (long). BuiltInCategory enum values are
+                // negative ints; safely cast through long → int.
+                long v = c.Id.Value;
                 if (v >= 0) return null;
-                var bic = (BuiltInCategory)v;
+                var bic = (BuiltInCategory)(int)v;
                 return bic.ToString();
             }
             catch { return null; }
