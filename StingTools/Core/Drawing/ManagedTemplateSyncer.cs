@@ -329,7 +329,7 @@ namespace StingTools.Core.Drawing
                         .Cast<Level>()
                         .FirstOrDefault(l => string.Equals(l.Name, u.LevelName, StringComparison.OrdinalIgnoreCase));
                     if (lvl != null)
-                        SetElementIdBip(template, BuiltInParameter.VIEW_UNDERLAY_ID, lvl.Id, r, "underlay.level");
+                        SetElementIdBip(template, BuiltInParameter.VIEW_UNDERLAY_BOTTOM_ID, lvl.Id, r, "underlay.level");
                 }
                 if (!string.IsNullOrEmpty(u.Orientation))
                 {
@@ -359,7 +359,7 @@ namespace StingTools.Core.Drawing
                     case "phase":          bip = BuiltInParameter.VIEW_PHASE; break;
                     case "annotationCrop": bip = BuiltInParameter.VIEWER_ANNOTATION_CROP_ACTIVE; break;
                     case "farClip":        bip = BuiltInParameter.VIEWER_BOUND_OFFSET_FAR; break;
-                    case "underlay":       bip = BuiltInParameter.VIEW_UNDERLAY_ID; break;
+                    case "underlay":       bip = BuiltInParameter.VIEW_UNDERLAY_BOTTOM_ID; break;
                     // viewRange, vgOverrides, filters, worksetVisibility — no single BIP
                 }
                 if (!bip.HasValue) continue;
@@ -371,12 +371,11 @@ namespace StingTools.Core.Drawing
                 catch { }
             }
 
-            try { template.SetTemplateParameterIds(paramIds); }
-            catch (Exception ex)
-            {
-                StingTools.Core.StingLog.Warn(
-                    $"ManagedTemplateSyncer.SetTemplateParameterIds failed: {ex.Message}");
-            }
+            // Revit's API exposes SetNonControlledTemplateParameterIds (inverse
+            // logic). For Phase 137 the value writes done via SetIntBip /
+            // SetElementIdBip / SetDoubleBip already pin the managed values
+            // onto the template; we leave Revit's "controlled by template"
+            // flags at their defaults rather than computing the complement.
         }
 
         // ── Helpers ──
@@ -407,7 +406,8 @@ namespace StingTools.Core.Drawing
                 case "shadededges":  return (int)DisplayStyle.ShadingWithEdges;
                 case "consistent":   return (int)DisplayStyle.FlatColors;
                 case "realistic":    return (int)DisplayStyle.Realistic;
-                case "raytrace":     return (int)DisplayStyle.RayTrace;
+                // Revit API has no DisplayStyle.RayTrace; ray-trace is a
+                // separate render pipeline, not a DisplayStyle enum value.
                 default:             return -1;
             }
         }

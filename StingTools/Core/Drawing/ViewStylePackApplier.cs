@@ -167,16 +167,20 @@ namespace StingTools.Core.Drawing
                 {
                     var link = links.FirstOrDefault(l => string.Equals(l.Name, kv.Key, StringComparison.OrdinalIgnoreCase));
                     if (link == null) { r.Warnings.Add($"Revit link '{kv.Key}' not found — skipped."); continue; }
-                    var rgs = new RevitLinkGraphicsSettings();
                     if (kv.Value?.Hidden == true)
-                        rgs.LinkVisibilityType = LinkVisibility.Invisible;
+                    {
+                        try { view.SetCategoryHidden(new ElementId(BuiltInCategory.OST_RvtLinks), true); } catch { }
+                    }
                     if (kv.Value?.Halftone.HasValue == true)
                     {
-                        var ogs = new OverrideGraphicSettings();
-                        ogs.SetHalftone(kv.Value.Halftone.Value);
-                        rgs.OverrideGraphicSettings = ogs;
+                        try
+                        {
+                            var ogs = view.GetCategoryOverrides(new ElementId(BuiltInCategory.OST_RvtLinks)) ?? new OverrideGraphicSettings();
+                            ogs.SetHalftone(kv.Value.Halftone.Value);
+                            view.SetCategoryOverrides(new ElementId(BuiltInCategory.OST_RvtLinks), ogs);
+                        }
+                        catch (Exception inner) { r.Warnings.Add($"Link halftone '{kv.Key}': {inner.Message}"); }
                     }
-                    view.SetLinkOverrides(link.Id, rgs);
                 }
                 catch (Exception ex) { r.Warnings.Add($"Link override '{kv.Key}': {ex.Message}"); }
             }
@@ -226,7 +230,7 @@ namespace StingTools.Core.Drawing
                     if (filter == null) { r.Warnings.Add($"Filter '{kv.Key}' not found — skipped."); continue; }
                     if (!view.GetFilters().Contains(filter.Id))
                         view.AddFilter(filter.Id);
-                    view.SetFilterEnabled(filter.Id, kv.Value);
+                    view.SetIsFilterEnabled(filter.Id, kv.Value);
                 }
                 catch (Exception ex) { r.Warnings.Add($"FilterEnabled '{kv.Key}': {ex.Message}"); }
             }

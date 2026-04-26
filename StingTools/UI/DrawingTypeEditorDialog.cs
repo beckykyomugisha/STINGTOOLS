@@ -830,6 +830,24 @@ namespace StingTools.UI
             [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
             public Dictionary<string, string> CategoryTagStyles { get; set; }
 
+            // Phase 137 — Managed view-template mode (nested-class mirror of
+            // StingTools.Core.Drawing.ViewStylePack so the editor's pack
+            // form can author the same fields the runtime reads).
+            [JsonProperty("templateMode",  NullValueHandling = NullValueHandling.Ignore)]
+            public string TemplateMode { get; set; }
+            [JsonProperty("managedFields", NullValueHandling = NullValueHandling.Ignore)]
+            public List<string> ManagedFields { get; set; }
+            [JsonProperty("discipline",    NullValueHandling = NullValueHandling.Ignore)]
+            public string Discipline { get; set; }
+            [JsonProperty("visualStyle",   NullValueHandling = NullValueHandling.Ignore)]
+            public string VisualStyle { get; set; }
+            [JsonProperty("phaseFilter",   NullValueHandling = NullValueHandling.Ignore)]
+            public string PhaseFilter { get; set; }
+
+            [JsonIgnore]
+            public bool IsManaged =>
+                string.Equals(TemplateMode, "managed", StringComparison.OrdinalIgnoreCase);
+
             public override string ToString()
             {
                 var ext = string.IsNullOrEmpty(Extends) ? "" : $"  ←  {Extends}";

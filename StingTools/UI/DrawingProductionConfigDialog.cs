@@ -30,6 +30,11 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
+// Resolve type collisions between WPF and Revit API:
+//   System.Windows.Controls.Grid vs Autodesk.Revit.DB.Grid
+//   System.Windows.Visibility    vs Autodesk.Revit.DB.WorksetVisibility ("Visibility" prefix)
+using Grid       = System.Windows.Controls.Grid;
+using Visibility = System.Windows.Visibility;
 
 namespace StingTools.UI
 {
@@ -98,7 +103,8 @@ namespace StingTools.UI
             Height = 720;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-            try { ThemeManager.ApplyTheme(this); } catch { }
+            // ThemeManager.ApplyTheme is keyed by theme name, not by Window.
+            // Skip auto-theming here — the dialog inherits Revit's host theme.
             BuildLayout();
         }
 

@@ -94,8 +94,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Plan", "RCP");
                 var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
                 var contextLabels = levels.Select(l => l.Name).ToList();
@@ -146,8 +146,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
 
                 var scopes = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
@@ -216,8 +216,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation");
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()
                     .Cast<Element>()
@@ -281,8 +281,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Section");
                 var grids = new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>().ToList();
                 var labels = new List<string> { "Manual selection (pick in model)" };
@@ -367,8 +367,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation")
                     .Where(t => !(t.Name ?? "").ToLowerInvariant().Contains("interior")).ToList();
 
@@ -468,8 +468,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
                 var packs = ViewStylePackRegistry.GetLibrary(doc).Packs.Where(p => p.IsManaged).ToList();
                 if (packs.Count == 0)
                 {
@@ -482,7 +482,7 @@ namespace StingTools.Commands.Drawing
                 if (pickResult == null || pickResult.Count == 0) return Result.Succeeded;
                 var chosen = pickResult.Select(r => r.Tag as ViewStylePack).Where(p => p != null).ToList();
 
-                int created = 0, updated = 0; var warnings = new List<string>();
+                int updated = 0; var warnings = new List<string>();
                 ManagedTemplateSyncer.InvalidateCache();
                 using (var tg = new TransactionGroup(doc, "STING Regenerate Pack Templates"))
                 {
@@ -519,8 +519,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
                 var packs = ViewStylePackRegistry.GetLibrary(doc).Packs.Where(p => !p.IsManaged).ToList();
                 if (packs.Count == 0) { TaskDialog.Show("STING", "All packs are already managed."); return Result.Succeeded; }
                 var packLabel = StingListPicker.Show("Convert to Managed", "Pick a pack to convert", packs.Select(p => p.Name ?? p.Id).ToList());
@@ -557,8 +557,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
                 var packs = ViewStylePackRegistry.GetLibrary(doc).Packs.Where(p => p.IsManaged).ToList();
                 if (packs.Count == 0) { TaskDialog.Show("STING", "No managed packs to detach."); return Result.Succeeded; }
                 var packLabel = StingListPicker.Show("Detach Managed Pack", "Pick a pack to detach", packs.Select(p => p.Name ?? p.Id).ToList());
@@ -592,8 +592,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
                 var packages = DrawingPackageManager.GetPackages(doc);
                 if (packages.Count == 0) { TaskDialog.Show("STING", "No drawing packages found."); return Result.Succeeded; }
                 var label = StingListPicker.Show("Export Drawing Package", "Pick a package to export", packages.Select(p => $"{p.PackageId} ({p.SheetCount} sheets)").ToList());
@@ -617,8 +617,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
                 var packages = DrawingPackageManager.GetPackages(doc);
                 if (packages.Count == 0) { TaskDialog.Show("STING", "No drawing packages found."); return Result.Succeeded; }
                 var seqLabel = StingListPicker.Show("Sequence Package", "Pick a package to (re)sequence", packages.Select(p => $"{p.PackageId} ({p.SheetCount} sheets)").ToList());
@@ -647,8 +647,8 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var ctx = new CommandExecutionContext(commandData);
-                var doc = ctx.Document;
+                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                
                 var packages = DrawingPackageManager.GetPackages(doc);
                 if (packages.Count == 0) { TaskDialog.Show("STING", "No drawing packages found."); return Result.Succeeded; }
                 var msg = new System.Text.StringBuilder();
