@@ -435,12 +435,17 @@ namespace StingTools.UI
             // GraphicsStyle's bundled values via OnLineStylePicked.
             g.Columns.Add(LineStyleCol("Picker", W_LINE_STYLE));
 
-            g.Columns.Add(TextCol("Lines",         nameof(VgRow.ProjLineColor),    W_PROJ_LINE / 2));
+            // Phase 137 — Lines column under Projection/Surface is now a
+            // single Override… button matching Revit's native VG layout.
+            // Click pops VgLineGraphicsDialog with Pattern + Color + Weight
+            // (the editable Wt/Pattern/Trans columns alongside still allow
+            // direct cell editing for power users).
+            g.Columns.Add(OverrideCol("Lines", proj: true, W_PROJ_LINE));
             g.Columns.Add(WeightCol("Wt",          nameof(VgRow.ProjLineWeightStr), W_PROJ_LINE / 2));
             g.Columns.Add(PatternCol("Patterns",   nameof(VgRow.ProjLinePattern),  W_PROJ_PATT, lines: true));
             g.Columns.Add(TextCol("Trans %",       nameof(VgRow.TransparencyStr),  W_PROJ_TRANS));
 
-            g.Columns.Add(TextCol("Lines",         nameof(VgRow.CutLineColor),     W_CUT_LINE / 2));
+            g.Columns.Add(OverrideCol("Lines", proj: false, W_CUT_LINE));
             g.Columns.Add(WeightCol("Wt",          nameof(VgRow.CutLineWeightStr), W_CUT_LINE / 2));
             g.Columns.Add(PatternCol("Patterns",   nameof(VgRow.CutLinePattern),   W_CUT_PATT, lines: true));
 
@@ -605,6 +610,81 @@ namespace StingTools.UI
         /// chosen style's color / weight / pattern onto the row's
         /// PresetCategoryOverride.
         /// </summary>
+        /// <summary>
+        /// Phase 137 — DataGridTemplateColumn that renders an "Override…"
+        /// button for the Lines cell. Click pops VgLineGraphicsDialog
+        /// bundling Pattern + Colour (via VgColorPicker) + Weight, so
+        /// users get the same one-click VG override workflow as Revit's
+        /// native dialog. <paramref name="proj"/> chooses between the
+        /// row's ProjLine* (true) or CutLine* (false) fields.
+        /// </summary>
+        private DataGridColumn OverrideCol(string header, bool proj, double width)
+        {
+            var col = new DataGridTemplateColumn
+            {
+                Header = header,
+                Width = new DataGridLength(width, DataGridLengthUnitType.Pixel),
+                CanUserResize = false
+            };
+            var dt = new DataTemplate();
+            var f = new FrameworkElementFactory(typeof(Button));
+            f.SetValue(Button.MarginProperty, new Thickness(2, 2, 2, 2));
+            f.SetValue(Button.PaddingProperty, new Thickness(4, 0, 4, 0));
+            f.SetValue(Button.ContentProperty, "Override…");
+            f.SetValue(Button.FontStyleProperty, FontStyles.Italic);
+            f.SetValue(Button.FocusableProperty, false);
+            f.AddHandler(Button.ClickEvent, new RoutedEventHandler(proj ? (RoutedEventHandler)OnProjLineOverrideClick : OnCutLineOverrideClick));
+            dt.VisualTree = f;
+            col.CellTemplate = dt;
+            return col;
+        }
+
+        private void OnProjLineOverrideClick(object sender, RoutedEventArgs e)
+            => OnLineOverrideClick(sender, proj: true);
+        private void OnCutLineOverrideClick(object sender, RoutedEventArgs e)
+            => OnLineOverrideClick(sender, proj: false);
+
+        private void OnLineOverrideClick(object sender, bool proj)
+        {
+            if (!(sender is FrameworkElement fe) || !(fe.DataContext is VgRow row)) return;
+            var current = new VgLineGraphics
+            {
+                Pattern  = proj ? row.ProjLinePattern  : row.CutLinePattern,
+                ColorHex = proj ? row.ProjLineColor    : row.CutLineColor,
+                Weight   = proj ? row.Data.ProjLineWeight : row.Data.CutLineWeight
+            };
+            var picked = VgLineGraphicsDialog.Show(current, _linePatterns);
+            if (picked == null) return;   // cancelled
+            if (picked.Cleared)
+            {
+                if (proj)
+                {
+                    row.ProjLinePattern   = null;
+                    row.ProjLineColor     = null;
+                    row.ProjLineWeightStr = null;
+                }
+                else
+                {
+                    row.CutLinePattern    = null;
+                    row.CutLineColor      = null;
+                    row.CutLineWeightStr  = null;
+                }
+                return;
+            }
+            if (proj)
+            {
+                row.ProjLinePattern   = picked.Pattern;
+                row.ProjLineColor     = picked.ColorHex;
+                row.ProjLineWeightStr = picked.Weight?.ToString();
+            }
+            else
+            {
+                row.CutLinePattern    = picked.Pattern;
+                row.CutLineColor      = picked.ColorHex;
+                row.CutLineWeightStr  = picked.Weight?.ToString();
+            }
+        }
+
         private DataGridColumn LineStyleCol(string header, double width)
         {
             var col = new DataGridTemplateColumn
