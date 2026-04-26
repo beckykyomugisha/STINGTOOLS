@@ -3363,3 +3363,49 @@ of the pack JSON), and updates templates on demand. Supported managed fields:
     `stylePacks` format from the corporate baseline at `Data/STING_VIEW_STYLE_PACKS.json`
     — the two formats diverge for historical reasons; the migration commands
     write through the registry so live pack lookups stay consistent.
+
+---
+
+#### Branch consolidation (2026-04-26 — `claude/merge-branches-update-docs-kcAYz`)
+
+Merged into the consolidation branch + `main`:
+
+1. `origin/claude/improve-drawing-editor-HstUS` — fast-forward (Phase 136
+   follow-ups: pack/profile fallback chain, JSON schema alias, editor UX
+   clarity, pack ↔ type template copy + AEC strategy doc).
+2. `origin/claude/implement-sting-templates-6vEJZ` — three-way merge with
+   conflicts resolved in `DrawingTypePresentation.cs`,
+   `DrawingTypeEditorDialog.cs`, `docs/CHANGELOG.md`. Combines Phase 136
+   `earlyPack` reuse with Phase 137 managed/external routing.
+3. `origin/main` — fast-forward of upstream main into the branch.
+
+**Build error fixes** (2 errors flagged by post-merge `dotnet build`):
+
+- `Core/Drawing/ManagedTemplateSyncer.cs:205` — `template.PhaseFilter = pf`
+  fails because `View` base class doesn't expose `PhaseFilter` (only
+  `ViewPlan`/`ViewSection` do). Replaced with parameter-API write via
+  `BuiltInParameter.VIEWER_PHASE_FILTER` so the syncer works for every
+  view type.
+- `Commands/Drawing/ManagedTemplateCommands.cs:146` —
+  `tpl.PhaseFilter?.Name` failed for the same reason. Replaced with
+  parameter-API read: `VIEWER_PHASE_FILTER → AsElementId →
+  doc.GetElement → PhaseFilter.Name`.
+
+**Skipped (orphan branches with no merge base):**
+
+- `origin/claude/electrical-family-automation-yrJP5` (1 commit)
+- `origin/claude/review-template-manager-JEiuF` (Phase 91 + 92, 2 commits)
+- `origin/claude/merge-branches-main-HB2FF` (34 commits — older
+  consolidation incl. Phase 91 + MEP-symbols rows + boq-workflow review)
+
+These branches share **no merge base** with HEAD (verified via
+`git merge-base` — `fatal: no merge base`). They are parallel histories
+dating from 2026-04-17 that the modern Phase 100+ codebase moved on
+without. Merging with `--allow-unrelated-histories` would cascade into
+project-wide conflicts and revert work already superseded by newer
+phases (the Drawing Template Manager subsumes the Phase 91 per-template
+category hide matrix; the Phase 137 managed templates supersede the
+Phase 92 reference-palette presentation work). Cherry-picking selected
+content would require per-file integration into the new architecture,
+which is beyond the scope of a consolidation pass. Recorded here as
+deferred.
