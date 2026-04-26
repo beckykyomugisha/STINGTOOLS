@@ -194,6 +194,12 @@ namespace StingTools.UI
             }
             catch { }
 
+            // Phase 137 — initialise _packs in the constructor (was inside
+            // BuildViewStylePacksTab) so Tab 0 controls that reference the
+            // pack list (e.g. ViewStylePackId combo on a DrawingType card)
+            // resolve cleanly on first render.
+            _packs = LoadViewStylePacks();
+
             Content = BuildLayout();
             if (_types.Count > 0) SelectType(_types[0]);
         }
@@ -297,7 +303,7 @@ namespace StingTools.UI
 
         private UIElement BuildViewStylePacksTab()
         {
-            _packs = LoadViewStylePacks();
+            if (_packs == null) _packs = LoadViewStylePacks();
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -353,6 +359,41 @@ namespace StingTools.UI
         {
             _packFormHost.Children.Clear();
             if (_currentPack == null) return;
+
+            // Phase 137 — Template Mode card (managed vs external + regenerate hook)
+            var tmBody = new StackPanel();
+            var modeRow = new StackPanel { Orientation = Orientation.Horizontal };
+            var rbExt = new RadioButton { Content = "External", GroupName = "tm" + _currentPack.Id, IsChecked = !_currentPack.IsManaged, Margin = new Thickness(0,0,12,0) };
+            var rbMan = new RadioButton { Content = "Managed",  GroupName = "tm" + _currentPack.Id, IsChecked =  _currentPack.IsManaged };
+            rbExt.Checked += (s,e) => { _currentPack.TemplateMode = "external"; RenderPackForm(); };
+            rbMan.Checked += (s,e) => { _currentPack.TemplateMode = "managed";  RenderPackForm(); };
+            modeRow.Children.Add(rbExt);
+            modeRow.Children.Add(rbMan);
+            tmBody.Children.Add(modeRow);
+
+            if (_currentPack.IsManaged)
+            {
+                var info = new TextBlock {
+                    Text = "STING will mint templates named 'STING:{pack-id}:{ViewType}'. Save triggers drift; use Regenerate to re-sync.",
+                    TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Colors.Goldenrod), Margin = new Thickness(0,4,0,4)
+                };
+                tmBody.Children.Add(info);
+                if (_currentPack.ManagedFields == null || _currentPack.ManagedFields.Count == 0)
+                    _currentPack.ManagedFields = new List<string> { "scale", "detailLevel", "discipline", "visualStyle", "phaseFilter" };
+                var grid = new WrapPanel { Margin = new Thickness(0,2,0,2) };
+                foreach (var f in new[] { "scale","detailLevel","discipline","visualStyle","phaseFilter","phase","annotationCrop","farClip","viewRange","underlay","vgOverrides","filters","worksetVisibility" })
+                {
+                    var cb = new CheckBox { Content = f, Margin = new Thickness(0,0,8,0), IsChecked = _currentPack.ManagedFields.Contains(f) };
+                    cb.Checked   += (s,e) => { if (!_currentPack.ManagedFields.Contains(f)) _currentPack.ManagedFields.Add(f); };
+                    cb.Unchecked += (s,e) => _currentPack.ManagedFields.Remove(f);
+                    grid.Children.Add(cb);
+                }
+                tmBody.Children.Add(grid);
+                tmBody.Children.Add(LabeledTextBox("Discipline (e.g. Architectural)", _currentPack.Discipline, v => _currentPack.Discipline = v));
+                tmBody.Children.Add(LabeledTextBox("Visual style (e.g. HiddenLine)",  _currentPack.VisualStyle, v => _currentPack.VisualStyle = v));
+                tmBody.Children.Add(LabeledTextBox("Phase filter name",               _currentPack.PhaseFilter, v => _currentPack.PhaseFilter = v));
+            }
+            _packFormHost.Children.Add(Card("Template Mode (Phase 137)", tmBody));
 
             // Identity
             var idBody = new StackPanel();

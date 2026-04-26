@@ -3172,3 +3172,203 @@ button continues to invoke the Centre as a modeless window.
    `Core/Drawing/DrawingDriftDetector.cs`. Compares STING_VIEW_TAG_STYLE +
    TAG_SEG_MASK_TXT on stamped views against the resolved profile/pack pair; SyncStyles
    re-runs `DrawingTypePresentation.Apply` to heal the drift.
+
+
+#### Completed (Phase 137 — Drawing Automation Engine: Managed Templates, Full AnnotationRunner, Multi-View Production, Drawing Packages, Pre-Production Configuration)
+
+**Foundation (Part 1)**
+
+- `RevitCategoryTree.cs` — pure static catalogue of ~80 Revit model
+  categories and their subcategories. Each entry carries `Bic`,
+  `DisplayName`, capability flags (`HasCutLines`, `HasHalftone`,
+  `HasDetailLevel`, `IsTaggable`) and a list of named `RevitSubCategory`
+  rows. Single source of truth for the VG editors, the
+  `AnnotationRunner`, and `DrawingTypeValidator`. Exposes
+  `TaggableCategories`, `CategoriesWithCut`, `FindByBic`,
+  `FindByDisplayName`.
+- `DrawingType.cs` — added `ProductionRules` collection +
+  `PackageId` field; new `ProductionRule` class records (`Idx`,
+  `ViewType`, `NameSuffix`, `ScaleOverride`, `DetailLevelOverride`,
+  `ViewTemplateOverride`, `ViewStylePackOverride`,
+  `AnnotationOverride`, `PhaseOverride`, `Required`, `SlotIndex`).
+- `ViewStylePack.cs` — added managed-template mode (`TemplateMode`,
+  `ManagedFields`, `IsManaged`) plus 16 new fields covering
+  discipline, visual style, phase / phase filter, annotation crop,
+  far clip, view range, underlay, background, workset visibility,
+  per-link overrides, color-fill schemes, filter-enable map, and
+  managed checksum. Three new POCOs: `PackViewRange`, `PackUnderlay`,
+  `PackLinkOverride`.
+- `AnnotationRulePack.cs` — extracted from `DrawingType.cs` into its
+  own file; gained generic `Rules` collection (replacing 9 legacy
+  bool flags via `MigrateFromLegacy`), AutoTag/AutoDim shorthand
+  booleans, decorative annotation (`NorthArrowFamily`,
+  `ScaleBarFamily`, `KeyPlanFamily`, `MatchlineOffsetMm`), and
+  `SpotElevationRules` / `SpotCoordinateRules`. New
+  `AutoAnnotationRule` and `SpotAnnotationRule` classes.
+- `DrawingProductionPreset.cs` — five POCOs:
+  `DrawingProductionPreset`, `ProductionGeneralSettings`,
+  `PresetCategoryOverride` (full Revit-VG cell parity),
+  `SectionProductionConfig`, `ElevationProductionConfig`. Persisted by
+  `ProductionPresetRegistry` to
+  `<project>/_BIM_COORD/production_presets.json`.
+- `ProductionPresetRegistry.cs` — `Load` / `Save` / `GetById` /
+  `GetDefault(commandType)` with built-in defaults for `PerLevel`,
+  `Sections`, `ExteriorElevations`.
+- `ParamRegistry.cs` — five new constants:
+  `STING_VIEW_CONTEXT_TAG`, `STING_DRAWING_PACKAGE_ID`,
+  `STING_AUTO_PLACED_BOOL`, `STING_PRODUCTION_RULE_IDX`,
+  `STING_SHEET_SEQUENCE`.
+- `MR_PARAMETERS.txt` + `MR_PARAMETERS.csv` — new GROUP 27
+  `STING_DRAWING` with five rows (GUID prefix
+  `a7c0b2e4-4d91-4a55-9c7e-aa00010000{01..05}`) bound to OST_Views
+  (the first three) and OST_Sheets (the last two).
+
+**Core engine (Part 2)**
+
+- `ViewStylePackApplier.cs` — methods promoted to `internal static` so
+  the syncer can call them; `*Only` thin wrappers exposed; four new
+  `internal static` apply methods: `ApplyWorksetVisibility`,
+  `ApplyLinkOverrides`, `ApplyColorFillSchemes`, `ApplyFilterEnabled`;
+  two new `public static` helpers: `ReadCategoryOverrides` (template
+  snapshot) and `ApplyPresetOverrides` (full VG cascade with
+  sub-category support, line/fill pattern resolvers, detail level).
+- `ManagedTemplateSyncer.cs` (new) — internal static class with
+  session cache `(packId, ViewType) → ElementId`,
+  `EnsureTemplate` (find or copy seed STING-template, rename, apply
+  pack, bind template-controlled-parameter ids, stamp SHA-256
+  checksum into `STING_DRAWING_TYPE_ID_TXT`), `ApplyPackToTemplate`
+  (dispatches by managed-field name), `SetManagedTemplateParameterIds`,
+  `ComputePackChecksum`, `GetStoredChecksum`, `InvalidateCache`,
+  `GetAllManagedTemplates`. Discipline / visual-style integer mappers
+  resolve the BIP value space.
+- `AnnotationRunner.cs` (rewritten) — `KnownTaggableCategories` now
+  derived from `RevitCategoryTree.TaggableCategories` (replaces the
+  previous hardcoded BIC list). New `Run(doc, view, pack, options)`
+  entry point + `AnnotationResult` + `AnnotationRunOptions`; legacy
+  `Apply(doc, view, dt)` retained as a shim. Four passes:
+  `RunTagRules` (generic per-rule + density modes + tag-family
+  resolution + tag-depth writes), `RunDimRules` (grid chains),
+  `RunDecorativeAnnotation` (north arrow / scale bar / key plan /
+  matchlines), `RunSpotAnnotation`. Best-effort
+  `MapCategoryToTagBic` covers 22 Revit category → tag-category
+  mappings.
+
+**Integration (Part 2.4–2.8)**
+
+- `DrawingTypePresentation.cs` — new `ApplyOptions` + 4-arg
+  overload of `Apply`; `ApplyResult` gains `ManagedTemplateId`,
+  `ManagedTemplateCreated/Updated`, `AnnotationTagsPlaced`,
+  `AnnotationDimsPlaced`, `AnnotationDecPlaced`. ViewStylePack section
+  branches on `pack.IsManaged`: managed → `EnsureTemplate` + assign;
+  external → existing direct apply. Annotation step now routes
+  through `AnnotationRunner.Run` with `AnnotationRunOptions`.
+- `DrawingTypeStamper.cs` — `+ StampPackage`, `+ StampSheetSequence`.
+- `DrawingDriftDetector.cs` — new `AppendManagedTemplateDrift` step:
+  flags `ManagedTemplate` drift when the view's template is not
+  `STING:{packId}:{ViewType}` or when the template's stored checksum
+  differs from the pack's current checksum.
+- `DrawingTypeRegistry.cs` — `+ TryGetPack(doc, packId)` accessor.
+- `DrawingTypeValidator.cs` — three new Phase 137 check groups:
+  annotation family resolution (north arrow / scale bar / key plan /
+  spot symbols), production-rule / slot consistency
+  (`DT-137-SLOT`, `DT-137-NOSLOTS`), and managed-pack sanity
+  (`DT-137-MGD-SEED`, `DT-137-MGD-PHASE`).
+
+**Production engine (Part 3)**
+
+- `DrawingProducer.cs` (new, ~514 lines) — engine that turns a
+  `(DrawingType, DrawingContext)` pair into one or more views and an
+  optional sheet hosting them. `ProduceAllViews` loops
+  `dt.ProductionRules` ordered by `Idx`, runs idempotency check,
+  resolves `ViewFamilyType`, dispatches to `CreateViewByType`
+  (FloorPlan / RCP / Section / Detail / Elevation / ThreeD /
+  DraftingView / Schedule), names + uniquifies, applies scale
+  override, runs `DrawingTypePresentation.Apply` with
+  `ApplyOptions`, then applies any preset VG override cascade.
+  `CreateOrFindSheet` is idempotent across re-runs (matching
+  DrawingType id + Package id), creates the sheet with the right
+  title block, substitutes sheet-number/name tokens, stamps
+  DrawingType id + Package id + sheet sequence, and runs
+  `TitleBlockParamApplier`.
+- `SheetPlacementBridge.cs` (new) — `GetSlotPosition` converts a
+  `DrawingSlot`'s 0..1 normalised coordinates into a paper-space XYZ
+  inside the title block bounding box minus a 25mm margin.
+  `PlaceAccordingToSlots` places a list of viewIds onto a sheet.
+- `DrawingPackageManager.cs` (new) — `GetPackages` collects every
+  sheet/view that carries `STING_DRAWING_PACKAGE_ID_TXT`, groups by
+  id; `SetSequence` stamps `STING_SHEET_SEQUENCE_INT` 1-based;
+  `ExportPackage` exports each sheet to PDF in sequence order via
+  `doc.Export`, returning `ExportResult { OutputPath, SheetCount,
+  Warnings }`.
+- `STING_DRAWING_TYPES.json` — added `productionRules` to
+  `mep-coord-A1-1to50` (Plan + ISO + Section), `pipe-spool-A1-1to50`
+  (Plan + ISO), `pres-3d-axon-A1` (3D + key plan).
+- `STING_VIEW_STYLE_PACKS.json` — switched `corp-standard-plan`,
+  `corp-coordination`, `corp-fabrication-shop` to managed mode;
+  added `tagColorScheme` to four packs; appended three project-origin
+  packs (`proj-arch-presentation`, `proj-mep-coordination`,
+  `proj-structural`).
+
+**Pre-production configuration dialog (Part 4)**
+
+- `DrawingProductionConfigDialog.cs` (new) — WPF Window subclass with
+  4-tab layout: General / VG Overrides (compact DataGrid) /
+  Annotation (tag + dim DataGrids + decorative TextBoxes) / Section
+  or Elevation (context-sensitive). Left panel: drawing-type tree +
+  context list + preset toolbar. Footer: Preview / Save Preset /
+  Cancel / Produce. Returns
+  `Result { Confirmed, Preset, SelectedDrawingTypeIds,
+  SelectedContexts }`. Compact build — full Revit-VG-cell-style grid
+  in tab 2 deferred for follow-up.
+- `DrawingTypeEditorDialog.cs` — `_packs` initialised in the
+  constructor (was lazy in `BuildViewStylePacksTab`); pack form gains
+  a Phase 137 "Template Mode" card with managed/external toggle,
+  Managed Fields wrap-panel, discipline / visualStyle / phaseFilter
+  TextBoxes.
+
+**Batch-production commands (Part 5)**
+
+- `BatchProduceCommands.cs` (new) — ten `IExternalCommand` classes:
+  `ProduceViewsPerLevelCommand`,
+  `ProduceViewsFromScopeBoxesCommand`,
+  `ProduceInteriorElevationsCommand`,
+  `ProduceExteriorElevationsCommand`,
+  `ProduceSectionsCommand`,
+  `RegeneratePackTemplatesCommand`,
+  `ConvertPackToManagedCommand`,
+  `DetachFromManagedCommand`,
+  `DrawingPackageExportCommand`,
+  `DrawingPackageSequenceCommand`,
+  `DrawingPackageAuditCommand`. Every command launches the config
+  dialog before creating any element, drives the user through
+  selection, and runs `DrawingProducer.ProduceAllViews` (or
+  command-specific equivalent) inside a `TransactionGroup`.
+  Exterior-elevation marker face indices are mapped with the
+  N=0 / E=1 / S=2 / W=3 (viewer-direction) convention, documented
+  inline.
+
+**Wiring (Part 6)**
+
+- `StingCommandHandler.cs` — 11 new dispatch cases mapping the new
+  Drawing Types tags to the Phase 137 commands.
+- `StingDockPanel.xaml` — DOCS tab gains two new sub-groups
+  (`Production`, `Packages`) with 11 buttons.
+- `DrawingSyncStylesCommand.cs` — `Apply` call now passes explicit
+  `ApplyOptions { AnnotationOptions = { Skip*=true } }` so SyncStyles
+  re-applies template / managed-template state without re-running the
+  annotation passes.
+
+**Caveats**
+
+- Every commit was made without `dotnet build` verification (Linux
+  sandbox, no Revit API).
+- The `DrawingProductionConfigDialog` ships compact: per-DrawingType
+  per-category VG editing collapses into a single wildcard rule list;
+  the Revit-VG-cell-style grid surface remains for a follow-up.
+- `Task 4.2` deferred the `ViewStylePackId` ComboBox on the
+  DrawingType view card and the `ProductionRules` Expander grid
+  (the Phase 137 spec called for both) — the underlying data model
+  fully supports them; only UI surface area is missing.
+- `ProduceSectionsCommand` "ManualSelection" auto-place mode shows a
+  TaskDialog hint and exits; full `PickObjects` integration would need
+  a deferred-pick re-entry flow.
