@@ -473,6 +473,15 @@ namespace StingTools.UI
                 _currentPack.VgOverrides[key] = new PackCategoryOverride { Visible = true, ProjWeight = 1 };
                 RenderPackForm();
             }));
+            // Phase 137 — full Revit VG editor (subcategories included).
+            // Pops a dedicated window with every model + annotation category
+            // from the active project pre-populated, so users never need to
+            // open Revit's native Visibility/Graphic Overrides dialog to set
+            // pack overrides.
+            vgBody.Children.Add(MakeSmallBtn("⛶ Open Full Revit VG Editor (with subcategories)…", () =>
+            {
+                OpenFullVgEditorForPack();
+            }));
             _packFormHost.Children.Add(Card("VG overrides (per category)", vgBody));
 
             // Phase 135 — Tag Appearance card
@@ -656,6 +665,101 @@ namespace StingTools.UI
         }
 
         // ── VG override row ──
+        /// <summary>
+        /// Phase 137 — pop a window hosting <see cref="RevitVgEditor"/> bound
+        /// to the active pack's VG overrides. Bridges PackCategoryOverride
+        /// (the editor dialog's compact JSON shape) ↔ PresetCategoryOverride
+        /// (the full-fidelity model the editor uses) so the user gets
+        /// every Revit VG cell without abandoning the existing pack JSON
+        /// shape on disk.
+        /// </summary>
+        private void OpenFullVgEditorForPack()
+        {
+            if (_currentPack == null) return;
+            _currentPack.VgOverrides = _currentPack.VgOverrides ?? new Dictionary<string, PackCategoryOverride>();
+
+            // Convert pack overrides into the full-fidelity model the
+            // RevitVgEditor binds to.
+            var bridge = new Dictionary<string, StingTools.Core.Drawing.PresetCategoryOverride>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in _currentPack.VgOverrides)
+            {
+                bridge[kv.Key] = new StingTools.Core.Drawing.PresetCategoryOverride
+                {
+                    Category = kv.Key,
+                    Visible        = kv.Value?.Visible,
+                    Halftone       = kv.Value != null && kv.Value.Halftone ? true : (bool?)null,
+                    ProjLineColor  = kv.Value?.ProjColor,
+                    ProjLineWeight = kv.Value != null && kv.Value.ProjWeight > 0 ? kv.Value.ProjWeight : (int?)null,
+                    CutLineColor   = kv.Value?.CutColor,
+                    CutLineWeight  = kv.Value != null && kv.Value.CutWeight  > 0 ? kv.Value.CutWeight  : (int?)null,
+                    Transparency   = kv.Value != null && kv.Value.Transparency > 0 ? kv.Value.Transparency : (int?)null
+                };
+            }
+
+            // Build the dialog
+            var win = new Window
+            {
+                Title = $"STING — Full Revit VG Editor — pack '{_currentPack.Name ?? _currentPack.Id}'",
+                Width = 1280, Height = 720,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this
+            };
+            var dock = new DockPanel { LastChildFill = true, Margin = new Thickness(8) };
+            var hint = new TextBlock {
+                Text = "Every model + annotation category from the active project is pre-populated, " +
+                       "with subcategories indented underneath. Tab away from a cell to commit. " +
+                       "Empty cells inherit from whatever view template the pack applies. Click Save to write back to the pack.",
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8),
+                Foreground = new SolidColorBrush(SubtleColor)
+            };
+            DockPanel.SetDock(hint, Dock.Top);
+            dock.Children.Add(hint);
+
+            var bar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
+            DockPanel.SetDock(bar, Dock.Bottom);
+            var save   = new Button { Content = "Save",   MinWidth = 90, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 4, 8, 4), FontWeight = FontWeights.Bold };
+            var cancel = new Button { Content = "Cancel", MinWidth = 90, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 4, 8, 4) };
+            bar.Children.Add(cancel);
+            bar.Children.Add(save);
+            dock.Children.Add(bar);
+
+            var editor = new RevitVgEditor(_doc, bridge);
+            dock.Children.Add(editor.Build());
+            win.Content = dock;
+
+            cancel.Click += (s, e) => { win.DialogResult = false; win.Close(); };
+            save.Click   += (s, e) =>
+            {
+                // Convert the full-fidelity dictionary back into PackCategoryOverride.
+                _currentPack.VgOverrides.Clear();
+                foreach (var kv in bridge)
+                {
+                    var v = kv.Value;
+                    if (v == null) continue;
+                    bool any = v.Visible.HasValue || v.Halftone.HasValue
+                            || !string.IsNullOrEmpty(v.ProjLineColor) || v.ProjLineWeight.HasValue
+                            || !string.IsNullOrEmpty(v.CutLineColor)  || v.CutLineWeight.HasValue
+                            || v.Transparency.HasValue;
+                    if (!any) continue;
+                    _currentPack.VgOverrides[kv.Key] = new PackCategoryOverride
+                    {
+                        Visible      = v.Visible ?? true,
+                        Halftone     = v.Halftone == true,
+                        ProjColor    = v.ProjLineColor,
+                        ProjWeight   = v.ProjLineWeight ?? 0,
+                        CutColor     = v.CutLineColor,
+                        CutWeight    = v.CutLineWeight ?? 0,
+                        Transparency = v.Transparency ?? 0
+                    };
+                }
+                win.DialogResult = true;
+                win.Close();
+                RenderPackForm();
+            };
+
+            win.ShowDialog();
+        }
+
         private UIElement MakeVgHeader()
         {
             var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
@@ -1953,7 +2057,28 @@ namespace StingTools.UI
             for (int c = 0; c < _slotColWidths.Length; c++)
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_slotColWidths[c]) });
 
-            var tbLbl = SmallTb(slot.Label, v => slot.Label = v);
+            // Phase 137 — slot label as a ComboBox sourced from any STING-aware
+            // title-block's TB_VIEWPORT_SLOTS_JSON_TXT parameter (so the user
+            // picks a real slot name authored on the title-block family),
+            // with the canonical default catalogue appended as a fallback.
+            // Selecting a label that maps to a known slot also auto-fills
+            // normX / normY / normW / normH from that slot's geometry.
+            var slotLabels = TitleBlockSlotLoader.GetLabels(_doc, _current.TitleBlockFamily);
+            var tbLbl = SmallCombo(slot.Label, v =>
+            {
+                slot.Label = v;
+                var match = TitleBlockSlotLoader.FindByLabel(_doc, v, _current.TitleBlockFamily);
+                if (match != null)
+                {
+                    slot.NormX = match.NormX;
+                    slot.NormY = match.NormY;
+                    slot.NormW = match.NormW;
+                    slot.NormH = match.NormH;
+                    if (!string.IsNullOrEmpty(match.ViewType)) slot.ViewType = match.ViewType;
+                    if (match.Scale.HasValue) slot.Scale = match.Scale;
+                    onChange?.Invoke();
+                }
+            }, slotLabels.ToArray());
             // Closed list of Revit ViewType enum values — eliminates typos.
             var tbVt  = SmallCombo(slot.ViewType, v => slot.ViewType = v,
                 new[] { "FloorPlan", "CeilingPlan", "Elevation", "Section", "ThreeD",

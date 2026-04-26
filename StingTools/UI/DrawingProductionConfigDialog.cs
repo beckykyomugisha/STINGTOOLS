@@ -63,12 +63,13 @@ namespace StingTools.UI
         private RadioButton _allLevels, _selectedLevels;
         private RadioButton _dupNormal, _dupDetailing, _dupDependent;
         private CheckBox _idempotent, _createSheets, _createPackage, _onlyDefault, _hideUnused;
+        // Phase 137 — GRAITEC PowerPack parity toggles
+        private CheckBox _hideUnwantedSections, _hideUnwantedRebars, _hideUnwantedTags, _skipEmptyLevels;
         private TextBox _packageId;
         private ComboBox _scaleOverride, _detailLevelOverride;
 
-        // Tab 2 — VG overrides
-        private DataGrid _vgGrid;
-        private ObservableCollection<PresetCategoryOverride> _vgRows;
+        // Tab 2 — VG overrides (Phase 137 enhancement: full Revit-style editor)
+        // see _vgEditor / _vgData declared near BuildVgTab below.
 
         // Tab 3 — annotation
         private CheckBox _runAnno, _runTags, _runDims, _runDec, _runSpots;
@@ -255,49 +256,43 @@ namespace StingTools.UI
             _hideUnused  = new CheckBox { Content = "Hide categories with no visible elements in view", Margin = new Thickness(0,2,0,2) };
             sp.Children.Add(_onlyDefault);
             sp.Children.Add(_hideUnused);
+            // Phase 137 — GRAITEC PowerPack "Customize Drawings" parity:
+            //   * Hide unwanted sections — strips section heads/markers off the produced VG
+            //   * Hide unwanted rebars   — strips rebar tags / location lines off the produced VG
+            //   * Hide unwanted tags     — strips tag annotations from the produced view
+            //   * Skip empty levels      — when on, levels with no model elements get no view
+            _hideUnwantedSections = new CheckBox { Content = "Hide unwanted sections (GRAITEC parity)", Margin = new Thickness(0,2,0,2) };
+            _hideUnwantedRebars   = new CheckBox { Content = "Hide unwanted rebars (GRAITEC parity)",   Margin = new Thickness(0,2,0,2) };
+            _hideUnwantedTags     = new CheckBox { Content = "Hide unwanted tags",                       Margin = new Thickness(0,2,0,2) };
+            _skipEmptyLevels      = new CheckBox { Content = "Skip levels with no model elements",       IsChecked = true, Margin = new Thickness(0,2,0,2) };
+            sp.Children.Add(_hideUnwantedSections);
+            sp.Children.Add(_hideUnwantedRebars);
+            sp.Children.Add(_hideUnwantedTags);
+            sp.Children.Add(_skipEmptyLevels);
 
             return sv;
         }
 
         // ── Tab 2: VG Overrides (compact) ──
+        private RevitVgEditor _vgEditor;
+        private Dictionary<string, PresetCategoryOverride> _vgData;
+
         private UIElement BuildVgTab()
         {
             var dp = new DockPanel { LastChildFill = true, Margin = new Thickness(8) };
             var topBar = new TextBlock {
-                Text = "VG Overrides — per-category override list. Add a row, choose category, set Visible / Halftone / line weights / colors. Empty cells inherit from the view template.",
+                Text = "VG Overrides — full Revit Visibility/Graphics dialog parity. Every model + annotation category " +
+                       "from the active project is pre-populated, with subcategories indented underneath. " +
+                       "Set per-cell overrides; empty cells inherit from the view template.",
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,6),
                 Foreground = new SolidColorBrush(Colors.Gray)
             };
             DockPanel.SetDock(topBar, Dock.Top);
             dp.Children.Add(topBar);
 
-            var addRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,0,0,6) };
-            var addBtn = new Button { Content = "+ Add Override Row", Padding = new Thickness(8,2,8,2) };
-            addBtn.Click += (s,e) => _vgRows.Add(new PresetCategoryOverride { Category = "" });
-            addRow.Children.Add(addBtn);
-            DockPanel.SetDock(addRow, Dock.Top);
-            dp.Children.Add(addRow);
-
-            _vgRows = new ObservableCollection<PresetCategoryOverride>();
-            _vgGrid = new DataGrid {
-                ItemsSource = _vgRows,
-                AutoGenerateColumns = false,
-                CanUserAddRows = false,
-                CanUserDeleteRows = true,
-                HeadersVisibility = DataGridHeadersVisibility.Column
-            };
-            _vgGrid.Columns.Add(MakeTextCol("Category", "Category"));
-            _vgGrid.Columns.Add(MakeTextCol("Sub Category", "SubCategory"));
-            _vgGrid.Columns.Add(MakeBoolCol("Visible", "Visible"));
-            _vgGrid.Columns.Add(MakeTextCol("Proj Color", "ProjLineColor"));
-            _vgGrid.Columns.Add(MakeTextCol("Proj Weight", "ProjLineWeight"));
-            _vgGrid.Columns.Add(MakeTextCol("Cut Color", "CutLineColor"));
-            _vgGrid.Columns.Add(MakeTextCol("Cut Weight", "CutLineWeight"));
-            _vgGrid.Columns.Add(MakeBoolCol("Halftone", "Halftone"));
-            _vgGrid.Columns.Add(MakeTextCol("Transparency", "Transparency"));
-            _vgGrid.Columns.Add(MakeTextCol("Detail Level", "DetailLevel"));
-
-            dp.Children.Add(_vgGrid);
+            _vgData = new Dictionary<string, PresetCategoryOverride>(StringComparer.OrdinalIgnoreCase);
+            _vgEditor = new RevitVgEditor(_doc, _vgData);
+            dp.Children.Add(_vgEditor.Build());
             return dp;
         }
 
@@ -542,18 +537,22 @@ namespace StingTools.UI
                     RunAnnotation = _runAnno?.IsChecked == true,
                     HideUnwantedCats = _hideUnused?.IsChecked == true,
                     GenerateOnlyDefault = _onlyDefault?.IsChecked == true,
+                    HideUnwantedSections = _hideUnwantedSections?.IsChecked == true,
+                    HideUnwantedRebars   = _hideUnwantedRebars?.IsChecked == true,
+                    HideUnwantedTags     = _hideUnwantedTags?.IsChecked == true,
+                    SkipEmptyLevels      = _skipEmptyLevels?.IsChecked != false,
                     ScaleOverride = ParseScale(_scaleOverride?.Text),
                     DetailLevelOverride = (_detailLevelOverride?.Text == "By View") ? null : _detailLevelOverride?.Text
                 }
             };
 
             // VG: collapse all rows under a wildcard "*" key — Part 5 commands
-            // can re-key per drawing type. Real per-type editing comes in
-            // a follow-up phase.
-            if (_vgRows != null && _vgRows.Count > 0)
+            // can re-key per drawing type. Only persist rows the user actually
+            // touched (any non-default field set), not the whole catalogue.
+            if (_vgData != null && _vgData.Count > 0)
             {
-                var list = _vgRows.ToList();
-                preset.VgOverrides["*"] = list;
+                var list = _vgData.Values.Where(IsOverrideMeaningful).ToList();
+                if (list.Count > 0) preset.VgOverrides["*"] = list;
             }
 
             // Annotation
@@ -686,5 +685,25 @@ namespace StingTools.UI
 
         private static DataGridCheckBoxColumn MakeBoolCol(string header, string path) =>
             new DataGridCheckBoxColumn { Header = header, Binding = new System.Windows.Data.Binding(path) { Mode = System.Windows.Data.BindingMode.TwoWay, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged } };
+
+        /// <summary>
+        /// True when the override carries at least one non-null cell. The VG
+        /// editor pre-populates every category in the project but persisting
+        /// the entire catalogue would bloat preset JSON; we only keep rows
+        /// the user actually touched.
+        /// </summary>
+        private static bool IsOverrideMeaningful(PresetCategoryOverride o)
+        {
+            if (o == null) return false;
+            return o.Visible.HasValue || o.Halftone.HasValue
+                || !string.IsNullOrEmpty(o.ProjLineColor) || o.ProjLineWeight.HasValue || !string.IsNullOrEmpty(o.ProjLinePattern)
+                || !string.IsNullOrEmpty(o.SurfFgColor)   || !string.IsNullOrEmpty(o.SurfFgPattern)
+                || !string.IsNullOrEmpty(o.SurfBgColor)   || !string.IsNullOrEmpty(o.SurfBgPattern)
+                || o.Transparency.HasValue
+                || !string.IsNullOrEmpty(o.CutLineColor)  || o.CutLineWeight.HasValue || !string.IsNullOrEmpty(o.CutLinePattern)
+                || !string.IsNullOrEmpty(o.CutFgColor)    || !string.IsNullOrEmpty(o.CutFgPattern)
+                || !string.IsNullOrEmpty(o.CutBgColor)    || !string.IsNullOrEmpty(o.CutBgPattern)
+                || !string.IsNullOrEmpty(o.DetailLevel);
+        }
     }
 }

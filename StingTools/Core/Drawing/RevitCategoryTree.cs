@@ -498,6 +498,93 @@ namespace StingTools.Core.Drawing
             list.Add(new RevitCategory { Bic = "OST_Wire", DisplayName = "Wires",
                 HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false,
                 SubCategories = Subs("OST_Wire", false, "Home Run Arrows", "Wire Tick Marks") });
+
+            // ── Phase 137 expansion — categories visible in Revit's VG dialog
+            //    that weren't in the original catalogue. Live read from
+            //    doc.Settings.Categories at runtime still picks up the rest. ──
+
+            list.Add(new RevitCategory { Bic = "OST_DuctTerminal", DisplayName = "Air Terminals",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = true,
+                SubCategories = Subs("OST_DuctTerminal", true, "Clearance Zones", "Connection Zones", "Maintenance Zones") });
+
+            list.Add(new RevitCategory { Bic = "OST_Lines", DisplayName = "Lines",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false,
+                SubCategories = Subs("OST_Lines", false, "<Area Boundary>", "<Beyond>", "<Centerline>", "<Demolished>", "<Fabric Envelope>", "<Fabric Sheets>", "<Hidden>", "<Insulation Batting Lines>", "<Lines>", "<Medium Lines>", "<Overhead>", "<Path of Travel Lines>", "<Room Separation>", "<Space Separation>", "<Thin Lines>", "<Wide Lines>", "Lines Modelo Rejilla Conti...", "MEP Hidden") });
+
+            list.Add(new RevitCategory { Bic = "OST_MEPSpaces", DisplayName = "Spaces",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = true,
+                SubCategories = Subs("OST_MEPSpaces", false, "Color Fill", "Interior", "Reference") });
+
+            list.Add(new RevitCategory { Bic = "OST_Planting", DisplayName = "Planting",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = true,
+                SubCategories = Subs("OST_Planting", false, "<Hidden Lines>") });
+
+            list.Add(new RevitCategory { Bic = "OST_MechanicalEquipmentSet", DisplayName = "Mechanical Equipment Set",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = true });
+
+            list.Add(new RevitCategory { Bic = "OST_PlumbingFixtures", DisplayName = "Plumbing Fixtures (extra subcats)",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = true });
+
+            list.Add(new RevitCategory { Bic = "OST_StructConnectionPlates", DisplayName = "Structural Connection Plates",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_StructConnectionAnchors", DisplayName = "Structural Connection Anchors",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_StructConnectionBolts", DisplayName = "Structural Connection Bolts",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_StructConnectionShearStuds", DisplayName = "Structural Connection Shear Studs",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_StructConnectionHoles", DisplayName = "Structural Connection Holes",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_StructConnectionWelds", DisplayName = "Structural Connection Welds",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_StructConnectionProfiles", DisplayName = "Structural Connection Profiles",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_StructConnectionModifiers", DisplayName = "Structural Connection Modifiers",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_StructConnectionOthers", DisplayName = "Structural Connection Others",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_RasterImages", DisplayName = "Raster Images",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_RoomTags", DisplayName = "Room Tags",
+                HasCutLines = false, HasHalftone = false, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_SitePropertyLines", DisplayName = "Property Lines",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false,
+                SubCategories = Subs("OST_SitePropertyLines", false, "Stripe", "Survey Point") });
+
+            list.Add(new RevitCategory { Bic = "OST_ProjectBasePoint", DisplayName = "Project Base Point",
+                HasCutLines = false, HasHalftone = false, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_SharedBasePoint", DisplayName = "Survey Point",
+                HasCutLines = false, HasHalftone = false, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_Hardscape", DisplayName = "Hardscape",
+                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_Roads_Beds", DisplayName = "Road Beds",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_TopographyContours", DisplayName = "Topography Contours",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_AnalyticalNodes", DisplayName = "Analytical Nodes",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_AnalyticalMember", DisplayName = "Analytical Members",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_AnalyticalPanel", DisplayName = "Analytical Panels",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false });
         }
     }
 }

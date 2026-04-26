@@ -73,6 +73,20 @@ namespace StingTools.Core.Drawing
 
         [JsonProperty("scaleOverride",       NullValueHandling = NullValueHandling.Ignore)] public int?   ScaleOverride { get; set; }
         [JsonProperty("detailLevelOverride", NullValueHandling = NullValueHandling.Ignore)] public string DetailLevelOverride { get; set; }
+
+        // ── Phase 137 enhancement — GRAITEC PowerPack Customize Drawings parity ──
+        // GRAITEC's General Settings exposes "Hide unwanted sections" and
+        // "Hide unwanted rebars" master toggles that strip section markers
+        // and rebar tags from the produced view's VG. We expose the same
+        // knobs so the production engine can tighten visibility per discipline
+        // without authoring per-category overrides for every produced view.
+
+        [JsonProperty("hideUnwantedSections")] public bool HideUnwantedSections { get; set; } = false;
+        [JsonProperty("hideUnwantedRebars")]   public bool HideUnwantedRebars { get; set; } = false;
+        [JsonProperty("hideUnwantedTags")]     public bool HideUnwantedTags { get; set; } = false;
+        [JsonProperty("skipEmptyLevels")]      public bool SkipEmptyLevels { get; set; } = true;
+        [JsonProperty("importDrawingConfigPath", NullValueHandling = NullValueHandling.Ignore)]
+        public string ImportDrawingConfigPath { get; set; }
     }
 
     public sealed class PresetCategoryOverride
