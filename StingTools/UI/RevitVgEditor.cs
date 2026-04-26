@@ -130,6 +130,12 @@ namespace StingTools.UI
             public string SurfFgPattern    { get => Data.SurfFgPattern;    set { Data.SurfFgPattern = value;    Raise(nameof(SurfFgPattern)); } }
             public string SurfBgColor      { get => Data.SurfBgColor;      set { Data.SurfBgColor = value;      Raise(nameof(SurfBgColor)); } }
             public string SurfBgPattern    { get => Data.SurfBgPattern;    set { Data.SurfBgPattern = value;    Raise(nameof(SurfBgPattern)); } }
+            // Phase 137 — Cut Fg/Bg proxy properties for VgFillPatternDialog
+            //   wire-back path. Mirror of the Surf* properties above.
+            public string CutFgColor       { get => Data.CutFgColor;       set { Data.CutFgColor = value;       Raise(nameof(CutFgColor)); } }
+            public string CutFgPattern     { get => Data.CutFgPattern;     set { Data.CutFgPattern = value;     Raise(nameof(CutFgPattern)); } }
+            public string CutBgColor       { get => Data.CutBgColor;       set { Data.CutBgColor = value;       Raise(nameof(CutBgColor)); } }
+            public string CutBgPattern     { get => Data.CutBgPattern;     set { Data.CutBgPattern = value;     Raise(nameof(CutBgPattern)); } }
             public string TransparencyStr  { get => Data.Transparency?.ToString(); set { Data.Transparency = ParseInt(value); Raise(nameof(TransparencyStr)); } }
             public string CutLineColor     { get => Data.CutLineColor;     set { Data.CutLineColor = value;     Raise(nameof(CutLineColor)); } }
             public string CutLineWeightStr { get => Data.CutLineWeight?.ToString(); set { Data.CutLineWeight = ParseInt(value); Raise(nameof(CutLineWeightStr)); } }
