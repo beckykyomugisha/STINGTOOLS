@@ -37,6 +37,11 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
 // Resolve type collisions between WPF and Revit API:
+//   System.Windows.Controls.Grid vs Autodesk.Revit.DB.Grid
+//   System.Windows.Visibility    vs Autodesk.Revit.DB.Visibility (Workset enum)
+//   System.Windows.Data.Binding  vs Autodesk.Revit.DB.Binding   (parameter binding)
+//   System.Windows.Media.Color   vs Autodesk.Revit.DB.Color     (Revit colour)
+using Grid       = System.Windows.Controls.Grid;
 using Visibility = System.Windows.Visibility;
 using Binding    = System.Windows.Data.Binding;
 using Color      = System.Windows.Media.Color;
