@@ -457,32 +457,28 @@ namespace StingTools.UI
             }));
             _packFormHost.Children.Add(Card("Filter rules", frBody));
 
-            // VG Overrides per category
+            // VG Overrides per category — Phase 137: full Revit VG dialog
+            // replica embedded inline (no popup). Backed by a bridge dict
+            // of PresetCategoryOverride that mirrors the pack's
+            // PackCategoryOverride dict on every cell change.
             var vgBody = new StackPanel();
             _currentPack.VgOverrides = _currentPack.VgOverrides ?? new Dictionary<string, PackCategoryOverride>();
             vgBody.Children.Add(new TextBlock {
-                Text = "Per-category graphic overrides. Key = category name (Walls / Grids / Rooms), BuiltInCategory enum, or <Room Separation> for subcategories. Colours in #RRGGBB.",
+                Text = "Full Revit Visibility/Graphics Overrides — every model + annotation category from the active project pre-populated, " +
+                       "subcategories indented underneath. Cells round-trip live into the pack JSON; tab away from a cell to commit. " +
+                       "No popup, no Revit-VG-dialog round-trip.",
                 Foreground = new SolidColorBrush(SubtleColor), FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 4) });
-            vgBody.Children.Add(MakeVgHeader());
-            foreach (var kv in _currentPack.VgOverrides.ToList())
-                vgBody.Children.Add(MakeVgRow(kv.Key, kv.Value));
-            vgBody.Children.Add(MakeSmallBtn("＋ Add VG override", () =>
-            {
-                var key = "NewCategory" + _currentPack.VgOverrides.Count;
-                _currentPack.VgOverrides[key] = new PackCategoryOverride { Visible = true, ProjWeight = 1 };
-                RenderPackForm();
-            }));
-            // Phase 137 — full Revit VG editor (subcategories included).
-            // Pops a dedicated window with every model + annotation category
-            // from the active project pre-populated, so users never need to
-            // open Revit's native Visibility/Graphic Overrides dialog to set
-            // pack overrides.
-            vgBody.Children.Add(MakeSmallBtn("⛶ Open Full Revit VG Editor (with subcategories)…", () =>
-            {
-                OpenFullVgEditorForPack();
-            }));
-            _packFormHost.Children.Add(Card("VG overrides (per category)", vgBody));
+                Margin = new Thickness(0, 0, 0, 6) });
+
+            var bridge = BuildVgBridge(_currentPack);
+            var editor = new RevitVgEditor(_doc, bridge);
+            editor.RowChanged += r => SyncRowToPack(_currentPack, r);
+            // Constrain the editor to a sensible inline height; user can scroll
+            // through ~80+ categories + 300+ subcategories without the card
+            // ballooning the whole pack form.
+            var editorHost = new Border { Height = 520, Child = editor.Build() };
+            vgBody.Children.Add(editorHost);
+            _packFormHost.Children.Add(Card("VG overrides (full Revit replica, with subcategories)", vgBody));
 
             // Phase 135 — Tag Appearance card
             _packFormHost.Children.Add(BuildPackTagAppearanceCard());
@@ -664,101 +660,69 @@ namespace StingTools.UI
             return g;
         }
 
-        // ── VG override row ──
-        /// <summary>
-        /// Phase 137 — pop a window hosting <see cref="RevitVgEditor"/> bound
-        /// to the active pack's VG overrides. Bridges PackCategoryOverride
-        /// (the editor dialog's compact JSON shape) ↔ PresetCategoryOverride
-        /// (the full-fidelity model the editor uses) so the user gets
-        /// every Revit VG cell without abandoning the existing pack JSON
-        /// shape on disk.
-        /// </summary>
-        private void OpenFullVgEditorForPack()
-        {
-            if (_currentPack == null) return;
-            _currentPack.VgOverrides = _currentPack.VgOverrides ?? new Dictionary<string, PackCategoryOverride>();
+        // ── Phase 137 — VG bridge between PackCategoryOverride (the editor's
+        //    on-disk JSON shape) and PresetCategoryOverride (the full-fidelity
+        //    in-memory model the inline RevitVgEditor binds to). The bridge
+        //    is built once when the pack form renders, lives in memory for
+        //    the editor, and is synced back to the pack on every RowChanged
+        //    event so the user's edits survive Save without an explicit
+        //    "apply" step. ──
 
-            // Convert pack overrides into the full-fidelity model the
-            // RevitVgEditor binds to.
+        private static Dictionary<string, StingTools.Core.Drawing.PresetCategoryOverride>
+            BuildVgBridge(ViewStylePack pack)
+        {
             var bridge = new Dictionary<string, StingTools.Core.Drawing.PresetCategoryOverride>(StringComparer.OrdinalIgnoreCase);
-            foreach (var kv in _currentPack.VgOverrides)
+            if (pack?.VgOverrides == null) return bridge;
+            foreach (var kv in pack.VgOverrides)
             {
                 bridge[kv.Key] = new StingTools.Core.Drawing.PresetCategoryOverride
                 {
-                    Category = kv.Key,
+                    Category       = kv.Key,
                     Visible        = kv.Value?.Visible,
                     Halftone       = kv.Value != null && kv.Value.Halftone ? true : (bool?)null,
                     ProjLineColor  = kv.Value?.ProjColor,
-                    ProjLineWeight = kv.Value != null && kv.Value.ProjWeight > 0 ? kv.Value.ProjWeight : (int?)null,
+                    ProjLineWeight = kv.Value != null && kv.Value.ProjWeight  > 0 ? kv.Value.ProjWeight  : (int?)null,
                     CutLineColor   = kv.Value?.CutColor,
-                    CutLineWeight  = kv.Value != null && kv.Value.CutWeight  > 0 ? kv.Value.CutWeight  : (int?)null,
-                    Transparency   = kv.Value != null && kv.Value.Transparency > 0 ? kv.Value.Transparency : (int?)null
+                    CutLineWeight  = kv.Value != null && kv.Value.CutWeight   > 0 ? kv.Value.CutWeight   : (int?)null,
+                    Transparency   = kv.Value != null && kv.Value.Transparency> 0 ? kv.Value.Transparency: (int?)null
                 };
             }
-
-            // Build the dialog
-            var win = new Window
-            {
-                Title = $"STING — Full Revit VG Editor — pack '{_currentPack.Name ?? _currentPack.Id}'",
-                Width = 1280, Height = 720,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this
-            };
-            var dock = new DockPanel { LastChildFill = true, Margin = new Thickness(8) };
-            var hint = new TextBlock {
-                Text = "Every model + annotation category from the active project is pre-populated, " +
-                       "with subcategories indented underneath. Tab away from a cell to commit. " +
-                       "Empty cells inherit from whatever view template the pack applies. Click Save to write back to the pack.",
-                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8),
-                Foreground = new SolidColorBrush(SubtleColor)
-            };
-            DockPanel.SetDock(hint, Dock.Top);
-            dock.Children.Add(hint);
-
-            var bar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-            DockPanel.SetDock(bar, Dock.Bottom);
-            var save   = new Button { Content = "Save",   MinWidth = 90, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 4, 8, 4), FontWeight = FontWeights.Bold };
-            var cancel = new Button { Content = "Cancel", MinWidth = 90, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 4, 8, 4) };
-            bar.Children.Add(cancel);
-            bar.Children.Add(save);
-            dock.Children.Add(bar);
-
-            var editor = new RevitVgEditor(_doc, bridge);
-            dock.Children.Add(editor.Build());
-            win.Content = dock;
-
-            cancel.Click += (s, e) => { win.DialogResult = false; win.Close(); };
-            save.Click   += (s, e) =>
-            {
-                // Convert the full-fidelity dictionary back into PackCategoryOverride.
-                _currentPack.VgOverrides.Clear();
-                foreach (var kv in bridge)
-                {
-                    var v = kv.Value;
-                    if (v == null) continue;
-                    bool any = v.Visible.HasValue || v.Halftone.HasValue
-                            || !string.IsNullOrEmpty(v.ProjLineColor) || v.ProjLineWeight.HasValue
-                            || !string.IsNullOrEmpty(v.CutLineColor)  || v.CutLineWeight.HasValue
-                            || v.Transparency.HasValue;
-                    if (!any) continue;
-                    _currentPack.VgOverrides[kv.Key] = new PackCategoryOverride
-                    {
-                        Visible      = v.Visible ?? true,
-                        Halftone     = v.Halftone == true,
-                        ProjColor    = v.ProjLineColor,
-                        ProjWeight   = v.ProjLineWeight ?? 0,
-                        CutColor     = v.CutLineColor,
-                        CutWeight    = v.CutLineWeight ?? 0,
-                        Transparency = v.Transparency ?? 0
-                    };
-                }
-                win.DialogResult = true;
-                win.Close();
-                RenderPackForm();
-            };
-
-            win.ShowDialog();
+            return bridge;
         }
+
+        /// <summary>
+        /// Phase 137 — push a single edited row from the inline VG editor
+        /// back into the pack's PackCategoryOverride dict. Called on every
+        /// cell change so the pack's on-disk JSON stays current; rows
+        /// without a meaningful override are dropped from the dict.
+        /// </summary>
+        private static void SyncRowToPack(ViewStylePack pack, RevitVgEditor.VgRow r)
+        {
+            if (pack == null || r?.Data == null) return;
+            pack.VgOverrides = pack.VgOverrides ?? new Dictionary<string, PackCategoryOverride>();
+            var v = r.Data;
+            bool any = v.Visible.HasValue || v.Halftone.HasValue
+                    || !string.IsNullOrEmpty(v.ProjLineColor) || v.ProjLineWeight.HasValue
+                    || !string.IsNullOrEmpty(v.CutLineColor)  || v.CutLineWeight.HasValue
+                    || v.Transparency.HasValue;
+            if (!any)
+            {
+                pack.VgOverrides.Remove(r.Key);
+                return;
+            }
+            pack.VgOverrides[r.Key] = new PackCategoryOverride
+            {
+                Visible      = v.Visible ?? true,
+                Halftone     = v.Halftone == true,
+                ProjColor    = v.ProjLineColor,
+                ProjWeight   = v.ProjLineWeight ?? 0,
+                CutColor     = v.CutLineColor,
+                CutWeight    = v.CutLineWeight ?? 0,
+                Transparency = v.Transparency ?? 0
+            };
+        }
+
+        // ── Legacy compact VG row + header (still referenced by older code paths) ──
 
         private UIElement MakeVgHeader()
         {

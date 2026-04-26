@@ -1,32 +1,28 @@
 // StingTools — Drawing Template Manager · Phase 137
 //
-// RevitVgEditor is a self-contained WPF surface that mirrors Revit's
-// "Visibility/Graphic Overrides" dialog. The aim is full parity so users
-// authoring a DrawingProductionPreset or a ViewStylePack never need to
-// open Revit's native VG dialog to set per-category overrides.
+// RevitVgEditor — full inline replica of Revit's "Visibility/Graphic
+// Overrides" dialog. Drops directly into a card on the pack form so
+// users never have to bounce out to Revit's native VG dialog.
 //
-// Source of truth at run-time:
-//   * Every model + annotation Category from doc.Settings.Categories
-//   * Every SubCategory of each (so project-specific subcategories the
-//     user has authored in Revit show up automatically)
-//   * RevitCategoryTree provides metadata (HasCutLines, HasHalftone,
-//     HasDetailLevel) so the editor greys out cells that would do
-//     nothing on a given category.
+// Faithful reproduction:
+//   * Four tabs:  Model Categories · Annotation Categories ·
+//                 Imported Categories · Filters
+//   * "Show model categories in this view" master toggle
+//   * Category-name search + Filter-list dropdown
+//   * Composite header with grouped bands:
+//       Visibility · [Projection/Surface: Lines · Patterns · Transparency] ·
+//       [Cut: Lines · Patterns] · Halftone · Detail Level
+//   * Tree-style rows: parent row + indented subcategories
+//   * Expand chevron per parent (▶ / ▼)
+//   * Bottom toolbar: All · None · Invert · Expand All · Override
+//     Host Layers + Cut Line Styles · Object Styles… · Edit…
 //
 // Backing model: Dictionary<string, PresetCategoryOverride> keyed by
 //   "BuiltInCategory" for parent rows or "BuiltInCategory/<SubName>"
-// for subcategory rows. Re-built on every edit so callers can persist
-// straight to a DrawingProductionPreset.VgOverrides[<dt-id>].
+//   for subcategory rows. Live read from doc.Settings.Categories so
+//   project-specific subcategories show up automatically.
 //
-// Columns (left → right, matches Revit):
-//   Visibility · Halftone · Detail Level
-//   Projection Lines:  Color · Weight · Pattern
-//   Surface:           Fg-Color · Fg-Pattern · Bg-Color · Bg-Pattern · Transparency
-//   Cut Lines:         Color · Weight · Pattern
-//   Cut Patterns:      Fg-Color · Fg-Pattern · Bg-Color · Bg-Pattern
-//
-// Toolbar: search filter · Show Annotation/Imported/Filters tabs ·
-//   All · None · Invert · Expand All / Collapse All · Object Styles…
+// Performance: DataGrid virtualization on (ScrollUnit=Item, recycling).
 
 using System;
 using System.Collections.Generic;
@@ -35,15 +31,12 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
-using System.Windows.Input;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core.Drawing;
-// Resolve type collisions between WPF and the Revit API:
-//   System.Windows.Visibility       vs Autodesk.Revit.DB.Visibility (Workset enum)
-//   System.Windows.Data.Binding     vs Autodesk.Revit.DB.Binding   (parameter binding)
-//   System.Windows.Media.Color      vs Autodesk.Revit.DB.Color     (Revit colour)
+// Resolve type collisions between WPF and Revit API:
 using Visibility = System.Windows.Visibility;
 using Binding    = System.Windows.Data.Binding;
 using Color      = System.Windows.Media.Color;
@@ -52,39 +45,56 @@ namespace StingTools.UI
 {
     public sealed class RevitVgEditor
     {
+        // ─────────────────────────────────────────────────────────
+        //  Row view-model
+        // ─────────────────────────────────────────────────────────
+
         public sealed class VgRow : INotifyPropertyChanged
         {
             public event PropertyChangedEventHandler PropertyChanged;
-            private void Raise(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+            private void Raise(string n)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+                AnyChanged?.Invoke(this);
+            }
 
-            public string Bic { get; set; }                  // OST_Walls
-            public string SubCategoryName { get; set; }      // null for parent
-            public string DisplayName { get; set; }          // "Walls" or "<Hidden Lines>"
+            public Action<VgRow> AnyChanged { get; set; }
+
+            public string Bic { get; set; }
+            public string SubCategoryName { get; set; }     // null for parents
+            public string DisplayName { get; set; }
+            public string GroupTag { get; set; }            // "Model" | "Annotation" | "Imported"
             public bool IsParent => string.IsNullOrEmpty(SubCategoryName);
             public bool HasCutLines { get; set; } = true;
             public bool HasHalftone { get; set; } = true;
             public bool HasDetailLevel { get; set; } = false;
-            public bool HasChildren { get; set; }            // parent has subcategories
+            public bool HasChildren { get; set; }
             public string Key => IsParent ? Bic : $"{Bic}/{SubCategoryName}";
-
-            // Backing data — points at the user's PresetCategoryOverride
             public PresetCategoryOverride Data { get; set; }
 
-            // Bindable proxy properties — round-trip into Data
+            // Indentation / chevron rendering
+            public Thickness NameMargin => IsParent ? new Thickness(0, 0, 0, 0) : new Thickness(28, 0, 0, 0);
+            public FontWeight NameWeight => IsParent ? FontWeights.SemiBold : FontWeights.Normal;
+            public Visibility ChevronVisibility => HasChildren ? Visibility.Visible : Visibility.Hidden;
+            public string Chevron { get; private set; } = "▼";
+            private bool _expanded = true;
+            public bool Expanded
+            {
+                get => _expanded;
+                set { _expanded = value; Chevron = value ? "▼" : "▶"; Raise(nameof(Chevron)); }
+            }
+
+            // Bindable cells — round-trip into Data
             public bool? Visible
             {
                 get => Data.Visible;
                 set { Data.Visible = value; Raise(nameof(Visible)); }
             }
-            public bool? Halftone
-            {
-                get => Data.Halftone;
-                set { Data.Halftone = value; Raise(nameof(Halftone)); }
-            }
+            public bool? Halftone { get => Data.Halftone; set { Data.Halftone = value; Raise(nameof(Halftone)); } }
             public string DetailLevelStr
             {
-                get => Data.DetailLevel ?? "";
-                set { Data.DetailLevel = string.IsNullOrEmpty(value) ? null : value; Raise(nameof(DetailLevelStr)); }
+                get => Data.DetailLevel ?? "By View";
+                set { Data.DetailLevel = (value == "By View" || string.IsNullOrEmpty(value)) ? null : value; Raise(nameof(DetailLevelStr)); }
             }
             public string ProjLineColor    { get => Data.ProjLineColor;    set { Data.ProjLineColor = value;    Raise(nameof(ProjLineColor)); } }
             public string ProjLineWeightStr{ get => Data.ProjLineWeight?.ToString(); set { Data.ProjLineWeight = ParseInt(value); Raise(nameof(ProjLineWeightStr)); } }
@@ -97,162 +107,408 @@ namespace StingTools.UI
             public string CutLineColor     { get => Data.CutLineColor;     set { Data.CutLineColor = value;     Raise(nameof(CutLineColor)); } }
             public string CutLineWeightStr { get => Data.CutLineWeight?.ToString(); set { Data.CutLineWeight = ParseInt(value); Raise(nameof(CutLineWeightStr)); } }
             public string CutLinePattern   { get => Data.CutLinePattern;   set { Data.CutLinePattern = value;   Raise(nameof(CutLinePattern)); } }
-            public string CutFgColor       { get => Data.CutFgColor;       set { Data.CutFgColor = value;       Raise(nameof(CutFgColor)); } }
-            public string CutFgPattern     { get => Data.CutFgPattern;     set { Data.CutFgPattern = value;     Raise(nameof(CutFgPattern)); } }
-            public string CutBgColor       { get => Data.CutBgColor;       set { Data.CutBgColor = value;       Raise(nameof(CutBgColor)); } }
-            public string CutBgPattern     { get => Data.CutBgPattern;     set { Data.CutBgPattern = value;     Raise(nameof(CutBgPattern)); } }
-
-            public bool IsExpanded { get; set; } = true;
-            public Visibility RowVisibility => Visibility.Visible;
 
             private static int? ParseInt(string s) => int.TryParse(s, out var v) ? (int?)v : null;
         }
 
-        // Public state ----------------------------------------------------
-        public Dictionary<string, PresetCategoryOverride> Data { get; }
-        public ObservableCollection<VgRow> Rows { get; } = new ObservableCollection<VgRow>();
+        // ─────────────────────────────────────────────────────────
+        //  Editor state
+        // ─────────────────────────────────────────────────────────
 
+        public Dictionary<string, PresetCategoryOverride> Data { get; }
+
+        /// <summary>Fires after every cell change so callers can mirror the
+        /// edit into a different shape (e.g. PackCategoryOverride). The
+        /// argument is the row that changed.</summary>
+        public event Action<VgRow> RowChanged;
+
+        public ObservableCollection<VgRow> AllRows { get; } = new ObservableCollection<VgRow>();
         private readonly Document _doc;
-        private DataGrid _grid;
         private TextBox _search;
+        private CheckBox _showInView;
+        private CheckBox _hostLayers;
+        private DataGrid _modelGrid, _annoGrid;
+        private CollectionView _modelView, _annoView;
         private List<string> _linePatterns;
         private List<string> _fillPatterns;
-        private CollectionView _view;
 
         public RevitVgEditor(Document doc, Dictionary<string, PresetCategoryOverride> data)
         {
             _doc = doc;
             Data = data ?? new Dictionary<string, PresetCategoryOverride>();
-            BuildRowsFromDocument();
             LoadPatterns();
+            BuildRowsFromDocument();
         }
+
+        // ─────────────────────────────────────────────────────────
+        //  Layout
+        // ─────────────────────────────────────────────────────────
 
         public FrameworkElement Build()
         {
             var dock = new DockPanel { LastChildFill = true };
 
-            // ── Toolbar ──
-            var bar = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 6) };
-            DockPanel.SetDock(bar, Dock.Top);
-            var btnAll      = NewBtn("All",       (_, __) => SetAllVisible(true));
-            var btnNone     = NewBtn("None",      (_, __) => SetAllVisible(false));
-            var btnInvert   = NewBtn("Invert",    (_, __) => InvertVisible());
-            var btnExpand   = NewBtn("Expand All", (_, __) => SetAllExpanded(true));
-            var btnCollapse = NewBtn("Collapse All", (_, __) => SetAllExpanded(false));
-            var btnReset    = NewBtn("Clear Overrides", (_, __) => ClearOverrides());
-            DockPanel.SetDock(btnAll, Dock.Right);
-            DockPanel.SetDock(btnNone, Dock.Right);
-            DockPanel.SetDock(btnInvert, Dock.Right);
-            DockPanel.SetDock(btnExpand, Dock.Right);
-            DockPanel.SetDock(btnCollapse, Dock.Right);
-            DockPanel.SetDock(btnReset, Dock.Right);
-            bar.Children.Add(btnReset);
-            bar.Children.Add(btnCollapse);
-            bar.Children.Add(btnExpand);
-            bar.Children.Add(btnInvert);
-            bar.Children.Add(btnNone);
-            bar.Children.Add(btnAll);
+            // Top: tabs
+            var tabs = new TabControl { Margin = new Thickness(0, 0, 0, 0) };
+            DockPanel.SetDock(tabs, Dock.Top);
 
-            _search = new TextBox { Margin = new Thickness(0, 0, 6, 0), MinWidth = 220 };
-            _search.TextChanged += (s, e) => ApplyFilter();
-            var label = new TextBlock { Text = "Filter:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
-            DockPanel.SetDock(label, Dock.Left);
-            bar.Children.Add(label);
-            bar.Children.Add(_search);
+            // Top toolbar shared above the tab content area
+            var topBar = BuildTopBar();
 
-            dock.Children.Add(bar);
+            tabs.Items.Add(BuildTab("Model Categories",      isAnno: false, isImported: false));
+            tabs.Items.Add(BuildTab("Annotation Categories", isAnno: true,  isImported: false));
+            tabs.Items.Add(BuildPlaceholderTab("Imported Categories",
+                "DWG-link layer overrides — TODO. The active project's imported DWG/DXF " +
+                "instances expose Layer overrides via View.SetCategoryOverrides on each " +
+                "import-instance subcategory; this tab will surface them in a follow-up."));
+            tabs.Items.Add(BuildPlaceholderTab("Filters",
+                "Per-filter graphic overrides — already managed by the Filter rules card on " +
+                "the View Style Pack form. This tab mirrors that view in Revit's native VG " +
+                "dialog and is informational here."));
 
-            // ── Grid ──
-            _grid = BuildGrid();
-            _view = (CollectionView)CollectionViewSource.GetDefaultView(Rows);
-            _view.Filter = FilterPredicate;
-            _grid.ItemsSource = _view;
-
-            // ── Footer hint ──
-            var hint = new TextBlock {
-                Text = $"{Rows.Count(r => r.IsParent)} categories · {Rows.Count(r => !r.IsParent)} subcategories — pre-populated from the active project. " +
-                       "Tab away from a cell to commit. Empty cells inherit the view template.",
-                Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 130)),
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 6, 0, 0)
-            };
-            DockPanel.SetDock(hint, Dock.Bottom);
-            dock.Children.Add(hint);
-
-            dock.Children.Add(_grid);
+            dock.Children.Add(topBar);
+            dock.Children.Add(BuildBottomBar());
+            dock.Children.Add(tabs);
             return dock;
         }
 
-        private DataGrid BuildGrid()
+        private FrameworkElement BuildTopBar()
+        {
+            var stack = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 6) };
+            DockPanel.SetDock(stack, Dock.Top);
+
+            _showInView = new CheckBox
+            {
+                Content = "Show model categories in this view",
+                IsChecked = true,
+                Margin = new Thickness(2, 4, 0, 4),
+                FontWeight = FontWeights.SemiBold
+            };
+            stack.Children.Add(_showInView);
+
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
+
+            var lblSearch = new TextBlock { Text = "Category name search:", VerticalAlignment = VerticalAlignment.Center };
+            _search = new TextBox { Margin = new Thickness(4, 0, 12, 0) };
+            _search.TextChanged += (s, e) => RefreshFilters();
+            var lblFilter = new TextBlock { Text = "Filter list:", VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 6, 0) };
+            var cbFilter = new ComboBox();
+            cbFilter.Items.Add("<multiple>");
+            cbFilter.Items.Add("Architectural");
+            cbFilter.Items.Add("Structural");
+            cbFilter.Items.Add("Mechanical");
+            cbFilter.Items.Add("Electrical");
+            cbFilter.Items.Add("Plumbing");
+            cbFilter.Items.Add("Coordination");
+            cbFilter.SelectedIndex = 0;
+
+            Grid.SetColumn(lblSearch, 0); Grid.SetColumn(_search, 1);
+            Grid.SetColumn(lblFilter, 2); Grid.SetColumn(cbFilter, 3);
+            row.Children.Add(lblSearch);
+            row.Children.Add(_search);
+            row.Children.Add(lblFilter);
+            row.Children.Add(cbFilter);
+            stack.Children.Add(row);
+            return stack;
+        }
+
+        private TabItem BuildTab(string header, bool isAnno, bool isImported)
+        {
+            var tab = new TabItem { Header = header };
+            var dock = new DockPanel { LastChildFill = true };
+            // Composite group header strip
+            dock.Children.Add(BuildGroupHeader());
+            // The grid
+            var grid = BuildDataGrid();
+            if (isAnno) { _annoGrid = grid; }
+            else        { _modelGrid = grid; }
+            dock.Children.Add(grid);
+
+            // Filter rows by group tag
+            var view = (CollectionView)CollectionViewSource.GetDefaultView(AllRows);
+            // Use a per-tab collection view by wrapping in a CollectionViewSource
+            var cvs = new CollectionViewSource { Source = AllRows };
+            var perTab = (CollectionView)cvs.View;
+            perTab.Filter = o =>
+            {
+                if (!(o is VgRow r)) return false;
+                if (isAnno && r.GroupTag != "Annotation") return false;
+                if (!isAnno && r.GroupTag != "Model") return false;
+                if (!string.IsNullOrEmpty(_search?.Text) &&
+                    (r.DisplayName ?? "").IndexOf(_search.Text, StringComparison.OrdinalIgnoreCase) < 0 &&
+                    (r.Bic ?? "").IndexOf(_search.Text, StringComparison.OrdinalIgnoreCase) < 0)
+                    return false;
+                return true;
+            };
+            grid.ItemsSource = perTab;
+            if (isAnno) _annoView = perTab; else _modelView = perTab;
+
+            tab.Content = dock;
+            return tab;
+        }
+
+        private TabItem BuildPlaceholderTab(string header, string body)
+        {
+            var tab = new TabItem { Header = header };
+            tab.Content = new TextBlock {
+                Text = body,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(12),
+                Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 130))
+            };
+            return tab;
+        }
+
+        // ─────────────────────────────────────────────────────────
+        //  Composite group header (Visibility · Proj/Surface · Cut · Halftone · DL)
+        // ─────────────────────────────────────────────────────────
+
+        // Column widths shared between the group header and the DataGrid
+        // columns underneath so the bands line up exactly.
+        private const double W_VIS = 320;
+        private const double W_PROJ_LINE = 80;
+        private const double W_PROJ_PATT = 110;
+        private const double W_PROJ_TRANS = 70;
+        private const double W_CUT_LINE = 80;
+        private const double W_CUT_PATT = 110;
+        private const double W_HALFTONE = 64;
+        private const double W_DETAIL = 80;
+
+        private FrameworkElement BuildGroupHeader()
+        {
+            var bar = new Grid { Height = 28, Background = new SolidColorBrush(Color.FromRgb(232, 232, 240)) };
+            DockPanel.SetDock(bar, Dock.Top);
+            // 1 col Visibility, 3 cols Proj/Surface group, 2 cols Cut group, 1 col Halftone, 1 col Detail Level
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_VIS) });
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_PROJ_LINE + W_PROJ_PATT + W_PROJ_TRANS) });
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_CUT_LINE + W_CUT_PATT) });
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_HALFTONE) });
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_DETAIL) });
+
+            var bVis = MakeBandLabel("");
+            var bProj = MakeBandLabel("Projection / Surface");
+            var bCut = MakeBandLabel("Cut");
+            var bHt = MakeBandLabel("");
+            var bDl = MakeBandLabel("");
+            Grid.SetColumn(bVis, 0); Grid.SetColumn(bProj, 1); Grid.SetColumn(bCut, 2); Grid.SetColumn(bHt, 3); Grid.SetColumn(bDl, 4);
+            bar.Children.Add(bVis); bar.Children.Add(bProj); bar.Children.Add(bCut); bar.Children.Add(bHt); bar.Children.Add(bDl);
+            return bar;
+        }
+
+        private static FrameworkElement MakeBandLabel(string text)
+        {
+            return new Border
+            {
+                BorderThickness = new Thickness(0, 0, 1, 1),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(180, 180, 190)),
+                Child = new TextBlock
+                {
+                    Text = text,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(60, 60, 70))
+                }
+            };
+        }
+
+        // ─────────────────────────────────────────────────────────
+        //  DataGrid (per tab)
+        // ─────────────────────────────────────────────────────────
+
+        private DataGrid BuildDataGrid()
         {
             var g = new DataGrid
             {
                 AutoGenerateColumns = false,
                 CanUserAddRows = false,
                 CanUserDeleteRows = false,
-                CanUserSortColumns = true,
+                CanUserReorderColumns = false,
+                CanUserResizeColumns = false,
+                CanUserSortColumns = false,
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 GridLinesVisibility = DataGridGridLinesVisibility.All,
                 RowHeight = 22,
-                ColumnHeaderHeight = 38,
+                ColumnHeaderHeight = 26,
                 SelectionUnit = DataGridSelectionUnit.Cell,
                 SelectionMode = DataGridSelectionMode.Extended,
                 AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(248, 248, 250)),
                 Background = Brushes.White,
-                Foreground = new SolidColorBrush(Color.FromRgb(40, 40, 50))
+                Foreground = new SolidColorBrush(Color.FromRgb(40, 40, 50)),
+                EnableRowVirtualization = true,
+                EnableColumnVirtualization = true,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
             };
+            VirtualizingPanel.SetIsVirtualizing(g, true);
+            VirtualizingPanel.SetVirtualizationMode(g, VirtualizationMode.Recycling);
 
-            // Visibility column — checkbox + indented label
-            var visCol = new DataGridTemplateColumn { Header = "Visibility", Width = new DataGridLength(220, DataGridLengthUnitType.Pixel) };
-            var vt = new DataTemplate();
+            // Visibility column: chevron + checkbox + name (single composite cell)
+            var visCol = new DataGridTemplateColumn { Header = "Visibility", Width = new DataGridLength(W_VIS, DataGridLengthUnitType.Pixel), CanUserResize = false };
+            var dt = new DataTemplate();
             var fSp = new FrameworkElementFactory(typeof(StackPanel));
             fSp.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+
+            var fChev = new FrameworkElementFactory(typeof(TextBlock));
+            fChev.SetBinding(TextBlock.TextProperty, new Binding(nameof(VgRow.Chevron)));
+            fChev.SetBinding(TextBlock.VisibilityProperty, new Binding(nameof(VgRow.ChevronVisibility)));
+            fChev.SetValue(TextBlock.WidthProperty, 14.0);
+            fChev.SetValue(TextBlock.MarginProperty, new Thickness(2, 0, 4, 0));
+            fChev.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 100, 110)));
+
             var fCb = new FrameworkElementFactory(typeof(CheckBox));
             fCb.SetValue(CheckBox.IsThreeStateProperty, true);
             fCb.SetBinding(CheckBox.IsCheckedProperty, new Binding(nameof(VgRow.Visible)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
-            fCb.SetValue(CheckBox.MarginProperty, new Thickness(2, 0, 6, 0));
+            fCb.SetValue(CheckBox.MarginProperty, new Thickness(0, 0, 6, 0));
+            fCb.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
+
             var fName = new FrameworkElementFactory(typeof(TextBlock));
             fName.SetBinding(TextBlock.TextProperty, new Binding(nameof(VgRow.DisplayName)));
-            fName.SetBinding(TextBlock.MarginProperty, new Binding(nameof(VgRow.SubCategoryName)) { Converter = new IndentConverter() });
-            fName.SetBinding(TextBlock.FontWeightProperty, new Binding(nameof(VgRow.IsParent)) { Converter = new BoolToFontWeightConverter() });
+            fName.SetBinding(TextBlock.MarginProperty, new Binding(nameof(VgRow.NameMargin)));
+            fName.SetBinding(TextBlock.FontWeightProperty, new Binding(nameof(VgRow.NameWeight)));
+            fName.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+            fSp.AppendChild(fChev);
             fSp.AppendChild(fCb);
             fSp.AppendChild(fName);
-            vt.VisualTree = fSp;
-            visCol.CellTemplate = vt;
+            dt.VisualTree = fSp;
+            visCol.CellTemplate = dt;
             g.Columns.Add(visCol);
 
-            g.Columns.Add(BoolCol("Halftone", nameof(VgRow.Halftone), 60));
+            g.Columns.Add(TextCol("Lines",         nameof(VgRow.ProjLineColor),    W_PROJ_LINE / 2));
+            g.Columns.Add(WeightCol("Wt",          nameof(VgRow.ProjLineWeightStr), W_PROJ_LINE / 2));
+            g.Columns.Add(PatternCol("Patterns",   nameof(VgRow.ProjLinePattern),  W_PROJ_PATT, lines: true));
+            g.Columns.Add(TextCol("Trans %",       nameof(VgRow.TransparencyStr),  W_PROJ_TRANS));
+
+            g.Columns.Add(TextCol("Lines",         nameof(VgRow.CutLineColor),     W_CUT_LINE / 2));
+            g.Columns.Add(WeightCol("Wt",          nameof(VgRow.CutLineWeightStr), W_CUT_LINE / 2));
+            g.Columns.Add(PatternCol("Patterns",   nameof(VgRow.CutLinePattern),   W_CUT_PATT, lines: true));
+
+            g.Columns.Add(BoolCol("Halftone",      nameof(VgRow.Halftone),         W_HALFTONE));
             g.Columns.Add(ComboCol("Detail Level", nameof(VgRow.DetailLevelStr),
-                new[] { "", "Coarse", "Medium", "Fine" }, 80));
+                new[] { "By View", "Coarse", "Medium", "Fine" },                     W_DETAIL));
 
-            g.Columns.Add(HeaderCol("Projection — Lines"));
-            g.Columns.Add(TextCol("Color",   nameof(VgRow.ProjLineColor),    70));
-            g.Columns.Add(WeightCol("Weight",nameof(VgRow.ProjLineWeightStr),50));
-            g.Columns.Add(PatternCol("Pattern", nameof(VgRow.ProjLinePattern), 90, lines: true));
-
-            g.Columns.Add(HeaderCol("Surface"));
-            g.Columns.Add(TextCol("Fg Color",  nameof(VgRow.SurfFgColor),   70));
-            g.Columns.Add(PatternCol("Fg Patt", nameof(VgRow.SurfFgPattern), 90, lines: false));
-            g.Columns.Add(TextCol("Bg Color",  nameof(VgRow.SurfBgColor),   70));
-            g.Columns.Add(PatternCol("Bg Patt", nameof(VgRow.SurfBgPattern), 90, lines: false));
-            g.Columns.Add(TextCol("Trans %",   nameof(VgRow.TransparencyStr), 50));
-
-            g.Columns.Add(HeaderCol("Cut — Lines"));
-            g.Columns.Add(TextCol("Color",   nameof(VgRow.CutLineColor),    70));
-            g.Columns.Add(WeightCol("Weight",nameof(VgRow.CutLineWeightStr),50));
-            g.Columns.Add(PatternCol("Pattern", nameof(VgRow.CutLinePattern), 90, lines: true));
-
-            g.Columns.Add(HeaderCol("Cut — Patterns"));
-            g.Columns.Add(TextCol("Fg Color",  nameof(VgRow.CutFgColor),    70));
-            g.Columns.Add(PatternCol("Fg Patt", nameof(VgRow.CutFgPattern),  90, lines: false));
-            g.Columns.Add(TextCol("Bg Color",  nameof(VgRow.CutBgColor),    70));
-            g.Columns.Add(PatternCol("Bg Patt", nameof(VgRow.CutBgPattern),  90, lines: false));
             return g;
         }
 
-        // ── Column factories ──
+        // ─────────────────────────────────────────────────────────
+        //  Bottom toolbar (All / None / Invert / Expand / Override host layers / Object Styles)
+        // ─────────────────────────────────────────────────────────
 
-        private static DataGridColumn TextCol(string header, string path, int width)
+        private FrameworkElement BuildBottomBar()
+        {
+            var bottom = new Grid { Margin = new Thickness(0, 6, 0, 0) };
+            DockPanel.SetDock(bottom, Dock.Bottom);
+            bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Left: bulk-action buttons + helper note + Object Styles…
+            var left = new StackPanel { Orientation = Orientation.Vertical };
+            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            btnRow.Children.Add(MkBtn("All",        (s, e) => SetAllVisible(true)));
+            btnRow.Children.Add(MkBtn("None",       (s, e) => SetAllVisible(false)));
+            btnRow.Children.Add(MkBtn("Invert",     (s, e) => InvertVisible()));
+            btnRow.Children.Add(MkBtn("Expand All", (s, e) => SetExpanded(true)));
+            btnRow.Children.Add(MkBtn("Collapse All",(s, e) => SetExpanded(false)));
+            btnRow.Children.Add(MkBtn("Clear Overrides", (s, e) => ClearOverrides()));
+            left.Children.Add(btnRow);
+
+            var note = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.FromRgb(110, 110, 120)),
+                Text = "Categories that are not overridden are drawn according to Object Style settings."
+            };
+            var noteRow = new StackPanel { Orientation = Orientation.Horizontal };
+            noteRow.Children.Add(note);
+            noteRow.Children.Add(new Button
+            {
+                Content = "Object Styles…",
+                Margin = new Thickness(8, 0, 0, 0),
+                Padding = new Thickness(8, 2, 8, 2),
+                ToolTip = "Object Styles authoring lives in Revit's native Manage tab — STING does not duplicate it."
+            });
+            left.Children.Add(noteRow);
+
+            // Right: Override Host Layers + Cut Line Styles + Edit…
+            var right = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Right };
+            var hostRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 0, 4) };
+            hostRow.Children.Add(new TextBlock { Text = "Override Host Layers", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+            right.Children.Add(hostRow);
+            var cutRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            _hostLayers = new CheckBox { Content = "Cut Line Styles", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            cutRow.Children.Add(_hostLayers);
+            cutRow.Children.Add(new Button
+            {
+                Content = "Edit…",
+                Padding = new Thickness(8, 2, 8, 2),
+                ToolTip = "Edit cut-line styles for compound walls / floors / roofs (Revit native dialog)."
+            });
+            right.Children.Add(cutRow);
+
+            Grid.SetColumn(left, 0); Grid.SetColumn(right, 1);
+            bottom.Children.Add(left); bottom.Children.Add(right);
+            return bottom;
+        }
+
+        // ─────────────────────────────────────────────────────────
+        //  Toolbar handlers
+        // ─────────────────────────────────────────────────────────
+
+        private void RefreshFilters()
+        {
+            try { _modelView?.Refresh(); } catch { }
+            try { _annoView?.Refresh(); }  catch { }
+        }
+
+        private void SetAllVisible(bool v)
+        {
+            foreach (var r in AllRows) r.Visible = v;
+        }
+
+        private void InvertVisible()
+        {
+            foreach (var r in AllRows)
+            {
+                if (r.Visible == true)  r.Visible = false;
+                else if (r.Visible == false) r.Visible = true;
+                // null tri-state stays null
+            }
+        }
+
+        private void SetExpanded(bool v)
+        {
+            foreach (var r in AllRows) if (r.IsParent) r.Expanded = v;
+        }
+
+        private void ClearOverrides()
+        {
+            var res = MessageBox.Show(
+                "Clear every override on every category? This wipes all colours, weights, " +
+                "patterns, transparency, halftone, detail-level, and visibility values you've " +
+                "set in this editor.",
+                "Clear Overrides", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (res != MessageBoxResult.Yes) return;
+            foreach (var r in AllRows)
+            {
+                r.Visible = null; r.Halftone = null; r.DetailLevelStr = "By View";
+                r.ProjLineColor = null; r.ProjLineWeightStr = null; r.ProjLinePattern = null;
+                r.SurfFgColor   = null; r.SurfFgPattern    = null;
+                r.SurfBgColor   = null; r.SurfBgPattern    = null;
+                r.TransparencyStr = null;
+                r.CutLineColor  = null; r.CutLineWeightStr = null; r.CutLinePattern  = null;
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────
+        //  Column factories
+        // ─────────────────────────────────────────────────────────
+
+        private static DataGridColumn TextCol(string header, string path, double width)
             => new DataGridTextColumn
             {
                 Header = header,
@@ -260,7 +516,7 @@ namespace StingTools.UI
                 Binding = new Binding(path) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus }
             };
 
-        private static DataGridColumn BoolCol(string header, string path, int width)
+        private static DataGridColumn BoolCol(string header, string path, double width)
             => new DataGridCheckBoxColumn
             {
                 Header = header,
@@ -269,58 +525,38 @@ namespace StingTools.UI
                 Binding = new Binding(path) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }
             };
 
-        private static DataGridColumn ComboCol(string header, string path, string[] items, int width)
-        {
-            var col = new DataGridComboBoxColumn
+        private static DataGridColumn ComboCol(string header, string path, string[] items, double width)
+            => new DataGridComboBoxColumn
             {
                 Header = header,
                 Width = new DataGridLength(width, DataGridLengthUnitType.Pixel),
                 ItemsSource = items,
                 SelectedItemBinding = new Binding(path) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }
             };
-            return col;
-        }
 
-        private static DataGridColumn WeightCol(string header, string path, int width)
+        private static DataGridColumn WeightCol(string header, string path, double width)
+            => ComboCol(header, path,
+                new[] { "" }.Concat(Enumerable.Range(1, 16).Select(i => i.ToString())).ToArray(), width);
+
+        private DataGridColumn PatternCol(string header, string path, double width, bool lines)
+            => ComboCol(header, path,
+                new[] { "" }.Concat(lines ? _linePatterns : _fillPatterns).ToArray(), width);
+
+        private static Button MkBtn(string text, RoutedEventHandler click)
         {
-            var items = new[] { "" }.Concat(Enumerable.Range(1, 16).Select(i => i.ToString())).ToArray();
-            return ComboCol(header, path, items, width);
-        }
-
-        private DataGridColumn PatternCol(string header, string path, int width, bool lines)
-        {
-            var items = new[] { "" }.Concat(lines ? _linePatterns : _fillPatterns).ToArray();
-            return ComboCol(header, path, items, width);
-        }
-
-        private static DataGridColumn HeaderCol(string header)
-            => new DataGridTextColumn
-            {
-                Header = header,
-                Width = new DataGridLength(0, DataGridLengthUnitType.Pixel),
-                IsReadOnly = true,
-                CanUserResize = false,
-                CanUserReorder = false,
-                Visibility = Visibility.Hidden
-            };
-
-        private static Button NewBtn(string text, RoutedEventHandler click)
-        {
-            var b = new Button { Content = text, Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(2, 0, 0, 0), MinWidth = 76 };
+            var b = new Button { Content = text, Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 0, 4, 0), MinWidth = 70 };
             b.Click += click;
             return b;
         }
 
-        // ── Population ──
+        // ─────────────────────────────────────────────────────────
+        //  Population
+        // ─────────────────────────────────────────────────────────
 
         private void BuildRowsFromDocument()
         {
-            // 1. Collect every Model + Annotation category from doc.Settings.Categories
-            //    (this gives the live, project-true list including any custom
-            //    subcategories the user added via Manage > Object Styles).
-            //    Fall back to RevitCategoryTree.All catalogue when doc is null.
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var rows = new List<VgRow>();
-            var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (_doc != null)
             {
@@ -328,52 +564,43 @@ namespace StingTools.UI
                 {
                     if (c == null) continue;
                     if (c.CategoryType != CategoryType.Model && c.CategoryType != CategoryType.Annotation) continue;
-                    AddCategoryRow(rows, seenKeys, c);
+                    AddCategoryRow(rows, seen, c, c.CategoryType.ToString());
                 }
             }
 
-            // 2. Cover any catalogue categories that didn't show up in the active
-            //    document (e.g. categories Revit hides on the active discipline
-            //    filter). Users can still set overrides — Revit will read them
-            //    when the category becomes visible.
+            // Catalogue fallback for anything not in the live doc
             foreach (var cat in RevitCategoryTree.All)
             {
                 if (string.IsNullOrEmpty(cat.Bic)) continue;
-                if (seenKeys.Contains(cat.Bic)) continue;
-                AddCatalogueRow(rows, seenKeys, cat);
+                if (seen.Contains(cat.Bic)) continue;
+                AddCatalogueRow(rows, seen, cat, "Model");
             }
 
-            // 3. Order: parent display name asc, then sub-categories under each parent.
             rows.Sort(VgRowOrder);
-            foreach (var r in rows) Rows.Add(r);
+            foreach (var r in rows)
+            {
+                r.AnyChanged = OnRowChanged;
+                AllRows.Add(r);
+            }
         }
 
         private static int VgRowOrder(VgRow a, VgRow b)
         {
-            var dn = string.Compare(
-                ResolveParentDisplayName(a), ResolveParentDisplayName(b),
-                StringComparison.OrdinalIgnoreCase);
+            var dn = string.Compare(a.Bic, b.Bic, StringComparison.OrdinalIgnoreCase);
             if (dn != 0) return dn;
             if (a.IsParent && !b.IsParent) return -1;
             if (!a.IsParent && b.IsParent) return  1;
             return string.Compare(a.SubCategoryName ?? "", b.SubCategoryName ?? "", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static string ResolveParentDisplayName(VgRow r)
-        {
-            var cat = RevitCategoryTree.FindByBic(r.Bic);
-            return cat?.DisplayName ?? r.DisplayName;
-        }
-
-        private void AddCategoryRow(List<VgRow> rows, HashSet<string> seen, Category c)
+        private void AddCategoryRow(List<VgRow> rows, HashSet<string> seen, Category c, string groupTag)
         {
             var bic = TryGetBic(c) ?? c.Name;
             if (!seen.Add(bic)) return;
             var meta = RevitCategoryTree.FindByBic(bic);
             var row = new VgRow
             {
-                Bic = bic,
-                DisplayName = c.Name,
+                Bic = bic, DisplayName = c.Name, GroupTag = groupTag,
                 HasCutLines = meta?.HasCutLines ?? true,
                 HasHalftone = meta?.HasHalftone ?? true,
                 HasDetailLevel = meta?.HasDetailLevel ?? false,
@@ -383,56 +610,49 @@ namespace StingTools.UI
             rows.Add(row);
 
             if (c.SubCategories != null)
+            {
                 foreach (Category s in c.SubCategories)
                 {
                     if (s == null) continue;
                     var key = $"{bic}/{s.Name}";
                     if (!seen.Add(key)) continue;
-                    var srow = new VgRow
+                    var sr = new VgRow
                     {
-                        Bic = bic,
-                        SubCategoryName = s.Name,
-                        DisplayName = s.Name,
+                        Bic = bic, SubCategoryName = s.Name, DisplayName = s.Name, GroupTag = groupTag,
                         HasCutLines = meta?.HasCutLines ?? true,
                         HasHalftone = meta?.HasHalftone ?? true,
                         HasDetailLevel = meta?.HasDetailLevel ?? false
                     };
-                    srow.Data = ResolveData(bic, s.Name, s.Name);
-                    rows.Add(srow);
+                    sr.Data = ResolveData(bic, s.Name, s.Name);
+                    rows.Add(sr);
                 }
+            }
         }
 
-        private void AddCatalogueRow(List<VgRow> rows, HashSet<string> seen, RevitCategory c)
+        private void AddCatalogueRow(List<VgRow> rows, HashSet<string> seen, RevitCategory c, string groupTag)
         {
             if (!seen.Add(c.Bic)) return;
             var row = new VgRow
             {
-                Bic = c.Bic,
-                DisplayName = c.DisplayName,
-                HasCutLines = c.HasCutLines,
-                HasHalftone = c.HasHalftone,
+                Bic = c.Bic, DisplayName = c.DisplayName, GroupTag = groupTag,
+                HasCutLines = c.HasCutLines, HasHalftone = c.HasHalftone,
                 HasDetailLevel = c.HasDetailLevel,
                 HasChildren = c.SubCategories != null && c.SubCategories.Count > 0
             };
             row.Data = ResolveData(c.Bic, null, c.DisplayName);
             rows.Add(row);
-
             if (c.SubCategories == null) return;
             foreach (var s in c.SubCategories)
             {
                 var key = $"{c.Bic}/{s.DisplayName}";
                 if (!seen.Add(key)) continue;
-                var srow = new VgRow
+                var sr = new VgRow
                 {
-                    Bic = c.Bic,
-                    SubCategoryName = s.DisplayName,
-                    DisplayName = s.DisplayName,
-                    HasCutLines = c.HasCutLines,
-                    HasHalftone = c.HasHalftone,
-                    HasDetailLevel = c.HasDetailLevel
+                    Bic = c.Bic, SubCategoryName = s.DisplayName, DisplayName = s.DisplayName, GroupTag = groupTag,
+                    HasCutLines = c.HasCutLines, HasHalftone = c.HasHalftone, HasDetailLevel = c.HasDetailLevel
                 };
-                srow.Data = ResolveData(c.Bic, s.DisplayName, s.DisplayName);
-                rows.Add(srow);
+                sr.Data = ResolveData(c.Bic, s.DisplayName, s.DisplayName);
+                rows.Add(sr);
             }
         }
 
@@ -440,13 +660,13 @@ namespace StingTools.UI
         {
             var key = string.IsNullOrEmpty(sub) ? bic : $"{bic}/{sub}";
             if (Data.TryGetValue(key, out var existing)) return existing;
-            var newOne = new PresetCategoryOverride
+            var fresh = new PresetCategoryOverride
             {
-                Category = string.IsNullOrEmpty(sub) ? display : null,
+                Category    = string.IsNullOrEmpty(sub) ? display : null,
                 SubCategory = sub
             };
-            Data[key] = newOne;
-            return newOne;
+            Data[key] = fresh;
+            return fresh;
         }
 
         private static string TryGetBic(Category c)
@@ -454,9 +674,6 @@ namespace StingTools.UI
             try
             {
                 if (c.Id == null) return null;
-                // Revit 2024+ deprecated ElementId.IntegerValue in favour of
-                // ElementId.Value (long). BuiltInCategory enum values are
-                // negative ints; safely cast through long → int.
                 long v = c.Id.Value;
                 if (v >= 0) return null;
                 var bic = (BuiltInCategory)(int)v;
@@ -488,79 +705,6 @@ namespace StingTools.UI
             _fillPatterns.Sort(StringComparer.OrdinalIgnoreCase);
         }
 
-        // ── Toolbar handlers ──
-
-        private bool FilterPredicate(object o)
-        {
-            if (!(o is VgRow r)) return false;
-            var q = (_search?.Text ?? "").Trim();
-            if (string.IsNullOrEmpty(q)) return true;
-            return (r.DisplayName ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0
-                || (r.Bic ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
-        private void ApplyFilter() => _view?.Refresh();
-
-        private void SetAllVisible(bool visible)
-        {
-            foreach (var r in Rows) r.Visible = visible;
-        }
-
-        private void InvertVisible()
-        {
-            foreach (var r in Rows)
-            {
-                if (r.Visible == true) r.Visible = false;
-                else if (r.Visible == false) r.Visible = true;
-                // tri-state null stays null
-            }
-        }
-
-        private void SetAllExpanded(bool expanded)
-        {
-            // Expand/collapse currently always shows all rows; reserved for
-            // a future TreeView-style render. We leave all rows visible so
-            // users can scroll the full list.
-            foreach (var r in Rows) r.IsExpanded = expanded;
-        }
-
-        private void ClearOverrides()
-        {
-            var res = MessageBox.Show(
-                "Clear every override on every category? This wipes all colours, weights, patterns, transparency, halftone, detail-level, and visibility values you've set in this editor.",
-                "Clear Overrides", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (res != MessageBoxResult.Yes) return;
-            foreach (var r in Rows)
-            {
-                r.Visible = null;
-                r.Halftone = null;
-                r.DetailLevelStr = "";
-                r.ProjLineColor = null; r.ProjLineWeightStr = null; r.ProjLinePattern = null;
-                r.SurfFgColor = null;   r.SurfFgPattern = null;
-                r.SurfBgColor = null;   r.SurfBgPattern = null;
-                r.TransparencyStr = null;
-                r.CutLineColor = null;  r.CutLineWeightStr = null; r.CutLinePattern = null;
-                r.CutFgColor = null;    r.CutFgPattern = null;
-                r.CutBgColor = null;    r.CutBgPattern = null;
-            }
-        }
-    }
-
-    // ── Helper converters ──
-
-    internal sealed class IndentConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-            => value == null ? new Thickness(0, 0, 0, 0) : new Thickness(20, 0, 0, 0);
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-            => Binding.DoNothing;
-    }
-
-    internal sealed class BoolToFontWeightConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-            => value is bool b && b ? FontWeights.SemiBold : FontWeights.Normal;
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-            => Binding.DoNothing;
+        private void OnRowChanged(VgRow r) => RowChanged?.Invoke(r);
     }
 }
