@@ -15,6 +15,7 @@
 // Inheritance: a pack may set Extends = "<parent-id>"; the registry
 // walks the chain at load-time so resolvers see a merged snapshot.
 
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -86,6 +87,72 @@ namespace StingTools.Core.Drawing
 
         [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
         public string Checksum { get; set; }
+
+        // ── Phase 137 — Managed view-template mode ──
+        //
+        // When TemplateMode == "managed", ManagedTemplateSyncer mints
+        // a "STING:{packId}:{ViewType}" template and binds the listed
+        // ManagedFields to the template's controlled-parameter set so
+        // pack edits propagate to every view assigned to the template.
+        // "external" mode (the default) leaves the user's hand-authored
+        // Revit view template alone — the pack only writes overrides
+        // directly onto each view as it always has.
+
+        [JsonProperty("templateMode")] public string TemplateMode { get; set; } = "external";
+
+        [JsonProperty("managedFields", NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> ManagedFields { get; set; }
+
+        [JsonIgnore]
+        public bool IsManaged =>
+            string.Equals(TemplateMode, "managed", StringComparison.OrdinalIgnoreCase);
+
+        [JsonProperty("discipline",       NullValueHandling = NullValueHandling.Ignore)] public string Discipline { get; set; }
+        [JsonProperty("visualStyle",      NullValueHandling = NullValueHandling.Ignore)] public string VisualStyle { get; set; }
+        [JsonProperty("phaseFilter",      NullValueHandling = NullValueHandling.Ignore)] public string PhaseFilter { get; set; }
+        [JsonProperty("phase",            NullValueHandling = NullValueHandling.Ignore)] public string Phase { get; set; }
+        [JsonProperty("annotationCrop",   NullValueHandling = NullValueHandling.Ignore)] public bool?  AnnotationCrop { get; set; }
+        [JsonProperty("farClipMm",        NullValueHandling = NullValueHandling.Ignore)] public double? FarClipMm { get; set; }
+        [JsonProperty("viewRange",        NullValueHandling = NullValueHandling.Ignore)] public PackViewRange ViewRange { get; set; }
+        [JsonProperty("underlay",         NullValueHandling = NullValueHandling.Ignore)] public PackUnderlay Underlay { get; set; }
+        [JsonProperty("background",       NullValueHandling = NullValueHandling.Ignore)] public string Background { get; set; }
+
+        [JsonProperty("worksetVisibility", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> WorksetVisibility { get; set; }
+
+        [JsonProperty("linkOverrides", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, PackLinkOverride> LinkOverrides { get; set; }
+
+        [JsonProperty("colorFillSchemes", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> ColorFillSchemes { get; set; }
+
+        [JsonProperty("filterEnabled", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, bool> FilterEnabled { get; set; }
+
+        [JsonProperty("managedChecksum", NullValueHandling = NullValueHandling.Ignore)]
+        public string ManagedChecksum { get; set; }
+    }
+
+    public sealed class PackViewRange
+    {
+        [JsonProperty("topOffsetMm",    NullValueHandling = NullValueHandling.Ignore)] public double? TopOffsetMm { get; set; }
+        [JsonProperty("cutOffsetMm",    NullValueHandling = NullValueHandling.Ignore)] public double? CutOffsetMm { get; set; }
+        [JsonProperty("bottomOffsetMm", NullValueHandling = NullValueHandling.Ignore)] public double? BottomOffsetMm { get; set; }
+        [JsonProperty("viewDepthMm",    NullValueHandling = NullValueHandling.Ignore)] public double? ViewDepthMm { get; set; }
+    }
+
+    public sealed class PackUnderlay
+    {
+        [JsonProperty("levelName",   NullValueHandling = NullValueHandling.Ignore)] public string LevelName { get; set; }
+        [JsonProperty("rangeBase",   NullValueHandling = NullValueHandling.Ignore)] public string RangeBase { get; set; }
+        [JsonProperty("orientation", NullValueHandling = NullValueHandling.Ignore)] public string Orientation { get; set; }
+    }
+
+    public sealed class PackLinkOverride
+    {
+        [JsonProperty("displayStyle", NullValueHandling = NullValueHandling.Ignore)] public string DisplayStyle { get; set; }
+        [JsonProperty("halftone",     NullValueHandling = NullValueHandling.Ignore)] public bool?  Halftone { get; set; }
+        [JsonProperty("hidden",       NullValueHandling = NullValueHandling.Ignore)] public bool?  Hidden { get; set; }
     }
 
     public sealed class StyleFilterRule

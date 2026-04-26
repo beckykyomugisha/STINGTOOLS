@@ -2555,3 +2555,8 @@ Generic Models,TB_SHOW_REV_TABLE_BOOL,da7b6ce4-8e29-5985-9211-2c5a917bbc4b,YESNO
 Generic Models,TB_SHOW_SCALEBAR_BOOL,afcd0647-42e0-537f-bd18-5f46ed1871df,YESNO,TBL_TITLEBLOCK,Type,Visibility toggle for nested scale bar [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_TEMPLATE_VERSION_TXT,02de282c-b472-5abd-b7f4-e62e12d6c6e8,TEXT,TBL_TITLEBLOCK,Type,Family template semantic version eg 1.2.0 [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_VIEWPORT_SLOTS_JSON_TXT,e76d263f-5b03-5568-8b9e-1d1dbf21f347,TEXT,TBL_TITLEBLOCK,Type,"JSON array of viewport slots {label,normX,normY,normW,normH,viewType,scale} consumed by ShopDrawingComposer [STING TB v1]",False,,,MULTI,1,0
+Views,STING_VIEW_CONTEXT_TAG_TXT,a7c0b2e4-4d91-4a55-9c7e-aa0001000001,TEXT,STING_DRAWING,Instance,Production context tag written by STING per-level / sections / elevations engine [STING DT v137],False,,,MULTI,1,0
+Views,STING_DRAWING_PACKAGE_ID_TXT,a7c0b2e4-4d91-4a55-9c7e-aa0001000002,TEXT,STING_DRAWING,Instance,Drawing package this view or sheet belongs to [STING DT v137],False,,,MULTI,1,0
+Views,STING_AUTO_PLACED_BOOL,a7c0b2e4-4d91-4a55-9c7e-aa0001000003,YESNO,STING_DRAWING,Instance,Flags views auto-placed onto sheets by the STING production engine [STING DT v137],False,,,MULTI,1,0
+Sheets,STING_PRODUCTION_RULE_IDX_INT,a7c0b2e4-4d91-4a55-9c7e-aa0001000004,INTEGER,STING_DRAWING,Instance,ProductionRule index that produced this view [STING DT v137],False,,,MULTI,1,0
+Sheets,STING_SHEET_SEQUENCE_INT,a7c0b2e4-4d91-4a55-9c7e-aa0001000005,INTEGER,STING_DRAWING,Instance,Production sheet sequence number [STING DT v137],False,,,MULTI,1,0
