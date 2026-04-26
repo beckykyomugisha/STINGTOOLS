@@ -644,9 +644,12 @@ namespace StingTools.UI
             var name = SmallCombo(fr.Name, v => fr.Name = v, filterNames);
             var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);
             var ht   = MakeChk(fr.Halftone, v => fr.Halftone = v);
-            var pc   = SmallTb(fr.ProjColor, v => fr.ProjColor = v);
+            // Phase 137 — Proj-Col / Cut-Col are now colour swatch buttons
+            // that open VgColorPicker. Tooltip shows hex + R G B + decimal
+            // RGB so users see the value in multiple formats at a glance.
+            var pc   = MakeColourSwatch(fr.ProjColor, v => { fr.ProjColor = v; RenderPackForm(); });
             var pw   = SmallTb(fr.ProjWeight.ToString(), v => fr.ProjWeight = TryInt(v));
-            var cc   = SmallTb(fr.CutColor, v => fr.CutColor = v);
+            var cc   = MakeColourSwatch(fr.CutColor,  v => { fr.CutColor  = v; RenderPackForm(); });
             var cw   = SmallTb(fr.CutWeight.ToString(), v => fr.CutWeight = TryInt(v));
             var tr   = SmallTb(fr.Transparency.ToString(), v => fr.Transparency = TryInt(v));
 
@@ -787,6 +790,56 @@ namespace StingTools.UI
         }
 
         private static int TryInt(string s) => int.TryParse(s, out var n) ? n : 0;
+
+        /// <summary>
+        /// Phase 137 — clickable colour swatch button used for filter-rules
+        /// Proj-Col / Cut-Col cells. Opens VgColorPicker (Windows native
+        /// picker) and writes back the picked hex. Tooltip shows hex +
+        /// R/G/B in three formats so users can copy whichever they need.
+        /// </summary>
+        private System.Windows.Controls.Button MakeColourSwatch(string hex, Action<string> setter)
+        {
+            var btn = new System.Windows.Controls.Button { Padding = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Stretch };
+            UpdateColourSwatch(btn, hex);
+            btn.Click += (s, e) =>
+            {
+                var picked = StingTools.UI.VgColorPicker.Pick(hex);
+                if (picked == null) return; // cancelled
+                hex = picked;
+                UpdateColourSwatch(btn, hex);
+                setter?.Invoke(hex);
+            };
+            return btn;
+        }
+
+        private static void UpdateColourSwatch(System.Windows.Controls.Button btn, string hex)
+        {
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            sp.Children.Add(new System.Windows.Controls.Border
+            {
+                Width = 16, Height = 14, Margin = new Thickness(0, 0, 4, 0),
+                Background = StingTools.UI.VgColorPicker.HexToBrush(hex),
+                BorderBrush = System.Windows.Media.Brushes.Gray,
+                BorderThickness = new Thickness(1)
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = string.IsNullOrEmpty(hex) ? "—" : hex,
+                FontSize = 10, VerticalAlignment = VerticalAlignment.Center
+            });
+            btn.Content = sp;
+            // Multi-format tooltip — hex / R G B decimal / 0.x normalised /
+            // RGB() CSS string. One swatch click → user copies whichever
+            // format they need without leaving the dialog.
+            if (StingTools.UI.VgColorPicker.TryParseHex(hex, out byte r, out byte g, out byte b))
+            {
+                btn.ToolTip = $"Hex: {hex}\nR G B: {r} {g} {b}\nRGB(): rgb({r},{g},{b})\nNormalised: {(r/255.0):F3} {(g/255.0):F3} {(b/255.0):F3}";
+            }
+            else
+            {
+                btn.ToolTip = "Click to pick a colour. Currently no override.";
+            }
+        }
 
         private string ValidatePack(ViewStylePack p)
         {
@@ -1600,8 +1653,12 @@ namespace StingTools.UI
                 v => tp.PresentationMode = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
                 tooltip: "Sets PARA_STATE_1/2/3 + WARN_VISIBLE in one shot. Empty = use Para-depth slider below."));
 
-            body.Children.Add(LabeledNullableNumber("Global paragraph depth (1-10)",
-                tp.ParaDepth, v => tp.ParaDepth = v,
+            // Phase 137 — typo-prevention: Global paragraph depth is now a
+            // closed dropdown 1..10 (was a free-form NullableNumber).
+            string[] depths = new[] { "", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" };
+            body.Children.Add(LabeledCombo("Global paragraph depth (1-10)",
+                depths, tp.ParaDepth?.ToString() ?? "",
+                v => tp.ParaDepth = int.TryParse(v, out var n) ? (int?)n : null,
                 tooltip: "Tier 1 = compact, 10 = full audit. Empty = inherit from preset / leave alone."));
 
             string[] sizes  = new[] { "", "2", "2.5", "3", "3.5" };
@@ -1626,12 +1683,27 @@ namespace StingTools.UI
                 v => tp.ColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
                 tooltip: "Variable-driven colour map written to STING_VIEW_TAG_STYLE on the view."));
 
-            body.Children.Add(LabeledTextBox("Segment mask (8 chars 0/1)",
-                tp.SegmentMask, v => tp.SegmentMask = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ. Example '10000001' = DISC + SEQ only."));
+            // Phase 137 — Segment mask: 8 individual checkboxes (one per
+            // DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ token). Replaces the
+            // previous free-form TextBox so users can't type "0010000A"
+            // or transpose digits.
+            body.Children.Add(BuildSegmentMaskRow(tp));
 
-            body.Children.Add(LabeledNullableNumber("Display mode (1-5)",
-                tp.DisplayMode, v => tp.DisplayMode = v,
+            // Phase 137 — Display mode: closed dropdown of the five named
+            // modes so users can't type "6" or non-numeric text.
+            string[] displayModes = new[]
+            {
+                "",                              // empty = no override
+                "1 — SEQ",
+                "2 — PROD-SEQ",
+                "3 — DISC-SYS-SEQ",
+                "4 — DISC-PROD-SEQ",
+                "5 — Full 8-segment"
+            };
+            body.Children.Add(LabeledCombo("Display mode",
+                displayModes,
+                tp.DisplayMode.HasValue ? displayModes.FirstOrDefault(s => s.StartsWith(tp.DisplayMode.Value + " ")) ?? "" : "",
+                v => tp.DisplayMode = (!string.IsNullOrEmpty(v) && int.TryParse(v.Split(' ')[0], out var n)) ? (int?)n : null,
                 tooltip: "1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment."));
 
             body.Children.Add(BuildSectionVisibilityGrid(tp));
@@ -1647,6 +1719,50 @@ namespace StingTools.UI
             body.Children.Add(summary);
 
             return Card("Token Depth & Style (Phase 135)", body);
+        }
+
+        /// <summary>
+        /// Phase 137 — segment-mask author UX: eight checkboxes labelled
+        /// DISC / LOC / ZONE / LVL / SYS / FUNC / PROD / SEQ instead of a
+        /// free-form 8-char TextBox. Mask string is materialised on every
+        /// change so the on-disk JSON stays the same shape; no chance of
+        /// typos like "11I00001" or transposed digits.
+        /// </summary>
+        private UIElement BuildSegmentMaskRow(AnnotationTokenProfile tp)
+        {
+            var sp = new StackPanel();
+            sp.Children.Add(new TextBlock {
+                Text = "Segment mask (DISC LOC ZONE LVL SYS FUNC PROD SEQ)",
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11,
+                Margin = new Thickness(0, 6, 0, 2) });
+            string mask = (tp.SegmentMask ?? "").PadRight(8, '1').Substring(0, 8);
+            string[] tokens = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            var cbs = new System.Windows.Controls.CheckBox[8];
+            for (int i = 0; i < 8; i++)
+            {
+                int idx = i;
+                cbs[i] = new System.Windows.Controls.CheckBox
+                {
+                    Content = tokens[i],
+                    IsChecked = mask[i] == '1',
+                    Margin = new Thickness(0, 0, 8, 0),
+                    ToolTip = $"Token {idx + 1} ({tokens[idx]}) on/off in the displayed tag.",
+                };
+                cbs[idx].Checked   += (s, e) => UpdateMask(cbs, tp);
+                cbs[idx].Unchecked += (s, e) => UpdateMask(cbs, tp);
+                row.Children.Add(cbs[i]);
+            }
+            sp.Children.Add(row);
+            return sp;
+        }
+
+        private static void UpdateMask(System.Windows.Controls.CheckBox[] cbs, AnnotationTokenProfile tp)
+        {
+            var sb = new System.Text.StringBuilder(8);
+            foreach (var cb in cbs) sb.Append(cb.IsChecked == true ? '1' : '0');
+            var s = sb.ToString();
+            tp.SegmentMask = s == "11111111" ? null : s;   // null = no override
         }
 
         private UIElement BuildSectionVisibilityGrid(AnnotationTokenProfile tp)

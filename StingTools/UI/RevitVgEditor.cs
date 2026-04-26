@@ -60,6 +60,17 @@ namespace StingTools.UI
             private void Raise(string n)
             {
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+                // Phase 137 — keep the per-cell preview content in sync.
+                // Any line-related setter refreshes the line preview;
+                // any pattern-related setter refreshes the pattern preview.
+                if (n == nameof(ProjLineColor) || n == nameof(ProjLineWeightStr) || n == nameof(ProjLinePattern))
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ProjLinePreviewContent)));
+                else if (n == nameof(CutLineColor) || n == nameof(CutLineWeightStr) || n == nameof(CutLinePattern))
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CutLinePreviewContent)));
+                else if (n == nameof(SurfFgColor) || n == nameof(SurfFgPattern) || n == nameof(SurfBgColor) || n == nameof(SurfBgPattern))
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SurfPreviewContent)));
+                else if (n == nameof(CutFgColor) || n == nameof(CutFgPattern) || n == nameof(CutBgColor) || n == nameof(CutBgPattern))
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CutPatternPreviewContent)));
                 AnyChanged?.Invoke(this);
             }
 
@@ -141,6 +152,70 @@ namespace StingTools.UI
             public string CutLineWeightStr { get => Data.CutLineWeight?.ToString(); set { Data.CutLineWeight = ParseInt(value); Raise(nameof(CutLineWeightStr)); } }
             public string CutLinePattern   { get => Data.CutLinePattern;   set { Data.CutLinePattern = value;   Raise(nameof(CutLinePattern)); } }
 
+            // Phase 137 — preview rendering. Each Override… cell binds to
+            // one of these properties so the cell shows the override's
+            // actual visual effect (a coloured/weighted/dashed line, or a
+            // coloured box for fill patterns) instead of the literal text
+            // "Override…".
+
+            public object ProjLinePreviewContent =>
+                BuildLinePreview(Data.ProjLineColor, Data.ProjLineWeight, Data.ProjLinePattern);
+            public object CutLinePreviewContent =>
+                BuildLinePreview(Data.CutLineColor, Data.CutLineWeight, Data.CutLinePattern);
+            public object SurfPreviewContent =>
+                BuildPatternPreview(Data.SurfFgColor, Data.SurfFgPattern, Data.SurfBgColor);
+            public object CutPatternPreviewContent =>
+                BuildPatternPreview(Data.CutFgColor, Data.CutFgPattern, Data.CutBgColor);
+
+            private static object BuildLinePreview(string color, int? weight, string pattern)
+            {
+                bool any = !string.IsNullOrEmpty(color) || weight.HasValue || !string.IsNullOrEmpty(pattern);
+                if (!any) return PlaceholderDash();
+                var sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+                var line = new System.Windows.Shapes.Rectangle
+                {
+                    Width = 40,
+                    Height = Math.Min(Math.Max(weight ?? 1, 1), 6),
+                    Fill = StingTools.UI.VgColorPicker.HexToBrush(color ?? "#000000"),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                if (!string.IsNullOrEmpty(pattern) &&
+                    !string.Equals(pattern, "Solid", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Dashed look — quick approximation, doesn't render
+                    // every line pattern faithfully but flags non-solid.
+                    line.StrokeDashArray = new System.Windows.Media.DoubleCollection { 2, 2 };
+                }
+                sp.Children.Add(line);
+                return sp;
+            }
+
+            private static object BuildPatternPreview(string fgColor, string fgPattern, string bgColor)
+            {
+                bool any = !string.IsNullOrEmpty(fgColor) || !string.IsNullOrEmpty(fgPattern) || !string.IsNullOrEmpty(bgColor);
+                if (!any) return PlaceholderDash();
+                var sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+                var box = new System.Windows.Controls.Border
+                {
+                    Width = 36, Height = 14,
+                    Background = StingTools.UI.VgColorPicker.HexToBrush(fgColor ?? bgColor ?? "#888888"),
+                    BorderBrush = System.Windows.Media.Brushes.Gray,
+                    BorderThickness = new Thickness(1),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                sp.Children.Add(box);
+                return sp;
+            }
+
+            private static object PlaceholderDash()
+                => new TextBlock
+                {
+                    Text = "—",
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(180, 180, 190)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment   = VerticalAlignment.Center
+                };
+
             private static int? ParseInt(string s) => int.TryParse(s, out var v) ? (int?)v : null;
         }
 
@@ -160,6 +235,7 @@ namespace StingTools.UI
         private TextBox _search;
         private CheckBox _showInView;
         private CheckBox _hostLayers;
+        private ComboBox _disciplineFilter;
         private DataGrid _modelGrid, _annoGrid;
         private CollectionView _modelView, _annoView;
         private List<string> _linePatterns;
@@ -236,22 +312,24 @@ namespace StingTools.UI
             _search = new TextBox { Margin = new Thickness(4, 0, 12, 0) };
             _search.TextChanged += (s, e) => RefreshFilters();
             var lblFilter = new TextBlock { Text = "Filter list:", VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 6, 0) };
-            var cbFilter = new ComboBox();
-            cbFilter.Items.Add("<multiple>");
-            cbFilter.Items.Add("Architectural");
-            cbFilter.Items.Add("Structural");
-            cbFilter.Items.Add("Mechanical");
-            cbFilter.Items.Add("Electrical");
-            cbFilter.Items.Add("Plumbing");
-            cbFilter.Items.Add("Coordination");
-            cbFilter.SelectedIndex = 0;
+            _disciplineFilter = new ComboBox();
+            _disciplineFilter.Items.Add("<multiple>");
+            _disciplineFilter.Items.Add("Architectural");
+            _disciplineFilter.Items.Add("Structural");
+            _disciplineFilter.Items.Add("Mechanical");
+            _disciplineFilter.Items.Add("Electrical");
+            _disciplineFilter.Items.Add("Plumbing");
+            _disciplineFilter.Items.Add("Coordination");
+            _disciplineFilter.SelectedIndex = 0;
+            // Phase 137 — wire the discipline filter to the per-tab views.
+            _disciplineFilter.SelectionChanged += (s, e) => RefreshFilters();
 
             Grid.SetColumn(lblSearch, 0); Grid.SetColumn(_search, 1);
-            Grid.SetColumn(lblFilter, 2); Grid.SetColumn(cbFilter, 3);
+            Grid.SetColumn(lblFilter, 2); Grid.SetColumn(_disciplineFilter, 3);
             row.Children.Add(lblSearch);
             row.Children.Add(_search);
             row.Children.Add(lblFilter);
-            row.Children.Add(cbFilter);
+            row.Children.Add(_disciplineFilter);
             stack.Children.Add(row);
             return stack;
         }
@@ -284,6 +362,10 @@ namespace StingTools.UI
                     (r.DisplayName ?? "").IndexOf(_search.Text, StringComparison.OrdinalIgnoreCase) < 0 &&
                     (r.Bic ?? "").IndexOf(_search.Text, StringComparison.OrdinalIgnoreCase) < 0)
                     return false;
+                // Phase 137 — Filter list dropdown: when a discipline is
+                // chosen, only show categories that belong to it (mirrors
+                // Revit's Filter list <multiple> / Architecture / etc.).
+                if (!MatchesDiscipline(r)) return false;
                 return true;
             };
             grid.ItemsSource = perTab;
@@ -530,6 +612,67 @@ namespace StingTools.UI
         //  Toolbar handlers
         // ─────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Phase 137 — heuristic mapping of category BICs to disciplines so
+        /// the Filter list dropdown actually narrows the rows. Mirrors
+        /// Revit's native &lt;multiple&gt; / Architectural / Structural /
+        /// Mechanical / Electrical / Plumbing / Coordination filter.
+        /// "&lt;multiple&gt;" returns true for everything.
+        /// </summary>
+        private bool MatchesDiscipline(VgRow row)
+        {
+            var pick = (_disciplineFilter?.SelectedItem as string) ?? "<multiple>";
+            if (pick == "<multiple>") return true;
+            var bic = row.Bic ?? "";
+            switch (pick)
+            {
+                case "Architectural":
+                    return bic.StartsWith("OST_Walls") || bic.StartsWith("OST_Doors") ||
+                           bic.StartsWith("OST_Windows") || bic.StartsWith("OST_Floors") ||
+                           bic.StartsWith("OST_Ceilings") || bic.StartsWith("OST_Roofs") ||
+                           bic.StartsWith("OST_Stairs") || bic.StartsWith("OST_Rooms") ||
+                           bic.StartsWith("OST_Furniture") || bic.StartsWith("OST_Casework") ||
+                           bic.StartsWith("OST_Curtain") || bic.StartsWith("OST_Railings") ||
+                           bic.StartsWith("OST_Ramps") || bic.StartsWith("OST_GenericModel") ||
+                           bic.StartsWith("OST_Mass") || bic.StartsWith("OST_Areas") ||
+                           bic.StartsWith("OST_DetailComp") || bic.StartsWith("OST_Signage") ||
+                           bic.StartsWith("OST_Specialty") || bic.StartsWith("OST_Parts") ||
+                           bic.StartsWith("OST_Vertical");
+                case "Structural":
+                    return bic.StartsWith("OST_Structural") || bic.StartsWith("OST_StructConnection") ||
+                           bic.StartsWith("OST_Rebar") || bic.StartsWith("OST_AreaRein") ||
+                           bic.StartsWith("OST_PathRein") || bic.StartsWith("OST_Fabric") ||
+                           bic.StartsWith("OST_Analytical");
+                case "Mechanical":
+                    return bic.StartsWith("OST_Duct") || bic.StartsWith("OST_FlexDuct") ||
+                           bic.StartsWith("OST_PlaceHolderDucts") ||
+                           bic.StartsWith("OST_Mechanical") || bic.StartsWith("OST_HVAC") ||
+                           bic.StartsWith("OST_FabricationDuctwork") ||
+                           bic.StartsWith("OST_FabricationContainment") ||
+                           bic.StartsWith("OST_FabricationPipework") ||
+                           bic.StartsWith("OST_DuctTerminal") || bic.StartsWith("OST_MEPSpaces");
+                case "Electrical":
+                    return bic.StartsWith("OST_Electrical") || bic.StartsWith("OST_Lighting") ||
+                           bic.StartsWith("OST_Cable") || bic.StartsWith("OST_Conduit") ||
+                           bic.StartsWith("OST_Wire") || bic.StartsWith("OST_Communication") ||
+                           bic.StartsWith("OST_Data") || bic.StartsWith("OST_Telephone") ||
+                           bic.StartsWith("OST_FireAlarm") || bic.StartsWith("OST_Security") ||
+                           bic.StartsWith("OST_NurseCall") || bic.StartsWith("OST_AudioVisual");
+                case "Plumbing":
+                    return bic.StartsWith("OST_Pipe") || bic.StartsWith("OST_FlexPipe") ||
+                           bic.StartsWith("OST_PlaceHolderPipes") ||
+                           bic.StartsWith("OST_Plumbing") || bic.StartsWith("OST_Sprinklers") ||
+                           bic.StartsWith("OST_FireProtection");
+                case "Coordination":
+                    return bic.StartsWith("OST_Grids") || bic.StartsWith("OST_Levels") ||
+                           bic.StartsWith("OST_VolumeOfInterest") || bic.StartsWith("OST_RvtLinks") ||
+                           bic.StartsWith("OST_ProjectBasePoint") || bic.StartsWith("OST_SharedBasePoint") ||
+                           bic.StartsWith("OST_CLines") || bic.StartsWith("OST_ShaftOpening");
+                default:
+                    return true;
+            }
+        }
+
         private void RefreshFilters()
         {
             try { _modelView?.Refresh(); } catch { }
@@ -637,12 +780,28 @@ namespace StingTools.UI
                 CanUserResize = false
             };
             var dt = new DataTemplate();
+            // Phase 137 — replaced the italic "Override…" text with a live
+            // preview of the override that's actually been set:
+            //   * Lines columns:   a horizontal stroke drawn with the
+            //                      chosen colour + weight + dashed/solid
+            //                      line pattern (Border + Rectangle).
+            //   * Patterns columns: a small filled box showing the chosen
+            //                      foreground colour (best we can do
+            //                      without rendering the actual hatch).
+            // When no override is set the cell shows a faint "—" placeholder
+            // so users immediately spot which categories carry overrides.
             var f = new FrameworkElementFactory(typeof(Button));
             f.SetValue(Button.MarginProperty, new Thickness(2, 2, 2, 2));
-            f.SetValue(Button.PaddingProperty, new Thickness(4, 0, 4, 0));
-            f.SetValue(Button.ContentProperty, "Override…");
-            f.SetValue(Button.FontStyleProperty, FontStyles.Italic);
+            f.SetValue(Button.PaddingProperty, new Thickness(2, 0, 2, 0));
             f.SetValue(Button.FocusableProperty, false);
+            f.SetValue(Button.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch);
+
+            string previewProp = isPattern
+                ? (proj ? nameof(VgRow.SurfPreviewContent) : nameof(VgRow.CutPatternPreviewContent))
+                : (proj ? nameof(VgRow.ProjLinePreviewContent) : nameof(VgRow.CutLinePreviewContent));
+            f.SetBinding(Button.ContentProperty, new Binding(previewProp));
+            f.SetValue(Button.ToolTipProperty, "Click to edit override.");
+
             RoutedEventHandler handler = isPattern
                 ? (proj ? (RoutedEventHandler)OnProjPatternOverrideClick : OnCutPatternOverrideClick)
                 : (proj ? (RoutedEventHandler)OnProjLineOverrideClick    : OnCutLineOverrideClick);
