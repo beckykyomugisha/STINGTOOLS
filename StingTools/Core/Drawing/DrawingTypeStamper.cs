@@ -27,6 +27,28 @@ namespace StingTools.Core.Drawing
     {
         public const string PARAM_DRAWING_TYPE_ID = "STING_DRAWING_TYPE_ID_TXT";
         public const string PARAM_STYLE_LOCKED    = "STING_STYLE_LOCKED_BOOL";
+        public const string PARAM_DRAWING_PACKAGE_ID = "STING_DRAWING_PACKAGE_ID_TXT";
+        public const string PARAM_SHEET_SEQUENCE     = "STING_SHEET_SEQUENCE_INT";
+
+        /// <summary>
+        /// Phase 137 — stamp the drawing-package id onto a view or sheet.
+        /// Empty packageId is a no-op (deliberate — callers may pass the
+        /// effective id which is empty when the type has no package).
+        /// </summary>
+        public static bool StampPackage(Element element, string packageId)
+        {
+            if (element == null || string.IsNullOrWhiteSpace(packageId)) return false;
+            return StingTools.Core.ParameterHelpers.SetString(element, PARAM_DRAWING_PACKAGE_ID, packageId, overwrite: true);
+        }
+
+        /// <summary>
+        /// Phase 137 — stamp the per-package sheet sequence number.
+        /// </summary>
+        public static bool StampSheetSequence(ViewSheet sheet, int sequence)
+        {
+            if (sheet == null) return false;
+            return StingTools.Core.ParameterHelpers.SetInt(sheet, PARAM_SHEET_SEQUENCE, sequence, overwrite: true);
+        }
 
         /// <summary>
         /// Stamp the DrawingType id onto the given element (view or

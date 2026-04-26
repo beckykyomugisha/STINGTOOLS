@@ -132,7 +132,110 @@ namespace StingTools.Core.Drawing
                 r.Add(ValidationSeverity.Error, "DT-070",
                     "scale must be positive (1:N denominator).");
 
+            // ── Phase 137 — annotation family + production rule + managed pack checks ──
+
+            ValidatePhase137Annotation(doc, dt, r);
+            ValidatePhase137ProductionRules(dt, r);
+            ValidatePhase137ManagedPack(doc, dt, r);
+
             return r;
+        }
+
+        private static void ValidatePhase137Annotation(Document doc, DrawingType dt, ValidationReport r)
+        {
+            if (doc == null || dt?.Annotation == null) return;
+
+            void CheckFamily(string family, string code, string label)
+            {
+                if (string.IsNullOrWhiteSpace(family)) return;
+                if (FindAnnotationFamily(doc, family) == null)
+                    r.Add(ValidationSeverity.Warning, code,
+                        $"{label} family '{family}' not found in project.",
+                        "Load the family or clear the field on the profile.");
+            }
+
+            CheckFamily(dt.Annotation.NorthArrowFamily, "DT-137-NA", "North arrow");
+            CheckFamily(dt.Annotation.ScaleBarFamily,   "DT-137-SB", "Scale bar");
+            CheckFamily(dt.Annotation.KeyPlanFamily,    "DT-137-KP", "Key plan");
+
+            if (dt.Annotation.SpotElevationRules != null)
+                foreach (var s in dt.Annotation.SpotElevationRules)
+                    CheckFamily(s?.SymbolFamily, "DT-137-SE", $"Spot-elevation symbol ({s?.Category})");
+            if (dt.Annotation.SpotCoordinateRules != null)
+                foreach (var s in dt.Annotation.SpotCoordinateRules)
+                    CheckFamily(s?.SymbolFamily, "DT-137-SC", $"Spot-coordinate symbol ({s?.Category})");
+        }
+
+        private static void ValidatePhase137ProductionRules(DrawingType dt, ValidationReport r)
+        {
+            if (dt?.ProductionRules == null) return;
+            var rules = dt.ProductionRules;
+            if (rules.Count > 0 && (dt.Slots?.Count ?? 0) > 0)
+            {
+                int maxSlot = rules.Max(p => p?.SlotIndex ?? -1);
+                if (maxSlot >= dt.Slots.Count)
+                    r.Add(ValidationSeverity.Warning, "DT-137-SLOT",
+                        $"ProductionRule references slotIndex {maxSlot} but profile only has {dt.Slots.Count} slot(s).",
+                        "Add slots or lower slotIndex.");
+            }
+            else if (rules.Count > 1 && (dt.Slots?.Count ?? 0) == 0)
+            {
+                r.Add(ValidationSeverity.Info, "DT-137-NOSLOTS",
+                    $"{rules.Count} production rules declared but profile has no slots — produced views will fall back to sheet-centre placement.");
+            }
+        }
+
+        private static void ValidatePhase137ManagedPack(Document doc, DrawingType dt, ValidationReport r)
+        {
+            if (doc == null || string.IsNullOrEmpty(dt?.ViewStylePackId)) return;
+            ViewStylePack pack;
+            try { pack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId); }
+            catch { return; }
+            if (pack == null || !pack.IsManaged) return;
+
+            try
+            {
+                bool anyStingSeed = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .Any(v => v.IsTemplate && (v.Name ?? "").StartsWith("STING - ", StringComparison.Ordinal));
+                if (!anyStingSeed)
+                    r.Add(ValidationSeverity.Warning, "DT-137-MGD-SEED",
+                        $"Pack '{pack.Id}' is managed but no 'STING - ' seed templates exist; the syncer may fall back to a non-STING seed view.",
+                        "Create at least one STING- prefixed template to seed managed templates from.");
+            }
+            catch { }
+
+            if (!string.IsNullOrEmpty(pack.PhaseFilter))
+            {
+                try
+                {
+                    bool exists = new FilteredElementCollector(doc)
+                        .OfClass(typeof(PhaseFilter))
+                        .Cast<PhaseFilter>()
+                        .Any(p => string.Equals(p.Name, pack.PhaseFilter, StringComparison.OrdinalIgnoreCase));
+                    if (!exists)
+                        r.Add(ValidationSeverity.Warning, "DT-137-MGD-PHASE",
+                            $"Pack '{pack.Id}' references PhaseFilter '{pack.PhaseFilter}' which does not exist.",
+                            "Create the phase filter or update the pack.");
+                }
+                catch { }
+            }
+        }
+
+        private static FamilySymbol FindAnnotationFamily(Document doc, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault(s =>
+                        string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(s.FamilyName, name, StringComparison.OrdinalIgnoreCase));
+            }
+            catch { return null; }
         }
 
         /// <summary>

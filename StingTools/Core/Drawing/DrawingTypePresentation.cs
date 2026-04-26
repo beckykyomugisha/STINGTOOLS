@@ -19,6 +19,17 @@ namespace StingTools.Core.Drawing
 {
     public static class DrawingTypePresentation
     {
+        public sealed class ApplyOptions
+        {
+            /// <summary>
+            /// When non-null the supplied <see cref="AnnotationRunOptions"/>
+            /// passes through to the runner verbatim — callers use this to
+            /// skip individual annotation passes (e.g. SyncStyles wants
+            /// VG/template re-apply but no auto-dim/auto-tag).
+            /// </summary>
+            public AnnotationRunOptions AnnotationOptions { get; set; }
+        }
+
         public sealed class ApplyResult
         {
             public bool ScaleApplied       { get; set; }
@@ -28,10 +39,26 @@ namespace StingTools.Core.Drawing
             public bool CropApplied        { get; set; }
             public bool TokenProfileApplied { get; set; }   // Phase 135 — Step 7.5
             public AnnotationRunStats Annotation { get; set; }
+
+            // Phase 137 — managed-template routing
+            public ElementId ManagedTemplateId      { get; set; } = ElementId.InvalidElementId;
+            public bool      ManagedTemplateCreated { get; set; }
+            public bool      ManagedTemplateUpdated { get; set; }
+            public int       AnnotationTagsPlaced   { get; set; }
+            public int       AnnotationDimsPlaced   { get; set; }
+            public int       AnnotationDecPlaced    { get; set; }
+
             public System.Collections.Generic.List<string> Warnings { get; } = new System.Collections.Generic.List<string>();
         }
 
         public static ApplyResult Apply(Document doc, View view, DrawingType dt, bool runAnnotation = true)
+            => Apply(doc, view, dt, runAnnotation ? null : new ApplyOptions {
+                AnnotationOptions = new AnnotationRunOptions {
+                    SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
+                }
+            });
+
+        public static ApplyResult Apply(Document doc, View view, DrawingType dt, ApplyOptions options)
         {
             var r = new ApplyResult();
             if (doc == null || view == null || dt == null) return r;
@@ -117,19 +144,52 @@ namespace StingTools.Core.Drawing
             }
 
             // View Style Pack (shared graphic overrides) ---------------
+            // Phase 137 — managed packs route through ManagedTemplateSyncer
+            // which mints (or updates) a "STING:{packId}:{ViewType}"
+            // template and assigns it to the view; non-managed packs apply
+            // their VG / filter / etc. payload directly to the view.
             ViewStylePack resolvedPack = null;
             if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
             {
                 try
                 {
                     resolvedPack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
-                    if (resolvedPack != null)
+                    if (resolvedPack == null)
+                    {
+                        r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
+                    }
+                    else if (resolvedPack.IsManaged)
+                    {
+                        var syncResult = new PackApplyResult();
+                        var templateId = ManagedTemplateSyncer.EnsureTemplate(doc, resolvedPack, view.ViewType, syncResult);
+                        r.Warnings.AddRange(syncResult.Warnings);
+                        if (templateId != ElementId.InvalidElementId)
+                        {
+                            try
+                            {
+                                view.ViewTemplateId = templateId;
+                                r.ManagedTemplateId = templateId;
+                                r.ManagedTemplateCreated = !r.TemplateApplied;
+                                r.ManagedTemplateUpdated = true;
+                                r.PackApplied = true;
+                                r.TemplateApplied = true;
+                            }
+                            catch (Exception ex) { r.Warnings.Add($"Assign managed template: {ex.Message}"); }
+                        }
+                        else
+                        {
+                            r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' is managed but no template could be minted — falling back to external apply.");
+                            var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack);
+                            r.PackApplied = true;
+                            r.Warnings.AddRange(packStats.Warnings);
+                        }
+                    }
+                    else
                     {
                         var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack);
                         r.PackApplied = true;
                         r.Warnings.AddRange(packStats.Warnings);
                     }
-                    else r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
                 }
                 catch (Exception ex) { r.Warnings.Add($"ViewStylePack: {ex.Message}"); }
             }
@@ -156,9 +216,31 @@ namespace StingTools.Core.Drawing
             }
 
             // Annotation pass --------------------------------------------
-            if (runAnnotation && dt.Annotation != null)
+            // Phase 137 — explicit AnnotationRunOptions plumbing so callers
+            // (SyncStyles, batch producers) can skip individual passes.
+            if (dt.Annotation != null)
             {
-                try { r.Annotation = AnnotationRunner.Apply(doc, view, dt); }
+                try
+                {
+                    var annOpts = options?.AnnotationOptions ?? new AnnotationRunOptions
+                    {
+                        ViewScale = dt.Scale > 0 ? dt.Scale : view.Scale
+                    };
+                    var annResult = AnnotationRunner.Run(doc, view, dt.Annotation, annOpts);
+                    r.AnnotationTagsPlaced = annResult.TagsPlaced;
+                    r.AnnotationDimsPlaced = annResult.DimsPlaced;
+                    r.AnnotationDecPlaced  = annResult.DecorativePlaced;
+                    r.Warnings.AddRange(annResult.Warnings);
+
+                    // Populate legacy AnnotationRunStats so callers reading
+                    // the old field (e.g. existing tests / UI) keep working.
+                    r.Annotation = new AnnotationRunStats
+                    {
+                        TagsPlaced  = annResult.TagsPlaced,
+                        DimsCreated = annResult.DimsPlaced
+                    };
+                    foreach (var w in annResult.Warnings) r.Annotation.Warnings.Add(w);
+                }
                 catch (Exception ex) { r.Warnings.Add($"AnnotationRunner: {ex.Message}"); }
             }
 
