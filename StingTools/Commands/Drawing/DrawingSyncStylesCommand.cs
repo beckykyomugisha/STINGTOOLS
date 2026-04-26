@@ -61,7 +61,16 @@ namespace StingTools.Commands.Drawing
                         if (!(doc.GetElement(r.ViewId) is View v)) continue;
                         var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
                         if (dt == null) continue;
-                        var applied = DrawingTypePresentation.Apply(doc, v, dt, runAnnotation: false);
+                        // Phase 137 — explicit annotation skips so SyncStyles
+                        // re-applies VG/template/managed-template state without
+                        // running auto-tag / auto-dim / decorative / spot passes.
+                        var applied = DrawingTypePresentation.Apply(doc, v, dt, new DrawingTypePresentation.ApplyOptions
+                        {
+                            AnnotationOptions = new AnnotationRunOptions
+                            {
+                                SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
+                            }
+                        });
                         if (applied.Warnings.Count > 0)
                             warnings.AddRange(applied.Warnings.Select(w => $"[{v.Name}] {w}"));
                         if (applied.ScaleApplied || applied.DetailLevelApplied || applied.TemplateApplied || applied.PackApplied)

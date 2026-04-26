@@ -985,6 +985,26 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="Reload registry then report which view templates and viewport types referenced by drawing types are missing in the active project"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="Scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name)"/>
                                 </WrapPanel>
+                                <!-- Phase 137 — Production -->
+                                <Separator/>
+                                <TextBlock Text="Production" FontWeight="SemiBold" Margin="2,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Produce Per Level" Tag="DrawingTypes_ProducePerLevel" Click="Cmd_Click" ToolTip="Phase 137 — open production-config dialog and produce per-level views/sheets for the selected drawing types"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Produce Sections" Tag="DrawingTypes_ProduceSections" Click="Cmd_Click" ToolTip="Phase 137 — produce section views via grid alignment / room walls / manual selection per the chosen preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Exterior Elevations" Tag="DrawingTypes_ProduceExteriorElevations" Click="Cmd_Click" ToolTip="Phase 137 — auto-place 4 exterior elevations using detected building footprint, with optional 1+4-view sheet"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Interior Elevations" Tag="DrawingTypes_ProduceInteriorElevations" Click="Cmd_Click" ToolTip="Phase 137 — produce interior elevations for selected rooms"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="From Scope Boxes (Produce)" Tag="DrawingTypes_ProduceFromScopeBoxes" Click="Cmd_Click" ToolTip="Phase 137 — produce views/sheets driven by STING::… scope boxes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Regenerate Templates" Tag="DrawingTypes_RegenerateTemplates" Click="Cmd_Click" ToolTip="Phase 137 — re-mint managed view templates for selected packs"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="→ Managed Mode" Tag="DrawingTypes_ConvertToManaged" Click="Cmd_Click" ToolTip="Phase 137 — convert an external pack to managed mode by importing settings from a chosen view template"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Detach Managed" Tag="DrawingTypes_DetachManaged" Click="Cmd_Click" ToolTip="Phase 137 — flip a managed pack to external and rename its STING:* templates"/>
+                                </WrapPanel>
+                                <Separator/>
+                                <TextBlock Text="Packages" FontWeight="SemiBold" Margin="2,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Package" Tag="DrawingTypes_ExportPackage" Click="Cmd_Click" ToolTip="Phase 137 — export every sheet in a selected drawing package as PDFs in sequence order"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sequence Package" Tag="DrawingTypes_SequencePackage" Click="Cmd_Click" ToolTip="Phase 137 — re-stamp STING_SHEET_SEQUENCE for a selected package, ordered by current sheet number"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Audit Packages" Tag="DrawingTypes_AuditPackages" Click="Cmd_Click" ToolTip="Phase 137 — list all drawing packages with sheet count, view count, and sequence-gap count"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 

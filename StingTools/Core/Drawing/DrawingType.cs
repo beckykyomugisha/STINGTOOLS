@@ -158,6 +158,24 @@ namespace StingTools.Core.Drawing
         // Print / appearance overrides
         [JsonProperty("print")]      public PrintOverride Print { get; set; } = new PrintOverride();
 
+        /// <summary>
+        /// Phase 137 — production rules. One DrawingType can produce
+        /// multiple companion views (e.g. one plan + one RCP + one
+        /// section). Each rule yields one view with optional per-rule
+        /// overrides, slotting into the parent profile's slot[idx]
+        /// when SlotIndex is non-negative.
+        /// </summary>
+        [JsonProperty("productionRules", NullValueHandling = NullValueHandling.Ignore)]
+        public List<ProductionRule> ProductionRules { get; set; }
+
+        /// <summary>
+        /// Phase 137 — drawing package this profile belongs to. The
+        /// production engine groups views/sheets onto a sheet by
+        /// package id (e.g. "Issue-A-Architectural").
+        /// </summary>
+        [JsonProperty("packageId", NullValueHandling = NullValueHandling.Ignore)]
+        public string PackageId { get; set; }
+
         // Integrity hash used by the corporate-lock mechanism —
         // DrawingTypeRegistry writes it on load for corporate types and
         // compares on save to detect out-of-band edits.
@@ -237,134 +255,9 @@ namespace StingTools.Core.Drawing
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    //  ANNOTATION RULE PACK — the "what to tag and how" payload
+    //  ANNOTATION RULE PACK + AUTO-ANNOTATION RULE — moved to
+    //  Core/Drawing/AnnotationRulePack.cs in Phase 137.
     // ─────────────────────────────────────────────────────────────────────
-
-    public sealed class AnnotationRulePack
-    {
-        // Legacy boolean fields — retained for backwards compatibility
-        // with older JSON. Loader calls MigrateFromLegacy() which folds
-        // any true value into the Rules collection so downstream code
-        // only ever needs to inspect Rules.
-        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoDimGrids", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoDimGrids { get; set; }
-        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoDimLevels", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoDimLevels { get; set; }
-        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagRooms", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagRooms { get; set; }
-        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagDoors", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagDoors { get; set; }
-        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagWindows", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagWindows { get; set; }
-        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagEquipment", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagEquipment { get; set; }
-        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagWelds", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagWelds { get; set; }
-        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagSupports", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagSupports { get; set; }
-        [Obsolete("Use Rules collection instead.")] [JsonProperty("autoTagBends", DefaultValueHandling = DefaultValueHandling.Ignore)] public bool AutoTagBends { get; set; }
-
-        /// <summary>
-        /// Per-category, per-rule auto-annotation entries. Replaces the
-        /// 9 individual boolean flags above. <see cref="MigrateFromLegacy"/>
-        /// converts legacy true values into Rules entries the first time
-        /// a profile is loaded.
-        /// </summary>
-        [JsonProperty("rules", NullValueHandling = NullValueHandling.Ignore)]
-        public List<AutoAnnotationRule> Rules { get; set; }
-            = new List<AutoAnnotationRule>();
-
-        /// <summary>
-        /// Linear | Ordinate | Chain — sets the dimensioning strategy
-        /// the annotation pass uses when running auto-dim on grids.
-        /// </summary>
-        [JsonProperty("dimensionStrategy")] public string DimensionStrategy { get; set; } = "Linear";
-        [JsonProperty("dimensionStyle")]    public string DimensionStyle { get; set; }
-
-        /// <summary>
-        /// Category-name (STING code) to tag family name. Empty map means
-        /// "use whatever tag family is currently active in the project",
-        /// which is what Revit does by default.
-        /// </summary>
-        [JsonProperty("tagFamilies")] public Dictionary<string, string> TagFamilies { get; set; }
-            = new Dictionary<string, string>();
-
-        /// <summary>
-        /// Per-category TAG7 paragraph-depth override (1=compact … 10=full
-        /// audit). Empty = use the drawing-type default. Lookup by
-        /// category display name (same key set as TagFamilies).
-        /// </summary>
-        [JsonProperty("tagDepths", NullValueHandling = NullValueHandling.Ignore)]
-        public Dictionary<string, int> TagDepths { get; set; }
-            = new Dictionary<string, int>();
-
-        /// <summary>
-        /// Scale modifier — at scales coarser than this value, annotation
-        /// density is automatically reduced (grid dims only, no per-
-        /// element tags). At scales finer than this, full annotation
-        /// runs. Null = always full.
-        /// </summary>
-        [JsonProperty("denseUntilScale", NullValueHandling = NullValueHandling.Ignore)]
-        public int? DenseUntilScale { get; set; }
-
-        /// <summary>
-        /// Folds legacy <c>autoDim*</c> / <c>autoTag*</c> booleans into
-        /// the <see cref="Rules"/> collection. Idempotent: a second call
-        /// with the same input is a no-op.
-        /// </summary>
-        public void MigrateFromLegacy()
-        {
-            if (Rules == null) Rules = new List<AutoAnnotationRule>();
-#pragma warning disable CS0618
-            void Add(string cat, string rt)
-            {
-                foreach (var r in Rules)
-                    if (string.Equals(r.Category, cat, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(r.RuleType, rt, StringComparison.OrdinalIgnoreCase))
-                        return;
-                Rules.Add(new AutoAnnotationRule { Category = cat, RuleType = rt, Enabled = true });
-            }
-            if (AutoDimGrids)     Add("Grids", "AutoDim");
-            if (AutoDimLevels)    Add("Levels", "AutoDim");
-            if (AutoTagRooms)     Add("Rooms", "AutoTag");
-            if (AutoTagDoors)     Add("Doors", "AutoTag");
-            if (AutoTagWindows)   Add("Windows", "AutoTag");
-            if (AutoTagEquipment) Add("Mechanical Equipment", "AutoTag");
-            if (AutoTagWelds)     Add("Pipe Fittings", "AutoTag");
-            if (AutoTagSupports)  Add("Structural Framing", "AutoTag");
-            if (AutoTagBends)     Add("Duct Fittings", "AutoTag");
-            // Reset legacy fields once migrated so the project override
-            // JSON only persists the new Rules collection.
-            AutoDimGrids = AutoDimLevels = false;
-            AutoTagRooms = AutoTagDoors = AutoTagWindows = false;
-            AutoTagEquipment = AutoTagWelds = AutoTagSupports = AutoTagBends = false;
-#pragma warning restore CS0618
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────
-    //  AUTO-ANNOTATION RULE — one entry per (category, rule type) pair
-    //  that the annotation pass should fire. Replaces the 9 flat bool
-    //  flags on the legacy AnnotationRulePack.
-    // ─────────────────────────────────────────────────────────────────────
-
-    public sealed class AutoAnnotationRule
-    {
-        /// <summary>
-        /// Category display name — e.g. "Rooms", "Mechanical Equipment",
-        /// "Grids", "Structural Framing".
-        /// </summary>
-        [JsonProperty("category")]   public string Category  { get; set; }
-
-        /// <summary>
-        /// Rule type — AutoTag / AutoDim / AutoDimOrdinate /
-        /// AutoTagRoomName / AutoAnnotateSlope / etc. See
-        /// DrawingTypeEditorDialog.KnownRuleTypes for the full list.
-        /// </summary>
-        [JsonProperty("ruleType")]   public string RuleType  { get; set; }
-
-        [JsonProperty("enabled")]    public bool   Enabled   { get; set; } = true;
-
-        /// <summary>Optional per-rule tag-family override.</summary>
-        [JsonProperty("tagFamily", NullValueHandling = NullValueHandling.Ignore)]
-        public string TagFamily { get; set; }
-
-        /// <summary>Optional per-rule TAG7 paragraph depth (1..10).</summary>
-        [JsonProperty("depth", NullValueHandling = NullValueHandling.Ignore)]
-        public int? Depth { get; set; }
-    }
 
     // ─────────────────────────────────────────────────────────────────────
     //  ANNOTATION TOKEN PROFILE — Phase 135
@@ -473,6 +366,31 @@ namespace StingTools.Core.Drawing
         /// </summary>
         [JsonProperty("displayMode", NullValueHandling = NullValueHandling.Ignore)]
         public int? DisplayMode { get; set; }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  PRODUCTION RULE — Phase 137
+    //
+    //  One rule per companion view a single DrawingType produces. The
+    //  parent profile defines slot geometry, scale, etc; each rule may
+    //  optionally override scale / detail level / view template / pack
+    //  / annotation / phase per produced view, and pin itself to a
+    //  specific slot index.
+    // ─────────────────────────────────────────────────────────────────────
+
+    public sealed class ProductionRule
+    {
+        [JsonProperty("idx")]       public int    Idx { get; set; }
+        [JsonProperty("viewType")]  public string ViewType { get; set; }
+        [JsonProperty("nameSuffix",            NullValueHandling = NullValueHandling.Ignore)] public string NameSuffix { get; set; }
+        [JsonProperty("scaleOverride",         NullValueHandling = NullValueHandling.Ignore)] public int?   ScaleOverride { get; set; }
+        [JsonProperty("detailLevelOverride",   NullValueHandling = NullValueHandling.Ignore)] public string DetailLevelOverride { get; set; }
+        [JsonProperty("viewTemplateOverride",  NullValueHandling = NullValueHandling.Ignore)] public string ViewTemplateOverride { get; set; }
+        [JsonProperty("viewStylePackOverride", NullValueHandling = NullValueHandling.Ignore)] public string ViewStylePackOverride { get; set; }
+        [JsonProperty("annotationOverride",    NullValueHandling = NullValueHandling.Ignore)] public AnnotationRulePack AnnotationOverride { get; set; }
+        [JsonProperty("phaseOverride",         NullValueHandling = NullValueHandling.Ignore)] public string PhaseOverride { get; set; }
+        [JsonProperty("required")]  public bool Required { get; set; } = true;
+        [JsonProperty("slotIndex")] public int  SlotIndex { get; set; } = -1;
     }
 
     // ─────────────────────────────────────────────────────────────────────

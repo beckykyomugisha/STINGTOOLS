@@ -194,6 +194,12 @@ namespace StingTools.UI
             }
             catch { }
 
+            // Phase 137 — initialise _packs in the constructor (was inside
+            // BuildViewStylePacksTab) so Tab 0 controls that reference the
+            // pack list (e.g. ViewStylePackId combo on a DrawingType card)
+            // resolve cleanly on first render.
+            _packs = LoadViewStylePacks();
+
             Content = BuildLayout();
             if (_types.Count > 0) SelectType(_types[0]);
         }
@@ -297,7 +303,7 @@ namespace StingTools.UI
 
         private UIElement BuildViewStylePacksTab()
         {
-            _packs = LoadViewStylePacks();
+            if (_packs == null) _packs = LoadViewStylePacks();
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -353,6 +359,41 @@ namespace StingTools.UI
         {
             _packFormHost.Children.Clear();
             if (_currentPack == null) return;
+
+            // Phase 137 — Template Mode card (managed vs external + regenerate hook)
+            var tmBody = new StackPanel();
+            var modeRow = new StackPanel { Orientation = Orientation.Horizontal };
+            var rbExt = new RadioButton { Content = "External", GroupName = "tm" + _currentPack.Id, IsChecked = !_currentPack.IsManaged, Margin = new Thickness(0,0,12,0) };
+            var rbMan = new RadioButton { Content = "Managed",  GroupName = "tm" + _currentPack.Id, IsChecked =  _currentPack.IsManaged };
+            rbExt.Checked += (s,e) => { _currentPack.TemplateMode = "external"; RenderPackForm(); };
+            rbMan.Checked += (s,e) => { _currentPack.TemplateMode = "managed";  RenderPackForm(); };
+            modeRow.Children.Add(rbExt);
+            modeRow.Children.Add(rbMan);
+            tmBody.Children.Add(modeRow);
+
+            if (_currentPack.IsManaged)
+            {
+                var info = new TextBlock {
+                    Text = "STING will mint templates named 'STING:{pack-id}:{ViewType}'. Save triggers drift; use Regenerate to re-sync.",
+                    TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Colors.Goldenrod), Margin = new Thickness(0,4,0,4)
+                };
+                tmBody.Children.Add(info);
+                if (_currentPack.ManagedFields == null || _currentPack.ManagedFields.Count == 0)
+                    _currentPack.ManagedFields = new List<string> { "scale", "detailLevel", "discipline", "visualStyle", "phaseFilter" };
+                var grid = new WrapPanel { Margin = new Thickness(0,2,0,2) };
+                foreach (var f in new[] { "scale","detailLevel","discipline","visualStyle","phaseFilter","phase","annotationCrop","farClip","viewRange","underlay","vgOverrides","filters","worksetVisibility" })
+                {
+                    var cb = new CheckBox { Content = f, Margin = new Thickness(0,0,8,0), IsChecked = _currentPack.ManagedFields.Contains(f) };
+                    cb.Checked   += (s,e) => { if (!_currentPack.ManagedFields.Contains(f)) _currentPack.ManagedFields.Add(f); };
+                    cb.Unchecked += (s,e) => _currentPack.ManagedFields.Remove(f);
+                    grid.Children.Add(cb);
+                }
+                tmBody.Children.Add(grid);
+                tmBody.Children.Add(LabeledTextBox("Discipline (e.g. Architectural)", _currentPack.Discipline, v => _currentPack.Discipline = v));
+                tmBody.Children.Add(LabeledTextBox("Visual style (e.g. HiddenLine)",  _currentPack.VisualStyle, v => _currentPack.VisualStyle = v));
+                tmBody.Children.Add(LabeledTextBox("Phase filter name",               _currentPack.PhaseFilter, v => _currentPack.PhaseFilter = v));
+            }
+            _packFormHost.Children.Add(Card("Template Mode (Phase 137)", tmBody));
 
             // Identity
             var idBody = new StackPanel();
@@ -416,23 +457,28 @@ namespace StingTools.UI
             }));
             _packFormHost.Children.Add(Card("Filter rules", frBody));
 
-            // VG Overrides per category
+            // VG Overrides per category — Phase 137: full Revit VG dialog
+            // replica embedded inline (no popup). Backed by a bridge dict
+            // of PresetCategoryOverride that mirrors the pack's
+            // PackCategoryOverride dict on every cell change.
             var vgBody = new StackPanel();
             _currentPack.VgOverrides = _currentPack.VgOverrides ?? new Dictionary<string, PackCategoryOverride>();
             vgBody.Children.Add(new TextBlock {
-                Text = "Per-category graphic overrides. Key = category name (Walls / Grids / Rooms), BuiltInCategory enum, or <Room Separation> for subcategories. Colours in #RRGGBB.",
+                Text = "Full Revit Visibility/Graphics Overrides — every model + annotation category from the active project pre-populated, " +
+                       "subcategories indented underneath. Cells round-trip live into the pack JSON; tab away from a cell to commit. " +
+                       "No popup, no Revit-VG-dialog round-trip.",
                 Foreground = new SolidColorBrush(SubtleColor), FontSize = 11, TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 4) });
-            vgBody.Children.Add(MakeVgHeader());
-            foreach (var kv in _currentPack.VgOverrides.ToList())
-                vgBody.Children.Add(MakeVgRow(kv.Key, kv.Value));
-            vgBody.Children.Add(MakeSmallBtn("＋ Add VG override", () =>
-            {
-                var key = "NewCategory" + _currentPack.VgOverrides.Count;
-                _currentPack.VgOverrides[key] = new PackCategoryOverride { Visible = true, ProjWeight = 1 };
-                RenderPackForm();
-            }));
-            _packFormHost.Children.Add(Card("VG overrides (per category)", vgBody));
+                Margin = new Thickness(0, 0, 0, 6) });
+
+            var bridge = BuildVgBridge(_currentPack);
+            var editor = new RevitVgEditor(_doc, bridge);
+            editor.RowChanged += r => SyncRowToPack(_currentPack, r);
+            // Constrain the editor to a sensible inline height; user can scroll
+            // through ~80+ categories + 300+ subcategories without the card
+            // ballooning the whole pack form.
+            var editorHost = new Border { Height = 520, Child = editor.Build() };
+            vgBody.Children.Add(editorHost);
+            _packFormHost.Children.Add(Card("VG overrides (full Revit replica, with subcategories)", vgBody));
 
             // Phase 135 — Tag Appearance card
             _packFormHost.Children.Add(BuildPackTagAppearanceCard());
@@ -598,9 +644,12 @@ namespace StingTools.UI
             var name = SmallCombo(fr.Name, v => fr.Name = v, filterNames);
             var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);
             var ht   = MakeChk(fr.Halftone, v => fr.Halftone = v);
-            var pc   = SmallTb(fr.ProjColor, v => fr.ProjColor = v);
+            // Phase 137 — Proj-Col / Cut-Col are now colour swatch buttons
+            // that open VgColorPicker. Tooltip shows hex + R G B + decimal
+            // RGB so users see the value in multiple formats at a glance.
+            var pc   = MakeColourSwatch(fr.ProjColor, v => { fr.ProjColor = v; RenderPackForm(); });
             var pw   = SmallTb(fr.ProjWeight.ToString(), v => fr.ProjWeight = TryInt(v));
-            var cc   = SmallTb(fr.CutColor, v => fr.CutColor = v);
+            var cc   = MakeColourSwatch(fr.CutColor,  v => { fr.CutColor  = v; RenderPackForm(); });
             var cw   = SmallTb(fr.CutWeight.ToString(), v => fr.CutWeight = TryInt(v));
             var tr   = SmallTb(fr.Transparency.ToString(), v => fr.Transparency = TryInt(v));
 
@@ -614,7 +663,70 @@ namespace StingTools.UI
             return g;
         }
 
-        // ── VG override row ──
+        // ── Phase 137 — VG bridge between PackCategoryOverride (the editor's
+        //    on-disk JSON shape) and PresetCategoryOverride (the full-fidelity
+        //    in-memory model the inline RevitVgEditor binds to). The bridge
+        //    is built once when the pack form renders, lives in memory for
+        //    the editor, and is synced back to the pack on every RowChanged
+        //    event so the user's edits survive Save without an explicit
+        //    "apply" step. ──
+
+        private static Dictionary<string, StingTools.Core.Drawing.PresetCategoryOverride>
+            BuildVgBridge(ViewStylePack pack)
+        {
+            var bridge = new Dictionary<string, StingTools.Core.Drawing.PresetCategoryOverride>(StringComparer.OrdinalIgnoreCase);
+            if (pack?.VgOverrides == null) return bridge;
+            foreach (var kv in pack.VgOverrides)
+            {
+                bridge[kv.Key] = new StingTools.Core.Drawing.PresetCategoryOverride
+                {
+                    Category       = kv.Key,
+                    Visible        = kv.Value?.Visible,
+                    Halftone       = kv.Value != null && kv.Value.Halftone ? true : (bool?)null,
+                    ProjLineColor  = kv.Value?.ProjColor,
+                    ProjLineWeight = kv.Value != null && kv.Value.ProjWeight  > 0 ? kv.Value.ProjWeight  : (int?)null,
+                    CutLineColor   = kv.Value?.CutColor,
+                    CutLineWeight  = kv.Value != null && kv.Value.CutWeight   > 0 ? kv.Value.CutWeight   : (int?)null,
+                    Transparency   = kv.Value != null && kv.Value.Transparency> 0 ? kv.Value.Transparency: (int?)null
+                };
+            }
+            return bridge;
+        }
+
+        /// <summary>
+        /// Phase 137 — push a single edited row from the inline VG editor
+        /// back into the pack's PackCategoryOverride dict. Called on every
+        /// cell change so the pack's on-disk JSON stays current; rows
+        /// without a meaningful override are dropped from the dict.
+        /// </summary>
+        private static void SyncRowToPack(ViewStylePack pack, RevitVgEditor.VgRow r)
+        {
+            if (pack == null || r?.Data == null) return;
+            pack.VgOverrides = pack.VgOverrides ?? new Dictionary<string, PackCategoryOverride>();
+            var v = r.Data;
+            bool any = v.Visible.HasValue || v.Halftone.HasValue
+                    || !string.IsNullOrEmpty(v.ProjLineColor) || v.ProjLineWeight.HasValue
+                    || !string.IsNullOrEmpty(v.CutLineColor)  || v.CutLineWeight.HasValue
+                    || v.Transparency.HasValue;
+            if (!any)
+            {
+                pack.VgOverrides.Remove(r.Key);
+                return;
+            }
+            pack.VgOverrides[r.Key] = new PackCategoryOverride
+            {
+                Visible      = v.Visible ?? true,
+                Halftone     = v.Halftone == true,
+                ProjColor    = v.ProjLineColor,
+                ProjWeight   = v.ProjLineWeight ?? 0,
+                CutColor     = v.CutLineColor,
+                CutWeight    = v.CutLineWeight ?? 0,
+                Transparency = v.Transparency ?? 0
+            };
+        }
+
+        // ── Legacy compact VG row + header (still referenced by older code paths) ──
+
         private UIElement MakeVgHeader()
         {
             var g = new Grid { Margin = new Thickness(0, 4, 0, 2) };
@@ -678,6 +790,56 @@ namespace StingTools.UI
         }
 
         private static int TryInt(string s) => int.TryParse(s, out var n) ? n : 0;
+
+        /// <summary>
+        /// Phase 137 — clickable colour swatch button used for filter-rules
+        /// Proj-Col / Cut-Col cells. Opens VgColorPicker (Windows native
+        /// picker) and writes back the picked hex. Tooltip shows hex +
+        /// R/G/B in three formats so users can copy whichever they need.
+        /// </summary>
+        private System.Windows.Controls.Button MakeColourSwatch(string hex, Action<string> setter)
+        {
+            var btn = new System.Windows.Controls.Button { Padding = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Stretch };
+            UpdateColourSwatch(btn, hex);
+            btn.Click += (s, e) =>
+            {
+                var picked = StingTools.UI.VgColorPicker.Pick(hex);
+                if (picked == null) return; // cancelled
+                hex = picked;
+                UpdateColourSwatch(btn, hex);
+                setter?.Invoke(hex);
+            };
+            return btn;
+        }
+
+        private static void UpdateColourSwatch(System.Windows.Controls.Button btn, string hex)
+        {
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            sp.Children.Add(new System.Windows.Controls.Border
+            {
+                Width = 16, Height = 14, Margin = new Thickness(0, 0, 4, 0),
+                Background = StingTools.UI.VgColorPicker.HexToBrush(hex),
+                BorderBrush = System.Windows.Media.Brushes.Gray,
+                BorderThickness = new Thickness(1)
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = string.IsNullOrEmpty(hex) ? "—" : hex,
+                FontSize = 10, VerticalAlignment = VerticalAlignment.Center
+            });
+            btn.Content = sp;
+            // Multi-format tooltip — hex / R G B decimal / 0.x normalised /
+            // RGB() CSS string. One swatch click → user copies whichever
+            // format they need without leaving the dialog.
+            if (StingTools.UI.VgColorPicker.TryParseHex(hex, out byte r, out byte g, out byte b))
+            {
+                btn.ToolTip = $"Hex: {hex}\nR G B: {r} {g} {b}\nRGB(): rgb({r},{g},{b})\nNormalised: {(r/255.0):F3} {(g/255.0):F3} {(b/255.0):F3}";
+            }
+            else
+            {
+                btn.ToolTip = "Click to pick a colour. Currently no override.";
+            }
+        }
 
         private string ValidatePack(ViewStylePack p)
         {
@@ -788,6 +950,24 @@ namespace StingTools.UI
             public string DefaultTagStyle { get; set; }
             [JsonProperty("categoryTagStyles", NullValueHandling = NullValueHandling.Ignore)]
             public Dictionary<string, string> CategoryTagStyles { get; set; }
+
+            // Phase 137 — Managed view-template mode (nested-class mirror of
+            // StingTools.Core.Drawing.ViewStylePack so the editor's pack
+            // form can author the same fields the runtime reads).
+            [JsonProperty("templateMode",  NullValueHandling = NullValueHandling.Ignore)]
+            public string TemplateMode { get; set; }
+            [JsonProperty("managedFields", NullValueHandling = NullValueHandling.Ignore)]
+            public List<string> ManagedFields { get; set; }
+            [JsonProperty("discipline",    NullValueHandling = NullValueHandling.Ignore)]
+            public string Discipline { get; set; }
+            [JsonProperty("visualStyle",   NullValueHandling = NullValueHandling.Ignore)]
+            public string VisualStyle { get; set; }
+            [JsonProperty("phaseFilter",   NullValueHandling = NullValueHandling.Ignore)]
+            public string PhaseFilter { get; set; }
+
+            [JsonIgnore]
+            public bool IsManaged =>
+                string.Equals(TemplateMode, "managed", StringComparison.OrdinalIgnoreCase);
 
             public override string ToString()
             {
@@ -1162,7 +1342,26 @@ namespace StingTools.UI
             };
             b.Click += (s, e) =>
             {
-                try { StingDockPanel.DispatchCommand(tag); }
+                try
+                {
+                    // Phase 137 — surface dispatch failures so users aren't left
+                    // wondering why a button does nothing. The most common cause
+                    // (the editor was opened modally, blocking ExternalEvent) is
+                    // fixed by launching modeless in DrawingTypeEditorCommand,
+                    // but if the dock panel isn't initialised yet we still
+                    // explain it.
+                    bool ok = StingDockPanel.DispatchCommand(tag);
+                    if (!ok)
+                    {
+                        Autodesk.Revit.UI.TaskDialog.Show("STING — Drawing Type Editor",
+                            $"Could not dispatch command '{tag}'.\n\n" +
+                            "Open the STING dock panel once before launching the editor — " +
+                            "the dock panel registers the external event handler that runs " +
+                            "tagged commands. If the panel is already open, your Revit session " +
+                            "may have a pending modal dialog blocking the event queue; close " +
+                            "it and try again.");
+                    }
+                }
                 catch (Exception ex) { StingLog.Error("Dispatch:" + tag, ex); }
             };
             return b;
@@ -1454,8 +1653,12 @@ namespace StingTools.UI
                 v => tp.PresentationMode = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
                 tooltip: "Sets PARA_STATE_1/2/3 + WARN_VISIBLE in one shot. Empty = use Para-depth slider below."));
 
-            body.Children.Add(LabeledNullableNumber("Global paragraph depth (1-10)",
-                tp.ParaDepth, v => tp.ParaDepth = v,
+            // Phase 137 — typo-prevention: Global paragraph depth is now a
+            // closed dropdown 1..10 (was a free-form NullableNumber).
+            string[] depths = new[] { "", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" };
+            body.Children.Add(LabeledCombo("Global paragraph depth (1-10)",
+                depths, tp.ParaDepth?.ToString() ?? "",
+                v => tp.ParaDepth = int.TryParse(v, out var n) ? (int?)n : null,
                 tooltip: "Tier 1 = compact, 10 = full audit. Empty = inherit from preset / leave alone."));
 
             string[] sizes  = new[] { "", "2", "2.5", "3", "3.5" };
@@ -1480,12 +1683,27 @@ namespace StingTools.UI
                 v => tp.ColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
                 tooltip: "Variable-driven colour map written to STING_VIEW_TAG_STYLE on the view."));
 
-            body.Children.Add(LabeledTextBox("Segment mask (8 chars 0/1)",
-                tp.SegmentMask, v => tp.SegmentMask = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
-                tooltip: "DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ. Example '10000001' = DISC + SEQ only."));
+            // Phase 137 — Segment mask: 8 individual checkboxes (one per
+            // DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ token). Replaces the
+            // previous free-form TextBox so users can't type "0010000A"
+            // or transpose digits.
+            body.Children.Add(BuildSegmentMaskRow(tp));
 
-            body.Children.Add(LabeledNullableNumber("Display mode (1-5)",
-                tp.DisplayMode, v => tp.DisplayMode = v,
+            // Phase 137 — Display mode: closed dropdown of the five named
+            // modes so users can't type "6" or non-numeric text.
+            string[] displayModes = new[]
+            {
+                "",                              // empty = no override
+                "1 — SEQ",
+                "2 — PROD-SEQ",
+                "3 — DISC-SYS-SEQ",
+                "4 — DISC-PROD-SEQ",
+                "5 — Full 8-segment"
+            };
+            body.Children.Add(LabeledCombo("Display mode",
+                displayModes,
+                tp.DisplayMode.HasValue ? displayModes.FirstOrDefault(s => s.StartsWith(tp.DisplayMode.Value + " ")) ?? "" : "",
+                v => tp.DisplayMode = (!string.IsNullOrEmpty(v) && int.TryParse(v.Split(' ')[0], out var n)) ? (int?)n : null,
                 tooltip: "1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment."));
 
             body.Children.Add(BuildSectionVisibilityGrid(tp));
@@ -1501,6 +1719,50 @@ namespace StingTools.UI
             body.Children.Add(summary);
 
             return Card("Token Depth & Style (Phase 135)", body);
+        }
+
+        /// <summary>
+        /// Phase 137 — segment-mask author UX: eight checkboxes labelled
+        /// DISC / LOC / ZONE / LVL / SYS / FUNC / PROD / SEQ instead of a
+        /// free-form 8-char TextBox. Mask string is materialised on every
+        /// change so the on-disk JSON stays the same shape; no chance of
+        /// typos like "11I00001" or transposed digits.
+        /// </summary>
+        private UIElement BuildSegmentMaskRow(AnnotationTokenProfile tp)
+        {
+            var sp = new StackPanel();
+            sp.Children.Add(new TextBlock {
+                Text = "Segment mask (DISC LOC ZONE LVL SYS FUNC PROD SEQ)",
+                Foreground = new SolidColorBrush(SubtleColor), FontSize = 11,
+                Margin = new Thickness(0, 6, 0, 2) });
+            string mask = (tp.SegmentMask ?? "").PadRight(8, '1').Substring(0, 8);
+            string[] tokens = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            var cbs = new System.Windows.Controls.CheckBox[8];
+            for (int i = 0; i < 8; i++)
+            {
+                int idx = i;
+                cbs[i] = new System.Windows.Controls.CheckBox
+                {
+                    Content = tokens[i],
+                    IsChecked = mask[i] == '1',
+                    Margin = new Thickness(0, 0, 8, 0),
+                    ToolTip = $"Token {idx + 1} ({tokens[idx]}) on/off in the displayed tag.",
+                };
+                cbs[idx].Checked   += (s, e) => UpdateMask(cbs, tp);
+                cbs[idx].Unchecked += (s, e) => UpdateMask(cbs, tp);
+                row.Children.Add(cbs[i]);
+            }
+            sp.Children.Add(row);
+            return sp;
+        }
+
+        private static void UpdateMask(System.Windows.Controls.CheckBox[] cbs, AnnotationTokenProfile tp)
+        {
+            var sb = new System.Text.StringBuilder(8);
+            foreach (var cb in cbs) sb.Append(cb.IsChecked == true ? '1' : '0');
+            var s = sb.ToString();
+            tp.SegmentMask = s == "11111111" ? null : s;   // null = no override
         }
 
         private UIElement BuildSectionVisibilityGrid(AnnotationTokenProfile tp)
@@ -1894,7 +2156,28 @@ namespace StingTools.UI
             for (int c = 0; c < _slotColWidths.Length; c++)
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_slotColWidths[c]) });
 
-            var tbLbl = SmallTb(slot.Label, v => slot.Label = v);
+            // Phase 137 — slot label as a ComboBox sourced from any STING-aware
+            // title-block's TB_VIEWPORT_SLOTS_JSON_TXT parameter (so the user
+            // picks a real slot name authored on the title-block family),
+            // with the canonical default catalogue appended as a fallback.
+            // Selecting a label that maps to a known slot also auto-fills
+            // normX / normY / normW / normH from that slot's geometry.
+            var slotLabels = TitleBlockSlotLoader.GetLabels(_doc, _current.TitleBlockFamily);
+            var tbLbl = SmallCombo(slot.Label, v =>
+            {
+                slot.Label = v;
+                var match = TitleBlockSlotLoader.FindByLabel(_doc, v, _current.TitleBlockFamily);
+                if (match != null)
+                {
+                    slot.NormX = match.NormX;
+                    slot.NormY = match.NormY;
+                    slot.NormW = match.NormW;
+                    slot.NormH = match.NormH;
+                    if (!string.IsNullOrEmpty(match.ViewType)) slot.ViewType = match.ViewType;
+                    if (match.Scale.HasValue) slot.Scale = match.Scale;
+                    onChange?.Invoke();
+                }
+            }, slotLabels.ToArray());
             // Closed list of Revit ViewType enum values — eliminates typos.
             var tbVt  = SmallCombo(slot.ViewType, v => slot.ViewType = v,
                 new[] { "FloorPlan", "CeilingPlan", "Elevation", "Section", "ThreeD",

@@ -74,6 +74,13 @@ namespace StingTools.Core.Drawing
                         report.Drifts.Add($"TEMPLATE: view '{tplName ?? "(none)"}' vs profile '{dt.ViewTemplateName}'");
                 }
 
+                // Phase 137 — managed-template drift detection. When the
+                // resolved pack is in managed mode, the view should carry
+                // the "STING:{packId}:{ViewType}" template and the stored
+                // checksum on that template should match the pack's
+                // current checksum. If either is wrong, flag drift.
+                AppendManagedTemplateDrift(doc, v, dt, report);
+
                 // Phase 135 — token profile drift. Compares
                 // STING_VIEW_TAG_STYLE and TAG_SEG_MASK_TXT on the view
                 // to the resolved profile/pack defaults. SyncStyles
@@ -84,6 +91,36 @@ namespace StingTools.Core.Drawing
                 if (report.Any) reports.Add(report);
             }
             return reports;
+        }
+
+        private static void AppendManagedTemplateDrift(Document doc, View v, DrawingType dt, DriftReport report)
+        {
+            if (string.IsNullOrEmpty(dt.ViewStylePackId)) return;
+            try
+            {
+                var pack = DrawingTypeRegistry.TryGetPack(doc, dt.ViewStylePackId);
+                if (pack == null || !pack.IsManaged) return;
+
+                var expectedName = ManagedTemplateSyncer.GetManagedTemplateName(pack.Id, v.ViewType);
+                View current = null;
+                if (v.ViewTemplateId != null && v.ViewTemplateId != ElementId.InvalidElementId)
+                    current = doc.GetElement(v.ViewTemplateId) as View;
+
+                if (current == null || !string.Equals(current.Name, expectedName, StringComparison.Ordinal))
+                {
+                    report.Drifts.Add($"ManagedTemplate: view template '{current?.Name ?? "(none)"}' vs expected '{expectedName}'");
+                    return;
+                }
+
+                var stored = ManagedTemplateSyncer.GetStoredChecksum(current);
+                var expected = ManagedTemplateSyncer.ComputePackChecksum(pack);
+                if (!string.Equals(stored, expected, StringComparison.Ordinal))
+                    report.Drifts.Add($"ManagedTemplate: checksum '{stored ?? "(none)"}' vs '{expected}' — pack edited since template last applied");
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"AppendManagedTemplateDrift({v.Id}): {ex.Message}");
+            }
         }
 
         private static void AppendTokenProfileDrift(Document doc, View v, DrawingType dt, DriftReport report)

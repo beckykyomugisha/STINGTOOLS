@@ -963,6 +963,11 @@
       "viewTemplateName": "STING - MEP Coordination",
       "sheetNumberPattern": "M-CO-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP COORDINATION — {lvl}",
+      "productionRules": [
+        { "idx": 0, "viewType": "FloorPlan", "slotIndex": 0, "required": true,  "nameSuffix": " - PLAN" },
+        { "idx": 1, "viewType": "ThreeD",    "slotIndex": 1, "required": false, "nameSuffix": " - ISO"  },
+        { "idx": 2, "viewType": "Section",   "slotIndex": 2, "required": false, "nameSuffix": " - SEC"  }
+      ],
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -1060,6 +1065,10 @@
       "viewTemplateName": "STING - Pipe Shop Drawing",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "{discipline} spool {spool}",
+      "productionRules": [
+        { "idx": 0, "viewType": "FloorPlan", "slotIndex": 0, "required": true, "nameSuffix": " - PLAN" },
+        { "idx": 1, "viewType": "ThreeD",    "slotIndex": 1, "required": true, "nameSuffix": " - ISO"  }
+      ],
       "crop": {
         "kind": "TightBbox",
         "marginMm": 300
@@ -2855,6 +2864,10 @@
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation 3D",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
+      "productionRules": [
+        { "idx": 0, "viewType": "ThreeD",    "slotIndex": 0, "required": true,  "nameSuffix": "" },
+        { "idx": 1, "viewType": "FloorPlan", "slotIndex": 1, "required": false, "nameSuffix": " - KEY" }
+      ],
       "sheetNamePattern": "3D AXONOMETRIC — {mark}",
       "crop": {
         "kind": "TightBbox",

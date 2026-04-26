@@ -45,6 +45,20 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// Phase 137 — convenience accessor that mirrors
+        /// <see cref="ViewStylePackRegistry"/>.Get but lives next to the
+        /// drawing-type registry so callers can reach packs without an
+        /// extra using-statement. Returns null when the pack id is null,
+        /// empty, or unresolved.
+        /// </summary>
+        public static ViewStylePack TryGetPack(Document doc, string packId)
+        {
+            if (string.IsNullOrWhiteSpace(packId)) return null;
+            try { return ViewStylePackRegistry.Get(doc, packId); }
+            catch { return null; }
+        }
+
+        /// <summary>
         /// Walk DrawingType.Extends and return a merged snapshot —
         /// child non-null / non-default fields override parent. Loop
         /// detection via visited-set; mirror of ViewStylePackRegistry.

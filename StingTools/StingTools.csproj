@@ -9,7 +9,9 @@
     <Version>2.2.0</Version>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <UseWPF>true</UseWPF>
-    <UseWindowsForms>false</UseWindowsForms>
+    <!-- Phase 136 — DrawingTypeEditorDialog uses System.Windows.Forms.ColorDialog
+         from the new VG editor's Line and Pattern override sub-dialogs. -->
+    <UseWindowsForms>true</UseWindowsForms>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
