@@ -440,14 +440,18 @@ namespace StingTools.UI
             // Click pops VgLineGraphicsDialog with Pattern + Color + Weight
             // (the editable Wt/Pattern/Trans columns alongside still allow
             // direct cell editing for power users).
-            g.Columns.Add(OverrideCol("Lines", proj: true, W_PROJ_LINE));
-            g.Columns.Add(WeightCol("Wt",          nameof(VgRow.ProjLineWeightStr), W_PROJ_LINE / 2));
-            g.Columns.Add(PatternCol("Patterns",   nameof(VgRow.ProjLinePattern),  W_PROJ_PATT, lines: true));
+            // Phase 137 — Lines + Patterns columns under Projection/Surface
+            // and Cut now both pop their respective Revit-native popups
+            // (Line Graphics and Fill Pattern Graphics). The inline Wt /
+            // line-pattern combos are gone — they were redundant with the
+            // Lines popup AND were binding to the wrong pattern catalogue
+            // (line patterns instead of fill patterns).
+            g.Columns.Add(OverrideCol("Lines",    proj: true, W_PROJ_LINE,   isPattern: false));
+            g.Columns.Add(OverrideCol("Patterns", proj: true, W_PROJ_PATT,   isPattern: true));
             g.Columns.Add(TextCol("Trans %",       nameof(VgRow.TransparencyStr),  W_PROJ_TRANS));
 
-            g.Columns.Add(OverrideCol("Lines", proj: false, W_CUT_LINE));
-            g.Columns.Add(WeightCol("Wt",          nameof(VgRow.CutLineWeightStr), W_CUT_LINE / 2));
-            g.Columns.Add(PatternCol("Patterns",   nameof(VgRow.CutLinePattern),   W_CUT_PATT, lines: true));
+            g.Columns.Add(OverrideCol("Lines",    proj: false, W_CUT_LINE,   isPattern: false));
+            g.Columns.Add(OverrideCol("Patterns", proj: false, W_CUT_PATT,   isPattern: true));
 
             g.Columns.Add(BoolCol("Halftone",      nameof(VgRow.Halftone),         W_HALFTONE));
             g.Columns.Add(ComboCol("Detail Level", nameof(VgRow.DetailLevelStr),
@@ -618,7 +622,7 @@ namespace StingTools.UI
         /// native dialog. <paramref name="proj"/> chooses between the
         /// row's ProjLine* (true) or CutLine* (false) fields.
         /// </summary>
-        private DataGridColumn OverrideCol(string header, bool proj, double width)
+        private DataGridColumn OverrideCol(string header, bool proj, double width, bool isPattern = false)
         {
             var col = new DataGridTemplateColumn
             {
@@ -633,7 +637,10 @@ namespace StingTools.UI
             f.SetValue(Button.ContentProperty, "Override…");
             f.SetValue(Button.FontStyleProperty, FontStyles.Italic);
             f.SetValue(Button.FocusableProperty, false);
-            f.AddHandler(Button.ClickEvent, new RoutedEventHandler(proj ? (RoutedEventHandler)OnProjLineOverrideClick : OnCutLineOverrideClick));
+            RoutedEventHandler handler = isPattern
+                ? (proj ? (RoutedEventHandler)OnProjPatternOverrideClick : OnCutPatternOverrideClick)
+                : (proj ? (RoutedEventHandler)OnProjLineOverrideClick    : OnCutLineOverrideClick);
+            f.AddHandler(Button.ClickEvent, handler);
             dt.VisualTree = f;
             col.CellTemplate = dt;
             return col;
@@ -643,6 +650,10 @@ namespace StingTools.UI
             => OnLineOverrideClick(sender, proj: true);
         private void OnCutLineOverrideClick(object sender, RoutedEventArgs e)
             => OnLineOverrideClick(sender, proj: false);
+        private void OnProjPatternOverrideClick(object sender, RoutedEventArgs e)
+            => OnPatternOverrideClick(sender, proj: true);
+        private void OnCutPatternOverrideClick(object sender, RoutedEventArgs e)
+            => OnPatternOverrideClick(sender, proj: false);
 
         private void OnLineOverrideClick(object sender, bool proj)
         {
@@ -682,6 +693,53 @@ namespace StingTools.UI
                 row.CutLinePattern    = picked.Pattern;
                 row.CutLineColor      = picked.ColorHex;
                 row.CutLineWeightStr  = picked.Weight?.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Phase 137 — opens VgFillPatternDialog (Revit's "Fill Pattern
+        /// Graphics" replica) on the row's surface (proj = true) or cut
+        /// (proj = false) Fg/Bg pattern + colour fields.
+        /// </summary>
+        private void OnPatternOverrideClick(object sender, bool proj)
+        {
+            if (!(sender is FrameworkElement fe) || !(fe.DataContext is VgRow row)) return;
+            var d = row.Data;
+            var current = new VgFillPattern
+            {
+                FgVisible = proj ? d.SurfFgVisible : d.CutFgVisible,
+                FgPattern = proj ? d.SurfFgPattern : d.CutFgPattern,
+                FgColor   = proj ? d.SurfFgColor   : d.CutFgColor,
+                BgVisible = proj ? d.SurfBgVisible : (bool?)null,
+                BgPattern = proj ? d.SurfBgPattern : d.CutBgPattern,
+                BgColor   = proj ? d.SurfBgColor   : d.CutBgColor
+            };
+            var picked = VgFillPatternDialog.Show(current, _fillPatterns,
+                proj ? "Fill Pattern Graphics — Surface" : "Fill Pattern Graphics — Cut");
+            if (picked == null) return;
+            if (picked.Cleared)
+            {
+                if (proj)
+                {
+                    row.SurfFgPattern = null; row.SurfFgColor = null; d.SurfFgVisible = null;
+                    row.SurfBgPattern = null; row.SurfBgColor = null; d.SurfBgVisible = null;
+                }
+                else
+                {
+                    row.CutFgPattern  = null; row.CutFgColor  = null; d.CutFgVisible  = null;
+                    row.CutBgPattern  = null; row.CutBgColor  = null;
+                }
+                return;
+            }
+            if (proj)
+            {
+                row.SurfFgPattern = picked.FgPattern; row.SurfFgColor = picked.FgColor; d.SurfFgVisible = picked.FgVisible;
+                row.SurfBgPattern = picked.BgPattern; row.SurfBgColor = picked.BgColor; d.SurfBgVisible = picked.BgVisible;
+            }
+            else
+            {
+                row.CutFgPattern  = picked.FgPattern; row.CutFgColor  = picked.FgColor; d.CutFgVisible  = picked.FgVisible;
+                row.CutBgPattern  = picked.BgPattern; row.CutBgColor  = picked.BgColor;
             }
         }
 
@@ -939,6 +997,13 @@ namespace StingTools.UI
             _linePatterns.Sort(StringComparer.OrdinalIgnoreCase);
             _fillPatterns.Sort(StringComparer.OrdinalIgnoreCase);
             _lineStyles.Sort(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                StingTools.Core.StingLog.Info(
+                    $"RevitVgEditor.LoadPatterns: {_linePatterns.Count} line patterns, " +
+                    $"{_fillPatterns.Count} fill patterns, {_lineStyles.Count} line styles harvested.");
+            }
+            catch { }
         }
 
         private void OnRowChanged(VgRow r) => RowChanged?.Invoke(r);
