@@ -76,6 +76,9 @@ namespace StingTools.UI
             public bool HasChildren { get; set; }
             public string Key => IsParent ? Bic : $"{Bic}/{SubCategoryName}";
             public PresetCategoryOverride Data { get; set; }
+            /// <summary>Set by the editor so subcategory rows can ask their
+            /// parent whether they should be visible.</summary>
+            public VgRow ParentRow { get; set; }
 
             // Indentation / chevron rendering
             public Thickness NameMargin => IsParent ? new Thickness(0, 0, 0, 0) : new Thickness(28, 0, 0, 0);
@@ -86,7 +89,26 @@ namespace StingTools.UI
             public bool Expanded
             {
                 get => _expanded;
-                set { _expanded = value; Chevron = value ? "▼" : "▶"; Raise(nameof(Chevron)); }
+                set
+                {
+                    if (_expanded == value) return;
+                    _expanded = value;
+                    Chevron = value ? "▼" : "▶";
+                    Raise(nameof(Chevron));
+                    Raise(nameof(Expanded));
+                    ExpandedChanged?.Invoke(this);
+                }
+            }
+            public Action<VgRow> ExpandedChanged { get; set; }
+
+            /// <summary>Reading from the active line-style dropdown writes
+            /// the line-style name onto the override row. Auto-fill of
+            /// color / weight / pattern from the named style is handled
+            /// by the editor (it has the GraphicsStyle list).</summary>
+            public string LineStyle
+            {
+                get => Data.ProjLinePattern;
+                set { Data.ProjLinePattern = value; Raise(nameof(LineStyle)); }
             }
 
             // Bindable cells — round-trip into Data
@@ -136,6 +158,13 @@ namespace StingTools.UI
         private CollectionView _modelView, _annoView;
         private List<string> _linePatterns;
         private List<string> _fillPatterns;
+        // Phase 137 — line styles harvested from doc.Settings.Categories[OST_Lines].SubCategories.
+        // Each LineStyle bundles a Color + Weight + Pattern; the VG editor's
+        // Line Style dropdown column lets users pick one and have the
+        // separate Color / Wt / Pattern cells auto-fill from the named
+        // style.
+        private List<string> _lineStyles;
+        private Dictionary<string, (string color, int weight, string pattern)> _lineStyleByName;
 
         public RevitVgEditor(Document doc, Dictionary<string, PresetCategoryOverride> data)
         {
@@ -243,6 +272,8 @@ namespace StingTools.UI
                 if (!(o is VgRow r)) return false;
                 if (isAnno && r.GroupTag != "Annotation") return false;
                 if (!isAnno && r.GroupTag != "Model") return false;
+                // Subcategory rows are hidden when their parent is collapsed.
+                if (!r.IsParent && r.ParentRow != null && !r.ParentRow.Expanded) return false;
                 if (!string.IsNullOrEmpty(_search?.Text) &&
                     (r.DisplayName ?? "").IndexOf(_search.Text, StringComparison.OrdinalIgnoreCase) < 0 &&
                     (r.Bic ?? "").IndexOf(_search.Text, StringComparison.OrdinalIgnoreCase) < 0)
@@ -274,33 +305,36 @@ namespace StingTools.UI
 
         // Column widths shared between the group header and the DataGrid
         // columns underneath so the bands line up exactly.
-        private const double W_VIS = 320;
+        private const double W_VIS = 280;
+        private const double W_LINE_STYLE = 130;        // Phase 137 — new Line-Style picker column
         private const double W_PROJ_LINE = 80;
         private const double W_PROJ_PATT = 110;
-        private const double W_PROJ_TRANS = 70;
+        private const double W_PROJ_TRANS = 64;
         private const double W_CUT_LINE = 80;
         private const double W_CUT_PATT = 110;
-        private const double W_HALFTONE = 64;
+        private const double W_HALFTONE = 60;
         private const double W_DETAIL = 80;
 
         private FrameworkElement BuildGroupHeader()
         {
             var bar = new Grid { Height = 28, Background = new SolidColorBrush(Color.FromRgb(232, 232, 240)) };
             DockPanel.SetDock(bar, Dock.Top);
-            // 1 col Visibility, 3 cols Proj/Surface group, 2 cols Cut group, 1 col Halftone, 1 col Detail Level
+            // Visibility | Line Style | Proj/Surface(3) | Cut(2) | Halftone | Detail Level
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_VIS) });
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_LINE_STYLE) });
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_PROJ_LINE + W_PROJ_PATT + W_PROJ_TRANS) });
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_CUT_LINE + W_CUT_PATT) });
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_HALFTONE) });
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(W_DETAIL) });
 
-            var bVis = MakeBandLabel("");
+            var bVis  = MakeBandLabel("");
+            var bLs   = MakeBandLabel("Line Style");
             var bProj = MakeBandLabel("Projection / Surface");
-            var bCut = MakeBandLabel("Cut");
-            var bHt = MakeBandLabel("");
-            var bDl = MakeBandLabel("");
-            Grid.SetColumn(bVis, 0); Grid.SetColumn(bProj, 1); Grid.SetColumn(bCut, 2); Grid.SetColumn(bHt, 3); Grid.SetColumn(bDl, 4);
-            bar.Children.Add(bVis); bar.Children.Add(bProj); bar.Children.Add(bCut); bar.Children.Add(bHt); bar.Children.Add(bDl);
+            var bCut  = MakeBandLabel("Cut");
+            var bHt   = MakeBandLabel("");
+            var bDl   = MakeBandLabel("");
+            Grid.SetColumn(bVis, 0); Grid.SetColumn(bLs, 1); Grid.SetColumn(bProj, 2); Grid.SetColumn(bCut, 3); Grid.SetColumn(bHt, 4); Grid.SetColumn(bDl, 5);
+            bar.Children.Add(bVis); bar.Children.Add(bLs); bar.Children.Add(bProj); bar.Children.Add(bCut); bar.Children.Add(bHt); bar.Children.Add(bDl);
             return bar;
         }
 
@@ -358,12 +392,23 @@ namespace StingTools.UI
             var fSp = new FrameworkElementFactory(typeof(StackPanel));
             fSp.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
 
-            var fChev = new FrameworkElementFactory(typeof(TextBlock));
-            fChev.SetBinding(TextBlock.TextProperty, new Binding(nameof(VgRow.Chevron)));
-            fChev.SetBinding(TextBlock.VisibilityProperty, new Binding(nameof(VgRow.ChevronVisibility)));
-            fChev.SetValue(TextBlock.WidthProperty, 14.0);
-            fChev.SetValue(TextBlock.MarginProperty, new Thickness(2, 0, 4, 0));
-            fChev.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 100, 110)));
+            // Clickable chevron — Button styled flat so it reads as a link
+            // glyph but still raises Click. On click we toggle the row's
+            // Expanded state, which fires ExpandedChanged → editor refreshes
+            // the per-tab CollectionView so subcategories under collapsed
+            // parents disappear.
+            var fChev = new FrameworkElementFactory(typeof(Button));
+            fChev.SetValue(Button.WidthProperty, 18.0);
+            fChev.SetValue(Button.HeightProperty, 18.0);
+            fChev.SetValue(Button.MarginProperty, new Thickness(2, 0, 4, 0));
+            fChev.SetValue(Button.PaddingProperty, new Thickness(0));
+            fChev.SetValue(Button.BackgroundProperty, Brushes.Transparent);
+            fChev.SetValue(Button.BorderThicknessProperty, new Thickness(0));
+            fChev.SetValue(Button.CursorProperty, System.Windows.Input.Cursors.Hand);
+            fChev.SetValue(Button.FocusableProperty, false);
+            fChev.SetBinding(Button.ContentProperty, new Binding(nameof(VgRow.Chevron)));
+            fChev.SetBinding(Button.VisibilityProperty, new Binding(nameof(VgRow.ChevronVisibility)));
+            fChev.AddHandler(Button.ClickEvent, new RoutedEventHandler(OnChevronClick));
 
             var fCb = new FrameworkElementFactory(typeof(CheckBox));
             fCb.SetValue(CheckBox.IsThreeStateProperty, true);
@@ -383,6 +428,12 @@ namespace StingTools.UI
             dt.VisualTree = fSp;
             visCol.CellTemplate = dt;
             g.Columns.Add(visCol);
+
+            // Phase 137 — Line Style picker (reads doc.Settings.Categories[OST_Lines]
+            // subcategories). Picking a known style auto-fills the cell row's
+            // ProjLineColor / ProjLineWeight / ProjLinePattern from the
+            // GraphicsStyle's bundled values via OnLineStylePicked.
+            g.Columns.Add(LineStyleCol("Picker", W_LINE_STYLE));
 
             g.Columns.Add(TextCol("Lines",         nameof(VgRow.ProjLineColor),    W_PROJ_LINE / 2));
             g.Columns.Add(WeightCol("Wt",          nameof(VgRow.ProjLineWeightStr), W_PROJ_LINE / 2));
@@ -488,6 +539,7 @@ namespace StingTools.UI
         private void SetExpanded(bool v)
         {
             foreach (var r in AllRows) if (r.IsParent) r.Expanded = v;
+            RefreshFilters();
         }
 
         private void ClearOverrides()
@@ -547,6 +599,53 @@ namespace StingTools.UI
             => ComboCol(header, path,
                 new[] { "" }.Concat(lines ? _linePatterns : _fillPatterns).ToArray(), width);
 
+        /// <summary>
+        /// Phase 137 — DataGridTemplateColumn that hosts an editable
+        /// ComboBox of LineStyle names. SelectionChanged unpacks the
+        /// chosen style's color / weight / pattern onto the row's
+        /// PresetCategoryOverride.
+        /// </summary>
+        private DataGridColumn LineStyleCol(string header, double width)
+        {
+            var col = new DataGridTemplateColumn
+            {
+                Header = header,
+                Width = new DataGridLength(width, DataGridLengthUnitType.Pixel),
+                CanUserResize = false
+            };
+            var dt = new DataTemplate();
+            var f = new FrameworkElementFactory(typeof(ComboBox));
+            f.SetValue(ComboBox.IsEditableProperty, true);
+            f.SetValue(ComboBox.ItemsSourceProperty, _lineStyles ?? new List<string> { "<no override>" });
+            f.SetValue(ComboBox.MarginProperty, new Thickness(0));
+            f.SetValue(ComboBox.PaddingProperty, new Thickness(2));
+            // No two-way binding — SelectionChanged is the side-effect.
+            f.AddHandler(ComboBox.SelectionChangedEvent, new SelectionChangedEventHandler(OnLineStylePicked));
+            dt.VisualTree = f;
+            col.CellTemplate = dt;
+            return col;
+        }
+
+        /// <summary>
+        /// When the user picks a Line Style name in the dropdown, look up
+        /// its bundled (colour, weight, pattern) and write those onto the
+        /// row. Free-typed entries that don't match a known style fall
+        /// through with no auto-fill.
+        /// </summary>
+        private void OnLineStylePicked(object sender, SelectionChangedEventArgs e)
+        {
+            if (!(sender is ComboBox cb)) return;
+            var pick = (cb.SelectedItem as string) ?? cb.Text;
+            if (string.IsNullOrEmpty(pick) || pick == "<no override>") return;
+            if (!(cb.DataContext is VgRow row)) return;
+            if (_lineStyleByName != null && _lineStyleByName.TryGetValue(pick, out var bundle))
+            {
+                if (!string.IsNullOrEmpty(bundle.color))   row.ProjLineColor = bundle.color;
+                if (bundle.weight > 0)                     row.ProjLineWeightStr = bundle.weight.ToString();
+                if (!string.IsNullOrEmpty(bundle.pattern)) row.ProjLinePattern = bundle.pattern;
+            }
+        }
+
         private static Button MkBtn(string text, RoutedEventHandler click)
         {
             var b = new Button { Content = text, Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 0, 4, 0), MinWidth = 70 };
@@ -582,9 +681,17 @@ namespace StingTools.UI
             }
 
             rows.Sort(VgRowOrder);
+
+            // Wire each subcategory row's ParentRow back-reference so the
+            // per-tab filter predicate can hide children under collapsed
+            // parents. Also subscribe to AnyChanged + ExpandedChanged.
+            var byBicParent = rows.Where(r => r.IsParent)
+                                  .ToDictionary(r => r.Bic, r => r, StringComparer.OrdinalIgnoreCase);
             foreach (var r in rows)
             {
                 r.AnyChanged = OnRowChanged;
+                if (r.IsParent) r.ExpandedChanged = OnRowExpandedChanged;
+                else if (byBicParent.TryGetValue(r.Bic, out var p)) r.ParentRow = p;
                 AllRows.Add(r);
             }
         }
@@ -689,8 +796,12 @@ namespace StingTools.UI
 
         private void LoadPatterns()
         {
-            _linePatterns = new List<string> { "Solid" };
-            _fillPatterns = new List<string>();
+            // Sentinel entries so the user can clear / pick solid without
+            // typing — match Revit's dropdown UX.
+            _linePatterns = new List<string> { "<no override>", "Solid" };
+            _fillPatterns = new List<string> { "<no override>", "<Solid fill>" };
+            _lineStyles   = new List<string> { "<no override>" };
+            _lineStyleByName = new Dictionary<string, (string, int, string)>(StringComparer.OrdinalIgnoreCase);
             if (_doc == null) return;
             try
             {
@@ -706,10 +817,68 @@ namespace StingTools.UI
                         _fillPatterns.Add(fp.Name);
             }
             catch { }
+            // Line Styles — every subcategory of OST_Lines is a line style;
+            // its GraphicsStyle exposes Color + LineWeight + LinePatternId.
+            try
+            {
+                var linesCat = _doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);
+                if (linesCat?.SubCategories != null)
+                {
+                    foreach (Category sub in linesCat.SubCategories)
+                    {
+                        if (sub == null || string.IsNullOrEmpty(sub.Name)) continue;
+                        if (_lineStyles.Contains(sub.Name)) continue;
+                        _lineStyles.Add(sub.Name);
+                        try
+                        {
+                            var gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
+                            string colourHex = null;
+                            int weight = 0;
+                            string patternName = null;
+                            if (sub.LineColor != null && sub.LineColor.IsValid)
+                                colourHex = $"#{sub.LineColor.Red:X2}{sub.LineColor.Green:X2}{sub.LineColor.Blue:X2}";
+                            try { weight = sub.GetLineWeight(GraphicsStyleType.Projection) ?? 0; } catch { }
+                            try
+                            {
+                                var pid = sub.GetLinePatternId(GraphicsStyleType.Projection);
+                                if (pid != null && pid != ElementId.InvalidElementId)
+                                {
+                                    if (pid == LinePatternElement.GetSolidPatternId()) patternName = "Solid";
+                                    else if (_doc.GetElement(pid) is LinePatternElement lp) patternName = lp.Name;
+                                }
+                            }
+                            catch { }
+                            _lineStyleByName[sub.Name] = (colourHex, weight, patternName);
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch { }
+
             _linePatterns.Sort(StringComparer.OrdinalIgnoreCase);
             _fillPatterns.Sort(StringComparer.OrdinalIgnoreCase);
+            _lineStyles.Sort(StringComparer.OrdinalIgnoreCase);
         }
 
         private void OnRowChanged(VgRow r) => RowChanged?.Invoke(r);
+
+        /// <summary>
+        /// Toggles the parent row's <see cref="VgRow.Expanded"/> state when
+        /// the user clicks the chevron in the Visibility column. The row's
+        /// ExpandedChanged event then nudges the per-tab CollectionView so
+        /// child rows hide / show under the parent.
+        /// </summary>
+        private void OnChevronClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.DataContext is VgRow row && row.IsParent && row.HasChildren)
+                row.Expanded = !row.Expanded;
+        }
+
+        /// <summary>
+        /// Wired onto every parent row's ExpandedChanged in BuildRowsFromDocument
+        /// so a single chevron click triggers a Refresh on the per-tab views.
+        /// </summary>
+        private void OnRowExpandedChanged(VgRow _) => RefreshFilters();
     }
 }

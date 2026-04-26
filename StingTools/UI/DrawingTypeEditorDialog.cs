@@ -1289,7 +1289,26 @@ namespace StingTools.UI
             };
             b.Click += (s, e) =>
             {
-                try { StingDockPanel.DispatchCommand(tag); }
+                try
+                {
+                    // Phase 137 — surface dispatch failures so users aren't left
+                    // wondering why a button does nothing. The most common cause
+                    // (the editor was opened modally, blocking ExternalEvent) is
+                    // fixed by launching modeless in DrawingTypeEditorCommand,
+                    // but if the dock panel isn't initialised yet we still
+                    // explain it.
+                    bool ok = StingDockPanel.DispatchCommand(tag);
+                    if (!ok)
+                    {
+                        Autodesk.Revit.UI.TaskDialog.Show("STING — Drawing Type Editor",
+                            $"Could not dispatch command '{tag}'.\n\n" +
+                            "Open the STING dock panel once before launching the editor — " +
+                            "the dock panel registers the external event handler that runs " +
+                            "tagged commands. If the panel is already open, your Revit session " +
+                            "may have a pending modal dialog blocking the event queue; close " +
+                            "it and try again.");
+                    }
+                }
                 catch (Exception ex) { StingLog.Error("Dispatch:" + tag, ex); }
             };
             return b;
