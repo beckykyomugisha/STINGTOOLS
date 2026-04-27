@@ -54,6 +54,10 @@ namespace StingTools.Core.Clash
         // B3: Track last-run timestamp so the dirty-model gate suppresses
         // ticks when no element has been edited since the previous run.
         private DateTime _lastRunUtc = DateTime.MinValue;
+        // F4: Event subscriptions — kept in fields so we can detach on Stop.
+        private UIApplication _subscribedApp;
+        private EventHandler<Autodesk.Revit.DB.Events.DocumentSavedEventArgs> _onSaved;
+        private EventHandler<Autodesk.Revit.DB.Events.DocumentSynchronizedWithCentralEventArgs> _onSynced;
 
         public void StartHourly(UIApplication app) => Start(app, intervalMinutes: 0);
 
@@ -94,7 +98,54 @@ namespace StingTools.Core.Clash
             _timer = new Timer(minutes * 60 * 1000) { AutoReset = true };
             _timer.Elapsed += (s, e) => OnTick(app);
             _timer.Start();
+
+            // F4: Event-driven supplements to the periodic tick. DocumentSaved
+            //     and DocumentSynchronizedWithCentral fire after every user
+            //     save / Sync With Central — instant feedback rather than
+            //     waiting up to {minutes} for the next poll. Mesh cache also
+            //     gets invalidated so the next run picks up post-save state.
+            try
+            {
+                if (_subscribedApp != null) DetachEvents();
+                _subscribedApp = app;
+                _onSaved = (s, e) => OnDocumentChanged(app, "DocumentSaved");
+                _onSynced = (s, e) => OnDocumentChanged(app, "SyncedWithCentral");
+                app.Application.DocumentSaved += _onSaved;
+                app.Application.DocumentSynchronizedWithCentral += _onSynced;
+                StingLog.Info("ClashScheduler: subscribed to DocumentSaved + DocumentSynchronizedWithCentral");
+            }
+            catch (Exception ex) { StingLog.Warn($"ClashScheduler event subscribe: {ex.Message}"); }
+
             StingLog.Info($"ClashScheduler started ({minutes}-minute tick)");
+        }
+
+        /// <summary>
+        /// F4: Save / Sync hook. Invalidates mesh cache (post-save state)
+        /// and raises the run event. Throttled by the dirty gate so a save
+        /// without edits is still a no-op.
+        /// </summary>
+        private void OnDocumentChanged(UIApplication app, string trigger)
+        {
+            try
+            {
+                var doc = app?.ActiveUIDocument?.Document;
+                if (doc != null) MeshExtractor.InvalidateCacheFor(doc);
+                StingLog.Info($"ClashScheduler {trigger} → run requested");
+                OnTick(app);
+            }
+            catch (Exception ex) { StingLog.Warn($"ClashScheduler.OnDocumentChanged({trigger}): {ex.Message}"); }
+        }
+
+        private void DetachEvents()
+        {
+            try
+            {
+                if (_subscribedApp == null) return;
+                if (_onSaved != null) _subscribedApp.Application.DocumentSaved -= _onSaved;
+                if (_onSynced != null) _subscribedApp.Application.DocumentSynchronizedWithCentral -= _onSynced;
+            }
+            catch (Exception ex) { StingLog.Warn($"ClashScheduler.DetachEvents: {ex.Message}"); }
+            _subscribedApp = null; _onSaved = null; _onSynced = null;
         }
 
         private void OnTick(UIApplication app)
@@ -159,6 +210,11 @@ namespace StingTools.Core.Clash
             return 60;
         }
 
-        public void Stop() { _timer?.Stop(); _timer = null; }
+        public void Stop()
+        {
+            _timer?.Stop();
+            _timer = null;
+            DetachEvents();
+        }
     }
 }

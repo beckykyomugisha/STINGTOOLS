@@ -18,6 +18,23 @@ namespace StingTools.Core.Clash
         {
             var result = new List<CoordIssue>();
             if (run?.Groups == null) return result;
+            // F6: Build a GroupId → ClashRecord[] index so we can write the
+            //     issue Guid back onto every member ClashRecord.IssueGuid.
+            //     Closes the BCF round-trip loop — re-importing the BCF
+            //     can reconstruct the (issue, clash[]) association without
+            //     scanning prior runs.
+            var byGroupId = new Dictionary<string, List<ClashRecord>>(StringComparer.Ordinal);
+            if (run.Clashes != null)
+            {
+                foreach (var c in run.Clashes)
+                {
+                    if (string.IsNullOrEmpty(c.GroupId)) continue;
+                    if (!byGroupId.TryGetValue(c.GroupId, out var lst))
+                        byGroupId[c.GroupId] = lst = new List<ClashRecord>();
+                    lst.Add(c);
+                }
+            }
+
             foreach (var g in run.Groups)
             {
                 // A2: Element- and pattern-anchor strings are minted by
@@ -29,9 +46,10 @@ namespace StingTools.Core.Clash
                 string pairId = ExtractPairId(g.Anchor);
                 var cell = matrix?.Cells?.FirstOrDefault(c =>
                     string.Equals(c.PairId, pairId, StringComparison.OrdinalIgnoreCase));
+                string issueGuid = Guid.NewGuid().ToString();
                 var issue = new CoordIssue
                 {
-                    Guid = Guid.NewGuid().ToString(),
+                    Guid = issueGuid,
                     Title = $"Clash group {g.Id} ({g.Size} clashes)",
                     Description = $"Matrix pair {pairId}. Severity {cell?.Severity ?? "MED"}.",
                     Status = "Open",
@@ -41,6 +59,16 @@ namespace StingTools.Core.Clash
                 };
                 g.Assignee = issue.Assignee;
                 result.Add(issue);
+
+                // F6: Write back-link onto every member ClashRecord.
+                if (byGroupId.TryGetValue(g.Id ?? "", out var members))
+                {
+                    foreach (var c in members)
+                    {
+                        c.IssueGuid = issueGuid;
+                        c.LinkedIssueGuid = issueGuid;   // legacy field — keep in sync
+                    }
+                }
             }
             return result;
         }
@@ -77,25 +105,78 @@ namespace StingTools.Core.Clash
             if (!doc.IsWorkshared) return;
             try
             {
-                var byGroupId = new Dictionary<string, ClashRecord>(StringComparer.Ordinal);
+                // F12: Element-level workset resolution with majority vote.
+                //      Prior code took the workset owner of the FIRST member
+                //      of each group, but two clashes in the same spatial
+                //      cell can come from different worksets (M services +
+                //      E services often co-locate). Now: resolve the owner
+                //      for every member ClashRecord, take the most-frequent
+                //      owner; tie-break by lex order. Mixed-owner groups
+                //      get a "(mixed)" suffix so coordinators see the
+                //      escalation cue.
+                var byGroupId = new Dictionary<string, List<ClashRecord>>(StringComparer.Ordinal);
                 foreach (var c in run.Clashes ?? new List<ClashRecord>())
                 {
                     if (string.IsNullOrEmpty(c.GroupId)) continue;
-                    if (!byGroupId.ContainsKey(c.GroupId)) byGroupId[c.GroupId] = c;
+                    if (!byGroupId.TryGetValue(c.GroupId, out var lst))
+                        byGroupId[c.GroupId] = lst = new List<ClashRecord>();
+                    lst.Add(c);
                 }
+                // Cache owner-name lookups so the same element doesn't pay
+                // the GetWorksharingTooltipInfo cost twice across groups.
+                var ownerCache = new Dictionary<int, string>();
                 int i = 0;
                 foreach (var g in run.Groups ?? new List<ClashGroupRecord>())
                 {
                     if (i >= issues.Count) break;
                     var issue = issues[i++];
-                    if (!byGroupId.TryGetValue(g.Id ?? "", out var representative)) continue;
-                    string ownerName = ResolveWorksetOwner(doc, representative);
-                    if (string.IsNullOrWhiteSpace(ownerName)) continue;
-                    issue.Assignee = ownerName;
-                    g.Assignee = ownerName;
+                    if (!byGroupId.TryGetValue(g.Id ?? "", out var members) || members.Count == 0) continue;
+
+                    var votes = new Dictionary<string, int>(StringComparer.Ordinal);
+                    foreach (var c in members)
+                    {
+                        string ownerA = ResolveOwnerForElementSide(doc, c.ElementA, ownerCache);
+                        string ownerB = ResolveOwnerForElementSide(doc, c.ElementB, ownerCache);
+                        foreach (var owner in new[] { ownerA, ownerB })
+                        {
+                            if (string.IsNullOrWhiteSpace(owner)) continue;
+                            votes.TryGetValue(owner, out int n);
+                            votes[owner] = n + 1;
+                        }
+                    }
+                    if (votes.Count == 0) continue;
+                    var winner = votes
+                        .OrderByDescending(kv => kv.Value)
+                        .ThenBy(kv => kv.Key, StringComparer.Ordinal)
+                        .First();
+                    string assignee = winner.Key;
+                    bool mixed = votes.Count > 1;
+                    if (mixed) assignee = $"{winner.Key} (mixed)";
+                    issue.Assignee = assignee;
+                    g.Assignee = assignee;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ClashSlaIntegration.EnrichAssignees: {ex.Message}"); }
+        }
+
+        private static string ResolveOwnerForElementSide(Document doc, ClashElementRecord side,
+            Dictionary<int, string> cache)
+        {
+            if (side == null || side.LinkInstanceId != -1 || side.ElementId <= 0) return "";
+            if (cache.TryGetValue(side.ElementId, out var cached)) return cached;
+            string owner = "";
+            try
+            {
+                var el = doc.GetElement(new ElementId((long)side.ElementId));
+                if (el != null)
+                {
+                    var info = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
+                    owner = info?.Owner ?? "";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveOwnerForElementSide({side.ElementId}): {ex.Message}"); }
+            cache[side.ElementId] = owner;
+            return owner;
         }
 
         private static string ResolveWorksetOwner(Document doc, ClashRecord c)

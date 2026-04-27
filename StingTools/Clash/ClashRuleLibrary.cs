@@ -32,18 +32,42 @@ namespace StingTools.Core.Clash
                 var user = JsonConvert.DeserializeObject<List<UserClashRuleJson>>(File.ReadAllText(jsonPath)) ?? new List<UserClashRuleJson>();
                 foreach (var u in user)
                 {
-                    // C5: A user JSON entry with no Verdict and a matching Id
-                    //     against an existing built-in is treated as a Params
-                    //     override — merge values into the built-in's Params
-                    //     dict so the existing predicate picks them up.
-                    if (string.IsNullOrEmpty(u.Verdict) && u.Params != null && u.Params.Count > 0)
+                    // F14: Any combination of FilterA / FilterB / Verdict /
+                    //      Description / Params is now an override on a
+                    //      matching built-in (matched by Id, case-insensitive).
+                    //      Project authors no longer have to copy a full rule
+                    //      definition just to tweak one field. C5's Params-only
+                    //      override is the same path with empty other fields.
+                    var match = all.Find(r => string.Equals(r.Id, u.Id, StringComparison.OrdinalIgnoreCase));
+                    if (match != null)
                     {
-                        var match = all.Find(r => string.Equals(r.Id, u.Id, StringComparison.OrdinalIgnoreCase));
-                        if (match != null)
+                        bool anyOverride = false;
+                        if (!string.IsNullOrEmpty(u.FilterA)) { match.FilterA = u.FilterA; anyOverride = true; }
+                        if (!string.IsNullOrEmpty(u.FilterB)) { match.FilterB = u.FilterB; anyOverride = true; }
+                        if (!string.IsNullOrEmpty(u.Description)) { match.Description = u.Description; anyOverride = true; }
+                        if (u.Params != null && u.Params.Count > 0)
                         {
                             foreach (var kv in u.Params) match.Params[kv.Key] = kv.Value;
-                            continue;
+                            anyOverride = true;
                         }
+                        if (!string.IsNullOrEmpty(u.Verdict))
+                        {
+                            ClashVerdict overrideV = u.Verdict == "Pseudo" ? ClashVerdict.Pseudo : ClashVerdict.Intentional;
+                            // Wrap the existing predicate so volume-band gates
+                            // still apply (when supplied) but the verdict
+                            // returned matches the override.
+                            var inner = match.Predicate;
+                            match.Predicate = (h, a, b, def) =>
+                            {
+                                if (u.VolumeBelowMm3.HasValue && h.VolumeMm3 >= u.VolumeBelowMm3.Value) return ClashVerdict.Keep;
+                                if (u.VolumeAboveMm3.HasValue && h.VolumeMm3 <= u.VolumeAboveMm3.Value) return ClashVerdict.Keep;
+                                return overrideV;
+                            };
+                            anyOverride = true;
+                        }
+                        if (anyOverride) continue;
+                        // Fall through to "add as new" if no override fields
+                        // were set (i.e. user listed only Id with nothing else).
                     }
 
                     ClashVerdict v = u.Verdict == "Pseudo" ? ClashVerdict.Pseudo : ClashVerdict.Intentional;
