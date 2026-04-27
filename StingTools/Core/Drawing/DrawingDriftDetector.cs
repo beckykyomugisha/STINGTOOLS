@@ -29,7 +29,18 @@ namespace StingTools.Core.Drawing
         public string    DrawingTypeId { get; set; }
         public List<string> Drifts { get; } = new List<string>();
 
+        /// <summary>
+        /// C-8 / E-2: drift items that the running view template suppresses
+        /// (the parameter cannot be written by the profile because the
+        /// template controls it). SyncStyles must skip these — re-applying
+        /// will fail silently and the report will resurface forever. Inspect
+        /// surfaces them as informational ("template controls this field").
+        /// </summary>
+        public List<string> Suppressed { get; } = new List<string>();
+
         public bool Any => Drifts.Count > 0;
+        public bool AnyActionable => Drifts.Count > 0;
+        public bool AnySuppressed => Suppressed.Count > 0;
     }
 
     public static class DrawingDriftDetector
@@ -39,6 +50,19 @@ namespace StingTools.Core.Drawing
             var reports = new List<DriftReport>();
             if (doc == null) return reports;
 
+            // C-4: build a single id → DrawingType dictionary up front so we
+            // don't walk DrawingTypeLibrary.DrawingTypes once per stamped view.
+            // ListAll(doc) returns the cached library; the per-id resolved
+            // value is memoized inside DrawingTypeRegistry.Get (C-5).
+            var resolvedById = new Dictionary<string, DrawingType>(StringComparer.OrdinalIgnoreCase);
+            foreach (var raw in DrawingTypeRegistry.ListAll(doc))
+            {
+                if (string.IsNullOrWhiteSpace(raw.Id)) continue;
+                if (resolvedById.ContainsKey(raw.Id)) continue;
+                var resolved = DrawingTypeRegistry.Get(doc, raw.Id);
+                if (resolved != null) resolvedById[raw.Id] = resolved;
+            }
+
             foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
             {
                 if (!(el is View v) || v.IsTemplate) continue;
@@ -46,7 +70,7 @@ namespace StingTools.Core.Drawing
                 if (string.IsNullOrWhiteSpace(dtId)) continue;   // not a STING view
                 if (DrawingTypeStamper.IsLocked(v)) continue;    // user-frozen
 
-                var dt = DrawingTypeRegistry.Get(doc, dtId);
+                resolvedById.TryGetValue(dtId, out var dt);
                 if (dt == null)
                 {
                     var r = new DriftReport { ViewId = v.Id, ViewName = v.Name, DrawingTypeId = dtId };
@@ -88,9 +112,29 @@ namespace StingTools.Core.Drawing
                 // through TokenProfileApplier and heals the drift.
                 AppendTokenProfileDrift(doc, v, dt, report);
 
-                if (report.Any) reports.Add(report);
+                if (report.Drifts.Count > 0 || report.Suppressed.Count > 0) reports.Add(report);
             }
             return reports;
+        }
+
+        /// <summary>
+        /// C-8: returns true when the view's currently applied view template
+        /// controls the named parameter — meaning a profile re-apply cannot
+        /// write to it. Used to demote TOKEN_PROFILE drift into
+        /// <see cref="DriftReport.Suppressed"/> so SyncStyles doesn't loop.
+        /// </summary>
+        private static bool TemplateControlsParameter(Document doc, View v, string paramName)
+        {
+            try
+            {
+                if (v?.ViewTemplateId == null || v.ViewTemplateId == ElementId.InvalidElementId) return false;
+                if (!(doc.GetElement(v.ViewTemplateId) is View tpl)) return false;
+                var p = tpl.LookupParameter(paramName);
+                if (p == null) return false;
+                var nonControlled = tpl.GetNonControlledTemplateParameterIds();
+                return nonControlled == null || !nonControlled.Contains(p.Id);
+            }
+            catch { return false; }
         }
 
         private static void AppendManagedTemplateDrift(Document doc, View v, DrawingType dt, DriftReport report)
@@ -138,7 +182,15 @@ namespace StingTools.Core.Drawing
                 {
                     string actual = ReadStringParam(v, ParamRegistry.VIEW_TAG_STYLE);
                     if (!string.Equals(actual, expectedScheme, StringComparison.OrdinalIgnoreCase))
-                        report.Drifts.Add($"TOKEN_PROFILE: STING_VIEW_TAG_STYLE '{actual ?? "(empty)"}' vs profile '{expectedScheme}'");
+                    {
+                        // C-8: if the running view template controls this
+                        // parameter, demote the entry to Suppressed so
+                        // SyncStyles doesn't retry forever.
+                        if (TemplateControlsParameter(doc, v, ParamRegistry.VIEW_TAG_STYLE))
+                            report.Suppressed.Add($"DRIFT_SUPPRESSED_BY_TEMPLATE: STING_VIEW_TAG_STYLE controlled by view template ('{actual ?? "(empty)"}' vs profile '{expectedScheme}')");
+                        else
+                            report.Drifts.Add($"TOKEN_PROFILE: STING_VIEW_TAG_STYLE '{actual ?? "(empty)"}' vs profile '{expectedScheme}'");
+                    }
                 }
 
                 string expectedMask = profile?.SegmentMask;
@@ -147,7 +199,12 @@ namespace StingTools.Core.Drawing
                 {
                     string actual = ReadStringParam(v, ParamRegistry.TAG_SEG_MASK);
                     if (!string.Equals(actual, expectedMask, StringComparison.Ordinal))
-                        report.Drifts.Add($"TOKEN_PROFILE: TAG_SEG_MASK '{actual ?? "(empty)"}' vs profile '{expectedMask}'");
+                    {
+                        if (TemplateControlsParameter(doc, v, ParamRegistry.TAG_SEG_MASK))
+                            report.Suppressed.Add($"DRIFT_SUPPRESSED_BY_TEMPLATE: TAG_SEG_MASK controlled by view template ('{actual ?? "(empty)"}' vs profile '{expectedMask}')");
+                        else
+                            report.Drifts.Add($"TOKEN_PROFILE: TAG_SEG_MASK '{actual ?? "(empty)"}' vs profile '{expectedMask}'");
+                    }
                 }
             }
             catch (Exception ex)

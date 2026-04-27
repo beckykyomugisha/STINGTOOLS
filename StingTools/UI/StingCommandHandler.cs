@@ -931,7 +931,14 @@ namespace StingTools.UI
                     case "ProjectSetup": RunCommand<Temp.ProjectSetupCommand>(app); break;
                     case "MasterSetup": RunCommand<Temp.MasterSetupCommand>(app); break;
                     case "CreateParameters": RunCommand<Temp.CreateParametersCommand>(app); break;
-                    case "CheckData": RunCommand<Temp.CheckDataCommand>(app); break;
+                    case "CheckData":
+                        RunCommand<Temp.CheckDataCommand>(app);
+                        // E-1: dump cache hit/miss counters as part of the
+                        // CheckData diagnostic so users can see whether the
+                        // caching infrastructure is doing its job.
+                        try { Core.StingLog.DumpCacheStats(); }
+                        catch (Exception ex) { Core.StingLog.Warn($"DumpCacheStats: {ex.Message}"); }
+                        break;
 
                     // ── Materials ──
                     case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;

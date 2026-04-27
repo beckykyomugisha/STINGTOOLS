@@ -33,15 +33,48 @@ namespace StingTools.Core.Drawing
         private static readonly Dictionary<string, DrawingTypeLibrary> _cache
             = new Dictionary<string, DrawingTypeLibrary>(StringComparer.OrdinalIgnoreCase);
 
+        // C-5: per-document memoization of ResolveExtends results so callers
+        // (DrawingDriftDetector.Scan, DrawingTypePresentation.Apply, the
+        // auto-tagger discipline filter) don't recompute the merged inheritance
+        // chain on every Get() call. Cleared by Reload(doc).
+        private static readonly Dictionary<string, Dictionary<string, DrawingType>> _resolvedCache
+            = new Dictionary<string, Dictionary<string, DrawingType>>(StringComparer.OrdinalIgnoreCase);
+
         // Public surface -------------------------------------------------
 
         public static DrawingType Get(Document doc, string id)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
             var lib = GetLibrary(doc);
+
+            // C-5: cached resolved DrawingType. Lookup is O(1); first-call
+            // miss runs ResolveExtends once and stores the result.
+            string docKey = DocKey(doc);
+            lock (_lock)
+            {
+                if (_resolvedCache.TryGetValue(docKey, out var docMap)
+                    && docMap.TryGetValue(id, out var memo))
+                {
+                    StingTools.Core.StingLog.RecordHit(StingTools.Core.StingLog.CacheKind.DrawingTypeRegistry); // E-1
+                    return memo;
+                }
+            }
+            StingTools.Core.StingLog.RecordMiss(StingTools.Core.StingLog.CacheKind.DrawingTypeRegistry); // E-1
+
             var raw = lib.DrawingTypes.FirstOrDefault(
                 t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
-            return raw == null ? null : ResolveExtends(lib, raw);
+            var resolved = raw == null ? null : ResolveExtends(lib, raw);
+
+            lock (_lock)
+            {
+                if (!_resolvedCache.TryGetValue(docKey, out var docMap))
+                {
+                    docMap = new Dictionary<string, DrawingType>(StringComparer.OrdinalIgnoreCase);
+                    _resolvedCache[docKey] = docMap;
+                }
+                docMap[id] = resolved;
+            }
+            return resolved;
         }
 
         /// <summary>
@@ -123,7 +156,20 @@ namespace StingTools.Core.Drawing
             {
                 var key = DocKey(doc);
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
+                if (_resolvedCache.ContainsKey(key)) _resolvedCache.Remove(key);
             }
+
+            // D-3: cascade the reload through every dependent cache so a JSON
+            // edit (drawing_types.json or view_style_packs.json) doesn't leave
+            // a stale view-template / pack / managed-template id behind.
+            try { DrawingTypePresentation.InvalidateViewTemplateCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidateViewTemplateCache: {ex.Message}"); }
+
+            try { DrawingTypePresentation.InvalidatePackCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidatePackCache: {ex.Message}"); }
+
+            try { ManagedTemplateSyncer.InvalidateCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Reload InvalidateManagedTemplateCache: {ex.Message}"); }
         }
 
         public static DrawingTypeLibrary GetLibrary(Document doc)

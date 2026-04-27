@@ -26,8 +26,19 @@ namespace StingTools.Core.Drawing
 {
     internal static class ManagedTemplateSyncer
     {
-        private static readonly Dictionary<(string packId, ViewType vt), ElementId> _cache
-            = new Dictionary<(string, ViewType), ElementId>();
+        // C-6: keyed by document so a stale ElementId from a previously
+        // open document is never returned to a different document.
+        private static readonly object _cacheLock = new object();
+        private static readonly Dictionary<string, Dictionary<(string packId, ViewType vt), ElementId>> _cache
+            = new Dictionary<string, Dictionary<(string, ViewType), ElementId>>(StringComparer.OrdinalIgnoreCase);
+
+        // C-3: per-document seed-view cache so EnsureTemplate doesn't run
+        // two FilteredElementCollector<View> scans for every (pack, viewType)
+        // pair on first use. Built lazily on first EnsureTemplate call per
+        // document and invalidated on Reload / DocumentClosed.
+        private static readonly object _seedCacheLock = new object();
+        private static readonly Dictionary<string, Dictionary<ViewType, ElementId>> _seedViewCache
+            = new Dictionary<string, Dictionary<ViewType, ElementId>>(StringComparer.OrdinalIgnoreCase);
 
         // Default field set when ManagedFields is not specified.
         private static readonly List<string> DefaultManagedFields = new List<string>
@@ -35,9 +46,107 @@ namespace StingTools.Core.Drawing
             "scale", "detailLevel", "discipline", "visualStyle", "phaseFilter"
         };
 
+        private static string DocKey(Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch { return "__unknown__"; }
+        }
+
+        /// <summary>
+        /// Clear all cached managed-template ElementIds and seed views.
+        /// Use sparingly — prefer the document-scoped overload.
+        /// </summary>
         public static void InvalidateCache()
         {
-            _cache.Clear();
+            lock (_cacheLock) { _cache.Clear(); }
+            lock (_seedCacheLock) { _seedViewCache.Clear(); }
+        }
+
+        /// <summary>
+        /// C-6 / D-3: invalidate the cached managed-template + seed-view
+        /// entries for a specific document. Wired to
+        /// <see cref="DrawingTypeRegistry.Reload"/> and the document-closed
+        /// handler in <c>StingToolsApp</c>.
+        /// </summary>
+        public static void InvalidateCache(Document doc)
+        {
+            string key = DocKey(doc);
+            lock (_cacheLock)
+            {
+                if (_cache.ContainsKey(key)) _cache.Remove(key);
+            }
+            lock (_seedCacheLock)
+            {
+                if (_seedViewCache.ContainsKey(key)) _seedViewCache.Remove(key);
+            }
+        }
+
+        private static Dictionary<(string, ViewType), ElementId> GetOrCreateCacheBucket(string docKey)
+        {
+            lock (_cacheLock)
+            {
+                if (!_cache.TryGetValue(docKey, out var bucket))
+                {
+                    bucket = new Dictionary<(string, ViewType), ElementId>();
+                    _cache[docKey] = bucket;
+                }
+                return bucket;
+            }
+        }
+
+        /// <summary>
+        /// C-3: resolve a seed view of the requested type. Prefers existing
+        /// "STING - " prefixed templates; falls back to any non-template view
+        /// of that type. Result is cached per (docKey, viewType) so repeated
+        /// calls during a batch only run the FilteredElementCollector twice
+        /// once.
+        /// </summary>
+        private static View ResolveSeed(Document doc, ViewType viewType)
+        {
+            if (doc == null) return null;
+            string docKey = DocKey(doc);
+            ElementId cachedId;
+            lock (_seedCacheLock)
+            {
+                if (_seedViewCache.TryGetValue(docKey, out var docMap)
+                    && docMap.TryGetValue(viewType, out cachedId)
+                    && cachedId != ElementId.InvalidElementId)
+                {
+                    if (doc.GetElement(cachedId) is View cached
+                        && cached.IsValidObject
+                        && cached.ViewType == viewType)
+                    {
+                        return cached;
+                    }
+                    docMap.Remove(viewType);
+                }
+            }
+
+            View seed = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .FirstOrDefault(t => t.IsTemplate
+                                     && t.ViewType == viewType
+                                     && (t.Name ?? "").StartsWith("STING - ", StringComparison.Ordinal));
+            if (seed == null)
+            {
+                seed = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View))
+                    .Cast<View>()
+                    .FirstOrDefault(t => !t.IsTemplate && t.ViewType == viewType);
+            }
+
+            lock (_seedCacheLock)
+            {
+                if (!_seedViewCache.TryGetValue(docKey, out var docMap))
+                {
+                    docMap = new Dictionary<ViewType, ElementId>();
+                    _seedViewCache[docKey] = docMap;
+                }
+                docMap[viewType] = seed?.Id ?? ElementId.InvalidElementId;
+            }
+            return seed;
         }
 
         internal static string GetManagedTemplateName(string packId, ViewType vt)
@@ -117,13 +226,22 @@ namespace StingTools.Core.Drawing
                 return ElementId.InvalidElementId;
             if (result == null) result = new PackApplyResult();
 
-            // 1. Cache hit
+            // 1. Cache hit (C-6 — per-document bucket; IsValidObject guard
+            // catches a stale id from a copied / save-as'd document).
+            string docKey = DocKey(doc);
+            var bucket = GetOrCreateCacheBucket(docKey);
             var key = (pack.Id, viewType);
-            if (_cache.TryGetValue(key, out var cachedId))
+            ElementId cachedId;
+            lock (_cacheLock)
             {
-                if (doc.GetElement(cachedId) is View v && v.IsTemplate)
+                bucket.TryGetValue(key, out cachedId);
+            }
+            if (cachedId != ElementId.InvalidElementId)
+            {
+                if (doc.GetElement(cachedId) is View v && v.IsValidObject && v.IsTemplate)
                     return cachedId;
-                _cache.Remove(key);
+                StingTools.Core.StingLog.Warn($"ManagedTemplateSyncer: stale cache id evicted for pack '{pack.Id}' / {viewType}");
+                lock (_cacheLock) { bucket.Remove(key); }
             }
 
             var templateName = GetManagedTemplateName(pack.Id, viewType);
@@ -147,24 +265,13 @@ namespace StingTools.Core.Drawing
                         DrawingTypeStamper.PARAM_DRAWING_TYPE_ID,
                         $"pack:{pack.Id};cs={current}", overwrite: true);
                 }
-                _cache[key] = existing.Id;
+                lock (_cacheLock) { bucket[key] = existing.Id; }
                 return existing.Id;
             }
 
-            // 3. Find a seed template / view
-            View seed = new FilteredElementCollector(doc)
-                .OfClass(typeof(View))
-                .Cast<View>()
-                .FirstOrDefault(t => t.IsTemplate &&
-                                     t.ViewType == viewType &&
-                                     (t.Name ?? "").StartsWith("STING - ", StringComparison.Ordinal));
-            if (seed == null)
-            {
-                seed = new FilteredElementCollector(doc)
-                    .OfClass(typeof(View))
-                    .Cast<View>()
-                    .FirstOrDefault(t => !t.IsTemplate && t.ViewType == viewType);
-            }
+            // 3. Find a seed template / view (C-3 — cached per
+            // (docKey, viewType) so repeated calls in a batch don't re-scan).
+            View seed = ResolveSeed(doc, viewType);
             if (seed == null)
             {
                 result.Warnings.Add($"ManagedTemplateSyncer: no seed view of type {viewType} found for pack '{pack.Id}'.");
@@ -215,7 +322,7 @@ namespace StingTools.Core.Drawing
                 DrawingTypeStamper.PARAM_DRAWING_TYPE_ID,
                 $"pack:{pack.Id};cs={checksum}", overwrite: true);
 
-            _cache[key] = newView.Id;
+            lock (_cacheLock) { bucket[key] = newView.Id; }
             return newView.Id;
         }
 
