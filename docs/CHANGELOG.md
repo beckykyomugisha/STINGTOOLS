@@ -3632,3 +3632,97 @@ round-trip, and 3 new validators.
    `STING_PUPIL_COUNT_INT`, `STING_PLACE_AUDIT_TXT`) need to be
    declared in `MR_PARAMETERS.txt` before any Revit project will see
    them — listed for the Phase 140 parameter-registry pass.
+
+#### Completed (Phase 139.5 — Placement Centre v2 follow-up)
+
+Closes the gaps left by Phase 139: missing routing rules, CSV updates,
+Excel-command wiring, `LinkedModelClearance` scoring component, and the
+full Part I UI surface.
+
+**Routing pack** — `STING_PLACEMENT_RULES.routing.json` grew from 15 to 25
+rules: rainwater drop, medical vacuum (HTM 02-01), emergency lighting
+conduit, data corridor cable tray, chilled water + LTHW pipework, BMS
+control conduit, condensate drain, busbar riser, fibre OS2 backbone.
+
+**Data CSVs** — `LUX_TARGETS_EN12464.csv` extended from 64 to 96 codes
+with sector-specific entries (ICU bays, hotel corridors, data halls,
+nursery, master bedroom, gallery, etc.).  `ROOM_TYPE_CLASSIFIER.csv`
+gains 29 new regex → code mappings covering healthcare, education,
+retail, hospitality, industrial, residential rooms enumerated in the
+Phase 139 prompt.
+
+**Excel commands wiring** — `StingCommandHandler.cs` registers
+`Placement_ExportExcel` / `Placement_ImportExcel` cases dispatching to
+the existing `IExternalCommand`s.  `StingPlacementCenter.xaml` toolbar
+gains "Export Excel" / "Import Excel" buttons; click handlers in
+`StingPlacementCenter.xaml.cs` (`OnExportExcel_Click` /
+`OnImportExcel_Click`) invoke the exporter/importer directly without
+round-tripping through the `IExternalCommand` (modeless window pattern
+keeps the Centre window open).
+
+**LinkedModelClearance** — `Core/Placement/LinkedModelClearance.cs`
+inspects every `RevitLinkInstance` in the host doc, transforms linked
+element bounding boxes into host coordinates with the link transform,
+and reports whether any wall / column / structural framing / mech
+equipment / duct / pipe falls within `ObstructionClearanceMm` of a
+candidate.  `PlacementScorer.BuildCandidate` now halves the collision
+score (penalty, not rejection) when the candidate breaches a linked
+model.
+
+**Part I — UI Enhancements**
+
+- *I1 — Rule list*: `PlacementRuleViewModel` adds `StatusColorHex`
+  (RAG: red invalid / blue dirty / amber low-priority / green valid),
+  `LastCoveragePercent` + `LastCoverageDisplay`, `LastPlacedCount` +
+  `LastTargetCount` + `PlacedTargetDisplay`, `PrimaryStandard`.  The
+  rule grid gets a `RowStyle` binding `Background` to `StatusColorHex`
+  via the new `HexToBrushConverter`, plus four new columns
+  (Pack / Cov % / Placed/Tgt / Standard).  A `cmbSourcePack` ComboBox
+  next to the chip filters wires to `VM.SelectedSourcePack` (All /
+  Baseline / Architecture / Mechanical / Electrical / HealthcareEdu /
+  Windows / Routing / MedicalGases / Accessibility / Commissioning).
+  Search box now matches RuleId / Standard / SourcePack in addition to
+  the existing fields.
+- *I2 — Rule detail cards*: 5 new GroupBoxes added to the right-hand
+  scroll panel — "Coverage & Spacing (Standards)",
+  "Routing (Conduit / Pipe / Duct)", "Window / Glazing",
+  "Standards & Accessibility", and "Post-Placement".  Each card binds
+  to the matching Phase 139 fields on `PlacementRuleViewModel` (full
+  set of new properties exposed).  `cmbBuildingType`, `cmbWetZone`,
+  `cmbHeightStandard`, `cmbRoutingMode`, `cmbRouteFace`,
+  `cmbRouteSegmentCategory`, `cmbGlazingSpec`,
+  `cmbMaintenanceClearance` ItemsSources fed from new
+  `PlacementRulesViewModel` collections (`BuildingTypes`,
+  `WetZoneOptions`, `HeightStandardKeys`, `RoutingModes`, `RouteFaces`,
+  `RouteSegmentCategories`, `GlazingSpecs`, `MaintenanceClearances`).
+  All new fields wired via `CommitField(...)` and surface in
+  `SyncFieldsFromSelection`.
+- *I3 — Building Profile header*: new "Building Profile (Phase 139)"
+  GroupBox above Run Options binds to `VM.Profile` (new
+  `ProjectBuildingProfile` instance on the root VM).  Building Type
+  ComboBox, comma-separated Active Standards TextBox, three toggle
+  CheckBoxes, plus Load / Save buttons that call
+  `ProjectBuildingProfileIO.Load/Save` on the project's
+  `_BIM_COORD/placement_profile.json`.  A warning banner surfaces when
+  no profile is loaded (driven by the new
+  `EmptyStringToVisibilityConverter`).
+- *I4 — History panel*: `HistoryBridge.HistoryRow` gains
+  `CoveragePercent`, `SkippedCount`, `WarningCount`, `Detail` fields
+  with display helpers; the History DataGrid gets three new columns
+  (Cov % / Skipped / Warnings).  `Detail` will be populated by Phase
+  140 once the placement engine stamps run-result diagnostics into the
+  history bucket.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).  The
+   Excel-button code-behind wires directly into the Centre window
+   instead of routing through `IExternalEventHandler` — it works inside
+   the modeless window but the standalone `IExternalCommand`s (kept
+   for ribbon parity) still flow through the handler.
+2. Coverage/Placed-target columns show `—` until run-results bridge is
+   wired (deferred to Phase 140 — the engine result types need to
+   propagate per-rule diagnostics back into the VM).
+3. `LinkedModelClearance` walks every RevitLinkInstance per scoring
+   call without caching across the run; for very large federated
+   models this is the obvious next perf target.
