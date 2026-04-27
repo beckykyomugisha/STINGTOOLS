@@ -2520,6 +2520,14 @@ namespace StingTools.Core
         public const string PLM_SLOPE_PCT_V4 = "PLM_SLOPE_PCT";
         public const string PLM_SLOPE_PCT_V4_GUID = "f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2";
 
+        // Phase 139.2 — first-fix box ↔ second-fix device matching key.
+        public const string BOX_LOCATION_ID = "STING_BOX_LOCATION_ID";
+        public const string BOX_LOCATION_ID_GUID = "C7A3F2E1-9B04-4D88-B5A1-3E6F8D2C1047";
+
+        // Phase 139.2 — flag set on placed pendant/downlight when noggin is required.
+        public const string NOGGIN_REQUIRED = "STING_NOGGIN_REQUIRED";
+        public const string NOGGIN_REQUIRED_GUID = "D8B4A3F2-7C05-4E99-C6B2-4F7B9E3D2158";
+
         #endregion
 
         #region V6 / Tier 4-10 parameters

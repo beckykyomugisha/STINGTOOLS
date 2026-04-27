@@ -3775,3 +3775,104 @@ round-trip, and 3 new validators.
    `STING_PUPIL_COUNT_INT`, `STING_PLACE_AUDIT_TXT`) need to be
    declared in `MR_PARAMETERS.txt` before any Revit project will see
    them — listed for the next parameter-registry pass.
+
+#### Completed (Phase 139.2 — MK Alignment, Conduiting Phase, BESA-Pendant Workflow)
+
+Sustainable method: Nested Family + Compound Structure Offset + Two-Phase
+GUID Matching + Manufacturer Catalogue Auto-Population + Ceiling Tile Grid Snap.
+
+New classes:
+  - `ManufacturerCatalogueEntry` (POCO)
+  - `ManufacturerCatalogueRegistry` (load / resolve / `AutoPopulateFromFamilies`)
+  - `PlasterOffsetResolver` (`Resolve(Wall,rule)`, `ResolveForCeiling(...)`)
+  - `CompoundClusterPlacer` (`GroupByCluster`, `ComputeClusterPositions`)
+  - `TwoPhaseBoxPlacer` (`ValidateSharedParams`, `PlaceFirstFixBoxes`, `PlaceSecondFixDevices`)
+
+New fields on `PlacementRule` (Parts A1–A9):
+  - A1 Manufacturer hint (`ManufacturerCode`, `CatalogueRef`, `BoxDepthMm`,
+    `ModulePitchMm`, `GangCount`, `MountType`, `InsertionOrigin`)
+  - A2 Two-phase conduiting (`ConstructionPhase`, `CompletionPhase`,
+    `BoxFamilyTypeRegex`, `BoxLocationIdParam`, `TwoPhaseEnabled`)
+  - A3 Compound cluster (`IsClusterMember`, `ClusterGroupId`,
+    `ClusterSlotIndex`, `ClusterTotalSlots`, `ClusterFrameWidthMm`)
+  - A4 Plaster offset (`PlasterOffsetMode`, `PlasterOffsetFixedMm`)
+  - A5 Ceiling tile snap (`CeilingTileSnap`, `TileGridSpacingXMm`,
+    `TileGridSpacingYMm`)
+  - A6 Structural fixing (`StructuralFixingCheck`, `JoistClearanceMm`,
+    `EmitNogginRequirement`)
+  - A7 Wet-zone exclusion (`WetZoneExclude`, `WetZoneClass`)
+  - A8 Standards alias (`HeightStandardRef`)
+
+New shared parameters: `STING_BOX_LOCATION_ID`, `STING_NOGGIN_REQUIRED`
+(constants added to `ParamRegistry`; awaiting bind in `MR_PARAMETERS.txt`).
+
+New data files (under `StingTools/Data/Placement/`):
+  - `STING_MANUFACTURER_CATALOGUE.json` — 31 entries (MK Logic Plus 1G/2G/3G
+    flush + surface, Grid Plus 2/4/6/8-module, Metal Clad IP2X/IP66, BESA
+    round 36/47, square outlet 44/57, MK junction boxes 5A/20A/30A/IP66)
+  - `STING_HEIGHT_STANDARDS.json` — extended to 33 standard keys with the
+    new BS 7671/BS 8300/HTM 06-01/BS 5839/BS 5266 entries called out by
+    rule references (`BS7671_SOCKET_STD`, `KITCHEN_SOCKET_ABOVE_WORKTOP`,
+    `HTM0601_BEDHEAD_SOCKET`, `SHOWER_PULL_CORD`, etc.)
+  - `STING_PLACEMENT_RULES.mk-electrical.json` (34 rules — sockets,
+    switches, dimmers, accessible variants, Grid Plus clusters, two-phase
+    conduiting hooks, healthcare bedhead)
+  - `STING_PLACEMENT_RULES.ceiling-pendants.json` (20 rules — residential
+    pendants, kitchen IP44, bathroom IP65, office/classroom LED on tile
+    grid, corridor/emergency, downlights, high-bay, smoke/heat with
+    coverage guarantee, JBs)
+  - `STING_PLACEMENT_RULES.conduiting-phase.json` (16 first-fix-only rules
+    — square outlet box at every socket/switch/FCU, BESA at every
+    pendant/downlight/smoke/heat, junction boxes ring-final/lighting/
+    cooker, through-wall AV, tee branch, deep RCD, nurse call, deep
+    shaver, classroom tile-snap)
+
+`PlacementRuleLoader` registers the three new packs (`MK_Electrical`,
+`Ceiling_Pendants`, `Conduiting_Phase`).
+
+`LightingGridCalculator` extended with `Compute(Room, PlacementRule)` and
+helpers `SnapToCeilingTileGrid`, `CheckStructuralFixing`,
+`ComputeUniformityRatio`. `LightingGridResult` extended with
+`NogginRequiredPoints`, `TileSnapAdjustments`, `ActualUniformityRatio`.
+
+`PlacementHostPreflight.PlaceOnCeilingSoffit` adds the ReferenceIntersector
+upward-ray + ceiling-void-drop placement for BESA + pendant alignment.
+
+`PlacementScorer` weights re-balanced (Anchor 0.35 / Side 0.22 /
+Spacing 0.18 / Collision 0.10 / Symmetry 0.05 / Coverage 0.07 /
+Manufacturer 0.03). New components `ScoreCoverageContribution` and
+`ScoreManufacturerResolution`.
+
+`PlacementScorer.AnchorTypes` adds 8 anchor types: `STRUCTURAL_SOFFIT`,
+`CEILING_TILE_CENTRE`, `WALL_FACE_OFFSET`, `DOOR_LATCH_SIDE`,
+`DOOR_HINGE_SIDE_150`, `CONDUIT_BOX_MATCHED`, `CEILING_VOID_ABOVE_BOX`,
+`FLOOR_SLAB_PENETRATION`.
+
+`FixturePlacementEngine.PlaceFixturesInScope` integrates the new
+subsystems: pre-flight `AutoPopulateFromFamilies` + `ValidateSharedParams`,
+Step 1 `PlaceFirstFixBoxes` before per-room loop, Step 3
+`PlaceSecondFixDevices` after the loop. `PlacementResult` extended with
+`NogginRequiredPoints` and `TileSnapAdjustments`.
+
+`PlacementRulesExcelExporter` schema extended with the full 30-column
+Phase 139.2 set (manufacturer / two-phase / cluster / plaster / tile /
+structural / wet-zone / height-standard).
+
+New commands (4):
+  - `Placement_AutoPopulateCatalogue` (`ManufacturerCatalogueAutoPopulateCommand`)
+  - `Placement_ExportNogginRequirements` (`NogginRequirementExportCommand`)
+  - `Placement_ExportRulesExcel` (`PlacementRulesExcelExportCommand`)
+  - `Placement_ImportRulesExcel` (`PlacementRulesExcelImportCommand`)
+
+All four registered in `StingCommandHandler` dispatch.
+
+Caveats:
+  - Built without `dotnet build` verification (Linux sandbox).
+  - The 2 new shared parameters need binding entries appended to
+    `Data/MR_PARAMETERS.txt` before they will appear on Revit elements.
+  - `PlasterOffsetResolver` returns 0 for non-compound walls; rules
+    targeting basic walls should set `PlasterOffsetMode = "Fixed"` with
+    `PlasterOffsetFixedMm`.
+  - Title block / pendant / BESA Revit families are not shipped — rule
+    `FamilyTypeRegex` patterns assume the conventional names listed in
+    `STING_MANUFACTURER_CATALOGUE.json`.

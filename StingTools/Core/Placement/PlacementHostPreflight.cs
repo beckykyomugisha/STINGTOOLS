@@ -183,6 +183,90 @@ namespace StingTools.Core.Placement
             }
         }
 
+        /// <summary>
+        /// Phase 139.2 H — place a face-hosted family on the structural
+        /// soffit above ceilingSoffitPoint. ceilingVoidDepthFt is the
+        /// drop applied for second-fix devices (pendants, downlights);
+        /// pass 0 to leave the family on the soffit (BESA boxes).
+        /// </summary>
+        public static PlacementHostPreflightResult PlaceOnCeilingSoffit(
+            Document doc,
+            FamilySymbol symbol,
+            Room room,
+            XYZ ceilingSoffitPoint,
+            PlacementRule rule,
+            double ceilingVoidDepthFt)
+        {
+            var r = new PlacementHostPreflightResult();
+            if (doc == null || symbol == null || ceilingSoffitPoint == null)
+            {
+                r.Skipped = true;
+                r.Reason  = "PlaceOnCeilingSoffit: null document / symbol / point.";
+                return r;
+            }
+
+            try
+            {
+                XYZ rayStart = ceilingSoffitPoint;
+                XYZ up = XYZ.BasisZ;
+                Element soffitHost = null;
+
+                var view3d = new FilteredElementCollector(doc).OfClass(typeof(View3D))
+                    .Cast<View3D>().FirstOrDefault(v => v != null && !v.IsTemplate);
+                if (view3d != null)
+                {
+                    try
+                    {
+                        var rayFilter = new ElementClassFilter(typeof(HostObject));
+                        var rio = new ReferenceIntersector(rayFilter, FindReferenceTarget.Face, view3d) { FindReferencesInRevitLinks = false };
+                        var hits = rio.Find(rayStart, up);
+                        if (hits != null)
+                        {
+                            ReferenceWithContext best = null; double bestDist = double.MaxValue;
+                            foreach (var rwc in hits)
+                            {
+                                if (rwc == null) continue;
+                                double d = rwc.Proximity;
+                                if (d > 0 && d < bestDist) { bestDist = d; best = rwc; }
+                            }
+                            if (best != null)
+                            {
+                                var refHit = best.GetReference();
+                                soffitHost = doc.GetElement(refHit);
+                            }
+                        }
+                    }
+                    catch (Exception rex) { StingLog.Warn($"PlaceOnCeilingSoffit raycast: {rex.Message}"); }
+                }
+                if (soffitHost == null) soffitHost = NearestOf<Floor>(doc, ceilingSoffitPoint, 12.0);
+                if (soffitHost == null)
+                {
+                    r.Skipped = true;
+                    r.Reason  = $"PlaceOnCeilingSoffit: no soffit found above {Fmt(ceilingSoffitPoint)}.";
+                    return r;
+                }
+
+                XYZ placeAt = ceilingSoffitPoint;
+                if (ceilingVoidDepthFt > 0)
+                    placeAt = new XYZ(ceilingSoffitPoint.X, ceilingSoffitPoint.Y, ceilingSoffitPoint.Z - ceilingVoidDepthFt);
+
+                r.Placed = doc.Create.NewFamilyInstance(
+                    placeAt, symbol, soffitHost, room?.Level, StructuralType.NonStructural);
+                if (r.Placed == null)
+                {
+                    r.Skipped = true;
+                    r.Reason  = "PlaceOnCeilingSoffit: NewFamilyInstance returned null.";
+                }
+                return r;
+            }
+            catch (Exception ex)
+            {
+                r.Skipped = true;
+                r.Reason  = $"PlaceOnCeilingSoffit: {ex.Message}";
+                return r;
+            }
+        }
+
         private static T NearestOf<T>(Document doc, XYZ point, double maxDistFt) where T : Element
         {
             T best = null;

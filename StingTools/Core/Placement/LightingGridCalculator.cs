@@ -36,6 +36,11 @@ namespace StingTools.Core.Placement
         public double SpacingYMm { get; set; }
         public List<XYZ> Points { get; } = new List<XYZ>();
         public List<string> Warnings { get; } = new List<string>();
+
+        // Phase 139.2 — extensions.
+        public List<XYZ> NogginRequiredPoints { get; } = new List<XYZ>();
+        public int       TileSnapAdjustments  { get; set; }
+        public double    ActualUniformityRatio { get; set; }
     }
 
     /// <summary>
@@ -77,7 +82,14 @@ namespace StingTools.Core.Placement
             LoadLuxTargets();
         }
 
-        public LightingGridResult Compute(Room room)
+        public LightingGridResult Compute(Room room) => Compute(room, null);
+
+        /// <summary>
+        /// Phase 139.2 — rule-aware grid compute. When the rule asks for
+        /// CeilingTileSnap, StructuralFixingCheck or uniformity reporting,
+        /// the corresponding post-processing pass runs after grid generation.
+        /// </summary>
+        public LightingGridResult Compute(Room room, PlacementRule rule)
         {
             var r = new LightingGridResult();
             if (room == null) { r.Warnings.Add("Room is null"); return r; }
@@ -106,6 +118,14 @@ namespace StingTools.Core.Placement
             if (r.FixturesRequired < 1) r.FixturesRequired = 1;
 
             GenerateGridPoints(room, r);
+
+            if (rule != null)
+            {
+                if (rule.CeilingTileSnap) SnapToCeilingTileGrid(room, r, rule);
+                if (rule.StructuralFixingCheck) CheckStructuralFixing(room, r, rule);
+                ComputeUniformityRatio(room, r);
+            }
+
             return r;
         }
 
@@ -242,6 +262,176 @@ namespace StingTools.Core.Placement
                 return p?.AsString() ?? room.Name ?? "";
             }
             catch { return ""; }
+        }
+
+        // ── Phase 139.2 — post-processing passes ────────────────────
+
+        private void SnapToCeilingTileGrid(Room room, LightingGridResult r, PlacementRule rule)
+        {
+            try
+            {
+                double tileXMm = rule.TileGridSpacingXMm > 0 ? rule.TileGridSpacingXMm : 600.0;
+                double tileYMm = rule.TileGridSpacingYMm > 0 ? rule.TileGridSpacingYMm : 600.0;
+
+                Document doc = room?.Document;
+                if (doc == null) return;
+
+                var ceilingTypeNames = new List<string>();
+                XYZ tileOrigin = null;
+
+                try
+                {
+                    var bb = room.get_BoundingBox(null);
+                    if (bb != null)
+                    {
+                        var pad = 0.5;
+                        var outline = new Outline(
+                            new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                            new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
+                        var bbf = new BoundingBoxIntersectsFilter(outline);
+                        foreach (var el in new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_Ceilings)
+                            .WhereElementIsNotElementType()
+                            .WherePasses(bbf))
+                        {
+                            var ct = doc.GetElement(el.GetTypeId()) as ElementType;
+                            string typeName = ct?.Name ?? "";
+                            if (!string.IsNullOrEmpty(typeName)) ceilingTypeNames.Add(typeName);
+                            if (tileOrigin == null)
+                            {
+                                var bb2 = el.get_BoundingBox(null);
+                                if (bb2 != null) tileOrigin = bb2.Min;
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                bool nameSuggestsTiles = ceilingTypeNames.Any(n =>
+                    n.IndexOf("600x600", StringComparison.OrdinalIgnoreCase) >= 0
+                 || n.IndexOf("600 x 600", StringComparison.OrdinalIgnoreCase) >= 0
+                 || n.IndexOf("Grid", StringComparison.OrdinalIgnoreCase) >= 0
+                 || n.IndexOf("Tile", StringComparison.OrdinalIgnoreCase) >= 0);
+
+                // Fall back to room bbox if no ceiling found.
+                if (tileOrigin == null)
+                {
+                    var bb = room.get_BoundingBox(null);
+                    if (bb == null) return;
+                    tileOrigin = bb.Min;
+                }
+
+                double stepX = tileXMm * MmToFt;
+                double stepY = tileYMm * MmToFt;
+
+                int adjustments = 0;
+                for (int i = 0; i < r.Points.Count; i++)
+                {
+                    var p = r.Points[i];
+                    double snappedX = tileOrigin.X + Math.Round((p.X - tileOrigin.X) / stepX) * stepX + stepX * 0.5;
+                    double snappedY = tileOrigin.Y + Math.Round((p.Y - tileOrigin.Y) / stepY) * stepY + stepY * 0.5;
+                    var snapped = new XYZ(snappedX, snappedY, p.Z);
+                    if (snapped.DistanceTo(p) > 50.0 * MmToFt) adjustments++;
+                    r.Points[i] = snapped;
+                }
+                r.TileSnapAdjustments = adjustments;
+                if (nameSuggestsTiles)
+                    StingLog.Info($"LightingGridCalculator: tile snap applied ({adjustments} adjustments) to room {room.Id}.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LightingGridCalculator.SnapToCeilingTileGrid: {ex.Message}");
+            }
+        }
+
+        private void CheckStructuralFixing(Room room, LightingGridResult r, PlacementRule rule)
+        {
+            try
+            {
+                Document doc = room?.Document;
+                if (doc == null) return;
+                double clearanceFt = (rule.JoistClearanceMm > 0 ? rule.JoistClearanceMm : 300.0) * MmToFt;
+
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return;
+                double pad = clearanceFt + 1.0;
+                var outline = new Outline(
+                    new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                    new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + 5.0));
+                var bbf = new BoundingBoxIntersectsFilter(outline);
+
+                var joists = new List<XYZ>();
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(bbf))
+                {
+                    var fbb = el.get_BoundingBox(null);
+                    if (fbb == null) continue;
+                    joists.Add((fbb.Min + fbb.Max) * 0.5);
+                }
+
+                foreach (var p in r.Points)
+                {
+                    bool foundJoist = false;
+                    foreach (var j in joists)
+                    {
+                        double dx = j.X - p.X, dy = j.Y - p.Y;
+                        if (Math.Sqrt(dx * dx + dy * dy) <= clearanceFt) { foundJoist = true; break; }
+                    }
+                    if (!foundJoist && rule.EmitNogginRequirement)
+                    {
+                        r.NogginRequiredPoints.Add(p);
+                        StingLog.Info($"LightingGridCalculator: noggin required at {p.X:F2},{p.Y:F2} room {room.Id}.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LightingGridCalculator.CheckStructuralFixing: {ex.Message}");
+            }
+        }
+
+        private void ComputeUniformityRatio(Room room, LightingGridResult r)
+        {
+            try
+            {
+                if (r.Points == null || r.Points.Count == 0) return;
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return;
+                double areaFt2 = (bb.Max.X - bb.Min.X) * (bb.Max.Y - bb.Min.Y);
+                if (areaFt2 <= 0) return;
+
+                int samplesX = 8, samplesY = 8;
+                double minE = double.MaxValue, sumE = 0; int n = 0;
+                double illumPerLumPerFt2 = DefaultLumensPerLuminaire * UtilisationFactor * MaintenanceFactor / 1000.0;
+                for (int j = 0; j < samplesY; j++)
+                for (int i = 0; i < samplesX; i++)
+                {
+                    double sx = bb.Min.X + (i + 0.5) * (bb.Max.X - bb.Min.X) / samplesX;
+                    double sy = bb.Min.Y + (j + 0.5) * (bb.Max.Y - bb.Min.Y) / samplesY;
+                    double E = 0.0;
+                    foreach (var p in r.Points)
+                    {
+                        double dx = sx - p.X, dy = sy - p.Y;
+                        double d2 = Math.Max(dx * dx + dy * dy, 0.5);
+                        E += illumPerLumPerFt2 / d2;
+                    }
+                    if (E < minE) minE = E;
+                    sumE += E; n++;
+                }
+                if (n == 0) return;
+                double avgE = sumE / n;
+                if (avgE <= 0) return;
+                double uniformity = minE / avgE;
+                r.ActualUniformityRatio = uniformity;
+                if (uniformity < 0.40)
+                    r.Warnings.Add($"Uniformity Uo={uniformity:F2} below BS EN 12464-1 0.40 minimum for general areas.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LightingGridCalculator.ComputeUniformityRatio: {ex.Message}");
+            }
         }
     }
 }

@@ -30,6 +30,10 @@ namespace StingTools.Core.Placement
         public int RoomsVisited { get; set; }
         public int CandidatesEvaluated { get; set; }
         public bool DryRun { get; set; }
+
+        // Phase 139.2 G — additional fields surfaced from subsystems.
+        public List<XYZ> NogginRequiredPoints { get; } = new List<XYZ>();
+        public int       TileSnapAdjustments  { get; set; }
     }
 
     /// <summary>
@@ -122,6 +126,28 @@ namespace StingTools.Core.Placement
                 }
             }
 
+            // Phase 139.2 G — Step 0: pre-flight subsystem hooks.
+            try
+            {
+                ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(doc);
+            }
+            catch (Exception ex) { result.Warnings.Add($"Catalogue auto-populate: {ex.Message}"); }
+            try
+            {
+                TwoPhaseBoxPlacer.ValidateSharedParams(doc, ordered, result.Warnings);
+            }
+            catch (Exception ex) { result.Warnings.Add($"Two-phase preflight: {ex.Message}"); }
+
+            // Phase 139.2 G — Step 1: place every first-fix box for the
+            // TwoPhaseEnabled rules.  These run before per-room iteration
+            // so the second-fix matching index covers the whole scope.
+            Dictionary<string, XYZ> firstFixIndex = null;
+            if (!dryRun)
+            {
+                try { firstFixIndex = TwoPhaseBoxPlacer.PlaceFirstFixBoxes(doc, roomIds, ordered, result); }
+                catch (Exception ex) { result.Warnings.Add($"Two-phase first-fix: {ex.Message}"); }
+            }
+
             try
             {
                 int processed = 0;
@@ -193,6 +219,14 @@ namespace StingTools.Core.Placement
                             result.Warnings.Add($"Progress callback: {pgEx.Message}");
                         }
                     }
+                }
+
+                // Phase 139.2 G — Step 3: place every second-fix device
+                // by GUID-proximity match to the first-fix index.
+                if (!dryRun && firstFixIndex != null && firstFixIndex.Count > 0)
+                {
+                    try { TwoPhaseBoxPlacer.PlaceSecondFixDevices(doc, roomIds, ordered, firstFixIndex, result); }
+                    catch (Exception ex) { result.Warnings.Add($"Two-phase second-fix: {ex.Message}"); }
                 }
 
                 if (!dryRun)
