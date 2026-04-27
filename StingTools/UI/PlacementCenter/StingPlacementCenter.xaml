@@ -175,8 +175,7 @@
                             <DataGridTextColumn Header="Pri"      Binding="{Binding Priority}"           Width="40"/>
                             <!-- Phase 139 I1 — new columns -->
                             <DataGridTextColumn Header="Pack"     Binding="{Binding SourcePack}"         Width="80"/>
-                            <DataGridTextColumn Header="Cov %"    Binding="{Binding LastCoverageDisplay}" Width="60"
-                                                ToolTip="Last-run coverage % (CoverageGridGenerator)"/>
+                            <DataGridTextColumn Header="Cov %"    Binding="{Binding LastCoverageDisplay}" Width="60"/>
                             <DataGridTextColumn Header="Placed/Tgt" Binding="{Binding PlacedTargetDisplay}" Width="70"/>
                             <DataGridTextColumn Header="Standard" Binding="{Binding PrimaryStandard}"   Width="80"/>
                         </DataGrid.Columns>
@@ -741,8 +740,7 @@
                                     <DataGridTextColumn Header="Operator"   Binding="{Binding Operator}"          Width="100"/>
                                     <DataGridTextColumn Header="Count"      Binding="{Binding Count}"             Width="60"/>
                                     <!-- Phase 139 I4 — extra history columns -->
-                                    <DataGridTextColumn Header="Cov %"      Binding="{Binding CoverageDisplay}"   Width="60"
-                                                        ToolTip="CoverageGridGenerator post-run %"/>
+                                    <DataGridTextColumn Header="Cov %"      Binding="{Binding CoverageDisplay}"   Width="60"/>
                                     <DataGridTextColumn Header="Skipped"    Binding="{Binding SkippedDisplay}"    Width="60"/>
                                     <DataGridTextColumn Header="Warnings"   Binding="{Binding WarningDisplay}"    Width="70"/>
                                 </DataGrid.Columns>
