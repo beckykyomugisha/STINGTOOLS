@@ -158,6 +158,30 @@ namespace StingTools.Core.Placement
             var perCategorySymbol = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
             var consumed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            // Phase 139.2 F9 — pre-bucket first-fix entries by containing room
+            // so the inner loop is O(boxes-in-room) instead of O(all-boxes).
+            // Use a generous tolerance (1 ft) for the bucket step; the per-rule
+            // ToleranceMm is applied only as the placement match threshold.
+            const double bucketSlackFt = 1.0;
+            var roomBboxes = new Dictionary<ElementId, BoundingBoxXYZ>();
+            foreach (var rm in rooms)
+            {
+                try { roomBboxes[rm.Id] = rm.get_BoundingBox(null); } catch { }
+            }
+            var indexByRoom = new Dictionary<ElementId, List<KeyValuePair<string, XYZ>>>();
+            foreach (var rm in rooms) indexByRoom[rm.Id] = new List<KeyValuePair<string, XYZ>>();
+            foreach (var kv in firstFixIndex)
+            {
+                foreach (var rm in rooms)
+                {
+                    if (FastRoomContains(rm, roomBboxes.TryGetValue(rm.Id, out var bb) ? bb : null, kv.Value, bucketSlackFt))
+                    {
+                        indexByRoom[rm.Id].Add(kv);
+                        break;
+                    }
+                }
+            }
+
             foreach (var rule in secondFixRules)
             {
                 Phase phase = ResolvePhase(doc, rule.CompletionPhase);
@@ -173,11 +197,11 @@ namespace StingTools.Core.Placement
 
                 foreach (var room in rooms)
                 {
-                    foreach (var entry in firstFixIndex)
+                    if (!indexByRoom.TryGetValue(room.Id, out var roomEntries)) continue;
+                    foreach (var entry in roomEntries)
                     {
                         if (consumed.Contains(entry.Key)) continue;
                         var pos = entry.Value;
-                        if (!RoomContains(room, pos, toleranceFt)) continue;
 
                         try
                         {
@@ -265,6 +289,16 @@ namespace StingTools.Core.Placement
         {
             if (string.IsNullOrEmpty(rule?.CategoryFilter)) return null;
             if (cache.TryGetValue(rule.CategoryFilter, out var hit)) return hit;
+
+            // Compile FamilyTypeRegex once outside the symbol loop.
+            System.Text.RegularExpressions.Regex typeRx = null;
+            if (!string.IsNullOrEmpty(rule.FamilyTypeRegex))
+            {
+                try { typeRx = new System.Text.RegularExpressions.Regex(rule.FamilyTypeRegex,
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
+                catch { typeRx = null; }
+            }
+
             try
             {
                 FamilySymbol first = null;
@@ -275,15 +309,10 @@ namespace StingTools.Core.Placement
                     if (fs.Category == null) continue;
                     if (!string.Equals(fs.Category.Name, rule.CategoryFilter, StringComparison.OrdinalIgnoreCase)) continue;
                     if (first == null) first = fs;
-                    if (!string.IsNullOrEmpty(rule.FamilyTypeRegex))
+                    if (typeRx != null && typeRx.IsMatch(fs.Name ?? ""))
                     {
-                        try
-                        {
-                            var rx = new System.Text.RegularExpressions.Regex(rule.FamilyTypeRegex,
-                                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                            if (rx.IsMatch(fs.Name ?? "")) { cache[rule.CategoryFilter] = fs; return fs; }
-                        }
-                        catch { }
+                        cache[rule.CategoryFilter] = fs;
+                        return fs;
                     }
                 }
                 cache[rule.CategoryFilter] = first;
@@ -313,11 +342,24 @@ namespace StingTools.Core.Placement
             {
                 if (room.IsPointInRoom(pt)) return true;
                 var bb = room.get_BoundingBox(null);
-                if (bb == null) return false;
-                return pt.X >= bb.Min.X - slackFt && pt.X <= bb.Max.X + slackFt
-                    && pt.Y >= bb.Min.Y - slackFt && pt.Y <= bb.Max.Y + slackFt;
+                return FastBboxContains(bb, pt, slackFt);
             }
             catch { return false; }
+        }
+
+        // Bbox-only containment using a pre-fetched BoundingBoxXYZ. Cheaper
+        // than RoomContains when the caller has already cached bboxes.
+        private static bool FastRoomContains(Room room, BoundingBoxXYZ bb, XYZ pt, double slackFt)
+        {
+            if (room == null || pt == null) return false;
+            return FastBboxContains(bb, pt, slackFt);
+        }
+
+        private static bool FastBboxContains(BoundingBoxXYZ bb, XYZ pt, double slackFt)
+        {
+            if (bb == null || pt == null) return false;
+            return pt.X >= bb.Min.X - slackFt && pt.X <= bb.Max.X + slackFt
+                && pt.Y >= bb.Min.Y - slackFt && pt.Y <= bb.Max.Y + slackFt;
         }
 
         private static void TrySetString(Element el, string paramName, string value)

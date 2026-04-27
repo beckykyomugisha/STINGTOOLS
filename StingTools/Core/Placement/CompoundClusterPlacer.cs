@@ -61,11 +61,15 @@ namespace StingTools.Core.Placement
                 if (r.ClusterTotalSlots > totalSlotsFromRules) totalSlotsFromRules = r.ClusterTotalSlots;
             }
             int totalSlots = totalSlotsFromRules > 0 ? totalSlotsFromRules : clusterRules.Count;
+
+            // Sort by ClusterSlotIndex once (in-place on a fresh list — caller's
+            // collection is left untouched).
+            var sorted = new List<PlacementRule>(clusterRules);
+            sorted.Sort((a, b) => a.ClusterSlotIndex.CompareTo(b.ClusterSlotIndex));
+
             if (pitchMm <= 0)
             {
-                // No pitch declared — collapse cluster to the frame centre.
-                foreach (var r in clusterRules.OrderBy(r => r.ClusterSlotIndex))
-                    output.Add((r, frameCentre));
+                foreach (var r in sorted) output.Add((r, frameCentre));
                 return output;
             }
 
@@ -73,7 +77,7 @@ namespace StingTools.Core.Placement
             XYZ along = WallTangentSafe(hostWall);
             if (along == null || along.IsZeroLength()) along = XYZ.BasisX;
 
-            foreach (var r in clusterRules.OrderBy(r => r.ClusterSlotIndex))
+            foreach (var r in sorted)
             {
                 int slot = Math.Max(0, r.ClusterSlotIndex);
                 double centred = slot - (totalSlots - 1) / 2.0;

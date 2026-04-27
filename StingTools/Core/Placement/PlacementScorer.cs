@@ -137,7 +137,8 @@ namespace StingTools.Core.Placement
                 results.Add(candidate);
             }
 
-            return results.OrderByDescending(c => c.Score).ToList();
+            results.Sort((a, b) => b.Score.CompareTo(a.Score));
+            return results;
         }
 
         /// <summary>
@@ -277,12 +278,22 @@ namespace StingTools.Core.Placement
         }
 
         // PC-10 — emit lighting-grid points snapped to the ceiling tile grid.
+        // Phase 139.2 — grid result cached per (room, rule) so re-entry from
+        // multiple anchor candidates of the same rule does not recompute.
+        private readonly Dictionary<(ElementId, string), LightingGridResult> _gridCache
+            = new Dictionary<(ElementId, string), LightingGridResult>();
+
         private void EmitLightingGridPoints(Room room, PlacementRule rule, XYZ roomPt,
             double offsetXFt, double offsetYFt, double anchorZ, List<XYZ> points)
         {
             try
             {
-                var grid = LightingGrid?.Compute(room);
+                var key = (room.Id, rule?.MergeKey ?? "");
+                if (!_gridCache.TryGetValue(key, out var grid))
+                {
+                    grid = LightingGrid?.Compute(room, rule);
+                    _gridCache[key] = grid;
+                }
                 if (grid == null || grid.Points.Count == 0)
                 {
                     points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
@@ -292,10 +303,6 @@ namespace StingTools.Core.Placement
                 var snapped = CeilingGridSnap.SnapToCeilingGrid(_doc, room, grid.Points);
                 foreach (var p in snapped)
                     points.Add(new XYZ(p.X + offsetXFt, p.Y + offsetYFt, anchorZ));
-                StingLog.Info(
-                    $"PlacementScorer: lighting grid for room {room.Id} — {grid.RoomTypeCode} " +
-                    $"target {grid.TargetLux:F0}lx, {grid.FixturesRequired} fixture(s), " +
-                    $"snapped to ceiling tiles");
             }
             catch (Exception ex)
             {
@@ -481,16 +488,18 @@ namespace StingTools.Core.Placement
             if (rule.CoverageRadiusMm <= 0) return 0.5;
             if (alreadyPlaced == null || alreadyPlaced.Count == 0) return 1.0;
             double radiusFt = rule.CoverageRadiusMm * MmToFt;
-            double minDist = double.MaxValue;
+            double radiusSq = radiusFt * radiusFt;
+            double minSq = double.MaxValue;
             foreach (var p in alreadyPlaced)
             {
                 if (p == null) continue;
                 double dx = p.X - candidate.X, dy = p.Y - candidate.Y;
-                double d = Math.Sqrt(dx * dx + dy * dy);
-                if (d < minDist) minDist = d;
+                double d2 = dx * dx + dy * dy;
+                if (d2 < minSq) minSq = d2;
+                if (d2 >= radiusSq) continue; // candidate stays "outside" — keep scanning for nearer
             }
-            if (minDist >= radiusFt) return 1.0;
-            return Math.Max(0.0, minDist / radiusFt);
+            if (minSq >= radiusSq) return 1.0;
+            return Math.Max(0.0, Math.Sqrt(minSq) / radiusFt);
         }
 
         /// <summary>
