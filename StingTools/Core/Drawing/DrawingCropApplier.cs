@@ -160,7 +160,7 @@ namespace StingTools.Core.Drawing
         private static BoundingBoxXYZ GetOrComputeUnion(Document doc, View view, List<string> warnings)
         {
             string key = DocKey(doc);
-            long viewKey = view.Id.IntegerValue;
+            long viewKey = view.Id.Value;
 
             // FIX-3: cheap element-count fingerprint. ID() runs O(1) per
             // element via the FilteredElementCollector; element movement

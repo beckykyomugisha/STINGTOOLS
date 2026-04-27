@@ -113,7 +113,7 @@ namespace StingTools.Core.Drawing
                     if (!(el is View vv) || vv.IsTemplate) continue;
                     var s = DrawingTypeStamper.Read(vv);
                     if (string.IsNullOrWhiteSpace(s)) continue;
-                    cache.StampByViewId[vv.Id.IntegerValue] = s;
+                    cache.StampByViewId[vv.Id.Value] = s;
                 }
                 cache.Valid = true;
             }
