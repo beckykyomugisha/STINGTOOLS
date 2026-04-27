@@ -55,6 +55,21 @@ namespace StingTools.Core.Clash
             get => _lastDirtyAtBox is DateTime dt ? dt : DateTime.UtcNow;
         }
         public void MarkDirty() { _lastDirtyAtBox = (object)DateTime.UtcNow; }
+
+        // F9: Watched-element set. Coordinator marks an element as
+        //     "watch this clash" → narrow-phase always re-runs for that
+        //     element on every dirty edit, even if it falls out of the
+        //     normal _clashNeighbours map (e.g. the matrix doesn't
+        //     normally consider its category). Useful when iteratively
+        //     fixing a hard-to-pin-down clash.
+        private readonly HashSet<int> _watchedElements = new HashSet<int>();
+        public void Watch(int elementId)    { lock (_lock) _watchedElements.Add(elementId); }
+        public void Unwatch(int elementId)  { lock (_lock) _watchedElements.Remove(elementId); }
+        public bool IsWatched(int elementId) { lock (_lock) return _watchedElements.Contains(elementId); }
+        public IReadOnlyCollection<int> WatchedSnapshot()
+        {
+            lock (_lock) return _watchedElements.ToArray();
+        }
         // G8: The AabbSweep that the live path actually queries. Replaced
         // wholesale on InitialiseFromView / rebuilt-but-kept-in-place by
         // AddOrUpdate/Remove (rec-9). Prior code had two references — _sweep
@@ -343,6 +358,16 @@ namespace StingTools.Core.Clash
 
         private HashSet<int> _flaggedIds = new HashSet<int>();
 
+        // D10: Thread-static reusable buffers for the per-element extractor.
+        //      LiveClashHandler can fire many times per second during dragging
+        //      and each call previously allocated a fresh List<float> + List<int>
+        //      + Dictionary. Pooling on a thread-static slot avoids the GC churn
+        //      without sharing state across threads (the IUpdater path is on
+        //      the Revit API thread; live-clash sessions are single-threaded).
+        [ThreadStatic] private static List<float> _tlsVerts;
+        [ThreadStatic] private static List<int>   _tlsIndices;
+        [ThreadStatic] private static Dictionary<long, int> _tlsDedup;
+
         private ClashMeshBuffer TryExtractOneElement(Element element)
         {
             // Use Face.Triangulate on the element's Geometry for single-element extraction.
@@ -353,9 +378,10 @@ namespace StingTools.Core.Clash
                 var geom = element.get_Geometry(opts);
                 if (geom == null) return null;
 
-                var verts = new List<float>();
-                var indices = new List<int>();
-                var dedup = new Dictionary<long, int>();
+                var verts = _tlsVerts ?? (_tlsVerts = new List<float>(1024));
+                var indices = _tlsIndices ?? (_tlsIndices = new List<int>(512));
+                var dedup = _tlsDedup ?? (_tlsDedup = new Dictionary<long, int>(512));
+                verts.Clear(); indices.Clear(); dedup.Clear();
 
                 foreach (var obj in geom) WalkGeometry(obj, Transform.Identity, verts, indices, dedup);
 
@@ -370,6 +396,8 @@ namespace StingTools.Core.Clash
                 string ifc = element.UniqueId ?? "";
 
                 var key = new ClashElementKey(docGuid, -1, (int)element.Id.Value, element.UniqueId, ifc);
+                // ToArray copies — necessary because the mesh buffer outlives the
+                // pooled lists (next extraction reuses the same backing storage).
                 return new ClashMeshBuffer(key, element.Category?.Name ?? "", verts.ToArray(), indices.ToArray());
             }
             catch (Exception ex) { StingLog.Warn("TryExtractOneElement: " + ex.Message); return null; }
@@ -423,8 +451,14 @@ namespace StingTools.Core.Clash
 
             // G2: Query the sweep index for broad-phase candidates instead of
             // iterating every mesh in the session.
+            // D6: Snapshot the candidate enumeration into a local list before
+            //     the loop so we don't hold the lock across triangle-triangle
+            //     SAT work. The lock-holding caller (RefreshElement) uses the
+            //     same _lock, but materialising the snapshot here means a
+            //     future read-side query path can iterate without blocking.
             var sweep = ActiveSweep;
-            var candidates = sweep?.QueryCandidatesFor(target) ?? _meshByEid.Values;
+            var raw = sweep?.QueryCandidatesFor(target) ?? (IEnumerable<ClashMeshBuffer>)_meshByEid.Values;
+            var candidates = raw is List<ClashMeshBuffer> ? raw : raw.ToList();
 
             // H1 + A4: Pre-build ElementFacts for target once (constant across
             //     the candidate loop). A4 — resolve System / Workset from the
@@ -437,6 +471,15 @@ namespace StingTools.Core.Clash
             foreach (var other in candidates)
             {
                 if (ReferenceEquals(other, target)) continue;
+                // E8: Defence-in-depth self-clash filter. ReferenceEquals is
+                //     correct when the same ClashMeshBuffer instance comes
+                //     back via the sweep cache, but two distinct Solids of
+                //     the same FamilyInstance can also surface (e.g. a
+                //     curtain wall with mullion + panel modelled on the same
+                //     ElementId). ElementId-equality short-circuits both.
+                if (other.Key != null && target.Key != null &&
+                    other.Key.ElementId == target.Key.ElementId &&
+                    other.Key.LinkInstanceElementId == target.Key.LinkInstanceElementId) continue;
                 if (other.MaxX < target.MinX - 0.164f || other.MinX > target.MaxX + 0.164f) continue;
                 if (other.MaxY < target.MinY - 0.164f || other.MinY > target.MaxY + 0.164f) continue;
                 if (other.MaxZ < target.MinZ - 0.164f || other.MinZ > target.MaxZ + 0.164f) continue;

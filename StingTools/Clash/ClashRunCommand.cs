@@ -149,7 +149,10 @@ namespace StingTools.Core.Clash
                     if (classified.Verdict != ClashVerdict.Keep) { filtered++; continue; }
 
                     string identity = ClashIdentity.Compute(h.A, h.B, cell.PairId, h.Centroid);
-                    if (exclusions.IsExcluded(identity)) { excluded++; continue; }
+                    // F8: Audited variant logs every exclusion hit to a JSONL
+                    //     so ISO 19650 stage gates can show evidence of why a
+                    //     clash was suppressed.
+                    if (exclusions.IsExcludedAudited(identity, cell.PairId, run.RunId)) { excluded++; continue; }
 
                     run.Clashes.Add(new ClashRecord
                     {
@@ -274,6 +277,19 @@ namespace StingTools.Core.Clash
                 }
                 catch (Exception bcfEx) { StingLog.Warn($"ClashRunCommand auto-BCF: {bcfEx.Message}"); }
 
+                // F10: Append notification events for CRITICAL/HIGH new +
+                //      reintroduced + severity-escalated clashes to a sidecar
+                //      JSONL. Local-first — a future server-side adapter can
+                //      tail and forward to FCM / SignalR / Slack without any
+                //      coupling here.
+                try
+                {
+                    var notifications = ClashNotifications.BuildFromRun(run, doc.ProjectInformation?.UniqueId);
+                    if (notifications.Count > 0)
+                        ClashNotifications.Append(outDir, notifications);
+                }
+                catch (Exception nEx) { StingLog.Warn($"ClashRunCommand notifications: {nEx.Message}"); }
+
                 StingLog.Info($"ClashRun: raw={run.Stats.Raw} filtered={run.Stats.Tier1Filtered} " +
                     $"excluded={run.Stats.Excluded} kept={run.Clashes.Count} " +
                     $"groups={run.Stats.Groups} new={run.Stats.New} active={run.Stats.Active} " +
@@ -322,32 +338,76 @@ namespace StingTools.Core.Clash
             // so keys match the guids stamped onto ClashElementKey.DocGuid.
             var docByGuid = MeshExtractor.BuildLinkedDocumentMap(doc);
 
-            var map = new Dictionary<ClashElementKey, ElementFacts>();
+            // D2: Bulk-load elements by document instead of one
+            //     doc.GetElement(...) per mesh. Prior code paid ~50k Revit
+            //     API calls on a 50k model (3-5 s). Now: group mesh keys by
+            //     owning document, run a single FilteredElementCollector
+            //     scoped to those ids per doc, build a lookup, then read
+            //     facts off the lookup.
+            var sw = Stopwatch.StartNew();
+            var elementByKey = new Dictionary<ClashElementKey, Element>(meshes.Count);
+            var keysByDoc = new Dictionary<Document, List<ClashElementKey>>();
+            foreach (var key in meshes.Keys)
+            {
+                var owningDoc = doc;
+                if (docByGuid.TryGetValue(key.DocGuid ?? "", out var resolvedDoc))
+                    owningDoc = resolvedDoc;
+                if (owningDoc == null) continue;
+                if (!keysByDoc.TryGetValue(owningDoc, out var lst))
+                {
+                    lst = new List<ClashElementKey>();
+                    keysByDoc[owningDoc] = lst;
+                }
+                lst.Add(key);
+            }
+            foreach (var kv in keysByDoc)
+            {
+                var owningDoc = kv.Key;
+                var keys = kv.Value;
+                try
+                {
+                    // Build the ElementId list once. Revit 2024+: ElementId(long).
+                    var ids = new List<ElementId>(keys.Count);
+                    foreach (var k in keys) ids.Add(new ElementId((long)k.ElementId));
+                    // Single-collector pass scoped to these ids; constructs
+                    // an Id → Element map without per-mesh API hits.
+                    var byId = new Dictionary<long, Element>(keys.Count);
+                    if (ids.Count > 0)
+                    {
+                        var coll = new FilteredElementCollector(owningDoc, ids).WhereElementIsNotElementType();
+                        foreach (var el in coll)
+                        {
+                            if (el?.Id == null) continue;
+                            byId[el.Id.Value] = el;
+                        }
+                    }
+                    foreach (var k in keys)
+                    {
+                        if (byId.TryGetValue(k.ElementId, out var el))
+                            elementByKey[k] = el;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildFactsByKey bulk-load: {ex.Message}"); }
+            }
+
+            var map = new Dictionary<ClashElementKey, ElementFacts>(meshes.Count);
             foreach (var kv in meshes)
             {
                 var key = kv.Key;
                 var mesh = kv.Value;
-                Element el = null;
+                elementByKey.TryGetValue(key, out var el);
                 Document owningDoc = doc;
-                try
-                {
-                    // Resolve the element from its owning document (host OR link).
-                    if (docByGuid.TryGetValue(key.DocGuid ?? "", out var resolvedDoc))
-                        owningDoc = resolvedDoc;
-                    // Revit 2024+: ElementId(int) ctor obsolete.
-                    el = owningDoc?.GetElement(new ElementId((long)key.ElementId));
-                }
-                catch (Exception ex) { StingLog.Warn($"BuildFactsByKey GetElement({key}): {ex.Message}"); }
-
-                var facts = new ElementFacts
+                if (docByGuid.TryGetValue(key.DocGuid ?? "", out var resolvedDoc)) owningDoc = resolvedDoc;
+                map[key] = new ElementFacts
                 {
                     Category = mesh.Category ?? "",
                     System = ReadSystem(el),
                     Classification = "",
                     Workset = ReadWorkset(owningDoc, el),
                 };
-                map[key] = facts;
             }
+            if (meshes.Count > 500)
+                StingLog.Info($"BuildFactsByKey: {meshes.Count} meshes hydrated in {sw.ElapsedMilliseconds}ms (D2 bulk-load)");
             return map;
         }
 
@@ -452,13 +512,25 @@ namespace StingTools.Core.Clash
                 if (!double.TryParse(suffix, System.Globalization.NumberStyles.Number,
                     System.Globalization.CultureInfo.InvariantCulture, out double tolMm)) continue;
 
-                // Overlap depth = min component of (AabbMax - AabbMin) in feet,
-                // converted to mm (1 ft = 304.8 mm).
+                // E7: Better overlap depth proxy. Min component of the AABB
+                //     intersection underestimates oblique penetration (a duct
+                //     piercing a wall at 45° has a tiny min-extent on the
+                //     diagonal axis even though the actual penetration depth
+                //     is large). Use the *median* of the three intersection
+                //     extents — for box-aligned hits it equals the original
+                //     min-extent; for oblique hits it captures the dominant
+                //     penetration direction. Falls back to min-extent when
+                //     AABB data is missing.
                 if (c.AabbMin == null || c.AabbMax == null || c.AabbMin.Length < 3 || c.AabbMax.Length < 3) continue;
                 double dx = Math.Max(0, c.AabbMax[0] - c.AabbMin[0]);
                 double dy = Math.Max(0, c.AabbMax[1] - c.AabbMin[1]);
                 double dz = Math.Max(0, c.AabbMax[2] - c.AabbMin[2]);
-                double overlapMm = Math.Min(dx, Math.Min(dy, dz)) * 304.8;
+                // Median-of-three: sort, take middle.
+                double e0 = dx, e1 = dy, e2 = dz;
+                if (e0 > e1) { var t = e0; e0 = e1; e1 = t; }
+                if (e1 > e2) { var t = e1; e1 = e2; e2 = t; }
+                if (e0 > e1) { var t = e0; e0 = e1; e1 = t; }
+                double overlapMm = e1 * 304.8;
 
                 if (overlapMm <= tolMm)
                 {
@@ -501,15 +573,6 @@ namespace StingTools.Core.Clash
         {
             if (run?.Clashes == null || run.Clashes.Count == 0) return;
 
-            // Build identity → recurrence count from prior run (1 if present,
-            // 0 if absent). Lightweight stand-in for a full archive walk.
-            var priorIdentitySet = new HashSet<string>(StringComparer.Ordinal);
-            if (prior?.Clashes != null)
-            {
-                foreach (var pc in prior.Clashes)
-                    if (!string.IsNullOrEmpty(pc.Identity)) priorIdentitySet.Add(pc.Identity);
-            }
-
             var inputs = new List<ClashInput>(run.Clashes.Count);
             foreach (var c in run.Clashes)
             {
@@ -519,7 +582,6 @@ namespace StingTools.Core.Clash
                     foreach (var h in c.StateHistory)
                         if (string.Equals(h.To, "Void", StringComparison.OrdinalIgnoreCase)) dismissCount++;
                 }
-                int recurrence = priorIdentitySet.Contains(c.Identity ?? "") ? 1 : 0;
                 inputs.Add(new ClashInput
                 {
                     ClashId = c.Id ?? "",
@@ -530,16 +592,23 @@ namespace StingTools.Core.Clash
                     PenetrationMm = ComputeOverlapMm(c),
                     EstCostUsd = null,   // ResolutionHeuristics has no cost API today
                     PhaseInstalled = false,   // ElementFacts.Phase isn't populated yet
-                    RecurrenceCount = recurrence,
+                    // E10: read from the persisted ClashRecord.RecurrenceCount,
+                    //      maintained by ClashHistory.MergeWithPrior. Replaces the
+                    //      0/1 prior-run-presence stand-in — a clash reintroduced
+                    //      4× now scores correctly (4) instead of capping at 1.
+                    RecurrenceCount = c.RecurrenceCount,
                     DismissCount = dismissCount,
                 });
             }
 
             List<ScoredClash> scored;
-            try { scored = ClashTriageEngine.Triage(inputs); }
+            // F5: TriageAll scores every clash so the persisted ClashRecord.TriageScore
+            //     is meaningful across the full run. Triage(inputs) used to silently
+            //     truncate to top-N (default 20) — the other 480 stayed at score=0.
+            try { scored = ClashTriageEngine.TriageAll(inputs); }
             catch (Exception ex)
             {
-                StingLog.Warn($"ClashTriageEngine.Triage: {ex.Message}");
+                StingLog.Warn($"ClashTriageEngine.TriageAll: {ex.Message}");
                 return;
             }
             var byClashId = new Dictionary<string, ScoredClash>(StringComparer.Ordinal);

@@ -77,7 +77,10 @@ namespace StingTools.Core.Clash
                 string stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
                 string bcfPath = Path.Combine(outDir, $"clashes_{stamp}.bcfzip");
 
-                var snapshotter = new BcfSnapshotter(doc);
+                // D8: Snapshotter now reuses one temp 3D view for the whole
+                //     batch via IDisposable. The using-block guarantees the
+                //     view is cleaned up even on exception.
+                using var snapshotter = new BcfSnapshotter(doc);
                 var snapshotDir = Path.Combine(outDir, $"clash_snapshots_{stamp}");
                 int wroteViewpoints = 0, wroteSnapshots = 0;
 

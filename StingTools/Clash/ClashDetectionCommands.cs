@@ -884,14 +884,19 @@ namespace StingTools.Clash
                 int passCount = 0, failCount = 0;
                 int processed = 0;
                 var loopWatch = System.Diagnostics.Stopwatch.StartNew();
+                // D7: Cache connected-element ids per subject so the same
+                //     Connector.AllRefs walk doesn't re-run for every audit
+                //     row. Connector graph is stable for the duration of the
+                //     audit pass.
+                var connectedCache = new Dictionary<long, HashSet<long>>(ducts.Count + pipes.Count);
                 foreach (var d in ducts)
                 {
-                    if (AuditOne(doc, d, DuctMinClearMm, candidates, matrix, rows)) passCount++; else failCount++;
+                    if (AuditOne(doc, d, DuctMinClearMm, candidates, matrix, rows, connectedCache)) passCount++; else failCount++;
                     processed++;
                 }
                 foreach (var p in pipes)
                 {
-                    if (AuditOne(doc, p, PipeMinClearMm, candidates, matrix, rows)) passCount++; else failCount++;
+                    if (AuditOne(doc, p, PipeMinClearMm, candidates, matrix, rows, connectedCache)) passCount++; else failCount++;
                     processed++;
                 }
                 if (processed > 500)
@@ -976,7 +981,8 @@ namespace StingTools.Clash
 
         private static bool AuditOne(Document doc, Element subject, double targetMm,
             List<(ElementId Id, BoundingBoxXYZ Bb, string CategoryName, BuiltInCategory Bic)> candidates,
-            StingTools.Core.Clash.ClashMatrix matrix, List<string> rows)
+            StingTools.Core.Clash.ClashMatrix matrix, List<string> rows,
+            Dictionary<long, HashSet<long>> connectedCache)
         {
             if (subject == null) return true;
             BoundingBoxXYZ sBb = null;
@@ -990,7 +996,15 @@ namespace StingTools.Clash
             double tolFt = SearchRadiusMm / ClashCategoryHelpers.MmPerFoot;
             // B2: In-memory AABB range query against the pre-built candidate
             //     list. No new FilteredElementCollector instantiated here.
-            HashSet<long> connectedIds = GetConnectedElementIds(subject);
+            // D7: Reuse cached connector-walk result when present.
+            HashSet<long> connectedIds;
+            if (connectedCache != null && connectedCache.TryGetValue(subject.Id.Value, out var cachedConn))
+                connectedIds = cachedConn;
+            else
+            {
+                connectedIds = GetConnectedElementIds(subject);
+                if (connectedCache != null) connectedCache[subject.Id.Value] = connectedIds;
+            }
             double subjMinX = sBb.Min.X - tolFt, subjMaxX = sBb.Max.X + tolFt;
             double subjMinY = sBb.Min.Y - tolFt, subjMaxY = sBb.Max.Y + tolFt;
             double subjMinZ = sBb.Min.Z - tolFt, subjMaxZ = sBb.Max.Z + tolFt;

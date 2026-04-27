@@ -59,13 +59,18 @@ namespace StingTools.Core.Clash
             }
 
             // ── Pass 3: spatial grouping (original behaviour) ────────────────
-            // Anything still ungrouped falls through to 2 m × 2 m × 3 m cells
-            // keyed on matrix pair-id. Preserves the Stage 4 contract for the
-            // common one-off clash case.
-            var cellSize = new Vector3(2f, 2f, 3f);
+            // E5: Adaptive cell size per matrix pair. Prior code used a fixed
+            //     2×2×3m grid which clusters small light fixtures awkwardly
+            //     (5+ per cell) and AHU-vs-beam clashes too sparsely (1 per
+            //     cell). Now: cell size = average element AABB diagonal × 1.5
+            //     per pair-id, clamped to [0.5m..6m]. Coordinator-relevant
+            //     groupings emerge: lights cluster at 1m, AHU/beam at 4-6m.
+            var cellSizeByPair = ComputeAdaptiveCellSizes(ungrouped);
             var byCell = new Dictionary<(long, long, long, string), List<ClashRecord>>();
             foreach (var c in ungrouped)
             {
+                if (!cellSizeByPair.TryGetValue(c.MatrixPairId ?? "", out var cellSize))
+                    cellSize = new Vector3(2f, 2f, 3f);
                 long cx = (long)(c.Centroid[0] / cellSize.X);
                 long cy = (long)(c.Centroid[1] / cellSize.Y);
                 long cz = (long)(c.Centroid[2] / cellSize.Z);
@@ -107,21 +112,26 @@ namespace StingTools.Core.Clash
         /// </summary>
         private static List<PatternGroup> FindElementPatternGroups(List<ClashRecord> clashes)
         {
-            var byPairAndA = new Dictionary<(string, int), List<ClashRecord>>();
-            var byPairAndB = new Dictionary<(string, int), List<ClashRecord>>();
+            // D9: Single-pass dictionary keyed on (pair, side, elementId).
+            //     Prior code built two parallel dictionaries (byPairAndA,
+            //     byPairAndB) then concatenated them — twice the dictionary
+            //     work, twice the bucket allocations. One dict, one pass.
+            var byPairSideEid = new Dictionary<(string Pair, string Side, int Eid), List<ClashRecord>>();
             foreach (var c in clashes)
             {
                 string pair = c.MatrixPairId ?? "";
                 if (c.ElementA != null)
                 {
-                    var key = (pair, c.ElementA.ElementId);
-                    if (!byPairAndA.TryGetValue(key, out var lst)) byPairAndA[key] = lst = new List<ClashRecord>();
+                    var key = (pair, "A", c.ElementA.ElementId);
+                    if (!byPairSideEid.TryGetValue(key, out var lst))
+                        byPairSideEid[key] = lst = new List<ClashRecord>();
                     lst.Add(c);
                 }
                 if (c.ElementB != null)
                 {
-                    var key = (pair, c.ElementB.ElementId);
-                    if (!byPairAndB.TryGetValue(key, out var lst)) byPairAndB[key] = lst = new List<ClashRecord>();
+                    var key = (pair, "B", c.ElementB.ElementId);
+                    if (!byPairSideEid.TryGetValue(key, out var lst))
+                        byPairSideEid[key] = lst = new List<ClashRecord>();
                     lst.Add(c);
                 }
             }
@@ -131,33 +141,27 @@ namespace StingTools.Core.Clash
             // G9: Order candidates by size DESCENDING, then by key ASCENDING, so
             // the output is deterministic regardless of Dictionary enumeration
             // order (which is non-deterministic across runtime versions and
-            // insertion histories). Prior OrderByDescending(count) alone was
-            // unstable on ties — two buckets of size 5 could swap winner across
-            // runs, producing subtly different GroupIds and audit trails.
-            // Within each element-pattern pass we also compare post-claim
-            // member count instead of raw count — a candidate whose members
-            // were already consumed by an earlier larger group drops out
-            // cleanly rather than falsely appearing as a plausible anchor.
-            var candidates = byPairAndA.Select(kv => (kv, side: "A"))
-                .Concat(byPairAndB.Select(kv => (kv, side: "B")))
-                .OrderByDescending(x => x.kv.Value.Count)
-                .ThenBy(x => x.side, System.StringComparer.Ordinal)
-                .ThenBy(x => x.kv.Key.Item1, System.StringComparer.Ordinal)
-                .ThenBy(x => x.kv.Key.Item2);
+            // insertion histories).
+            var candidates = byPairSideEid
+                .Select(kv => (Key: kv.Key, Members: kv.Value))
+                .OrderByDescending(x => x.Members.Count)
+                .ThenBy(x => x.Key.Side, System.StringComparer.Ordinal)
+                .ThenBy(x => x.Key.Pair, System.StringComparer.Ordinal)
+                .ThenBy(x => x.Key.Eid);
 
-            foreach (var (kv, side) in candidates)
+            foreach (var entry in candidates)
             {
-                if (kv.Value.Count < 3) continue;   // early reject: even pre-claim is too small
-                var members = kv.Value.Where(c => !claimed.Contains(c.Identity ?? "")).ToList();
-                if (members.Count < 3) continue;    // G9: post-claim count gate — was already here, keep
+                if (entry.Members.Count < 3) continue;   // early reject: even pre-claim is too small
+                var members = entry.Members.Where(c => !claimed.Contains(c.Identity ?? "")).ToList();
+                if (members.Count < 3) continue;    // G9: post-claim count gate
 
                 var anchorMember = members
                     .OrderBy(m => m.Identity ?? "", System.StringComparer.Ordinal)
                     .First();
-                var cat = side == "A" ? anchorMember.ElementA?.Category : anchorMember.ElementB?.Category;
+                var cat = entry.Key.Side == "A" ? anchorMember.ElementA?.Category : anchorMember.ElementB?.Category;
                 result.Add(new PatternGroup
                 {
-                    AnchorDescription = $"{kv.Key.Item1} via {side}={cat}:{kv.Key.Item2}",
+                    AnchorDescription = $"{entry.Key.Pair} via {entry.Key.Side}={cat}:{entry.Key.Eid}",
                     Members = members,
                 });
                 foreach (var m in members) claimed.Add(m.Identity ?? "");
@@ -192,13 +196,17 @@ namespace StingTools.Core.Clash
                 var members = bucket.ToList();
 
                 // A5: Try all three axes; pick the smallest mean-deviation.
+                // E6: Tolerance is now relative to the spacing — `0.1 * mean`
+                //     so 1ft-spaced lights tolerate 0.1ft jitter, 10ft beam
+                //     centres tolerate 1ft. Floor of 0.05ft (~15mm) for
+                //     extremely tight packs.
                 int bestAxis = -1;
                 float bestDev = float.MaxValue;
                 List<ClashRecord> bestSorted = null;
                 for (int axis = 0; axis < 3; axis++)
                 {
                     var sorted = members.OrderBy(c => c.Centroid[axis]).ToList();
-                    if (!TryComputeMeanDev(sorted, axis, tolerance: 0.5f, out float dev)) continue;
+                    if (!TryComputeMeanDev(sorted, axis, relativeTolerance: 0.1f, minToleranceFt: 0.05f, out float dev)) continue;
                     if (dev < bestDev) { bestDev = dev; bestAxis = axis; bestSorted = sorted; }
                 }
                 if (bestAxis < 0 || bestSorted == null) continue;
@@ -214,12 +222,13 @@ namespace StingTools.Core.Clash
         }
 
         /// <summary>
-        /// A5: Inverted form of IsEquallySpaced — returns the mean deviation
-        /// when the points are equally spaced (within tolerance), else false.
-        /// Used to score axis candidates so the winning axis is the one whose
-        /// spacing is most regular, not just "any axis that fits".
+        /// A5 / E6: Returns the mean deviation when the points are equally
+        /// spaced (within tolerance), else false. Tolerance is now relative
+        /// to the spacing — works for both tight light grids and wide beam
+        /// centres without per-pair tuning.
         /// </summary>
-        private static bool TryComputeMeanDev(List<ClashRecord> sorted, int axis, float tolerance, out float meanDev)
+        private static bool TryComputeMeanDev(List<ClashRecord> sorted, int axis,
+            float relativeTolerance, float minToleranceFt, out float meanDev)
         {
             meanDev = float.MaxValue;
             if (sorted == null || sorted.Count < 3) return false;
@@ -230,6 +239,7 @@ namespace StingTools.Core.Clash
             }
             float mean = deltas.Average();
             if (mean < 0.1f) return false;     // too-close centroids aren't a pattern
+            float tolerance = System.Math.Max(minToleranceFt, mean * relativeTolerance);
             float devSum = 0f;
             foreach (var d in deltas)
             {
@@ -246,6 +256,42 @@ namespace StingTools.Core.Clash
             // Log2 bucket: clashes within a ~2× volume band cluster together.
             if (volMm3 <= 1f) return 0;
             return (int)System.Math.Round(System.Math.Log2(volMm3));
+        }
+
+        /// <summary>
+        /// E5: Average AABB diagonal × 1.5 per matrix pair-id, clamped to
+        /// [0.5m..6m]. Pairs with no AABB data fall back to the original
+        /// 2×2×3m grid. Returns feet-units cell size to match Centroid units.
+        /// </summary>
+        private static Dictionary<string, Vector3> ComputeAdaptiveCellSizes(List<ClashRecord> clashes)
+        {
+            var byPair = new Dictionary<string, (double sumDiag, int n)>();
+            foreach (var c in clashes)
+            {
+                if (c.AabbMin == null || c.AabbMax == null) continue;
+                if (c.AabbMin.Length < 3 || c.AabbMax.Length < 3) continue;
+                double dx = c.AabbMax[0] - c.AabbMin[0];
+                double dy = c.AabbMax[1] - c.AabbMin[1];
+                double dz = c.AabbMax[2] - c.AabbMin[2];
+                double diag = System.Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                string pid = c.MatrixPairId ?? "";
+                if (!byPair.TryGetValue(pid, out var v)) v = (0, 0);
+                byPair[pid] = (v.sumDiag + diag, v.n + 1);
+            }
+            var result = new Dictionary<string, Vector3>(byPair.Count);
+            // Clamp range converted from m to ft (1m ≈ 3.281 ft).
+            const float minFt = 0.5f / 0.3048f;   // 0.5m floor
+            const float maxFt = 6.0f / 0.3048f;   // 6m  ceiling
+            foreach (var kv in byPair)
+            {
+                if (kv.Value.n == 0) continue;
+                float avgDiag = (float)(kv.Value.sumDiag / kv.Value.n);
+                float cell = System.Math.Min(maxFt, System.Math.Max(minFt, avgDiag * 1.5f));
+                // Z slightly larger than XY (typical building geometry has
+                // taller storeys than rooms are deep).
+                result[kv.Key] = new Vector3(cell, cell, cell * 1.5f);
+            }
+            return result;
         }
     }
 }
