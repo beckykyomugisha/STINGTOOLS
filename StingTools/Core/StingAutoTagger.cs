@@ -777,7 +777,9 @@ namespace StingTools.Core
                 {
                     View view = doc?.ActiveView ?? app?.ActiveUIDocument?.ActiveView;
                     if (view == null || view is ViewSheet) return null;
-                    string dtId = ParameterHelpers.GetString(view, "STING_DRAWING_TYPE_ID_TXT");
+                    // GAP-N: route through Stamper.Read so a template-controlled
+                    // pack=…|cs=… stamp doesn't leak into the registry lookup.
+                    string dtId = Drawing.DrawingTypeStamper.Read(view);
                     if (string.IsNullOrWhiteSpace(dtId)) return null;
                     var dt = Drawing.DrawingTypeRegistry.Get(doc, dtId);
                     if (dt == null) return null;

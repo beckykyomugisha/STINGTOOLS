@@ -128,12 +128,26 @@ namespace StingTools.Core.Drawing
 
         private static void RunTagRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunOptions opts, AnnotationResult result)
         {
-            // Build effective rule list
+            // FG-02: handle every tag-like RuleType, not just bare "AutoTag".
+            // RoomTag / SpaceTag / AreaTag / MaterialTag / KeynoteTag /
+            // MultiCategoryTag are all variants of "tag this category" and
+            // should run via the same per-rule path; the differentiator is
+            // the resolved tag family (RoomTag uses Room tag families, etc.).
+            // RuleType is preserved on the rule so downstream callers can
+            // pick a tag family by purpose.
+            var tagRuleKinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "AutoTag", "RoomTag", "SpaceTag", "AreaTag",
+                "MaterialTag", "KeynoteTag", "MultiCategoryTag",
+            };
+
             List<AutoAnnotationRule> effective;
             if (pack.Rules != null && pack.Rules.Count > 0)
             {
-                effective = pack.Rules.Where(r => r != null && r.Enabled &&
-                    string.Equals(r.RuleType ?? "AutoTag", "AutoTag", StringComparison.OrdinalIgnoreCase)).ToList();
+                effective = pack.Rules
+                    .Where(r => r != null && r.Enabled
+                                && tagRuleKinds.Contains(r.RuleType ?? "AutoTag"))
+                    .ToList();
             }
             else if (pack.AutoTag == true)
             {
@@ -245,8 +259,22 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     var bb = el.get_BoundingBox(view);
-                    if (bb == null) continue;
-                    var center = (bb.Min + bb.Max) * 0.5;
+                    XYZ center;
+                    if (bb != null)
+                    {
+                        center = (bb.Min + bb.Max) * 0.5;
+                    }
+                    else
+                    {
+                        // GAP-I: schedule items / annotation-host elements
+                        // may legitimately return a null view bbox. Try the
+                        // element's location point/curve before giving up;
+                        // worst case place at the view's centre so the tag
+                        // exists and can be moved by the user.
+                        center = ResolveFallbackTagPoint(el, view);
+                        if (center == null) continue;
+                        result.Warnings.Add($"TagRule '{el.Id}': null bbox in view, fallback placement used.");
+                    }
                     IndependentTag.Create(doc, tagSymbolId, view.Id,
                         new Reference(el), addLeader, ori, center);
                     result.TagsPlaced++;
@@ -259,6 +287,24 @@ namespace StingTools.Core.Drawing
                     catch { }
                 }
             }
+        }
+
+        // GAP-I helper: derive a tag point when the element's bbox is null.
+        private static XYZ ResolveFallbackTagPoint(Element el, View view)
+        {
+            try
+            {
+                if (el.Location is LocationPoint lp && lp.Point != null) return lp.Point;
+                if (el.Location is LocationCurve lc && lc.Curve != null)
+                {
+                    var c = lc.Curve;
+                    return (c.GetEndPoint(0) + c.GetEndPoint(1)) * 0.5;
+                }
+                // View centre as last-resort fallback.
+                if (view?.Origin != null) return view.Origin;
+            }
+            catch { /* best effort */ }
+            return null;
         }
 
         private static int GetPackTagDepth(AnnotationRulePack pack, string category)

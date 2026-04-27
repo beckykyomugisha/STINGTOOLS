@@ -95,7 +95,13 @@ namespace StingTools.Commands.Drawing
             try
             {
                 var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
-                
+
+                // PERF-01: warm the per-document caches so every per-level
+                // / per-DrawingType Apply call hits the (template name →
+                // ElementId) and (pack id → pack) memos.
+                DrawingTypePresentation.Prewarm(doc);
+                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
+
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Plan", "RCP");
                 var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
                 var contextLabels = levels.Select(l => l.Name).ToList();
@@ -147,7 +153,10 @@ namespace StingTools.Commands.Drawing
             try
             {
                 var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
-                
+
+                // PERF-01: pre-warm view-template + pack caches.
+                DrawingTypePresentation.Prewarm(doc);
+                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var scopes = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
@@ -217,7 +226,11 @@ namespace StingTools.Commands.Drawing
             try
             {
                 var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
-                
+
+                // PERF-01: pre-warm view-template + pack caches before per-room loop.
+                DrawingTypePresentation.Prewarm(doc);
+                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
+
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation");
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()
                     .Cast<Element>()
@@ -282,7 +295,11 @@ namespace StingTools.Commands.Drawing
             try
             {
                 var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
-                
+
+                // PERF-01: pre-warm view-template + pack caches.
+                DrawingTypePresentation.Prewarm(doc);
+                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
+
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Section");
                 var grids = new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>().ToList();
                 var labels = new List<string> { "Manual selection (pick in model)" };
@@ -368,7 +385,11 @@ namespace StingTools.Commands.Drawing
             try
             {
                 var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
-                
+
+                // PERF-01: pre-warm view-template + pack caches.
+                DrawingTypePresentation.Prewarm(doc);
+                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
+
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation")
                     .Where(t => !(t.Name ?? "").ToLowerInvariant().Contains("interior")).ToList();
 

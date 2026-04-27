@@ -359,6 +359,45 @@ namespace StingTools.Clash
     // Accepts an optional transform for linked-model boxes.
     // ──────────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// B1: Local helper exposing the same 8-corner-transform world AABB build
+    /// that AabbNarrowPhase uses internally, but as a public-internal entry
+    /// point so CrossModelClashCommand can pre-compute world AABBs for its
+    /// linked-element cache without paying the transform per pair.
+    /// </summary>
+    internal static class TransformedAabb
+    {
+        internal static (XYZ Min, XYZ Max) Build(BoundingBoxXYZ bb, Transform t)
+        {
+            if (bb == null) return (XYZ.Zero, XYZ.Zero);
+            if (t == null || t.IsIdentity) return (bb.Min, bb.Max);
+            var corners = new XYZ[8]
+            {
+                new XYZ(bb.Min.X, bb.Min.Y, bb.Min.Z),
+                new XYZ(bb.Max.X, bb.Min.Y, bb.Min.Z),
+                new XYZ(bb.Min.X, bb.Max.Y, bb.Min.Z),
+                new XYZ(bb.Max.X, bb.Max.Y, bb.Min.Z),
+                new XYZ(bb.Min.X, bb.Min.Y, bb.Max.Z),
+                new XYZ(bb.Max.X, bb.Min.Y, bb.Max.Z),
+                new XYZ(bb.Min.X, bb.Max.Y, bb.Max.Z),
+                new XYZ(bb.Max.X, bb.Max.Y, bb.Max.Z),
+            };
+            double mnX = double.PositiveInfinity, mnY = double.PositiveInfinity, mnZ = double.PositiveInfinity;
+            double mxX = double.NegativeInfinity, mxY = double.NegativeInfinity, mxZ = double.NegativeInfinity;
+            for (int i = 0; i < 8; i++)
+            {
+                var w = t.OfPoint(corners[i]);
+                if (w.X < mnX) mnX = w.X;
+                if (w.Y < mnY) mnY = w.Y;
+                if (w.Z < mnZ) mnZ = w.Z;
+                if (w.X > mxX) mxX = w.X;
+                if (w.Y > mxY) mxY = w.Y;
+                if (w.Z > mxZ) mxZ = w.Z;
+            }
+            return (new XYZ(mnX, mnY, mnZ), new XYZ(mxX, mxY, mxZ));
+        }
+    }
+
     internal static class AabbNarrowPhase
     {
         internal static (bool Intersects, double OverlapMm, XYZ CentroidFt) Check(
@@ -603,6 +642,23 @@ namespace StingTools.Clash
                 var seen = new HashSet<ClashIdentity>();
                 int linkedElementsTotal = 0;
 
+                // B1: Pre-cache host-MEP bboxes once outside the link loop.
+                //     Prior code called get_BoundingBox on each MEP element
+                //     once per link and again per linked-structural element,
+                //     hammering the Revit API on a 2000×1000×3-link model.
+                var mepCache = new List<(Element El, BoundingBoxXYZ Bb)>(mepElements.Count);
+                foreach (var mepEl in mepElements)
+                {
+                    BoundingBoxXYZ mepBb = null;
+                    try { mepBb = mepEl.get_BoundingBox(null); }
+                    catch (Exception ex) { StingLog.Warn($"CrossModelClash.MEP.BBox: {ex.Message}"); }
+                    if (mepBb == null) continue;
+                    mepCache.Add((mepEl, mepBb));
+                }
+
+                var loopWatch = System.Diagnostics.Stopwatch.StartNew();
+                int subjectIterations = 0;
+
                 foreach (var link in links)
                 {
                     Document linkDoc = null;
@@ -621,23 +677,83 @@ namespace StingTools.Clash
                     if (linkStructurals.Count == 0) continue;
                     linkedElementsTotal += linkStructurals.Count;
 
-                    // Precompute host MEP AABBs once per link (cheap — couple-hundred elements typical).
-                    foreach (var mepEl in mepElements)
+                    // B1: Build a small in-memory cache of (linkElement, worldAabb)
+                    //     for the link, so the inner loop is a pure AABB compare
+                    //     against pre-computed world-space boxes. AABB depth tolerance
+                    //     is 25 mm (matches the broad-phase tol) so we don't double-
+                    //     transform corners 8 times per inner-loop iteration.
+                    var linkIds = new List<ElementId>(linkStructurals.Count);
+                    var linkBoxes = new Dictionary<long, (Element El, BoundingBoxXYZ LocalBb, XYZ WorldMin, XYZ WorldMax)>(linkStructurals.Count);
+                    foreach (var linkEl in linkStructurals)
                     {
-                        BoundingBoxXYZ mepBb = null;
-                        try { mepBb = mepEl.get_BoundingBox(null); } catch (Exception ex) { StingLog.Warn($"CrossModelClash.MEP.BBox: {ex.Message}"); }
-                        if (mepBb == null) continue;
+                        if (linkEl?.Id == null) continue;
+                        BoundingBoxXYZ linkBb = null;
+                        try { linkBb = linkEl.get_BoundingBox(null); }
+                        catch (Exception ex) { StingLog.Warn($"CrossModelClash.Link.BBox: {ex.Message}"); }
+                        if (linkBb == null) continue;
+                        // World AABB for broad-phase narrowing per host MEP.
+                        var (wMin, wMax) = TransformedAabb.Build(linkBb, t);
+                        linkIds.Add(linkEl.Id);
+                        linkBoxes[linkEl.Id.Value] = (linkEl, linkBb, wMin, wMax);
+                    }
+                    if (linkBoxes.Count == 0) continue;
 
-                        foreach (var linkEl in linkStructurals)
+                    // B1: BoundingBoxIntersectsFilter against the link doc to narrow
+                    //     candidates per host MEP. The filter operates on the link
+                    //     document's local coordinates, so transform the host MEP
+                    //     world AABB through the inverse link transform first.
+                    Transform inv = null;
+                    try { inv = t.Inverse; } catch (Exception ex) { StingLog.Warn($"CrossModelClash.InvTransform({linkName}): {ex.Message}"); }
+
+                    double tolFt = ClashCategoryHelpers.BroadPhaseToleranceMm / ClashCategoryHelpers.MmPerFoot;
+
+                    foreach (var (mepEl, mepBb) in mepCache)
+                    {
+                        subjectIterations++;
+                        // Convert host (world) AABB into the link's local frame.
+                        var hostMin = mepBb.Min;
+                        var hostMax = mepBb.Max;
+                        XYZ probeMin, probeMax;
+                        if (inv != null)
                         {
-                            BoundingBoxXYZ linkBb = null;
-                            try { linkBb = linkEl.get_BoundingBox(null); } catch (Exception ex) { StingLog.Warn($"CrossModelClash.Link.BBox: {ex.Message}"); }
-                            if (linkBb == null) continue;
+                            var (lMin, lMax) = TransformedAabb.Build(mepBb, inv);
+                            probeMin = lMin; probeMax = lMax;
+                        }
+                        else { probeMin = hostMin; probeMax = hostMax; }
+
+                        // Narrowed candidate list via Revit filter.
+                        IList<Element> candidates;
+                        try
+                        {
+                            var outline = new Outline(
+                                new XYZ(probeMin.X - tolFt, probeMin.Y - tolFt, probeMin.Z - tolFt),
+                                new XYZ(probeMax.X + tolFt, probeMax.Y + tolFt, probeMax.Z + tolFt));
+                            var filter = new BoundingBoxIntersectsFilter(outline);
+                            candidates = new FilteredElementCollector(linkDoc, linkIds)
+                                .WherePasses(filter)
+                                .ToElements();
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"CrossModelClash.LinkFilter({linkName}): {ex.Message}");
+                            continue;
+                        }
+
+                        foreach (var linkEl in candidates)
+                        {
+                            if (linkEl?.Id == null) continue;
+                            if (!linkBoxes.TryGetValue(linkEl.Id.Value, out var entry)) continue;
+
+                            // World-space AABB sweep — short-circuit before paying
+                            // the 8-corner narrow-phase transform.
+                            if (entry.WorldMax.X < hostMin.X - tolFt || entry.WorldMin.X > hostMax.X + tolFt) continue;
+                            if (entry.WorldMax.Y < hostMin.Y - tolFt || entry.WorldMin.Y > hostMax.Y + tolFt) continue;
+                            if (entry.WorldMax.Z < hostMin.Z - tolFt || entry.WorldMin.Z > hostMax.Z + tolFt) continue;
 
                             var identity = new ClashIdentity(mepEl.Id, linkEl.Id);
                             if (!seen.Add(identity)) continue;
 
-                            var narrow = AabbNarrowPhase.Check(mepBb, null, linkBb, t);
+                            var narrow = AabbNarrowPhase.Check(mepBb, null, entry.LocalBb, t);
                             if (!narrow.Intersects) continue;
 
                             session.Results.Add(new ClashResult
@@ -660,6 +776,9 @@ namespace StingTools.Clash
                         }
                     }
                 }
+                if (subjectIterations > 500)
+                    StingLog.Info($"CrossModelClashCommand: {subjectIterations} host-MEP × link iterations, " +
+                        $"{session.Results.Count} clashes, {loopWatch.ElapsedMilliseconds} ms");
 
                 string reportPath = ClashDetectionCommand.WriteClashReport(doc, session, "crossclash");
                 session.JsonReportPath = reportPath;
@@ -726,18 +845,63 @@ namespace StingTools.Clash
                     .WhereElementIsNotElementType()
                     .ToList();
 
-                // Candidate neighbours: MEP + structural, minus the subject itself.
-                var allIds = new List<ElementId>();
-                allIds.AddRange(ducts.Select(e => e.Id));
-                allIds.AddRange(pipes.Select(e => e.Id));
-                allIds.AddRange(ClashCategoryHelpers.CollectStructuralElements(doc).Select(e => e.Id));
+                // B2: Pre-collect candidate neighbours into an in-memory list
+                //     of (id, bbox, category) once. Prior code instantiated a
+                //     FilteredElementCollector per subject element — for 1000
+                //     elements that is 1000 collectors. Now: one Revit pass to
+                //     build the cache, then a hash-grid query per subject.
+                var candidates = new List<(ElementId Id, BoundingBoxXYZ Bb, string CategoryName, BuiltInCategory Bic)>();
+                void CollectInto(Element el)
+                {
+                    if (el?.Id == null) return;
+                    BoundingBoxXYZ bb = null;
+                    try { bb = el.get_BoundingBox(null); }
+                    catch (Exception ex) { StingLog.Warn($"Clearance.PreCache.BBox({el.Id.Value}): {ex.Message}"); }
+                    if (bb == null) return;
+                    string catName = "";
+                    BuiltInCategory bic = BuiltInCategory.INVALID;
+                    try
+                    {
+                        catName = el.Category?.Name ?? "";
+                        if (el.Category?.Id != null) bic = (BuiltInCategory)el.Category.Id.Value;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Clearance.PreCache.Cat({el.Id.Value}): {ex.Message}"); }
+                    candidates.Add((el.Id, bb, catName, bic));
+                }
+                foreach (var d in ducts) CollectInto(d);
+                foreach (var p in pipes) CollectInto(p);
+                foreach (var s in ClashCategoryHelpers.CollectStructuralElements(doc)) CollectInto(s);
+
+                // C3: Load the project matrix once so per-pair clearance distances
+                //     come from default_clash_matrix.json rather than the hardcoded
+                //     constants. Falls back to DuctMinClearMm / PipeMinClearMm when
+                //     no cell matches the subject ↔ neighbour categories.
+                var matrix = LoadMatrixForClearance();
 
                 var rows = new List<string>();
                 rows.Add("element_id,category,level,min_clearance_mm,target_mm,status");
 
                 int passCount = 0, failCount = 0;
-                foreach (var d in ducts)   { if (AuditOne(doc, d, DuctMinClearMm, allIds, rows)) passCount++; else failCount++; }
-                foreach (var p in pipes)   { if (AuditOne(doc, p, PipeMinClearMm, allIds, rows)) passCount++; else failCount++; }
+                int processed = 0;
+                var loopWatch = System.Diagnostics.Stopwatch.StartNew();
+                // D7: Cache connected-element ids per subject so the same
+                //     Connector.AllRefs walk doesn't re-run for every audit
+                //     row. Connector graph is stable for the duration of the
+                //     audit pass.
+                var connectedCache = new Dictionary<long, HashSet<long>>(ducts.Count + pipes.Count);
+                foreach (var d in ducts)
+                {
+                    if (AuditOne(doc, d, DuctMinClearMm, candidates, matrix, rows, connectedCache)) passCount++; else failCount++;
+                    processed++;
+                }
+                foreach (var p in pipes)
+                {
+                    if (AuditOne(doc, p, PipeMinClearMm, candidates, matrix, rows, connectedCache)) passCount++; else failCount++;
+                    processed++;
+                }
+                if (processed > 500)
+                    StingLog.Info($"MEPClearanceValidationCommand: {processed} elements audited in " +
+                        $"{loopWatch.ElapsedMilliseconds} ms (PASS={passCount} FAIL={failCount})");
 
                 string csvPath = WriteCsv(doc, rows);
 
@@ -756,7 +920,69 @@ namespace StingTools.Clash
             }
         }
 
-        private static bool AuditOne(Document doc, Element subject, double targetMm, IList<ElementId> candidateIds, List<string> rows)
+        /// <summary>
+        /// C3: Best-effort matrix loader scoped to this command. Looks first in
+        /// the plugin's data\clash directory, then in any sibling fallback. We
+        /// intentionally don't reach across into ClashRunCommand's private
+        /// FindDataFile — keeping the dependency local. Returns null when the
+        /// JSON is missing or unparseable; callers fall back to constants.
+        /// </summary>
+        private static StingTools.Core.Clash.ClashMatrix LoadMatrixForClearance()
+        {
+            try
+            {
+                string dll = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string dllDir = Path.GetDirectoryName(dll) ?? "";
+                string[] candidates =
+                {
+                    Path.Combine(dllDir, "data", "clash", "default_clash_matrix.json"),
+                    Path.Combine(dllDir, "data", "default_clash_matrix.json"),
+                    Path.Combine(dllDir, "default_clash_matrix.json"),
+                };
+                foreach (var c in candidates)
+                {
+                    if (!File.Exists(c)) continue;
+                    return StingTools.Core.Clash.ClashMatrix.LoadOrDefault(c);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"MEPClearance.LoadMatrix: {ex.Message}"); }
+            return StingTools.Core.Clash.ClashMatrix.Default();
+        }
+
+        /// <summary>
+        /// C3: Resolve target clearance (mm) from the matrix for the given
+        /// subject ↔ neighbour category pair. CLEARANCE_xx → xx mm; HARD → 0
+        /// (treat as a hard-clash gate so any contact is a fail). Returns
+        /// the supplied fallback when no cell matches.
+        /// </summary>
+        private static double ResolveTargetMm(StingTools.Core.Clash.ClashMatrix matrix,
+            string subjectCat, string neighbourCat, double fallbackMm)
+        {
+            if (matrix == null || string.IsNullOrEmpty(subjectCat) || string.IsNullOrEmpty(neighbourCat))
+                return fallbackMm;
+            try
+            {
+                var fa = new StingTools.Core.Clash.ElementFacts { Category = subjectCat };
+                var fb = new StingTools.Core.Clash.ElementFacts { Category = neighbourCat };
+                var cell = matrix.Match(fa, fb);
+                if (cell == null) return fallbackMm;
+                if (string.IsNullOrEmpty(cell.Tolerance)) return fallbackMm;
+                if (cell.Tolerance.StartsWith("CLEARANCE_", StringComparison.OrdinalIgnoreCase))
+                {
+                    string suffix = cell.Tolerance.Substring("CLEARANCE_".Length);
+                    if (double.TryParse(suffix, System.Globalization.NumberStyles.Number,
+                        System.Globalization.CultureInfo.InvariantCulture, out double mm)) return mm;
+                }
+                if (string.Equals(cell.Tolerance, "HARD", StringComparison.OrdinalIgnoreCase)) return 0.0;
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveTargetMm({subjectCat},{neighbourCat}): {ex.Message}"); }
+            return fallbackMm;
+        }
+
+        private static bool AuditOne(Document doc, Element subject, double targetMm,
+            List<(ElementId Id, BoundingBoxXYZ Bb, string CategoryName, BuiltInCategory Bic)> candidates,
+            StingTools.Core.Clash.ClashMatrix matrix, List<string> rows,
+            Dictionary<long, HashSet<long>> connectedCache)
         {
             if (subject == null) return true;
             BoundingBoxXYZ sBb = null;
@@ -768,32 +994,53 @@ namespace StingTools.Clash
             }
 
             double tolFt = SearchRadiusMm / ClashCategoryHelpers.MmPerFoot;
-            var outline = new Outline(
-                new XYZ(sBb.Min.X - tolFt, sBb.Min.Y - tolFt, sBb.Min.Z - tolFt),
-                new XYZ(sBb.Max.X + tolFt, sBb.Max.Y + tolFt, sBb.Max.Z + tolFt));
-            var filter = new BoundingBoxIntersectsFilter(outline);
-
-            FilteredElementCollector neighbourColl;
-            try { neighbourColl = new FilteredElementCollector(doc, candidateIds).WherePasses(filter); }
-            catch (Exception ex) { StingLog.Warn($"Clearance.Collector: {ex.Message}"); neighbourColl = null; }
-
-            HashSet<long> connectedIds = GetConnectedElementIds(subject);
-
-            double minClearMm = double.PositiveInfinity;
-            if (neighbourColl != null)
+            // B2: In-memory AABB range query against the pre-built candidate
+            //     list. No new FilteredElementCollector instantiated here.
+            // D7: Reuse cached connector-walk result when present.
+            HashSet<long> connectedIds;
+            if (connectedCache != null && connectedCache.TryGetValue(subject.Id.Value, out var cachedConn))
+                connectedIds = cachedConn;
+            else
             {
-                foreach (var n in neighbourColl)
+                connectedIds = GetConnectedElementIds(subject);
+                if (connectedCache != null) connectedCache[subject.Id.Value] = connectedIds;
+            }
+            double subjMinX = sBb.Min.X - tolFt, subjMaxX = sBb.Max.X + tolFt;
+            double subjMinY = sBb.Min.Y - tolFt, subjMaxY = sBb.Max.Y + tolFt;
+            double subjMinZ = sBb.Min.Z - tolFt, subjMaxZ = sBb.Max.Z + tolFt;
+            string subjectCat = subject.Category?.Name ?? "";
+            long subjectIdLong = subject.Id.Value;
+
+            // C3: Per-neighbour target so a duct-vs-wall hit honours its matrix
+            //     tolerance and a duct-vs-duct hit honours another. The
+            //     subject-level fallback (DuctMin/PipeMin) is used when no cell
+            //     matches; we additionally compute a worst-case "min target"
+            //     to drive the PASS/FAIL gate at the row level.
+            double minClearMm = double.PositiveInfinity;
+            double rowTargetMm = targetMm;
+            string failingNeighbourCat = null;
+
+            foreach (var cand in candidates)
+            {
+                if (cand.Id == null) continue;
+                if (cand.Id.Value == subjectIdLong) continue;
+                if (connectedIds.Contains(cand.Id.Value)) continue;
+                var cb = cand.Bb;
+                // Range overlap check (AABB sweep) before paying gap maths.
+                if (cb.Max.X < subjMinX || cb.Min.X > subjMaxX) continue;
+                if (cb.Max.Y < subjMinY || cb.Min.Y > subjMaxY) continue;
+                if (cb.Max.Z < subjMinZ || cb.Min.Z > subjMaxZ) continue;
+
+                double clearMm = AabbGap(sBb, cb) * ClashCategoryHelpers.MmPerFoot;
+                if (clearMm < minClearMm) minClearMm = clearMm;
+
+                // C3: Pull the per-pair target from the matrix; FAIL if this
+                //     neighbour's specific target is breached.
+                double pairTarget = ResolveTargetMm(matrix, subjectCat, cand.CategoryName, targetMm);
+                if (clearMm < pairTarget && (failingNeighbourCat == null || pairTarget > rowTargetMm))
                 {
-                    if (n == null || n.Id == null) continue;
-                    if (n.Id.Value == subject.Id.Value) continue;
-                    if (connectedIds.Contains(n.Id.Value)) continue; // skip fittings/connectors on the same run
-
-                    BoundingBoxXYZ nBb = null;
-                    try { nBb = n.get_BoundingBox(null); } catch (Exception ex) { StingLog.Warn($"Clearance.Neighbour.BBox: {ex.Message}"); }
-                    if (nBb == null) continue;
-
-                    double clearMm = AabbGap(sBb, nBb) * ClashCategoryHelpers.MmPerFoot;
-                    if (clearMm < minClearMm) minClearMm = clearMm;
+                    rowTargetMm = pairTarget;
+                    failingNeighbourCat = cand.CategoryName;
                 }
             }
 
@@ -810,11 +1057,11 @@ namespace StingTools.Clash
             }
             else
             {
-                status = minClearMm >= targetMm ? "PASS" : "FAIL";
+                status = (failingNeighbourCat == null) ? "PASS" : "FAIL";
                 reportedMm = Math.Round(minClearMm, 1);
             }
 
-            rows.Add($"{subject.Id.Value},{Csv(subject.Category?.Name)},{Csv(lvl)},{reportedMm},{targetMm},{status}");
+            rows.Add($"{subject.Id.Value},{Csv(subject.Category?.Name)},{Csv(lvl)},{reportedMm},{rowTargetMm},{status}");
             return status == "PASS";
         }
 
