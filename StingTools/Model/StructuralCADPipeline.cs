@@ -2123,6 +2123,17 @@ namespace StingTools.Model
                         StingLog.Info($"  Beam trim: adjusted {trimmed} endpoint(s) to column faces");
                 }
 
+                // Phase-143 DEEP-1: Annotate beams with material hint
+                // (concrete vs steel) for downstream type matching.
+                if (extraction.BeamLines.Count > 0 && config.InferBeamMaterial)
+                {
+                    var (concrete, steel, unk) = BeamMaterialInferrer.AnnotateAll(
+                        extraction.BeamLines, config);
+                    if (concrete + steel + unk > 0)
+                        StingLog.Info($"  Beam material: {concrete} concrete, " +
+                            $"{steel} steel, {unk} unknown");
+                }
+
                 // ── Phase-140 P3-A: Skip duplicates of existing elements ──────
                 // Build a one-shot index of element insertion points by category,
                 // then drop detected items that already exist within tolerance.
@@ -2262,9 +2273,47 @@ namespace StingTools.Model
                 // Also create pad foundations under detected columns
                 if (config.CreateFoundations && (extraction.Circles.Count > 0 || extraction.Rectangles.Count > 0))
                 {
-                    totalResult.FootingsCreated += CreatePadFoundations(
-                        extraction.Circles, extraction.Rectangles, baseLevel,
-                        config.FoundationDepthMm, totalResult);
+                    // Phase-143 DEEP-2: classify foundation rectangles into
+                    // Pad / Raft / PileCap. Rafts route to the slab path so
+                    // they materialise as structural floors at foundation depth.
+                    if (config.ClassifyFoundations && extraction.Rectangles.Count > 0)
+                    {
+                        var classified = FoundationClassifier.Classify(
+                            extraction.Rectangles, config);
+                        var pads     = classified.Where(c =>
+                            c.Type == FoundationClassifier.FoundationType.Pad
+                            || c.Type == FoundationClassifier.FoundationType.PileCap)
+                            .Select(c => c.Rect).ToList();
+                        var rafts    = classified.Where(c =>
+                            c.Type == FoundationClassifier.FoundationType.Raft
+                            && c.Loop != null).Select(c => c.Loop).ToList();
+                        int rafCount = rafts.Count, pcCount = classified.Count(c =>
+                            c.Type == FoundationClassifier.FoundationType.PileCap);
+
+                        // Pads (now excluding rafts).
+                        int created = CreatePadFoundations(
+                            extraction.Circles, pads, baseLevel,
+                            config.FoundationDepthMm, totalResult);
+                        totalResult.FootingsCreated += created;
+
+                        // Rafts as structural floors.
+                        if (rafts.Count > 0)
+                        {
+                            int raftCreated = CreateSlabsFromBoundaries(
+                                rafts, baseLevel, config.FoundationDepthMm, totalResult);
+                            totalResult.FootingsCreated += raftCreated;
+                        }
+
+                        if (rafCount > 0 || pcCount > 0)
+                            StingLog.Info($"  Foundation classifier: {pads.Count - pcCount} pads, " +
+                                $"{pcCount} pile caps, {rafCount} rafts");
+                    }
+                    else
+                    {
+                        totalResult.FootingsCreated += CreatePadFoundations(
+                            extraction.Circles, extraction.Rectangles, baseLevel,
+                            config.FoundationDepthMm, totalResult);
+                    }
                 }
                 // Phase-142: Strip foundations under structural walls.
                 if (config.CreateFoundations && config.DetectStripFoundations
@@ -2366,8 +2415,32 @@ namespace StingTools.Model
 
                 // 5. Slabs
                 if (config.CreateSlabs && extraction.SlabBoundaries.Count > 0)
+                {
                     totalResult.SlabsCreated += CreateSlabsFromBoundaries(
                         extraction.SlabBoundaries, baseLevel, config.SlabThicknessMm, totalResult);
+
+                    // Phase-143 P3B: Seed rooms from slab centroids.
+                    if (config.SeedRoomsFromSlabs && baseLevel != null)
+                    {
+                        try
+                        {
+                            var grouped = SlabVoidDetector.Group(extraction.SlabBoundaries);
+                            var outerLoops = grouped.Select(g => g.Outer).ToList();
+                            var voidLoops = grouped.SelectMany(g => g.Voids).ToList();
+                            var seed = SlabRoomSeeder.Seed(_doc, baseLevel,
+                                outerLoops, voidLoops, config);
+                            if (seed.RoomsCreated > 0)
+                                StingLog.Info($"  Slab room seed: {seed.RoomsCreated} created" +
+                                    $" (skipped {seed.Skipped_HasRoom} existing, " +
+                                    $"{seed.Skipped_InVoid} in void)");
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"SlabRoomSeeder: {ex.Message}");
+                            totalResult.Warnings.Add($"Slab room seeding skipped: {ex.Message}");
+                        }
+                    }
+                }
 
                 // 6. Grids (only on base level, not repeated)
                 if (config.CreateGrids && extraction.GridLines.Count > 0)
@@ -2617,6 +2690,43 @@ namespace StingTools.Model
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"Numbering: {ex.Message}"); }
+                }
+
+                // Phase-143 DEEP-6: Stamp junction-type marks on participating
+                // columns and beams so engineers can find them via schedules.
+                if (config.StampJunctionMarks && totalResult.CreatedIds.Count > 0)
+                {
+                    try
+                    {
+                        var jx = DetectJunctions(extraction);
+                        var stamp = JunctionMarkStamper.Stamp(_doc, jx,
+                            totalResult.CreatedIds, config);
+                        if (stamp.ColumnsStamped > 0 || stamp.BeamsStamped > 0)
+                            StingLog.Info($"  Junction marks: stamped " +
+                                $"{stamp.ColumnsStamped} column(s), " +
+                                $"{stamp.BeamsStamped} beam(s)");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"JunctionMarkStamper: {ex.Message}"); }
+                }
+
+                // Phase-143 P3C: Create structural ViewPlans per level (Phase-113
+                // DrawingTypeRegistry hook). Best-effort — failures don't roll back.
+                if (config.CreateStructuralViewsAfterConversion
+                    && totalResult.CreatedIds.Count > 0)
+                {
+                    try
+                    {
+                        var v = StructuralViewCreator.CreateViews(_doc,
+                            totalResult.CreatedIds, config);
+                        if (v.LevelsProcessed > 0)
+                        {
+                            totalResult.CreatedIds.AddRange(v.CreatedViewIds);
+                            StingLog.Info($"  Structural views: created " +
+                                $"{v.CreatedViewIds.Count} ViewPlan(s) over " +
+                                $"{v.LevelsProcessed} level(s)");
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"StructuralViewCreator: {ex.Message}"); }
                 }
 
                 sw.Stop();

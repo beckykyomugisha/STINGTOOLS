@@ -595,6 +595,10 @@ namespace StingTools.Model
         // Phase-142 controls
         private TextBox _txtMinColDiam, _txtMaxColDiam, _txtOverlapRatio, _txtStripOversize, _txtBeamSupportTol;
         private CheckBox _chkDetectStripFoundations, _chkMarkCantilevers;
+        // Phase-143 controls
+        private TextBox _txtRaftMinArea, _txtRoomLabelRadius;
+        private CheckBox _chkSeedRoomsFromSlabs, _chkCreateStructuralViews, _chkInferBeamMaterial,
+            _chkClassifyFoundations, _chkStampJunctionMarks;
         private CheckBox _chkPerCategoryNumbering;
         // Per-category numbering state — keyed by NumberingCategories[] index. Snapshot of
         // the visible UI state for the previously-selected category, captured on category
@@ -1680,6 +1684,80 @@ namespace StingTools.Model
 
             stack.Children.Add(p142Grid);
 
+            // ── Phase-143 post-processing toggles ───────────────────────
+            var p143Header = new TextBlock
+            {
+                Text = "POST-PROCESSING (Phase-143)",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 10,
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 10, 0, 4),
+            };
+            stack.Children.Add(p143Header);
+
+            var p143ToggleRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
+            _chkSeedRoomsFromSlabs = new CheckBox
+            {
+                Content = "Seed rooms from slab centroids",
+                IsChecked = false, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "After slab creation, place a Revit Room at each slab centroid " +
+                    "(skipping points inside a slab void). Skips points already inside an " +
+                    "existing room. Default OFF — enable for greenfield projects.",
+            };
+            _chkCreateStructuralViews = new CheckBox
+            {
+                Content = "Create structural views after conversion",
+                IsChecked = false, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "After conversion, create one StructuralPlan ViewPlan per level " +
+                    "that received elements. Looks up the corporate 'S-PLAN' DrawingType " +
+                    "via the Phase-113 registry and applies it. Default OFF.",
+            };
+            _chkInferBeamMaterial = new CheckBox
+            {
+                Content = "Infer beam material (steel / concrete)",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Heuristically classify each detected beam as steel I-section " +
+                    "(single centreline) or concrete rectangle (parallel pair). Adds " +
+                    "STING:Material= suffix to LayerName for type-matching downstream.",
+            };
+            _chkClassifyFoundations = new CheckBox
+            {
+                Content = "Classify foundations (pad / raft / pile cap)",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Split detected rectangular foundations into Pad / Raft / PileCap " +
+                    "based on plan area + clustering. Rafts route to slab creation " +
+                    "(structural floor); pads + pile caps stay as pad foundations.",
+            };
+            _chkStampJunctionMarks = new CheckBox
+            {
+                Content = "Stamp junction marks on participating elements",
+                IsChecked = false, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Append 'J:T' / 'J:L' / 'J:X' / 'J:S' (T/L/Cross/Splice) to the " +
+                    "Mark of every column and beam that participates in a junction. " +
+                    "Lets you find junction participants via schedule filters. Default OFF.",
+            };
+            p143ToggleRow.Children.Add(_chkSeedRoomsFromSlabs);
+            p143ToggleRow.Children.Add(_chkCreateStructuralViews);
+            p143ToggleRow.Children.Add(_chkInferBeamMaterial);
+            p143ToggleRow.Children.Add(_chkClassifyFoundations);
+            p143ToggleRow.Children.Add(_chkStampJunctionMarks);
+            stack.Children.Add(p143ToggleRow);
+
+            // Knob grid (Phase-143)
+            var p143Grid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            for (int i = 0; i < 4; i++)
+                p143Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int i = 0; i < 1; i++)
+                p143Grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            AddKnobRow(p143Grid, 0, 0, "Raft min area (m²):", out _txtRaftMinArea, "4.0",
+                "Foundation rectangles with plan area ≥ this are classified as rafts " +
+                "instead of isolated pads. Default 4 m² (≈ 2 m × 2 m).");
+            AddKnobRow(p143Grid, 0, 2, "Room label search (mm):", out _txtRoomLabelRadius, "3000",
+                "Maximum distance from a slab centroid that a layer-text label can sit " +
+                "and still be used as the seeded room's Name.");
+            stack.Children.Add(p143Grid);
+
             return section;
         }
 
@@ -2475,6 +2553,17 @@ namespace StingTools.Model
             config.DetectStripFoundations = _chkDetectStripFoundations?.IsChecked != false;
             config.MarkCantileverBeams = _chkMarkCantilevers?.IsChecked != false;
 
+            // Phase-143
+            config.SeedRoomsFromSlabs = _chkSeedRoomsFromSlabs?.IsChecked == true;
+            config.CreateStructuralViewsAfterConversion = _chkCreateStructuralViews?.IsChecked == true;
+            config.InferBeamMaterial = _chkInferBeamMaterial?.IsChecked != false;
+            config.ClassifyFoundations = _chkClassifyFoundations?.IsChecked != false;
+            config.StampJunctionMarks = _chkStampJunctionMarks?.IsChecked == true;
+            if (double.TryParse(_txtRaftMinArea?.Text, out double raftA) && raftA > 0)
+                config.RaftMinAreaM2 = raftA;
+            if (double.TryParse(_txtRoomLabelRadius?.Text, out double rmR) && rmR > 0)
+                config.RoomLabelSearchRadiusMm = rmR;
+
             // Tagging
             config.AutoTag = _chkAutoTag?.IsChecked == true;
             config.AutoSeqNumbers = _chkAutoSeqNumbers?.IsChecked == true;
@@ -3001,6 +3090,51 @@ namespace StingTools.Model
         /// <summary>Detect strip foundations under structural walls and create them as
         /// structural floors along the wall centrelines.</summary>
         public bool DetectStripFoundations { get; set; } = true;
+
+        // ── Phase-143 post-processing knobs ──
+
+        /// <summary>After slabs are created, seed Revit Rooms at each slab centroid
+        /// (skipping points that fall inside a slab void). Re-uses any text on the
+        /// slab layer near the centroid as the room name.</summary>
+        public bool SeedRoomsFromSlabs { get; set; } = false;
+
+        /// <summary>When seeding rooms, the maximum distance (mm) from a slab
+        /// centroid that a layer-text label can sit and still be used as the
+        /// room's Name. Larger values risk picking up a label from a neighbouring
+        /// slab.</summary>
+        public double RoomLabelSearchRadiusMm { get; set; } = 3000;
+
+        /// <summary>After conversion, create one structural ViewPlan per level that
+        /// received elements. Uses Phase-113 DrawingTypeRegistry to look up the
+        /// corporate "S-PLAN" drawing type and apply via DrawingTypePresentation.</summary>
+        public bool CreateStructuralViewsAfterConversion { get; set; } = false;
+
+        /// <summary>Heuristically classify beams as steel I-section vs concrete
+        /// rectangle. Pure-line beams (single centreline detection) hint steel;
+        /// parallel-pair beams (with a measured width) hint concrete. The hint is
+        /// passed to <c>StructuralTypeFactory.FindOrCreateBeamType</c> for type
+        /// matching. Only affects beams whose detected width was inferred from
+        /// the wizard fallback (no parallel-line evidence).</summary>
+        public bool InferBeamMaterial { get; set; } = true;
+
+        /// <summary>Foundation classifier mode. When on, detected foundations are
+        /// classified as Pad / Raft / Pile cap based on plan-area + clustering
+        /// heuristics. Pads route to <c>CreatePadFoundations</c>; rafts route to
+        /// <c>CreateSlabsFromBoundaries</c> (structural floor); pile caps stay as
+        /// pad foundations but are stamped with "STING: PileCap" Comments for
+        /// downstream connection design.</summary>
+        public bool ClassifyFoundations { get; set; } = true;
+
+        /// <summary>Plan-area threshold (m²) above which a detected rectangular
+        /// foundation is classified as a raft instead of an isolated pad. Default
+        /// 4 m² (≈ 2 m × 2 m).</summary>
+        public double RaftMinAreaM2 { get; set; } = 4.0;
+
+        /// <summary>Stamp the Mark parameter of every column and beam participating
+        /// in each detected junction with a junction-type tag (e.g. "J:T-junction"
+        /// when nothing is set, appended otherwise). Lets engineers find junction
+        /// participants via schedules without traversing the analytical graph.</summary>
+        public bool StampJunctionMarks { get; set; } = false;
 
         // Tagging
         public bool AutoTag { get; set; } = true;

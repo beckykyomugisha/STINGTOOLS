@@ -4166,3 +4166,113 @@ differentiation), `DWG-STRUCT-DEEP-5` (EC7 sizing with soil class),
    the DETECTION card is now ~12 rows tall — the wizard scrollviewer
    keeps everything reachable but a visual redesign for screens
    < 768 px is on the future-enhancements list.
+
+#### Completed (Phase 143 — Structural DWG-to-BIM ROADMAP closures, wave 2)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 142 closed 6 of 8 deferred `DWG-STRUCT-*` items but
+left 5 still open. This phase closes 5 more, all wired through a new
+focused helper file.
+
+**ROADMAP closures:**
+
+- ✓ `DWG-STRUCT-P3B` — Slab centroid → room seeding
+- ✓ `DWG-STRUCT-P3C` — Auto-create structural ViewPlans after conversion
+- ✓ `DWG-STRUCT-DEEP-1` — Steel I-section vs concrete rectangle inference
+- ✓ `DWG-STRUCT-DEEP-2` — Foundation classifier (pad / raft / pile cap)
+- ✓ `DWG-STRUCT-DEEP-6` — Junction-type Mark stamping
+
+**New file** — `StingTools/Model/StructuralPhase143Postproc.cs`
+(~495 lines, 5 helper classes):
+
+- `SlabRoomSeeder` (P3B) — `Seed(doc, level, outerSlabs, voidLoops, cfg)`
+  drops a Revit `Room` at each outer-loop centroid, skips centroids
+  inside voids and points already inside an existing room. Wraps in a
+  sub-transaction so a failure can't roll back element creation.
+- `StructuralViewCreator` (P3C) — `CreateViews(doc, createdElementIds, cfg)`
+  walks the levels referenced by created elements and creates a
+  `ViewPlan` (Structural Plan family) per level. When the Phase-113
+  `DrawingTypeRegistry` is available, applies the corporate "S-PLAN"
+  drawing type via `DrawingTypePresentation.Apply()`. Fails closed —
+  any registry or template lookup error degrades to a plain ViewPlan.
+- `BeamMaterialInferrer` (DEEP-1) — `AnnotateAll(beams, cfg)` heuristic:
+  parallel-pair beams (`WidthDetected==true`, width ≥ 200 mm) →
+  concrete rectangle; single-line beams → steel I-section. Appends
+  `STING:Material=Concrete` / `STING:Material=Steel` /
+  `STING:Material=Unknown` to the beam's `LayerName` so downstream
+  type matching can read the hint without a new field on
+  `DetectedBeam`.
+- `FoundationClassifier` (DEEP-2) — `Classify(rects, cfg)` splits
+  detected foundation rectangles into Pad / Raft / PileCap:
+  - Plan area ≥ `RaftMinAreaM2` → Raft (routed to slab-creation path
+    so it materialises as a structural floor at foundation depth).
+  - Pile-cap clustering: a rectangle within 2.5× its size of ≥ 2
+    other rectangles → PileCap (stays on pad-foundation path with
+    `STING: PileCap` Comments stamp candidate).
+  - Else → Pad.
+- `JunctionMarkStamper` (DEEP-6) — `Stamp(doc, junctions, createdIds, cfg)`
+  walks every `DetectJunctions` result and appends `J:T` / `J:L` / `J:X`
+  / `J:S` (T-junction / L-junction / Cross / Splice) to the Mark of
+  every column or beam whose endpoint sits within 250 mm of the
+  junction centroid. Free-end and warning junctions are NOT stamped
+  (they're already surfaced as TextNotes by the Phase-141 wiring).
+
+**`StructuralCADPipeline.cs` wiring** — five new call sites, each
+guarded by its config flag:
+
+1. After `BeamTrimmer.TrimEndpointsToColumns`: `BeamMaterialInferrer.AnnotateAll`.
+2. Foundation creation: when `ClassifyFoundations==true`, route Rafts
+   through `CreateSlabsFromBoundaries` and Pads + PileCaps through the
+   existing `CreatePadFoundations`. When false, keep the pre-Phase-143
+   behaviour (everything pads).
+3. After slab creation (slab path 5 in main pipeline): `SlabRoomSeeder.Seed`
+   when `SeedRoomsFromSlabs==true`. Re-uses Phase-140 `SlabVoidDetector`
+   to skip void-covered centroids.
+4. After numbering pass: `JunctionMarkStamper.Stamp` when
+   `StampJunctionMarks==true`. Runs after numbering so marks survive.
+5. Just before `sw.Stop()`: `StructuralViewCreator.CreateViews` when
+   `CreateStructuralViewsAfterConversion==true`. Adds created view
+   ElementIds to `totalResult.CreatedIds` so they participate in the
+   summary count.
+
+**`DWGConversionConfig` — 8 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `SeedRoomsFromSlabs` | bool | false | P3B toggle (default off — greenfield only) |
+| `RoomLabelSearchRadiusMm` | double | 3000 | P3B label-text proximity radius |
+| `CreateStructuralViewsAfterConversion` | bool | false | P3C toggle (default off — opt-in) |
+| `InferBeamMaterial` | bool | true | DEEP-1 toggle |
+| `ClassifyFoundations` | bool | true | DEEP-2 toggle |
+| `RaftMinAreaM2` | double | 4.0 | DEEP-2 raft cutoff |
+| `StampJunctionMarks` | bool | false | DEEP-6 toggle (default off — schedule discipline-specific) |
+
+**`StructuralCADWizard.cs` UI** — new POST-PROCESSING (Phase-143)
+sub-section in DETECTION:
+
+- Five toggles in a WrapPanel: Seed rooms from slabs / Create structural
+  views / Infer beam material / Classify foundations / Stamp junction
+  marks.
+- Two numeric knobs: Raft min area (m²) / Room label search (mm).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `SlabRoomSeeder` doesn't yet read text on the slab layer to populate
+   the room Name (the `RoomLabelSearchRadiusMm` config exists for
+   future iteration). Seeded rooms get Revit's default name.
+3. `BeamMaterialInferrer` mutates `LayerName` instead of adding a
+   `Material` field on `DetectedBeam` to stay zero-impact on existing
+   detection types. Type matching downstream needs to parse the suffix
+   — listed as a follow-up for `StructuralTypeFactory`.
+4. `FoundationClassifier`'s pile-cap clustering uses a 2.5× distance
+   threshold; very close pile groups (< 2× spacing) may fall into the
+   raft band instead.
+5. `JunctionMarkStamper` cluster tolerance is fixed at 250 mm. If
+   `BeamSupportToleranceMm` is set very high, the user might expect
+   the same tolerance here — listed for the next pass.
+6. `StructuralViewCreator` creates one view per level even if multiple
+   disciplines were converted in one go. Multi-discipline templates
+   would need to dispatch on `(discipline, level)` instead of `level`
+   alone — tracked under DWG-STRUCT-DEEP-9 if it becomes a real need.
