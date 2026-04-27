@@ -220,6 +220,90 @@ public class ModelsController : ControllerBase
         return NoContent();
     }
 
+    // ── Federation status (Phase 143) ──────────────────────────────────
+
+    /// <summary>
+    /// BIM Coordinator's "are all disciplines up-to-date?" view. Aggregates
+    /// the latest published model per discipline + counts of total / stale
+    /// models. Stale = not republished in <paramref name="staleDays"/> days
+    /// (default 14, the typical ISO 19650 information-exchange cadence on
+    /// UK projects).
+    /// </summary>
+    [HttpGet("/api/projects/{projectId:guid}/federation-status")]
+    public async Task<ActionResult> GetFederationStatus(
+        Guid projectId,
+        [FromQuery] int staleDays = 14,
+        CancellationToken ct = default)
+    {
+        if (!await ProjectInTenant(projectId, ct)) return Forbid();
+        if (staleDays < 1) staleDays = 1;
+        if (staleDays > 365) staleDays = 365;
+
+        var staleCutoff = DateTime.UtcNow.AddDays(-staleDays);
+
+        var allModels = await _db.ProjectModels.AsNoTracking()
+            .Where(m => m.ProjectId == projectId && m.DeletedAt == null)
+            .Select(m => new
+            {
+                m.Id, m.Discipline, m.Name, m.FileName, m.UploadedAt,
+                m.UploadedBy, m.Revision, m.ElementCount, m.FileSizeBytes
+            })
+            .ToListAsync(ct);
+
+        // Group by discipline; "??" coalesces missing/empty into a synthetic
+        // "GEN" bucket so the manager can spot models uploaded without a
+        // discipline tag (a workflow gap).
+        var perDiscipline = allModels
+            .GroupBy(m => string.IsNullOrWhiteSpace(m.Discipline) ? "GEN" : m.Discipline!.ToUpperInvariant())
+            .Select(g =>
+            {
+                var latest = g.OrderByDescending(m => m.UploadedAt).First();
+                var stale = latest.UploadedAt < staleCutoff;
+                return new
+                {
+                    discipline = g.Key,
+                    modelCount = g.Count(),
+                    latest = new
+                    {
+                        latest.Id, latest.Name, latest.FileName, latest.Revision,
+                        latest.UploadedAt, latest.UploadedBy,
+                        latest.ElementCount, latest.FileSizeBytes
+                    },
+                    daysSinceUpload = (int)(DateTime.UtcNow - latest.UploadedAt).TotalDays,
+                    stale
+                };
+            })
+            .OrderBy(x => x.discipline)
+            .ToList();
+
+        var totalModels = allModels.Count;
+        var staleModels = allModels.Count(m => m.UploadedAt < staleCutoff);
+        var disciplinesWithStale = perDiscipline.Count(d => d.stale);
+
+        // RAG status — the dashboard tile colour. Red if any discipline is
+        // stale and the project has expected disciplines; amber if any model
+        // is stale; green otherwise. Empty project (no models yet) is amber.
+        string rag = totalModels == 0 ? "AMBER"
+            : disciplinesWithStale > 0 ? "RED"
+            : staleModels > 0 ? "AMBER" : "GREEN";
+
+        return Ok(new
+        {
+            projectId,
+            generatedAt = DateTime.UtcNow,
+            staleDays,
+            totals = new
+            {
+                models = totalModels,
+                disciplines = perDiscipline.Count,
+                staleModels,
+                disciplinesWithStale
+            },
+            rag,
+            disciplines = perDiscipline
+        });
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────
 
     private static ModelMetaDto ToMetaDto(ProjectModel m) => new(

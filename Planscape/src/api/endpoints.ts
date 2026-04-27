@@ -512,3 +512,138 @@ export function linkSiteDiaryAttachment(
   });
 }
 
+// ── Sync Conflicts (Phase 143) ──────────────────────────────────────────
+// BIM Manager review surface for tag-sync conflicts written by
+// TagSyncController. Pre-Phase-143 there was no UI — rows accumulated
+// and managers had no way to triage stale-update collisions.
+
+export interface SyncConflictSummary {
+  id: string;
+  elementId: string;
+  conflictType: string;             // STALE_UPDATE | CONCURRENT_EDIT | DELETED_ON_SERVER
+  resolution: 'PENDING' | 'SERVER_WINS' | 'CLIENT_WINS' | 'MERGED';
+  serverTimestamp?: string | null;
+  clientTimestamp?: string | null;
+  clientUserName?: string | null;
+  detectedAt: string;
+  hasLinkedElement: boolean;
+}
+
+export interface SyncConflictDetail extends SyncConflictSummary {
+  projectId: string;
+  element?: {
+    id: string;
+    revitElementId: number;
+    tag1: string;
+    disc: string;
+    sys: string;
+    loc: string;
+    zone: string;
+    lvl: string;
+    lastModifiedUtc?: string | null;
+    version: number;
+  } | null;
+}
+
+export interface SyncConflictsListResponse {
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: { pending: number; recentServerWins: number };
+  rows: SyncConflictSummary[];
+}
+
+export function listSyncConflicts(
+  projectId: string,
+  args: { resolution?: string; page?: number; pageSize?: number } = {},
+): Promise<SyncConflictsListResponse> {
+  const q = new URLSearchParams();
+  if (args.resolution) q.set('resolution', args.resolution);
+  if (args.page) q.set('page', String(args.page));
+  if (args.pageSize) q.set('pageSize', String(args.pageSize));
+  const suffix = q.toString();
+  return apiFetch(`/api/projects/${projectId}/syncconflicts${suffix ? `?${suffix}` : ''}`);
+}
+
+export function getSyncConflict(projectId: string, conflictId: string): Promise<SyncConflictDetail> {
+  return apiFetch(`/api/projects/${projectId}/syncconflicts/${conflictId}`);
+}
+
+export function resolveSyncConflict(
+  projectId: string,
+  conflictId: string,
+  resolution: 'ACCEPT_SERVER' | 'ACCEPT_CLIENT' | 'MERGED',
+  note?: string,
+): Promise<{ resolved: number; resolution: string }> {
+  return apiFetch(`/api/projects/${projectId}/syncconflicts/${conflictId}/resolve`, {
+    method: 'POST', body: JSON.stringify({ resolution, note }),
+  });
+}
+
+export function bulkResolveSyncConflicts(
+  projectId: string,
+  conflictIds: string[],
+  resolution: 'ACCEPT_SERVER' | 'MERGED',
+  note?: string,
+): Promise<{ resolved: number; resolution: string; ids: string[] }> {
+  return apiFetch(`/api/projects/${projectId}/syncconflicts/bulk-resolve`, {
+    method: 'POST', body: JSON.stringify({ conflictIds, resolution, note }),
+  });
+}
+
+// ── Federation Status (Phase 143) ───────────────────────────────────────
+// BIM Coordinator's "are all disciplines up-to-date?" view. Aggregates the
+// latest published model per discipline + counts + RAG.
+
+export interface FederationStatus {
+  projectId: string;
+  generatedAt: string;
+  staleDays: number;
+  totals: {
+    models: number;
+    disciplines: number;
+    staleModels: number;
+    disciplinesWithStale: number;
+  };
+  rag: 'GREEN' | 'AMBER' | 'RED';
+  disciplines: Array<{
+    discipline: string;
+    modelCount: number;
+    latest: {
+      id: string;
+      name: string;
+      fileName: string;
+      revision?: string | null;
+      uploadedAt: string;
+      uploadedBy: string;
+      elementCount?: number | null;
+      fileSizeBytes: number;
+    };
+    daysSinceUpload: number;
+    stale: boolean;
+  }>;
+}
+
+export function getFederationStatus(projectId: string, staleDays = 14): Promise<FederationStatus> {
+  return apiFetch(`/api/projects/${projectId}/federation-status?staleDays=${staleDays}`);
+}
+
+// ── ISO 19650 naming validator (Phase 143) ───────────────────────────────
+// Dry-run check before upload. Useful from the document upload modal so
+// users see "your file name needs a Role code in segment 6" inline.
+export interface NameValidationResult {
+  fileName: string;
+  isValid: boolean;
+  pattern: string;
+  issues: string[];
+}
+
+export function validateDocumentName(
+  projectId: string,
+  fileName: string,
+): Promise<NameValidationResult> {
+  return apiFetch(
+    `/api/projects/${projectId}/documents/validate-name?fileName=${encodeURIComponent(fileName)}`,
+  );
+}
+

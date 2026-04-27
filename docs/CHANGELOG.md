@@ -4053,3 +4053,104 @@ having no way to file the standard CIOB end-of-day site diary at all.
    plugin (the construction manager workflow is mobile-first).
    Plugin-side surfacing in the BIM Coordination Center can land
    when there is demand.
+
+#### Completed (Phase 143 — BIM Coordinator surfaces: sync conflict triage, federation status, ISO 19650 naming enforcement)
+
+Audited from the BIM Manager / Coordinator's day-to-day perspective —
+distinct from Phase 142's Construction Manager focus. The BIM
+Coordinator's worries are model federation freshness, tag-sync data
+integrity across the team, and information-governance enforcement on
+the CDE. Three concrete gaps closed; one carrier added to the project
+entity.
+
+**Sync conflict triage UI**
+
+1. New `Planscape.API/Controllers/SyncConflictsController.cs` —
+   `TagSyncController` had been writing `SyncConflict` rows whenever a
+   plugin push arrived with a stale `LastModifiedUtc`, but no GET
+   endpoint and no UI existed. BIM Managers investigating "why did my
+   edit vanish?" had to query the database directly. New endpoints:
+     - `GET /api/projects/{id}/syncconflicts` paginated, filterable by
+       resolution status (PENDING / SERVER_WINS / CLIENT_WINS / MERGED)
+     - `GET /.../{conflictId}` detail with the linked TaggedElement's
+       current 8-segment tag fields
+     - `POST /.../{conflictId}/resolve` — apply ACCEPT_SERVER /
+       ACCEPT_CLIENT / MERGED + audit
+     - `POST /.../bulk-resolve` — apply the same resolution to up to
+       500 conflicts in one call (typical when a batch was clobbered)
+   Resolutions broadcast a project-scoped push so any other reviewer
+   sees the count drop. ACCEPT_CLIENT requires the caller to provide
+   the field values to re-apply (`ClientFieldsDto`).
+2. `Planscape/src/api/endpoints.ts` — added six wrappers + the
+   `SyncConflictSummary` / `SyncConflictDetail` /
+   `SyncConflictsListResponse` interfaces.
+3. New `Planscape/app/conflicts/` route — list with summary tiles
+   (pending / 7-day server-wins / showing) + filter chips
+   (PENDING / SERVER_WINS / CLIENT_WINS / MERGED / ALL) + per-row
+   inline resolve buttons + multi-select bulk-resolve bar with
+   confirm dialog.
+
+**Federation status aggregator**
+
+4. `Planscape.API/Controllers/ModelsController.cs` — new
+   `GET /api/projects/{id}/federation-status?staleDays=N` endpoint.
+   Aggregates the latest published model per discipline + counts +
+   RAG. Stale = not republished in N days (default 14, the typical
+   ISO 19650 information-exchange cadence on UK projects). Returns
+   per-discipline `latest` + `daysSinceUpload` + `stale` flag.
+5. `Planscape/src/api/endpoints.ts` — added `getFederationStatus(...)`
+   + `FederationStatus` interface.
+
+**BIM Coordination dashboard tile**
+
+6. `Planscape/app/(tabs)/index.tsx` — new "BIM Coordination" card
+   between My Actions and the quick-action row. Two stacked rows:
+   federation-status one-liner with RAG dot + tap-through to the
+   documents tab; sync-conflict count one-liner with red dot when >0
+   + tap-through to the new conflicts screen. Hidden when neither
+   query succeeded so dashboards on projects without models stay
+   clean. Both queries fire via `Promise.allSettled` in parallel
+   with the existing My Actions fetch.
+
+**ISO 19650 naming enforcement**
+
+7. New `Planscape.Infrastructure/Validation/Iso19650NamingValidator.cs` —
+   server-side port of the plugin's `BIMManagerEngine.ValidateDocumentName`.
+   Same dictionaries (30 document type codes + 19 originator role
+   codes per BS EN ISO 19650 / UK 2021 NA). Pattern is
+   `Project-Originator-Volume-Level-Type-Role-Class-Number`. Validator
+   is lenient on Volume + Level (project-bespoke); hard-fails on missing
+   fields, malformed Project / Originator codes, and unknown Type / Role.
+8. New entity field `Project.EnforceIso19650Naming` (default false) +
+   migration `20260427100000_AddProjectEnforceNaming`. BIM Manager
+   flips this on per-project once the team has migrated naming.
+9. `Planscape.API/Controllers/DocumentsController.cs` — wired the
+   validator into the upload endpoint. Skipped for non-deliverable
+   types (`ATTACHMENT` / `PHOTO`) since site photos and issue
+   attachments aren't expected to follow controlled naming. On
+   violation returns 400 with structured payload `{error, pattern,
+   fileName, issues[]}` so the client can list the segment failures.
+10. New `GET /documents/validate-name?fileName=...` dry-run endpoint
+    so the office dashboard / mobile uploader can give inline
+    feedback before the user actually uploads. Always 200 — non-
+    compliance surfaces in the `isValid: false` body, never as HTTP
+    error.
+11. `Planscape/src/api/endpoints.ts` — added `validateDocumentName(...)`
+    + `NameValidationResult`.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. ACCEPT_CLIENT bulk-resolve is not supported — re-applying the
+   rejected client edit needs the per-element field map and a single
+   bulk resolution would have to carry one of those per id. The
+   single-conflict ACCEPT_CLIENT path is the only way to do this for
+   now.
+3. The federation aggregator groups by `Discipline` field on
+   `ProjectModel` — models uploaded with no discipline tag fall into
+   a synthetic "GEN" bucket (visible in the UI), flagging the
+   workflow gap rather than hiding it.
+4. Naming enforcement is opt-in. Projects must flip
+   `EnforceIso19650Naming = true` (e.g. via PUT
+   `/api/projects/{id}/settings`) — no admin UI for that yet; the
+   web settings dashboard or a manual SQL update is the workaround.

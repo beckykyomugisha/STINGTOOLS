@@ -22,6 +22,12 @@ public class Project
     public string? TagSuffix { get; set; }
     public string? ConfigJson { get; set; } // project_config.json equivalent
 
+    // Phase 143 — when true, document uploads must satisfy the ISO 19650
+    // naming pattern. Defaults to false (advisory only) so existing
+    // projects don't suddenly start rejecting uploads. BIM Manager turns
+    // it on once the team has migrated naming.
+    public bool EnforceIso19650Naming { get; set; }
+
     // Geofence boundary (S12) — GeoJSON Polygon
     [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
     public string? BoundaryPolygon { get; set; }

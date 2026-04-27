@@ -2123,7 +2123,8 @@ Planscape/
 │   ├── workflows/                        # Workflow run history
 │   ├── models/                           # 3D model viewer (issue pin overlay)
 │   ├── inbox/                            # "My Actions" aggregator (Phase 142)
-│   └── diary/                            # Daily site diary (Phase 142)
+│   ├── diary/                            # Daily site diary (Phase 142)
+│   └── conflicts/                        # Sync-conflict triage (Phase 143)
 └── src/
     ├── api/
     │   ├── client.ts                     # HTTP client (JWT, auto-refresh, X-Client-Type=mobile)

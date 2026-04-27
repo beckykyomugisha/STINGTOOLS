@@ -10,7 +10,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { theme, getRAGColor, getPriorityColor } from '@/utils/theme';
-import { listProjects, getProjectDashboard, getMyActions } from '@/api/endpoints';
+import {
+  listProjects,
+  getProjectDashboard,
+  getMyActions,
+  getFederationStatus,
+  listSyncConflicts,
+  type FederationStatus,
+} from '@/api/endpoints';
 import type { DashboardData, Project, BimIssue } from '@/types/api';
 import { useProjectStore } from '@/stores/projectStore';
 
@@ -32,6 +39,9 @@ export default function DashboardScreen() {
   // Failure is non-fatal; the dashboard still renders without it.
   const [myActionsTotal, setMyActionsTotal] = useState<number | null>(null);
   const [slaCount, setSlaCount] = useState<number>(0);
+  // Phase 143 — BIM Coordinator surfaces. Both fetched best-effort.
+  const [federation, setFederation] = useState<FederationStatus | null>(null);
+  const [pendingConflicts, setPendingConflicts] = useState<number>(0);
 
   const loadData = useCallback(async (projectId?: string) => {
     try {
@@ -69,6 +79,18 @@ export default function DashboardScreen() {
         setMyActionsTotal(null);
         setSlaCount(0);
       }
+
+      // Phase 143 — BIM Coordinator surfaces. Same best-effort pattern.
+      // Federation + conflicts run in parallel since they hit independent
+      // tables and we want minimum latency on dashboard cold start.
+      const [fedRes, confRes] = await Promise.allSettled([
+        getFederationStatus(target.id, 14),
+        listSyncConflicts(target.id, { resolution: 'PENDING', pageSize: 1 }),
+      ]);
+      setFederation(fedRes.status === 'fulfilled' ? fedRes.value : null);
+      setPendingConflicts(
+        confRes.status === 'fulfilled' ? (confRes.value.summary.pending ?? 0) : 0,
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load dashboard';
       setError(msg);
@@ -206,6 +228,56 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       )}
 
+      {/* Phase 143 — BIM Coordinator tile. Two stacked one-liners covering
+          model federation freshness + tag-sync conflict backlog. Hidden when
+          neither query succeeded so dashboards on projects without models
+          stay clean. RAG color is driven by the federation aggregator. */}
+      {(federation || pendingConflicts > 0) && (
+        <View style={styles.bimCard}>
+          <Text style={styles.bimTitle}>BIM Coordination</Text>
+          {federation && (
+            <TouchableOpacity
+              style={styles.bimRow}
+              onPress={() => router.push('/(tabs)/documents')}
+              accessibilityLabel={`Federation status — ${federation.rag}`}
+            >
+              <View style={[styles.ragDot, { backgroundColor: ragToColor(federation.rag) }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.bimRowTitle}>
+                  Federation: {federation.totals.models} model{federation.totals.models === 1 ? '' : 's'} across {federation.totals.disciplines} discipline{federation.totals.disciplines === 1 ? '' : 's'}
+                </Text>
+                <Text style={styles.bimRowSub}>
+                  {federation.totals.disciplinesWithStale > 0
+                    ? `${federation.totals.disciplinesWithStale} discipline${federation.totals.disciplinesWithStale === 1 ? '' : 's'} stale (>${federation.staleDays} days)`
+                    : federation.totals.staleModels > 0
+                    ? `${federation.totals.staleModels} stale model${federation.totals.staleModels === 1 ? '' : 's'}`
+                    : 'All models current'}
+                </Text>
+              </View>
+              <Text style={styles.bimArrow}>›</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.bimRow}
+            onPress={() => router.push('/conflicts' as any)}
+            accessibilityLabel={`Sync conflicts — ${pendingConflicts} pending`}
+          >
+            <View style={[styles.ragDot, { backgroundColor: pendingConflicts > 0 ? theme.colors.danger : theme.colors.success }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bimRowTitle}>
+                Sync conflicts: {pendingConflicts} pending
+              </Text>
+              <Text style={styles.bimRowSub}>
+                {pendingConflicts > 0
+                  ? 'Tap to triage stale-update collisions'
+                  : 'No outstanding stale-update collisions'}
+              </Text>
+            </View>
+            <Text style={styles.bimArrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Phase 142 — quick-action row for the manager's most-used routines.
           Placed below My Actions and above the discipline breakdown so it's
           one tap from cold-start. Add new entries by appending to the array. */}
@@ -257,6 +329,14 @@ function KPICard({ title, value, color, onPress }: { title: string; value: strin
       <Text style={styles.kpiTitle}>{title}</Text>
     </TouchableOpacity>
   );
+}
+
+function ragToColor(rag: 'GREEN' | 'AMBER' | 'RED'): string {
+  switch (rag) {
+    case 'GREEN': return theme.colors.success;
+    case 'AMBER': return theme.colors.warning;
+    case 'RED': return theme.colors.danger;
+  }
 }
 
 function QuickAction({ label, emoji, onPress }: { label: string; emoji: string; onPress: () => void }) {
@@ -488,6 +568,33 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     paddingHorizontal: theme.spacing.sm,
   },
+  // Phase 143 — BIM Coordinator tile
+  bimCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  bimTitle: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: theme.spacing.sm,
+  },
+  bimRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  ragDot: { width: 10, height: 10, borderRadius: 5, marginRight: theme.spacing.sm },
+  bimRowTitle: { fontSize: theme.fontSize.sm, color: theme.colors.text, fontWeight: '600' },
+  bimRowSub: { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary, marginTop: 2 },
+  bimArrow: { fontSize: theme.fontSize.xl, color: theme.colors.textSecondary, paddingHorizontal: theme.spacing.sm },
+
   // Phase 142 — quick-action row (Site Diary / Meetings / Transmittals / Warnings)
   quickRow: {
     flexDirection: 'row',

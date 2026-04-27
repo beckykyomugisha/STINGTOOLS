@@ -125,6 +125,9 @@ Planscape/
 | MOB-15 | **No GPS map deep-link** | MEDIUM | Coordinates captured at issue creation (Phase 141) were never surfaced or linkable | **Closed** — Phase 142: GPS strip on issue-detail with one-tap to native map app (`geo:` / `maps://` / Google Maps web fallback) |
 | MOB-16 | **Issues list lacks "Mine" filter** | MEDIUM | Managers had to scan the whole list or fall back to search to find their own assignments | **Closed** — Phase 142: Mine toggle chip; FK / email / display-name match for legacy rows |
 | MOB-17 | **Quick-action access to sub-routes** | LOW | Meetings / Transmittals / Warnings / Site Diary were only reachable via deep-link from a push tap | **Closed** — Phase 142: 4-button quick-action row on the dashboard |
+| MOB-18 | **No sync-conflict triage UI** | HIGH | `TagSyncController` was writing `SyncConflict` rows that no UI ever surfaced; managers had to query the database directly | **Closed** — Phase 143: `SyncConflictsController` + mobile `app/conflicts` with per-row + bulk resolve |
+| MOB-19 | **No federation freshness view** | MEDIUM | Per-discipline latest model + days-since-upload were not aggregated; manager had no "is everyone up to date?" dashboard | **Closed** — Phase 143: `GET /federation-status` aggregator + dashboard tile with RAG status |
+| MOB-20 | **Naming convention not enforced server-side** | HIGH | `BIMManagerEngine.ValidateDocumentName` existed in the plugin but the server accepted any file name on upload | **Closed** — Phase 143: `Iso19650NamingValidator` + per-project `EnforceIso19650Naming` toggle + dry-run validate-name endpoint |
 
 ### 2.3 Missing API Endpoint Wrappers
 
