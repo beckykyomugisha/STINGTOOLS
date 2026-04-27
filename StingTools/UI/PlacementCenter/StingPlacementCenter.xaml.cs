@@ -59,9 +59,15 @@ namespace StingTools.UI.PlacementCenter
 
         private void EnsureRunEvent()
         {
+            // Phase 139.10b — the ExternalEvent must be created in the
+            // ctor (Revit API context). If it's still null here we cannot
+            // recreate from the WPF UI thread without throwing
+            // "Attempting to create an ExternalEvent outside of a
+            // standard API execution". Surface a clear error.
             if (_runEvent != null) return;
-            _runHandler = new PlacementRunHandler(this);
-            _runEvent   = ExternalEvent.Create(_runHandler);
+            throw new InvalidOperationException(
+                "PlacementCenter run event is not initialised. " +
+                "Close and re-open the Placement Centre via the BIM ribbon to recreate the API-thread dispatcher.");
         }
 
         private class PlacementRunRequest
@@ -131,6 +137,21 @@ namespace StingTools.UI.PlacementCenter
             InitializeComponent();
             ThemeManager.RegisterTarget(this);
             ThemeManager.InitialiseResources();
+
+            // Phase 139.10b — ExternalEvent.Create must be called from a
+            // Revit API context. Constructor runs inside the
+            // OpenPlacementCenterCommand.Execute, which IS an API context;
+            // the button-click handler is NOT. Create the event eagerly
+            // here so it's ready for OnRunPlacement_Click later.
+            try
+            {
+                _runHandler = new PlacementRunHandler(this);
+                _runEvent   = ExternalEvent.Create(_runHandler);
+            }
+            catch (Exception evEx)
+            {
+                StingLog.Warn($"PlacementCenter: ExternalEvent.Create at ctor: {evEx.Message}");
+            }
 
             VM = new PlacementRulesViewModel();
             _uiApp = uiApp;
