@@ -4278,3 +4278,25 @@ Same wording applied to:
 - `PlaceFixturesCommand` (dock-panel) equivalent dialog.
 - Centre's "ZERO PLACED — common causes" section in the result panel.
 
+
+#### Completed (Phase 139.10b — ExternalEvent.Create moved to ctor)
+
+User reported the Phase 139.10 fix surfaced a NEW error:
+"Run failed: Attempting to create an ExternalEvent outside of a
+standard API execution".
+
+Root cause: `ExternalEvent.Create` itself must be called from inside
+a Revit API context. Phase 139.10's `EnsureRunEvent` lazily called
+`ExternalEvent.Create` on the WPF UI thread (button-click handler) —
+which is NOT an API context.
+
+Fix:
+
+- `StingPlacementCenter` constructor now creates the
+  `PlacementRunHandler` + `ExternalEvent` eagerly. The constructor
+  runs inside `OpenPlacementCenterCommand.Execute`, which IS a
+  Revit API context, so `ExternalEvent.Create` succeeds.
+- `EnsureRunEvent` becomes a guard that throws a clear "close and
+  re-open the Centre" message if for some reason the eager create
+  failed; it never tries to create on the WPF thread.
+
