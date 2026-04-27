@@ -427,6 +427,7 @@ namespace StingTools.Core.Placement
                     }
 
                     WriteAnchorParameters(fi, rule);
+                    OrientPlacedInstance(doc, fi, rule, room);
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
                     // audit can identify auto-created fixtures. Centre's
                     // "Stamp provenance" checkbox flips PlaceFixturesOptions.
@@ -581,6 +582,7 @@ namespace StingTools.Core.Placement
                     return;
                 }
                 WriteAnchorParameters(pf.Placed, rule);
+                OrientPlacedInstance(doc, pf.Placed, rule, room);
                 if (StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance)
                 {
                     try { StingTools.Core.Storage.StingProvenanceSchema.Stamp(pf.Placed, "FixturePlacementEngine.CoPlace", rule.MergeKey ?? ""); } catch { }
@@ -816,6 +818,85 @@ namespace StingTools.Core.Placement
 
             // MNT_HGT_MM may be absent on some families; swallow failure.
             TrySetDoubleMm(fi, "MNT_HGT_MM", rule.MountingHeightMm);
+        }
+
+        /// <summary>
+        /// Phase 139.6 SW-1 — orient a freshly-placed FamilyInstance.
+        ///
+        ///  1. Apply <c>rule.RotationDeg</c> about Z (in radians) — was a
+        ///     no-op before; the field existed but was never honoured.
+        ///  2. For wall-hosted families on a wall-anchored rule, ensure the
+        ///     family's facing direction points INTO the room. If
+        ///     <c>FacingFlipped</c> would put the front face inside the wall,
+        ///     <c>flipFacing()</c> turns it around. This is what was making
+        ///     switches face up / out of the door instead of into the room.
+        /// </summary>
+        private static void OrientPlacedInstance(Document doc, FamilyInstance fi, PlacementRule rule, Room room)
+        {
+            if (fi == null) return;
+            try
+            {
+                // Step 1 — explicit rotation from rule.
+                if (Math.Abs(rule.RotationDeg) > 0.001)
+                {
+                    XYZ origin = (fi.Location as LocationPoint)?.Point;
+                    if (origin != null)
+                    {
+                        var axis = Line.CreateBound(origin, origin + XYZ.BasisZ);
+                        ElementTransformUtils.RotateElement(doc, fi.Id, axis, rule.RotationDeg * Math.PI / 180.0);
+                    }
+                }
+
+                // Step 2 — auto-flip wall-hosted families toward the room.
+                string anchor = (rule.AnchorType ?? "").ToUpperInvariant();
+                bool wallAnchor = anchor == "WALL_MIDPOINT" || anchor == "WALL_CORNER"
+                               || anchor == "WALL_FACE_OFFSET"
+                               || anchor == "DOOR_HINGE" || anchor == "DOOR_JAMB"
+                               || anchor == "DOOR_HEAD"
+                               || anchor == "DOOR_LATCH_SIDE"
+                               || anchor == "DOOR_HINGE_SIDE_150"
+                               || anchor == "DOOR_STRIKE_SIDE"
+                               || anchor == "DOOR_CLOSER_ZONE"
+                               || anchor == "WINDOW_SILL" || anchor == "WINDOW_HEAD";
+                if (!wallAnchor) return;
+                if (!(fi.Host is Wall hostWall)) return;
+
+                // The family's current facing vs the inward room normal at the
+                // wall midpoint. Inward = wall.Orientation flipped if the room
+                // sits on the other side of the wall.
+                XYZ familyFacing = fi.FacingOrientation;
+                if (familyFacing == null || familyFacing.IsZeroLength()) return;
+
+                XYZ wallNormal = hostWall.Orientation;
+                if (wallNormal == null || wallNormal.IsZeroLength()) return;
+
+                // Determine which side of the wall the room is on.
+                XYZ insertion = (fi.Location as LocationPoint)?.Point;
+                XYZ probe = insertion + wallNormal.Multiply(0.5);
+                bool roomOnPositiveNormal = false;
+                try
+                {
+                    var bb = room?.get_BoundingBox(null);
+                    if (bb != null)
+                    {
+                        roomOnPositiveNormal = probe.X >= bb.Min.X && probe.X <= bb.Max.X
+                                            && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y;
+                    }
+                    if (room != null && room.IsPointInRoom(probe)) roomOnPositiveNormal = true;
+                }
+                catch { }
+
+                XYZ inward = roomOnPositiveNormal ? wallNormal : wallNormal.Negate();
+
+                // If the family's facing vector and the inward normal point
+                // away from each other (dot < 0), flip facing.
+                if (familyFacing.DotProduct(inward) < -0.1)
+                {
+                    if (fi.CanFlipFacing)
+                        fi.flipFacing();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"OrientPlacedInstance {fi?.Id?.Value}: {ex.Message}"); }
         }
 
         private static void TrySetString(Element el, string paramName, string value)

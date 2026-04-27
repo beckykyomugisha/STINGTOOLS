@@ -4075,3 +4075,64 @@ unification) are deferred to their own design pass.
 - Q8  Stepped-soffit raycast strategy in `PlaceOnCeilingSoffit`.
 - Q12 `WallFollowerRouter` ⇄ `InWallChaseRouter` unification.
 
+
+#### Completed (Phase 139.6 — Placement Quality Fixes + Setup Audit + Authoring Docs)
+
+Acted on a real-world placement run (screenshots in
+session_019NVYWtPqi4P3dztjhngdKs) showing three concrete bugs and a
+broader set of authoring / project-setup gaps:
+
+- Switches landing "facing up" at door centre (no rotation logic).
+- Lights stacking with no spacing in narrow rooms.
+- Plumbing fixtures placed in wardrobes / walk-in-closets because the
+  RoomFilter regex `(?i)wc|toilet` substring-matched too widely.
+- Half the warnings in the result panel were "no first-fix box family
+  matched" / "No FamilySymbol found" / "STING_BOX_LOCATION_ID not bound"
+  — i.e. project-setup gaps the engine couldn't have known about until
+  after the run.
+
+**Code fixes:**
+
+- **SW-1** `FixturePlacementEngine.OrientPlacedInstance` (new helper
+  called after `WriteAnchorParameters`): applies `rule.RotationDeg`
+  via `ElementTransformUtils.RotateElement` and auto-flips
+  wall-hosted instances when the family's `FacingOrientation` opposes
+  the inward room normal. Wall anchors covered:
+  `WALL_MIDPOINT`, `WALL_CORNER`, `WALL_FACE_OFFSET`, all `DOOR_*` and
+  `WINDOW_*` variants.
+- **LX-1** `LightingGridCalculator.EnforceMinSpacing` (new
+  post-process): drops grid points closer than `rule.MinSpacingMm`
+  after the BS 5306 sprinkler nudge but before uniformity check.
+- **PF-1** All `(?i)wc|toilet|bathroom|shower` patterns tightened to
+  `(?i)\b(wc|toilet|bathroom|shower|en-suite|cloakroom|lavatory|powder room)\b`
+  across `STING_PLACEMENT_RULES.json` + `accessibility` + `electrical`
+  + `mechanical` + `baseline-extensions2` packs. Stops `wc`
+  substring-matching `walk-in closet` / `wardrobe` / `utility`.
+
+**New command:** `Placement_AuditSetup` (`PlacementSetupAuditCommand`).
+Walks the active document and reports every gap from the
+authoring checklist:
+
+  - shared parameters bound (`STING_BOX_LOCATION_ID`,
+    `STING_NOGGIN_REQUIRED`, `STING_FIXTURE_VARIANT_TXT`,
+    `MK_CATALOGUE_REF`)
+  - critical families loaded (BESA round box, square outlet box, MK
+    Logic Plus / Grid Plus / Metal Clad, sleeves, junction boxes)
+  - critical category symbols loaded (Sprinklers, Fire Alarm Devices,
+    Air Terminals, Lighting Fixtures)
+  - phases present (`Construction`, `Handover`)
+  - manufacturer catalogue populated
+  - rule packs load
+  - view-style pack discoverable
+
+Result groups findings by severity (Error / Warning / Info), shows the
+top 40 in a TaskDialog, and writes a CSV to
+`OutputLocationHelper.GetOutputPath(doc, "PlacementSetupAudit")` so it
+can be committed as a federation deliverable.
+
+**New doc:** `docs/PLACEMENT_FAMILY_AUTHORING.md` — eleven category
+authoring matrices (hosting, origin, facing, reference planes, required
+parameters, common mistakes), the project-setup checklist, and a
+re-run cadence guide for designers. Cross-referenced from the audit
+command.
+

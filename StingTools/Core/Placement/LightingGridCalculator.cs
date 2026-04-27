@@ -124,6 +124,7 @@ namespace StingTools.Core.Placement
                 if (rule.CeilingTileSnap) SnapToCeilingTileGrid(room, r, rule);
                 if (rule.StructuralFixingCheck) CheckStructuralFixing(room, r, rule);
                 CheckSprinklerSeparation(room, r);   // Phase 139.3 — BS 5306 ≥600mm
+                EnforceMinSpacing(r, rule);          // Phase 139.6 LX-1 — drop points violating MinSpacingMm
                 ComputeUniformityRatio(room, r);
             }
 
@@ -491,6 +492,46 @@ namespace StingTools.Core.Placement
             {
                 StingLog.Warn($"LightingGridCalculator.CheckSprinklerSeparation: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Phase 139.6 LX-1 — drop grid points that fall closer than
+        /// rule.MinSpacingMm to a previously kept point. The lumen-method
+        /// formula and ceiling-tile snap can both produce two points
+        /// inside the minimum-spacing radius, especially in narrow rooms;
+        /// this pass is the last word before placement.
+        /// </summary>
+        private void EnforceMinSpacing(LightingGridResult r, PlacementRule rule)
+        {
+            try
+            {
+                if (rule == null || rule.MinSpacingMm <= 0) return;
+                if (r.Points == null || r.Points.Count < 2) return;
+                double minFt = rule.MinSpacingMm * MmToFt;
+                double minSq = minFt * minFt;
+
+                var keep = new List<XYZ>();
+                int dropped = 0;
+                foreach (var pt in r.Points)
+                {
+                    bool tooClose = false;
+                    foreach (var k in keep)
+                    {
+                        double dx = k.X - pt.X, dy = k.Y - pt.Y;
+                        if (dx * dx + dy * dy < minSq) { tooClose = true; break; }
+                    }
+                    if (tooClose) dropped++;
+                    else keep.Add(pt);
+                }
+                if (dropped > 0)
+                {
+                    r.Points.Clear();
+                    r.Points.AddRange(keep);
+                    r.FixturesPlaced = r.Points.Count;
+                    r.Warnings.Add($"MinSpacing: dropped {dropped} luminaire grid point(s) closer than {rule.MinSpacingMm:F0}mm.");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LightingGridCalculator.EnforceMinSpacing: {ex.Message}"); }
         }
 
         private void ComputeUniformityRatio(Room room, LightingGridResult r)
