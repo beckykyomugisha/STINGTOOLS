@@ -3351,7 +3351,11 @@ namespace StingTools.Temp
             string sharedParamFile,
             DefinitionFile defFile)
         {
-            Autodesk.Revit.ApplicationServices.Application app = commandData.Application.Application;
+            // commandData is null when invoked via the dockable panel (RunCommand<T>
+            // passes null and relies on StingCommandHandler.CurrentApp). Use the
+            // same null-safe helper Execute() does at its top.
+            Autodesk.Revit.ApplicationServices.Application app =
+                ParameterHelpers.GetApp(commandData).Application;
 
             // ── Step 1: Resolve Data/TagFamilies/ ───────────────────────────
             string tagDir = TagFamilyConfig.GetOutputDirectory();
