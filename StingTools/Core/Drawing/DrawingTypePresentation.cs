@@ -244,7 +244,7 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(priorStampedId)
                     && !string.Equals(priorStampedId, dt.Id, StringComparison.OrdinalIgnoreCase))
                 {
-                    TitleBlockParamApplier.ClearStaleKeysFromPriorProfile(doc, sheet);
+                    TitleBlockParamApplier.ClearStaleKeysFromPriorProfile(doc, sheet, priorStampedId);
                 }
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyToSheet ClearStale: {ex.Message}"); }

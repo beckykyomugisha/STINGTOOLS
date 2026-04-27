@@ -167,9 +167,17 @@ namespace StingTools.Core.Drawing
         /// or the previous profile cannot be resolved.
         /// </summary>
         public static int ClearStaleKeysFromPriorProfile(Document doc, ViewSheet sheet)
+            => ClearStaleKeysFromPriorProfile(doc, sheet, priorIdOverride: null);
+
+        /// <summary>
+        /// Same as <see cref="ClearStaleKeysFromPriorProfile(Document,ViewSheet)"/>
+        /// but lets the caller skip the second <see cref="DrawingTypeStamper.Read"/>
+        /// when it's already loaded the prior id.
+        /// </summary>
+        public static int ClearStaleKeysFromPriorProfile(Document doc, ViewSheet sheet, string priorIdOverride)
         {
             if (doc == null || sheet == null) return 0;
-            var priorId = DrawingTypeStamper.Read(sheet);
+            var priorId = priorIdOverride ?? DrawingTypeStamper.Read(sheet);
             if (string.IsNullOrEmpty(priorId)) return 0;
             var priorDt = DrawingTypeRegistry.Get(doc, priorId);
             if (priorDt?.TitleBlockParams == null || priorDt.TitleBlockParams.Count == 0) return 0;
