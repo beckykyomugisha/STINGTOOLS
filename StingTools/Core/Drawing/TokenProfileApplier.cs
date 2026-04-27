@@ -441,7 +441,7 @@ namespace StingTools.Core.Drawing
                 {
                     var cat = fs.Category;
                     if (cat == null) return false;
-                    var bic = (BuiltInCategory)cat.Id.IntegerValue;
+                    var bic = (BuiltInCategory)cat.Id.Value;
                     switch (bic)
                     {
                         case BuiltInCategory.OST_DoorTags:
@@ -469,7 +469,7 @@ namespace StingTools.Core.Drawing
                         case BuiltInCategory.OST_KeynoteTags:
                         case BuiltInCategory.OST_MultiCategoryTags:
                         case BuiltInCategory.OST_AreaTags:
-                        case BuiltInCategory.OST_SpaceTags:
+                        case BuiltInCategory.OST_MEPSpaceTags:
                         case BuiltInCategory.OST_MaterialTags:
                             return true;
                     }

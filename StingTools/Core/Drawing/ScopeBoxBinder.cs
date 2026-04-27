@@ -133,7 +133,7 @@ namespace StingTools.Core.Drawing
                     if (sbParam == null) continue;
                     var sbId = sbParam.AsElementId();
                     if (sbId == null || sbId == ElementId.InvalidElementId) continue;
-                    idx[(dtId, sbId.IntegerValue)] = v.Id;
+                    idx[(dtId, sbId.Value)] = v.Id;
                 }
             }
             catch (Exception ex)
@@ -153,7 +153,7 @@ namespace StingTools.Core.Drawing
             if (doc == null || b == null || b.ScopeBox == null) return null;
             // GAP-F: short-circuit via thread-local index when primed.
             if (_existingByBinding != null
-                && _existingByBinding.TryGetValue((b.DrawingTypeId, b.ScopeBox.Id.IntegerValue), out var cachedId))
+                && _existingByBinding.TryGetValue((b.DrawingTypeId, b.ScopeBox.Id.Value), out var cachedId))
             {
                 if (doc.GetElement(cachedId) is View vCached
                     && vCached.IsValidObject && !vCached.IsTemplate)
