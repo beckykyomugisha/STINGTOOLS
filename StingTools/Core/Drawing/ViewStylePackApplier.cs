@@ -70,15 +70,36 @@ namespace StingTools.Core.Drawing
                     var catId = ResolveCategoryId(doc, kv.Key);
                     if (catId == ElementId.InvalidElementId) { r.Warnings.Add($"Category '{kv.Key}' not found."); continue; }
 
-                    var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
                     var src = kv.Value;
+                    if (src == null) continue;
+
+                    // Visibility — set first so a hidden category can still
+                    // carry overrides ready for when it is re-shown.
+                    if (src.Visible.HasValue)
+                    {
+                        try { view.SetCategoryHidden(catId, !src.Visible.Value); } catch { }
+                    }
+
+                    var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
 
                     if (src.Halftone.HasValue)             ogs.SetHalftone(src.Halftone.Value);
                     if (src.ProjectionLineWeight.HasValue) ogs.SetProjectionLineWeight(src.ProjectionLineWeight.Value);
                     if (!string.IsNullOrEmpty(src.ProjectionLineColor)) ogs.SetProjectionLineColor(HexColor(src.ProjectionLineColor));
                     if (src.CutLineWeight.HasValue)        ogs.SetCutLineWeight(src.CutLineWeight.Value);
                     if (!string.IsNullOrEmpty(src.CutLineColor))        ogs.SetCutLineColor(HexColor(src.CutLineColor));
-                    if (src.Transparency.HasValue)         ogs.SetSurfaceTransparency(Clamp(src.Transparency.Value, 0, 100));
+                    if (src.Transparency.HasValue)
+                    {
+                        var t = Clamp(src.Transparency.Value, 0, 100);
+                        ogs.SetSurfaceTransparency(t);
+                        // 100% transparency on a presentation pack means
+                        // "outline only" — hide the surface foreground fill
+                        // so only the projection line work renders.
+                        if (t >= 100)
+                        {
+                            try { ogs.SetSurfaceForegroundPatternVisible(false); } catch { }
+                            try { ogs.SetSurfaceBackgroundPatternVisible(false); } catch { }
+                        }
+                    }
 
                     view.SetCategoryOverrides(catId, ogs);
                     r.OverridesSet++;
