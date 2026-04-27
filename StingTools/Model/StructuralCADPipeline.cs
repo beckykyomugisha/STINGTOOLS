@@ -299,6 +299,13 @@ namespace StingTools.Model
         /// </summary>
         public int LastWallsRejectedByThickness { get; set; }
 
+        // Phase-140: snap mappings produced by the P1-A grid-snap pass. Used
+        // by the P2-C grid-label-mark step after columns have been created.
+        // Index aligns with the order of extraction.Rectangles / extraction.Circles
+        // at the moment the snap pass ran.
+        private List<GridSnapper.SnapResult> _lastRectSnapInfo;
+        private List<GridSnapper.SnapResult> _lastCircleSnapInfo;
+
         /// <summary>
         /// Endpoint tolerance in feet. Configurable per DWG scale.
         /// Default 0.016 ft ≈ 5mm (appropriate for 1:100 scale).
@@ -1643,11 +1650,19 @@ namespace StingTools.Model
                     double widthMm = detectBeamSize && bl.WidthDetected
                         ? bl.WidthMm
                         : fallbackBeamW;
-                    string typeKey = $"{defaultDepthMm:F0}x{widthMm:F0}";
+
+                    // Phase-140 P1-B: per-beam depth from span when enabled. Falls
+                    // back to defaultDepthMm (the wizard BEAM Depth value) when off.
+                    double depthMm = (cfgB != null && cfgB.UseSpanToDepthRatio)
+                        ? BeamDepthCalculator.ComputeDepthMm(
+                            bl.LengthFt * Units.FeetToMm, cfgB)
+                        : defaultDepthMm;
+
+                    string typeKey = $"{depthMm:F0}x{widthMm:F0}";
                     if (!typeCache.TryGetValue(typeKey, out var symbol))
                     {
                         var typeMatch = _typeFactory.FindOrCreateBeamType(
-                            defaultDepthMm, widthMm,
+                            depthMm, widthMm,
                             allowDuplicate: createBeamTypes);
                         if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
                         symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
@@ -1695,12 +1710,21 @@ namespace StingTools.Model
                 thickMm, allowDuplicate: createSlabTypes);
             if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); return 0; }
 
+            // Phase-140 P2-B: Group nested closed loops as outer + voids so lift
+            // shafts, stair openings, and service penetrations come through as
+            // actual holes in the floor instead of being filled.
+            var grouped = SlabVoidDetector.Group(boundaries);
+            int totalVoids = grouped.Sum(g => g.Voids.Count);
+            if (totalVoids > 0)
+                StingLog.Info($"  Slab voids: {totalVoids} nested loop(s) flagged as voids");
+
             using (var tx = new Transaction(_doc, "STING STRUCT: Slabs from DWG"))
             {
                 tx.Start();
-                foreach (var boundary in boundaries)
+                foreach (var grp in grouped)
                 {
-                    if (boundary.Points.Count < 3) continue;
+                    var boundary = grp.Outer;
+                    if (boundary == null || boundary.Points.Count < 3) continue;
                     try
                     {
                         var curveLoop = new CurveLoop();
@@ -1713,8 +1737,29 @@ namespace StingTools.Model
                                 new XYZ(a.X, a.Y, 0), new XYZ(b.X, b.Y, 0)));
                         }
 
+                        // Build void CurveLoops for any nested loops on this slab.
+                        var loops = new List<CurveLoop> { curveLoop };
+                        foreach (var voidLoop in grp.Voids)
+                        {
+                            if (voidLoop?.Points == null || voidLoop.Points.Count < 3) continue;
+                            try
+                            {
+                                var vl = new CurveLoop();
+                                for (int i = 0; i < voidLoop.Points.Count; i++)
+                                {
+                                    var a = voidLoop.Points[i];
+                                    var b = voidLoop.Points[(i + 1) % voidLoop.Points.Count];
+                                    if (a.DistanceTo(b) < 0.005) continue;
+                                    vl.Append(Line.CreateBound(
+                                        new XYZ(a.X, a.Y, 0), new XYZ(b.X, b.Y, 0)));
+                                }
+                                loops.Add(vl);
+                            }
+                            catch (Exception ex) { result.Warnings.Add($"Slab void loop: {ex.Message}"); }
+                        }
+
                         var slab = Floor.Create(_doc,
-                            new List<CurveLoop> { curveLoop },
+                            loops,
                             typeMatch.TypeId, level?.Id ?? ElementId.InvalidElementId);
 
                         var structParam = slab.get_Parameter(
@@ -1876,6 +1921,112 @@ namespace StingTools.Model
                 var extraction = ExtractStructuralGeometry(importInstance);
                 _extraction = extraction;
                 StingLog.Info($"  Extraction: {extraction.Summary}");
+
+                // ── Phase-140 P1-A: Grid-snapped column placement ────────────
+                // Snap detected column centres (rectangles + circles) to nearest
+                // grid intersection. Mutates Center in place; later element
+                // creation reads the snapped centres. Captures the snap mapping
+                // so P2-C can reuse it for grid-label marks.
+                _lastRectSnapInfo = null;
+                _lastCircleSnapInfo = null;
+                if (config.GridSnapToleranceMm > 0
+                    && extraction.GridLines != null && extraction.GridLines.Count > 0
+                    && (extraction.Rectangles.Count > 0 || extraction.Circles.Count > 0))
+                {
+                    int rectSnapped = GridSnapper.SnapRectangles(
+                        extraction.Rectangles, extraction.GridLines,
+                        config.GridSnapToleranceMm, out _lastRectSnapInfo);
+                    int circleSnapped = GridSnapper.SnapCircles(
+                        extraction.Circles, extraction.GridLines,
+                        config.GridSnapToleranceMm, out _lastCircleSnapInfo);
+                    int totalCols = extraction.Rectangles.Count + extraction.Circles.Count;
+                    int snapped = rectSnapped + circleSnapped;
+                    if (snapped > 0)
+                        StingLog.Info($"  Grid-snap: {snapped}/{totalCols} columns snapped to " +
+                            $"intersections within {config.GridSnapToleranceMm:F0} mm");
+                    if (snapped < totalCols)
+                        totalResult.Warnings.Add(
+                            $"Grid-snap: {totalCols - snapped} column(s) did not lie on a grid " +
+                            $"intersection within {config.GridSnapToleranceMm:F0} mm — kept at " +
+                            $"detected centroid.");
+                }
+
+                // ── Phase-140 P1-D: Trim beam endpoints to column faces ───────
+                // Pure mutation of DetectedBeam.Start/End — runs only when the
+                // user enabled trimming and we have columns to anchor against.
+                if (config.TrimBeamsToColumnFaces
+                    && extraction.BeamLines.Count > 0
+                    && (extraction.Rectangles.Count > 0 || extraction.Circles.Count > 0))
+                {
+                    int trimmed = BeamTrimmer.TrimEndpointsToColumns(
+                        extraction.BeamLines, extraction.Rectangles,
+                        extraction.Circles, config);
+                    if (trimmed > 0)
+                        StingLog.Info($"  Beam trim: adjusted {trimmed} endpoint(s) to column faces");
+                }
+
+                // ── Phase-140 P3-A: Skip duplicates of existing elements ──────
+                // Build a one-shot index of element insertion points by category,
+                // then drop detected items that already exist within tolerance.
+                // Filter is applied to extraction lists so all downstream creation
+                // paths see the filtered set — no per-method instrumentation.
+                if (config.SkipDuplicates && config.DuplicateCheckToleranceMm > 0)
+                {
+                    try
+                    {
+                        var dupIndex = new DuplicateDetector.ExistingIndex(_doc,
+                            BuiltInCategory.OST_StructuralColumns,
+                            BuiltInCategory.OST_StructuralFraming,
+                            BuiltInCategory.OST_Walls,
+                            BuiltInCategory.OST_Floors,
+                            BuiltInCategory.OST_StructuralFoundation);
+
+                        int removed = 0;
+
+                        // Rectangles → columns
+                        for (int i = extraction.Rectangles.Count - 1; i >= 0; i--)
+                        {
+                            if (dupIndex.IsDuplicate(BuiltInCategory.OST_StructuralColumns,
+                                    extraction.Rectangles[i].Center,
+                                    config.DuplicateCheckToleranceMm))
+                            { extraction.Rectangles.RemoveAt(i); removed++; }
+                        }
+                        // Circles → columns
+                        for (int i = extraction.Circles.Count - 1; i >= 0; i--)
+                        {
+                            if (dupIndex.IsDuplicate(BuiltInCategory.OST_StructuralColumns,
+                                    extraction.Circles[i].Center,
+                                    config.DuplicateCheckToleranceMm))
+                            { extraction.Circles.RemoveAt(i); removed++; }
+                        }
+                        // Beams (use midpoint of detected beam)
+                        for (int i = extraction.BeamLines.Count - 1; i >= 0; i--)
+                        {
+                            var b = extraction.BeamLines[i];
+                            var mid = new XYZ(0.5 * (b.Start.X + b.End.X),
+                                              0.5 * (b.Start.Y + b.End.Y),
+                                              0.5 * (b.Start.Z + b.End.Z));
+                            if (dupIndex.IsDuplicate(BuiltInCategory.OST_StructuralFraming,
+                                    mid, config.DuplicateCheckToleranceMm))
+                            { extraction.BeamLines.RemoveAt(i); removed++; }
+                        }
+
+                        if (removed > 0)
+                        {
+                            StingLog.Info($"  Skip-duplicates: removed {removed} detected " +
+                                $"item(s) already present within " +
+                                $"{config.DuplicateCheckToleranceMm:F0} mm");
+                            totalResult.Warnings.Add(
+                                $"Skip-duplicates: skipped {removed} detected element(s) that " +
+                                $"already exist in the model.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Duplicate detection: {ex.Message}");
+                        totalResult.Warnings.Add($"Duplicate detection skipped: {ex.Message}");
+                    }
+                }
 
                 // Phase-78: DRY-RUN gate. Extraction has run, so we know how many
                 // walls/beams/columns/slabs/foundations/grids WOULD be created. Report
@@ -2053,18 +2204,34 @@ namespace StingTools.Model
                             continue;
                         }
 
-                        // Find next level above for top constraint
+                        // Phase-140 P1-C: column height is derived from level-to-level
+                        // distance (repeatLevel → next level above). Falls back to
+                        // config.ColumnHeightMm only at the topmost storey, and warns
+                        // so multi-storey models don't silently inherit a wrong height.
                         int idx = allLevelsOrdered.FindIndex(l => l.Id == repeatLevel.Id);
                         Level repeatTopLevel = (idx >= 0 && idx + 1 < allLevelsOrdered.Count)
                             ? allLevelsOrdered[idx + 1] : null;
 
-                        double repeatColumnTopElev = repeatTopLevel?.Elevation
-                            ?? (repeatLevel.Elevation + Units.Mm(config.ColumnHeightMm));
+                        double repeatColumnTopElev;
+                        if (repeatTopLevel != null)
+                        {
+                            repeatColumnTopElev = repeatTopLevel.Elevation;
+                        }
+                        else
+                        {
+                            repeatColumnTopElev = repeatLevel.Elevation + Units.Mm(config.ColumnHeightMm);
+                            totalResult.Warnings.Add(
+                                $"Repeat level '{repeatLevelName}' has no level above it — " +
+                                $"columns there fall back to wizard column height " +
+                                $"({config.ColumnHeightMm:F0} mm) instead of level-to-level " +
+                                $"spacing.");
+                        }
                         if (config.ColumnsStopAtSoffit)
                             repeatColumnTopElev -= Units.Mm(config.SlabThicknessMm);
                         double repeatColumnHeightMm = (repeatColumnTopElev - repeatLevel.Elevation) * Units.FeetToMm;
 
-                        StingLog.Info($"  Repeating to level: {repeatLevelName}");
+                        StingLog.Info($"  Repeating to level: {repeatLevelName} " +
+                            $"(height {repeatColumnHeightMm:F0} mm)");
 
                         // Columns (skip if continuous through — already created as tall columns)
                         if (config.CreateColumns && !config.ColumnsContinuousThrough)
@@ -2144,6 +2311,28 @@ namespace StingTools.Model
                     {
                         totalResult.Warnings.Add("── Post-creation audit ──");
                         totalResult.Warnings.AddRange(auditResult.Warnings);
+
+                        // Phase-140 P2-D: Surface load-path warnings as TextNotes in
+                        // the active view so engineers see them without opening a
+                        // log. Wrapped in its own sub-transaction inside the placer.
+                        if (config.ShowStructuralWarningsInView)
+                        {
+                            try
+                            {
+                                var ids = StructuralWarningPlacer.PlaceWarnings(
+                                    _doc, _doc.ActiveView, auditResult.Warnings);
+                                if (ids.Count > 0)
+                                {
+                                    totalResult.CreatedIds.AddRange(ids);
+                                    StingLog.Info($"  Placed {ids.Count} structural warning " +
+                                        $"note(s) in the active view");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"PlaceStructuralWarnings: {ex.Message}");
+                            }
+                        }
                     }
                 }
 
@@ -2158,14 +2347,87 @@ namespace StingTools.Model
                     catch (Exception ex) { StingLog.Warn($"Auto-tag: {ex.Message}"); }
                 }
 
-                // Apply numbering
-                if (config.AutoSeqNumbers && config.NumberingConfig != null && totalResult.CreatedIds.Count > 0)
+                // Apply numbering. Phase-140 P1-E: when the wizard populated
+                // NumberingPerCategory, route through ApplyAllPerCategory so each
+                // structural category is numbered independently. Otherwise fall back
+                // to the single-category legacy path.
+                if (config.AutoSeqNumbers && totalResult.CreatedIds.Count > 0)
                 {
                     try
                     {
-                        int numbered = NumberingEngine.ApplyNumbering(_doc,
-                            config.NumberingConfig, totalResult.CreatedIds);
-                        StingLog.Info($"  Numbered {numbered} elements");
+                        int numbered;
+                        // Phase-140 P2-C: collect created column ids for grid-label-mark step
+                        // before per-category numbering writes to Mark.
+                        var createdColumnIds = new HashSet<ElementId>(
+                            totalResult.CreatedIds.Where(id =>
+                            {
+                                var el = _doc.GetElement(id);
+                                return el?.Category != null
+                                    && el.Category.Id.IntegerValue ==
+                                       (int)BuiltInCategory.OST_StructuralColumns;
+                            }));
+
+                        if (config.NumberingPerCategory != null
+                            && config.NumberingPerCategory.Count > 0)
+                        {
+                            numbered = NumberingEngine.ApplyAllPerCategory(_doc,
+                                config.NumberingPerCategory, totalResult.CreatedIds);
+                            StingLog.Info($"  Numbered {numbered} elements across " +
+                                $"{config.NumberingPerCategory.Count} categories");
+                        }
+                        else if (config.NumberingConfig != null)
+                        {
+                            numbered = NumberingEngine.ApplyNumbering(_doc,
+                                config.NumberingConfig, totalResult.CreatedIds);
+                            StingLog.Info($"  Numbered {numbered} elements");
+                        }
+
+                        // Phase-140 P2-C: Grid-label marks override the sequential
+                        // Mark for grid-snapped columns. Run AFTER per-category
+                        // numbering so grid-derived marks win on the visible Mark.
+                        if (config.UseGridLabelsAsMarks
+                            && createdColumnIds.Count > 0
+                            && (_lastRectSnapInfo != null || _lastCircleSnapInfo != null))
+                        {
+                            try
+                            {
+                                var mapping = new List<(ElementId, GridSnapper.SnapResult)>();
+                                // Re-pair created columns with their snap info.
+                                // Walk the snap-info lists in declaration order and pick
+                                // any column ids that fall within tolerance of each centre.
+                                double tolFt = (config.GridSnapToleranceMm + 1.0) * Units.MmToFeet;
+                                foreach (var snap in (_lastRectSnapInfo ?? new List<GridSnapper.SnapResult>())
+                                    .Concat(_lastCircleSnapInfo ?? new List<GridSnapper.SnapResult>()))
+                                {
+                                    if (snap == null || !snap.DidSnap) continue;
+                                    foreach (var id in createdColumnIds)
+                                    {
+                                        var el = _doc.GetElement(id);
+                                        if (el?.Location is LocationPoint lp)
+                                        {
+                                            double dx = lp.Point.X - snap.SnappedCentre.X;
+                                            double dy = lp.Point.Y - snap.SnappedCentre.Y;
+                                            if (dx * dx + dy * dy < tolFt * tolFt)
+                                            {
+                                                mapping.Add((id, snap));
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                if (mapping.Count > 0)
+                                {
+                                    int marked = GridLabelMarkBuilder.ApplyMarks(_doc, mapping,
+                                        new HashSet<string>());
+                                    StingLog.Info($"  Grid labels: stamped {marked} columns " +
+                                        $"with '{{vertical}}/{{horizontal}}' marks");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"Grid-label-mark step: {ex.Message}");
+                            }
+                        }
                     }
                     catch (Exception ex) { StingLog.Warn($"Numbering: {ex.Message}"); }
                 }

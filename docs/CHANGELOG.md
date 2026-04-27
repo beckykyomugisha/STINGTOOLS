@@ -3775,3 +3775,158 @@ round-trip, and 3 new validators.
    `STING_PUPIL_COUNT_INT`, `STING_PLACE_AUDIT_TXT`) need to be
    declared in `MR_PARAMETERS.txt` before any Revit project will see
    them — listed for the next parameter-registry pass.
+
+#### Completed (Phase 140 — Structural DWG-to-BIM Accuracy Pass)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: The wizard's "Parallel max gap (mm) — 500" knob is bound to
+`config.ParallelLineToleranceMm`, which is the global parallel-pair
+distance cap, not a longitudinal endpoint gap as the label implies.
+Users trying to "close end gaps" by raising the value would silently
+loosen wall thickness detection across the corridor and pull in noise.
+
+This phase re-labels the misleading knob, surfaces a real
+endpoint-gap field, and lands ten supporting accuracy fixes for the
+DWG-to-BIM conversion pipeline.
+
+**New file** — `StingTools/Model/StructuralPhase140Accuracy.cs` (~360
+lines, 6 helpers, 1 namespace `StingTools.Model`):
+
+- `GridSnapper` — snaps detected column centres to nearest grid
+  intersection within `GridSnapToleranceMm`. Pure: returns a parallel
+  `List<SnapResult>` whose `DidSnap`/`VerticalGridLabel`/
+  `HorizontalGridLabel` are reused by the grid-label-mark step.
+- `BeamDepthCalculator.ComputeDepthMm(span, cfg)` — `span/SpanToDepthRatio`
+  clamped to `[BeamDepthMinMm, BeamDepthMaxMm]`, rounded to nearest
+  25 mm, floored at the wizard `BeamDepthMm`.
+- `BeamTrimmer.TrimEndpointsToColumns()` — moves each beam endpoint
+  that sits inside a column footprint outward by half-extent + 25 mm
+  cover along the beam axis. Handles rectangle and circle columns.
+- `DuplicateDetector.ExistingIndex` — one-shot `FilteredElementCollector`
+  scan per category, exposes `IsDuplicate(point, tolerance)` for
+  pre-filtering detected items against existing model state.
+- `SlabVoidDetector.Group(loops)` — sorts loops by area descending,
+  flags any loop whose centroid lies inside a larger un-consumed loop
+  as a void of that loop. Returns `(outer, voids[])` groupings.
+- `GridLabelMarkBuilder.ApplyMarks(doc, mapping, used)` — writes
+  `"{vert}/{horiz}"` to the `Mark` parameter of grid-snapped columns,
+  de-duplicating with `.2`, `.3` … suffixes on collision.
+- `StructuralWarningPlacer.PlaceWarnings(doc, view, warnings)` —
+  staggers TextNotes prefixed with `⚠ STING-STRUCT:` down the active
+  view in its own sub-transaction, so warning placement can fail
+  without rolling back element creation.
+
+**`StructuralCADWizard.DWGConversionConfig` — 12 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `GridSnapToleranceMm` | double | 100 | P1-A snap radius, 0 disables |
+| `UseSpanToDepthRatio` | bool | true | P1-B span-proportional depth |
+| `SpanToDepthRatio` | double | 15.0 | P1-B span/depth divisor |
+| `BeamDepthMinMm` / `BeamDepthMaxMm` | double | 250 / 1200 | P1-B clamp range |
+| `UseGridLabelsAsMarks` | bool | true | P2-C `"{vert}/{horiz}"` Mark |
+| `EndpointGapToleranceMm` | double | 50 | P2-F endpoint gap bridging |
+| `DuplicateCheckToleranceMm` | double | 50 | P3-A skip radius |
+| `SkipDuplicates` | bool | true | P3-A toggle |
+| `TrimBeamsToColumnFaces` | bool | true | P1-D toggle |
+| `ShowStructuralWarningsInView` | bool | true | P2-D toggle |
+| `NumberingPerCategory` | `Dictionary<BuiltInCategory, NumberingConfig>` | empty | P1-E |
+
+**`StructuralCADWizard` UI changes:**
+
+- "Parallel max gap (mm)" → "Parallel pair max gap (mm)" with tooltip
+  clarifying it's a perpendicular-pair cap, not a longitudinal endpoint
+  gap. New "Endpoint gap bridge (mm)" knob added next to it.
+- "Endpoint tolerance (mm)" → "Line snap tolerance (mm)" tooltip
+  upgraded to clarify scope.
+- "Parallel dot tolerance" → "Parallelism tolerance (cos θ)" with
+  tooltip explaining cosine ↔ skew angle relationship.
+- New "ACCURACY (Phase-140)" sub-section under DETECTION with five
+  toggles (Skip duplicates / Trim beams to column faces / Show
+  structural warnings in view / Use grid labels as column marks /
+  Span-proportional beam depth) and four numeric knobs (Span/depth
+  ratio, Grid snap tol, Beam depth min/max, Duplicate-check tol).
+- `_chkColumnsContinuousCad` tooltip explains the two
+  modelling approaches and their analytical implications.
+- LEVEL CONFIGURATION card gained an italic note: "column heights at
+  repeat levels are derived from level-to-level spacing, not the
+  BEAM/COLUMN Height field" (P1-C clarification).
+- PER-ELEMENT SIZE DETECTION → Foundations row now reads
+  "× 1.5× oversize*" with a footer disclaimer marking the EC7 §6.5
+  reference as a heuristic, not a code-compliant sizing rule.
+- ELEMENT NUMBERING — new "Number every structural category
+  independently" toggle (P1-E). When on, switching the Category
+  dropdown snapshots the previous category's UI state and restores the
+  next category's saved state. Defaults: COL-, BM-, W-, SL-, FDN-.
+- Footer — new "Re-analyse (dry-run)" button (P3-D) runs the dry-run
+  pipeline without closing the dialog. Status bar reports per-element
+  counts so the user can iterate on tolerances.
+
+**`StructuralCADPipeline.RunFullPipelineWithConfig` — wired the new
+helpers in execution order:**
+
+1. After `ExtractStructuralGeometry`: P1-A grid-snap pass
+   (mutates `DetectedRectangle.Center` / `DetectedCircle.Center` and
+   captures `_lastRectSnapInfo` / `_lastCircleSnapInfo` for P2-C).
+2. P1-D beam endpoint trim against the (now-snapped) column footprints.
+3. P3-A duplicate-detection pre-filter — drops detected items whose
+   reference points sit within `DuplicateCheckToleranceMm` of any
+   existing element of the matching category. Reports a roll-up
+   warning with the count.
+4. Repeat-to-levels loop: P1-C now warns when the topmost storey has
+   no level above and falls back to `ColumnHeightMm`.
+5. `CreateBeamsFromLines` — P1-B per-beam depth derived from
+   `BeamDepthCalculator.ComputeDepthMm(spanMm, cfg)`. Type cache key
+   updated from `{defaultDepthMm}x{widthMm}` to `{depthMm}x{widthMm}`.
+6. `CreateSlabsFromBoundaries` — P2-B passes `SlabVoidDetector.Group`
+   output through to `Floor.Create(doc, loops, ...)` so nested closed
+   loops come through as actual voids.
+7. Post-creation audit: P2-D placement of `StructuralWarningPlacer`
+   TextNotes in the active view when `ShowStructuralWarningsInView`.
+8. Numbering: switches to `NumberingEngine.ApplyAllPerCategory` when
+   `NumberingPerCategory` is populated; falls back to legacy
+   `ApplyNumbering` otherwise.
+9. P2-C grid-label-mark step runs AFTER per-category numbering so
+   grid-derived `"A/1"` style marks win on grid-snapped columns.
+   Non-snapped columns keep their sequential per-category number.
+
+**`NumberingEngine.ApplyAllPerCategory(doc, perCategory, scope)`** — new
+method iterates the dictionary, filters scope to each category's
+ElementIds, and invokes the existing `ApplyNumbering()` per category.
+Returns the summed count.
+
+**Explicitly out of scope (deferred to ROADMAP):**
+
+- Strip foundation detection (P2-A) — needs a new
+  `DetectStripFoundations` pass against wall centrelines; substantial
+  new detection logic.
+- Endpoint gap bridging (P2-F) at the detection layer — config field
+  is wired and available, but the spatial-index pair-detection inner
+  loops in `StructuralDWGEnhancements.SpatialLineIndex` still need to
+  read it during pair matching.
+- Slab → room seeding (P3-B), auto-create structural views after
+  conversion (P3-C) — independent post-processors that can land in a
+  follow-up phase without touching the core pipeline.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API). Each helper sticks to documented Revit 2025 API
+   signatures; sub-transaction wrapping in `StructuralWarningPlacer`
+   isolates risk. No `// TODO-VERIFY-API` markers were needed.
+2. Grid-snap classifies grids into vertical (constant X) vs horizontal
+   (constant Y) by line geometry, not by the `IsHorizontal` flag —
+   the flag is a draughting hint that doesn't always align with
+   plan-view axes.
+3. `BeamTrimmer` uses an axis-aligned column footprint approximation
+   (rectangle bbox extents projected along beam direction). Rotated
+   columns trim conservatively along the longer half-extent.
+4. Per-category numbering snapshots only fire when the user toggles
+   the Category dropdown with the "Number every structural category
+   independently" checkbox ON. If the user fills in numbering UI
+   without flipping that toggle, only the active category is numbered.
+5. The Re-analyse dry-run runs the FULL pipeline with `DryRun=true`,
+   including the duplicate-pre-filter and grid-snap passes. Counts
+   reflect what `Convert to BIM` would produce with the current
+   settings.
