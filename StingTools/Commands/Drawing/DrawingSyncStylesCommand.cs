@@ -34,11 +34,18 @@ namespace StingTools.Commands.Drawing
                 var doc = data?.Application?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
-                var reports = DrawingDriftDetector.Scan(doc);
+                var allReports = DrawingDriftDetector.Scan(doc);
+                // C-8 / E-2: skip reports whose only entries are suppressed by
+                // a controlling view template — re-applying does nothing for
+                // those, and they would otherwise resurface every Sync run.
+                var reports = allReports.Where(r => r.AnyActionable).ToList();
+                int suppressedOnly = allReports.Count - reports.Count;
                 if (reports.Count == 0)
                 {
-                    TaskDialog.Show("STING — Sync Styles",
-                        "Every stamped view is already in sync with its Drawing Type.");
+                    string msg2 = suppressedOnly > 0
+                        ? $"Every actionable view is already in sync with its Drawing Type.\n{suppressedOnly} view(s) have fields controlled by a view template — those are informational only."
+                        : "Every stamped view is already in sync with its Drawing Type.";
+                    TaskDialog.Show("STING — Sync Styles", msg2);
                     return Result.Succeeded;
                 }
 

@@ -12,6 +12,7 @@
 // Null drawingType is a no-op so adding the call is zero-regression.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 
@@ -19,6 +20,162 @@ namespace StingTools.Core.Drawing
 {
     public static class DrawingTypePresentation
     {
+        // ── C-1 view-template cache ────────────────────────────────────────
+        // Per-document map of (templateName → ElementId) so batch producers
+        // (BatchSections, BatchElevations, BatchSheets) skip the
+        // FilteredElementCollector<View> scan for every view they create.
+        // Invalidated on document close and on DrawingTypeRegistry.Reload(doc).
+        private static readonly object _viewTemplateCacheLock = new object();
+        private static readonly Dictionary<string, Dictionary<string, ElementId>> _viewTemplateCache
+            = new Dictionary<string, Dictionary<string, ElementId>>(StringComparer.OrdinalIgnoreCase);
+
+        // ── C-2 pack-resolution cache ─────────────────────────────────────
+        // Per-document map of (packId → ViewStylePack) so batch producers
+        // resolve each pack only once. Invalidated by the same triggers as
+        // the view-template cache.
+        private static readonly object _packCacheLock = new object();
+        private static readonly Dictionary<string, Dictionary<string, ViewStylePack>> _packCache
+            = new Dictionary<string, Dictionary<string, ViewStylePack>>(StringComparer.OrdinalIgnoreCase);
+
+        private static string DocKey(Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch { return "__unknown__"; }
+        }
+
+        private static ElementId ResolveViewTemplate(Document doc, string name)
+        {
+            if (doc == null || string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
+            string docKey = DocKey(doc);
+            Dictionary<string, ElementId> docMap;
+            lock (_viewTemplateCacheLock)
+            {
+                if (!_viewTemplateCache.TryGetValue(docKey, out docMap))
+                {
+                    docMap = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                    _viewTemplateCache[docKey] = docMap;
+                }
+                if (docMap.TryGetValue(name, out ElementId cached))
+                {
+                    if (cached != ElementId.InvalidElementId)
+                    {
+                        var elem = doc.GetElement(cached);
+                        if (elem is View vTpl && vTpl.IsValidObject && vTpl.IsTemplate)
+                            return cached;
+                    }
+                    docMap.Remove(name);
+                }
+            }
+
+            var tpl = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .FirstOrDefault(v => v.IsTemplate
+                    && string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+            ElementId resolved = tpl?.Id ?? ElementId.InvalidElementId;
+
+            lock (_viewTemplateCacheLock)
+            {
+                if (_viewTemplateCache.TryGetValue(docKey, out var live))
+                    live[name] = resolved;
+            }
+            return resolved;
+        }
+
+        private static ViewStylePack ResolvePackCached(Document doc, string packId)
+        {
+            if (doc == null || string.IsNullOrWhiteSpace(packId)) return null;
+            string docKey = DocKey(doc);
+            lock (_packCacheLock)
+            {
+                if (_packCache.TryGetValue(docKey, out var docMap)
+                    && docMap.TryGetValue(packId, out var cached))
+                    return cached;
+            }
+
+            ViewStylePack resolved = null;
+            try { resolved = ViewStylePackRegistry.Get(doc, packId); }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"ResolvePackCached '{packId}': {ex.Message}");
+            }
+
+            lock (_packCacheLock)
+            {
+                if (!_packCache.TryGetValue(docKey, out var docMap))
+                {
+                    docMap = new Dictionary<string, ViewStylePack>(StringComparer.OrdinalIgnoreCase);
+                    _packCache[docKey] = docMap;
+                }
+                docMap[packId] = resolved;
+            }
+            return resolved;
+        }
+
+        /// <summary>
+        /// C-1 / D-3: clear the cached view-template ElementIds for a given
+        /// document. Wired to <see cref="DrawingTypeRegistry.Reload"/> and the
+        /// document-closed handler so a stale ElementId from a previous
+        /// session never resolves to a deleted template.
+        /// </summary>
+        public static void InvalidateViewTemplateCache(Document doc)
+        {
+            string docKey = DocKey(doc);
+            lock (_viewTemplateCacheLock)
+            {
+                if (_viewTemplateCache.ContainsKey(docKey))
+                    _viewTemplateCache.Remove(docKey);
+            }
+        }
+
+        /// <summary>
+        /// C-2 / D-3: clear the cached <see cref="ViewStylePack"/> entries for a
+        /// given document. Same triggers as
+        /// <see cref="InvalidateViewTemplateCache"/>.
+        /// </summary>
+        public static void InvalidatePackCache(Document doc)
+        {
+            string docKey = DocKey(doc);
+            lock (_packCacheLock)
+            {
+                if (_packCache.ContainsKey(docKey))
+                    _packCache.Remove(docKey);
+            }
+        }
+
+        /// <summary>
+        /// D-1: pre-warm the per-document caches for a batch run.
+        /// Builds the (template name → ElementId) and (packId → pack) maps in
+        /// one pass so subsequent <see cref="Apply"/> calls all hit the cache
+        /// regardless of which DrawingType they request. Safe to call outside
+        /// any Transaction. Idempotent — re-runs are a no-op once warm.
+        /// </summary>
+        public static void Prewarm(Document doc)
+        {
+            if (doc == null) return;
+            try
+            {
+                var lib = DrawingTypeRegistry.GetLibrary(doc);
+                if (lib?.DrawingTypes == null) return;
+
+                // Pre-resolve every drawing type once so the C-5 memo is hot
+                // (which in turn means every (template name, pack id) referenced
+                // by the catalogue gets warmed below).
+                foreach (var raw in lib.DrawingTypes)
+                {
+                    if (string.IsNullOrWhiteSpace(raw.Id)) continue;
+                    var dt = DrawingTypeRegistry.Get(doc, raw.Id);
+                    if (dt == null) continue;
+                    if (!string.IsNullOrWhiteSpace(dt.ViewTemplateName))
+                        ResolveViewTemplate(doc, dt.ViewTemplateName);
+                    if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+                        ResolvePackCached(doc, dt.ViewStylePackId);
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Prewarm: {ex.Message}"); }
+        }
+
         public sealed class ApplyOptions
         {
             /// <summary>
@@ -109,18 +266,16 @@ namespace StingTools.Core.Drawing
             }
 
             // View template ----------------------------------------------
+            // C-1: cached lookup; FilteredElementCollector<View> only runs
+            // on first miss per (docKey, templateName).
             if (!string.IsNullOrWhiteSpace(dt.ViewTemplateName))
             {
                 try
                 {
-                    var tpl = new FilteredElementCollector(doc)
-                        .OfClass(typeof(View))
-                        .Cast<View>()
-                        .FirstOrDefault(v => v.IsTemplate
-                            && string.Equals(v.Name, dt.ViewTemplateName, StringComparison.OrdinalIgnoreCase));
-                    if (tpl != null)
+                    ElementId tplId = ResolveViewTemplate(doc, dt.ViewTemplateName);
+                    if (tplId != ElementId.InvalidElementId)
                     {
-                        view.ViewTemplateId = tpl.Id;
+                        view.ViewTemplateId = tplId;
                         r.TemplateApplied = true;
                     }
                     else
@@ -153,7 +308,9 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    resolvedPack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
+                    // C-2: cached lookup so batch producers resolve a given
+                    // pack only once per session.
+                    resolvedPack = ResolvePackCached(doc, dt.ViewStylePackId);
                     if (resolvedPack == null)
                     {
                         r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' not found.");
