@@ -1974,6 +1974,44 @@ namespace StingTools.BIMManager
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) { TaskDialog.Show("Planscape", "No document open."); return; }
 
+            // D-2: warn the user when this sync would push from a non-central
+            // or unsynced local copy. We block only on user choice — once
+            // accepted, the sync proceeds with whatever payload the local
+            // model carries.
+            try
+            {
+                if (!doc.IsWorkshared)
+                {
+                    StingLog.Info("Planscape sync: document is not workshared — local model is the source of truth");
+                    var nonShared = new TaskDialog("Planscape Sync — Confirm")
+                    {
+                        MainInstruction = "Document is not workshared",
+                        MainContent = "The current document is not workshared. The sync will include only elements visible in this local copy. Continue?",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.Cancel,
+                        DefaultButton = TaskDialogResult.Cancel,
+                    };
+                    if (nonShared.Show() != TaskDialogResult.Yes) return;
+                }
+                else
+                {
+                    bool isModified = false;
+                    try { isModified = doc.IsModified; } catch { }
+                    StingLog.Info($"Planscape sync: workshared (IsModified={isModified})");
+                    if (isModified)
+                    {
+                        var unsynced = new TaskDialog("Planscape Sync — Confirm")
+                        {
+                            MainInstruction = "Local changes have not been synced to central",
+                            MainContent = "Document has unsaved local changes. Sync to central before pushing tags to Planscape so the server reflects authoritative state. Continue with the local snapshot anyway?",
+                            CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.Cancel,
+                            DefaultButton = TaskDialogResult.Cancel,
+                        };
+                        if (unsynced.Show() != TaskDialogResult.Yes) return;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Planscape sync worksharing pre-check: {ex.Message}"); }
+
             // Load project ID from connection config
             string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
             string cfgPath = Path.Combine(bimDir, "planscape_connection.json");

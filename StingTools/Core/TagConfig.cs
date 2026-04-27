@@ -2583,6 +2583,21 @@ namespace StingTools.Core
             string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
             bool hasCompleteTag = TagIsComplete(existingTag);
 
+            // A-9: idempotency guard — if the element's last-written tag equals
+            // the current tag and the tag is complete, the element was already
+            // processed in this session. Cheap O(1) escape that avoids the
+            // collision loop entirely (only honoured when not overwriting).
+            if (collisionMode != TagCollisionMode.Overwrite && hasCompleteTag)
+            {
+                string prev = ParameterHelpers.GetString(el, "ASS_TAG_PREV_TXT");
+                if (!string.IsNullOrEmpty(prev)
+                    && string.Equals(prev, existingTag, StringComparison.Ordinal))
+                {
+                    stats?.RecordSkipped(catName);
+                    return true;
+                }
+            }
+
             if (hasCompleteTag)
             {
                 switch (collisionMode)

@@ -69,10 +69,30 @@ namespace StingTools.Commands.Drawing
                 try
                 {
                     var drifts = DrawingDriftDetector.Scan(doc);
-                    if (drifts.Count == 0)
+                    int actionable = drifts.Count(r => r.AnyActionable);
+                    int suppressed = drifts.Count(r => r.AnySuppressed);
+                    if (actionable == 0 && suppressed == 0)
                         sb.AppendLine("Drift:      0 view(s) out of sync with their profile");
+                    else if (actionable == 0)
+                        sb.AppendLine($"Drift:      0 actionable; {suppressed} view(s) have template-controlled fields (informational, no action required)");
                     else
-                        sb.AppendLine($"Drift:      {drifts.Count} view(s) drifted — run 'Sync Styles' to resync");
+                        sb.AppendLine($"Drift:      {actionable} view(s) drifted — run 'Sync Styles' to resync"
+                            + (suppressed > 0 ? $"; {suppressed} additional view(s) have template-controlled fields (informational only)" : ""));
+
+                    // E-2: list any DRIFT_SUPPRESSED_BY_TEMPLATE entries in a
+                    // separate "Informational — no action required" section so
+                    // users understand why SyncStyles will not touch them.
+                    if (suppressed > 0)
+                    {
+                        sb.AppendLine();
+                        sb.AppendLine("Informational — no action required (view template controls these fields):");
+                        foreach (var r in drifts.Where(rr => rr.AnySuppressed).Take(10))
+                        {
+                            sb.AppendLine($"  {r.ViewName}  [{r.DrawingTypeId}]");
+                            foreach (var s in r.Suppressed.Take(3))
+                                sb.AppendLine($"     · {s}");
+                        }
+                    }
                 }
                 catch (Exception dex) { sb.AppendLine($"Drift scan failed: {dex.Message}"); }
 

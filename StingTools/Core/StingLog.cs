@@ -91,6 +91,77 @@ namespace StingTools.Core
             Write("ERROR", full);
         }
 
+        // ── E-1 cache hit/miss telemetry ───────────────────────────────────
+        // Lightweight Interlocked counters for the four highest-value caches.
+        // Read via DumpCacheStats(); reset on Reset(). Write paths are
+        // RecordHit/RecordMiss exposed below for cache owners to call.
+
+        public enum CacheKind
+        {
+            ParamCache,
+            RoomIndex,
+            Tag7Hash,
+            DrawingTypeRegistry,
+        }
+
+        private static long _paramCacheHits, _paramCacheMisses;
+        private static long _roomIndexHits, _roomIndexMisses;
+        private static long _tag7HashHits, _tag7HashMisses;
+        private static long _dtRegistryHits, _dtRegistryMisses;
+
+        public static void RecordHit(CacheKind kind)
+        {
+            switch (kind)
+            {
+                case CacheKind.ParamCache:           System.Threading.Interlocked.Increment(ref _paramCacheHits); break;
+                case CacheKind.RoomIndex:            System.Threading.Interlocked.Increment(ref _roomIndexHits); break;
+                case CacheKind.Tag7Hash:             System.Threading.Interlocked.Increment(ref _tag7HashHits); break;
+                case CacheKind.DrawingTypeRegistry:  System.Threading.Interlocked.Increment(ref _dtRegistryHits); break;
+            }
+        }
+
+        public static void RecordMiss(CacheKind kind)
+        {
+            switch (kind)
+            {
+                case CacheKind.ParamCache:           System.Threading.Interlocked.Increment(ref _paramCacheMisses); break;
+                case CacheKind.RoomIndex:            System.Threading.Interlocked.Increment(ref _roomIndexMisses); break;
+                case CacheKind.Tag7Hash:             System.Threading.Interlocked.Increment(ref _tag7HashMisses); break;
+                case CacheKind.DrawingTypeRegistry:  System.Threading.Interlocked.Increment(ref _dtRegistryMisses); break;
+            }
+        }
+
+        /// <summary>
+        /// E-1: write current cache hit/miss counters to the log at Info level.
+        /// Surfaced by the CheckData diagnostic command so users can see whether
+        /// caching is doing what we expect across a session.
+        /// </summary>
+        public static void DumpCacheStats()
+        {
+            string fmt(long h, long m)
+            {
+                long total = h + m;
+                return total == 0 ? "0/0 (no activity)" : $"{h}/{total} ({h * 100.0 / total:F1}% hit rate)";
+            }
+            Info($"Cache stats — _paramCache:           hits {fmt(_paramCacheHits,  _paramCacheMisses)}");
+            Info($"Cache stats — SpatialAutoDetect room index: {fmt(_roomIndexHits, _roomIndexMisses)}");
+            Info($"Cache stats — _tag7HashCache:        {fmt(_tag7HashHits, _tag7HashMisses)}");
+            Info($"Cache stats — DrawingTypeRegistry:   {fmt(_dtRegistryHits, _dtRegistryMisses)}");
+        }
+
+        /// <summary>E-1: reset all cache hit/miss counters (use sparingly — diagnostics only).</summary>
+        public static void ResetCacheStats()
+        {
+            System.Threading.Interlocked.Exchange(ref _paramCacheHits, 0);
+            System.Threading.Interlocked.Exchange(ref _paramCacheMisses, 0);
+            System.Threading.Interlocked.Exchange(ref _roomIndexHits, 0);
+            System.Threading.Interlocked.Exchange(ref _roomIndexMisses, 0);
+            System.Threading.Interlocked.Exchange(ref _tag7HashHits, 0);
+            System.Threading.Interlocked.Exchange(ref _tag7HashMisses, 0);
+            System.Threading.Interlocked.Exchange(ref _dtRegistryHits, 0);
+            System.Threading.Interlocked.Exchange(ref _dtRegistryMisses, 0);
+        }
+
         private static void Write(string level, string message)
         {
             try
