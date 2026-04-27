@@ -3930,3 +3930,114 @@ Returns the summed count.
    including the duplicate-pre-filter and grid-snap passes. Counts
    reflect what `Convert to BIM` would produce with the current
    settings.
+
+#### Completed (Phase 141 — Detection-method facade + named entry points)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 140 review noted that `StructuralDWGEngine.cs`,
+`StructuralDWGCommands.cs`, `DetectJunctions`, `DetectStructuralWalls`,
+`AnalyzeLoadPaths`, `FindOrCreateBeamType`, and `DetectCircularColumns`
+were referenced in CLAUDE.md but variously didn't exist on disk, lived
+under different class names, or produced data that the pipeline
+discarded. This phase closes those gaps so each named entry point is
+genuinely callable from outside the wizard.
+
+**Audit findings (corrects Phase 140's Explorer-agent report):**
+
+| Identifier | Truth | Phase 141 action |
+|---|---|---|
+| `DetectStructuralWalls` | Already exists (`StructuralCADPipeline.cs:1145`, returns `List<DetectedWall>`) | Re-exposed via `StructuralDWGEngine` facade — no rewrite |
+| `DetectJunctions` | Already exists (`StructuralCADPipeline.cs:1302`, returns `List<(XYZ, string, int)>`) | Re-exposed; warning-class output now placed as TextNotes |
+| `AnalyzeLoadPaths` | Lives on `StructuralModelingEngine.cs:2486` | Re-exposed via `StructuralDWGEngine.AnalyzeLoadPaths()` |
+| `FindOrCreateBeamType` | Lives on `StructuralTypeFactory.cs:439` | Re-exposed via `StructuralDWGEngine.FindOrCreateBeamType()` |
+| `DetectCircularColumns` | Did NOT exist as a named method (extraction's inline check used compile-time constants) | NEW — `StructuralCADPipeline.DetectCircularColumns(circles, out rejected)` re-validates against config-driven size band |
+| `StructuralDWGEngine.cs` | Did NOT exist (CLAUDE.md described it but file was absent) | NEW — focused facade with detection methods + quality scoring |
+| `StructuralDWGCommands.cs` | Did NOT exist | NEW — 3 standalone IExternalCommands |
+
+**New file** — `StingTools/Model/StructuralDWGEngine.cs` (~225 lines, 1
+public class `StructuralDWGEngine`, 1 namespace `StingTools.Model`):
+
+- Detection facade — every named detection method exposed as a thin
+  delegate so non-wizard callers can use them in any order.
+- `RunWithConfig(import, config)` / `RunWithDefaults(import,
+  baseLevelName, topLevelName)` — batch / scriptable conversion.
+- `Audit(import, config)` — non-destructive run; returns
+  `AuditResult` with extraction + junctions + quality score + duration.
+- `ComputeQualityScore(extraction, junctions)` — 0-100 score with
+  per-component penalties:
+  - −5 per "Beam intersection (no column — WARNING)" junction
+  - −2 per "Free end (no support)" junction
+  - −0.1 per low-confidence detected element (< 0.7 confidence)
+  - DetectionRatio metric tracks detected elements / total entities.
+
+**New file** — `StingTools/Model/StructuralDWGCommands.cs` (~205 lines,
+3 IExternalCommand classes):
+
+- `QuickStructuralDWGCommand` — one-click conversion on the first DWG
+  import in the project using default config + first level by
+  elevation. Reports the conversion summary in a TaskDialog.
+- `StructuralDWGAuditCommand` — read-only audit. Runs detection +
+  scoring, shows quality score and per-element breakdown.
+- `StructuralDWGJunctionScanCommand` — scans the active DWG for
+  unsupported beam intersections + free beam ends, places ⚠
+  STING-STRUCT TextNote markers in the active view at every flagged
+  junction location. Wraps in a sub-transaction.
+
+**`DetectCircularColumns` (new method)** —
+`StructuralCADPipeline.cs:1132`. Re-validates an existing list of
+`DetectedCircle` against the active config's `MinColumnDiameterMm` /
+`MaxColumnDiameterMm`. Sister method to `DetectStructuralWalls` and
+`DetectRectangularColumnsV2`. The legacy extraction path keeps using
+its inline check with compile-time constants (`MinColumnSizeMm = 150`,
+`MaxColumnSizeMm = 1500`); this method gives external callers a hook
+to tighten or loosen the size band per project.
+
+Wired into `RunFullPipelineWithConfig`: when the user-set bounds
+differ from the defaults, the pass replaces `extraction.Circles` with
+the accepted subset and warns about the rejection count.
+
+**Junction warnings → TextNotes** — `DetectJunctions` has always
+classified beam intersections, but the legacy pipeline only used the
+result for the summary string. Now wired into
+`RunFullPipelineWithConfig`: each junction whose type contains
+"WARNING" or starts with "Free end" produces a ⚠ STING-STRUCT TextNote
+at the junction centroid in the active view. New helper
+`StructuralWarningPlacer.PlaceWarningsAtPoints(doc, view, warnings,
+points)` complements the existing `PlaceWarnings(doc, view, warnings)`
+which staggers messages down the view.
+
+**3 new config fields on `DWGConversionConfig`:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `MinColumnDiameterMm` | double | 150 | Lower band for `DetectCircularColumns` |
+| `MaxColumnDiameterMm` | double | 1500 | Upper band for `DetectCircularColumns` |
+| `ShowJunctionWarningsInView` | bool | true | Toggle for junction → TextNote placement |
+
+**`StructuralDWGEngine` does NOT register itself in StingCommandHandler.**
+The three commands are standalone `IExternalCommand` classes intended
+for direct invocation via the .addin manifest, AddinManager, or future
+dock-panel wiring. Wizard-driven conversion still goes through the
+existing `StrCADWizardCommand` in `StructuralModelingCommands.cs:1009`.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API).
+2. `StructuralDWGEngine` is a thin facade — it re-exposes
+   methods rather than re-implementing them, so the actual detection
+   logic still lives in `StructuralCADPipeline.cs`. Future passes that
+   want to bypass the wizard can substitute their own pipeline
+   implementation behind the same facade.
+3. The quality score is a heuristic for at-a-glance triage, not a
+   structural-engineering metric. It does not check element-by-element
+   geometric validity, code compliance, or analytical model health —
+   those go through `AnalyzeLoadPaths` and downstream.
+4. The three new commands all operate on the FIRST `ImportInstance`
+   found in the project. Multi-DWG documents need an interactive
+   import picker — listed in ROADMAP for the next iteration.
+5. `DetectCircularColumns`'s out-band rejection only logs a count, not
+   the rejected circles' coordinates. Callers needing the rejection
+   detail should call the method directly via `StructuralDWGEngine`
+   and consume the `out rejected` list.

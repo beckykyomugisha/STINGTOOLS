@@ -1129,6 +1129,48 @@ namespace StingTools.Model
             return Math.Abs(dir.X) > GridAxisTolerance || Math.Abs(dir.Y) > GridAxisTolerance;
         }
 
+        // ── Phase-141: Named Circular-Column Classifier ──────────────────
+
+        /// <summary>
+        /// Re-validates an existing list of <see cref="DetectedCircle"/> against the
+        /// active config's <c>MinColumnDiameterMm</c> / <c>MaxColumnDiameterMm</c> and
+        /// returns the surviving subset. Sister method to <see cref="DetectStructuralWalls"/>
+        /// and <see cref="DetectRectangularColumnsV2"/>.
+        ///
+        /// The legacy extraction path calls this implicitly via the inline check in
+        /// <c>ProcessStructuralGeometry</c> using compile-time constants. This named
+        /// entry point lets external callers (StructuralDWGEngine, project-specific
+        /// scripts) tighten or loosen the size band per project without modifying
+        /// the extraction code.
+        /// </summary>
+        /// <param name="circles">Circles already extracted (typically from
+        /// <c>StructuralExtractionResult.Circles</c>).</param>
+        /// <param name="rejected">Out: circles that fell outside the size band.</param>
+        public List<DetectedCircle> DetectCircularColumns(
+            IList<DetectedCircle> circles,
+            out List<DetectedCircle> rejected)
+        {
+            rejected = new List<DetectedCircle>();
+            var accepted = new List<DetectedCircle>();
+            if (circles == null || circles.Count == 0) return accepted;
+
+            var cfg = CurrentConfig;
+            double minDiamMm = cfg?.MinColumnDiameterMm ?? MinColumnSizeMm;
+            double maxDiamMm = cfg?.MaxColumnDiameterMm ?? MaxColumnSizeMm;
+
+            // Defensive: if user inverts min/max, swap.
+            if (minDiamMm > maxDiamMm) (minDiamMm, maxDiamMm) = (maxDiamMm, minDiamMm);
+
+            foreach (var c in circles)
+            {
+                if (c == null) { continue; }
+                double diamMm = c.RadiusFt * 2.0 * Units.FeetToMm;
+                if (diamMm >= minDiamMm && diamMm <= maxDiamMm) accepted.Add(c);
+                else rejected.Add(c);
+            }
+            return accepted;
+        }
+
         // ── Double-Line Structural Wall Detection ────────────────────────
 
         /// <summary>
@@ -1921,6 +1963,71 @@ namespace StingTools.Model
                 var extraction = ExtractStructuralGeometry(importInstance);
                 _extraction = extraction;
                 StingLog.Info($"  Extraction: {extraction.Summary}");
+
+                // ── Phase-141: Re-validate circular columns against config size band ──
+                // Extraction's inline check uses compile-time constants. This pass lets
+                // the wizard's MinColumnDiameterMm / MaxColumnDiameterMm override and
+                // logs how many circles fell outside the band.
+                if (extraction.Circles.Count > 0
+                    && (config.MinColumnDiameterMm != MinColumnSizeMm
+                        || config.MaxColumnDiameterMm != MaxColumnSizeMm))
+                {
+                    var accepted = DetectCircularColumns(extraction.Circles, out var rejected);
+                    if (rejected.Count > 0)
+                    {
+                        extraction.Circles.Clear();
+                        extraction.Circles.AddRange(accepted);
+                        StingLog.Info($"  Circular columns: {accepted.Count} kept, " +
+                            $"{rejected.Count} rejected outside " +
+                            $"[{config.MinColumnDiameterMm:F0}, {config.MaxColumnDiameterMm:F0}] mm");
+                        totalResult.Warnings.Add(
+                            $"Circular column re-validation rejected {rejected.Count} circle(s) " +
+                            $"outside [{config.MinColumnDiameterMm:F0}, {config.MaxColumnDiameterMm:F0}] mm.");
+                    }
+                }
+
+                // ── Phase-141: Surface DetectJunctions warnings as TextNotes ──
+                // DetectJunctions has always classified beam intersections, but the
+                // legacy pipeline only used the result for the summary string.
+                // Place "WARNING" + "Free end" cases as visible TextNote markers.
+                if (config.ShowJunctionWarningsInView && _doc.ActiveView != null)
+                {
+                    try
+                    {
+                        var junctions = DetectJunctions(extraction);
+                        var warningMessages = new List<string>();
+                        var warningPoints = new List<XYZ>();
+                        foreach (var (pt, jType, beamCount) in junctions)
+                        {
+                            if (jType == null) continue;
+                            // Only surface unsupported intersections + free ends — the rest
+                            // are normal connections.
+                            if (jType.IndexOf("WARNING", StringComparison.OrdinalIgnoreCase) >= 0
+                                || jType.StartsWith("Free end", StringComparison.OrdinalIgnoreCase))
+                            {
+                                warningMessages.Add($"{jType} ({beamCount} beam(s))");
+                                warningPoints.Add(pt);
+                            }
+                        }
+                        if (warningMessages.Count > 0)
+                        {
+                            int placed = StructuralWarningPlacer.PlaceWarningsAtPoints(
+                                _doc, _doc.ActiveView, warningMessages, warningPoints);
+                            if (placed > 0)
+                            {
+                                StingLog.Info($"  Junction warnings: placed {placed} TextNote(s) " +
+                                    $"in active view");
+                                totalResult.Warnings.Add(
+                                    $"Junction audit: {warningMessages.Count} unsupported " +
+                                    $"intersection(s) and free end(s) flagged in view.");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"DetectJunctions warning placement: {ex.Message}");
+                    }
+                }
 
                 // ── Phase-140 P1-A: Grid-snapped column placement ────────────
                 // Snap detected column centres (rectangles + circles) to nearest

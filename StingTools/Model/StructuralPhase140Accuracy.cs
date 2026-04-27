@@ -455,6 +455,60 @@ namespace StingTools.Model
     /// warning location, so engineers see the warnings without scrolling text logs.</summary>
     internal static class StructuralWarningPlacer
     {
+        /// <summary>Phase-141: Place warnings AT specific 2D points in the view (one
+        /// TextNote per warning). Used for junction warnings where the location is
+        /// known (the junction centroid). Returns the number of notes placed.</summary>
+        public static int PlaceWarningsAtPoints(Document doc, View view,
+            IList<string> warnings, IList<XYZ> points)
+        {
+            if (doc == null || view == null) return 0;
+            if (warnings == null || points == null) return 0;
+            if (warnings.Count == 0 || warnings.Count != points.Count) return 0;
+
+            ElementId noteTypeId = ResolveNoteTypeId(doc);
+            if (noteTypeId == null || noteTypeId == ElementId.InvalidElementId) return 0;
+
+            int placed = 0;
+            using (var tx = new SubTransaction(doc))
+            {
+                try
+                {
+                    tx.Start();
+                    for (int i = 0; i < warnings.Count; i++)
+                    {
+                        if (string.IsNullOrWhiteSpace(warnings[i]) || points[i] == null) continue;
+                        try
+                        {
+                            string body = "⚠ STING-STRUCT: " + warnings[i].Trim();
+                            var pos = new XYZ(points[i].X, points[i].Y, 0);
+                            var note = TextNote.Create(doc, view.Id, pos, body, noteTypeId);
+                            if (note != null) placed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"PlaceWarningAtPoint #{i}: {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PlaceWarningsAtPoints sub-transaction: {ex.Message}");
+                    if (tx.HasStarted()) tx.RollBack();
+                }
+            }
+            return placed;
+        }
+
+        private static ElementId ResolveNoteTypeId(Document doc)
+        {
+            ElementId id = doc.GetDefaultElementTypeId(ElementTypeGroup.TextNoteType);
+            if (id != null && id != ElementId.InvalidElementId) return id;
+            var t = new FilteredElementCollector(doc).OfClass(typeof(TextNoteType))
+                .Cast<ElementType>().FirstOrDefault();
+            return t?.Id ?? ElementId.InvalidElementId;
+        }
+
         /// <summary>Place one TextNote per warning at the centre of the active view.
         /// Wraps in its own sub-transaction so a failure here doesn't roll back element
         /// creation. Returns the placed TextNote ElementIds.</summary>

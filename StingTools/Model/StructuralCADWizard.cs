@@ -2873,6 +2873,23 @@ namespace StingTools.Model
         /// the active view at each warning location with prefix "⚠ STING-STRUCT:".</summary>
         public bool ShowStructuralWarningsInView { get; set; } = true;
 
+        // ── Phase-141 detection knobs (column-circle classifier + junction warnings) ──
+
+        /// <summary>Minimum detected circular-column diameter (mm). Circles smaller than this
+        /// are rejected as columns by <c>DetectCircularColumns</c>. Defaults to 150 mm
+        /// (matches the legacy `MinColumnSizeMm` constant).</summary>
+        public double MinColumnDiameterMm { get; set; } = 150;
+
+        /// <summary>Maximum detected circular-column diameter (mm). Circles larger than this
+        /// are rejected as columns. Defaults to 1500 mm (matches `MaxColumnSizeMm`).</summary>
+        public double MaxColumnDiameterMm { get; set; } = 1500;
+
+        /// <summary>After extraction, place TextNote markers in the active view at each
+        /// junction whose classification contains "WARNING" (e.g. beam intersection
+        /// without a column) or "Free end" — surfaces the data that <c>DetectJunctions</c>
+        /// has always produced but the legacy pipeline only used for the summary string.</summary>
+        public bool ShowJunctionWarningsInView { get; set; } = true;
+
         // Tagging
         public bool AutoTag { get; set; } = true;
         public bool AutoSeqNumbers { get; set; } = true;
