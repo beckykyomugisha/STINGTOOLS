@@ -157,6 +157,13 @@ namespace StingTools.Core.Drawing
         internal static string GetManagedTemplateName(string packId, ViewType vt)
             => $"STING:{packId}:{vt}";
 
+        // GAP-O: a managed template's name is exactly STING:{packId}:{ViewType}
+        // — three colon-separated segments. Match the structure to avoid
+        // sweeping up unrelated user templates like "STING:my-favourite".
+        private static readonly System.Text.RegularExpressions.Regex _managedNameRegex
+            = new System.Text.RegularExpressions.Regex(@"^STING:[A-Za-z0-9_\-\.]+:[A-Za-z][A-Za-z0-9]+$",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
         public static List<ElementId> GetAllManagedTemplates(Document doc)
         {
             var result = new List<ElementId>();
@@ -164,8 +171,16 @@ namespace StingTools.Core.Drawing
             foreach (var v in new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
                 .Cast<View>()
-                .Where(v => v.IsTemplate && (v.Name ?? "").StartsWith("STING:", StringComparison.Ordinal)))
+                .Where(v => v.IsTemplate && _managedNameRegex.IsMatch(v.Name ?? string.Empty)))
             {
+                // GAP-O: belt-and-braces — the stamp must also parse as a
+                // managed-pack stamp ("pack=…|cs=…" / legacy "pack:…;cs=…").
+                // Catches templates a user named to look like the format
+                // but that were never actually written by the syncer.
+                var raw = DrawingTypeStamper.ReadRaw(v);
+                if (string.IsNullOrEmpty(raw)) continue;
+                if (!raw.StartsWith("pack=", StringComparison.Ordinal)
+                    && !raw.StartsWith("pack:", StringComparison.Ordinal)) continue;
                 result.Add(v.Id);
             }
             return result;

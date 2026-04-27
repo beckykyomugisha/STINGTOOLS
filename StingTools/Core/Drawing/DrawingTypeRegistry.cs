@@ -112,7 +112,11 @@ namespace StingTools.Core.Drawing
             var chain = new List<DrawingType>();
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var cur = leaf;
-            while (cur != null)
+            // GAP-P: hard depth limit guards against pathological JSON where
+            // the visited-set doesn't catch a cycle (e.g. multiple null-id
+            // entries chained together).
+            int depthGuard = 0;
+            while (cur != null && depthGuard++ < 32)
             {
                 if (!visited.Add(cur.Id ?? Guid.NewGuid().ToString()))
                 {
