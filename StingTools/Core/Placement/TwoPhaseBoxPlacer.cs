@@ -229,7 +229,15 @@ namespace StingTools.Core.Placement
                             }
                             string paramName = string.IsNullOrEmpty(rule.BoxLocationIdParam)
                                 ? ParamRegistry.BOX_LOCATION_ID : rule.BoxLocationIdParam;
-                            TrySetString(pf.Placed, paramName, entry.Key);
+                            // Phase 139.5 Q9 — second-fix devices are stamped with
+                            // the bare GUID portion of the composite key. Pre-139.3
+                            // first-fix boxes have only the GUID; post-139.3 boxes
+                            // have "<guid>|ws=<n>". Stripping the "|ws=" suffix
+                            // keeps both formats matchable on the device side.
+                            string deviceKey = entry.Key;
+                            int pipeIdx = deviceKey.IndexOf('|');
+                            if (pipeIdx > 0) deviceKey = deviceKey.Substring(0, pipeIdx);
+                            TrySetString(pf.Placed, paramName, deviceKey);
                             TrySetPhase(pf.Placed, phase);
                             consumed.Add(entry.Key);
                             result?.PlacedIds.Add(pf.Placed.Id);

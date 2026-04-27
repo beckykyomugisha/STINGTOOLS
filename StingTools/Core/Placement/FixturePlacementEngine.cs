@@ -114,6 +114,27 @@ namespace StingTools.Core.Placement
             // win room capacity slots before generic fallbacks.
             var ordered = rules.OrderByDescending(r => r.Priority).ToList();
 
+            // Phase 139.5 Q21 — pre-compile each rule's RoomFilter +
+            // ExcludeRoomFilter regex once, so the per-room loop's
+            // pre-filter check is regex.IsMatch(roomName) instead of a
+            // full RoomMatchesScope evaluation including parameter reads.
+            // Rules with empty RoomFilter still iterate every room.
+            var roomFilterRx = new Dictionary<string, System.Text.RegularExpressions.Regex>(StringComparer.Ordinal);
+            var excludeFilterRx = new Dictionary<string, System.Text.RegularExpressions.Regex>(StringComparer.Ordinal);
+            foreach (var r in ordered)
+            {
+                if (!string.IsNullOrEmpty(r.RoomFilter))
+                {
+                    try { roomFilterRx[r.MergeKey] = new System.Text.RegularExpressions.Regex(r.RoomFilter, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled); }
+                    catch (Exception ex) { result.Warnings.Add($"Rule '{r.MergeKey}' RoomFilter regex: {ex.Message}"); }
+                }
+                if (!string.IsNullOrEmpty(r.ExcludeRoomFilter))
+                {
+                    try { excludeFilterRx[r.MergeKey] = new System.Text.RegularExpressions.Regex(r.ExcludeRoomFilter, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled); }
+                    catch (Exception ex) { result.Warnings.Add($"Rule '{r.MergeKey}' ExcludeRoomFilter regex: {ex.Message}"); }
+                }
+            }
+
             Transaction tx = null;
             if (!dryRun)
             {
@@ -157,8 +178,17 @@ namespace StingTools.Core.Placement
                 {
                     // PC-13 — per-room state so dependent rules see predecessors.
                     var roomState = new RoomState();
+                    string roomName = SafeRoomName(room);
                     foreach (var rule in ordered)
                     {
+                        // Phase 139.5 Q21 — fast filter using pre-compiled regex
+                        // before paying the cost of scorer.Score / RoomMatchesScope
+                        // (which reads parameters, level, phase, workset).
+                        if (roomFilterRx.TryGetValue(rule.MergeKey, out var rfx)
+                            && !rfx.IsMatch(roomName ?? "")) continue;
+                        if (excludeFilterRx.TryGetValue(rule.MergeKey, out var efx)
+                            && efx.IsMatch(roomName ?? "")) continue;
+
                         try
                         {
                             // PC-13 — ConflictsWith: skip if any conflicting rule already fired in this room.
@@ -480,12 +510,18 @@ namespace StingTools.Core.Placement
                 }
                 case PlacementRuleKind.Linear:
                 {
+                    // Phase 139.5 Q15 — Linear cap was always candidateCount
+                    // regardless of PerLinearMetre. Now: perimeter (m) ÷
+                    // PerLinearMetre = required count, taken from the room's
+                    // boundary (or bbox fallback). When PerLinearMetre is 0,
+                    // fall through to candidateCount as before.
                     if (rule.PerLinearMetre > 0)
                     {
-                        // Perimeter is approximated from the bounding box; the
-                        // PERIMETER_OFFSET anchor already produces one candidate
-                        // per step, so we just take all candidates.
-                        cap = candidateCount;
+                        double perimeterM = ComputeRoomPerimeterMetres(room);
+                        if (perimeterM > 0)
+                            cap = Math.Max(1, (int)Math.Ceiling(perimeterM / rule.PerLinearMetre));
+                        else
+                            cap = candidateCount;
                     }
                     else cap = candidateCount;
                     break;
@@ -809,6 +845,40 @@ namespace StingTools.Core.Placement
                 }
             }
             catch (Exception ex) { StingLog.Warn($"FixturePlacementEngine: set {paramName}={valueMm}mm failed: {ex.Message}"); }
+        }
+
+        // Phase 139.5 Q15 — perimeter from boundary segments (any curve type)
+        // with a bbox fallback when the room has no boundary. Result in metres.
+        private static double ComputeRoomPerimeterMetres(Room room)
+        {
+            try
+            {
+                var opts = new SpatialElementBoundaryOptions
+                {
+                    SpatialElementBoundaryLocation = SpatialElementBoundaryLocation.Center,
+                };
+                var loops = room.GetBoundarySegments(opts);
+                double sumFt = 0;
+                if (loops != null)
+                {
+                    foreach (var loop in loops)
+                    {
+                        foreach (var seg in loop)
+                        {
+                            var c = seg?.GetCurve();
+                            if (c == null) continue;
+                            sumFt += c.Length;
+                        }
+                    }
+                }
+                if (sumFt > 0) return sumFt * 0.3048;
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return 0;
+                double w = (bb.Max.X - bb.Min.X) * 0.3048;
+                double d = (bb.Max.Y - bb.Min.Y) * 0.3048;
+                return 2 * (w + d);
+            }
+            catch (Exception ex) { StingLog.Warn($"ComputeRoomPerimeterMetres: {ex.Message}"); return 0; }
         }
 
         private static string SafeRoomName(Room room)

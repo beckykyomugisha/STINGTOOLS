@@ -923,9 +923,13 @@ namespace StingTools.Core.Placement
             foreach (var seg in b.Segments)
             {
                 if (seg.Curve == null) continue;
-                if (!(seg.Curve is Line line)) continue;
-                var mid = line.Evaluate(0.5, true);
-                XYZ inward = ComputeInward(line, room);
+                // Phase 139.5 Q3 — was `if (!(seg.Curve is Line line)) continue;`
+                // which silently dropped every Arc / Spline / NurbSpline boundary
+                // — curved-wall rooms produced zero anchors. Curve.Evaluate(0.5,
+                // true) returns the midpoint regardless of curve subclass; the
+                // inward normal comes from the tangent at the midpoint.
+                XYZ mid = seg.Curve.Evaluate(0.5, true);
+                XYZ inward = ComputeInwardFromCurve(seg.Curve, room);
                 double xFt = mid.X + inward.X * offsetXFt + (-inward.Y) * offsetYFt;
                 double yFt = mid.Y + inward.Y * offsetXFt + ( inward.X) * offsetYFt;
                 points.Add(new XYZ(xFt, yFt, anchorZ));
@@ -937,16 +941,16 @@ namespace StingTools.Core.Placement
         {
             var b = GetBoundary(room);
             if (b == null || b.Segments.Count == 0) { Fallback(room, anchorZ, offsetXFt, offsetYFt, points); return; }
-            // Corner = endpoint of every line segment, deduped.
+            // Corner = endpoint of every segment (line, arc or spline), deduped.
             var seen = new HashSet<long>();
             foreach (var seg in b.Segments)
             {
-                if (!(seg.Curve is Line line)) continue;
-                foreach (var pt in new[] { line.GetEndPoint(0), line.GetEndPoint(1) })
+                if (seg.Curve == null) continue;
+                XYZ inward = ComputeInwardFromCurve(seg.Curve, room);
+                foreach (var pt in new[] { seg.Curve.GetEndPoint(0), seg.Curve.GetEndPoint(1) })
                 {
                     long key = (long)(pt.X * 1000) * 100000 + (long)(pt.Y * 1000);
                     if (!seen.Add(key)) continue;
-                    XYZ inward = ComputeInward(line, room);
                     points.Add(new XYZ(pt.X + inward.X * offsetXFt, pt.Y + inward.Y * offsetXFt, anchorZ));
                 }
             }
@@ -1019,14 +1023,33 @@ namespace StingTools.Core.Placement
         }
 
         private XYZ ComputeInward(Line line, Room room)
+            => ComputeInwardFromCurve(line, room);
+
+        // Phase 139.5 Q3 — generalised inward-normal computation for any
+        // boundary curve (Line, Arc, NurbSpline). Tangent comes from the
+        // first derivative at the midpoint parameter; the normal is the
+        // 90° rotation of the planar tangent.
+        private XYZ ComputeInwardFromCurve(Curve curve, Room room)
         {
             try
             {
-                XYZ tangent = (line.GetEndPoint(1) - line.GetEndPoint(0)).Normalize();
+                if (curve == null) return XYZ.BasisY;
+                XYZ tangent;
+                try
+                {
+                    var deriv = curve.ComputeDerivatives(0.5, true);
+                    tangent = deriv?.BasisX ?? (curve.GetEndPoint(1) - curve.GetEndPoint(0));
+                }
+                catch
+                {
+                    tangent = curve.GetEndPoint(1) - curve.GetEndPoint(0);
+                }
+                if (tangent.GetLength() < 1e-9) return XYZ.BasisY;
+                tangent = tangent.Normalize();
                 XYZ normal = new XYZ(-tangent.Y, tangent.X, 0);
                 var bb = room.get_BoundingBox(null);
                 if (bb == null) return normal;
-                XYZ mid = line.Evaluate(0.5, true);
+                XYZ mid = curve.Evaluate(0.5, true);
                 XYZ probe = mid + normal.Multiply(0.5);
                 if (probe.X >= bb.Min.X && probe.X <= bb.Max.X && probe.Y >= bb.Min.Y && probe.Y <= bb.Max.Y) return normal;
                 return normal.Negate();
@@ -1269,12 +1292,21 @@ namespace StingTools.Core.Placement
                 string phaseName = "";
                 try
                 {
-                    var phaseParam = room.get_Parameter(BuiltInParameter.ROOM_PHASE_ID);
-                    if (phaseParam != null && phaseParam.HasValue)
+                    // Phase 139.5 Q10 — Revit 2024+ replaced ROOM_PHASE_ID with
+                    // Element.CreatedPhaseId. Try the modern API first; fall back
+                    // to the legacy parameter so the same code path covers
+                    // Revit 2025/2026/2027.
+                    ElementId phaseId = ElementId.InvalidElementId;
+                    try { phaseId = room.CreatedPhaseId; } catch { }
+                    if (phaseId == null || phaseId == ElementId.InvalidElementId)
                     {
-                        var ph = _doc.GetElement(phaseParam.AsElementId()) as Phase;
-                        if (ph != null) phaseName = ph.Name ?? "";
+                        var phaseParam = room.get_Parameter(BuiltInParameter.ROOM_PHASE_ID);
+                        if (phaseParam != null && phaseParam.HasValue)
+                            phaseId = phaseParam.AsElementId();
                     }
+                    if (phaseId != null && phaseId != ElementId.InvalidElementId
+                        && _doc.GetElement(phaseId) is Phase ph)
+                        phaseName = ph.Name ?? "";
                 }
                 catch { }
                 if (!RegexAllow(rule.PhaseFilter, phaseName)) return false;

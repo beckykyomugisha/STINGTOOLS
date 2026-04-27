@@ -74,14 +74,71 @@ namespace StingTools.Core.Placement
             }
 
             double pitchFt = pitchMm * MmToFt;
-            XYZ along = WallTangentSafe(hostWall);
-            if (along == null || along.IsZeroLength()) along = XYZ.BasisX;
+
+            // Phase 139.5 Q14 — for straight walls the tangent is constant;
+            // for curved walls (Arc / NurbSpline) the tangent at slot 0 is
+            // not the tangent at slot N. Sample the wall's location curve at
+            // arc-length parameters around the frame centre so each slot's
+            // position follows the wall.
+            LocationCurve lc = hostWall?.Location as LocationCurve;
+            Curve curve = lc?.Curve;
+            bool useCurveSampling = curve != null
+                && (curve is Arc || !(curve is Line));
+
+            XYZ alongFallback = WallTangentSafe(hostWall);
+            if (alongFallback == null || alongFallback.IsZeroLength()) alongFallback = XYZ.BasisX;
+
+            if (useCurveSampling)
+            {
+                // Project frameCentre onto the curve to find the t value of slot 0.
+                IntersectionResult proj = null;
+                try { proj = curve.Project(frameCentre); } catch { }
+                if (proj == null) useCurveSampling = false;
+                else
+                {
+                    double centreT = proj.Parameter;
+                    double curveLen = curve.Length;
+                    if (curveLen <= 1e-9) useCurveSampling = false;
+                    else
+                    {
+                        // ApproximateParameter spans 0..1 of the *normalised*
+                        // curve.  Convert pitchFt into a parameter delta via
+                        // tangent magnitude at the centre.
+                        XYZ tangentAtCentre = curve.ComputeDerivatives(centreT, false)?.BasisX;
+                        double tangentMag = tangentAtCentre?.GetLength() ?? 0;
+                        if (tangentMag <= 1e-9) useCurveSampling = false;
+                        else
+                        {
+                            double dtPerFt = 1.0 / tangentMag;
+                            foreach (var r in sorted)
+                            {
+                                int slot = Math.Max(0, r.ClusterSlotIndex);
+                                double centred = slot - (totalSlots - 1) / 2.0;
+                                double t = centreT + centred * pitchFt * dtPerFt;
+                                // Clamp to the curve domain.
+                                if (curve.IsBound)
+                                {
+                                    t = Math.Max(curve.GetEndParameter(0), Math.Min(curve.GetEndParameter(1), t));
+                                }
+                                XYZ p;
+                                try { p = curve.Evaluate(t, false); }
+                                catch
+                                {
+                                    p = frameCentre + alongFallback.Multiply(centred * pitchFt);
+                                }
+                                output.Add((r, p));
+                            }
+                            return output;
+                        }
+                    }
+                }
+            }
 
             foreach (var r in sorted)
             {
                 int slot = Math.Max(0, r.ClusterSlotIndex);
                 double centred = slot - (totalSlots - 1) / 2.0;
-                XYZ p = frameCentre + along.Multiply(centred * pitchFt);
+                XYZ p = frameCentre + alongFallback.Multiply(centred * pitchFt);
                 output.Add((r, p));
             }
             return output;

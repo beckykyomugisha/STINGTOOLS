@@ -4009,3 +4009,69 @@ deferred to their own design pass.
 - TransactionGroup partial-rollback per rule (#36).
 - `WarningsManager` persistence + SLA dashboard surface (#26).
 
+
+#### Completed (Phase 139.5 — Deep Accuracy & Performance Audit Fixes)
+
+Acted on a 21-finding deep audit of the Phase 139.0–139.4 pipeline that
+focused on issues the earlier reviews missed (curve mathematics, layer
+ordering, regex compilation per-room, sleeve batching, sprinkler nudging).
+Ten of fifteen real findings closed; the remaining five (RCR-based UF,
+L-shape grid clipping, pipe-system join, stepped-soffit raycast, router
+unification) are deferred to their own design pass.
+
+**Accuracy fixes:**
+- Q3 / P1 — `PlacementScorer.EmitWallMidpoints` + `EmitWallCorners`
+  now use `Curve.Evaluate(0.5, true)` and a curve-aware
+  `ComputeInwardFromCurve` helper.  Curved-wall rooms (Arc / NurbSpline
+  boundary segments) used to produce zero anchors; they now emit
+  midpoints and corners via the curve's first derivative.
+- Q15 / P1 — `FixturePlacementEngine.ComputeCap` for `RuleKind=Linear`
+  now derives the cap from `room perimeter ÷ PerLinearMetre` via a new
+  `ComputeRoomPerimeterMetres` helper that walks any boundary curve
+  type.  Previously the cap was always `candidateCount`.
+- Q9 / P2 — `TwoPhaseBoxPlacer.PlaceSecondFixDevices` strips the
+  `|ws=<workset>` suffix introduced in 139.3 before stamping the
+  device, so existing bare-GUID first-fix boxes from pre-139.3
+  projects still match on second-fix.
+- Q10 / P2 — `PlacementScorer.RoomMatchesScope` reads
+  `room.CreatedPhaseId` first (Revit 2024+) and falls back to
+  `BuiltInParameter.ROOM_PHASE_ID` only when null.
+- Q5 / P2 — `InWallChaseRouter.ResolveChaseDepth` documents the
+  exterior-to-interior layer ordering and stops at
+  `CompoundStructure.StructuralMaterialIndex` OR the first
+  `Function == Structure` layer (handles sandwich panels with a
+  mid structure layer).
+- Q4 / P2 — `PlasterOffsetResolver.IsFinishLayer` no longer treats
+  `Function = Substrate` as finish unless the material name matches
+  the finish regex (plasterboard / gypsum / etc.).  Drywall stud
+  partitions stop accumulating stud thickness as plaster offset.
+- Q14 / P2 — `CompoundClusterPlacer.ComputeClusterPositions` samples
+  the wall location curve at arc-length parameters around the frame
+  centre when the host wall is curved (Arc / NurbSpline).  Slots
+  follow the wall instead of walking off-tangent.
+- Q13 / P2 — `LightingGridCalculator.CheckSprinklerSeparation` now
+  nudges grid points outside the 600 mm exclusion ring before
+  dropping them, so the lux grid retains its fixture count when the
+  room geometry allows a clear shift.
+
+**Performance fixes:**
+- Q19 / P2 — `InWallChaseRouter.BatchSleevesAtEnd` flag + new
+  `FlushSleeves()` API let an engine-level run defer all
+  `SleeveEngine.PlaceSleeves` work to a single end-of-run call.
+  Cuts the sleeve wall walk from O(routes) to O(1).
+- Q21 / P2 — `FixturePlacementEngine` pre-compiles each rule's
+  `RoomFilter` and `ExcludeRoomFilter` regex at run start (cached
+  in `_filterRx` dicts).  The per-room loop short-circuits via
+  `regex.IsMatch(roomName)` before paying the full
+  `RoomMatchesScope` cost (parameter / level / phase / workset
+  reads).  Estimated 2–5× speedup on large projects (50 rooms ×
+  200 rules).
+
+**Deferred (own design pass):**
+- Q1  RCR-based utilisation factor (lookup table needed).
+- Q2  L-/U-shape grid clipping against boundary loops.
+- Q6  Pipe-fitting endpoint match / connector union.
+- Q7  Pipe.Create joining an existing piping system network.
+- Q8  Stepped-soffit raycast strategy in `PlaceOnCeilingSoffit`.
+- Q12 `WallFollowerRouter` ⇄ `InWallChaseRouter` unification.
+

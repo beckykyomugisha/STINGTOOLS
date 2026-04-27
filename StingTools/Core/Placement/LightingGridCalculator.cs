@@ -429,26 +429,62 @@ namespace StingTools.Core.Placement
                 }
                 if (sprinklers.Count == 0) return;
 
-                int dropped = 0;
+                // Phase 139.5 Q13 — nudge each conflicting point along the
+                // axis away from the nearest sprinkler. If nudging keeps it
+                // inside the room bbox AND clear of every other sprinkler,
+                // accept the nudge. Drop only as last resort so the lux grid
+                // doesn't lose fixture count to false rejection.
+                var bbRoom = room.get_BoundingBox(null);
+                int nudged = 0, dropped = 0;
                 var keep = new List<XYZ>();
                 foreach (var pt in r.Points)
                 {
-                    bool conflict = false;
+                    XYZ nearest = null; double nearestSq = double.MaxValue;
                     foreach (var s in sprinklers)
                     {
                         double dx = s.X - pt.X, dy = s.Y - pt.Y;
-                        if (dx * dx + dy * dy < minSepSq) { conflict = true; break; }
+                        double d2 = dx * dx + dy * dy;
+                        if (d2 < nearestSq) { nearestSq = d2; nearest = s; }
                     }
-                    if (conflict) dropped++; else keep.Add(pt);
+                    if (nearest == null || nearestSq >= minSepSq) { keep.Add(pt); continue; }
+
+                    XYZ away = pt - nearest;
+                    if (away.GetLength() < 1e-6) away = new XYZ(1, 0, 0);
+                    away = away.Normalize();
+                    XYZ nudgedPt = nearest + away.Multiply(minSepFt + 0.05);
+
+                    bool inRoom = bbRoom == null
+                        || (nudgedPt.X >= bbRoom.Min.X && nudgedPt.X <= bbRoom.Max.X
+                         && nudgedPt.Y >= bbRoom.Min.Y && nudgedPt.Y <= bbRoom.Max.Y);
+                    bool clearOfOthers = true;
+                    if (inRoom)
+                    {
+                        foreach (var s in sprinklers)
+                        {
+                            double dx = s.X - nudgedPt.X, dy = s.Y - nudgedPt.Y;
+                            if (dx * dx + dy * dy < minSepSq) { clearOfOthers = false; break; }
+                        }
+                    }
+                    if (inRoom && clearOfOthers)
+                    {
+                        keep.Add(new XYZ(nudgedPt.X, nudgedPt.Y, pt.Z));
+                        nudged++;
+                    }
+                    else
+                    {
+                        dropped++;
+                    }
                 }
 
-                if (dropped > 0)
+                if (nudged > 0 || dropped > 0)
                 {
                     r.Points.Clear();
                     r.Points.AddRange(keep);
                     r.FixturesPlaced = r.Points.Count;
-                    r.Warnings.Add(
-                        $"BS 5306-2: {dropped} luminaire grid point(s) within 600 mm of a sprinkler — dropped.");
+                    if (nudged > 0)
+                        r.Warnings.Add($"BS 5306-2: nudged {nudged} luminaire grid point(s) away from sprinklers.");
+                    if (dropped > 0)
+                        r.Warnings.Add($"BS 5306-2: dropped {dropped} luminaire grid point(s) — no clear position within room.");
                 }
             }
             catch (Exception ex)

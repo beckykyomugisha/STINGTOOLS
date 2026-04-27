@@ -66,6 +66,18 @@ namespace StingTools.Core.Placement
         /// </summary>
         public bool AutoSleeve { get; set; } = true;
 
+        /// <summary>
+        /// Phase 139.5 Q19 — when true, AutoSleeve does NOT run during
+        /// each Route call; instead pipe ids are accumulated in
+        /// PendingSleevePipes and the caller invokes <see cref="FlushSleeves"/>
+        /// once after the last route. Cuts the SleeveEngine wall walk
+        /// from O(routes) to O(1) per batch.
+        /// </summary>
+        public bool BatchSleevesAtEnd { get; set; } = false;
+
+        /// <summary>Pipe ids queued for batched sleeve placement.</summary>
+        public List<ElementId> PendingSleevePipes { get; } = new List<ElementId>();
+
         private readonly Document _doc;
         private readonly StructuralAwareness _structural;
 
@@ -187,27 +199,35 @@ namespace StingTools.Core.Placement
                     }
                 }
 
-                // Phase 139.4 — auto-sleeve every created segment.  The
-                // SleeveEngine scans each pipe, finds host penetrations
-                // (walls / floors / roofs / ceilings), cuts an opening,
-                // and drops a STING_SLEEVE_ROUND family at every hit.
+                // Phase 139.4/.5 — auto-sleeve every created segment. When
+                // BatchSleevesAtEnd is true (typical for an engine-level
+                // run that places dozens of chase routes), defer the
+                // SleeveEngine pass to a single FlushSleeves call so the
+                // wall walk happens once instead of per-route.
                 if (AutoSleeve && result.CreatedSegments.Count > 0)
                 {
-                    try
+                    if (BatchSleevesAtEnd)
                     {
-                        var pipes = result.CreatedSegments
-                            .Select(id => _doc.GetElement(id))
-                            .Where(e => e != null)
-                            .ToList();
-                        var sleeveResult = StingTools.Core.Mep.SleeveEngine.PlaceSleeves(_doc, pipes, dryRun: false);
-                        result.SleevesPlaced = sleeveResult.Placed;
-                        if (sleeveResult.Warnings != null && sleeveResult.Warnings.Count > 0)
-                            result.Warnings.AddRange(sleeveResult.Warnings.Take(10));
+                        PendingSleevePipes.AddRange(result.CreatedSegments);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        StingLog.Warn($"InWallChaseRouter.AutoSleeve: {ex.Message}");
-                        result.Warnings.Add($"AutoSleeve: {ex.Message}");
+                        try
+                        {
+                            var pipes = result.CreatedSegments
+                                .Select(id => _doc.GetElement(id))
+                                .Where(e => e != null)
+                                .ToList();
+                            var sleeveResult = StingTools.Core.Mep.SleeveEngine.PlaceSleeves(_doc, pipes, dryRun: false);
+                            result.SleevesPlaced = sleeveResult.Placed;
+                            if (sleeveResult.Warnings != null && sleeveResult.Warnings.Count > 0)
+                                result.Warnings.AddRange(sleeveResult.Warnings.Take(10));
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"InWallChaseRouter.AutoSleeve: {ex.Message}");
+                            result.Warnings.Add($"AutoSleeve: {ex.Message}");
+                        }
                     }
                 }
             }
@@ -220,6 +240,34 @@ namespace StingTools.Core.Placement
             return result;
         }
 
+        /// <summary>
+        /// Phase 139.5 Q19 — drain PendingSleevePipes into a single
+        /// SleeveEngine.PlaceSleeves call. Returns count of sleeves
+        /// placed. Caller owns the Transaction.
+        /// </summary>
+        public int FlushSleeves(List<string> warnings = null)
+        {
+            if (PendingSleevePipes.Count == 0) return 0;
+            try
+            {
+                var pipes = PendingSleevePipes
+                    .Select(id => _doc.GetElement(id))
+                    .Where(e => e != null)
+                    .ToList();
+                var sleeveResult = StingTools.Core.Mep.SleeveEngine.PlaceSleeves(_doc, pipes, dryRun: false);
+                if (warnings != null && sleeveResult.Warnings != null && sleeveResult.Warnings.Count > 0)
+                    warnings.AddRange(sleeveResult.Warnings.Take(10));
+                PendingSleevePipes.Clear();
+                return sleeveResult.Placed;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"InWallChaseRouter.FlushSleeves: {ex.Message}");
+                warnings?.Add($"FlushSleeves: {ex.Message}");
+                return 0;
+            }
+        }
+
         // ── Internal ────────────────────────────────────────────────
 
         private (double availableMm, double requiredMm) ResolveChaseDepth(Wall wall, PlacementRule rule)
@@ -230,16 +278,32 @@ namespace StingTools.Core.Placement
                 var cs = wall.WallType?.GetCompoundStructure();
                 if (cs != null)
                 {
-                    // Sum non-structural finish + air-cavity layers on the
-                    // interior side. CompoundStructure.GetLayers is ordered
-                    // from exterior to interior in Revit's convention.
+                    // Phase 139.5 Q5 — `CompoundStructure.GetLayers()` returns
+                    // layers ordered EXTERIOR → INTERIOR per the Revit API
+                    // (verified in the SDK 2024+ Wall samples). We walk the
+                    // INTERIOR side first by reversing once, accumulating
+                    // finish / membrane / cavity layers until we hit the
+                    // structural core. If the core is the first layer we see
+                    // (no interior finish at all), availableMm stays 0 — the
+                    // caller treats that as "no compound structure" and falls
+                    // through to the warn-and-continue branch.
                     var layers = cs.GetLayers();
                     if (layers != null)
                     {
-                        foreach (var l in layers.Reverse())
+                        // Determine the structural-core layer index so we can
+                        // pick the correct side. Revit exposes the structural
+                        // material via CompoundStructure.StructuralMaterialIndex.
+                        int structuralIdx = -1;
+                        try { structuralIdx = cs.StructuralMaterialIndex; } catch { }
+                        // Walk interior-side layers (highest index first).
+                        for (int i = layers.Count - 1; i >= 0; i--)
                         {
+                            var l = layers[i];
                             if (l == null) continue;
-                            // Stop summing when we hit a structural layer.
+                            // Stop at the structural core or any layer flagged
+                            // Function = Structure (sandwich panels with a mid
+                            // structure layer).
+                            if (i == structuralIdx) break;
                             if (l.Function == MaterialFunctionAssignment.Structure) break;
                             availableMm += Math.Max(0.0, l.Width * FtToMm);
                         }

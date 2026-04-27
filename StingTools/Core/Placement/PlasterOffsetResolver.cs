@@ -117,13 +117,22 @@ namespace StingTools.Core.Placement
                  || fn == MaterialFunctionAssignment.Membrane)
                     return true;
 
+                // Phase 139.5 Q4 — drywall partitions sometimes flag steel
+                // studs as Function = Substrate; we must NOT treat the studs
+                // as finish (would push fixtures 100+ mm into the wall).
+                // Only honour Substrate when the material name explicitly
+                // matches the finish pattern (plasterboard, gypsum, etc.).
+                bool isFinishMaterial = false;
                 if (doc != null && layer.MaterialId != null && layer.MaterialId != ElementId.InvalidElementId)
                 {
                     if (doc.GetElement(layer.MaterialId) is Material mat
-                        && !string.IsNullOrEmpty(mat.Name)
-                        && FinishMaterialPattern.IsMatch(mat.Name))
-                        return true;
+                        && !string.IsNullOrEmpty(mat.Name))
+                        isFinishMaterial = FinishMaterialPattern.IsMatch(mat.Name);
                 }
+                if (fn == MaterialFunctionAssignment.Substrate)
+                    return isFinishMaterial; // strict — only finish-named substrate counts.
+
+                return isFinishMaterial;
             }
             catch { }
             return false;
