@@ -3776,6 +3776,506 @@ round-trip, and 3 new validators.
    declared in `MR_PARAMETERS.txt` before any Revit project will see
    them — listed for the next parameter-registry pass.
 
+#### Completed (Phase 140 — Structural DWG-to-BIM Accuracy Pass)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: The wizard's "Parallel max gap (mm) — 500" knob is bound to
+`config.ParallelLineToleranceMm`, which is the global parallel-pair
+distance cap, not a longitudinal endpoint gap as the label implies.
+Users trying to "close end gaps" by raising the value would silently
+loosen wall thickness detection across the corridor and pull in noise.
+
+This phase re-labels the misleading knob, surfaces a real
+endpoint-gap field, and lands ten supporting accuracy fixes for the
+DWG-to-BIM conversion pipeline.
+
+**New file** — `StingTools/Model/StructuralPhase140Accuracy.cs` (~360
+lines, 6 helpers, 1 namespace `StingTools.Model`):
+
+- `GridSnapper` — snaps detected column centres to nearest grid
+  intersection within `GridSnapToleranceMm`. Pure: returns a parallel
+  `List<SnapResult>` whose `DidSnap`/`VerticalGridLabel`/
+  `HorizontalGridLabel` are reused by the grid-label-mark step.
+- `BeamDepthCalculator.ComputeDepthMm(span, cfg)` — `span/SpanToDepthRatio`
+  clamped to `[BeamDepthMinMm, BeamDepthMaxMm]`, rounded to nearest
+  25 mm, floored at the wizard `BeamDepthMm`.
+- `BeamTrimmer.TrimEndpointsToColumns()` — moves each beam endpoint
+  that sits inside a column footprint outward by half-extent + 25 mm
+  cover along the beam axis. Handles rectangle and circle columns.
+- `DuplicateDetector.ExistingIndex` — one-shot `FilteredElementCollector`
+  scan per category, exposes `IsDuplicate(point, tolerance)` for
+  pre-filtering detected items against existing model state.
+- `SlabVoidDetector.Group(loops)` — sorts loops by area descending,
+  flags any loop whose centroid lies inside a larger un-consumed loop
+  as a void of that loop. Returns `(outer, voids[])` groupings.
+- `GridLabelMarkBuilder.ApplyMarks(doc, mapping, used)` — writes
+  `"{vert}/{horiz}"` to the `Mark` parameter of grid-snapped columns,
+  de-duplicating with `.2`, `.3` … suffixes on collision.
+- `StructuralWarningPlacer.PlaceWarnings(doc, view, warnings)` —
+  staggers TextNotes prefixed with `⚠ STING-STRUCT:` down the active
+  view in its own sub-transaction, so warning placement can fail
+  without rolling back element creation.
+
+**`StructuralCADWizard.DWGConversionConfig` — 12 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `GridSnapToleranceMm` | double | 100 | P1-A snap radius, 0 disables |
+| `UseSpanToDepthRatio` | bool | true | P1-B span-proportional depth |
+| `SpanToDepthRatio` | double | 15.0 | P1-B span/depth divisor |
+| `BeamDepthMinMm` / `BeamDepthMaxMm` | double | 250 / 1200 | P1-B clamp range |
+| `UseGridLabelsAsMarks` | bool | true | P2-C `"{vert}/{horiz}"` Mark |
+| `EndpointGapToleranceMm` | double | 50 | P2-F endpoint gap bridging |
+| `DuplicateCheckToleranceMm` | double | 50 | P3-A skip radius |
+| `SkipDuplicates` | bool | true | P3-A toggle |
+| `TrimBeamsToColumnFaces` | bool | true | P1-D toggle |
+| `ShowStructuralWarningsInView` | bool | true | P2-D toggle |
+| `NumberingPerCategory` | `Dictionary<BuiltInCategory, NumberingConfig>` | empty | P1-E |
+
+**`StructuralCADWizard` UI changes:**
+
+- "Parallel max gap (mm)" → "Parallel pair max gap (mm)" with tooltip
+  clarifying it's a perpendicular-pair cap, not a longitudinal endpoint
+  gap. New "Endpoint gap bridge (mm)" knob added next to it.
+- "Endpoint tolerance (mm)" → "Line snap tolerance (mm)" tooltip
+  upgraded to clarify scope.
+- "Parallel dot tolerance" → "Parallelism tolerance (cos θ)" with
+  tooltip explaining cosine ↔ skew angle relationship.
+- New "ACCURACY (Phase-140)" sub-section under DETECTION with five
+  toggles (Skip duplicates / Trim beams to column faces / Show
+  structural warnings in view / Use grid labels as column marks /
+  Span-proportional beam depth) and four numeric knobs (Span/depth
+  ratio, Grid snap tol, Beam depth min/max, Duplicate-check tol).
+- `_chkColumnsContinuousCad` tooltip explains the two
+  modelling approaches and their analytical implications.
+- LEVEL CONFIGURATION card gained an italic note: "column heights at
+  repeat levels are derived from level-to-level spacing, not the
+  BEAM/COLUMN Height field" (P1-C clarification).
+- PER-ELEMENT SIZE DETECTION → Foundations row now reads
+  "× 1.5× oversize*" with a footer disclaimer marking the EC7 §6.5
+  reference as a heuristic, not a code-compliant sizing rule.
+- ELEMENT NUMBERING — new "Number every structural category
+  independently" toggle (P1-E). When on, switching the Category
+  dropdown snapshots the previous category's UI state and restores the
+  next category's saved state. Defaults: COL-, BM-, W-, SL-, FDN-.
+- Footer — new "Re-analyse (dry-run)" button (P3-D) runs the dry-run
+  pipeline without closing the dialog. Status bar reports per-element
+  counts so the user can iterate on tolerances.
+
+**`StructuralCADPipeline.RunFullPipelineWithConfig` — wired the new
+helpers in execution order:**
+
+1. After `ExtractStructuralGeometry`: P1-A grid-snap pass
+   (mutates `DetectedRectangle.Center` / `DetectedCircle.Center` and
+   captures `_lastRectSnapInfo` / `_lastCircleSnapInfo` for P2-C).
+2. P1-D beam endpoint trim against the (now-snapped) column footprints.
+3. P3-A duplicate-detection pre-filter — drops detected items whose
+   reference points sit within `DuplicateCheckToleranceMm` of any
+   existing element of the matching category. Reports a roll-up
+   warning with the count.
+4. Repeat-to-levels loop: P1-C now warns when the topmost storey has
+   no level above and falls back to `ColumnHeightMm`.
+5. `CreateBeamsFromLines` — P1-B per-beam depth derived from
+   `BeamDepthCalculator.ComputeDepthMm(spanMm, cfg)`. Type cache key
+   updated from `{defaultDepthMm}x{widthMm}` to `{depthMm}x{widthMm}`.
+6. `CreateSlabsFromBoundaries` — P2-B passes `SlabVoidDetector.Group`
+   output through to `Floor.Create(doc, loops, ...)` so nested closed
+   loops come through as actual voids.
+7. Post-creation audit: P2-D placement of `StructuralWarningPlacer`
+   TextNotes in the active view when `ShowStructuralWarningsInView`.
+8. Numbering: switches to `NumberingEngine.ApplyAllPerCategory` when
+   `NumberingPerCategory` is populated; falls back to legacy
+   `ApplyNumbering` otherwise.
+9. P2-C grid-label-mark step runs AFTER per-category numbering so
+   grid-derived `"A/1"` style marks win on grid-snapped columns.
+   Non-snapped columns keep their sequential per-category number.
+
+**`NumberingEngine.ApplyAllPerCategory(doc, perCategory, scope)`** — new
+method iterates the dictionary, filters scope to each category's
+ElementIds, and invokes the existing `ApplyNumbering()` per category.
+Returns the summed count.
+
+**Explicitly out of scope (deferred to ROADMAP):**
+
+- Strip foundation detection (P2-A) — needs a new
+  `DetectStripFoundations` pass against wall centrelines; substantial
+  new detection logic.
+- Endpoint gap bridging (P2-F) at the detection layer — config field
+  is wired and available, but the spatial-index pair-detection inner
+  loops in `StructuralDWGEnhancements.SpatialLineIndex` still need to
+  read it during pair matching.
+- Slab → room seeding (P3-B), auto-create structural views after
+  conversion (P3-C) — independent post-processors that can land in a
+  follow-up phase without touching the core pipeline.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API). Each helper sticks to documented Revit 2025 API
+   signatures; sub-transaction wrapping in `StructuralWarningPlacer`
+   isolates risk. No `// TODO-VERIFY-API` markers were needed.
+2. Grid-snap classifies grids into vertical (constant X) vs horizontal
+   (constant Y) by line geometry, not by the `IsHorizontal` flag —
+   the flag is a draughting hint that doesn't always align with
+   plan-view axes.
+3. `BeamTrimmer` uses an axis-aligned column footprint approximation
+   (rectangle bbox extents projected along beam direction). Rotated
+   columns trim conservatively along the longer half-extent.
+4. Per-category numbering snapshots only fire when the user toggles
+   the Category dropdown with the "Number every structural category
+   independently" checkbox ON. If the user fills in numbering UI
+   without flipping that toggle, only the active category is numbered.
+5. The Re-analyse dry-run runs the FULL pipeline with `DryRun=true`,
+   including the duplicate-pre-filter and grid-snap passes. Counts
+   reflect what `Convert to BIM` would produce with the current
+   settings.
+
+#### Completed (Phase 141 — Detection-method facade + named entry points)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 140 review noted that `StructuralDWGEngine.cs`,
+`StructuralDWGCommands.cs`, `DetectJunctions`, `DetectStructuralWalls`,
+`AnalyzeLoadPaths`, `FindOrCreateBeamType`, and `DetectCircularColumns`
+were referenced in CLAUDE.md but variously didn't exist on disk, lived
+under different class names, or produced data that the pipeline
+discarded. This phase closes those gaps so each named entry point is
+genuinely callable from outside the wizard.
+
+**Audit findings (corrects Phase 140's Explorer-agent report):**
+
+| Identifier | Truth | Phase 141 action |
+|---|---|---|
+| `DetectStructuralWalls` | Already exists (`StructuralCADPipeline.cs:1145`, returns `List<DetectedWall>`) | Re-exposed via `StructuralDWGEngine` facade — no rewrite |
+| `DetectJunctions` | Already exists (`StructuralCADPipeline.cs:1302`, returns `List<(XYZ, string, int)>`) | Re-exposed; warning-class output now placed as TextNotes |
+| `AnalyzeLoadPaths` | Lives on `StructuralModelingEngine.cs:2486` | Re-exposed via `StructuralDWGEngine.AnalyzeLoadPaths()` |
+| `FindOrCreateBeamType` | Lives on `StructuralTypeFactory.cs:439` | Re-exposed via `StructuralDWGEngine.FindOrCreateBeamType()` |
+| `DetectCircularColumns` | Did NOT exist as a named method (extraction's inline check used compile-time constants) | NEW — `StructuralCADPipeline.DetectCircularColumns(circles, out rejected)` re-validates against config-driven size band |
+| `StructuralDWGEngine.cs` | Did NOT exist (CLAUDE.md described it but file was absent) | NEW — focused facade with detection methods + quality scoring |
+| `StructuralDWGCommands.cs` | Did NOT exist | NEW — 3 standalone IExternalCommands |
+
+**New file** — `StingTools/Model/StructuralDWGEngine.cs` (~225 lines, 1
+public class `StructuralDWGEngine`, 1 namespace `StingTools.Model`):
+
+- Detection facade — every named detection method exposed as a thin
+  delegate so non-wizard callers can use them in any order.
+- `RunWithConfig(import, config)` / `RunWithDefaults(import,
+  baseLevelName, topLevelName)` — batch / scriptable conversion.
+- `Audit(import, config)` — non-destructive run; returns
+  `AuditResult` with extraction + junctions + quality score + duration.
+- `ComputeQualityScore(extraction, junctions)` — 0-100 score with
+  per-component penalties:
+  - −5 per "Beam intersection (no column — WARNING)" junction
+  - −2 per "Free end (no support)" junction
+  - −0.1 per low-confidence detected element (< 0.7 confidence)
+  - DetectionRatio metric tracks detected elements / total entities.
+
+**New file** — `StingTools/Model/StructuralDWGCommands.cs` (~205 lines,
+3 IExternalCommand classes):
+
+- `QuickStructuralDWGCommand` — one-click conversion on the first DWG
+  import in the project using default config + first level by
+  elevation. Reports the conversion summary in a TaskDialog.
+- `StructuralDWGAuditCommand` — read-only audit. Runs detection +
+  scoring, shows quality score and per-element breakdown.
+- `StructuralDWGJunctionScanCommand` — scans the active DWG for
+  unsupported beam intersections + free beam ends, places ⚠
+  STING-STRUCT TextNote markers in the active view at every flagged
+  junction location. Wraps in a sub-transaction.
+
+**`DetectCircularColumns` (new method)** —
+`StructuralCADPipeline.cs:1132`. Re-validates an existing list of
+`DetectedCircle` against the active config's `MinColumnDiameterMm` /
+`MaxColumnDiameterMm`. Sister method to `DetectStructuralWalls` and
+`DetectRectangularColumnsV2`. The legacy extraction path keeps using
+its inline check with compile-time constants (`MinColumnSizeMm = 150`,
+`MaxColumnSizeMm = 1500`); this method gives external callers a hook
+to tighten or loosen the size band per project.
+
+Wired into `RunFullPipelineWithConfig`: when the user-set bounds
+differ from the defaults, the pass replaces `extraction.Circles` with
+the accepted subset and warns about the rejection count.
+
+**Junction warnings → TextNotes** — `DetectJunctions` has always
+classified beam intersections, but the legacy pipeline only used the
+result for the summary string. Now wired into
+`RunFullPipelineWithConfig`: each junction whose type contains
+"WARNING" or starts with "Free end" produces a ⚠ STING-STRUCT TextNote
+at the junction centroid in the active view. New helper
+`StructuralWarningPlacer.PlaceWarningsAtPoints(doc, view, warnings,
+points)` complements the existing `PlaceWarnings(doc, view, warnings)`
+which staggers messages down the view.
+
+**3 new config fields on `DWGConversionConfig`:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `MinColumnDiameterMm` | double | 150 | Lower band for `DetectCircularColumns` |
+| `MaxColumnDiameterMm` | double | 1500 | Upper band for `DetectCircularColumns` |
+| `ShowJunctionWarningsInView` | bool | true | Toggle for junction → TextNote placement |
+
+**`StructuralDWGEngine` does NOT register itself in StingCommandHandler.**
+The three commands are standalone `IExternalCommand` classes intended
+for direct invocation via the .addin manifest, AddinManager, or future
+dock-panel wiring. Wizard-driven conversion still goes through the
+existing `StrCADWizardCommand` in `StructuralModelingCommands.cs:1009`.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API).
+2. `StructuralDWGEngine` is a thin facade — it re-exposes
+   methods rather than re-implementing them, so the actual detection
+   logic still lives in `StructuralCADPipeline.cs`. Future passes that
+   want to bypass the wizard can substitute their own pipeline
+   implementation behind the same facade.
+3. The quality score is a heuristic for at-a-glance triage, not a
+   structural-engineering metric. It does not check element-by-element
+   geometric validity, code compliance, or analytical model health —
+   those go through `AnalyzeLoadPaths` and downstream.
+4. The three new commands all operate on the FIRST `ImportInstance`
+   found in the project. Multi-DWG documents need an interactive
+   import picker — listed in ROADMAP for the next iteration.
+5. `DetectCircularColumns`'s out-band rejection only logs a count, not
+   the rejected circles' coordinates. Callers needing the rejection
+   detail should call the method directly via `StructuralDWGEngine`
+   and consume the `out rejected` list.
+
+#### Completed (Phase 142 — Structural DWG-to-BIM ROADMAP closures)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 140 deferred eight `DWG-STRUCT-*` ROADMAP items so
+each could land cleanly in its own follow-up. This phase closes six of
+them (P2A, P2F, DEEP-3, DEEP-4, DEEP-7, DEEP-8) and wires Phase 141's
+new commands into the dispatcher.
+
+**Bug found and fixed (DEEP-8 / DEEP-3)**: the `BeamsRestOnWalls`
+config field has been on `DWGConversionConfig` since Phase 78, but the
+creation pipeline never read it. Beams were created at level base
+elevation regardless of whether they sat on a wall, so users who ticked
+the box saw no behaviour change. Phase 142 adds a per-beam classifier
+that reads the support type at each endpoint (column / wall /
+unsupported) and only applies the wall-top offset to beams that
+actually rest on a wall and not on a column.
+
+**`StingCommandHandler.cs`** — three new dispatch entries wire the
+Phase 141 commands into the dock-panel command bus:
+`QuickStructuralDWG`, `StructuralDWGAudit`, `StructuralDWGJunctionScan`.
+
+**`StructuralCADPipeline.cs` — wiring + new method:**
+
+- `BeamOverlapMinRatio` now flows from `DWGConversionConfig` into
+  `DetectBeamCenterlinesV2` (default 50%) and `DetectStructuralWalls`
+  (`ratio - 10%` to keep walls slightly stricter than beams).
+  Configurable from the wizard ACCURACY (Phase-142) section.
+- `DetectStructuralWalls` and `DetectBeamCenterlinesV2` now apply
+  `EndpointGapToleranceMm` at the longitudinal-overlap check —
+  synthesises overlap when two parallel lines fall just shy of
+  overlapping (within the configured gap). Closes ROADMAP
+  `DWG-STRUCT-P2F`.
+- New `ApplyBeamSupportPostCreation` method runs after
+  `CreateBeamsFromLines` to:
+  - Lift beams whose endpoints rest on a wall (and not on a column)
+    by `WallHeightMm` via `STRUCTURAL_BEAM_END0_ELEVATION` /
+    `_END1_ELEVATION`.
+  - Stamp the Comments parameter with `STING: Cantilever (start|end)`
+    or `STING: Free beam (no support)` when the classifier reports a
+    free end. Beams are then schedule-discoverable by Comments filter.
+  Closes ROADMAP `DWG-STRUCT-DEEP-3` and `DWG-STRUCT-DEEP-8`.
+- Strip foundations: when `DetectStripFoundations=true` and walls were
+  detected, builds rectangular loops along each wall centreline
+  (oversized by `StripFndOversizeMm` per side) and feeds them to
+  `CreateSlabsFromBoundaries`. Reports the count separately. Closes
+  ROADMAP `DWG-STRUCT-P2A`.
+
+**`StructuralPhase140Accuracy.cs` — two new helpers:**
+
+- `BeamSupportClassifier` (Phase-142) — `ClassifyAll(beams, rectColumns,
+  circleColumns, walls, toleranceMm)` returns a `List<BeamSupport>`
+  with `StartSupport` / `EndSupport` of `None`/`Column`/`Wall`/`Both`.
+  Also exposes `RestsOnWall`, `HasFreeEnd`, `IsCantilever` flags.
+- `StripFoundationDetector` (Phase-142) — `Detect(walls, cfg)` returns
+  rectangular loops aligned with each wall centreline. Each loop
+  extends past the wall length by `StripFndOversizeMm` per side, and
+  past wall thickness by the same per side. Layer label
+  `STING-STRIP-FOUNDATION`.
+
+**`DWGConversionConfig` — 6 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `BeamOverlapMinRatio` | double | 0.5 | DEEP-4 — configurable longitudinal overlap |
+| `MarkCantileverBeams` | bool | true | DEEP-3 — Comments stamp toggle |
+| `BeamSupportToleranceMm` | double | 200 | DEEP-3/8 — endpoint→support classifier tolerance |
+| `UseTopConstraintForContinuousColumns` | bool | true | DEEP-7 — documents already-correct behaviour |
+| `StripFndOversizeMm` | double | 150 | P2A — strip foundation oversize per side |
+| `DetectStripFoundations` | bool | true | P2A — toggle |
+
+Earlier Phase 141 fields `MinColumnDiameterMm` / `MaxColumnDiameterMm`
+also got wizard UI knobs in this phase.
+
+**`StructuralCADWizard.cs` UI — new ACCURACY (Phase-142) sub-section:**
+
+- Two toggles: "Detect strip foundations under walls" (default ON),
+  "Mark cantilever / free beams in Comments" (default ON).
+- Five numeric knobs:
+  - Min column diameter (mm) → `MinColumnDiameterMm`
+  - Max column diameter (mm) → `MaxColumnDiameterMm`
+  - Beam overlap ratio (0-1) → `BeamOverlapMinRatio`
+  - Strip oversize (mm/side) → `StripFndOversizeMm`
+  - Beam-support tol (mm)    → `BeamSupportToleranceMm`
+
+**ROADMAP closures** (move from `docs/ROADMAP.md` into this entry):
+
+- ✓ `DWG-STRUCT-P2A`  — strip foundation detection under walls
+- ✓ `DWG-STRUCT-P2F`  — endpoint gap bridging at the detection layer
+- ✓ `DWG-STRUCT-DEEP-3` — cantilever detection
+- ✓ `DWG-STRUCT-DEEP-4` — beam-overlap ratio configurability
+- ✓ `DWG-STRUCT-DEEP-7` — Top-Constraint continuous columns (existing
+  code in `CreateColumnsWithHeight` was already correct — Phase 142
+  documents the behaviour and adds the explicit config flag)
+- ✓ `DWG-STRUCT-DEEP-8` — per-beam BeamsRestOnWalls (the genuine bug)
+
+Still open: `DWG-STRUCT-P3B` (slab→room seeding), `DWG-STRUCT-P3C`
+(auto-create structural views), `DWG-STRUCT-DEEP-1` (steel I-section
+vs concrete inference), `DWG-STRUCT-DEEP-2` (pile cap / raft / strip
+differentiation), `DWG-STRUCT-DEEP-5` (EC7 sizing with soil class),
+`DWG-STRUCT-DEEP-6` (junction-type assignment beyond detection).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The post-creation beam pass aligns supports with created beams by
+   index order. If `CreateBeamsFromLines` skips a beam (try/catch on
+   exception path), subsequent supports may misalign. The pass guards
+   against this by checking each element's category before applying
+   the offset, so a misaligned support results in a no-op rather than
+   a wrong-element edit.
+3. Strip foundations are created via `CreateSlabsFromBoundaries` which
+   uses the floor type matched to `FoundationDepthMm`. The resulting
+   element is a structural floor (not a `WallFoundation`); for true
+   wall-foundation join behaviour, manual conversion in Revit is still
+   needed. Documented as a follow-up.
+4. The cantilever Comments stamp is descriptive only — the analytical
+   model still treats cantilevers as if both ends were supported until
+   the engineer runs `Manage → Analytical Model → Auto-Detect Releases`.
+5. The new `ACCURACY (Phase-142)` UI section adds one toggle row +
+   five numeric knobs. Combined with the Phase-140 ACCURACY section,
+   the DETECTION card is now ~12 rows tall — the wizard scrollviewer
+   keeps everything reachable but a visual redesign for screens
+   < 768 px is on the future-enhancements list.
+
+#### Completed (Phase 143 — Structural DWG-to-BIM ROADMAP closures, wave 2)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 142 closed 6 of 8 deferred `DWG-STRUCT-*` items but
+left 5 still open. This phase closes 5 more, all wired through a new
+focused helper file.
+
+**ROADMAP closures:**
+
+- ✓ `DWG-STRUCT-P3B` — Slab centroid → room seeding
+- ✓ `DWG-STRUCT-P3C` — Auto-create structural ViewPlans after conversion
+- ✓ `DWG-STRUCT-DEEP-1` — Steel I-section vs concrete rectangle inference
+- ✓ `DWG-STRUCT-DEEP-2` — Foundation classifier (pad / raft / pile cap)
+- ✓ `DWG-STRUCT-DEEP-6` — Junction-type Mark stamping
+
+**New file** — `StingTools/Model/StructuralPhase143Postproc.cs`
+(~495 lines, 5 helper classes):
+
+- `SlabRoomSeeder` (P3B) — `Seed(doc, level, outerSlabs, voidLoops, cfg)`
+  drops a Revit `Room` at each outer-loop centroid, skips centroids
+  inside voids and points already inside an existing room. Wraps in a
+  sub-transaction so a failure can't roll back element creation.
+- `StructuralViewCreator` (P3C) — `CreateViews(doc, createdElementIds, cfg)`
+  walks the levels referenced by created elements and creates a
+  `ViewPlan` (Structural Plan family) per level. When the Phase-113
+  `DrawingTypeRegistry` is available, applies the corporate "S-PLAN"
+  drawing type via `DrawingTypePresentation.Apply()`. Fails closed —
+  any registry or template lookup error degrades to a plain ViewPlan.
+- `BeamMaterialInferrer` (DEEP-1) — `AnnotateAll(beams, cfg)` heuristic:
+  parallel-pair beams (`WidthDetected==true`, width ≥ 200 mm) →
+  concrete rectangle; single-line beams → steel I-section. Appends
+  `STING:Material=Concrete` / `STING:Material=Steel` /
+  `STING:Material=Unknown` to the beam's `LayerName` so downstream
+  type matching can read the hint without a new field on
+  `DetectedBeam`.
+- `FoundationClassifier` (DEEP-2) — `Classify(rects, cfg)` splits
+  detected foundation rectangles into Pad / Raft / PileCap:
+  - Plan area ≥ `RaftMinAreaM2` → Raft (routed to slab-creation path
+    so it materialises as a structural floor at foundation depth).
+  - Pile-cap clustering: a rectangle within 2.5× its size of ≥ 2
+    other rectangles → PileCap (stays on pad-foundation path with
+    `STING: PileCap` Comments stamp candidate).
+  - Else → Pad.
+- `JunctionMarkStamper` (DEEP-6) — `Stamp(doc, junctions, createdIds, cfg)`
+  walks every `DetectJunctions` result and appends `J:T` / `J:L` / `J:X`
+  / `J:S` (T-junction / L-junction / Cross / Splice) to the Mark of
+  every column or beam whose endpoint sits within 250 mm of the
+  junction centroid. Free-end and warning junctions are NOT stamped
+  (they're already surfaced as TextNotes by the Phase-141 wiring).
+
+**`StructuralCADPipeline.cs` wiring** — five new call sites, each
+guarded by its config flag:
+
+1. After `BeamTrimmer.TrimEndpointsToColumns`: `BeamMaterialInferrer.AnnotateAll`.
+2. Foundation creation: when `ClassifyFoundations==true`, route Rafts
+   through `CreateSlabsFromBoundaries` and Pads + PileCaps through the
+   existing `CreatePadFoundations`. When false, keep the pre-Phase-143
+   behaviour (everything pads).
+3. After slab creation (slab path 5 in main pipeline): `SlabRoomSeeder.Seed`
+   when `SeedRoomsFromSlabs==true`. Re-uses Phase-140 `SlabVoidDetector`
+   to skip void-covered centroids.
+4. After numbering pass: `JunctionMarkStamper.Stamp` when
+   `StampJunctionMarks==true`. Runs after numbering so marks survive.
+5. Just before `sw.Stop()`: `StructuralViewCreator.CreateViews` when
+   `CreateStructuralViewsAfterConversion==true`. Adds created view
+   ElementIds to `totalResult.CreatedIds` so they participate in the
+   summary count.
+
+**`DWGConversionConfig` — 8 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `SeedRoomsFromSlabs` | bool | false | P3B toggle (default off — greenfield only) |
+| `RoomLabelSearchRadiusMm` | double | 3000 | P3B label-text proximity radius |
+| `CreateStructuralViewsAfterConversion` | bool | false | P3C toggle (default off — opt-in) |
+| `InferBeamMaterial` | bool | true | DEEP-1 toggle |
+| `ClassifyFoundations` | bool | true | DEEP-2 toggle |
+| `RaftMinAreaM2` | double | 4.0 | DEEP-2 raft cutoff |
+| `StampJunctionMarks` | bool | false | DEEP-6 toggle (default off — schedule discipline-specific) |
+
+**`StructuralCADWizard.cs` UI** — new POST-PROCESSING (Phase-143)
+sub-section in DETECTION:
+
+- Five toggles in a WrapPanel: Seed rooms from slabs / Create structural
+  views / Infer beam material / Classify foundations / Stamp junction
+  marks.
+- Two numeric knobs: Raft min area (m²) / Room label search (mm).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. `SlabRoomSeeder` doesn't yet read text on the slab layer to populate
+   the room Name (the `RoomLabelSearchRadiusMm` config exists for
+   future iteration). Seeded rooms get Revit's default name.
+3. `BeamMaterialInferrer` mutates `LayerName` instead of adding a
+   `Material` field on `DetectedBeam` to stay zero-impact on existing
+   detection types. Type matching downstream needs to parse the suffix
+   — listed as a follow-up for `StructuralTypeFactory`.
+4. `FoundationClassifier`'s pile-cap clustering uses a 2.5× distance
+   threshold; very close pile groups (< 2× spacing) may fall into the
+   raft band instead.
+5. `JunctionMarkStamper` cluster tolerance is fixed at 250 mm. If
+   `BeamSupportToleranceMm` is set very high, the user might expect
+   the same tolerance here — listed for the next pass.
+6. `StructuralViewCreator` creates one view per level even if multiple
+   disciplines were converted in one go. Multi-discipline templates
+   would need to dispatch on `(discipline, level)` instead of `level`
+   alone — tracked under DWG-STRUCT-DEEP-9 if it becomes a real need.
 #### Completed (Phase 141 — Clash Detection Bug Fixes — Category A)
 
 Five correctness bugs in the clash subsystem fixed. Every change is in
