@@ -264,6 +264,180 @@ namespace StingTools.Model
         }
     }
 
+    /// <summary>Phase-142 — Synthesize strip foundation loops along detected
+    /// structural walls. Each wall gets a rectangular loop wider than the wall
+    /// by <c>StripFndOversizeMm</c> per side (per EC7 §6.5 reference) and
+    /// extending the full length of the wall. Output is a list of
+    /// <see cref="DetectedLoop"/> ready for the slab/floor-creation path with
+    /// structural-floor flag.</summary>
+    internal static class StripFoundationDetector
+    {
+        public class StripFoundation
+        {
+            public DetectedLoop Loop;
+            public DetectedWall SourceWall;
+            public double WidthMm;
+            public double LengthMm;
+        }
+
+        /// <summary>Build strip foundations under each detected wall.</summary>
+        public static List<StripFoundation> Detect(
+            IList<DetectedWall> walls, DWGConversionConfig cfg)
+        {
+            var result = new List<StripFoundation>();
+            if (walls == null || walls.Count == 0) return result;
+            if (cfg == null || !cfg.DetectStripFoundations) return result;
+
+            double oversideFt = cfg.StripFndOversizeMm * Units.MmToFeet;
+
+            foreach (var w in walls)
+            {
+                if (w?.CenterStart == null || w.CenterEnd == null) continue;
+                var d = w.CenterEnd - w.CenterStart;
+                double len = Math.Sqrt(d.X * d.X + d.Y * d.Y);
+                if (len < 1e-6) continue;
+                XYZ axis = new XYZ(d.X / len, d.Y / len, 0);
+                XYZ normal = new XYZ(-axis.Y, axis.X, 0);
+
+                double halfWidthFt = w.ThicknessFt * 0.5 + oversideFt;
+
+                // Rectangle corners — extend slightly beyond the wall ends too.
+                XYZ extStart = w.CenterStart - axis * oversideFt;
+                XYZ extEnd   = w.CenterEnd   + axis * oversideFt;
+
+                var corners = new List<XYZ>
+                {
+                    extStart + normal * halfWidthFt,
+                    extEnd   + normal * halfWidthFt,
+                    extEnd   - normal * halfWidthFt,
+                    extStart - normal * halfWidthFt,
+                };
+
+                var loop = new DetectedLoop
+                {
+                    Points = corners,
+                    LayerName = "STING-STRIP-FOUNDATION",
+                };
+                result.Add(new StripFoundation
+                {
+                    Loop = loop,
+                    SourceWall = w,
+                    WidthMm = (w.ThicknessFt + oversideFt * 2) * Units.FeetToMm,
+                    LengthMm = (len + oversideFt * 2) * Units.FeetToMm,
+                });
+            }
+            return result;
+        }
+    }
+
+    /// <summary>Phase-142 — Classify each beam endpoint by what supports it
+    /// (column / wall / unsupported). Used by per-beam wall-rest offset and
+    /// cantilever detection.</summary>
+    internal static class BeamSupportClassifier
+    {
+        public enum SupportType { None, Column, Wall, Both }
+
+        public class BeamSupport
+        {
+            public DetectedBeam Beam;
+            public SupportType StartSupport;
+            public SupportType EndSupport;
+            public bool RestsOnWall => StartSupport == SupportType.Wall
+                                    || EndSupport == SupportType.Wall;
+            public bool HasFreeEnd => StartSupport == SupportType.None
+                                   || EndSupport == SupportType.None;
+            public bool IsCantilever => HasFreeEnd
+                                     && (StartSupport != SupportType.None
+                                         || EndSupport != SupportType.None);
+        }
+
+        /// <summary>Classify support for each beam against detected columns + walls.
+        /// Tolerance is in mm.</summary>
+        public static List<BeamSupport> ClassifyAll(
+            IList<DetectedBeam> beams,
+            IList<DetectedRectangle> rectColumns,
+            IList<DetectedCircle> circleColumns,
+            IList<DetectedWall> walls,
+            double toleranceMm = 200)
+        {
+            var results = new List<BeamSupport>();
+            if (beams == null) return results;
+
+            double tolFt = toleranceMm * Units.MmToFeet;
+            double tolFtSq = tolFt * tolFt;
+
+            foreach (var b in beams)
+            {
+                if (b?.Start == null || b.End == null) continue;
+                results.Add(new BeamSupport
+                {
+                    Beam = b,
+                    StartSupport = ClassifyEndpoint(b.Start, rectColumns, circleColumns, walls, tolFt, tolFtSq),
+                    EndSupport   = ClassifyEndpoint(b.End,   rectColumns, circleColumns, walls, tolFt, tolFtSq),
+                });
+            }
+            return results;
+        }
+
+        private static SupportType ClassifyEndpoint(XYZ pt,
+            IList<DetectedRectangle> rects, IList<DetectedCircle> circles,
+            IList<DetectedWall> walls, double tolFt, double tolFtSq)
+        {
+            // Column footprint test (rectangle bbox or circle).
+            bool nearColumn = false;
+            if (rects != null)
+            {
+                foreach (var r in rects)
+                {
+                    if (r?.Center == null) continue;
+                    double dx = Math.Abs(pt.X - r.Center.X);
+                    double dy = Math.Abs(pt.Y - r.Center.Y);
+                    if (dx <= r.WidthFt * 0.5 + tolFt && dy <= r.DepthFt * 0.5 + tolFt)
+                    { nearColumn = true; break; }
+                }
+            }
+            if (!nearColumn && circles != null)
+            {
+                foreach (var c in circles)
+                {
+                    if (c?.Center == null) continue;
+                    double dx = pt.X - c.Center.X, dy = pt.Y - c.Center.Y;
+                    double r = c.RadiusFt + tolFt;
+                    if (dx * dx + dy * dy <= r * r) { nearColumn = true; break; }
+                }
+            }
+
+            // Wall centreline test — does the beam endpoint lie close to any wall?
+            bool nearWall = false;
+            if (walls != null)
+            {
+                foreach (var w in walls)
+                {
+                    if (w?.CenterStart == null || w.CenterEnd == null) continue;
+                    if (DistancePointToSegmentSq(pt, w.CenterStart, w.CenterEnd) <= tolFtSq)
+                    { nearWall = true; break; }
+                }
+            }
+
+            if (nearColumn && nearWall) return SupportType.Both;
+            if (nearColumn) return SupportType.Column;
+            if (nearWall) return SupportType.Wall;
+            return SupportType.None;
+        }
+
+        private static double DistancePointToSegmentSq(XYZ p, XYZ a, XYZ b)
+        {
+            double dx = b.X - a.X, dy = b.Y - a.Y;
+            double lenSq = dx * dx + dy * dy;
+            if (lenSq < 1e-12) { dx = p.X - a.X; dy = p.Y - a.Y; return dx * dx + dy * dy; }
+            double t = ((p.X - a.X) * dx + (p.Y - a.Y) * dy) / lenSq;
+            t = Math.Max(0.0, Math.Min(1.0, t));
+            double cx = a.X + t * dx, cy = a.Y + t * dy;
+            double ex = p.X - cx, ey = p.Y - cy;
+            return ex * ex + ey * ey;
+        }
+    }
+
     /// <summary>P3-A — Detect existing Revit elements within tolerance of a candidate
     /// insertion point, so we can skip duplicates on re-import.</summary>
     internal static class DuplicateDetector

@@ -4041,3 +4041,128 @@ existing `StrCADWizardCommand` in `StructuralModelingCommands.cs:1009`.
    the rejected circles' coordinates. Callers needing the rejection
    detail should call the method directly via `StructuralDWGEngine`
    and consume the `out rejected` list.
+
+#### Completed (Phase 142 — Structural DWG-to-BIM ROADMAP closures)
+
+**Branch**: `claude/fix-parallel-max-gap-H3Ha3`
+
+**Trigger**: Phase 140 deferred eight `DWG-STRUCT-*` ROADMAP items so
+each could land cleanly in its own follow-up. This phase closes six of
+them (P2A, P2F, DEEP-3, DEEP-4, DEEP-7, DEEP-8) and wires Phase 141's
+new commands into the dispatcher.
+
+**Bug found and fixed (DEEP-8 / DEEP-3)**: the `BeamsRestOnWalls`
+config field has been on `DWGConversionConfig` since Phase 78, but the
+creation pipeline never read it. Beams were created at level base
+elevation regardless of whether they sat on a wall, so users who ticked
+the box saw no behaviour change. Phase 142 adds a per-beam classifier
+that reads the support type at each endpoint (column / wall /
+unsupported) and only applies the wall-top offset to beams that
+actually rest on a wall and not on a column.
+
+**`StingCommandHandler.cs`** — three new dispatch entries wire the
+Phase 141 commands into the dock-panel command bus:
+`QuickStructuralDWG`, `StructuralDWGAudit`, `StructuralDWGJunctionScan`.
+
+**`StructuralCADPipeline.cs` — wiring + new method:**
+
+- `BeamOverlapMinRatio` now flows from `DWGConversionConfig` into
+  `DetectBeamCenterlinesV2` (default 50%) and `DetectStructuralWalls`
+  (`ratio - 10%` to keep walls slightly stricter than beams).
+  Configurable from the wizard ACCURACY (Phase-142) section.
+- `DetectStructuralWalls` and `DetectBeamCenterlinesV2` now apply
+  `EndpointGapToleranceMm` at the longitudinal-overlap check —
+  synthesises overlap when two parallel lines fall just shy of
+  overlapping (within the configured gap). Closes ROADMAP
+  `DWG-STRUCT-P2F`.
+- New `ApplyBeamSupportPostCreation` method runs after
+  `CreateBeamsFromLines` to:
+  - Lift beams whose endpoints rest on a wall (and not on a column)
+    by `WallHeightMm` via `STRUCTURAL_BEAM_END0_ELEVATION` /
+    `_END1_ELEVATION`.
+  - Stamp the Comments parameter with `STING: Cantilever (start|end)`
+    or `STING: Free beam (no support)` when the classifier reports a
+    free end. Beams are then schedule-discoverable by Comments filter.
+  Closes ROADMAP `DWG-STRUCT-DEEP-3` and `DWG-STRUCT-DEEP-8`.
+- Strip foundations: when `DetectStripFoundations=true` and walls were
+  detected, builds rectangular loops along each wall centreline
+  (oversized by `StripFndOversizeMm` per side) and feeds them to
+  `CreateSlabsFromBoundaries`. Reports the count separately. Closes
+  ROADMAP `DWG-STRUCT-P2A`.
+
+**`StructuralPhase140Accuracy.cs` — two new helpers:**
+
+- `BeamSupportClassifier` (Phase-142) — `ClassifyAll(beams, rectColumns,
+  circleColumns, walls, toleranceMm)` returns a `List<BeamSupport>`
+  with `StartSupport` / `EndSupport` of `None`/`Column`/`Wall`/`Both`.
+  Also exposes `RestsOnWall`, `HasFreeEnd`, `IsCantilever` flags.
+- `StripFoundationDetector` (Phase-142) — `Detect(walls, cfg)` returns
+  rectangular loops aligned with each wall centreline. Each loop
+  extends past the wall length by `StripFndOversizeMm` per side, and
+  past wall thickness by the same per side. Layer label
+  `STING-STRIP-FOUNDATION`.
+
+**`DWGConversionConfig` — 6 new fields:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `BeamOverlapMinRatio` | double | 0.5 | DEEP-4 — configurable longitudinal overlap |
+| `MarkCantileverBeams` | bool | true | DEEP-3 — Comments stamp toggle |
+| `BeamSupportToleranceMm` | double | 200 | DEEP-3/8 — endpoint→support classifier tolerance |
+| `UseTopConstraintForContinuousColumns` | bool | true | DEEP-7 — documents already-correct behaviour |
+| `StripFndOversizeMm` | double | 150 | P2A — strip foundation oversize per side |
+| `DetectStripFoundations` | bool | true | P2A — toggle |
+
+Earlier Phase 141 fields `MinColumnDiameterMm` / `MaxColumnDiameterMm`
+also got wizard UI knobs in this phase.
+
+**`StructuralCADWizard.cs` UI — new ACCURACY (Phase-142) sub-section:**
+
+- Two toggles: "Detect strip foundations under walls" (default ON),
+  "Mark cantilever / free beams in Comments" (default ON).
+- Five numeric knobs:
+  - Min column diameter (mm) → `MinColumnDiameterMm`
+  - Max column diameter (mm) → `MaxColumnDiameterMm`
+  - Beam overlap ratio (0-1) → `BeamOverlapMinRatio`
+  - Strip oversize (mm/side) → `StripFndOversizeMm`
+  - Beam-support tol (mm)    → `BeamSupportToleranceMm`
+
+**ROADMAP closures** (move from `docs/ROADMAP.md` into this entry):
+
+- ✓ `DWG-STRUCT-P2A`  — strip foundation detection under walls
+- ✓ `DWG-STRUCT-P2F`  — endpoint gap bridging at the detection layer
+- ✓ `DWG-STRUCT-DEEP-3` — cantilever detection
+- ✓ `DWG-STRUCT-DEEP-4` — beam-overlap ratio configurability
+- ✓ `DWG-STRUCT-DEEP-7` — Top-Constraint continuous columns (existing
+  code in `CreateColumnsWithHeight` was already correct — Phase 142
+  documents the behaviour and adds the explicit config flag)
+- ✓ `DWG-STRUCT-DEEP-8` — per-beam BeamsRestOnWalls (the genuine bug)
+
+Still open: `DWG-STRUCT-P3B` (slab→room seeding), `DWG-STRUCT-P3C`
+(auto-create structural views), `DWG-STRUCT-DEEP-1` (steel I-section
+vs concrete inference), `DWG-STRUCT-DEEP-2` (pile cap / raft / strip
+differentiation), `DWG-STRUCT-DEEP-5` (EC7 sizing with soil class),
+`DWG-STRUCT-DEEP-6` (junction-type assignment beyond detection).
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox).
+2. The post-creation beam pass aligns supports with created beams by
+   index order. If `CreateBeamsFromLines` skips a beam (try/catch on
+   exception path), subsequent supports may misalign. The pass guards
+   against this by checking each element's category before applying
+   the offset, so a misaligned support results in a no-op rather than
+   a wrong-element edit.
+3. Strip foundations are created via `CreateSlabsFromBoundaries` which
+   uses the floor type matched to `FoundationDepthMm`. The resulting
+   element is a structural floor (not a `WallFoundation`); for true
+   wall-foundation join behaviour, manual conversion in Revit is still
+   needed. Documented as a follow-up.
+4. The cantilever Comments stamp is descriptive only — the analytical
+   model still treats cantilevers as if both ends were supported until
+   the engineer runs `Manage → Analytical Model → Auto-Detect Releases`.
+5. The new `ACCURACY (Phase-142)` UI section adds one toggle row +
+   five numeric knobs. Combined with the Phase-140 ACCURACY section,
+   the DETECTION card is now ~12 rows tall — the wizard scrollviewer
+   keeps everything reachable but a visual redesign for screens
+   < 768 px is on the future-enhancements list.

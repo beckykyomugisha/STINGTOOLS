@@ -592,6 +592,9 @@ namespace StingTools.Model
         // Phase-140 accuracy controls
         private TextBox _txtEndpointGap, _txtGridSnapTol, _txtSpanToDepth, _txtBeamDepthMin, _txtBeamDepthMax, _txtDuplicateTol;
         private CheckBox _chkUseSpanToDepth, _chkUseGridLabelMarks, _chkSkipDuplicates, _chkTrimBeamsToColumns, _chkShowWarningsInView;
+        // Phase-142 controls
+        private TextBox _txtMinColDiam, _txtMaxColDiam, _txtOverlapRatio, _txtStripOversize, _txtBeamSupportTol;
+        private CheckBox _chkDetectStripFoundations, _chkMarkCantilevers;
         private CheckBox _chkPerCategoryNumbering;
         // Per-category numbering state — keyed by NumberingCategories[] index. Snapshot of
         // the visible UI state for the previously-selected category, captured on category
@@ -1614,6 +1617,69 @@ namespace StingTools.Model
                 "'Skip duplicates' is on.");
 
             stack.Children.Add(p140Grid);
+
+            // ── Phase-142 detection knobs ───────────────────────────────
+            var p142Header = new TextBlock
+            {
+                Text = "ACCURACY (Phase-142)",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 10,
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 10, 0, 4),
+            };
+            stack.Children.Add(p142Header);
+
+            // Toggle row
+            var p142ToggleRow = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
+            _chkDetectStripFoundations = new CheckBox
+            {
+                Content = "Detect strip foundations under walls",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Synthesise strip foundations along every detected wall " +
+                    "centreline. Foundation extends past the wall by 'Strip oversize' " +
+                    "per side. Created as structural Floors at the base level.",
+            };
+            _chkMarkCantilevers = new CheckBox
+            {
+                Content = "Mark cantilever / free beams in Comments",
+                IsChecked = true, Margin = new Thickness(0, 0, 14, 4), FontSize = 11,
+                ToolTip = "Stamp the Comments parameter with 'STING: Cantilever (start)' / " +
+                    "'(end)' / 'STING: Free beam (no support)' for beams that lack " +
+                    "column or wall support at one or both ends. Lets you find them in " +
+                    "schedules.",
+            };
+            p142ToggleRow.Children.Add(_chkDetectStripFoundations);
+            p142ToggleRow.Children.Add(_chkMarkCantilevers);
+            stack.Children.Add(p142ToggleRow);
+
+            // Knob grid
+            var p142Grid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            for (int i = 0; i < 4; i++)
+                p142Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int i = 0; i < 3; i++)
+                p142Grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            AddKnobRow(p142Grid, 0, 0, "Min column diameter (mm):", out _txtMinColDiam, "150",
+                "Lower bound for DetectCircularColumns. Circles smaller than this are " +
+                "rejected (could be holes, drilled penetrations, dimension circles).");
+            AddKnobRow(p142Grid, 0, 2, "Max column diameter (mm):", out _txtMaxColDiam, "1500",
+                "Upper bound for DetectCircularColumns. Circles larger than this are " +
+                "rejected (could be tank outlines, equipment).");
+
+            AddKnobRow(p142Grid, 1, 0, "Beam overlap ratio:", out _txtOverlapRatio, "0.5",
+                "Minimum longitudinal overlap as a fraction of the shorter line. 0.5 = 50% " +
+                "(legacy default); lower values pair short connection stubs and diagonal " +
+                "bracing that the legacy detector misses. Walls use ratio - 0.1.");
+            AddKnobRow(p142Grid, 1, 2, "Strip oversize (mm/side):", out _txtStripOversize, "150",
+                "Strip foundation extends this distance beyond each face of the wall it " +
+                "supports. Engineering rule of thumb; verify against soil class.");
+
+            AddKnobRow(p142Grid, 2, 0, "Beam-support tol (mm):", out _txtBeamSupportTol, "200",
+                "Beam endpoints within this distance of a column footprint or wall " +
+                "centreline are classified as supported; outside, as cantilever / free.");
+
+            stack.Children.Add(p142Grid);
+
             return section;
         }
 
@@ -2395,6 +2461,20 @@ namespace StingTools.Model
             config.TrimBeamsToColumnFaces = _chkTrimBeamsToColumns?.IsChecked != false;
             config.ShowStructuralWarningsInView = _chkShowWarningsInView?.IsChecked != false;
 
+            // Phase-142
+            if (double.TryParse(_txtMinColDiam?.Text, out double minCD) && minCD > 0)
+                config.MinColumnDiameterMm = minCD;
+            if (double.TryParse(_txtMaxColDiam?.Text, out double maxCD) && maxCD > 0)
+                config.MaxColumnDiameterMm = maxCD;
+            if (double.TryParse(_txtOverlapRatio?.Text, out double overlap) && overlap > 0)
+                config.BeamOverlapMinRatio = overlap;
+            if (double.TryParse(_txtStripOversize?.Text, out double stripOver) && stripOver >= 0)
+                config.StripFndOversizeMm = stripOver;
+            if (double.TryParse(_txtBeamSupportTol?.Text, out double bSupTol) && bSupTol > 0)
+                config.BeamSupportToleranceMm = bSupTol;
+            config.DetectStripFoundations = _chkDetectStripFoundations?.IsChecked != false;
+            config.MarkCantileverBeams = _chkMarkCantilevers?.IsChecked != false;
+
             // Tagging
             config.AutoTag = _chkAutoTag?.IsChecked == true;
             config.AutoSeqNumbers = _chkAutoSeqNumbers?.IsChecked == true;
@@ -2889,6 +2969,38 @@ namespace StingTools.Model
         /// without a column) or "Free end" — surfaces the data that <c>DetectJunctions</c>
         /// has always produced but the legacy pipeline only used for the summary string.</summary>
         public bool ShowJunctionWarningsInView { get; set; } = true;
+
+        // ── Phase-142 detection / construction logic ──
+
+        /// <summary>Minimum longitudinal overlap ratio for parallel-pair detection
+        /// (walls + beams). 0.5 ≈ 50% — the legacy default; lower values pair short
+        /// connection stubs and diagonal bracing that the legacy detector misses.
+        /// Range [0.1, 1.0]. </summary>
+        public double BeamOverlapMinRatio { get; set; } = 0.5;
+
+        /// <summary>When true, run <c>BeamSupportClassifier</c> after detection and
+        /// stamp cantilever beams' instance Comments parameter "Cantilever (start|end)".
+        /// Lets the analytical engineer find them quickly without reading the warning log.</summary>
+        public bool MarkCantileverBeams { get; set; } = true;
+
+        /// <summary>Tolerance (mm) for the beam-end → column / wall support classifier.
+        /// Endpoints within this distance of a column footprint or wall centreline are
+        /// classified as supported; outside, as cantilever / free.</summary>
+        public double BeamSupportToleranceMm { get; set; } = 200;
+
+        /// <summary>When <see cref="ColumnsContinuousThrough"/> is on, set the column's
+        /// Top Constraint to the top level instead of stacking discrete column elements
+        /// at each repeat level. Produces a single analytically-continuous column.</summary>
+        public bool UseTopConstraintForContinuousColumns { get; set; } = true;
+
+        /// <summary>Strip foundation oversize (mm per side) — the foundation extends
+        /// this distance beyond each face of the wall it supports. Used by
+        /// <c>StripFoundationDetector</c>.</summary>
+        public double StripFndOversizeMm { get; set; } = 150;
+
+        /// <summary>Detect strip foundations under structural walls and create them as
+        /// structural floors along the wall centrelines.</summary>
+        public bool DetectStripFoundations { get; set; } = true;
 
         // Tagging
         public bool AutoTag { get; set; } = true;

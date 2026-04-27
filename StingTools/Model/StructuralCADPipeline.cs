@@ -306,6 +306,11 @@ namespace StingTools.Model
         private List<GridSnapper.SnapResult> _lastRectSnapInfo;
         private List<GridSnapper.SnapResult> _lastCircleSnapInfo;
 
+        // Phase-142: beam-support classification produced before creation, consumed
+        // post-creation by per-beam BeamsRestOnWalls offset + cantilever marking.
+        // Index aligns with extraction.BeamLines at the moment of classification.
+        private List<BeamSupportClassifier.BeamSupport> _lastBeamSupports;
+
         /// <summary>
         /// Endpoint tolerance in feet. Configurable per DWG scale.
         /// Default 0.016 ft ≈ 5mm (appropriate for 1:100 scale).
@@ -724,7 +729,11 @@ namespace StingTools.Model
             const double parallelTol = 0.05; // ~3° tolerance
             double minBeamWidthFt = 100 * Units.MmToFeet;  // 100mm min beam width
             double maxBeamWidthFt = 600 * Units.MmToFeet;  // 600mm max beam width
-            const double overlapRatio = 0.5; // 50% longitudinal overlap required
+            // Phase-142: configurable longitudinal-overlap ratio. Default 50%, but
+            // lower values pair short connection stubs and diagonal bracing.
+            double overlapRatio = CurrentConfig?.BeamOverlapMinRatio > 0
+                ? Math.Max(0.1, Math.Min(1.0, CurrentConfig.BeamOverlapMinRatio))
+                : 0.5;
             const double dirToleranceRad = 5.0 * Math.PI / 180.0; // 5° direction clustering
 
             // Build set of column center positions for context validation
@@ -849,6 +858,15 @@ namespace StingTools.Model
                         double bMin = Math.Min(projBS, projBE), bMax = Math.Max(projBS, projBE);
                         double overlapLen = Math.Max(0, Math.Min(aMax, bMax) - Math.Max(aMin, bMin));
                         double shorter = Math.Min(aMax - aMin, bMax - bMin);
+
+                        // Phase-142 P2F: endpoint-gap bridging — synthesize overlap when
+                        // two parallel lines fall just shy of overlapping longitudinally.
+                        double endpointGapFtBeam = (CurrentConfig?.EndpointGapToleranceMm ?? 0) * Units.MmToFeet;
+                        if (overlapLen <= 0 && endpointGapFtBeam > 0)
+                        {
+                            double gap = Math.Max(aMin, bMin) - Math.Min(aMax, bMax);
+                            if (gap > 0 && gap <= endpointGapFtBeam) overlapLen = shorter;
+                        }
                         if (shorter <= 0 || overlapLen / shorter < overlapRatio) continue;
 
                         // Best match by closest perpendicular distance
@@ -1200,7 +1218,11 @@ namespace StingTools.Model
             double gapCapFt = (cfg?.ParallelLineToleranceMm ?? 500) * Units.MmToFeet;
             if (maxThickFt > gapCapFt) maxThickFt = gapCapFt; // gap cap always wins
             double minLengthFt = 500 * Units.MmToFeet;
-            const double overlapRatio = 0.4; // 40% longitudinal overlap required
+            // Phase-142: configurable longitudinal-overlap ratio. Walls historically used
+            // 40%; lower values pair short connection stubs and diagonal bracing.
+            double overlapRatio = cfg != null && cfg.BeamOverlapMinRatio > 0
+                ? Math.Max(0.1, Math.Min(1.0, cfg.BeamOverlapMinRatio - 0.1)) // walls -10% vs beams
+                : 0.4;
             int rejectedByThickness = 0;
 
             var wallLines = allLines.Where(l =>
@@ -1288,6 +1310,14 @@ namespace StingTools.Model
                         double bMin = Math.Min(projBS, projBE), bMax = Math.Max(projBS, projBE);
                         double overlapLen = Math.Max(0, Math.Min(aMax, bMax) - Math.Max(aMin, bMin));
                         double shorter = Math.Min(aMax - aMin, bMax - bMin);
+
+                        // Phase-142 P2F: endpoint-gap bridging.
+                        double endpointGapFt = (cfg?.EndpointGapToleranceMm ?? 0) * Units.MmToFeet;
+                        if (overlapLen <= 0 && endpointGapFt > 0)
+                        {
+                            double gap = Math.Max(aMin, bMin) - Math.Min(aMax, bMax);
+                            if (gap > 0 && gap <= endpointGapFt) overlapLen = shorter;
+                        }
                         if (shorter <= 0 || overlapLen / shorter < overlapRatio) continue;
 
                         if (perpDist < bestDist)
@@ -2058,6 +2088,27 @@ namespace StingTools.Model
                             $"detected centroid.");
                 }
 
+                // ── Phase-142: Classify each beam's support BEFORE creation ────
+                // Used by per-beam BeamsRestOnWalls offset + cantilever marking.
+                // Runs BEFORE trim so support classification uses original endpoints
+                // (post-trim endpoints sit at column faces, not joint centroids).
+                _lastBeamSupports = null;
+                if (extraction.BeamLines.Count > 0
+                    && (config.BeamsRestOnWalls || config.MarkCantileverBeams))
+                {
+                    _lastBeamSupports = BeamSupportClassifier.ClassifyAll(
+                        extraction.BeamLines, extraction.Rectangles, extraction.Circles,
+                        extraction.Walls, config.BeamSupportToleranceMm);
+                    int onWall = _lastBeamSupports.Count(s => s.RestsOnWall);
+                    int cantilever = _lastBeamSupports.Count(s => s.IsCantilever);
+                    int free = _lastBeamSupports.Count(s =>
+                        s.StartSupport == BeamSupportClassifier.SupportType.None
+                        && s.EndSupport == BeamSupportClassifier.SupportType.None);
+                    if (onWall > 0 || cantilever > 0 || free > 0)
+                        StingLog.Info($"  Beam support: {onWall} on-wall, " +
+                            $"{cantilever} cantilever, {free} fully free");
+                }
+
                 // ── Phase-140 P1-D: Trim beam endpoints to column faces ───────
                 // Pure mutation of DetectedBeam.Start/End — runs only when the
                 // user enabled trimming and we have columns to anchor against.
@@ -2215,6 +2266,21 @@ namespace StingTools.Model
                         extraction.Circles, extraction.Rectangles, baseLevel,
                         config.FoundationDepthMm, totalResult);
                 }
+                // Phase-142: Strip foundations under structural walls.
+                if (config.CreateFoundations && config.DetectStripFoundations
+                    && extraction.Walls.Count > 0)
+                {
+                    var strips = StripFoundationDetector.Detect(extraction.Walls, config);
+                    if (strips.Count > 0)
+                    {
+                        var stripLoops = strips.Select(s => s.Loop).ToList();
+                        int created = CreateSlabsFromBoundaries(
+                            stripLoops, baseLevel, config.FoundationDepthMm, totalResult);
+                        totalResult.FootingsCreated += created;
+                        StingLog.Info($"  Strip foundations: {created} created under " +
+                            $"{strips.Count} wall(s) (oversize {config.StripFndOversizeMm:F0} mm/side)");
+                    }
+                }
 
                 // 2. Columns (with soffit adjustment)
                 if (config.CreateColumns && extraction.Circles.Count > 0)
@@ -2229,9 +2295,23 @@ namespace StingTools.Model
 
                 // 3. Beams
                 if (config.CreateBeams && extraction.BeamLines.Count > 0)
+                {
+                    int beamsBefore = totalResult.CreatedIds.Count;
                     totalResult.BeamsCreated += CreateBeamsFromLines(
                         extraction.BeamLines, baseLevel,
                         config.BeamDepthMm, columnHeightMm, totalResult);
+
+                    // Phase-142 post-creation: per-beam BeamsRestOnWalls offset +
+                    // cantilever Comments stamp. Aligns by creation order:
+                    // CreatedIds added in `CreateBeamsFromLines` mirror BeamLines order.
+                    if (_lastBeamSupports != null && _lastBeamSupports.Count > 0
+                        && (config.BeamsRestOnWalls || config.MarkCantileverBeams))
+                    {
+                        ApplyBeamSupportPostCreation(
+                            totalResult.CreatedIds, beamsBefore, _lastBeamSupports,
+                            config, totalResult);
+                    }
+                }
 
                 // 4. Walls (structural or architectural)
                 if (config.CreateWalls && extraction.Walls.Count > 0)
@@ -3315,6 +3395,103 @@ namespace StingTools.Model
                 ((point.X - lineStart.X) * d.X + (point.Y - lineStart.Y) * d.Y) / lenSq));
             var proj = new XYZ(lineStart.X + t * d.X, lineStart.Y + t * d.Y, point.Z);
             return point.DistanceTo(proj);
+        }
+
+        // ── Phase-142: Beam support post-creation pass ───────────────────
+
+        /// <summary>
+        /// Applies per-beam adjustments after CreateBeamsFromLines has run:
+        ///
+        ///   - BeamsRestOnWalls: when at least one endpoint is supported by a
+        ///     wall (and not by a column), set z-offset Start/End so the beam
+        ///     base sits at the wall top instead of the level base.
+        ///   - MarkCantileverBeams: stamp the Comments parameter with
+        ///     "Cantilever (start)", "Cantilever (end)", or "Free beam" when
+        ///     one or both endpoints lack any structural support.
+        /// </summary>
+        private void ApplyBeamSupportPostCreation(
+            List<ElementId> createdIds, int beamStartIndex,
+            List<BeamSupportClassifier.BeamSupport> supports,
+            DWGConversionConfig config, StructuralModelResult result)
+        {
+            // The beams we just added are at indices [beamStartIndex, end). Their
+            // positional order in createdIds matches the BeamLines order (and thus
+            // the supports list order) ONLY when no exceptions were thrown during
+            // creation. We tolerate mismatches by walking pairwise and bailing on
+            // a category mismatch.
+
+            int beamCount = createdIds.Count - beamStartIndex;
+            if (beamCount <= 0) return;
+
+            int offsetApplied = 0, cantileverMarked = 0;
+            using (var tx = new Transaction(_doc, "STING STRUCT: Beam support post-creation"))
+            {
+                tx.Start();
+                for (int i = 0; i < beamCount && i < supports.Count; i++)
+                {
+                    var id = createdIds[beamStartIndex + i];
+                    var el = _doc.GetElement(id);
+                    if (el == null || el.Category == null) continue;
+                    if (el.Category.Id.IntegerValue !=
+                        (int)BuiltInCategory.OST_StructuralFraming)
+                        continue; // category mismatch — skip rather than guess
+
+                    var sup = supports[i];
+
+                    // Per-beam BeamsRestOnWalls: only apply when at least one endpoint
+                    // sits on a wall AND no endpoint sits on a column. Beams between
+                    // columns keep their level-relative position.
+                    if (config.BeamsRestOnWalls && sup.RestsOnWall)
+                    {
+                        bool eitherOnColumn =
+                            sup.StartSupport == BeamSupportClassifier.SupportType.Column
+                            || sup.EndSupport == BeamSupportClassifier.SupportType.Column
+                            || sup.StartSupport == BeamSupportClassifier.SupportType.Both
+                            || sup.EndSupport == BeamSupportClassifier.SupportType.Both;
+                        if (!eitherOnColumn)
+                        {
+                            try
+                            {
+                                // Lift the beam base by wall height so it sits ON TOP of the wall.
+                                double liftFt = Units.Mm(config.WallHeightMm);
+                                var startOff = el.get_Parameter(
+                                    BuiltInParameter.STRUCTURAL_BEAM_END0_ELEVATION);
+                                var endOff   = el.get_Parameter(
+                                    BuiltInParameter.STRUCTURAL_BEAM_END1_ELEVATION);
+                                if (startOff != null && !startOff.IsReadOnly) startOff.Set(liftFt);
+                                if (endOff != null && !endOff.IsReadOnly)     endOff.Set(liftFt);
+                                offsetApplied++;
+                            }
+                            catch (Exception ex) { result.Warnings.Add($"Beam-on-wall offset: {ex.Message}"); }
+                        }
+                    }
+
+                    // Cantilever / free-end Comments stamp.
+                    if (config.MarkCantileverBeams && sup.HasFreeEnd)
+                    {
+                        try
+                        {
+                            string label;
+                            if (sup.StartSupport == BeamSupportClassifier.SupportType.None
+                                && sup.EndSupport == BeamSupportClassifier.SupportType.None)
+                                label = "STING: Free beam (no support)";
+                            else if (sup.StartSupport == BeamSupportClassifier.SupportType.None)
+                                label = "STING: Cantilever (start)";
+                            else
+                                label = "STING: Cantilever (end)";
+                            var p = el.LookupParameter("Comments");
+                            if (p != null && !p.IsReadOnly) { p.Set(label); cantileverMarked++; }
+                        }
+                        catch (Exception ex) { result.Warnings.Add($"Cantilever mark: {ex.Message}"); }
+                    }
+                }
+                tx.Commit();
+            }
+
+            if (offsetApplied > 0)
+                StingLog.Info($"  Beam-on-wall offset applied to {offsetApplied} beam(s)");
+            if (cantileverMarked > 0)
+                StingLog.Info($"  Cantilever / free-beam stamps applied to {cantileverMarked} beam(s)");
         }
     }
 
