@@ -127,6 +127,44 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// FIX-7: clear every previously-applied STING title-block param on
+        /// a sheet whose profile has changed. Reads the prior DrawingTypeId
+        /// from the sheet stamp, looks up the previous profile, and writes
+        /// empty strings for every key it declared so a subsequent
+        /// <see cref="Apply"/> with a different / smaller key set doesn't
+        /// leave stale values. Idempotent — no-op when the stamp is empty
+        /// or the previous profile cannot be resolved.
+        /// </summary>
+        public static int ClearStaleKeysFromPriorProfile(Document doc, ViewSheet sheet)
+        {
+            if (doc == null || sheet == null) return 0;
+            var priorId = DrawingTypeStamper.Read(sheet);
+            if (string.IsNullOrEmpty(priorId)) return 0;
+            var priorDt = DrawingTypeRegistry.Get(doc, priorId);
+            if (priorDt?.TitleBlockParams == null || priorDt.TitleBlockParams.Count == 0) return 0;
+            var tb = FindTitleBlockInstance(doc, sheet);
+            if (tb == null) return 0;
+            int cleared = 0;
+            foreach (var k in priorDt.TitleBlockParams.Keys)
+            {
+                if (string.IsNullOrWhiteSpace(k)) continue;
+                try
+                {
+                    var p = tb.LookupParameter(k);
+                    if (p == null || p.IsReadOnly) continue;
+                    switch (p.StorageType)
+                    {
+                        case StorageType.String:  p.Set(string.Empty); cleared++; break;
+                        case StorageType.Integer: p.Set(0); cleared++; break;
+                        case StorageType.Double:  p.Set(0.0); cleared++; break;
+                    }
+                }
+                catch { /* per-key failure — continue */ }
+            }
+            return cleared;
+        }
+
+        /// <summary>
         /// ACC-04: list every <c>${ProjectInfo}</c> parameter referenced by
         /// any title-block-params template in <paramref name="dt"/> that is
         /// not currently bound on the document's ProjectInformation. Used

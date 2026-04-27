@@ -66,7 +66,15 @@ namespace StingTools.Core.Drawing
             {
                 if (_categoryCache.TryGetValue(docKey, out var docMap)
                     && docMap.TryGetValue(key, out var cached))
-                    return cached;
+                {
+                    // FIX-4: a Category's id is stable for the lifetime of a
+                    // document, but a sub-category id can be invalidated when
+                    // the user deletes the parent line / fill style. Validate
+                    // before trusting the cached ElementId.
+                    if (cached == ElementId.InvalidElementId) return cached;
+                    if (Category.GetCategory(doc, cached) != null) return cached;
+                    docMap.Remove(key);
+                }
             }
             var resolved = ResolveCategoryId(doc, key);
             lock (_cacheLock)
@@ -86,7 +94,16 @@ namespace StingTools.Core.Drawing
             {
                 if (_filterCache.TryGetValue(docKey, out var docMap)
                     && docMap.TryGetValue(filterName, out var cached))
-                    return cached;
+                {
+                    // FIX-4: the project may have deleted / re-created the
+                    // ParameterFilterElement since the cache was populated.
+                    // Validate by Id+name before returning.
+                    if (cached == ElementId.InvalidElementId) return cached;
+                    var el = doc.GetElement(cached) as ParameterFilterElement;
+                    if (el != null && string.Equals(el.Name, filterName, StringComparison.OrdinalIgnoreCase))
+                        return cached;
+                    docMap.Remove(filterName);
+                }
             }
             ElementId resolved;
             try

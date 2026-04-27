@@ -22,13 +22,20 @@ namespace StingTools.Core.Drawing
 {
     public static class DrawingCropApplier
     {
-        // PERF-08: per-view bbox union cache keyed by (docKey, viewId).
-        // The union itself is invariant for a given view's element set; the
-        // applier re-queries it every call with different margins. Cache
-        // entries are evicted when DrawingTypeRegistry.Reload(doc) fires.
+        // PERF-08 + FIX-3: per-view bbox union cache keyed by (docKey, viewId).
+        // The union shifts only when the view's element set changes; cache
+        // entries carry the cardinality at compute time so a stale entry
+        // is detected and refreshed before it produces an out-of-date crop.
+        // Evicted on DrawingTypeRegistry.Reload(doc) and on any element
+        // count mismatch at lookup time.
+        private sealed class BboxEntry
+        {
+            public BoundingBoxXYZ Union;
+            public int            ElementCount;
+        }
         private static readonly object _bboxLock = new object();
-        private static readonly Dictionary<string, Dictionary<long, BoundingBoxXYZ>> _bboxCache
-            = new Dictionary<string, Dictionary<long, BoundingBoxXYZ>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, Dictionary<long, BboxEntry>> _bboxCache
+            = new Dictionary<string, Dictionary<long, BboxEntry>>(StringComparer.OrdinalIgnoreCase);
 
         private static string DocKey(Document doc)
         {
@@ -154,16 +161,34 @@ namespace StingTools.Core.Drawing
         {
             string key = DocKey(doc);
             long viewKey = view.Id.IntegerValue;
+
+            // FIX-3: cheap element-count fingerprint. ID() runs O(1) per
+            // element via the FilteredElementCollector; element movement
+            // alone won't trigger a refresh, which is acceptable for the
+            // crop-margin use case (margin dominates the visible result),
+            // but element add / delete is captured.
+            int currentCount = 0;
+            try
+            {
+                currentCount = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType().GetElementCount();
+            }
+            catch { /* fall through; treat as forced re-compute */ }
+
             lock (_bboxLock)
             {
                 if (_bboxCache.TryGetValue(key, out var docMap)
-                    && docMap.TryGetValue(viewKey, out var cached))
-                    return cached;
+                    && docMap.TryGetValue(viewKey, out var cached)
+                    && cached.ElementCount == currentCount
+                    && cached.Union != null)
+                    return cached.Union;
             }
 
             BoundingBoxXYZ union = null;
+            int counted = 0;
             foreach (var el in new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType())
             {
+                counted++;
                 var bb = el.get_BoundingBox(view);
                 if (bb == null) continue;
                 if (union == null) { union = new BoundingBoxXYZ { Min = bb.Min, Max = bb.Max }; continue; }
@@ -178,8 +203,8 @@ namespace StingTools.Core.Drawing
             lock (_bboxLock)
             {
                 if (!_bboxCache.TryGetValue(key, out var docMap))
-                    _bboxCache[key] = docMap = new Dictionary<long, BoundingBoxXYZ>();
-                docMap[viewKey] = union;
+                    _bboxCache[key] = docMap = new Dictionary<long, BboxEntry>();
+                docMap[viewKey] = new BboxEntry { Union = union, ElementCount = counted };
             }
             return union;
         }

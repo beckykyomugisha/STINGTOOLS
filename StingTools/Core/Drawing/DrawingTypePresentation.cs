@@ -233,6 +233,22 @@ namespace StingTools.Core.Drawing
                 r.Warnings.Add($"Sheet {sheet.Id} is style-locked; ApplyToSheet skipped.");
                 return r;
             }
+
+            // FIX-7: clear keys declared by the *previous* profile on this
+            // sheet before stamping the new id. Handles cloned sheets and
+            // profile re-assignment so stale title-block cells from the
+            // prior profile don't survive.
+            try
+            {
+                var priorStampedId = DrawingTypeStamper.Read(sheet);
+                if (!string.IsNullOrEmpty(priorStampedId)
+                    && !string.Equals(priorStampedId, dt.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    TitleBlockParamApplier.ClearStaleKeysFromPriorProfile(doc, sheet);
+                }
+            }
+            catch (Exception ex) { r.Warnings.Add($"ApplyToSheet ClearStale: {ex.Message}"); }
+
             DrawingTypeStamper.Stamp(sheet, dt.Id);
             if (!string.IsNullOrEmpty(dt.PackageId))
                 DrawingTypeStamper.StampPackage(sheet, dt.PackageId);

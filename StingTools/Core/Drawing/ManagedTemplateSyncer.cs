@@ -280,6 +280,12 @@ namespace StingTools.Core.Drawing
             {
                 var stored = GetStoredChecksum(existing);
                 var current = ComputePackChecksum(pack);
+                // Migration: a stored 16-char Base64 hash is legacy and
+                // never matches a 64-char hex hash. Re-apply once, write
+                // the new format; downstream Sync calls will then short-
+                // circuit on identical hashes. Skipping the warning is
+                // intentional — this is benign upgrade chatter.
+                bool storedIsLegacy = !string.IsNullOrEmpty(stored) && stored.Length != 64;
                 if (!string.Equals(stored, current, StringComparison.Ordinal))
                 {
                     ApplyPackToTemplate(doc, existing, pack, result);
@@ -287,6 +293,9 @@ namespace StingTools.Core.Drawing
                     StingTools.Core.ParameterHelpers.SetString(existing,
                         DrawingTypeStamper.PARAM_DRAWING_TYPE_ID,
                         FormatStamp(pack.Id, current), overwrite: true);
+                    if (!storedIsLegacy && !string.IsNullOrEmpty(stored))
+                        StingTools.Core.StingLog.Info(
+                            $"ManagedTemplateSyncer: pack '{pack.Id}' template re-applied (checksum drift).");
                 }
                 lock (_cacheLock) { bucket[key] = existing.Id; }
                 return existing.Id;

@@ -68,6 +68,10 @@ namespace StingTools.Core.Drawing
                 var current = p.AsString();
                 if (string.Equals(current, drawingTypeId, StringComparison.Ordinal)) return true;
                 p.Set(drawingTypeId);
+                // FIX-2: a freshly-stamped view changes the set of views the
+                // drift detector should scan. Invalidate the per-doc reverse
+                // index so the next Scan() includes this view.
+                try { DrawingDriftDetector.InvalidateCache(el.Document); } catch { }
                 return true;
             }
             catch (Exception ex)
@@ -119,12 +123,15 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
-        /// Worksharing guard — true if the current user owns the
-        /// element's checkout, or if the model is not workshared, or
-        /// if a NotOwned element was successfully checked out by this
-        /// user. ACC-06: previously returned true for NotOwned without
-        /// attempting checkout, which raised opaque "cannot modify"
-        /// exceptions when another user concurrently grabbed ownership.
+        /// Worksharing guard. ACC-06: previously returned <c>true</c> for
+        /// <see cref="CheckoutStatus.NotOwned"/> without distinguishing it
+        /// from <see cref="CheckoutStatus.OwnedByOtherUser"/>; the latter
+        /// raised opaque "cannot modify" exceptions mid-transaction. The
+        /// fix is conservative — only owned-by-current-user is a hard
+        /// allow; <c>NotOwned</c> still allows the write because Revit
+        /// will auto-checkout, but the caller's <c>try/catch</c> traps
+        /// the rare case of a concurrent grab. <c>OwnedByOtherUser</c> is
+        /// always a deny + log.
         /// </summary>
         private static bool IsEditable(Element el)
         {
@@ -134,28 +141,17 @@ namespace StingTools.Core.Drawing
                 if (doc == null) return false;
                 if (!doc.IsWorkshared) return true;
                 var status = WorksharingUtils.GetCheckoutStatus(doc, el.Id);
-                if (status == CheckoutStatus.OwnedByCurrentUser) return true;
                 if (status == CheckoutStatus.OwnedByOtherUser)
                 {
                     StingTools.Core.StingLog.Warn(
                         $"DrawingTypeStamper: element {el.Id} owned by another user; skipping write.");
                     return false;
                 }
-                // NotOwned: attempt to check out so a concurrent grab by
-                // another user surfaces here rather than as an exception
-                // mid-transaction.
-                try
-                {
-                    var coRequest = new System.Collections.Generic.List<ElementId> { el.Id };
-                    var taken = WorksharingUtils.CheckoutElements(doc, coRequest);
-                    return taken != null && taken.Contains(el.Id);
-                }
-                catch (Exception ex)
-                {
-                    StingTools.Core.StingLog.Warn(
-                        $"DrawingTypeStamper: checkout {el.Id} failed — {ex.Message}");
-                    return false;
-                }
+                // NotOwned: Revit auto-checks out on first write; the caller's
+                // try/catch around the parameter set captures the rare "raced
+                // by another user" case without the validator-only stalling
+                // every batch generator inside its own transaction.
+                return true;
             }
             catch { return true; }
         }

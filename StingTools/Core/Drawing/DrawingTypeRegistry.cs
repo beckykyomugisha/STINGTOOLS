@@ -96,6 +96,15 @@ namespace StingTools.Core.Drawing
         /// child non-null / non-default fields override parent. Loop
         /// detection via visited-set; mirror of ViewStylePackRegistry.
         /// </summary>
+        // FIX-5: dedupe ACC-01 drift warnings so they fire once per
+        // (child, drifted parent) pair per session rather than on every
+        // first cache miss. Cleared by Reload alongside the resolved cache.
+        // Process-wide rather than per-doc on purpose — drift warnings are
+        // about corporate-vs-project state, which carries across "Save As".
+        private static readonly HashSet<string> _extendsDriftWarned
+            = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly object _driftWarnedLock = new object();
+
         private static DrawingType ResolveExtends(DrawingTypeLibrary lib, DrawingType leaf)
         {
             if (string.IsNullOrWhiteSpace(leaf.Extends)) return leaf;
@@ -120,9 +129,13 @@ namespace StingTools.Core.Drawing
                     && string.Equals(cur.Origin, "project", StringComparison.OrdinalIgnoreCase)
                     && !string.IsNullOrEmpty(cur.Checksum))
                 {
-                    StingTools.Core.StingLog.Warn(
-                        $"DrawingType '{leaf.Id}' extends '{cur.Id}' which has drifted from corporate baseline; " +
-                        "merged snapshot reflects the project-edited parent values.");
+                    string warnKey = (leaf.Id ?? string.Empty) + "→" + (cur.Id ?? string.Empty);
+                    bool fire;
+                    lock (_driftWarnedLock) fire = _extendsDriftWarned.Add(warnKey);
+                    if (fire)
+                        StingTools.Core.StingLog.Warn(
+                            $"DrawingType '{leaf.Id}' extends '{cur.Id}' which has drifted from corporate baseline; " +
+                            "merged snapshot reflects the project-edited parent values.");
                 }
                 if (string.IsNullOrWhiteSpace(cur.Extends)) break;
                 cur = lib.DrawingTypes.FirstOrDefault(
@@ -190,6 +203,9 @@ namespace StingTools.Core.Drawing
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
                 if (_resolvedCache.ContainsKey(key)) _resolvedCache.Remove(key);
             }
+            // FIX-5: clear the drift-warning dedupe set so a Reload after
+            // editing a parent re-warns once on next resolution.
+            lock (_driftWarnedLock) _extendsDriftWarned.Clear();
             // FG-05: also notify any in-process editor / live applier so a
             // mid-session edit of a parent profile cascades through every
             // child that extends it. The presentation + drift caches above
@@ -365,7 +381,14 @@ namespace StingTools.Core.Drawing
                         var sb = new StringBuilder(hash.Length * 2);
                         foreach (var b in hash) sb.Append(b.ToString("x2"));
                         var actual = sb.ToString();
-                        if (!string.IsNullOrEmpty(prior) && prior != actual)
+                        // Migration safety: a project that opened with the old
+                        // 16-char Base64 prefix should silently upgrade to the
+                        // new 64-char hex form on first read. Treat any prior
+                        // value that's not 64 hex chars as legacy and skip the
+                        // drift warning.
+                        bool priorIsLegacy = !string.IsNullOrEmpty(prior)
+                            && prior.Length != 64;
+                        if (!string.IsNullOrEmpty(prior) && !priorIsLegacy && prior != actual)
                         {
                             StingTools.Core.StingLog.Warn(
                                 $"DrawingType '{t.Id}' checksum drift: shipped={prior} actual={actual}. " +

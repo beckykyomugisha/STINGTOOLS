@@ -275,26 +275,21 @@ namespace StingTools.Core.Fabrication
             }
             catch (Exception ex) { result.Warnings.Add($"Title block populate: {ex.Message}"); }
 
-            // DrawingType.TitleBlockParams — declarative per-profile
-            // title-block binding. Pass the same token dict the sheet
-            // number / name pattern used so {disc}=discCode / {lvl}=
-            // levelCode / {sys}=sysCode / {spool}=spool / {seq:Dn}
-            // resolve consistently with the sheet number pattern.
+            // FIX-9: route through DrawingTypePresentation.ApplyToSheet so
+            // the canonical lock check + DrawingType stamp + Package stamp +
+            // TitleBlockParamApplier sequence applies — keeps fabrication in
+            // step with the SheetManager / scope-box paths.
             try
             {
-                if (drawingType?.TitleBlockParams != null && drawingType.TitleBlockParams.Count > 0)
+                if (drawingType != null)
                 {
-                    // Same token set used to resolve the sheet number +
-                    // name patterns — ISO 19650 tokens included so
-                    // title-block cells read the same codes the sheet
-                    // number does.
-                    var tbApply = StingTools.Core.Drawing.TitleBlockParamApplier
-                        .Apply(doc, sheet, drawingType, extraTokens);
-                    foreach (var w in tbApply.Warnings)
-                        result.Warnings.Add("TitleBlockParams: " + w);
+                    var apply = StingTools.Core.Drawing.DrawingTypePresentation
+                        .ApplyToSheet(doc, sheet, drawingType, extraTokens);
+                    foreach (var w in apply.Warnings)
+                        result.Warnings.Add("ApplyToSheet: " + w);
                 }
             }
-            catch (Exception ex) { result.Warnings.Add($"TitleBlockParams: {ex.Message}"); }
+            catch (Exception ex) { result.Warnings.Add($"ApplyToSheet: {ex.Message}"); }
         }
 
         private static string ReadString(Element el, string param)

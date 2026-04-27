@@ -337,6 +337,15 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { result.Warnings.Add($"SheetName: {ex.Message}"); }
 
+            // FIX-6: lock check + stale-key clear + stamp + sequence + title-block
+            // params all go through the canonical ApplyToSheet plus the
+            // producer-specific sequence stamp. Avoids re-implementing the
+            // stamper / applier sequence in two places.
+            if (DrawingTypeStamper.IsLocked(sheet))
+            {
+                result.Warnings.Add($"Sheet {sheet.Id} style-locked; producer kept sheet but skipped stamp/apply.");
+                return sheet.Id;
+            }
             DrawingTypeStamper.Stamp(sheet, dt.Id);
             DrawingTypeStamper.StampPackage(sheet, effectivePackage);
 
@@ -355,7 +364,9 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     var tokens = BuildTokenDict(dt, ctx);
-                    TitleBlockParamApplier.Apply(doc, sheet, dt, tokens);
+                    var tbResult = TitleBlockParamApplier.Apply(doc, sheet, dt, tokens);
+                    foreach (var w in tbResult.Warnings)
+                        result.Warnings.Add("TitleBlockParams: " + w);
                 }
                 catch (Exception ex) { result.Warnings.Add($"TitleBlockParams: {ex.Message}"); }
             }

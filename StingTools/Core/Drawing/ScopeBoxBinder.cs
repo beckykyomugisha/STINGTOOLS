@@ -64,8 +64,6 @@ namespace StingTools.Core.Drawing
             public string    Reason { get; set; }
         }
 
-        public static List<NameWarning> LastWarnings { get; private set; } = new List<NameWarning>();
-
         public static List<ScopeBoxBinding> ScanProject(Document doc)
             => ScanProject(doc, out _);
 
@@ -73,7 +71,7 @@ namespace StingTools.Core.Drawing
         {
             var results = new List<ScopeBoxBinding>();
             warnings = new List<NameWarning>();
-            if (doc == null) { LastWarnings = warnings; return results; }
+            if (doc == null) return results;
 
             try
             {
@@ -111,7 +109,6 @@ namespace StingTools.Core.Drawing
             {
                 StingTools.Core.StingLog.Warn($"ScopeBoxBinder.ScanProject: {ex.Message}");
             }
-            LastWarnings = warnings;
             return results;
         }
 
