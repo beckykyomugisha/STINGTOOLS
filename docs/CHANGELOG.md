@@ -3775,3 +3775,152 @@ round-trip, and 3 new validators.
    `STING_PUPIL_COUNT_INT`, `STING_PLACE_AUDIT_TXT`) need to be
    declared in `MR_PARAMETERS.txt` before any Revit project will see
    them — listed for the next parameter-registry pass.
+
+#### Completed (Phase 141 — Clash Detection Bug Fixes — Category A)
+
+Five correctness bugs in the clash subsystem fixed. Every change is in
+`StingTools/Clash/` unless noted; commits land on
+`claude/enhance-clash-detection-Tb0IS`.
+
+1. **A1 Live flag state corruption** —
+   `Clash/ClashSession.cs` `RefreshElement` was nuking
+   `_flaggedIds` on every edit by replacing the entire set with the
+   single edited element's hits. Fixed by introducing a per-element
+   neighbour index `_clashNeighbours: Dictionary<int, HashSet<int>>`
+   that tracks symmetric edges (a↔b) and computing the diff narrowed to
+   the edited element plus its prior + new neighbours. `RemoveElement`
+   maintains the same map and clears flags only on neighbours that
+   lose their last edge. `InitialiseFromView` resets the map alongside
+   the mesh / OBB caches.
+2. **A2 SLA issue anchor mismatch** —
+   `Clash/ClashSlaIntegration.cs` `CreateIssues` was looking up
+   `g.Anchor` directly in `matrix.Cells` by `PairId`, but element-
+   pattern anchors are formatted as `"{pairId} via {side}={cat}:{eid}"`
+   and repetition anchors as `"{pairId} repetition (X-row, vol≈N)"` —
+   the lookup always returned null and every issue defaulted to
+   severity "MED" / assignee "Coord". Fixed by adding
+   `ExtractPairId()` that splits on " via " or " repetition " and
+   keeps the leading PairId token before the lookup.
+3. **A3 Clearance tolerance not enforced in kernel** —
+   `Clash/ClashKernel.cs` returned `Kind="hard"` for every triangle-
+   overlap pair regardless of the matched matrix cell's tolerance.
+   Fixed by adding `ClashRunCommand.ApplyClearanceTolerance` that runs
+   after `MergeWithPrior` and walks every kept clash whose
+   `cell.Tolerance` starts with `"CLEARANCE_"`: parses the suffix as
+   mm, computes AABB overlap depth (min component of `AabbMax-AabbMin`
+   in mm), and either drops the record (overlap within tolerance —
+   tessellation sliver) or promotes `Kind` to `"clearance"`. New
+   `ClashRecord.Kind` field, JSON-optional so existing clashes.json
+   files round-trip cleanly.
+4. **A4 Live path facts missing System/Workset** —
+   `Clash/ClashSession.cs` `FactsFromMesh` populated only `Category`,
+   so any matrix cell that filtered on `System=...` silently missed in
+   the live path. Replaced with `ResolveFacts` that resolves the
+   `Element` from `_doc` and reads System / Workset (via
+   `MEPCurve.MEPSystem.Name` and the `System Name` parameter for
+   FamilyInstances). Cached per-eid in `_factsCache` so the candidate
+   loop in `NarrowPhaseFor` pays one Revit lookup per element per
+   edit, not per pair. Cache invalidated on `RefreshElement` and
+   `RemoveElement` for the affected id.
+5. **A5 Repetition grouper ignored X/Y axes** —
+   `Clash/ClashGrouper.cs` `FindRepetitionGroups` only sorted by Z and
+   only checked the Z-axis spacing, breaking horizontal risers
+   clashing with wall framing in X or Y into spatial singletons.
+   Replaced `IsEquallySpaced` with `TryComputeMeanDev` that scores
+   each axis by mean-deviation; the axis with the smallest deviation
+   wins. Anchor description now reads `"X-row"`, `"Y-row"`, or
+   `"Z-stack"` so the BCC UI shows the winning axis.
+
+#### Completed (Phase 142 — Clash Detection Performance — Category B)
+
+Three hot-path performance fixes for clash subsystem batch operations.
+
+1. **B1 CrossModelClashCommand O(n²) inner loop** —
+   `Clash/ClashDetectionCommands.cs` `CrossModelClashCommand` was
+   nesting host MEP × all linked structural per link, calling
+   `get_BoundingBox()` inside the inner loop. For a 2 000 × 1 000 × 3-
+   link model that's 6 M comparisons with Revit API calls in the
+   innermost slot. Now: pre-cache host MEP bboxes once outside the
+   loop, build per-link `Dictionary<long, (Element, LocalBb, WorldMin,
+   WorldMax)>`, and probe each link via
+   `BoundingBoxIntersectsFilter` with a per-MEP outline transformed
+   through the inverse link transform. Inner loop shrinks to a
+   pre-computed AABB sweep before paying the 8-corner narrow-phase.
+   New helper `TransformedAabb.Build` exposes the world AABB build
+   that `AabbNarrowPhase.WorldAabb` does internally.
+2. **B2 MEPClearanceValidationCommand sequential collectors** —
+   `Clash/ClashDetectionCommands.cs` `AuditOne` was creating a
+   `FilteredElementCollector` per subject element. For 1 000 elements
+   that is 1 000 collector instantiations on the Revit API. Now: a
+   single pass pre-collects every duct + pipe + structural element
+   into `List<(ElementId, BoundingBoxXYZ, Category, Bic)>`, then each
+   subject does an in-memory AABB range query against the cache. No
+   per-subject collector instantiation.
+3. **B3 ClashScheduler raised live handler not full run** —
+   `Clash/ClashScheduler.cs` was raising `LiveClashHandler.Event`
+   which only drains the dirty queue — on an idle model the hourly
+   tick was a no-op. Added `ClashRunEventHandler : IExternalEventHandler`
+   that calls `ClashRunCommand.RunHeadless(app)` (a new static entry
+   point that runs the full pipeline silently). Scheduler now reads
+   `SchedulerIntervalMinutes` from `default_clash_matrix.json`
+   (default 60) and gates ticks on
+   `ClashSession.LastDirtyAtUtc > _lastRunUtc` so an idle model with
+   no edits since the last run is skipped. `MarkDirty` is called from
+   `RefreshElement` and `RemoveElement` to update the volatile
+   timestamp.
+
+#### Completed (Phase 143 — Clash Detection Automation — Category C)
+
+Six automation-logic gaps closed in the clash subsystem.
+
+1. **C1 ClashTriageEngine wired into ClashRunCommand** —
+   `Clash/ClashRunCommand.cs` now runs `ClashTriageEngine.Triage` after
+   `ClashGrouper.Group`. Inputs are built from `run.Clashes` plus the
+   immediately-prior `ClashRunRecord`: `RecurrenceCount` = identity
+   match in prior run (0/1), `DismissCount` = "Void" transitions in
+   `StateHistory`, `PenetrationMm` = computed from the AABB extent.
+   Score persisted to new `ClashRecord.TriageScore` field; clashes
+   sorted by score descending, then by severity, then by id for
+   deterministic order.
+2. **C2 Auto-assign clashes to discipline owners** —
+   `Clash/ClashSlaIntegration.cs` `EnrichAssignees(doc, issues, run)`
+   resolves workset owner names via
+   `WorksharingUtils.GetWorksharingTooltipInfo` and overlays them on
+   `CoordIssue.Assignee` plus `ClashGroupRecord.Assignee`.
+   `ClashRunCommand.EnrichGroupAssignees` synthesises a placeholder
+   issue list per group so the same logic runs as part of the headless
+   pass without duplicating the resolution code.
+3. **C3 Per-pair clearance distance in MEPClearanceValidationCommand**
+   — `Clash/ClashDetectionCommands.cs` now loads
+   `default_clash_matrix.json` and calls `ResolveTargetMm(matrix,
+   subjectCat, neighbourCat, fallbackMm)` for each subject ↔
+   neighbour pair. CLEARANCE_xx → xx mm; HARD → 0; otherwise the
+   hardcoded `DuctMinClearMm`/`PipeMinClearMm` is the fallback. The
+   PASS/FAIL gate now uses the worst-case per-pair target rather than
+   a single per-subject constant.
+4. **C4 Cold-init live flag parameter write** —
+   `Clash/ClashRunCommand.cs` `WriteColdInitLiveFlags` calls
+   `LiveClashFlag.Apply(doc, flagged, [])` after `SeedFromRun`,
+   following the same H6 pattern (transaction outside the lock) that
+   `RefreshElement` uses. Resumed sessions now show warning triangles
+   on flagged elements immediately rather than waiting for the next
+   dirty edit. `ClashRunCommand` was changed to
+   `TransactionMode.Manual` so the flag-write transaction can open.
+5. **C5 Configurable rule thresholds in JSON** —
+   `Clash/ClashRule.cs` now stores `Params: Dictionary<string, double>`
+   per `ClashRuleDefinition`; predicates read via the new helper
+   `ClashRule.ParamOr(def, key, fallback)`. R001 / R005 / R006 / R008 /
+   R009 read their thresholds from Params with the historical
+   constant as the fallback. `ClashRuleLibrary.LoadAugmented` accepts
+   a JSON entry without `Verdict` but with a matching `Id` as a Params
+   override on a built-in rule.
+6. **C6 BCF auto-export on severity threshold breach** —
+   `Clash/ClashBcfExportCommand.ExportToBcf(doc, clashes, outDir)`
+   refactored to a public static method.
+   `Clash/ClashRunCommand.cs` calls it automatically after
+   `SeedFromRun` when `default_clash_matrix.json` carries
+   `"AutoBcfOnCritical": true` and the run kept any
+   `Severity in {CRITICAL, HIGH}` clashes whose state is `New` or
+   `Reintroduced`. New `ClashMatrix.AutoBcfOnCritical` field defaults
+   to `false` so existing matrix files round-trip without changing
+   behaviour.
