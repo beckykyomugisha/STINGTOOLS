@@ -497,8 +497,10 @@ namespace StingTools.Core.Placement
         /// Phase 139.2 P — manufacturer resolution.  1.0 when the rule's
         /// CatalogueRef resolves to an entry whose declared family is
         /// loaded in the document; 0.0 when CatalogueRef is empty or
-        /// catalogue lookup fails.
+        /// catalogue lookup fails.  Family-name set is cached per scorer
+        /// instance so we don't run FilteredElementCollector per candidate.
         /// </summary>
+        private HashSet<string> _loadedFamilyNames;
         private double ScoreManufacturerResolution(PlacementRule rule)
         {
             if (rule == null || string.IsNullOrEmpty(rule.CatalogueRef)) return 0.0;
@@ -508,14 +510,14 @@ namespace StingTools.Core.Placement
                 if (entry == null) return 0.0;
                 if (string.IsNullOrEmpty(entry.RevitFamilyName)) return 0.5;
                 if (_doc == null) return 0.5;
-                var col = new FilteredElementCollector(_doc).OfClass(typeof(Family));
-                foreach (var el in col)
+                if (_loadedFamilyNames == null)
                 {
-                    if (el is Family fam &&
-                        string.Equals(fam.Name, entry.RevitFamilyName, StringComparison.OrdinalIgnoreCase))
-                        return 1.0;
+                    _loadedFamilyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var el in new FilteredElementCollector(_doc).OfClass(typeof(Family)))
+                        if (el is Family fam && !string.IsNullOrEmpty(fam.Name))
+                            _loadedFamilyNames.Add(fam.Name);
                 }
-                return 0.5;
+                return _loadedFamilyNames.Contains(entry.RevitFamilyName) ? 1.0 : 0.5;
             }
             catch (Exception ex)
             {

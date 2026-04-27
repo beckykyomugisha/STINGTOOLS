@@ -257,6 +257,56 @@ namespace StingTools.Core.Placement
             }
         }
 
+        private struct BoxIndexEntry
+        {
+            public string FamilyName;
+            public string TypeName;
+            public string LocationId;
+            public XYZ Origin;
+        }
+
+        private readonly Dictionary<ElementId, List<BoxIndexEntry>> _boxIndexCache
+            = new Dictionary<ElementId, List<BoxIndexEntry>>();
+
+        private List<BoxIndexEntry> GetBoxIndexForRoom(Room room, string paramName)
+        {
+            if (_boxIndexCache.TryGetValue(room.Id, out var cached)) return cached;
+            var list = new List<BoxIndexEntry>();
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                if (bb != null)
+                {
+                    var pad = 0.5;
+                    var outline = new Outline(
+                        new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                        new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
+                    var bbf = new BoundingBoxIntersectsFilter(outline);
+                    foreach (var el in new FilteredElementCollector(_doc)
+                        .OfClass(typeof(FamilyInstance)).WherePasses(bbf))
+                    {
+                        if (!(el is FamilyInstance fi)) continue;
+                        var p = fi.LookupParameter(paramName);
+                        if (p == null || !p.HasValue || p.StorageType != StorageType.String) continue;
+                        string id = p.AsString() ?? "";
+                        if (string.IsNullOrEmpty(id)) continue;
+                        XYZ origin = (fi.Location as LocationPoint)?.Point;
+                        if (origin == null) continue;
+                        list.Add(new BoxIndexEntry
+                        {
+                            FamilyName = fi.Symbol?.Family?.Name ?? "",
+                            TypeName   = fi.Symbol?.Name ?? "",
+                            LocationId = id,
+                            Origin     = origin,
+                        });
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetBoxIndexForRoom {room.Id}: {ex.Message}"); }
+            _boxIndexCache[room.Id] = list;
+            return list;
+        }
+
         private void EmitConduitBoxMatched(Room room, PlacementRule rule,
             double anchorZ, double offsetXFt, double offsetYFt, List<XYZ> points)
         {
@@ -271,33 +321,46 @@ namespace StingTools.Core.Placement
                 }
                 string paramName = string.IsNullOrEmpty(rule.BoxLocationIdParam)
                     ? ParamRegistry.BOX_LOCATION_ID : rule.BoxLocationIdParam;
-                var bb = room.get_BoundingBox(null);
-                if (bb == null) return;
-                var pad = 0.5;
-                var outline = new Outline(
-                    new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
-                    new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
-                var bbf = new BoundingBoxIntersectsFilter(outline);
-                foreach (var el in new FilteredElementCollector(_doc)
-                    .OfClass(typeof(FamilyInstance)).WherePasses(bbf))
+                foreach (var entry in GetBoxIndexForRoom(room, paramName))
                 {
-                    if (!(el is FamilyInstance fi)) continue;
-                    if (rx != null)
-                    {
-                        string famName = fi.Symbol?.Family?.Name ?? "";
-                        string typeName = fi.Symbol?.Name ?? "";
-                        if (!rx.IsMatch(famName) && !rx.IsMatch(typeName)) continue;
-                    }
-                    var p = fi.LookupParameter(paramName);
-                    if (p == null || !p.HasValue || p.StorageType != StorageType.String) continue;
-                    string id = p.AsString() ?? "";
-                    if (string.IsNullOrEmpty(id)) continue;
-                    XYZ origin = (fi.Location as LocationPoint)?.Point;
-                    if (origin == null) continue;
-                    points.Add(new XYZ(origin.X + offsetXFt, origin.Y + offsetYFt, anchorZ));
+                    if (rx != null && !rx.IsMatch(entry.FamilyName) && !rx.IsMatch(entry.TypeName))
+                        continue;
+                    points.Add(new XYZ(entry.Origin.X + offsetXFt, entry.Origin.Y + offsetYFt, anchorZ));
                 }
             }
             catch (Exception ex) { StingLog.Warn($"EmitConduitBoxMatched: {ex.Message}"); }
+        }
+
+        private readonly Dictionary<ElementId, List<XYZ>> _outletCache
+            = new Dictionary<ElementId, List<XYZ>>();
+
+        private List<XYZ> GetOutletPositions(Room room)
+        {
+            if (_outletCache.TryGetValue(room.Id, out var hit)) return hit;
+            var outlets = new List<XYZ>();
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                if (bb != null)
+                {
+                    var pad = 0.5;
+                    var outline = new Outline(
+                        new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                        new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
+                    var bbf = new BoundingBoxIntersectsFilter(outline);
+                    foreach (var el in new FilteredElementCollector(_doc)
+                        .OfCategory(BuiltInCategory.OST_ElectricalFixtures)
+                        .WhereElementIsNotElementType()
+                        .WherePasses(bbf))
+                    {
+                        XYZ p = (el.Location as LocationPoint)?.Point;
+                        if (p != null) outlets.Add(p);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetOutletPositions {room.Id}: {ex.Message}"); }
+            _outletCache[room.Id] = outlets;
+            return outlets;
         }
 
         private void EmitCeilingVoidAboveBox(Room room, PlacementRule rule,
@@ -307,20 +370,7 @@ namespace StingTools.Core.Placement
             {
                 var bb = room.get_BoundingBox(null);
                 if (bb == null) return;
-                var outletPositions = new List<XYZ>();
-                var pad = 0.5;
-                var outline = new Outline(
-                    new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
-                    new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
-                var bbf = new BoundingBoxIntersectsFilter(outline);
-                foreach (var el in new FilteredElementCollector(_doc)
-                    .OfCategory(BuiltInCategory.OST_ElectricalFixtures)
-                    .WhereElementIsNotElementType()
-                    .WherePasses(bbf))
-                {
-                    XYZ p = (el.Location as LocationPoint)?.Point;
-                    if (p != null) outletPositions.Add(p);
-                }
+                var outletPositions = GetOutletPositions(room);
                 if (outletPositions.Count < 2) return;
                 for (int i = 0; i < outletPositions.Count - 1; i++)
                 {
