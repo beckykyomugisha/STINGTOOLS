@@ -140,7 +140,7 @@ namespace StingTools.Core.Placement
             if (obstructions == null || obstructions.Count == 0) return false;
             foreach (var r in obstructions)
             {
-                if (r == null) continue;
+                // ExclusionRect is a readonly struct — no null check needed.
                 if (r.Contains(pt.X, pt.Y)) return true;
                 double dx = Math.Max(0.0, Math.Max(r.MinX - pt.X, pt.X - r.MaxX));
                 double dy = Math.Max(0.0, Math.Max(r.MinY - pt.Y, pt.Y - r.MaxY));
