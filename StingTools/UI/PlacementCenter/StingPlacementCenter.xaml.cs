@@ -371,6 +371,53 @@ namespace StingTools.UI.PlacementCenter
                 return;
             }
 
+            // Phase 139.9 — pre-flight: warn the user about ticked categories
+            // that have ZERO loaded FamilySymbols. Without this check the
+            // engine prints "No FamilySymbol found for category 'X' — skipping
+            // its rules" once per category and silently zeros that category's
+            // placements, leaving the run with 0 placed for an unticked
+            // reason. Mirrors the dock-panel PlaceFixturesCommand pre-flight.
+            try
+            {
+                var categoriesInUse = new System.Collections.Generic.HashSet<string>(
+                    rules.Select(r => r.CategoryFilter ?? "")
+                         .Where(s => !string.IsNullOrEmpty(s)),
+                    System.StringComparer.OrdinalIgnoreCase);
+                var emptyCats = new System.Collections.Generic.List<string>();
+                foreach (var cat in categoriesInUse)
+                {
+                    bool hasSymbol = false;
+                    foreach (var el in new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol)))
+                    {
+                        if (el is FamilySymbol fs && fs.Category != null
+                            && string.Equals(fs.Category.Name, cat, System.StringComparison.OrdinalIgnoreCase))
+                        { hasSymbol = true; break; }
+                    }
+                    if (!hasSymbol) emptyCats.Add(cat);
+                }
+                if (emptyCats.Count > 0)
+                {
+                    var td2 = new TaskDialog("STING — Placement Centre · Categories with no family loaded")
+                    {
+                        MainInstruction = $"{emptyCats.Count} categor{(emptyCats.Count == 1 ? "y has" : "ies have")} no FamilySymbol loaded",
+                        MainContent =
+                            "These categories will silently drop all their rules:\n  " +
+                            string.Join("\n  ", emptyCats.Take(15)) +
+                            (emptyCats.Count > 15 ? $"\n  + {emptyCats.Count - 15} more" : "") +
+                            "\n\nLoad at least one family per category and run Placement_AuditSetup to verify. Continue anyway?",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton = TaskDialogResult.No,
+                    };
+                    if (td2.Show() != TaskDialogResult.Yes)
+                    {
+                        VM.Status = "Run cancelled — categories with no families loaded.";
+                        UpdateStatus();
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PlacementCenter pre-flight family check: {ex.Message}"); }
+
             // Confirm with a summary so the run isn't silently destructive.
             string catLine = allowed.Count == 0
                 ? "Categories: ALL (checklist empty)"
@@ -452,6 +499,46 @@ namespace StingTools.UI.PlacementCenter
 
             VM.Status = $"Placed {placed} · skipped {skipped} · warnings {warns}";
             UpdateStatus();
+
+            // Phase 139.9 — rich result panel so the user sees what landed
+            // (or didn't) without having to read the bottom status bar.
+            try
+            {
+                var panel = StingResultPanel.Create("STING — Placement Centre · Run");
+                panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s)");
+                panel.AddSection("SUMMARY")
+                    .Metric("Rooms scoped",         roomIds.Count.ToString())
+                    .Metric("Rules considered",     rules.Count.ToString())
+                    .Metric("Candidates evaluated", (result?.CandidatesEvaluated ?? 0).ToString())
+                    .Metric("Placed",               placed.ToString())
+                    .Metric("Skipped",              skipped.ToString());
+
+                if (result?.CountsByRule != null && result.CountsByRule.Count > 0)
+                {
+                    panel.AddSection("PER-RULE COUNTS");
+                    foreach (var kv in result.CountsByRule.OrderByDescending(k => k.Value).Take(20))
+                        panel.Metric(kv.Key, kv.Value.ToString());
+                }
+
+                if (placed == 0)
+                {
+                    panel.AddSection("ZERO PLACED — common causes")
+                        .Text("• Ticked category has no FamilySymbol loaded (engine prints 'No FamilySymbol found for category X' in warnings).")
+                        .Text("• RoomFilter regex doesn't match the active rooms (check rule's RoomFilter against the room name in Properties).")
+                        .Text("• PlacementHostPreflight rejected every candidate (hosted family with no host element nearby).")
+                        .Text("• Run Placement_AuditSetup to confirm shared parameters bound + families loaded.");
+                }
+
+                if (result?.Warnings != null && result.Warnings.Count > 0)
+                {
+                    panel.AddSection("WARNINGS");
+                    foreach (var w in result.Warnings.Take(30)) panel.Text(w);
+                    if (result.Warnings.Count > 30)
+                        panel.Text($"(+{result.Warnings.Count - 30} more — see StingLog)");
+                }
+                panel.Show();
+            }
+            catch (Exception pEx) { StingLog.Warn($"PlacementCenter post-run panel: {pEx.Message}"); }
 
             // History panel is the source of truth for "what just happened" —
             // refresh it so the new bucket appears immediately, before any

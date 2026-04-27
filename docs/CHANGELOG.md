@@ -4212,3 +4212,31 @@ Fix:
   the allowed categories so the user can see what the run will and
   won't touch.
 
+
+#### Completed (Phase 139.9 — Centre pre-flight + rich result panel)
+
+User reported: Centre's Run Placement said "Place fixtures in 12
+room(s)?", progress bar ran, validation panel showed 0 / 0 / 0 / 0.
+No information about what (if anything) was placed.
+
+Root cause: the Placement Centre's run path
+(`OnRunPlacement_Click`) did not have the pre-flight family-loaded
+check that Phase 139.7 added to the dock-panel `PlaceFixturesCommand`.
+If the user ticked Electrical Fixtures / Lighting Devices / Lighting
+Fixtures but those categories had no FamilySymbols loaded, the engine
+silently zero-placed every rule for those categories. The Centre also
+had no rich result panel — only a one-line status bar update — so
+zero placements looked indistinguishable from "ran successfully".
+
+Fixes:
+
+- Pre-flight family check (mirrors PlaceFixturesCommand): walks
+  every category that the filtered rule set targets, lists those
+  with zero loaded FamilySymbols, asks the user to continue or
+  cancel before any work is committed.
+- Rich result panel (StingResultPanel): SUMMARY + PER-RULE COUNTS
+  + WARNINGS sections; when zero placed, adds an explicit
+  "ZERO PLACED — common causes" section pointing at the four most
+  common reasons (no family loaded, RoomFilter mismatch, host
+  pre-flight rejection, audit not run).
+
