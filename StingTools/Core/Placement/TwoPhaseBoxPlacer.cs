@@ -132,6 +132,11 @@ namespace StingTools.Core.Placement
                             result?.PlacedIds.Add(pf.Placed.Id);
                             string ck = "two-phase:first-fix:" + rule.MergeKey;
                             result.CountsByRule[ck] = result.CountsByRule.TryGetValue(ck, out var n) ? n + 1 : 1;
+                            // Phase 139.4 — fire post-placement hooks so two-phase
+                            // boxes get the same data-tag / COBie / system pipeline
+                            // as a normal Place run. RunFor swallows its own errors.
+                            try { PostPlacementHooks.RunFor(pf.Placed, rule); }
+                            catch (Exception hkEx) { result?.Warnings.Add($"PostHook(first-fix): {hkEx.Message}"); }
                         }
                         catch (Exception ex)
                         {
@@ -230,6 +235,8 @@ namespace StingTools.Core.Placement
                             result?.PlacedIds.Add(pf.Placed.Id);
                             string ck = "two-phase:second-fix:" + rule.MergeKey;
                             result.CountsByRule[ck] = result.CountsByRule.TryGetValue(ck, out var n) ? n + 1 : 1;
+                            try { PostPlacementHooks.RunFor(pf.Placed, rule); }
+                            catch (Exception hkEx) { result?.Warnings.Add($"PostHook(second-fix): {hkEx.Message}"); }
                         }
                         catch (Exception ex)
                         {

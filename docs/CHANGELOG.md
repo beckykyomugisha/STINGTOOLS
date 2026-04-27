@@ -3950,3 +3950,62 @@ Routing accuracy claim:
 
 New command tag: `Placement_RunWallChase` registered in `StingCommandHandler`.
 
+
+#### Completed (Phase 139.4 — Workflow Audit Fixes + Auto-Sleeve)
+
+Acted on a 43-finding workflow audit covering the Phase 139.0–139.3
+placement-centre pipeline. Fixed every P1 plus the high-value P2s; the
+large-scope items (linked-model awareness, multi-storey routing,
+ClashTriageEngine integration, A* chase routing, partial-rollback) are
+deferred to their own design pass.
+
+**P1 fixes:**
+- `PlacementScorer.GenerateAnchorPoints` falls back to the room
+  bounding-box centroid when `LocationPoint` is null (degraded DWG
+  imports) so anchors still emit.
+- `InWallChaseRouter.Route` distinguishes "wall has no compound
+  structure" (warn but continue) from "pipe doesn't fit" (reject).
+- `FixturePlacementEngine.ComputeCap` for `Density` rules with no rate
+  declared now logs at load time + caps at 1 fixture per room.
+- `TwoPhaseBoxPlacer.PlaceFirstFixBoxes` and `PlaceSecondFixDevices`
+  now invoke `PostPlacementHooks.RunFor` on every placed box so
+  two-phase output gets the data-tag / COBie / system pipeline.
+- `PlacementRuleLoader.MergeRules` logs a warning when two baseline
+  packs declare the same `RuleId / MergeKey`.
+
+**P2 fixes:**
+- Loader validates every rule on load: `Density` without a rate,
+  `RoutingMode != NONE` without `RouteSegmentCategory`, and the
+  `TwoPhaseEnabled + IsClusterMember` contradiction (cluster
+  membership is force-disabled on the offending rule).
+- `InWallChaseRouter.ProjectAndOffset` honours `rule.MountingHeightMm`
+  so chase pipes sit at the rule's declared height above the wall's
+  level origin instead of preserving the picked Z.
+- `RunWallChaseCommand` now runs a preview pass inside a rolled-back
+  TransactionGroup, shows the depth-check + sleeve count to the user,
+  and only commits on Yes.
+- `FixturePlacementEngine.ResolveSymbol` applies `OfCategory(bic)`
+  before `OfClass(typeof(FamilySymbol))` via a new
+  `ResolveBuiltInCategoryByName` helper cached per document — the
+  collector now uses Revit's native category index instead of walking
+  every symbol.
+- `PlacementScorer.ScoreManufacturerResolution` indexes loaded family
+  category alongside name; a name match in the wrong category now
+  scores 0.5 instead of the previous false 1.0.
+
+**Auto-sleeve integration:**
+- `InWallChaseRouter` now calls `SleeveEngine.PlaceSleeves` on every
+  created pipe segment after routing. Sleeves auto-cut the host wall
+  and drop a `STING_SLEEVE_ROUND` (or fallback) family at every
+  penetration. Surfaced via the new `SleevesPlaced` field on
+  `ChaseRouteResult` and reported in the `RunWallChaseCommand`
+  TaskDialog.
+
+**Deferred (own design pass):**
+- Linked-model awareness in `StructuralAwareness` (#27, #32).
+- Multi-storey chase / vertical-drop handling (#31).
+- `ClashTriageEngine` post-placement scan (#25).
+- A* / VoxelGrid pathfinding for chase routing (#22).
+- TransactionGroup partial-rollback per rule (#36).
+- `WarningsManager` persistence + SLA dashboard surface (#26).
+

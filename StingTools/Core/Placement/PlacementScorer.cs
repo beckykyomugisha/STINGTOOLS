@@ -162,6 +162,21 @@ namespace StingTools.Core.Placement
             {
                 StingLog.Warn($"PlacementScorer: room {room.Id} LocationPoint read failed: {ex.Message}");
             }
+            // Phase 139.4 — degraded DWG-imported rooms can lack a LocationPoint
+            // (linked / un-placed / phase-mismatched). Fall back to the room's
+            // bounding-box centroid so anchor generation still produces
+            // candidates instead of silently returning empty.
+            if (roomPt == null)
+            {
+                try
+                {
+                    var bb = room.get_BoundingBox(null);
+                    if (bb != null) roomPt = (bb.Min + bb.Max) * 0.5;
+                }
+                catch (Exception ex) { StingLog.Warn($"PlacementScorer: room {room.Id} bbox fallback failed: {ex.Message}"); }
+                if (roomPt != null)
+                    StingLog.Info($"PlacementScorer: room {room.Id} has no LocationPoint — using bbox centroid.");
+            }
             if (roomPt == null) return points;
 
             // PC-06 — full 3-D offset and rotation read once per rule.
@@ -510,6 +525,7 @@ namespace StingTools.Core.Placement
         /// instance so we don't run FilteredElementCollector per candidate.
         /// </summary>
         private HashSet<string> _loadedFamilyNames;
+        private Dictionary<string, string> _loadedFamilyCategoryByName;
         private double ScoreManufacturerResolution(PlacementRule rule)
         {
             if (rule == null || string.IsNullOrEmpty(rule.CatalogueRef)) return 0.0;
@@ -521,12 +537,29 @@ namespace StingTools.Core.Placement
                 if (_doc == null) return 0.5;
                 if (_loadedFamilyNames == null)
                 {
+                    // Phase 139.4 — index loaded families by name AND category so
+                    // we don't reward a name match when the family lives in the
+                    // wrong category (e.g. 'MK_LogicPlus_1G_Flush' loaded as a
+                    // generic-model would otherwise score 1.0 against a
+                    // 'Lighting Devices' rule).
                     _loadedFamilyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    _loadedFamilyCategoryByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var el in new FilteredElementCollector(_doc).OfClass(typeof(Family)))
                         if (el is Family fam && !string.IsNullOrEmpty(fam.Name))
+                        {
                             _loadedFamilyNames.Add(fam.Name);
+                            string catName = fam.FamilyCategory?.Name ?? "";
+                            if (!string.IsNullOrEmpty(catName))
+                                _loadedFamilyCategoryByName[fam.Name] = catName;
+                        }
                 }
-                return _loadedFamilyNames.Contains(entry.RevitFamilyName) ? 1.0 : 0.5;
+                if (!_loadedFamilyNames.Contains(entry.RevitFamilyName)) return 0.5;
+                // Verify the loaded family lives in the rule's expected category.
+                if (!string.IsNullOrEmpty(rule.CategoryFilter)
+                    && _loadedFamilyCategoryByName.TryGetValue(entry.RevitFamilyName, out var loadedCat)
+                    && !string.Equals(loadedCat, rule.CategoryFilter, StringComparison.OrdinalIgnoreCase))
+                    return 0.5;
+                return 1.0;
             }
             catch (Exception ex)
             {

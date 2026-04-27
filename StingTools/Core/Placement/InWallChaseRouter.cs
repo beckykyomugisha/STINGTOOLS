@@ -95,11 +95,22 @@ namespace StingTools.Core.Placement
 
             try
             {
-                // 1. Compound-structure depth check.
+                // 1. Compound-structure depth check — distinguish three states:
+                //    (a) wall has no compound structure (basic wall) → accept
+                //        with warning, designer must verify on site.
+                //    (b) compound structure present but pipe doesn't fit → reject.
+                //    (c) compound structure present and pipe fits → continue.
                 var depthCheck = ResolveChaseDepth(hostWall, rule);
                 result.AvailableChaseDepthMm = depthCheck.availableMm;
                 result.RequiredChaseDepthMm  = depthCheck.requiredMm;
-                if (depthCheck.availableMm > 0 && depthCheck.requiredMm > depthCheck.availableMm)
+                if (depthCheck.availableMm <= 0)
+                {
+                    result.Warnings.Add(
+                        $"InWallChaseRouter: wall '{hostWall.WallType?.Name}' has no compound " +
+                        $"structure or no detectable finish layers — chase depth could not be " +
+                        $"computed (required {depthCheck.requiredMm:F0}mm). Verify on site.");
+                }
+                else if (depthCheck.requiredMm > depthCheck.availableMm)
                 {
                     result.Warnings.Add(
                         $"InWallChaseRouter: required chase depth {depthCheck.requiredMm:F0}mm exceeds " +
@@ -261,6 +272,23 @@ namespace StingTools.Core.Placement
                 XYZ wallNormal = wall.Orientation ?? XYZ.BasisX;
                 double offsetFt = (rule.RouteOffsetMm) * MmToFt;
 
+                // Phase 139.4 — when the rule declares a MountingHeightMm,
+                // chase pipes sit at that height above the wall's level
+                // origin (FFL). Otherwise we keep the picked Z so designers
+                // can drag-route at any height.
+                double? targetZFt = null;
+                if (rule.MountingHeightMm > 0)
+                {
+                    double levelZ = 0.0;
+                    try
+                    {
+                        if (wall.LevelId != null && wall.LevelId != ElementId.InvalidElementId)
+                            levelZ = ((wall.Document.GetElement(wall.LevelId) as Level)?.Elevation) ?? 0.0;
+                    }
+                    catch { }
+                    targetZFt = levelZ + rule.MountingHeightMm * MmToFt;
+                }
+
                 foreach (var p in rawPoints)
                 {
                     if (p == null) continue;
@@ -270,7 +298,7 @@ namespace StingTools.Core.Placement
                     XYZ inset = new XYZ(
                         onCurve.X + wallNormal.X * offsetFt,
                         onCurve.Y + wallNormal.Y * offsetFt,
-                        p.Z); // preserve original Z so the run sits at the rule's mounting height
+                        targetZFt ?? p.Z);
                     routed.Add(inset);
                 }
             }

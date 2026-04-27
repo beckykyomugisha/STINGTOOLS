@@ -51,6 +51,33 @@ namespace StingTools.Commands.Placement
                 var router = new InWallChaseRouter(doc, structural);
                 InWallChaseRouter.ChaseRouteResult outcome;
 
+                // Phase 139.4 — preview pass: route inside a TransactionGroup
+                // that we always roll back, so the user sees the depth-check
+                // verdict + warnings without committing. If they confirm, we
+                // run the live pass in a fresh Transaction.
+                using (var tg = new TransactionGroup(doc, "STING Chase Preview"))
+                {
+                    tg.Start();
+                    using (var ptx = new Transaction(doc, "STING Chase Preview Inner"))
+                    {
+                        ptx.Start();
+                        outcome = router.Route(wall, p1, p2, rule,
+                            ElementId.InvalidElementId, ElementId.InvalidElementId);
+                        ptx.RollBack();
+                    }
+                    tg.RollBack();
+                }
+
+                var confirmDialog = new TaskDialog("STING - Wall Chase Preview")
+                {
+                    MainInstruction = $"Preview: {outcome.CreatedSegments.Count} pipe(s), {outcome.RejectedSegments} rejected, {outcome.SleevesPlaced} sleeve(s).",
+                    MainContent = $"Available chase depth: {outcome.AvailableChaseDepthMm:F0} mm\nRequired: {outcome.RequiredChaseDepthMm:F0} mm\n\nCommit?",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No,
+                };
+                if (confirmDialog.Show() != TaskDialogResult.Yes)
+                    return Result.Cancelled;
+
                 using (var tx = new Transaction(doc, "STING In-Wall Chase Route"))
                 {
                     tx.Start();
