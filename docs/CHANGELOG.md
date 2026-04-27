@@ -3876,3 +3876,77 @@ Caveats:
   - Title block / pendant / BESA Revit families are not shipped — rule
     `FamilyTypeRegex` patterns assume the conventional names listed in
     `STING_MANUFACTURER_CATALOGUE.json`.
+
+#### Completed (Phase 139.3 — Structural Awareness, In-Wall Chase Routing, Enhancement Gaps)
+
+Wraps the existing structural intelligence engines behind a placement-time
+adapter, adds an in-wall pipe chase router, and closes the gaps surfaced
+by the Phase 139.2 review.
+
+Research outcome:
+  Of the methods proposed for integration, only three turn out to be
+  useful at placement time:
+    - `StructuralModelingEngine.AnalyzeLoadPaths`  → load-bearing element set
+    - `StructuralCADPipeline.DetectJunctions`      → forbidden routing zones
+    - `StructuralDWGEnhancements.OpeningDetector`  → live-model
+                                                     `Wall.FindInserts` is
+                                                     the equivalent at
+                                                     placement time
+  `DetectStructuralWalls` and `FindOrCreateBeamType` are DWG/family-author
+  paths; `DetectCircularColumns` does not exist (closest is
+  `CADToModelEngine.DetectColumns`). Skipped.
+
+New classes:
+  - `Core/Placement/StructuralAwareness.cs` — adapter built on the live
+    model: `IsLoadBearing(el)`, `IsNearJunction(pt, clearance)`,
+    `GetWallOpenings(wall)`, `PointIsInOpening(...)`, `SegmentIsRoutable(...)`.
+    Cached per-document; never throws.
+  - `Core/Placement/InWallChaseRouter.cs` — chase pipe router that:
+      1. Reads `Wall.WallType.GetCompoundStructure()` and rejects routes
+         when (pipe OD + 2 × insulation + clearance) > available chase depth.
+      2. Projects endpoints onto the wall location curve and offsets by
+         `RouteOffsetMm` along the wall's interior normal (true parallel,
+         not centroid-biased).
+      3. Validates each segment via `StructuralAwareness.SegmentIsRoutable`
+         and permits routing through wall openings.
+      4. Falls back to `Conduit.Create` when `RouteSegmentCategory = "Conduit"`.
+  - `Commands/Placement/RunWallChaseCommand.cs` — pick wall + 2 points,
+    runs the router, reports available vs required chase depth.
+
+New data files:
+  - `Data/Placement/STING_PLACEMENT_RULES.in-wall-chase.json` (5 rules:
+    15 mm cold, 15 mm hot insulated, 22 mm radiator feed, 40 mm waste,
+    25 mm electrical conduit chase) — cited against BS 6700, BS EN 806,
+    BS EN 12056, BS EN 12828, BS 7671.
+
+Enhancement gaps closed (Part C):
+  - **MK pack:** added `mk-fcu-healthcare-pendant` (HTM 06-01 bedhead FCU)
+    and `mk-cooker-circuit-feeder` (45 A connection unit) — total now 36.
+  - **Lux grid sprinkler separation:** `LightingGridCalculator` runs
+    `CheckSprinklerSeparation` (BS 5306-2 / BS EN 12845 ≥ 600 mm rule)
+    after tile snap + structural fixing checks; affected grid points are
+    dropped with a warning.
+  - **Workset-keyed two-phase matching:** `TwoPhaseBoxPlacer` first-fix
+    pass now stamps `<guid>|ws=<worksetId>` so a coordination-model swap
+    that re-creates boxes on a different workset still matches the
+    correct second-fix device.
+
+VG / view-style packs (Part A):
+  - Added `Lighting Devices` and `Junction Boxes` rows to `corp-base`
+    (Phase 139.2 rule packs already reference these categories).
+  - Added two corporate filter rules: `STING - First-Fix Phase`
+    (halftone grey) and `STING - Noggin Required` (orange high-vis) so
+    construction-phase boxes and Phase 139.2 noggin-required pendants
+    can be highlighted on issue drawings without a per-discipline
+    override.
+
+Routing accuracy claim:
+  The chase router targets ~95 % accuracy on a clean federated model.
+  100 % accuracy is not achievable through the Revit MEP API: in-wall
+  studs/noggins not modelled cannot be detected, and `Pipe.Create` will
+  not reject penetrations of structural elements without explicit
+  pre-checks (which this router does run, but which depend on the
+  structural model being current).
+
+New command tag: `Placement_RunWallChase` registered in `StingCommandHandler`.
+

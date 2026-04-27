@@ -46,6 +46,7 @@ namespace StingTools.Core.Placement
             ("STING_PLACEMENT_RULES.mk-electrical.json",         "MK_Electrical"),
             ("STING_PLACEMENT_RULES.ceiling-pendants.json",      "Ceiling_Pendants"),
             ("STING_PLACEMENT_RULES.conduiting-phase.json",      "Conduiting_Phase"),
+            ("STING_PLACEMENT_RULES.in-wall-chase.json",         "InWall_Chase"),
         };
 
         /// <summary>

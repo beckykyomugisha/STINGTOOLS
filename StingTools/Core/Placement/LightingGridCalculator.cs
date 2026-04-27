@@ -123,6 +123,7 @@ namespace StingTools.Core.Placement
             {
                 if (rule.CeilingTileSnap) SnapToCeilingTileGrid(room, r, rule);
                 if (rule.StructuralFixingCheck) CheckStructuralFixing(room, r, rule);
+                CheckSprinklerSeparation(room, r);   // Phase 139.3 — BS 5306 ≥600mm
                 ComputeUniformityRatio(room, r);
             }
 
@@ -390,6 +391,69 @@ namespace StingTools.Core.Placement
             catch (Exception ex)
             {
                 StingLog.Warn($"LightingGridCalculator.CheckStructuralFixing: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Phase 139.3 — BS 5306-2 / BS EN 12845 require ≥ 600 mm clear
+        /// horizontal distance between a sprinkler head and any obstruction
+        /// to spray pattern (lighting fixtures count). Push grid points
+        /// outside the 600 mm exclusion ring of every sprinkler in scope;
+        /// when no clear nudge is possible, drop the point and warn.
+        /// </summary>
+        private void CheckSprinklerSeparation(Room room, LightingGridResult r)
+        {
+            try
+            {
+                Document doc = room?.Document;
+                if (doc == null || r.Points.Count == 0) return;
+                const double minSepFt = 600.0 / 304.8;
+                double minSepSq = minSepFt * minSepFt;
+
+                var bb = room.get_BoundingBox(null);
+                if (bb == null) return;
+                double pad = minSepFt + 0.5;
+                var outline = new Outline(
+                    new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                    new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + 5.0));
+                var bbf = new BoundingBoxIntersectsFilter(outline);
+
+                var sprinklers = new List<XYZ>();
+                foreach (var el in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Sprinklers)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(bbf))
+                {
+                    XYZ p = (el.Location as LocationPoint)?.Point;
+                    if (p != null) sprinklers.Add(p);
+                }
+                if (sprinklers.Count == 0) return;
+
+                int dropped = 0;
+                var keep = new List<XYZ>();
+                foreach (var pt in r.Points)
+                {
+                    bool conflict = false;
+                    foreach (var s in sprinklers)
+                    {
+                        double dx = s.X - pt.X, dy = s.Y - pt.Y;
+                        if (dx * dx + dy * dy < minSepSq) { conflict = true; break; }
+                    }
+                    if (conflict) dropped++; else keep.Add(pt);
+                }
+
+                if (dropped > 0)
+                {
+                    r.Points.Clear();
+                    r.Points.AddRange(keep);
+                    r.FixturesPlaced = r.Points.Count;
+                    r.Warnings.Add(
+                        $"BS 5306-2: {dropped} luminaire grid point(s) within 600 mm of a sprinkler — dropped.");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LightingGridCalculator.CheckSprinklerSeparation: {ex.Message}");
             }
         }
 

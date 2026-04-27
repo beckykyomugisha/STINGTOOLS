@@ -151,6 +151,8 @@ namespace StingTools.UI
                         RunCommand<Commands.Placement.PlacementRulesExcelExportCommand>(app); break;
                     case "Placement_ImportRulesExcel":
                         RunCommand<Commands.Placement.PlacementRulesExcelImportCommand>(app); break;
+                    case "Placement_RunWallChase":
+                        RunCommand<Commands.Placement.RunWallChaseCommand>(app); break;
 
                     // ── v4 MVP: auto-drop routing (Phase 3) ──
                     case "Routing_AutoDrop":         RunCommand<Commands.Routing.AutoDropCommand>(app); break;

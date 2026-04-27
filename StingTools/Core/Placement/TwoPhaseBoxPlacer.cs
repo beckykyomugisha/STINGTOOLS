@@ -112,12 +112,23 @@ namespace StingTools.Core.Placement
                                 if (!string.IsNullOrEmpty(pf.Reason)) result?.Warnings.Add(pf.Reason);
                                 continue;
                             }
+                            // Phase 139.3 — encode workset id alongside the GUID so the
+                            // matcher survives a coordination-model swap that re-creates
+                            // boxes on a different workset. Format: "<guid>|ws=<wsId>".
                             string guid = Guid.NewGuid().ToString();
+                            string wsTag = "";
+                            try
+                            {
+                                if (doc.IsWorkshared && pf.Placed.WorksetId != null)
+                                    wsTag = "|ws=" + pf.Placed.WorksetId.IntegerValue;
+                            }
+                            catch { }
+                            string composite = guid + wsTag;
                             string paramName = string.IsNullOrEmpty(rule.BoxLocationIdParam)
                                 ? ParamRegistry.BOX_LOCATION_ID : rule.BoxLocationIdParam;
-                            TrySetString(pf.Placed, paramName, guid);
+                            TrySetString(pf.Placed, paramName, composite);
                             TrySetPhase(pf.Placed, phase);
-                            index[guid] = cand.Position;
+                            index[composite] = cand.Position;
                             result?.PlacedIds.Add(pf.Placed.Id);
                             string ck = "two-phase:first-fix:" + rule.MergeKey;
                             result.CountsByRule[ck] = result.CountsByRule.TryGetValue(ck, out var n) ? n + 1 : 1;
