@@ -4300,3 +4300,33 @@ Fix:
   re-open the Centre" message if for some reason the eager create
   failed; it never tries to create on the WPF thread.
 
+
+#### Completed (Phase 139.11 — pre-flight responsiveness)
+
+User reported the run dialog stayed on "0 / 12 · Starting… · Estimating…"
+for an extended period with no apparent progress. Engine was not
+hung — it was burning seconds in the pre-flight phase before the
+first per-room callback fired.
+
+Two fixes:
+
+1. **Skip catalogue auto-populate when not needed.**
+   `FixturePlacementEngine` only calls
+   `ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(doc)` when the
+   active rule set actually references manufacturer fields
+   (`ManufacturerCode`, `CatalogueRef`, or `IsClusterMember`). On a
+   project with several thousand FamilySymbols and no MK rules in the
+   ticked categories, the catalogue walk can take 30+ seconds with no
+   feedback; this skip eliminates that cost entirely for runs that
+   don't need it.
+
+2. **Pre-flight heartbeat in the progress dialog.**
+   `StingPlacementCenter.OnRunPlacement_Click` now sets the dialog
+   status to "Pre-flight — scanning loaded families…" before raising
+   the `ExternalEvent`, and starts a background ticker that updates
+   the status every 1.5 seconds with elapsed time so the dialog
+   can't look frozen. The ticker self-terminates the moment the
+   engine fires its first per-room progress callback (room 1 of N
+   reached) and is cancelled in the `finally` block as a belt-and-
+   braces guarantee.
+
