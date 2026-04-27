@@ -31,6 +31,100 @@ namespace StingTools.Core.Drawing
 
     public static class ViewStylePackApplier
     {
+        // PERF-02: per-document caches so filter / category lookups don't
+        // run a fresh FilteredElementCollector on every filter rule and a
+        // fresh doc.Settings.Categories scan on every category override.
+        // Cleared by DrawingTypeRegistry.Reload(doc).
+        private static readonly object _cacheLock = new object();
+        private static readonly Dictionary<string, Dictionary<string, ElementId>> _categoryCache
+            = new Dictionary<string, Dictionary<string, ElementId>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, Dictionary<string, ElementId>> _filterCache
+            = new Dictionary<string, Dictionary<string, ElementId>>(StringComparer.OrdinalIgnoreCase);
+
+        private static string DocKey(Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch { return "__unknown__"; }
+        }
+
+        public static void InvalidateCache(Document doc)
+        {
+            string key = DocKey(doc);
+            lock (_cacheLock)
+            {
+                if (_categoryCache.ContainsKey(key)) _categoryCache.Remove(key);
+                if (_filterCache.ContainsKey(key))   _filterCache.Remove(key);
+            }
+        }
+
+        private static ElementId ResolveCategoryIdCached(Document doc, string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return ElementId.InvalidElementId;
+            string docKey = DocKey(doc);
+            lock (_cacheLock)
+            {
+                if (_categoryCache.TryGetValue(docKey, out var docMap)
+                    && docMap.TryGetValue(key, out var cached))
+                {
+                    // FIX-4: a Category's id is stable for the lifetime of a
+                    // document, but a sub-category id can be invalidated when
+                    // the user deletes the parent line / fill style. Validate
+                    // before trusting the cached ElementId.
+                    if (cached == ElementId.InvalidElementId) return cached;
+                    if (Category.GetCategory(doc, cached) != null) return cached;
+                    docMap.Remove(key);
+                }
+            }
+            var resolved = ResolveCategoryId(doc, key);
+            lock (_cacheLock)
+            {
+                if (!_categoryCache.TryGetValue(docKey, out var docMap))
+                    _categoryCache[docKey] = docMap = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                docMap[key] = resolved;
+            }
+            return resolved;
+        }
+
+        private static ElementId ResolveFilterIdCached(Document doc, string filterName)
+        {
+            if (string.IsNullOrWhiteSpace(filterName)) return ElementId.InvalidElementId;
+            string docKey = DocKey(doc);
+            lock (_cacheLock)
+            {
+                if (_filterCache.TryGetValue(docKey, out var docMap)
+                    && docMap.TryGetValue(filterName, out var cached))
+                {
+                    // FIX-4: the project may have deleted / re-created the
+                    // ParameterFilterElement since the cache was populated.
+                    // Validate by Id+name before returning.
+                    if (cached == ElementId.InvalidElementId) return cached;
+                    var el = doc.GetElement(cached) as ParameterFilterElement;
+                    if (el != null && string.Equals(el.Name, filterName, StringComparison.OrdinalIgnoreCase))
+                        return cached;
+                    docMap.Remove(filterName);
+                }
+            }
+            ElementId resolved;
+            try
+            {
+                resolved = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ParameterFilterElement))
+                    .Cast<ParameterFilterElement>()
+                    .FirstOrDefault(f => string.Equals(f.Name, filterName, StringComparison.OrdinalIgnoreCase))?.Id
+                    ?? ElementId.InvalidElementId;
+            }
+            catch { resolved = ElementId.InvalidElementId; }
+
+            lock (_cacheLock)
+            {
+                if (!_filterCache.TryGetValue(docKey, out var docMap))
+                    _filterCache[docKey] = docMap = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                docMap[filterName] = resolved;
+            }
+            return resolved;
+        }
+
         public static PackApplyResult Apply(Document doc, View view, ViewStylePack pack)
         {
             var r = new PackApplyResult();
@@ -67,7 +161,7 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var catId = ResolveCategoryId(doc, kv.Key);
+                    var catId = ResolveCategoryIdCached(doc, kv.Key);
                     if (catId == ElementId.InvalidElementId) { r.Warnings.Add($"Category '{kv.Key}' not found."); continue; }
 
                     var src = kv.Value;
@@ -116,16 +210,13 @@ namespace StingTools.Core.Drawing
                 if (string.IsNullOrWhiteSpace(rule.FilterName)) continue;
                 try
                 {
-                    var filter = new FilteredElementCollector(doc)
-                        .OfClass(typeof(ParameterFilterElement))
-                        .Cast<ParameterFilterElement>()
-                        .FirstOrDefault(f => string.Equals(f.Name, rule.FilterName, StringComparison.OrdinalIgnoreCase));
-                    if (filter == null) { r.Warnings.Add($"Filter '{rule.FilterName}' not found — create it first."); continue; }
+                    var filterId = ResolveFilterIdCached(doc, rule.FilterName);
+                    if (filterId == ElementId.InvalidElementId) { r.Warnings.Add($"Filter '{rule.FilterName}' not found — create it first."); continue; }
 
-                    if (!view.GetFilters().Contains(filter.Id))
-                        view.AddFilter(filter.Id);
+                    if (!view.GetFilters().Contains(filterId))
+                        view.AddFilter(filterId);
 
-                    var ogs = view.GetFilterOverrides(filter.Id) ?? new OverrideGraphicSettings();
+                    var ogs = view.GetFilterOverrides(filterId) ?? new OverrideGraphicSettings();
                     if (rule.ProjectionLineWeight.HasValue) ogs.SetProjectionLineWeight(rule.ProjectionLineWeight.Value);
                     if (!string.IsNullOrEmpty(rule.ProjectionLineColor)) ogs.SetProjectionLineColor(HexColor(rule.ProjectionLineColor));
                     if (rule.CutLineWeight.HasValue)        ogs.SetCutLineWeight(rule.CutLineWeight.Value);
@@ -133,8 +224,8 @@ namespace StingTools.Core.Drawing
                     if (rule.Transparency.HasValue)         ogs.SetSurfaceTransparency(Clamp(rule.Transparency.Value, 0, 100));
                     ogs.SetHalftone(rule.Halftone);
 
-                    view.SetFilterOverrides(filter.Id, ogs);
-                    view.SetFilterVisibility(filter.Id, rule.Visible);
+                    view.SetFilterOverrides(filterId, ogs);
+                    view.SetFilterVisibility(filterId, rule.Visible);
                     r.FiltersApplied++;
                 }
                 catch (Exception ex) { r.Warnings.Add($"Filter '{rule.FilterName}': {ex.Message}"); }
@@ -225,7 +316,7 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var catId = ResolveCategoryId(doc, kv.Key);
+                    var catId = ResolveCategoryIdCached(doc, kv.Key);
                     if (catId == ElementId.InvalidElementId) { r.Warnings.Add($"ColorFill category '{kv.Key}' not found — skipped."); continue; }
                     var scheme = schemes.FirstOrDefault(s => string.Equals(s.Name, kv.Value, StringComparison.OrdinalIgnoreCase));
                     if (scheme == null) { r.Warnings.Add($"ColorFillScheme '{kv.Value}' not found — skipped."); continue; }

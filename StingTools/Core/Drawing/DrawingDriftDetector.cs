@@ -45,6 +45,39 @@ namespace StingTools.Core.Drawing
 
     public static class DrawingDriftDetector
     {
+        // PERF-06: reverse index of (stamped DrawingTypeId → list of view ids).
+        // The Scan() pass walked every View in the document and called
+        // DrawingTypeStamper.Read on each, even though most projects only have
+        // a few stamped views. Cache the index per-document so repeated scans
+        // (which happen on every SyncStyles / Inspect press) skip the
+        // FilteredElementCollector + per-element stamp read.
+        private sealed class ScanCache
+        {
+            public Dictionary<long, string> StampByViewId
+                = new Dictionary<long, string>();
+            public bool Valid;
+        }
+
+        private static readonly object _cacheLock = new object();
+        private static readonly Dictionary<string, ScanCache> _cache
+            = new Dictionary<string, ScanCache>(StringComparer.OrdinalIgnoreCase);
+
+        private static string DocKey(Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch { return "__unknown__"; }
+        }
+
+        public static void InvalidateCache(Document doc)
+        {
+            string k = DocKey(doc);
+            lock (_cacheLock)
+            {
+                if (_cache.TryGetValue(k, out var sc)) sc.Valid = false;
+            }
+        }
+
         public static List<DriftReport> Scan(Document doc)
         {
             var reports = new List<DriftReport>();
@@ -63,10 +96,32 @@ namespace StingTools.Core.Drawing
                 if (resolved != null) resolvedById[raw.Id] = resolved;
             }
 
-            foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
+            // PERF-06: build / refresh the reverse index once per Scan call;
+            // the inner loop reads stamp values out of the dictionary instead
+            // of probing every element.
+            ScanCache cache;
+            lock (_cacheLock)
             {
-                if (!(el is View v) || v.IsTemplate) continue;
-                var dtId = DrawingTypeStamper.Read(v);
+                if (!_cache.TryGetValue(DocKey(doc), out cache))
+                    _cache[DocKey(doc)] = cache = new ScanCache();
+            }
+            if (!cache.Valid)
+            {
+                cache.StampByViewId.Clear();
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
+                {
+                    if (!(el is View vv) || vv.IsTemplate) continue;
+                    var s = DrawingTypeStamper.Read(vv);
+                    if (string.IsNullOrWhiteSpace(s)) continue;
+                    cache.StampByViewId[vv.Id.IntegerValue] = s;
+                }
+                cache.Valid = true;
+            }
+
+            foreach (var kv in cache.StampByViewId)
+            {
+                if (!(doc.GetElement(new ElementId(kv.Key)) is View v) || v.IsTemplate) continue;
+                var dtId = kv.Value;
                 if (string.IsNullOrWhiteSpace(dtId)) continue;   // not a STING view
                 if (DrawingTypeStamper.IsLocked(v)) continue;    // user-frozen
 
@@ -177,7 +232,16 @@ namespace StingTools.Core.Drawing
                     ? null
                     : ViewStylePackRegistry.Get(doc, dt.ViewStylePackId);
 
-                string expectedScheme = profile?.ColorScheme ?? pack?.TagColorScheme;
+                // ACC-10: profile wins; only fall back to pack when the
+                // profile is null. An empty-string profile.ColorScheme is
+                // treated as "leave as-is" rather than as a falsy → pack
+                // cascade, so a deliberately-cleared profile slot doesn't
+                // silently re-inherit the pack's scheme.
+                string expectedScheme;
+                if (profile != null && profile.ColorScheme != null)
+                    expectedScheme = profile.ColorScheme;
+                else
+                    expectedScheme = pack?.TagColorScheme;
                 if (!string.IsNullOrEmpty(expectedScheme))
                 {
                     string actual = ReadStringParam(v, ParamRegistry.VIEW_TAG_STYLE);
