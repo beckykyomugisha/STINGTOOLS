@@ -88,6 +88,34 @@ namespace StingTools.Core.Drawing
             try
             {
                 var p = el.LookupParameter(PARAM_DRAWING_TYPE_ID);
+                if (p?.StorageType != StorageType.String) return null;
+                var raw = p.AsString();
+                if (string.IsNullOrEmpty(raw)) return null;
+                // GAP-N: ManagedTemplateSyncer reuses this parameter on its
+                // managed templates to store "pack=…|cs=…". That value is
+                // not a DrawingType id and the registry will return null
+                // for it. Reject here so callers don't waste a registry
+                // lookup nor accidentally show the pack stamp as a DT id
+                // in diagnostics.
+                if (raw.StartsWith("pack=", StringComparison.Ordinal)
+                    || raw.StartsWith("pack:", StringComparison.Ordinal))
+                    return null;
+                return raw;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// GAP-N: raw read for callers that need to inspect the stamp
+        /// without the managed-pack suppression — e.g. drift detection
+        /// on managed templates checks the pack=…|cs=… payload.
+        /// </summary>
+        public static string ReadRaw(Element el)
+        {
+            if (el == null) return null;
+            try
+            {
+                var p = el.LookupParameter(PARAM_DRAWING_TYPE_ID);
                 return p?.StorageType == StorageType.String ? p.AsString() : null;
             }
             catch { return null; }
