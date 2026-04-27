@@ -175,15 +175,20 @@ namespace StingTools.Core.Placement
         {
             try
             {
-                string path = string.IsNullOrEmpty(_loadedPath) ? ResolvePath() : _loadedPath;
-                if (string.IsNullOrEmpty(path)) return;
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                // Snapshot under lock; serialise + write to disk outside the
+                // lock so a slow disk doesn't block other catalogue reads.
                 List<ManufacturerCatalogueEntry> entries;
+                string path;
                 lock (_lock)
+                {
+                    path = string.IsNullOrEmpty(_loadedPath) ? ResolvePath() : _loadedPath;
+                    if (string.IsNullOrEmpty(path)) return;
                     entries = _byKey.Values
                         .OrderBy(e => e.ManufacturerCode, StringComparer.OrdinalIgnoreCase)
                         .ThenBy(e => e.CatalogueRef, StringComparer.OrdinalIgnoreCase)
                         .ToList();
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
                 var root = new RootDoc { Version = "v1", Entries = entries };
                 File.WriteAllText(path, JsonConvert.SerializeObject(root, Formatting.Indented));
             }

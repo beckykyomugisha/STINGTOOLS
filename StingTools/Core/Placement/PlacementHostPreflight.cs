@@ -47,6 +47,28 @@ namespace StingTools.Core.Placement
 
     public static class PlacementHostPreflight
     {
+        // Phase 139.2 — cache the 3-D view used for soffit raycasts so we
+        // don't run a FilteredElementCollector for every PlaceOnCeilingSoffit
+        // call. Cleared whenever the active document changes.
+        private static View3D _cachedView3D;
+        private static int _cachedView3DDocHash;
+
+        private static View3D ResolveView3D(Document doc)
+        {
+            if (doc == null) return null;
+            int docHash = doc.GetHashCode();
+            if (_cachedView3D != null && _cachedView3DDocHash == docHash && _cachedView3D.IsValidObject)
+                return _cachedView3D;
+            try
+            {
+                _cachedView3D = new FilteredElementCollector(doc).OfClass(typeof(View3D))
+                    .Cast<View3D>().FirstOrDefault(v => v != null && !v.IsTemplate);
+                _cachedView3DDocHash = docHash;
+            }
+            catch { _cachedView3D = null; }
+            return _cachedView3D;
+        }
+
         /// <summary>Decide the right NewFamilyInstance overload for the
         /// supplied symbol + rule + candidate position, locate the host
         /// element when one is required, and return the placed instance.
@@ -211,8 +233,7 @@ namespace StingTools.Core.Placement
                 XYZ up = XYZ.BasisZ;
                 Element soffitHost = null;
 
-                var view3d = new FilteredElementCollector(doc).OfClass(typeof(View3D))
-                    .Cast<View3D>().FirstOrDefault(v => v != null && !v.IsTemplate);
+                var view3d = ResolveView3D(doc);
                 if (view3d != null)
                 {
                     try

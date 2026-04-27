@@ -351,6 +351,7 @@ namespace StingTools.Core.Placement
                 Document doc = room?.Document;
                 if (doc == null) return;
                 double clearanceFt = (rule.JoistClearanceMm > 0 ? rule.JoistClearanceMm : 300.0) * MmToFt;
+                double clearanceSqFt = clearanceFt * clearanceFt;
 
                 var bb = room.get_BoundingBox(null);
                 if (bb == null) return;
@@ -377,7 +378,7 @@ namespace StingTools.Core.Placement
                     foreach (var j in joists)
                     {
                         double dx = j.X - p.X, dy = j.Y - p.Y;
-                        if (Math.Sqrt(dx * dx + dy * dy) <= clearanceFt) { foundJoist = true; break; }
+                        if (dx * dx + dy * dy <= clearanceSqFt) { foundJoist = true; break; }
                     }
                     if (!foundJoist && rule.EmitNogginRequirement)
                     {
@@ -402,7 +403,11 @@ namespace StingTools.Core.Placement
                 double areaFt2 = (bb.Max.X - bb.Min.X) * (bb.Max.Y - bb.Min.Y);
                 if (areaFt2 <= 0) return;
 
-                int samplesX = 8, samplesY = 8;
+                // Cap sample density when fixture count is high — uniformity
+                // surface converges quickly and 8×8 × 30+ fixtures dominates
+                // per-room runtime in large open-plan offices.
+                int samplesX = (r.FixturesRequired > 30) ? 4 : 8;
+                int samplesY = samplesX;
                 double minE = double.MaxValue, sumE = 0; int n = 0;
                 double illumPerLumPerFt2 = DefaultLumensPerLuminaire * UtilisationFactor * MaintenanceFactor / 1000.0;
                 for (int j = 0; j < samplesY; j++)

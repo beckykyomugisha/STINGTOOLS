@@ -10,6 +10,7 @@
 // All return values are in Revit internal units (feet). 0.0 = no offset.
 
 using System;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 
 namespace StingTools.Core.Placement
@@ -17,6 +18,13 @@ namespace StingTools.Core.Placement
     public static class PlasterOffsetResolver
     {
         private const double MmToFt = 1.0 / 304.8;
+
+        // Word-boundary regex compiled once. The substring fallback only
+        // matters when CompoundStructureLayer.Function is missing/Unknown,
+        // so we only need to recognise the common AEC finish materials.
+        private static readonly Regex FinishMaterialPattern = new Regex(
+            @"\b(plaster|skim|render|plasterboard|gypsum|MF\s+ceiling|MF\s+lining)\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>Resolve an interior-side finish-face offset for a wall host.</summary>
         public static double Resolve(Wall wall, PlacementRule rule)
@@ -111,17 +119,10 @@ namespace StingTools.Core.Placement
 
                 if (doc != null && layer.MaterialId != null && layer.MaterialId != ElementId.InvalidElementId)
                 {
-                    // Substring fallback only matters when Function metadata is missing.
-                    // Use word-boundary regex so "MF Steel" (structural) does NOT match
-                    // " mf", and "Hardboard" does NOT match "board".
-                    if (doc.GetElement(layer.MaterialId) is Material mat && !string.IsNullOrEmpty(mat.Name))
-                    {
-                        if (System.Text.RegularExpressions.Regex.IsMatch(
-                                mat.Name,
-                                @"\b(plaster|skim|render|plasterboard|gypsum|MF\s+ceiling|MF\s+lining)\b",
-                                System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-                            return true;
-                    }
+                    if (doc.GetElement(layer.MaterialId) is Material mat
+                        && !string.IsNullOrEmpty(mat.Name)
+                        && FinishMaterialPattern.IsMatch(mat.Name))
+                        return true;
                 }
             }
             catch { }
