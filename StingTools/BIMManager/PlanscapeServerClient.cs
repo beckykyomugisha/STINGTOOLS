@@ -634,6 +634,50 @@ public sealed class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return -1; }
     }
 
+    /// <summary>
+    /// Phase 142 — bulk-create transmittals via
+    /// <c>POST /api/projects/{id}/transmittals/bulk</c> (max 200 per request).
+    /// Used by the offline queue drain + workflow flush. Returns the count
+    /// reported by the server, or -1 on failure with <see cref="LastError"/>.
+    /// </summary>
+    public async Task<int> BulkCreateTransmittalsAsync(Guid projectId, IEnumerable<object> transmittals)
+    {
+        if (!await EnsureAuthenticatedAsync()) return -1;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/transmittals/bulk", transmittals);
+            if (!resp.ok) { LastError = $"HTTP {resp.body}"; return -1; }
+            try
+            {
+                var body = JObject.Parse(resp.body);
+                return body["created"]?.Value<int>() ?? 0;
+            }
+            catch { return 0; }
+        }
+        catch (Exception ex) { LastError = ex.Message; return -1; }
+    }
+
+    /// <summary>
+    /// Phase 142 — bulk-create meetings via
+    /// <c>POST /api/projects/{id}/meetings/bulk</c> (max 200 per request).
+    /// </summary>
+    public async Task<int> BulkCreateMeetingsAsync(Guid projectId, IEnumerable<object> meetings)
+    {
+        if (!await EnsureAuthenticatedAsync()) return -1;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/meetings/bulk", meetings);
+            if (!resp.ok) { LastError = $"HTTP {resp.body}"; return -1; }
+            try
+            {
+                var body = JObject.Parse(resp.body);
+                return body["created"]?.Value<int>() ?? 0;
+            }
+            catch { return 0; }
+        }
+        catch (Exception ex) { LastError = ex.Message; return -1; }
+    }
+
     // ── Platform connections ──────────────────────────────────────────────────
 
     public async Task<JArray?> GetPlatformConnectionsAsync(Guid projectId)

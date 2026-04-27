@@ -2069,14 +2069,17 @@ The `PlanscapeServerClient` (now ≈970 lines) covers:
 - SEQ counter sync via `/api/projects/{id}/seq` (POST max-per-key merge)
 - Workflow run logging via `/api/projects/{id}/workflows` (POST — auto-pushed by `WorkflowEngine` after every preset run, Phase 141)
 - Warnings push via `/api/projects/{id}/warnings`
-- Transmittal create / send via `/api/projects/{id}/transmittals`
-- Meeting create via `/api/projects/{id}/meetings`
+- Transmittal create / send via `/api/projects/{id}/transmittals` + bulk via `/transmittals/bulk` (Phase 142)
+- Meeting create via `/api/projects/{id}/meetings` + bulk via `/meetings/bulk` (Phase 142)
 - MIM asset bulk push via `/api/projects/{id}/mim/assets/bulk` (Phase 141)
 - Model upload via `/api/projects/{id}/models`
 - Platform connection listing
 - All requests carry `X-Client-Type: plugin` for audit-source classification (Phase 141)
 
-Genuinely missing: bulk transmittal / bulk meeting endpoints (server only has single-create today). See `PLANSCAPE_GAPS.md` for current gap status.
+Bulk transmittal + bulk meeting endpoints landed in Phase 142, so the
+batch sync paths the offline queue and workflow flush rely on are now
+all single-round-trip. See `PLANSCAPE_GAPS.md` for the up-to-date open
+list.
 
 ## Planscape Mobile App
 
@@ -2118,7 +2121,9 @@ Planscape/
 │   ├── transmittals/                     # Transmittal list + create + send
 │   ├── warnings/                         # Warnings dashboard
 │   ├── workflows/                        # Workflow run history
-│   └── models/                           # 3D model viewer (issue pin overlay)
+│   ├── models/                           # 3D model viewer (issue pin overlay)
+│   ├── inbox/                            # "My Actions" aggregator (Phase 142)
+│   └── diary/                            # Daily site diary (Phase 142)
 └── src/
     ├── api/
     │   ├── client.ts                     # HTTP client (JWT, auto-refresh, X-Client-Type=mobile)

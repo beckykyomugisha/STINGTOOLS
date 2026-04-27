@@ -3916,3 +3916,140 @@ are documented as open in the gap analysis rather than papered over.
    visualization layer, and MCP descriptor are unresolved — verifying
    them needs the actual Revit 2025 API documentation/binaries that
    are not available in this sandbox.
+
+#### Completed (Phase 142 — Mobile coordination: My Actions inbox, Daily Site Diary, bulk endpoints, GPS map deep-link)
+
+Building from the BIM/Construction Manager's daily-on-site point of view:
+the genuine mobile gaps were not the long checklist in
+`PLANSCAPE_GAPS.md` (most of those had landed in earlier phases) but
+the everyday navigation friction — having to bounce between Issues,
+Meetings, and Documents tabs to find what's assigned to oneself, and
+having no way to file the standard CIOB end-of-day site diary at all.
+
+**My Actions inbox (server + mobile)**
+
+1. New `Planscape.API/Controllers/MyActionsController.cs` — single-shot
+   aggregator at `GET /api/projects/{id}/myactions?limit=N` that
+   returns four buckets in one round-trip: issues assigned to me
+   (FK / email / display-name match for legacy rows), meeting action
+   items assigned to my display name, pending document approvals on
+   the project, and SLA-breached issues across the team. Project
+   membership is enforced — the inbox never leaks rows from a project
+   the caller can't see. Pre-Phase-142 the mobile would have needed
+   three separate round-trips and a manual cross-filter to assemble
+   this list.
+2. `Planscape/src/api/endpoints.ts` — added `getMyActions(...)` +
+   `MyActionsPayload` interface mirroring the server DTO.
+3. New `Planscape/app/inbox/` route (sub-route, not a tab) — list view
+   with four summary tiles and four sectioned lists; each row taps
+   straight to issue-detail / meeting / documents tab.
+4. `Planscape/app/(tabs)/index.tsx` — high-visibility "My Actions"
+   call-to-action card on the dashboard between the KPI row and the
+   discipline breakdown. Hidden when the aggregator query failed
+   (network / permission / cold-start) so the dashboard never blocks.
+   Card highlights red when there's at least one SLA breach.
+
+**Daily Site Diary (entity + migration + controller + mobile)**
+
+5. New entities `Planscape.Core/Entities/SiteDiary.cs` +
+   `SiteDiaryAttachment` — one row per `(project, diary date,
+   author)`, status machine DRAFT → SUBMITTED → ACKNOWLEDGED →
+   ARCHIVED, JSONB columns for `ManpowerByTradeJson` /
+   `EquipmentJson` / `DeliveriesJson` / `ChecklistJson` so the schema
+   scales without migrations. Photos hang off the diary via
+   attachment rows that reuse the `DocumentRecord` storage pipeline.
+6. New migration `20260427000000_AddSiteDiary.cs` — creates the two
+   tables with the standard PG types (jsonb, text, double precision)
+   and indexes on `(ProjectId)`, `(ProjectId, DiaryDate)`, `Status`.
+7. New `Planscape.API/Controllers/SiteDiariesController.cs` — full
+   CRUD + lifecycle:
+     - `GET /sitediaries` paginated list with date / status filter
+     - `GET /sitediaries/{id}` detail with attachments
+     - `POST /sitediaries` create — re-POSTing the same day's draft
+       by the same author updates rather than duplicates; 409 if a
+       non-DRAFT entry already exists for that day
+     - `PUT /sitediaries/{id}` edit (DRAFT only)
+     - `POST /sitediaries/{id}/submit` — locks the entry, fires a
+       project-scoped push (`NotifyProjectAsync` from Phase 141)
+     - `POST /sitediaries/{id}/acknowledge` — manager sign-off
+     - `POST /sitediaries/{id}/attachments/link` — link an existing
+       uploaded `DocumentRecord` to the diary, idempotent
+     - `DELETE /sitediaries/{id}` (DRAFT only)
+8. `PlanscapeDbContext` — added `SiteDiaries` + `SiteDiaryAttachments`
+   DbSets and the entity configuration with FKs and indexes.
+9. `Planscape/src/api/endpoints.ts` — added the seven matching
+   endpoint wrappers + `SiteDiarySummary` / `SiteDiaryDetail` /
+   `CreateSiteDiaryRequest` interfaces.
+10. New `Planscape/app/diary/` route — three screens:
+     - `index.tsx` — chronological list with status pill, FAB to
+       create, manpower count + weather summary on each row
+     - `new.tsx` — form with author role, weather, temperature,
+       manpower, narrative, safety incidents, delays. Two buttons —
+       Save Draft (stays editable) and Submit (locks + notifies)
+     - `[id].tsx` — detail with all sections; manager acknowledge
+       button on SUBMITTED entries
+
+**Quick-action launcher on dashboard**
+
+11. `Planscape/app/(tabs)/index.tsx` — added a 4-button quick-action
+    row (Site Diary, Meetings, Transmittals, Warnings) between the
+    My Actions card and the discipline breakdown. Previously these
+    sub-routes were only reachable via deep-link from a notification
+    tap; now the manager can find them in one cold-start.
+
+**Bulk transmittal + meeting endpoints**
+
+12. `Planscape.API/Controllers/TransmittalsController.cs` — new
+    `POST /transmittals/bulk` that accepts a JSON array (max 200)
+    and produces TX codes from a single in-memory counter rather
+    than scanning N times. Each row gets its own audit log entry
+    with `bulk = true` flag.
+13. `Planscape.API/Controllers/MeetingsController.cs` — equivalent
+    `POST /meetings/bulk`.
+14. `StingTools/BIMManager/PlanscapeServerClient.cs` — added
+    `BulkCreateTransmittalsAsync` and `BulkCreateMeetingsAsync` so
+    the offline-queue drain and the workflow flush use the bulk
+    routes. Closes the last item on the H7 list from Phase 141.
+
+**Issues tab Mine filter**
+
+15. `Planscape/src/stores/authStore.ts` — extended with `email` and
+    `displayName` so screens can match assignees by name for legacy
+    issues that pre-date the `AssigneeUserId` migration without an
+    extra `/me` round-trip.
+16. `Planscape/src/hooks/useAuth.ts` — actually populates the
+    authStore on `login()` and `restoreSession()`. Was previously
+    declared but never set, so `issue-detail` and `documents` were
+    reading `null`.
+17. `Planscape/app/(tabs)/issues.tsx` — added "👤 Mine" toggle chip
+    to the priority filter bar. Filters the issue list to rows where
+    the assignee resolves to the current user via FK first, email
+    second, display name third. Disabled gracefully when the
+    authStore hasn't loaded yet (cold-start) so it never silently
+    filters everything out.
+
+**GPS map deep-link**
+
+18. `Planscape/app/(tabs)/issue-detail.tsx` — surfaced the GPS
+    coordinates that Phase 141 started capturing. New strip below
+    the field grid shows lat/lng, accuracy, and taps through to the
+    device's native map app via `Linking.openURL` with platform-
+    appropriate URL schemes (`geo:` on Android, `maps://` on iOS,
+    Google Maps web fallback). Resilient — falls back to the web URL
+    if `Linking.canOpenURL` rejects.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. `MeetingActionItem.Assignee` is a free-text display name; the
+   My Actions match is therefore conservative and may surface the
+   row for a different user with the same display name in the same
+   tenant. Fix is a follow-up migration that adds `AssigneeUserId`.
+3. Site diary attachment screen on mobile is read-only for now —
+   linking a photo to a diary entry uses the existing document
+   upload pipeline followed by the `attachments/link` POST; a
+   one-tap "add photo to diary" UI will land in a follow-up.
+4. The new `SiteDiariesController` is not yet exercised by the
+   plugin (the construction manager workflow is mobile-first).
+   Plugin-side surfacing in the BIM Coordination Center can land
+   when there is demand.

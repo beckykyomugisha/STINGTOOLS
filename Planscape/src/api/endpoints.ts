@@ -355,3 +355,160 @@ export function decideDocumentApproval(projectId: string, documentId: string, ap
     method: 'PUT', body: JSON.stringify({ decision, comment }),
   });
 }
+
+// ── My Actions (Phase 142) ──────────────────────────────────────────────
+// Aggregator endpoint for the BIM/Construction Manager's morning inbox view.
+// Returns counts + the first N rows from each bucket (issues / meeting actions /
+// document approvals / SLA-breached issues). Backed by MyActionsController.
+export interface MyActionsPayload {
+  generatedAt: string;
+  counts: {
+    issues: number;
+    actions: number;
+    approvals: number;
+    slaBreached: number;
+    total: number;
+  };
+  issues: Array<{
+    id: string; issueCode: string; type: string; title: string;
+    priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+    status: string; dueDate?: string | null; createdAt: string;
+    discipline?: string | null;
+    latitude?: number | null; longitude?: number | null;
+    attachmentCount: number;
+  }>;
+  actions: Array<{
+    id: string; meetingId: string; description: string;
+    assignee?: string | null; dueDate?: string | null; status: string;
+    linkedIssueId?: string | null;
+    meetingTitle: string; meetingType: string;
+  }>;
+  approvals: Array<{
+    id: string; documentId: string; transition: string;
+    requestedBy: string; requestedAt: string;
+    comments?: string | null; fileName: string; discipline?: string | null;
+  }>;
+  slaBreached: Array<{
+    id: string; issueCode: string; type: string; title: string;
+    priority: string; status: string;
+    dueDate: string; assignee?: string | null; assigneeUserId?: string | null;
+    breachHours: number;
+  }>;
+}
+
+export function getMyActions(projectId: string, limit = 25): Promise<MyActionsPayload> {
+  return apiFetch(`/api/projects/${projectId}/myactions?limit=${limit}`);
+}
+
+// ── Site Diary (Phase 142) ──────────────────────────────────────────────
+// Daily site report — weather, manpower, equipment, narrative, photos.
+// Backed by SiteDiariesController. Diary is keyed by (project, date,
+// author) so multiple supervisors on the same site can post their own.
+export interface SiteDiarySummary {
+  id: string;
+  diaryDate: string;
+  authorName: string;
+  authorRole: string;
+  status: 'DRAFT' | 'SUBMITTED' | 'ACKNOWLEDGED' | 'ARCHIVED';
+  weather?: string | null;
+  temperatureCelsius?: number | null;
+  manpowerCount: number;
+  submittedAt?: string | null;
+  acknowledgedAt?: string | null;
+  createdAt: string;
+  attachmentCount: number;
+}
+
+export interface SiteDiaryDetail extends SiteDiarySummary {
+  projectId: string;
+  authorUserId?: string | null;
+  windSpeedKph?: number | null;
+  rainfallMm?: number | null;
+  manpowerByTradeJson?: string | null;
+  equipmentJson?: string | null;
+  deliveriesJson?: string | null;
+  checklistJson?: string | null;
+  narrative?: string | null;
+  visitorsLog?: string | null;
+  safetyIncidents?: string | null;
+  delaysAndDisruption?: string | null;
+  acknowledgedBy?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  attachments: Array<{
+    id: string; documentId: string; attachedBy: string;
+    attachedAt: string; caption?: string | null;
+    fileName?: string; filePath?: string; contentHash?: string;
+  }>;
+}
+
+export interface CreateSiteDiaryRequest {
+  diaryDate: string;          // ISO date — server normalises to .Date
+  authorRole?: string | null;
+  weather?: string | null;
+  temperatureCelsius?: number | null;
+  windSpeedKph?: number | null;
+  rainfallMm?: number | null;
+  manpowerCount: number;
+  manpowerByTradeJson?: string | null;
+  equipmentJson?: string | null;
+  deliveriesJson?: string | null;
+  narrative?: string | null;
+  checklistJson?: string | null;
+  visitorsLog?: string | null;
+  safetyIncidents?: string | null;
+  delaysAndDisruption?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export function listSiteDiaries(
+  projectId: string,
+  args: { from?: string; to?: string; status?: string; page?: number; pageSize?: number } = {},
+): Promise<{ total: number; page: number; pageSize: number; rows: SiteDiarySummary[] }> {
+  const q = new URLSearchParams();
+  if (args.from) q.set('from', args.from);
+  if (args.to) q.set('to', args.to);
+  if (args.status) q.set('status', args.status);
+  if (args.page) q.set('page', String(args.page));
+  if (args.pageSize) q.set('pageSize', String(args.pageSize));
+  const suffix = q.toString();
+  return apiFetch(`/api/projects/${projectId}/sitediaries${suffix ? `?${suffix}` : ''}`);
+}
+
+export function getSiteDiary(projectId: string, diaryId: string): Promise<SiteDiaryDetail> {
+  return apiFetch(`/api/projects/${projectId}/sitediaries/${diaryId}`);
+}
+
+export function createSiteDiary(
+  projectId: string, body: CreateSiteDiaryRequest,
+): Promise<{ id: string; status: string; updated?: boolean }> {
+  return apiFetch(`/api/projects/${projectId}/sitediaries`, {
+    method: 'POST', body: JSON.stringify(body),
+  });
+}
+
+export function updateSiteDiary(
+  projectId: string, diaryId: string, body: CreateSiteDiaryRequest,
+): Promise<{ id: string; status: string }> {
+  return apiFetch(`/api/projects/${projectId}/sitediaries/${diaryId}`, {
+    method: 'PUT', body: JSON.stringify(body),
+  });
+}
+
+export function submitSiteDiary(projectId: string, diaryId: string): Promise<{ id: string; status: string }> {
+  return apiFetch(`/api/projects/${projectId}/sitediaries/${diaryId}/submit`, { method: 'POST' });
+}
+
+export function acknowledgeSiteDiary(projectId: string, diaryId: string): Promise<{ id: string; status: string }> {
+  return apiFetch(`/api/projects/${projectId}/sitediaries/${diaryId}/acknowledge`, { method: 'POST' });
+}
+
+export function linkSiteDiaryAttachment(
+  projectId: string, diaryId: string, documentId: string, caption?: string,
+): Promise<{ id?: string; linked?: boolean }> {
+  return apiFetch(`/api/projects/${projectId}/sitediaries/${diaryId}/attachments/link`, {
+    method: 'POST', body: JSON.stringify({ documentId, caption }),
+  });
+}
+

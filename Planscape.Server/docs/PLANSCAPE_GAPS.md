@@ -120,6 +120,11 @@ Planscape/
 | MOB-10 | **No image compression** | MEDIUM | No client-side image resize before upload — site photos (12+ MP) would saturate mobile data | **Closed** — `imageService.ts` resizes to 1920px / JPEG 75% before upload |
 | MOB-11 | **No dark mode** | LOW | Theme constants exist but no system theme detection or toggle | Open |
 | MOB-12 | **No accessibility** | LOW | No screen reader labels, no dynamic font scaling | Partial — `accessibilityLabel` props added in issue detail / scanner / settings; full audit pending |
+| MOB-13 | **No "My Actions" inbox** | HIGH | Issues, meeting actions, and document approvals each required a separate screen to find what was assigned to the caller | **Closed** — Phase 142: `MyActionsController` aggregator + `app/inbox` screen + dashboard CTA card |
+| MOB-14 | **No daily site diary** | HIGH | Standard CIOB end-of-day report (weather, manpower, narrative, safety, delays) was completely absent | **Closed** — Phase 142: `SiteDiary` entity + migration + controller + 3 mobile screens (list / new / detail) with submit + acknowledge lifecycle |
+| MOB-15 | **No GPS map deep-link** | MEDIUM | Coordinates captured at issue creation (Phase 141) were never surfaced or linkable | **Closed** — Phase 142: GPS strip on issue-detail with one-tap to native map app (`geo:` / `maps://` / Google Maps web fallback) |
+| MOB-16 | **Issues list lacks "Mine" filter** | MEDIUM | Managers had to scan the whole list or fall back to search to find their own assignments | **Closed** — Phase 142: Mine toggle chip; FK / email / display-name match for legacy rows |
+| MOB-17 | **Quick-action access to sub-routes** | LOW | Meetings / Transmittals / Warnings / Site Diary were only reachable via deep-link from a push tap | **Closed** — Phase 142: 4-button quick-action row on the dashboard |
 
 ### 2.3 Missing API Endpoint Wrappers
 
