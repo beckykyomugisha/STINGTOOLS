@@ -4136,3 +4136,45 @@ parameters, common mistakes), the project-setup checklist, and a
 re-run cadence guide for designers. Cross-referenced from the audit
 command.
 
+
+#### Completed (Phase 139.7 — Scope honoured + pre-flight family check)
+
+Real-world bug report: user picked "Active view" radio in the
+Fixtures tab; confirm dialog said "About to place fixtures across the
+entire project". Plus the result panel showed half the per-rule
+counts at zero with a single warning line buried mid-list — designer
+couldn't tell whether a category had no rules, or had rules but no
+family loaded.
+
+**Scope radio honoured (the headline fix):**
+
+`PlaceFixturesOptions.ScopeMode` enum (SelectedRooms / ActiveView /
+AllRooms) plumbed from the dock-panel `rbFxScopeSel` /
+`rbFxScopeView` / `rbFxScopeAll` radios via a new `RadState` helper
+in `StingDockPanel.xaml.cs` (mirror of the existing `ChkState`).
+
+`PlaceFixturesCommand.Execute` now branches on `ScopeMode`:
+
+- `SelectedRooms` — uses `uidoc.Selection.GetElementIds()` (legacy);
+  if no rooms are selected, prompts the user instead of silently
+  falling through to "entire project".
+- `ActiveView` — uses
+  `new FilteredElementCollector(doc, view.Id).OfCategory(OST_Rooms)`,
+  the proper view-bounded query.
+- `AllRooms` — engine fallback (empty `selectedRoomIds`).
+
+`ConfirmPlacement(string scopeLabel)` and
+`PromptDryRunChoice(string scopeLabel)` now take the resolved label
+instead of computing it from selection count, so the dialog text
+matches the radio.
+
+**Pre-flight family check:**
+
+After the rule load + category filter, the command walks every
+ticked category and reports those with zero loaded `FamilySymbol`s.
+The user sees a TaskDialog listing the affected categories and is
+asked to continue or cancel. Stops the silent "No FamilySymbol
+found for category 'Electrical Fixtures' — skipping its rules"
+warning that was leaving designers wondering why their sockets
+hadn't landed.
+
