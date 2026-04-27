@@ -858,3 +858,286 @@ The architecture-level review lives in [`PLACEMENT_CENTRE_REVIEW.md`](PLACEMENT_
 
 *End of guide. If something here was unclear, file an issue against the
 `docs/PLACEMENT_CENTRE_GUIDE.md` file — the language can always improve.*
+
+---
+
+## 12. Phase 139 — Placement Centre v2 (April 2026)
+
+The Centre received a major v2 expansion in Phase 139. Five additive
+changes — the entire Phase 128 workflow above still works unchanged —
+plus four new toolbar buttons and one new dialog tab.
+
+### 12.1 What changed at a glance
+
+| Area | Phase 128 (v1) | Phase 139 (v2) |
+|---|---|---|
+| Rule schema | ~30 fields | ~60 fields (`SourcePack`, `BuildingTypes`, `ApplicableStandards`, `GuaranteeCoverage`, `MinCoverageRatio`, `WetZoneExclusion`, `MaintenanceAccessRadiusMm`, `RoutingPreference`, `LinearAnchorMode`, `WindowSillCategory`, `DensityModifier`, `PostPlacementAuditRules`, …) |
+| Shipped rule count | ~43 baseline + 4 packs | ~260 (43 baseline + 217 across 7 new packs) |
+| Anchor types | ~20 | ~42 (22 new) |
+| Validators | 5 stubs + 3 implemented | 8 implemented + 2 new |
+| Building context | implicit | explicit `placement_profile.json` per project |
+| Excel I/O | none | full export + import roundtrip |
+| Scoring threshold | 0.40 | 0.35 (lowered, plus `CoverageContribution` weight) |
+
+### 12.2 The seven new rule packs (217 rules)
+
+The ~43 baseline rules now ship alongside seven discipline / context
+packs. Each pack tags its rules with `SourcePack` so the Centre can
+filter the rule grid by pack. Packs ship in `StingTools/Data/Placement/`:
+
+| Pack JSON file | Rules | Covers |
+|---|---|---|
+| `STING_PLACEMENT_RULES.windows-glazing.json` | 30 | Trickle vents, restrictors, blinds, sills, bay-window seating, restrictor cables, child-safety latches |
+| `STING_PLACEMENT_RULES.routing.json` | 15 | Containment routing — cable tray riser, conduit drop, duct riser, pipe loop, dado trunking, perimeter trunking |
+| `STING_PLACEMENT_RULES.medical-gases.json` | 15 | HTM 02-01 — bedhead trunking, oxygen / vacuum / nitrous outlets, AGSS, terminal units, isolation valves |
+| `STING_PLACEMENT_RULES.accessibility.json` | 20 | BS 8300-2 / Approved Doc M — WC reach ranges, grab rails, hearing loops, induction signage, AT-WC transfer space |
+| `STING_PLACEMENT_RULES.commissioning.json` | 20 | T&C / FM — test points, balancing valves, pressure gauges, flow meters, witness-test access tags |
+| `STING_PLACEMENT_RULES.baseline-extensions.json` | 40 | Office / education extensions — desk pods, IFP whiteboards, pinboards, projectors, AV racks, hot-desk hubs |
+| `STING_PLACEMENT_RULES.baseline-extensions2.json` | 77 | Healthcare / hospitality / retail / industrial extensions — nurse call, dirty utility, clean utility, kitchen pass, server-rack PDU, retail merchandiser plinth |
+
+> **Layman tip:** every shipped rule already names the BS / EN / HTM /
+> HBN clause it satisfies (`StandardRef`). When you filter the rule
+> grid by `SourcePack = medical-gases`, every visible row already
+> cites HTM 02-01.
+
+### 12.3 The 22 new anchors
+
+`PlacementScorer.AnchorTypes.cs` (a partial-class extension) adds 22
+anchors covering windows, doors, structure, ceiling tiles, escape
+routes, MEP system nodes and zone boundaries:
+
+| Anchor | Plain English | Used for |
+|---|---|---|
+| `WINDOW_SILL_KITCHEN` | Sill of a window in a kitchen room | Tap, bin sensor, splash-back socket |
+| `WINDOW_SILL_WET_ROOM` | Sill in a bathroom / WC | Anti-condensation heater, mirror demister |
+| `WINDOW_SILL_RESIDENTIAL` | Sill in a residential dwelling | Trickle vent, child-safety latch, restrictor |
+| `WINDOW_SILL_COMMERCIAL` | Sill in a commercial space | Office trickle vent (Doc F), motorised blind |
+| `WINDOW_SILL_HOSPITAL` | Sill in a healthcare bedroom | HBN 04-01 vent + curtain track |
+| `WINDOW_HEAD` | Top of a window | Curtain track, blind motor, head-flashing detail |
+| `DOOR_STRIKE_SIDE` | Latch / strike side of door | Access-control reader, MCP, panic strike |
+| `DOOR_CLOSER_ZONE` | Top centre of door + 50 mm clearance | Door closer, hold-open magnet |
+| `BEAM_SOFFIT` | Underside of nearest structural beam | Cable tray hanger, suspended luminaire eye-bolt |
+| `COLUMN_FACE_NEAREST` | Closest face of nearest structural column | Local isolator, fire extinguisher bracket |
+| `CEILING_TILE_CORNER` | Nearest 600 × 600 ceiling-tile corner | Suspended diffuser, recessed downlight, smoke detector |
+| `CURTAIN_PANEL_CENTRE` | Centre of a curtain-wall panel | Spider fitting, photovoltaic film mount |
+| `SLAB_PERIMETER_EDGE` | Perimeter of a slab edge | Edge trim, drip detail, perimeter heater |
+| `ESCAPE_DOOR_BOTH_SIDES` | Both sides of every fire-rated escape door | Exit signs (paired), emergency luminaires |
+| `STAIR_LANDING_EDGE` | Outer edge of every stair landing | Hand-rail return, photoluminescent strip |
+| `STAIR_FLIGHT_MID` | Mid-point of a stair flight | Mid-flight luminaire (BS 5266-1 §5) |
+| `CORRIDOR_JUNCTION` | Centre of every corridor T- or X-junction | Directional exit signs, smoke detector |
+| `FIRE_EXTINGUISHER_TRAVEL` | 30 m max-travel grid (BS 5306-8) | Fire extinguisher cabinet |
+| `CALL_POINT_TRAVEL` | 45 m max-travel grid (BS 5839-1) | MCP call point |
+| `RAISED_FLOOR_TILE_EDGE` | Edge of nearest 600 mm raised-access tile | Floor-box edge mount |
+| `NEAREST_MEP_SYSTEM_NODE` | XYZ of nearest connector on a named MEP system | Co-located access valve, drain point |
+| `ZONE_BOUNDARY` | Boundary of an HVAC / fire / acoustic zone | VAV terminal, fire damper, zone shut-off |
+
+Pick any of these from the **Anchor** dropdown in the rule editor's
+Rule Core card. Each anchor produces a different candidate-XYZ pattern;
+combine with `OffsetX/Y/Z`, `Side` and `MountingReference` to land
+fixtures exactly where the standard demands.
+
+### 12.4 Four new placement algorithms
+
+`Core/Placement/` ships four new helper engines the rule pipeline can
+delegate to. They become available the moment a rule sets the relevant
+field (`RoutingPreference`, `MinCoverageRatio`, `MaintenanceAccessRadiusMm`,
+`WetZoneExclusion`).
+
+| Algorithm | File | What it does |
+|---|---|---|
+| **WallFollowerRouter** | `WallFollowerRouter.cs` | Walks every wall in a room, returns continuous candidate-XYZs at fixed step. Used by perimeter trunking, dado, skirting. Honours `RoutingPreference` (`Perimeter`, `Inset`, `Centreline`, `Diagonal`). |
+| **CoverageGridGenerator** | `CoverageGridGenerator.cs` | Lays a uniform grid over the room polygon, returns one candidate per grid cell. Used by `MinCoverageRatio` rules so the engine can guarantee 100 % spatial coverage (smoke detection, lighting). |
+| **TravelDistanceSolver** | `TravelDistanceSolver.cs` | Dijkstra over the room graph; returns candidates within travel-distance from anchor (BS 5306-8 30 m, BS 5839-1 45 m). Backs `FIRE_EXTINGUISHER_TRAVEL` and `CALL_POINT_TRAVEL` anchors. |
+| **WetZoneExclusionChecker** | `WetZoneExclusionChecker.cs` | Hard-rejects candidates inside BS 7671 §701 wet zones (Z0 inside bath, Z1 0–225 mm above bath, Z2 within 600 mm). Used automatically when `WetZoneExclusion = true`. |
+
+Two previously-stubbed validators are now implemented:
+
+| Validator | File | Checks |
+|---|---|---|
+| **UniformityValidator** | `UniformityValidator.cs` | BS EN 12464-1 uniformity ratio across the lit grid (Emin / Eaverage ≥ 0.6 for offices, ≥ 0.7 for surgery) |
+| **MaintenanceAccessValidator** | `MaintenanceAccessValidator.cs` | Confirms every fixture has a clear cylinder of `MaintenanceAccessRadiusMm` for service technician reach |
+
+`AccessibilityAuditor` was upgraded to read from
+`STING_HEIGHT_STANDARDS.json` (18 entries — BS 8300-2, Approved Doc M,
+BS 5839-1, BS 5266-1, HTM 02-01, BB103, BS 6465 reach ranges) so reach
+audits cite the right clause for the right room type.
+
+### 12.5 Project Building Profile
+
+Until v2 the Centre had no idea *what kind of building* it was placing
+fixtures in. A hospital rule (HBN 04-01 bedhead trunking) would
+happily fire in an office model if the room name matched, producing a
+nonsensical placement. Phase 139 fixes that with an explicit
+**building profile** persisted per project.
+
+#### 12.5.1 The profile file
+
+`<project>/_BIM_COORD/placement_profile.json` — created once per
+project. Fields:
+
+| Field | Plain English | Example |
+|---|---|---|
+| `BuildingType` | Single string from a closed enum | `Office`, `School`, `Hospital`, `Hotel`, `Retail`, `Residential`, `Industrial`, `Laboratory`, `Mixed` |
+| `ApplicableStandards` | List of standard codes the project must obey | `["BS 8300-2","Approved Doc M","BS 5839-1","BS 5266-1","BS 7671"]` |
+| `ProjectStage` | RIBA stage | `4` |
+| `OccupancyMode` | Day / 24-hr / shift | `24h` |
+| `FireStrategyRef` | Reference to the project's fire engineer's strategy | `FS-2026-Rev2` |
+
+#### 12.5.2 How rules consume the profile
+
+Each rule carries two new fields:
+
+| Field | Behaviour |
+|---|---|
+| `BuildingTypes` | List of building types where the rule is allowed. Empty = any. A medical-gases rule lists `["Hospital","Laboratory"]`; a school rule lists `["School"]`. |
+| `ApplicableStandards` | List of standard codes the rule satisfies. The Centre filters out rules whose `ApplicableStandards` are not in the project's `ApplicableStandards` list. |
+
+`PlacementRuleLoader.FilterByProfile` runs once at load time and
+**hides** non-matching rules from the engine entirely. The Centre's
+status bar reports `260 rule(s); 198 hidden by profile`.
+
+#### 12.5.3 Editing the profile
+
+For now, edit `placement_profile.json` in any text editor — a UI card
+in the Centre's Run Options group is tracked as Phase 139.5. The
+existing rule grid `Search` box accepts `pack:medical-gases` to filter
+by `SourcePack`, so you can still inspect every hospital rule even
+without the UI.
+
+### 12.6 Updated scoring model
+
+The candidate scorer was rebalanced:
+
+| Component | v1 weight | v2 weight | Why |
+|---|---|---|---|
+| Geometry fit | 0.45 | 0.35 | Shared with new Coverage component |
+| Anchor distance | 0.25 | 0.20 | Slightly less aggressive |
+| Side preference | 0.15 | 0.15 | Unchanged |
+| Min spacing | 0.10 | 0.15 | More important for uniformity |
+| Standard compliance | 0.05 | 0.05 | Unchanged |
+| **Coverage contribution** | – | **0.10** | **NEW**: rewards candidates that close coverage gaps |
+
+The rejection threshold dropped from `0.40` to `0.35` so marginal
+candidates squeak through (especially in awkward corner rooms). Any
+rule with `GuaranteeCoverage = true` (smoke detection, emergency
+lighting) **never rejects a candidate** — the engine accepts the best
+it has even if the score is low, because losing coverage is worse
+than placing slightly off-anchor.
+
+> **Layman version:** the engine used to be stricter than the standards.
+> Now it is exactly as strict as the standards, and it never bails on
+> mandatory coverage rules.
+
+### 12.7 Excel I/O
+
+Two new toolbar buttons (right of `Save Project`):
+
+| Button | What it does |
+|---|---|
+| **Export to Excel…** | `PlacementRulesExcelExporter` writes every rule (in priority order) to a styled `.xlsx`. One worksheet per `SourcePack`. Header row frozen, conditional formatting on `Priority`, `MinSpacingMm`, validator-fail count. Use to share with non-BIM stakeholders or to bulk-edit in Excel. |
+| **Import from Excel…** | `PlacementRulesExcelImporter` round-trips the file. Imported rules write to `<project>/STING_PLACEMENT_RULES.project.json` (the Layer-4 project overlay, see §8). Conflicts on `RuleId` show the user a 3-pane diff (Excel value / project value / corporate value) and ask which side to keep. |
+
+The Excel format is the same shape as the Phase 139.5 future bulk-import
+tool, so today's exports are forward-compatible.
+
+#### Workflow — round-trip with a discipline lead
+
+```
+1. Centre ▸ Export to Excel…
+2. Send STING_PLACEMENT_RULES_<project>.xlsx to the discipline lead
+3. Lead edits MountingHeightMm / MinSpacingMm / Priority across 50 rows
+4. Lead returns the file
+5. Centre ▸ Import from Excel… → 3-pane diff → accept all
+6. Centre ▸ Save Project
+```
+
+Done. The 50 rows land in the project overlay and override the
+shipped baseline.
+
+### 12.8 Two new worked walk-throughs
+
+#### 12.8.1 *"Place medical-gas terminal units in every hospital bedroom per HTM 02-01"*
+
+1. One-off setup: edit `<project>/_BIM_COORD/placement_profile.json`:
+   ```json
+   {
+     "BuildingType": "Hospital",
+     "ApplicableStandards": ["HTM 02-01","HBN 04-01","BS EN ISO 7396-1"],
+     "ProjectStage": "4"
+   }
+   ```
+2. Open the Centre. Status bar reports `~32 rules; ~228 hidden by profile`.
+3. Search box: `pack:medical-gases` filters the grid to the 15 medical-gas rules.
+4. Pick `med-gas-bedhead-trunking-01` — anchor `WALL_MIDPOINT`, side `EITHER`,
+   mount height `1300 mm`, min spacing `2400 mm` (one bay per bed),
+   StandardRef `HTM 02-01 §6`.
+5. Run Options ▸ Scope = Project.
+6. Click `Preview`. Teal crosses appear at every bed position in every
+   ward and bedroom.
+7. `Run Placement` → bedhead trunking lands; co-place rules
+   (`med-gas-O2-outlet`, `med-gas-VAC-outlet`, `med-gas-AGSS`,
+   `med-gas-N2O-outlet`) chain on automatically.
+8. `Validate` → `MaintenanceAccessValidator` confirms 600 mm clear
+   reach in front of every terminal.
+
+Time: ~2 minutes from open-project to issued model.
+
+#### 12.8.2 *"Guarantee 100 % smoke-detection coverage on a complex floor"*
+
+1. Centre ▸ search `smoke detector`. Pick `fire-smoke-detector-route`.
+2. Confirm:
+   - `Anchor = CEILING_TILE_CORNER`
+   - `MinSpacingMm = 10500` (BS 5839-1 §22.5)
+   - `MountingReference = CEILING`
+   - `MountHeightMm = 0`
+   - **`GuaranteeCoverage = true`**
+   - **`MinCoverageRatio = 1.0`** (100 %)
+3. Run Options ▸ Scope = Active view.
+4. `Preview` → `CoverageGridGenerator` lays a 7.5 m radius grid;
+   detector candidates appear at every uncovered cell centroid.
+5. `Run Placement`.
+6. `Validate` → `UniformityValidator` confirms zero gaps.
+
+Even in awkward L-shaped rooms or corridor / atrium combinations,
+the coverage grid forces the engine to never leave a gap. If a
+candidate's score sits below 0.35, the rule's `GuaranteeCoverage`
+flag accepts it anyway — better a slightly-off detector than a
+missing one.
+
+### 12.9 Updated file map
+
+| Concern | Code path |
+|---|---|
+| Rule POCO (60+ fields) | `StingTools/Core/Placement/PlacementRule.cs` |
+| Anchor types (legacy + Phase 139) | `StingTools/Core/Placement/PlacementScorer.cs`, `PlacementScorer.AnchorTypes.cs` |
+| Routing engine | `StingTools/Core/Placement/WallFollowerRouter.cs` |
+| Coverage grid | `StingTools/Core/Placement/CoverageGridGenerator.cs` |
+| Travel-distance solver | `StingTools/Core/Placement/TravelDistanceSolver.cs` |
+| Wet-zone check | `StingTools/Core/Placement/WetZoneExclusionChecker.cs` |
+| Building profile | `StingTools/Core/Placement/ProjectBuildingProfile.cs` |
+| Height standards table | `StingTools/Core/Placement/HeightStandardsTable.cs` (loads `STING_HEIGHT_STANDARDS.json`) |
+| Validators | `StingTools/Core/Validation/UniformityValidator.cs`, `MaintenanceAccessValidator.cs`, `AccessibilityAuditor.cs` |
+| Excel I/O | `StingTools/Core/Placement/Excel/PlacementRulesExcelExporter.cs`, `PlacementRulesExcelImporter.cs` |
+| Excel commands | `StingTools/UI/PlacementCenter/PlacementExcelCommands.cs` |
+| Loader (with profile filter + pack tagging) | `StingTools/Core/Placement/PlacementRuleLoader.cs` |
+| Seven new rule packs | `StingTools/Data/Placement/STING_PLACEMENT_RULES.{windows-glazing,routing,medical-gases,accessibility,commissioning,baseline-extensions,baseline-extensions2}.json` |
+| Building profile (per project) | `<project>/_BIM_COORD/placement_profile.json` |
+
+### 12.10 Migration notes
+
+Opening an existing project in v2 is automatic and idempotent:
+
+1. Layer 4 / Layer 3 rule files are loaded as before.
+2. Any rule missing v2 fields gets sensible defaults (`GuaranteeCoverage = false`, `MinCoverageRatio = 0`, empty `BuildingTypes`/`ApplicableStandards`).
+3. The first time the Centre runs against a project that has no `placement_profile.json`, the file is **not** auto-created — the Centre treats every rule as in-scope. Add the profile manually when you want to start gating by building type.
+4. The `Preview`, `Run Placement`, `Validate`, `Undo last run`, `Push to Families` toolbar buttons all work identically; no muscle memory lost.
+
+> **Layman version:** v2 adds power without taking anything away. Old
+> rules still work. New rules give you 4× the coverage, building-type
+> awareness, Excel round-trip and 22 new anchors — opt in when you
+> need them.
+
+---
+
+*End of v2 update. v1 of this guide (sections 0 – 11) is the primary
+reference for everyday work; this v2 section is what changed.*
