@@ -1,0 +1,24 @@
+{
+  "Version": "v1",
+  "Description": "Phase 139 — Height standards lookup table for AccessibilityAuditor. Min/Max in mm, measured from FFL.",
+  "Standards": {
+    "BS8300_SWITCH":         { "MinMm": 1200, "MaxMm": 1400, "Standard": "BS8300:2018 §10.4", "Notes": "Light switch reach range" },
+    "BS8300_SWITCH_1200_1400": { "MinMm": 1200, "MaxMm": 1400, "Standard": "BS8300:2018 §10.4", "Notes": "Synonym for BS8300_SWITCH" },
+    "BS8300_SOCKET_LOW":     { "MinMm": 450,  "MaxMm": 450,  "Standard": "BS8300:2018 §10.4", "Notes": "Low-level socket" },
+    "BS8300_SOCKET_HIGH":    { "MinMm": 1200, "MaxMm": 1350, "Standard": "BS8300:2018 §10.4", "Notes": "High-level accessible socket" },
+    "BS8300_DOOR_HANDLE":    { "MinMm": 900,  "MaxMm": 1100, "Standard": "BS8300:2018 §9.3.7", "Notes": "Door handle and lock height" },
+    "PARTM_SWITCH":          { "MinMm": 1200, "MaxMm": 1400, "Standard": "Approved Doc M Vol 1", "Notes": "Light switch in dwellings" },
+    "BS7671_SOCKET_FLOOR":   { "MinMm": 300,  "MaxMm": 450,  "Standard": "BS7671 Functional Guidance", "Notes": "Socket above floor" },
+    "BS5839_MCP":            { "MinMm": 1400, "MaxMm": 1400, "Standard": "BS5839-1 §20.2c", "Notes": "Manual call point head height" },
+    "BS5266_EXIT_SIGN":      { "MinMm": 2000, "MaxMm": 2300, "Standard": "BS5266-1 + BS EN1838", "Notes": "Internally illuminated exit sign" },
+    "HTM0201_OUTLET":        { "MinMm": 1400, "MaxMm": 1600, "Standard": "HTM 02-01 Part B", "Notes": "Medical gas outlet on bedhead trunking" },
+    "BB103_SWITCH_PRIMARY":  { "MinMm": 1100, "MaxMm": 1200, "Standard": "BB103 + BB104", "Notes": "Switch in primary school classroom" },
+    "BB103_SWITCH_SECONDARY":{ "MinMm": 1200, "MaxMm": 1400, "Standard": "BB103 + BB104", "Notes": "Switch in secondary school classroom" },
+    "BS8300_GRAB_RAIL_WC":   { "MinMm": 680,  "MaxMm": 800,  "Standard": "BS8300:2018 §18", "Notes": "Horizontal grab rail at WC" },
+    "BS8300_BASIN_RIM":      { "MinMm": 720,  "MaxMm": 800,  "Standard": "BS8300:2018 §18", "Notes": "Accessible washbasin rim" },
+    "BS8300_PULL_CORD":      { "MinMm": 100,  "MaxMm": 1000, "Standard": "BS8300:2018 §18", "Notes": "Emergency pull cord, bottom of cord ≤1000mm" },
+    "PARTM_RECEPTION_DESK":  { "MinMm": 760,  "MaxMm": 760,  "Standard": "Approved Doc M Vol 2 §3", "Notes": "Lowered counter section" },
+    "BS6465_BASIN":          { "MinMm": 800,  "MaxMm": 850,  "Standard": "BS6465-1", "Notes": "Standard washbasin rim" },
+    "BS6465_URINAL":         { "MinMm": 600,  "MaxMm": 650,  "Standard": "BS6465-1", "Notes": "Urinal lip height" }
+  }
+}

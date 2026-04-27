@@ -1,0 +1,21 @@
+{
+  "Version": "v4",
+  "Description": "Phase 139 — Routing rules for conduit/cable tray/pipe/duct following walls and ceilings.",
+  "Rules": [
+    { "RuleId": "route-conduit-lv-wall", "CategoryFilter": "Electrical Fixtures", "RoutingMode": "WALL_FOLLOW", "RouteFace": "INTERIOR", "RouteOffsetMm": 50.0, "RouteSegmentCategory": "Conduit", "RouteMinBendRadiusMm": 75.0, "ApplicableStandards": ["BS7671"], "Priority": 60 },
+    { "RuleId": "route-conduit-lv-ceiling", "CategoryFilter": "Electrical Fixtures", "RoutingMode": "CEILING_FOLLOW", "RouteFace": "BOTTOM", "RouteOffsetMm": 100.0, "RouteSegmentCategory": "Conduit", "ApplicableStandards": ["BS7671"], "Priority": 55 },
+    { "RuleId": "route-cable-tray-containment", "CategoryFilter": "Electrical Equipment", "RoutingMode": "CEILING_FOLLOW", "RouteFace": "BOTTOM", "RouteOffsetMm": 300.0, "RouteSegmentCategory": "CableTray", "ApplicableStandards": ["BS7671","BS6701"], "Priority": 65 },
+    { "RuleId": "route-cable-tray-wall-riser", "CategoryFilter": "Electrical Equipment", "RoutingMode": "WALL_FOLLOW", "RouteFace": "INTERIOR", "RouteOffsetMm": 100.0, "RouteSegmentCategory": "CableTray", "ApplicableStandards": ["BS7671"], "Priority": 60 },
+    { "RuleId": "route-pipe-hwsd-wall", "CategoryFilter": "Plumbing Fixtures", "RoutingMode": "WALL_FOLLOW", "RouteFace": "INTERIOR", "RouteOffsetMm": 50.0, "RouteSegmentCategory": "Pipe", "VariantHint": "HWS,DHW", "ApplicableStandards": ["BS6700"], "Priority": 60 },
+    { "RuleId": "route-pipe-cwsd-wall", "CategoryFilter": "Plumbing Fixtures", "RoutingMode": "WALL_FOLLOW", "RouteFace": "INTERIOR", "RouteOffsetMm": 75.0, "RouteSegmentCategory": "Pipe", "VariantHint": "CWS,DCW", "ApplicableStandards": ["BS6700"], "Priority": 55 },
+    { "RuleId": "route-pipe-soil-wall", "CategoryFilter": "Plumbing Fixtures", "RoutingMode": "WALL_FOLLOW", "RouteFace": "INTERIOR", "RouteOffsetMm": 50.0, "RouteSegmentCategory": "Pipe", "VariantHint": "SAN,SOIL", "ApplicableStandards": ["BSEN12056"], "Priority": 60 },
+    { "RuleId": "route-pipe-sprinkler-ceiling", "CategoryFilter": "Sprinklers", "RoutingMode": "CEILING_FOLLOW", "RouteFace": "BOTTOM", "RouteOffsetMm": 200.0, "RouteSegmentCategory": "Pipe", "ApplicableStandards": ["NFPA13","BSEN12845"], "Priority": 70 },
+    { "RuleId": "route-duct-supply-ceiling", "CategoryFilter": "Air Terminals", "RoutingMode": "CEILING_FOLLOW", "RouteFace": "BOTTOM", "RouteOffsetMm": 250.0, "RouteSegmentCategory": "Duct", "VariantHint": "SUPPLY", "ApplicableStandards": ["ASHRAE621","CIBSEGuideB"], "Priority": 60 },
+    { "RuleId": "route-duct-extract-ceiling", "CategoryFilter": "Air Terminals", "RoutingMode": "CEILING_FOLLOW", "RouteFace": "BOTTOM", "RouteOffsetMm": 250.0, "RouteSegmentCategory": "Duct", "VariantHint": "EXTRACT", "ApplicableStandards": ["ApprovedDocF"], "Priority": 55 },
+    { "RuleId": "route-conduit-fire-alarm-wall", "CategoryFilter": "Fire Alarm Devices", "RoutingMode": "WALL_FOLLOW", "RouteFace": "INTERIOR", "RouteOffsetMm": 50.0, "RouteSegmentCategory": "Conduit", "VariantHint": "FIRE,RED", "ApplicableStandards": ["BS5839"], "Priority": 75 },
+    { "RuleId": "route-conduit-data-perimeter", "CategoryFilter": "Data Devices", "RoutingMode": "WALL_FOLLOW", "RouteFace": "INTERIOR", "RouteOffsetMm": 50.0, "RouteSegmentCategory": "Conduit", "VariantHint": "CAT6,DATA", "ApplicableStandards": ["BS6701"], "Priority": 60 },
+    { "RuleId": "route-cable-tray-plant-room", "CategoryFilter": "Mechanical Equipment", "RoutingMode": "WALL_FOLLOW", "RouteFace": "INTERIOR", "RouteOffsetMm": 200.0, "RouteSegmentCategory": "CableTray", "RoomFilter": "(?i)plant", "Priority": 65 },
+    { "RuleId": "route-pipe-gas-floor", "CategoryFilter": "Mechanical Equipment", "RoutingMode": "FLOOR_FOLLOW", "RouteFace": "TOP", "RouteOffsetMm": 50.0, "RouteSegmentCategory": "Pipe", "VariantHint": "GAS", "ApplicableStandards": ["BS6891"], "Priority": 70 },
+    { "RuleId": "route-conduit-security-ceiling", "CategoryFilter": "Security Devices", "RoutingMode": "CEILING_FOLLOW", "RouteFace": "BOTTOM", "RouteOffsetMm": 50.0, "RouteSegmentCategory": "Conduit", "ApplicableStandards": ["BS6701"], "Priority": 60 }
+  ]
+}
