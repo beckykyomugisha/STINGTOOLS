@@ -261,15 +261,18 @@ namespace StingTools.Commands.Placement
                 }
                 if (emptyCats.Count > 0)
                 {
-                    var td2 = new TaskDialog("STING v4 — Categories with no family loaded")
+                    var td2 = new TaskDialog("STING v4 — Categories without a placeable Type")
                     {
-                        MainInstruction = $"{emptyCats.Count} ticked categor{(emptyCats.Count == 1 ? "y has" : "ies have")} no FamilySymbol loaded",
+                        MainInstruction = $"{emptyCats.Count} ticked categor{(emptyCats.Count == 1 ? "y has" : "ies have")} no Family Type loaded",
                         MainContent =
-                            "These categories will silently drop all their rules:\n  " +
+                            "These categories have no Family Type (FamilySymbol) loaded into the project:\n  " +
                             string.Join("\n  ", emptyCats.Take(15)) +
                             (emptyCats.Count > 15 ? $"\n  + {emptyCats.Count - 15} more" : "") +
-                            "\n\nLoad at least one family per category in Insert > Load Family, " +
-                            "then run Placement_AuditSetup to verify. Continue anyway?",
+                            "\n\nIn Revit a Family (.rfa) is the container; a Type (FamilySymbol) is one of the variants " +
+                            "inside it. The engine places instances of a Type, not the Family — a Family with none of its " +
+                            "Types loaded into the project drops every rule in its category.\n\n" +
+                            "Insert > Load Family, then drag at least one Type from the .rfa in Project Browser into a view, " +
+                            "and run Placement_AuditSetup for the full setup check. Continue anyway?",
                         CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                         DefaultButton = TaskDialogResult.No,
                     };
