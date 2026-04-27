@@ -1,0 +1,26 @@
+{
+  "Version": "v4",
+  "Description": "Phase 139 — Commissioning rules: test points, sensors, valves, meters.",
+  "Rules": [
+    { "RuleId": "com-airflow-test-point-duct", "CategoryFilter": "Specialty Equipment", "RoutingMode": "WALL_FOLLOW", "RouteFace": "INTERIOR", "RouteOffsetMm": 50.0, "MinSpacingMm": 600.0, "VariantHint": "TEST_POINT,FLOW", "ApplicableStandards": ["BSRIA_BG2","CIBSE_CodeM"], "Priority": 65 },
+    { "RuleId": "com-pressure-test-point", "CategoryFilter": "Specialty Equipment", "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1400.0, "MaxSpacingMm": 3000.0, "VariantHint": "PRESSURE_GAUGE", "ApplicableStandards": ["CIBSE_CodeM"], "Priority": 60 },
+    { "RuleId": "com-temperature-sensor-room", "CategoryFilter": "Specialty Equipment", "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1500.0, "MaxPerRoom": 1, "VariantHint": "TEMP_SENSOR", "ApplicableStandards": ["CIBSE_GuideA","ASHRAE901"], "Priority": 70 },
+    { "RuleId": "com-co2-sensor-return-air", "CategoryFilter": "Specialty Equipment", "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1800.0, "MaxPerRoom": 1, "VariantHint": "CO2_SENSOR", "ApplicableStandards": ["ASHRAE621"], "Priority": 75 },
+    { "RuleId": "com-humidity-sensor-room", "CategoryFilter": "Specialty Equipment", "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1500.0, "MaxPerRoom": 1, "VariantHint": "RH_SENSOR", "Priority": 65 },
+    { "RuleId": "com-lux-sensor-ceiling", "CategoryFilter": "Specialty Equipment", "AnchorType": "CEILING_CENTRE", "VariantHint": "LUX_SENSOR,PHOTOCELL", "ApplicableStandards": ["ASHRAE901"], "Priority": 65 },
+    { "RuleId": "com-occupancy-sensor-ceiling", "CategoryFilter": "Specialty Equipment", "AnchorType": "CEILING_CENTRE", "PerAreaM2": 50.0, "VariantHint": "OCCUPANCY,PIR", "ApplicableStandards": ["ASHRAE901"], "Priority": 70 },
+    { "RuleId": "com-occupancy-sensor-wall", "CategoryFilter": "Specialty Equipment", "AnchorType": "WALL_CORNER", "MountingHeightMm": 2200.0, "VariantHint": "OCCUPANCY,DUAL-TECH", "PerAreaM2": 60.0, "Priority": 65 },
+    { "RuleId": "com-fire-damper-indicator", "CategoryFilter": "Specialty Equipment", "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1200.0, "DependsOn": "mech-duct-firedamper", "VariantHint": "INDICATOR,STATUS", "MaxPerRoom": 1, "ApplicableStandards": ["BS9999"], "Priority": 75 },
+    { "RuleId": "com-heat-meter-pipework", "CategoryFilter": "Specialty Equipment", "RoutingMode": "WALL_FOLLOW", "RouteOffsetMm": 100.0, "VariantHint": "HEAT_METER,BTU", "Priority": 65 },
+    { "RuleId": "com-water-meter-main", "CategoryFilter": "Specialty Equipment", "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1200.0, "VariantHint": "WATER_METER", "MaxPerRoom": 1, "RoomFilter": "(?i)plant|meter", "Priority": 70 },
+    { "RuleId": "com-electric-meter-panel", "CategoryFilter": "Specialty Equipment", "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1500.0, "VariantHint": "ENERGY_METER,SUBMETER", "DependsOn": "elec-equipment-db", "Priority": 70 },
+    { "RuleId": "com-bms-outstation", "CategoryFilter": "Specialty Equipment", "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1800.0, "VariantHint": "BMS,OUTSTATION", "MaxPerRoom": 1, "RoomFilter": "(?i)plant|comms", "Priority": 75 },
+    { "RuleId": "com-vav-actuator-duct", "CategoryFilter": "Specialty Equipment", "DependsOn": "baseline-air-terminal-vav-box", "AnchorType": "CEILING_CENTRE", "VariantHint": "ACTUATOR,DDC", "Priority": 60 },
+    { "RuleId": "com-balancing-valve", "CategoryFilter": "Specialty Equipment", "RoutingMode": "WALL_FOLLOW", "RouteOffsetMm": 75.0, "VariantHint": "BALANCING_VALVE", "ApplicableStandards": ["CIBSE_CodeW"], "Priority": 65 },
+    { "RuleId": "com-strainer-filter", "CategoryFilter": "Specialty Equipment", "RoutingMode": "WALL_FOLLOW", "RouteOffsetMm": 100.0, "VariantHint": "STRAINER,Y-FILTER", "Priority": 60 },
+    { "RuleId": "com-access-panel-duct", "CategoryFilter": "Specialty Equipment", "AnchorType": "WALL_MIDPOINT", "MountingHeightMm": 1800.0, "MaxSpacingMm": 3000.0, "VariantHint": "ACCESS_DOOR", "ApplicableStandards": ["BS8313"], "Priority": 65 },
+    { "RuleId": "com-thermometer-pocket", "CategoryFilter": "Specialty Equipment", "RoutingMode": "WALL_FOLLOW", "RouteOffsetMm": 50.0, "VariantHint": "THERMOWELL,POCKET", "Priority": 60 },
+    { "RuleId": "com-wireless-mesh-node", "CategoryFilter": "Specialty Equipment", "AnchorType": "CEILING_CENTRE", "MountingHeightMm": 2800.0, "PerAreaM2": 100.0, "VariantHint": "WIRELESS_MESH,LORA", "Priority": 60 },
+    { "RuleId": "com-dp-switch-duct-filter", "CategoryFilter": "Specialty Equipment", "DependsOn": "duct-run", "VariantHint": "DP_SWITCH,FILTER_ALARM", "Priority": 65 }
+  ]
+}
