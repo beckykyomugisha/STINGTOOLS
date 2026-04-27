@@ -48,8 +48,31 @@ namespace StingTools.Core.Fabrication
         // unique SP-M-HVAC-L02-0003 even when the assembly has no spool
         // number yet (Phase A fallback; Phase B will hydrate from a
         // persistent doc_sequences.json keyed per project).
-        private static readonly Dictionary<string, int> _sequenceByBucket
-            = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        // GAP-B: per-document sequence bucket. Previously a single static
+        // dict was shared across every open document, so sheet numbers
+        // could collide / overshoot on the second project opened in the
+        // same session. Outer key is the document path; inner is the
+        // disc:sys:lvl bucket the original code already used.
+        private static readonly Dictionary<string, Dictionary<string, int>> _sequenceByBucket
+            = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+
+        private static string DocBucketKey(Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch { return "__unknown__"; }
+        }
+
+        private static Dictionary<string, int> GetDocBucket(Document doc)
+        {
+            string k = DocBucketKey(doc);
+            lock (_sequenceByBucket)
+            {
+                if (!_sequenceByBucket.TryGetValue(k, out var inner))
+                    _sequenceByBucket[k] = inner = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                return inner;
+            }
+        }
 
         // Slot positions on a 1:50 A1 sheet (Revit feet, sheet origin).
         // Plan TL, ISO TR, Elev0 BL, Elev90 ML, 3D BR, BOM RIGHT-PANEL.
@@ -211,11 +234,14 @@ namespace StingTools.Core.Fabrication
             string sysCode  = string.IsNullOrEmpty(systemCode) ? "GEN" : Sanitise(systemCode);
             string bucket   = $"{discCode}:{sysCode}:{levelCode}";
             int seq;
-            lock (_sequenceByBucket)
+            // GAP-B: per-document bucket — the outer lock prevents two
+            // composer calls on the same doc from racing the increment.
+            var docBucket = GetDocBucket(doc);
+            lock (docBucket)
             {
-                _sequenceByBucket.TryGetValue(bucket, out seq);
+                docBucket.TryGetValue(bucket, out seq);
                 seq += 1;
-                _sequenceByBucket[bucket] = seq;
+                docBucket[bucket] = seq;
             }
 
             // Honour the user pattern when the ShopDrawingOptionsDialog
@@ -275,26 +301,21 @@ namespace StingTools.Core.Fabrication
             }
             catch (Exception ex) { result.Warnings.Add($"Title block populate: {ex.Message}"); }
 
-            // DrawingType.TitleBlockParams — declarative per-profile
-            // title-block binding. Pass the same token dict the sheet
-            // number / name pattern used so {disc}=discCode / {lvl}=
-            // levelCode / {sys}=sysCode / {spool}=spool / {seq:Dn}
-            // resolve consistently with the sheet number pattern.
+            // FIX-9: route through DrawingTypePresentation.ApplyToSheet so
+            // the canonical lock check + DrawingType stamp + Package stamp +
+            // TitleBlockParamApplier sequence applies — keeps fabrication in
+            // step with the SheetManager / scope-box paths.
             try
             {
-                if (drawingType?.TitleBlockParams != null && drawingType.TitleBlockParams.Count > 0)
+                if (drawingType != null)
                 {
-                    // Same token set used to resolve the sheet number +
-                    // name patterns — ISO 19650 tokens included so
-                    // title-block cells read the same codes the sheet
-                    // number does.
-                    var tbApply = StingTools.Core.Drawing.TitleBlockParamApplier
-                        .Apply(doc, sheet, drawingType, extraTokens);
-                    foreach (var w in tbApply.Warnings)
-                        result.Warnings.Add("TitleBlockParams: " + w);
+                    var apply = StingTools.Core.Drawing.DrawingTypePresentation
+                        .ApplyToSheet(doc, sheet, drawingType, extraTokens);
+                    foreach (var w in apply.Warnings)
+                        result.Warnings.Add("ApplyToSheet: " + w);
                 }
             }
-            catch (Exception ex) { result.Warnings.Add($"TitleBlockParams: {ex.Message}"); }
+            catch (Exception ex) { result.Warnings.Add($"ApplyToSheet: {ex.Message}"); }
         }
 
         private static string ReadString(Element el, string param)
@@ -356,24 +377,20 @@ namespace StingTools.Core.Fabrication
             BuildTokenDict(Document doc, StingTools.Core.Drawing.DrawingType dt,
                 string spool, string discCode, string discipline, string sysCode, string levelCode, int seq)
         {
-            var d = new System.Collections.Generic.Dictionary<string, string>(
-                System.StringComparer.OrdinalIgnoreCase)
-            {
-                { "spool",      spool      ?? "" },
-                { "disc",       discCode   ?? "" },
-                { "discipline", discipline ?? "" },
-                { "sys",        sysCode    ?? "" },
-                { "lvl",        levelCode  ?? "" },
-                { "seq",        seq.ToString("D4") },
-                { "project",    ReadProjectInfo(doc, "PRJ_ORG_PROJECT_CODE") },
-                { "originator", ReadProjectInfo(doc, "PRJ_ORG_ORIGINATOR_CODE") },
-                { "vol",        dt?.IsoNaming?.Volume      ?? "" },
-                { "type",       dt?.IsoNaming?.Type        ?? "" },
-                { "role",       dt?.IsoNaming?.Role        ?? discCode ?? "" },
-                { "suit",       dt?.IsoNaming?.Suitability ?? "" },
-                { "rev",        dt?.IsoNaming?.Revision    ?? "" },
-            };
-            return d;
+            // INT-06: route through the canonical builder so the SheetManager
+            // and fabrication paths feed identical tokens to
+            // TitleBlockParamApplier. Adding new fields (mark, purpose, phase,
+            // …) only needs to happen in one place.
+            return StingTools.Core.Drawing.DrawingTokenContext.Build(
+                doc:        doc,
+                dt:         dt,
+                discCode:   discCode,
+                discipline: discipline,
+                sysCode:    sysCode,
+                levelCode:  levelCode,
+                seq:        seq,
+                seqWidth:   4,
+                spool:      spool);
         }
 
         private static string ReadProjectInfo(Document doc, string param)

@@ -91,13 +91,51 @@ namespace StingTools.Core.Drawing
                     }
                 }
 
-                // ── Step F. Display mode (per element in view) ─────────
-                if (dispMode.HasValue && dispMode.Value >= 1 && dispMode.Value <= 5)
-                    r.ElementWrites += WriteElementInts(doc, view, ParamRegistry.DISPLAY_MODE, dispMode.Value);
-
-                // ── Step C. TAG7 section visibility (per element) ──────
-                if (sectVis != null && sectVis.Count > 0)
-                    r.ElementWrites += WriteSectionVisibility(doc, view, sectVis);
+                // ── Steps F + C: per-element writes in a SINGLE pass ──
+                // PERF-03: previously the display-mode write, the section-
+                // visibility write, and the per-category depth write each
+                // ran their own FilteredElementCollector. Merge them into
+                // one collector pass so a 500-element view doesn't pay the
+                // 3× scan cost.
+                bool needDispMode = dispMode.HasValue && dispMode.Value >= 1 && dispMode.Value <= 5;
+                bool needSectVis  = sectVis != null && sectVis.Count > 0;
+                if (needDispMode || needSectVis)
+                {
+                    var canonicalSectVis = needSectVis
+                        ? CanonicaliseSectionVisibility(sectVis)
+                        : null;
+                    var ids = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .ToElementIds();
+                    foreach (var id in ids)
+                    {
+                        var el = doc.GetElement(id);
+                        if (el == null) continue;
+                        if (needDispMode)
+                        {
+                            try
+                            {
+                                Parameter p = el.LookupParameter(ParamRegistry.DISPLAY_MODE);
+                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Integer
+                                    && p.AsInteger() != dispMode.Value)
+                                {
+                                    p.Set(dispMode.Value); r.ElementWrites++;
+                                }
+                            }
+                            catch { /* element-level failure — keep going */ }
+                        }
+                        if (needSectVis && canonicalSectVis != null)
+                        {
+                            foreach (var kv in canonicalSectVis)
+                            {
+                                string pname = $"TAG_7_SECTION_VISIBLE_{kv.Key}_BOOL";
+                                if (el.LookupParameter(pname) == null) continue;
+                                if (ParameterHelpers.SetYesNo(el, pname, kv.Value, overwrite: true))
+                                    r.ElementWrites++;
+                            }
+                        }
+                    }
+                }
 
                 // ── Step G. Presentation-mode preset (global tier set) ─
                 if (!string.IsNullOrWhiteSpace(preset))
@@ -197,6 +235,19 @@ namespace StingTools.Core.Drawing
                 StingLog.Warn($"WriteElementInts({paramName}): {ex.Message}");
             }
             return n;
+        }
+
+        // PERF-03: helper used by the merged single-pass loop above.
+        private static Dictionary<string, bool> CanonicaliseSectionVisibility(Dictionary<string, bool> map)
+        {
+            var canonical = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            if (map == null) return canonical;
+            foreach (var kv in map)
+            {
+                string k = (kv.Key ?? string.Empty).Trim().ToUpperInvariant();
+                if (k.Length == 1 && k[0] >= 'A' && k[0] <= 'F') canonical[k] = kv.Value;
+            }
+            return canonical;
         }
 
         // ── TAG7 section visibility (per element) ───────────────────────
@@ -351,11 +402,23 @@ namespace StingTools.Core.Drawing
         {
             string activeParam = t.ParamName;
             string[] all = ParamRegistry.AllTagStyleParams;
+            if (all == null || all.Length == 0) return 0;
 
+            // GAP-C: previously walked every ElementType in the document
+            // (10,000+ in a typical project) probing for TAG_*_BOOL params.
+            // The TAG_*_BOOL parameters only exist on tag-family types, so
+            // pre-filter by category before LookupParameter probing —
+            // typical project drops to ~50 tag types instead of 10,000+.
+            var probeParam = all[0];
             int updated = 0;
-            var allTypes = new FilteredElementCollector(doc).WhereElementIsElementType();
-            foreach (Element typeEl in allTypes)
+            var typeIter = new FilteredElementCollector(doc)
+                .WhereElementIsElementType()
+                .Where(IsTagFamilyType);
+            foreach (Element typeEl in typeIter)
             {
+                // Cheap reject: if the canonical TAG_*_BOOL probe is
+                // missing, this type doesn't carry the style matrix.
+                if (typeEl.LookupParameter(probeParam) == null) continue;
                 bool any = false;
                 foreach (string pname in all)
                 {
@@ -368,6 +431,52 @@ namespace StingTools.Core.Drawing
                 if (any) updated++;
             }
             return updated;
+        }
+
+        private static bool IsTagFamilyType(Element el)
+        {
+            try
+            {
+                if (el is FamilySymbol fs)
+                {
+                    var cat = fs.Category;
+                    if (cat == null) return false;
+                    var bic = (BuiltInCategory)cat.Id.Value;
+                    switch (bic)
+                    {
+                        case BuiltInCategory.OST_DoorTags:
+                        case BuiltInCategory.OST_WindowTags:
+                        case BuiltInCategory.OST_RoomTags:
+                        case BuiltInCategory.OST_WallTags:
+                        case BuiltInCategory.OST_FloorTags:
+                        case BuiltInCategory.OST_CeilingTags:
+                        case BuiltInCategory.OST_RoofTags:
+                        case BuiltInCategory.OST_StairsTags:
+                        case BuiltInCategory.OST_StructuralColumnTags:
+                        case BuiltInCategory.OST_StructuralFramingTags:
+                        case BuiltInCategory.OST_StructuralFoundationTags:
+                        case BuiltInCategory.OST_FurnitureTags:
+                        case BuiltInCategory.OST_LightingFixtureTags:
+                        case BuiltInCategory.OST_MechanicalEquipmentTags:
+                        case BuiltInCategory.OST_PlumbingFixtureTags:
+                        case BuiltInCategory.OST_DuctTags:
+                        case BuiltInCategory.OST_PipeTags:
+                        case BuiltInCategory.OST_ConduitTags:
+                        case BuiltInCategory.OST_CableTrayTags:
+                        case BuiltInCategory.OST_ElectricalEquipmentTags:
+                        case BuiltInCategory.OST_ElectricalFixtureTags:
+                        case BuiltInCategory.OST_GenericModelTags:
+                        case BuiltInCategory.OST_KeynoteTags:
+                        case BuiltInCategory.OST_MultiCategoryTags:
+                        case BuiltInCategory.OST_AreaTags:
+                        case BuiltInCategory.OST_MEPSpaceTags:
+                        case BuiltInCategory.OST_MaterialTags:
+                            return true;
+                    }
+                }
+            }
+            catch { /* defensive — fall through */ }
+            return false;
         }
 
         private static int ApplyCategoryTagStyles(Document doc, View view, Dictionary<string, string> map)

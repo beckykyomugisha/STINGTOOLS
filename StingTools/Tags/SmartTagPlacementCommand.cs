@@ -907,7 +907,9 @@ namespace StingTools.Tags
         {
             if (doc == null || view == null || elements == null || elements.Count == 0) return 0;
             string dtId = null;
-            try { dtId = ParameterHelpers.GetString(view, "STING_DRAWING_TYPE_ID_TXT"); }
+            // GAP-N: route through Stamper.Read so a template-controlled
+            // pack=…|cs=… stamp doesn't leak into the registry lookup.
+            try { dtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(view); }
             catch { return 0; }
             if (string.IsNullOrWhiteSpace(dtId)) return 0;
 
