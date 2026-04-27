@@ -70,6 +70,20 @@ namespace StingTools.Core.Placement
             var contributing = new List<string>();
             if (doc == null) return (0, 0, contributing);
 
+            // Re-resolve the on-disk path because the catalogue lives next to
+            // the plug-in DLL today, but a future project-override path would
+            // be document-scoped. If the resolved path drifts from the cached
+            // load, drop the cache so we don't write project A's entries onto
+            // project B's file.
+            string current = ResolvePath() ?? "";
+            lock (_lock)
+            {
+                if (!string.Equals(current, _loadedPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    _byKey = null;
+                    _loadedPath = current;
+                }
+            }
             EnsureLoaded();
 
             try

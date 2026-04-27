@@ -111,12 +111,15 @@ namespace StingTools.Core.Placement
 
                 if (doc != null && layer.MaterialId != null && layer.MaterialId != ElementId.InvalidElementId)
                 {
+                    // Substring fallback only matters when Function metadata is missing.
+                    // Use word-boundary regex so "MF Steel" (structural) does NOT match
+                    // " mf", and "Hardboard" does NOT match "board".
                     if (doc.GetElement(layer.MaterialId) is Material mat && !string.IsNullOrEmpty(mat.Name))
                     {
-                        string n = mat.Name.ToLowerInvariant();
-                        if (n.Contains("plaster") || n.Contains("skim")
-                         || n.Contains("render")  || n.Contains("board")
-                         || n.Contains(" mf")     || n.StartsWith("mf"))
+                        if (System.Text.RegularExpressions.Regex.IsMatch(
+                                mat.Name,
+                                @"\b(plaster|skim|render|plasterboard|gypsum|MF\s+ceiling|MF\s+lining)\b",
+                                System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                             return true;
                     }
                 }
