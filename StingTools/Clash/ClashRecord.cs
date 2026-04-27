@@ -1,6 +1,7 @@
 // ClashRecord.cs — persisted clash schema (clashes.json).
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace StingTools.Core.Clash
 {
@@ -37,6 +38,16 @@ namespace StingTools.Core.Clash
         public string ResolutionHint;   // from ResolutionHeuristics
         public double? MlScore;
         public string MlLabel;
+        // A3: classification of the kept clash — "hard" for a true intersection,
+        // "clearance" when the AABB overlap depth is within the matrix cell's
+        // CLEARANCE_xx mm tolerance. Defaulted to null/empty so older
+        // clashes.json round-trips cleanly.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string Kind;
+        // C1: triage score from ClashTriageEngine. 0..1, higher = more critical.
+        // Defaulted to 0 so older clashes.json round-trips cleanly.
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+        public double TriageScore;
     }
 
     public sealed class StateTransition

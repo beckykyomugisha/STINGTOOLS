@@ -22,22 +22,60 @@ using System.Numerics;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Planscape.Shared.BCF;
 using StingTools.Core;
+using StingTools.V6;
 
 namespace StingTools.Core.Clash
 {
-    [Transaction(TransactionMode.ReadOnly)]
+    // C4: Manual transaction mode so the post-run LiveClashFlag.Apply
+    //     write succeeds. Prior ReadOnly mode blocked any nested
+    //     Transaction, breaking cold-init flag writes.
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public sealed class ClashRunCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            var uiDoc = commandData?.Application?.ActiveUIDocument;
+            var doc = uiDoc?.Document;
+            if (doc == null) { message = "No active document."; return Result.Failed; }
+            try { return ExecuteOnDocument(doc, silent: false, out _); }
+            catch (Exception ex)
+            {
+                StingLog.Error("ClashRunCommand.Execute", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// B3: Headless entry point used by the scheduler's ExternalEvent.
+        /// Runs the full pipeline silently (no TaskDialog) on the active
+        /// document and returns the run record. Returns null when no active
+        /// document, no 3D view, or no tessellatable geometry.
+        /// </summary>
+        public static ClashRunRecord RunHeadless(UIApplication app)
+        {
+            var doc = app?.ActiveUIDocument?.Document;
+            if (doc == null) return null;
             try
             {
-                var uiDoc = commandData?.Application?.ActiveUIDocument;
-                var doc = uiDoc?.Document;
-                if (doc == null) { message = "No active document."; return Result.Failed; }
+                ExecuteOnDocument(doc, silent: true, out var run);
+                return run;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ClashRunCommand.RunHeadless", ex);
+                return null;
+            }
+        }
 
+        private static Result ExecuteOnDocument(Document doc, bool silent, out ClashRunRecord runOut)
+        {
+            runOut = null;
+            try
+            {
                 if (!(doc.ActiveView is View3D view3d) || view3d.IsTemplate)
                 {
                     var fallback = new FilteredElementCollector(doc)
@@ -46,8 +84,9 @@ namespace StingTools.Core.Clash
                         .FirstOrDefault(v => !v.IsTemplate);
                     if (fallback == null)
                     {
-                        TaskDialog.Show("STING Clash",
-                            "No 3D view available. Open or create a 3D view to run clash detection.");
+                        if (!silent)
+                            TaskDialog.Show("STING Clash",
+                                "No 3D view available. Open or create a 3D view to run clash detection.");
                         return Result.Cancelled;
                     }
                     view3d = fallback;
@@ -72,8 +111,9 @@ namespace StingTools.Core.Clash
                 var meshes = MeshExtractor.Extract(doc, view3d);
                 if (meshes.Count == 0)
                 {
-                    TaskDialog.Show("STING Clash",
-                        "No tessellatable geometry found in the active 3D view.");
+                    if (!silent)
+                        TaskDialog.Show("STING Clash",
+                            "No tessellatable geometry found in the active 3D view.");
                     return Result.Cancelled;
                 }
 
@@ -137,6 +177,20 @@ namespace StingTools.Core.Clash
                 var prior = ClashPersistence.Load(clashesJson);
                 ClashHistory.MergeWithPrior(run, prior);
 
+                // ── A3: Re-evaluate clearance vs hard intersection ──
+                // The kernel returns Kind="hard" for every triangle-overlap
+                // pair, but a matrix cell with CLEARANCE_50 / CLEARANCE_100
+                // tolerates that magnitude of overlap. After merge (so
+                // promotion travels with the identity), inspect each kept
+                // clash whose cell tolerance starts with "CLEARANCE_":
+                //   - parse the suffix as mm,
+                //   - read the AABB overlap depth (min of the three extent
+                //     components in feet, converted to mm),
+                //   - if depth ≤ tolerance, the hit is within clearance —
+                //     drop hard tessellation slivers, otherwise promote
+                //     Kind to "clearance".
+                ApplyClearanceTolerance(run);
+
                 // Seed the today-sequence AFTER merge so we only skip over ids
                 // already taken in the archive (prior Resolved clashes) or carried
                 // forward by merge onto this run's matching-identity records.
@@ -158,6 +212,22 @@ namespace StingTools.Core.Clash
                 foreach (var c in run.Clashes)
                     c.ResolutionHint = ResolutionHeuristics.Suggest(c);
 
+                // ── C1: Stage 5 — triage scoring via ClashTriageEngine ──
+                // History-aware: RecurrenceCount counts identity matches in
+                // the prior run archive; DismissCount counts state transitions
+                // that landed on "Void". Clashes are sorted by TriageScore
+                // descending so coordinators see the worst items first.
+                ApplyTriageScores(run, prior);
+
+                // ── C2: discipline-owner enrichment — runs after issue
+                //        creation in the BCC dispatcher today, but we capture
+                //        owner names on the run record now so downstream
+                //        consumers (BCC tab, Excel exports) display the same
+                //        assignee. The CoordIssue list is created lazily by
+                //        ClashSlaIntegration.CreateIssues; the run.Groups
+                //        already carry the matrix-cell default at this point.
+                EnrichGroupAssignees(doc, run);
+
                 run.DurationMs = overall.ElapsedMilliseconds;
 
                 // ── Persist ──
@@ -173,29 +243,63 @@ namespace StingTools.Core.Clash
                 try { ClashSession.ForDocument(doc).SeedFromRun(run); }
                 catch (Exception seedEx) { StingLog.Warn($"ClashSession.SeedFromRun: {seedEx.Message}"); }
 
+                // C4: After SeedFromRun, write CLASH_LIVE_FLAG = 1 on every
+                // host element flagged by the persisted run so resumed
+                // sessions show warning triangles immediately (rather than
+                // waiting for the next dirty edit). Also clear flags on any
+                // host element no longer in the kept set. Best-effort — any
+                // workshared / read-only failure logs and continues.
+                try { WriteColdInitLiveFlags(doc, run); }
+                catch (Exception flagEx) { StingLog.Warn($"WriteColdInitLiveFlags: {flagEx.Message}"); }
+
+                // C6: Auto-export critical / high-severity new or reintroduced
+                // clashes to a BCF zip when default_clash_matrix.json sets
+                // "AutoBcfOnCritical": true. No-op when disabled or no
+                // qualifying clashes. Output goes alongside clashes.json.
+                try
+                {
+                    if (matrix.AutoBcfOnCritical)
+                    {
+                        var critical = run.Clashes
+                            .Where(c => (c.Severity == "CRITICAL" || c.Severity == "HIGH")
+                                     && (c.State == "New" || c.State == "Reintroduced"))
+                            .ToList();
+                        if (critical.Count > 0)
+                        {
+                            string bcfPath = ClashBcfExportCommand.ExportToBcf(doc, critical, outDir);
+                            if (!string.IsNullOrEmpty(bcfPath))
+                                StingLog.Info($"ClashRunCommand: auto-BCF exported {critical.Count} critical/high clashes → {bcfPath}");
+                        }
+                    }
+                }
+                catch (Exception bcfEx) { StingLog.Warn($"ClashRunCommand auto-BCF: {bcfEx.Message}"); }
+
                 StingLog.Info($"ClashRun: raw={run.Stats.Raw} filtered={run.Stats.Tier1Filtered} " +
                     $"excluded={run.Stats.Excluded} kept={run.Clashes.Count} " +
                     $"groups={run.Stats.Groups} new={run.Stats.New} active={run.Stats.Active} " +
                     $"resolved={run.Stats.Resolved} reintro={run.Stats.Reintroduced} " +
                     $"{run.DurationMs}ms → {clashesJson}");
 
-                TaskDialog.Show("STING Clash",
-                    $"Run complete in {run.DurationMs} ms.\n\n" +
-                    $"Raw hits: {run.Stats.Raw}\n" +
-                    $"Filtered (matrix/rule): {run.Stats.Tier1Filtered}\n" +
-                    $"Excluded: {run.Stats.Excluded}\n" +
-                    $"Kept: {run.Clashes.Count}\n" +
-                    $"Groups: {run.Stats.Groups}\n\n" +
-                    $"New: {run.Stats.New}   Active: {run.Stats.Active}   " +
-                    $"Resolved: {run.Stats.Resolved}   Reintroduced: {run.Stats.Reintroduced}\n\n" +
-                    $"Saved: {clashesJson}");
+                if (!silent)
+                {
+                    TaskDialog.Show("STING Clash",
+                        $"Run complete in {run.DurationMs} ms.\n\n" +
+                        $"Raw hits: {run.Stats.Raw}\n" +
+                        $"Filtered (matrix/rule): {run.Stats.Tier1Filtered}\n" +
+                        $"Excluded: {run.Stats.Excluded}\n" +
+                        $"Kept: {run.Clashes.Count}\n" +
+                        $"Groups: {run.Stats.Groups}\n\n" +
+                        $"New: {run.Stats.New}   Active: {run.Stats.Active}   " +
+                        $"Resolved: {run.Stats.Resolved}   Reintroduced: {run.Stats.Reintroduced}\n\n" +
+                        $"Saved: {clashesJson}");
+                }
+                runOut = run;
 
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                StingLog.Error("ClashRunCommand.Execute", ex);
-                message = ex.Message;
+                StingLog.Error("ClashRunCommand.ExecuteOnDocument", ex);
                 return Result.Failed;
             }
         }
@@ -321,6 +425,223 @@ namespace StingTools.Core.Clash
                 Category = facts?.Category ?? "",
                 System = facts?.System ?? "",
             };
+        }
+
+        /// <summary>
+        /// A3: Promote / drop clashes whose matched cell carries a clearance
+        /// tolerance. Reads CLEARANCE_xx mm from cell.Tolerance, computes the
+        /// minimum AABB extent (in mm), then either:
+        ///   - drops the record if the overlap is within tolerance and the
+        ///     kernel reported Kind == "hard" only because tessellation
+        ///     leaves a near-zero-volume intersection (treated as a sliver),
+        ///   - or promotes Kind to "clearance" so downstream UI / BCF can
+        ///     show "100 mm clearance breach" rather than mislabel as hard.
+        /// HARD-tolerance cells leave Kind unchanged.
+        /// </summary>
+        private static void ApplyClearanceTolerance(ClashRunRecord run)
+        {
+            if (run?.Clashes == null || run.Clashes.Count == 0) return;
+            int promoted = 0, dropped = 0;
+            // Iterate in reverse so we can RemoveAt safely on near-zero overlap.
+            for (int i = run.Clashes.Count - 1; i >= 0; i--)
+            {
+                var c = run.Clashes[i];
+                if (string.IsNullOrEmpty(c.Tolerance)) continue;
+                if (!c.Tolerance.StartsWith("CLEARANCE_", StringComparison.OrdinalIgnoreCase)) continue;
+                string suffix = c.Tolerance.Substring("CLEARANCE_".Length);
+                if (!double.TryParse(suffix, System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.InvariantCulture, out double tolMm)) continue;
+
+                // Overlap depth = min component of (AabbMax - AabbMin) in feet,
+                // converted to mm (1 ft = 304.8 mm).
+                if (c.AabbMin == null || c.AabbMax == null || c.AabbMin.Length < 3 || c.AabbMax.Length < 3) continue;
+                double dx = Math.Max(0, c.AabbMax[0] - c.AabbMin[0]);
+                double dy = Math.Max(0, c.AabbMax[1] - c.AabbMin[1]);
+                double dz = Math.Max(0, c.AabbMax[2] - c.AabbMin[2]);
+                double overlapMm = Math.Min(dx, Math.Min(dy, dz)) * 304.8;
+
+                if (overlapMm <= tolMm)
+                {
+                    // Within tolerance — drop the record. The kernel labelled
+                    // this "hard" because triangles overlap, but the matrix
+                    // says ≤ tolMm of overlap is acceptable. Treat as a
+                    // tessellation sliver and remove.
+                    run.Clashes.RemoveAt(i);
+                    dropped++;
+                }
+                else
+                {
+                    // Beyond tolerance — surface as a clearance breach.
+                    if (string.IsNullOrEmpty(c.Kind) || string.Equals(c.Kind, "hard", StringComparison.OrdinalIgnoreCase))
+                    {
+                        c.Kind = "clearance";
+                        promoted++;
+                    }
+                }
+            }
+            // Tag remaining (HARD-tolerance) records explicitly so consumers
+            // can rely on Kind being non-empty after Stage 2.
+            foreach (var c in run.Clashes) if (string.IsNullOrEmpty(c.Kind)) c.Kind = "hard";
+            if (promoted > 0 || dropped > 0)
+                StingLog.Info($"ApplyClearanceTolerance: promoted={promoted} dropped={dropped} remaining={run.Clashes.Count}");
+        }
+
+        /// <summary>
+        /// C1: Score every kept clash via ClashTriageEngine and stash the
+        /// score on ClashRecord.TriageScore. Sorts run.Clashes by score
+        /// descending so coordinators see the worst items first.
+        /// History inputs:
+        ///   RecurrenceCount = number of times this Identity appeared in the
+        ///                     prior run archive (only the immediately-prior
+        ///                     run is loaded; richer history would need a
+        ///                     full archive walk).
+        ///   DismissCount    = number of "Void" transitions in StateHistory.
+        /// </summary>
+        private static void ApplyTriageScores(ClashRunRecord run, ClashRunRecord prior)
+        {
+            if (run?.Clashes == null || run.Clashes.Count == 0) return;
+
+            // Build identity → recurrence count from prior run (1 if present,
+            // 0 if absent). Lightweight stand-in for a full archive walk.
+            var priorIdentitySet = new HashSet<string>(StringComparer.Ordinal);
+            if (prior?.Clashes != null)
+            {
+                foreach (var pc in prior.Clashes)
+                    if (!string.IsNullOrEmpty(pc.Identity)) priorIdentitySet.Add(pc.Identity);
+            }
+
+            var inputs = new List<ClashInput>(run.Clashes.Count);
+            foreach (var c in run.Clashes)
+            {
+                int dismissCount = 0;
+                if (c.StateHistory != null)
+                {
+                    foreach (var h in c.StateHistory)
+                        if (string.Equals(h.To, "Void", StringComparison.OrdinalIgnoreCase)) dismissCount++;
+                }
+                int recurrence = priorIdentitySet.Contains(c.Identity ?? "") ? 1 : 0;
+                inputs.Add(new ClashInput
+                {
+                    ClashId = c.Id ?? "",
+                    ElementAId = c.ElementA?.ElementId ?? 0,
+                    ElementBId = c.ElementB?.ElementId ?? 0,
+                    CategoryA = c.ElementA?.Category ?? "",
+                    CategoryB = c.ElementB?.Category ?? "",
+                    PenetrationMm = ComputeOverlapMm(c),
+                    EstCostUsd = null,   // ResolutionHeuristics has no cost API today
+                    PhaseInstalled = false,   // ElementFacts.Phase isn't populated yet
+                    RecurrenceCount = recurrence,
+                    DismissCount = dismissCount,
+                });
+            }
+
+            List<ScoredClash> scored;
+            try { scored = ClashTriageEngine.Triage(inputs); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ClashTriageEngine.Triage: {ex.Message}");
+                return;
+            }
+            var byClashId = new Dictionary<string, ScoredClash>(StringComparer.Ordinal);
+            foreach (var s in scored)
+                if (!string.IsNullOrEmpty(s.ClashId)) byClashId[s.ClashId] = s;
+
+            foreach (var c in run.Clashes)
+            {
+                if (!string.IsNullOrEmpty(c.Id) && byClashId.TryGetValue(c.Id, out var s))
+                    c.TriageScore = s.Score;
+                else
+                    c.TriageScore = 0.0;
+            }
+
+            // Stable sort: TriageScore desc, then by Severity rank, then by Id
+            // so equal-score records have a deterministic order.
+            run.Clashes.Sort((x, y) =>
+            {
+                int cmp = y.TriageScore.CompareTo(x.TriageScore);
+                if (cmp != 0) return cmp;
+                cmp = SeverityRank(y.Severity).CompareTo(SeverityRank(x.Severity));
+                if (cmp != 0) return cmp;
+                return string.CompareOrdinal(x.Id ?? "", y.Id ?? "");
+            });
+        }
+
+        private static int SeverityRank(string sev)
+        {
+            switch ((sev ?? "").ToUpperInvariant())
+            {
+                case "CRITICAL": return 4;
+                case "HIGH": return 3;
+                case "MED":
+                case "MEDIUM": return 2;
+                case "LOW": return 1;
+                default: return 0;
+            }
+        }
+
+        private static double ComputeOverlapMm(ClashRecord c)
+        {
+            if (c?.AabbMin == null || c.AabbMax == null) return 0;
+            if (c.AabbMin.Length < 3 || c.AabbMax.Length < 3) return 0;
+            double dx = Math.Max(0, c.AabbMax[0] - c.AabbMin[0]);
+            double dy = Math.Max(0, c.AabbMax[1] - c.AabbMin[1]);
+            double dz = Math.Max(0, c.AabbMax[2] - c.AabbMin[2]);
+            return Math.Min(dx, Math.Min(dy, dz)) * 304.8;
+        }
+
+        /// <summary>
+        /// C2: Resolve workset owner names and overlay them on group
+        /// assignees when the workset name maps to a known discipline
+        /// prefix. Best-effort: any failure logs and leaves the matrix-
+        /// cell default in place. Synthesises a one-off CoordIssue list
+        /// only so we can re-use ClashSlaIntegration.EnrichAssignees
+        /// without duplicating the resolution logic.
+        /// </summary>
+        private static void EnrichGroupAssignees(Document doc, ClashRunRecord run)
+        {
+            if (doc == null || run?.Groups == null || run.Groups.Count == 0) return;
+            if (!doc.IsWorkshared) return;
+            try
+            {
+                // One placeholder issue per group so EnrichAssignees can read
+                // each group's representative ClashRecord and copy the owner
+                // back onto the group itself.
+                var stub = new List<CoordIssue>();
+                for (int i = 0; i < run.Groups.Count; i++)
+                {
+                    stub.Add(new CoordIssue { Assignee = run.Groups[i].Assignee ?? "" });
+                }
+                ClashSlaIntegration.EnrichAssignees(doc, stub, run);
+            }
+            catch (Exception ex) { StingLog.Warn($"EnrichGroupAssignees: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// C4: Cold-init flag write. Walk every kept ClashRecord, gather host
+        /// (LinkInstanceId == -1) element ids on either side that are not
+        /// resolved/void, and call LiveClashFlag.Apply with the set so the
+        /// in-authoring CLASH_LIVE_FLAG parameters reflect persisted state on
+        /// session resume. Cleared ids are not enumerated here — the live
+        /// session's SeedFromRun raised OnElementFlagChanged for those.
+        /// </summary>
+        private static void WriteColdInitLiveFlags(Document doc, ClashRunRecord run)
+        {
+            if (doc == null || run?.Clashes == null) return;
+            var flagged = new HashSet<int>();
+            foreach (var c in run.Clashes)
+            {
+                if (c.State == "Resolved" || c.State == "Void") continue;
+                if (c.ElementA != null && c.ElementA.LinkInstanceId == -1)
+                    flagged.Add(c.ElementA.ElementId);
+                if (c.ElementB != null && c.ElementB.LinkInstanceId == -1)
+                    flagged.Add(c.ElementB.ElementId);
+            }
+            if (flagged.Count == 0) return;
+            // Empty cleared list — clearing is owned by the live session's
+            // RefreshElement / RemoveElement and was already handled by
+            // SeedFromRun's diff. We only need to assert flag=1 here.
+            LiveClashFlag.Apply(doc, flagged, Array.Empty<int>());
+            StingLog.Info($"WriteColdInitLiveFlags: wrote CLASH_LIVE_FLAG=1 on {flagged.Count} elements");
         }
 
         /// <summary>

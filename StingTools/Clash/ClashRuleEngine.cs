@@ -32,7 +32,10 @@ namespace StingTools.Core.Clash
                 bool fa = string.IsNullOrEmpty(rule.FilterA) || FilterMatches(rule.FilterA, a) || FilterMatches(rule.FilterA, b);
                 bool fb = string.IsNullOrEmpty(rule.FilterB) || FilterMatches(rule.FilterB, b) || FilterMatches(rule.FilterB, a);
                 if (!(fa && fb)) continue;
-                var v = rule.Predicate(h, a, b);
+                // C5: Predicate now takes the rule definition so it can read
+                //     project-overridable thresholds from rule.Params with the
+                //     hardcoded constant as fallback.
+                var v = rule.Predicate(h, a, b, rule);
                 if (v != ClashVerdict.Keep)
                 {
                     result.Verdict = v;
