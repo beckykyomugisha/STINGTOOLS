@@ -206,14 +206,18 @@ namespace StingTools.Core.Placement
             if (prev.Count == 0) return;
             try
             {
-                double offsetFt = 0.0;
+                Wall firstWall = null;
                 var bnd = GetBoundary(room);
-                if (bnd != null && bnd.Walls != null && bnd.Walls.Count > 0)
-                    offsetFt = PlasterOffsetResolver.Resolve(bnd.Walls[0], rule);
+                if (bnd != null)
+                {
+                    foreach (var seg in bnd.Segments)
+                    {
+                        if (seg?.Wall != null) { firstWall = seg.Wall; break; }
+                    }
+                }
+                double offsetFt = firstWall != null ? PlasterOffsetResolver.Resolve(firstWall, rule) : 0.0;
                 if (Math.Abs(offsetFt) < 1e-9) { points.AddRange(prev); return; }
-                XYZ n = XYZ.BasisX;
-                if (bnd != null && bnd.Walls != null && bnd.Walls.Count > 0 && bnd.Walls[0].Orientation != null)
-                    n = bnd.Walls[0].Orientation;
+                XYZ n = (firstWall != null && firstWall.Orientation != null) ? firstWall.Orientation : XYZ.BasisX;
                 foreach (var p in prev) points.Add(new XYZ(p.X + n.X * offsetFt, p.Y + n.Y * offsetFt, p.Z));
             }
             catch (Exception ex) { StingLog.Warn($"EmitWallFaceOffset: {ex.Message}"); points.AddRange(prev); }
