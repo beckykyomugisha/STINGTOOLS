@@ -69,6 +69,14 @@ namespace StingTools.Core.Drawing
             }
 
             foreach (var tb in tbs)
+            {
+                // GAP-M: a secondary title block (e.g. a North arrow or a
+                // fabrication-only stamp on the same sheet) typically has
+                // zero of the declared keys. Skip silently rather than
+                // emitting a "no parameter" warning per key per secondary TB.
+                if (tbs.Count > 1 && !TitleBlockHasAnyKey(tb, dt.TitleBlockParams.Keys))
+                    continue;
+
             foreach (var kv in dt.TitleBlockParams)
             {
                 var paramName = kv.Key;
@@ -129,7 +137,24 @@ namespace StingTools.Core.Drawing
                     r.Warnings.Add($"Write '{paramName}': {ex.Message}");
                 }
             }
+            } // end per-TB block (GAP-M)
             return r;
+        }
+
+        // GAP-M: cheap test to skip secondary title blocks that don't carry
+        // any of the declared keys. The first match short-circuits.
+        private static bool TitleBlockHasAnyKey(FamilyInstance tb, IEnumerable<string> keys)
+        {
+            try
+            {
+                foreach (var k in keys)
+                {
+                    if (string.IsNullOrWhiteSpace(k)) continue;
+                    if (tb.LookupParameter(k) != null) return true;
+                }
+            }
+            catch { /* defensive — assume yes on probe failure */ return true; }
+            return false;
         }
 
         /// <summary>
