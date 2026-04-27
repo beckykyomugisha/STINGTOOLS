@@ -168,9 +168,14 @@ namespace StingTools.Core.Clash
         /// <summary>
         /// rec-13: Repetition pass. Groups remaining clashes with identical
         /// matrix pair-id and approximately equal AABB volumes that fall at
-        /// roughly equal intervals on at least one axis. Common case: a riser
-        /// hitting every floor slab in a stack — 5 clashes instead of 5
-        /// individual spatial singletons.
+        /// roughly equal intervals on at least one axis (X, Y, or Z).
+        ///
+        /// A5: All three axes are now evaluated; the axis with the smallest
+        /// mean-deviation wins. Prior code only checked Z, breaking horizontal
+        /// risers clashing with wall framing in X or Y into spatial singletons.
+        /// Common cases now caught:
+        ///   - vertical riser hitting every floor (Z-stack)
+        ///   - horizontal main run hitting every joist (Y or X)
         /// </summary>
         private static List<PatternGroup> FindRepetitionGroups(List<ClashRecord> clashes)
         {
@@ -184,17 +189,56 @@ namespace StingTools.Core.Clash
             foreach (var bucket in byPairAndVolBucket)
             {
                 if (bucket.Count() < 3) continue;
-                var list = bucket.OrderBy(c => c.Centroid[2]).ToList();   // sort by Z (stack axis)
-                if (IsEquallySpaced(list, axis: 2, tolerance: 0.5f))
+                var members = bucket.ToList();
+
+                // A5: Try all three axes; pick the smallest mean-deviation.
+                int bestAxis = -1;
+                float bestDev = float.MaxValue;
+                List<ClashRecord> bestSorted = null;
+                for (int axis = 0; axis < 3; axis++)
                 {
-                    result.Add(new PatternGroup
-                    {
-                        AnchorDescription = $"{bucket.Key.Item1} repetition (Z-stack, vol≈{bucket.Key.Item2})",
-                        Members = list,
-                    });
+                    var sorted = members.OrderBy(c => c.Centroid[axis]).ToList();
+                    if (!TryComputeMeanDev(sorted, axis, tolerance: 0.5f, out float dev)) continue;
+                    if (dev < bestDev) { bestDev = dev; bestAxis = axis; bestSorted = sorted; }
                 }
+                if (bestAxis < 0 || bestSorted == null) continue;
+
+                string axisLabel = bestAxis == 0 ? "X-row" : bestAxis == 1 ? "Y-row" : "Z-stack";
+                result.Add(new PatternGroup
+                {
+                    AnchorDescription = $"{bucket.Key.Item1} repetition ({axisLabel}, vol≈{bucket.Key.Item2})",
+                    Members = bestSorted,
+                });
             }
             return result;
+        }
+
+        /// <summary>
+        /// A5: Inverted form of IsEquallySpaced — returns the mean deviation
+        /// when the points are equally spaced (within tolerance), else false.
+        /// Used to score axis candidates so the winning axis is the one whose
+        /// spacing is most regular, not just "any axis that fits".
+        /// </summary>
+        private static bool TryComputeMeanDev(List<ClashRecord> sorted, int axis, float tolerance, out float meanDev)
+        {
+            meanDev = float.MaxValue;
+            if (sorted == null || sorted.Count < 3) return false;
+            var deltas = new List<float>();
+            for (int i = 1; i < sorted.Count; i++)
+            {
+                deltas.Add(sorted[i].Centroid[axis] - sorted[i - 1].Centroid[axis]);
+            }
+            float mean = deltas.Average();
+            if (mean < 0.1f) return false;     // too-close centroids aren't a pattern
+            float devSum = 0f;
+            foreach (var d in deltas)
+            {
+                float diff = System.Math.Abs(d - mean);
+                if (diff > tolerance) return false;
+                devSum += diff;
+            }
+            meanDev = devSum / deltas.Count;
+            return true;
         }
 
         private static int VolumeBucket(float volMm3)
@@ -202,23 +246,6 @@ namespace StingTools.Core.Clash
             // Log2 bucket: clashes within a ~2× volume band cluster together.
             if (volMm3 <= 1f) return 0;
             return (int)System.Math.Round(System.Math.Log2(volMm3));
-        }
-
-        private static bool IsEquallySpaced(List<ClashRecord> sorted, int axis, float tolerance)
-        {
-            if (sorted.Count < 3) return false;
-            var deltas = new List<float>();
-            for (int i = 1; i < sorted.Count; i++)
-            {
-                deltas.Add(sorted[i].Centroid[axis] - sorted[i - 1].Centroid[axis]);
-            }
-            float mean = deltas.Average();
-            if (mean < 0.1f) return false;   // too-close centroids aren't a pattern
-            foreach (var d in deltas)
-            {
-                if (System.Math.Abs(d - mean) > tolerance) return false;
-            }
-            return true;
         }
     }
 }
