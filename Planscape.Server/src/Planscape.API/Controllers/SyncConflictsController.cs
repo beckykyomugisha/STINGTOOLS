@@ -157,8 +157,10 @@ public class SyncConflictsController : ControllerBase
     }
 
     /// <summary>
-    /// Bulk resolve. Body is an array of conflictIds plus a single resolution.
-    /// Caps at 500 per call.
+    /// Bulk resolve — single resolution applied to up to 500 conflicts. Used
+    /// for ACCEPT_SERVER + MERGED where no per-element fields are needed.
+    /// For ACCEPT_CLIENT use <see cref="BulkResolveWithFields"/> instead so
+    /// each conflict can carry its own field map.
     /// </summary>
     [HttpPost("bulk-resolve")]
     public async Task<ActionResult> BulkResolve(Guid projectId, [FromBody] BulkResolveRequest req)
@@ -167,6 +169,17 @@ public class SyncConflictsController : ControllerBase
             return BadRequest("conflictIds is required");
         if (req.ConflictIds.Count > 500)
             return BadRequest("Maximum 500 conflicts per bulk resolve");
+
+        // ACCEPT_CLIENT cannot be applied via the simple bulk path — it needs
+        // per-conflict fields. Direct caller to bulk-resolve-with-fields.
+        if (string.Equals(req.Resolution, "ACCEPT_CLIENT", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new
+            {
+                error = "ACCEPT_CLIENT requires per-conflict field maps",
+                hint = "POST /syncconflicts/bulk-resolve-with-fields with [{ conflictId, fields, note? }, …]"
+            });
+        }
 
         var tenantId = GetTenantId();
         var conflicts = await _db.SyncConflicts
@@ -178,6 +191,98 @@ public class SyncConflictsController : ControllerBase
 
         return await ApplyResolution(projectId, conflicts,
             new ResolveConflictRequest(req.Resolution, req.Note, ClientFields: null));
+    }
+
+    /// <summary>
+    /// Phase 144 — Bulk ACCEPT_CLIENT with per-conflict field maps. The
+    /// caller supplies one entry per conflict; each entry's <c>fields</c> is
+    /// applied to the linked TaggedElement before the conflict is marked
+    /// CLIENT_WINS. Caps at 250 per call (lower than ACCEPT_SERVER bulk
+    /// because each row writes element data and the bigger payload makes
+    /// timeouts more likely on a poor site connection).
+    /// </summary>
+    [HttpPost("bulk-resolve-with-fields")]
+    public async Task<ActionResult> BulkResolveWithFields(
+        Guid projectId,
+        [FromBody] BulkResolveWithFieldsRequest req)
+    {
+        if (req.Items == null || req.Items.Count == 0)
+            return BadRequest("items is required");
+        if (req.Items.Count > 250)
+            return BadRequest("Maximum 250 conflicts per bulk-resolve-with-fields call");
+
+        // Reject duplicate conflictIds in the same payload — first-write-wins
+        // would silently drop later edits and the manager wouldn't know why.
+        var ids = req.Items.Select(i => i.ConflictId).ToList();
+        if (ids.Count != ids.Distinct().Count())
+            return BadRequest("items contains duplicate conflictId values");
+
+        var tenantId = GetTenantId();
+        var conflicts = await _db.SyncConflicts
+            .Include(c => c.TaggedElement)
+            .Where(c => ids.Contains(c.Id)
+                     && c.ProjectId == projectId
+                     && c.Project!.TenantId == tenantId)
+            .ToDictionaryAsync(c => c.Id);
+
+        if (conflicts.Count == 0) return NotFound("No conflicts matched");
+
+        var resolver = User.FindFirst("display_name")?.Value
+                       ?? User.FindFirst("user_id")?.Value
+                       ?? "Unknown";
+
+        var resolved = new List<Guid>();
+        var skipped = new List<object>();
+        foreach (var item in req.Items)
+        {
+            if (!conflicts.TryGetValue(item.ConflictId, out var c))
+            {
+                skipped.Add(new { conflictId = item.ConflictId, reason = "not found / not in tenant" });
+                continue;
+            }
+            // Skip already-resolved rows so a re-submitted batch is idempotent.
+            if (c.Resolution != "PENDING" && c.Resolution != "SERVER_WINS")
+            {
+                skipped.Add(new { conflictId = c.Id, reason = $"already {c.Resolution}" });
+                continue;
+            }
+            if (c.TaggedElement == null)
+            {
+                // Element was deleted server-side after the conflict was
+                // recorded — can't re-apply client fields, so mark MERGED.
+                c.Resolution = "MERGED";
+                resolved.Add(c.Id);
+                continue;
+            }
+
+            ApplyClientFields(c.TaggedElement, item.Fields);
+            c.TaggedElement.Version += 1;
+            c.TaggedElement.LastModifiedUtc = DateTime.UtcNow;
+            c.Resolution = "CLIENT_WINS";
+            resolved.Add(c.Id);
+        }
+
+        await _db.SaveChangesAsync();
+
+        foreach (var id in resolved)
+            await _audit.LogAsync("RESOLVE_CLIENT_WINS", "SyncConflict", id.ToString(),
+                req.Note == null ? null
+                    : System.Text.Json.JsonSerializer.Serialize(new { req.Note, by = resolver }));
+
+        if (resolved.Count > 0)
+        {
+            _ = _notifications.NotifyProjectAsync(projectId, "sync_conflict_resolved",
+                $"{resolved.Count} sync conflict(s) accepted from client",
+                $"Resolved by {resolver}: bulk ACCEPT_CLIENT",
+                new { count = resolved.Count, resolution = "ACCEPT_CLIENT", projectId });
+        }
+
+        return Ok(new
+        {
+            resolved = resolved.Count,
+            ids = resolved,
+            skipped,
+        });
     }
 
     private async Task<ActionResult> ApplyResolution(
@@ -264,6 +369,10 @@ public class SyncConflictsController : ControllerBase
 public record ResolveConflictRequest(string Resolution, string? Note, ClientFieldsDto? ClientFields);
 
 public record BulkResolveRequest(List<Guid> ConflictIds, string Resolution, string? Note);
+
+public record BulkResolveWithFieldsItem(Guid ConflictId, ClientFieldsDto Fields);
+
+public record BulkResolveWithFieldsRequest(List<BulkResolveWithFieldsItem> Items, string? Note);
 
 public record ClientFieldsDto(
     string? Tag1,

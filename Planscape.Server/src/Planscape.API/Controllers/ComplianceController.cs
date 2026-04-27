@@ -190,6 +190,100 @@ public class ComplianceController : ControllerBase
         return Ok(trend);
     }
 
+    /// <summary>
+    /// Phase 144 — cross-discipline tag completeness heatmap.
+    ///
+    /// Returns a matrix [discipline][token] = pct, where token is one of the
+    /// 8 ISO 19650 tag segments (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD
+    /// / SEQ) plus STATUS + REV. Each cell is the percent of elements in
+    /// that discipline whose token is non-empty.
+    ///
+    /// The BIM Coordinator uses this to spot which discipline is letting
+    /// which token slip — e.g. "Mechanical is at 98% on SYS but 41% on
+    /// FUNC" tells them where to point the team's effort.
+    /// </summary>
+    [HttpGet("tag-heatmap")]
+    public async Task<ActionResult> GetTagHeatmap(Guid projectId)
+    {
+        var tenantId = GetTenantId();
+        var projectOk = await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (!projectOk) return NotFound("Project not found");
+
+        // Pull only the columns we need to compute completeness — no point
+        // streaming Tag7 narratives into memory for an aggregate query.
+        // EF Core translates this to a single GROUP BY query in PG.
+        var rows = await _db.TaggedElements.AsNoTracking()
+            .Where(e => e.ProjectId == projectId)
+            .Select(e => new
+            {
+                Disc = e.Disc,
+                Loc = e.Loc,
+                Zone = e.Zone,
+                Lvl = e.Lvl,
+                Sys = e.Sys,
+                Func = e.Func,
+                Prod = e.Prod,
+                Seq = e.Seq,
+                Status = e.Status ?? "",
+                Rev = e.Rev ?? "",
+            })
+            .ToListAsync();
+
+        if (rows.Count == 0)
+        {
+            return Ok(new
+            {
+                projectId,
+                generatedAt = DateTime.UtcNow,
+                totalElements = 0,
+                tokens = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ", "STATUS", "REV" },
+                disciplines = Array.Empty<object>(),
+            });
+        }
+
+        // Bucket "" / null Disc as "(unset)" so the row is visible. A blank
+        // Disc on a tagged element is itself a coordination issue and the
+        // manager should see it.
+        const string UnsetBucket = "(unset)";
+        var groups = rows
+            .GroupBy(r => string.IsNullOrWhiteSpace(r.Disc) ? UnsetBucket : r.Disc)
+            .OrderBy(g => g.Key == UnsetBucket ? 1 : 0) // unset last
+            .ThenBy(g => g.Key)
+            .Select(g =>
+            {
+                var n = g.Count();
+                int Pct(int c) => n == 0 ? 0 : (int)Math.Round(100.0 * c / n);
+                return new
+                {
+                    discipline = g.Key,
+                    elementCount = n,
+                    cells = new
+                    {
+                        DISC = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Disc))),
+                        LOC = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Loc))),
+                        ZONE = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Zone))),
+                        LVL = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Lvl))),
+                        SYS = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Sys))),
+                        FUNC = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Func))),
+                        PROD = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Prod))),
+                        SEQ = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Seq))),
+                        STATUS = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Status))),
+                        REV = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Rev))),
+                    }
+                };
+            })
+            .ToList();
+
+        return Ok(new
+        {
+            projectId,
+            generatedAt = DateTime.UtcNow,
+            totalElements = rows.Count,
+            tokens = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ", "STATUS", "REV" },
+            disciplines = groups,
+        });
+    }
+
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 }

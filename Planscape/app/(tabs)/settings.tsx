@@ -314,6 +314,17 @@ export default function SettingsScreen() {
         <InfoRow label="Platform" value={Platform.OS} />
       </View>
 
+      {/* Phase 144 — Project admin link. Always visible; permission to
+          actually flip toggles is enforced server-side. */}
+      <TouchableOpacity
+        style={styles.linkBtn}
+        onPress={() => router.push('/project-settings' as any)}
+        accessibilityLabel="Open project admin settings"
+      >
+        <Text style={styles.linkBtnText}>Project admin settings</Text>
+        <Text style={styles.linkArrow}>›</Text>
+      </TouchableOpacity>
+
       {/* ── Logout ── */}
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Text style={styles.logoutBtnText}>Sign Out</Text>
@@ -538,6 +549,17 @@ const styles = StyleSheet.create({
   },
 
   // Logout
+  // Phase 144 — link row used for project-admin-settings entry point
+  linkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  linkBtnText: { flex: 1, fontSize: theme.fontSize.md, color: theme.colors.text, fontWeight: '600' },
+  linkArrow: { fontSize: theme.fontSize.xl, color: theme.colors.textSecondary, paddingLeft: theme.spacing.sm },
   logoutBtn: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,

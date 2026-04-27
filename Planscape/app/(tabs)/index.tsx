@@ -275,6 +275,33 @@ export default function DashboardScreen() {
             </View>
             <Text style={styles.bimArrow}>›</Text>
           </TouchableOpacity>
+          {/* Phase 144 — Tag heatmap shortcut. Always visible inside the BIM
+              Coordination card so the manager sees the full BIM-side menu. */}
+          <TouchableOpacity
+            style={styles.bimRow}
+            onPress={() => router.push('/heatmap' as any)}
+            accessibilityLabel="Open tag completeness heatmap"
+          >
+            <View style={[styles.ragDot, { backgroundColor: theme.colors.accent }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bimRowTitle}>Tag completeness heatmap</Text>
+              <Text style={styles.bimRowSub}>Per-discipline × per-token completeness grid</Text>
+            </View>
+            <Text style={styles.bimArrow}>›</Text>
+          </TouchableOpacity>
+          {/* Phase 144 — Stage gates / MIDP shortcut. */}
+          <TouchableOpacity
+            style={styles.bimRow}
+            onPress={() => router.push('/stages' as any)}
+            accessibilityLabel="Open stage gate timeline"
+          >
+            <View style={[styles.ragDot, { backgroundColor: theme.colors.primary }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bimRowTitle}>Stage gates & MIDP</Text>
+              <Text style={styles.bimRowSub}>RIBA timeline + information-exchange deliverables</Text>
+            </View>
+            <Text style={styles.bimArrow}>›</Text>
+          </TouchableOpacity>
         </View>
       )}
 

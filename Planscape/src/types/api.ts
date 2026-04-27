@@ -240,6 +240,8 @@ export interface ProjectSettings {
   limits: { maxAttachmentMB: number; maxDocumentMB: number; maxPhotosPerIssue: number };
   slaHours: { critical: number; high: number; medium: number; low: number };
   geofence: { hasBoundary: boolean; requireBoundary: boolean };
+  // Phase 144 — first-class admin booleans (stored on Project row, not ConfigJson)
+  admin: { enforceIso19650Naming: boolean };
 }
 
 export interface NotificationPreferences {

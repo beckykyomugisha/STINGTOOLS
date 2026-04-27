@@ -331,6 +331,20 @@ export function getProjectSettings(projectId: string): Promise<ProjectSettings> 
   return apiFetch(`/api/projects/${projectId}/settings`);
 }
 
+// Phase 144 — update project settings. Admin booleans (e.g.
+// enforceIso19650Naming) write through to first-class Project columns;
+// any other key is treated as a soft preference and stored in ConfigJson.
+// Caller must hold the K (BIM Manager) or C (Coordinator) project role.
+export function updateProjectSettings(
+  projectId: string,
+  overrides: Record<string, unknown>,
+): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/settings`, {
+    method: 'PUT',
+    body: JSON.stringify(overrides),
+  });
+}
+
 // Notification preferences (NEW-FLEX-12)
 export function getNotificationPreferences(): Promise<NotificationPreferences> {
   return apiFetch('/api/me/notifications/preferences');
@@ -591,6 +605,32 @@ export function bulkResolveSyncConflicts(
   });
 }
 
+// Phase 144 — bulk ACCEPT_CLIENT with per-conflict field maps. Each item
+// carries the field values to re-apply for that specific conflict's
+// linked TaggedElement. Server caps at 250 per call.
+export interface ConflictFieldOverrides {
+  tag1?: string | null;
+  disc?: string | null;
+  sys?: string | null;
+  func?: string | null;
+  prod?: string | null;
+  loc?: string | null;
+  zone?: string | null;
+  lvl?: string | null;
+  seq?: string | null;
+  status?: string | null;
+  rev?: string | null;
+}
+export function bulkResolveSyncConflictsWithFields(
+  projectId: string,
+  items: Array<{ conflictId: string; fields: ConflictFieldOverrides }>,
+  note?: string,
+): Promise<{ resolved: number; ids: string[]; skipped: Array<{ conflictId: string; reason: string }> }> {
+  return apiFetch(`/api/projects/${projectId}/syncconflicts/bulk-resolve-with-fields`, {
+    method: 'POST', body: JSON.stringify({ items, note }),
+  });
+}
+
 // ── Federation Status (Phase 143) ───────────────────────────────────────
 // BIM Coordinator's "are all disciplines up-to-date?" view. Aggregates the
 // latest published model per discipline + counts + RAG.
@@ -626,6 +666,117 @@ export interface FederationStatus {
 
 export function getFederationStatus(projectId: string, staleDays = 14): Promise<FederationStatus> {
   return apiFetch(`/api/projects/${projectId}/federation-status?staleDays=${staleDays}`);
+}
+
+// ── Tag completeness heatmap (Phase 144) ────────────────────────────────
+// Cross-discipline × per-token completeness matrix. Each cell is the
+// percent of elements in that discipline whose token is non-empty.
+
+export type TagToken =
+  | 'DISC' | 'LOC' | 'ZONE' | 'LVL' | 'SYS' | 'FUNC' | 'PROD' | 'SEQ' | 'STATUS' | 'REV';
+
+export interface TagHeatmap {
+  projectId: string;
+  generatedAt: string;
+  totalElements: number;
+  tokens: TagToken[];
+  disciplines: Array<{
+    discipline: string;
+    elementCount: number;
+    cells: Record<TagToken, number>;
+  }>;
+}
+
+export function getTagHeatmap(projectId: string): Promise<TagHeatmap> {
+  return apiFetch(`/api/projects/${projectId}/compliance/tag-heatmap`);
+}
+
+// ── Stage Gates + MIDP Deliverables (Phase 144) ─────────────────────────
+
+export interface StageGateSummary {
+  id: string;
+  stageCode: string;
+  stageName: string;
+  sortOrder: number;
+  plannedDate?: string | null;
+  actualDate?: string | null;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'PASSED' | 'FAILED' | 'WAIVED';
+  decidedBy?: string | null;
+  decidedAt?: string | null;
+  deliverables: {
+    total: number;
+    pending: number;
+    inProgress: number;
+    submitted: number;
+    accepted: number;
+    rejected: number;
+    overdue: number;
+  };
+}
+
+export function listStageGates(projectId: string): Promise<StageGateSummary[]> {
+  return apiFetch(`/api/projects/${projectId}/stagegates`);
+}
+
+export function seedRibaStages(projectId: string): Promise<{ added: number; totalNow: number }> {
+  return apiFetch(`/api/projects/${projectId}/stagegates/seed-riba`, { method: 'POST' });
+}
+
+export function decideStageGate(
+  projectId: string,
+  gateId: string,
+  status: 'PASSED' | 'FAILED' | 'WAIVED',
+  actualDate?: string,
+): Promise<StageGateSummary> {
+  return apiFetch(`/api/projects/${projectId}/stagegates/${gateId}/decide`, {
+    method: 'POST',
+    body: JSON.stringify({ status, actualDate }),
+  });
+}
+
+export interface DeliverableSummary {
+  id: string;
+  code: string;
+  title: string;
+  type: string;
+  ownerRole: string;
+  discipline?: string | null;
+  suitabilityTarget?: string | null;
+  dueDate: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | 'WAIVED';
+  submittedAt?: string | null;
+  submittedBy?: string | null;
+  acceptedAt?: string | null;
+  acceptedBy?: string | null;
+  stageGateId?: string | null;
+  documentId?: string | null;
+  isOverdue: boolean;
+}
+
+export function listDeliverables(
+  projectId: string,
+  args: { stageGateId?: string; status?: string; discipline?: string; overdueOnly?: boolean; pageSize?: number } = {},
+): Promise<{ total: number; page: number; pageSize: number; rows: DeliverableSummary[] }> {
+  const q = new URLSearchParams();
+  if (args.stageGateId) q.set('stageGateId', args.stageGateId);
+  if (args.status) q.set('status', args.status);
+  if (args.discipline) q.set('discipline', args.discipline);
+  if (args.overdueOnly) q.set('overdueOnly', 'true');
+  if (args.pageSize) q.set('pageSize', String(args.pageSize));
+  const suffix = q.toString();
+  return apiFetch(`/api/projects/${projectId}/deliverables${suffix ? `?${suffix}` : ''}`);
+}
+
+export function transitionDeliverable(
+  projectId: string,
+  deliverableId: string,
+  newStatus: 'IN_PROGRESS' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | 'WAIVED' | 'PENDING',
+  args: { documentId?: string; reason?: string } = {},
+): Promise<DeliverableSummary> {
+  return apiFetch(`/api/projects/${projectId}/deliverables/${deliverableId}/transition`, {
+    method: 'POST',
+    body: JSON.stringify({ newStatus, documentId: args.documentId, reason: args.reason }),
+  });
 }
 
 // ── ISO 19650 naming validator (Phase 143) ───────────────────────────────

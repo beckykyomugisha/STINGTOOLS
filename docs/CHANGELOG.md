@@ -4154,3 +4154,150 @@ entity.
    `EnforceIso19650Naming = true` (e.g. via PUT
    `/api/projects/{id}/settings`) — no admin UI for that yet; the
    web settings dashboard or a manual SQL update is the workaround.
+
+#### Completed (Phase 144 — BIM Coordinator deferrals: project admin UI, bulk ACCEPT_CLIENT, tag heatmap, stage gates + MIDP)
+
+Closes the four items deferred at the end of Phase 143. All four sit
+under the same BIM Manager / Coordinator persona — project-information
+governance, sync data integrity, cross-discipline coverage, and
+information-delivery planning.
+
+**1 — Project admin settings UI**
+
+1. `Planscape.API/Controllers/ProjectSettingsController.cs` — extended
+   `GET /api/projects/{id}/settings` to surface a new `admin` block
+   containing `enforceIso19650Naming`. Extended `PUT` to route admin
+   booleans to first-class Project columns (whitelisted via
+   `AdminSettingFlags`); other keys still flow into `ConfigJson` as
+   soft preferences. Added `ParseBool` helper for the JSON-element
+   coercion.
+2. `Planscape/src/types/api.ts` — added `admin` block to
+   `ProjectSettings`.
+3. `Planscape/src/api/endpoints.ts` — added
+   `updateProjectSettings(projectId, overrides)` wrapper.
+4. New `Planscape/app/project-settings/` route — single screen with
+   one toggle today (ISO 19650 naming enforcement) plus read-only
+   sections for SLAs, upload limits, geofence. Optimistic update on
+   the toggle with rollback on failure; specific 403 message tells
+   non-admin users which roles are required (K or C).
+5. `Planscape/app/(tabs)/settings.tsx` — added a "Project admin
+   settings" link row above the logout button. Server-side
+   permission gate is preserved so non-admins can still see the
+   current state.
+
+**2 — Bulk ACCEPT_CLIENT for sync conflicts**
+
+6. `Planscape.API/Controllers/SyncConflictsController.cs` —
+   - Existing `bulk-resolve` now rejects `ACCEPT_CLIENT` with a 400
+     pointing at the new endpoint.
+   - New `POST /syncconflicts/bulk-resolve-with-fields` takes
+     `[{ conflictId, fields }, …]` (cap 250). For each item it
+     re-applies the supplied field values to the linked
+     `TaggedElement` before flipping `Resolution` to CLIENT_WINS.
+     Idempotent — already-resolved rows are reported in `skipped`.
+     Deleted-on-server elements are short-circuited to MERGED.
+     Single audit entry per resolved row + one project-scoped push.
+7. `Planscape/src/api/endpoints.ts` — added
+   `bulkResolveSyncConflictsWithFields` + `ConflictFieldOverrides`
+   interface.
+
+**3 — Cross-discipline tag completeness heatmap**
+
+8. `Planscape.API/Controllers/ComplianceController.cs` — new
+   `GET /compliance/tag-heatmap` endpoint. Returns a matrix
+   [discipline][token] = pct over the 10 ISO 19650 tag tokens
+   (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD / SEQ + STATUS + REV).
+   Bucket "" / null Disc as "(unset)" so blank-discipline tagged
+   elements stay visible — that's a coordination signal. Query is
+   one round-trip; aggregation runs in app-tier via `GroupBy` on a
+   slim DTO selection so we don't stream Tag7 narratives.
+9. `Planscape/src/api/endpoints.ts` — added `getTagHeatmap` +
+   `TagHeatmap` / `TagToken` types.
+10. New `Planscape/app/heatmap/` route — horizontally-scrollable grid
+    with sticky discipline column, 4-tier RAG palette
+    (≥90 green / 70–89 lime / 50–69 amber / <50 red), per-token
+    average row in the header, element-count subtitle per
+    discipline, footer legend. Pull-to-refresh.
+
+**4 — Stage Gate + MIDP / IE Deliverable tracking**
+
+11. New entities `Planscape.Core/Entities/StageGate.cs` (+ same file)
+    `InformationDeliverable`. `StageGate` carries a stable
+    `(ProjectId, StageCode)` unique index + `SortOrder`,
+    `PlannedDate`, `ActualDate`, status machine NOT_STARTED →
+    IN_PROGRESS → PASSED / FAILED / WAIVED, plus structured
+    `CriteriaJson` (jsonb) for criterion-by-criterion sign-off and
+    decision metadata (`DecidedBy*`, `DecidedAt`).
+    `InformationDeliverable` carries the standard ISO 19650 fields
+    (`Code`, `Type`, `OwnerRole`, `Discipline`, `SuitabilityTarget`,
+    `DueDate`, `Status`) with a state machine PENDING →
+    IN_PROGRESS → SUBMITTED → ACCEPTED / REJECTED / WAIVED. Optional
+    FK to a `StageGate` row (rolls up) and to a `DocumentRecord`
+    row (the actual published artefact).
+12. `PlanscapeDbContext` — added two DbSets and OnModelCreating
+    config (FKs, unique indexes on `(ProjectId, StageCode)` and
+    `(ProjectId, Code)`, status + due-date indexes for the
+    BIM-manager filter views).
+13. New migration
+    `20260427200000_AddStageGatesAndDeliverables.cs` — creates both
+    tables with the standard PG types (jsonb for `CriteriaJson`,
+    text for the long-form narratives, double precision for
+    bounding values) + the four indexes per table.
+14. New `Planscape.API/Controllers/StageGatesController.cs` —
+    list / get / create / update / decide. List returns each gate's
+    deliverable rollup (total / pending / in_progress / submitted /
+    accepted / rejected / overdue) in a single round-trip via EF
+    sub-queries so the mobile timeline renders without follow-ups.
+    `POST /stagegates/seed-riba` is a convenience that idempotently
+    inserts the eight RIBA Plan of Work 2020 stages (0–7) so a new
+    project doesn't need each one typed by hand. Decisions fire a
+    project-scoped notification.
+15. New `Planscape.API/Controllers/DeliverablesController.cs` —
+    list (filter by stageGateId / status / discipline / overdueOnly)
+    / get / create / update / `POST /deliverables/{id}/transition`
+    that validates the from→to map server-side and stamps
+    submitter / acceptor metadata as appropriate.
+16. `Planscape/src/api/endpoints.ts` — added `listStageGates`,
+    `seedRibaStages`, `decideStageGate`, `listDeliverables`,
+    `transitionDeliverable` + `StageGateSummary` and
+    `DeliverableSummary` interfaces.
+17. New `Planscape/app/stages/` route — two screens:
+     - `index.tsx` — RIBA-style timeline of every stage gate. Each
+       card shows planned/actual dates, deliverable rollup, three
+       decision buttons (Pass / Fail / Waive) with a confirm
+       dialog. Empty-project state offers a "Seed RIBA stages"
+       button that POSTs to `/seed-riba`.
+     - `deliverables.tsx` — paged list of deliverables filtered by
+       stageGateId. Status filter chips + overdue toggle.
+       Per-row contextual transition buttons that match the
+       allowed-from→to map; rejection prompts for a reason via
+       `Alert.prompt`.
+
+**Dashboard wiring**
+
+18. `Planscape/app/(tabs)/index.tsx` — added two new shortcut rows
+    inside the BIM Coordination card: "Tag completeness heatmap"
+    and "Stage gates & MIDP". Both above the discipline breakdown
+    so the BIM Coordinator's deep tooling is one tap from
+    cold-start.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. The BIM Coordinator settings PUT relies on the existing project
+   role gate (K/C). Tenants without populated `ProjectMember.Iso19650Role`
+   values will see 403 on every flip — flagged in the in-app
+   Alert text so the user knows what to ask their admin.
+3. Bulk ACCEPT_CLIENT cap is 250 (vs 500 for ACCEPT_SERVER) because
+   each row writes element data and the bigger payload makes
+   timeouts more likely on a poor site connection. Caller chunks
+   bigger batches.
+4. The heatmap aggregates in app-tier rather than via raw SQL
+   `count(*) FILTER (WHERE …)`. Acceptable for projects up to ~50k
+   tagged elements; bigger projects should swap in a SQL query.
+5. Stage gate criteria are free-form `CriteriaJson` (jsonb). A
+   structured criterion-by-criterion sign-off UI on mobile is a
+   follow-up — the API is ready for it via the same field.
+6. Deliverable transition validation is the canonical state machine
+   in code; if a project wants a bespoke flow that has to land as
+   a separate `customStateMachine` config — not in this phase.

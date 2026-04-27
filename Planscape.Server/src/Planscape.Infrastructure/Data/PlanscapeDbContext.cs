@@ -72,6 +72,10 @@ public class PlanscapeDbContext : DbContext
     public DbSet<SiteDiary> SiteDiaries => Set<SiteDiary>();
     public DbSet<SiteDiaryAttachment> SiteDiaryAttachments => Set<SiteDiaryAttachment>();
 
+    // Phase 144 — RIBA stage gates + MIDP / IE deliverables
+    public DbSet<StageGate> StageGates => Set<StageGate>();
+    public DbSet<InformationDeliverable> InformationDeliverables => Set<InformationDeliverable>();
+
     // Planscape MIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
     public DbSet<MIM.Entities.MaintenanceTask> MaintenanceTasks => Set<MIM.Entities.MaintenanceTask>();
@@ -217,6 +221,45 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.Caption).HasMaxLength(400);
             e.HasOne(x => x.SiteDiary).WithMany(x => x.Attachments).HasForeignKey(x => x.SiteDiaryId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Phase 144 — RIBA stage gates + MIDP deliverables
+        modelBuilder.Entity<StageGate>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.StageCode }).IsUnique();
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.StageCode).HasMaxLength(40);
+            e.Property(x => x.StageName).HasMaxLength(200);
+            e.Property(x => x.Status).HasMaxLength(24);
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.CriteriaJson).HasColumnType("jsonb");
+            e.Property(x => x.DecidedBy).HasMaxLength(200);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<InformationDeliverable>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => new { x.ProjectId, x.Code }).IsUnique();
+            e.HasIndex(x => x.StageGateId);
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.DueDate);
+            e.Property(x => x.Code).HasMaxLength(80);
+            e.Property(x => x.Title).HasMaxLength(400);
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.Type).HasMaxLength(8);
+            e.Property(x => x.OwnerRole).HasMaxLength(8);
+            e.Property(x => x.Discipline).HasMaxLength(8);
+            e.Property(x => x.SuitabilityTarget).HasMaxLength(8);
+            e.Property(x => x.Status).HasMaxLength(24);
+            e.Property(x => x.SubmittedBy).HasMaxLength(200);
+            e.Property(x => x.AcceptedBy).HasMaxLength(200);
+            e.Property(x => x.RejectionReason).HasColumnType("text");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.StageGate).WithMany(s => s.Deliverables).HasForeignKey(x => x.StageGateId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── BimIssue.CustomFields JSONB (FLEX-13) ──

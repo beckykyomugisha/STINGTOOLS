@@ -2124,7 +2124,10 @@ Planscape/
 │   ├── models/                           # 3D model viewer (issue pin overlay)
 │   ├── inbox/                            # "My Actions" aggregator (Phase 142)
 │   ├── diary/                            # Daily site diary (Phase 142)
-│   └── conflicts/                        # Sync-conflict triage (Phase 143)
+│   ├── conflicts/                        # Sync-conflict triage (Phase 143)
+│   ├── heatmap/                          # Tag completeness heatmap (Phase 144)
+│   ├── stages/                           # RIBA stage gates + MIDP deliverables (Phase 144)
+│   └── project-settings/                 # Project admin settings (Phase 144)
 └── src/
     ├── api/
     │   ├── client.ts                     # HTTP client (JWT, auto-refresh, X-Client-Type=mobile)
