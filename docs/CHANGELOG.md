@@ -4178,3 +4178,37 @@ found for category 'Electrical Fixtures' — skipping its rules"
 warning that was leaving designers wondering why their sockets
 hadn't landed.
 
+
+#### Completed (Phase 139.8 — ActiveView room collection + Placement Centre auto-place checklist)
+
+User reported the Phase 139.7 fix went halfway: the Placement Centre's
+own Run-Placement dialog said "Place fixtures in 1 room(s)" with
+"Scope: ActiveView" — even though the active plan had ~12 rooms.
+
+Root cause: `FilteredElementCollector(doc, view.Id).OfCategory(OST_Rooms)`
+doesn't enumerate rooms reliably. Revit's view-bounded collector
+walks the view's drawn elements and Rooms (logical, non-3D entities)
+get filtered out unpredictably; one or zero rooms is the typical
+result.
+
+Fix:
+
+- `PlacementCenterBridge.ResolveScope` (Centre-side) and
+  `PlaceFixturesCommand.Execute` (dock-panel-side) ActiveView branch
+  now:
+    - Plan view → `view.GenLevel`-bounded room walk.
+    - Other view types → bbox-intersection against `view.CropBox`
+      (with no-crop fallback to all rooms).
+- `StingPlacementCenter.xaml` adds an explicit "Auto-place" category
+  checklist with 18 categories (Electrical Fixtures, Lighting
+  Devices, Lighting Fixtures, Communication Devices, Data Devices,
+  Security Devices, Fire Alarm Devices, Plumbing Fixtures, Air
+  Terminals, Sprinklers, Mechanical Equipment, Conduits, Junction
+  Boxes, Pipes, Cable Trays, Specialty Equipment, Furniture, Nurse
+  Call Devices) plus All / None convenience buttons.
+- `OnRunPlacement_Click` filters the active rule pack by the ticked
+  categories before invoking the engine. Empty checklist =
+  every-category (legacy behaviour). The confirm dialog now lists
+  the allowed categories so the user can see what the run will and
+  won't touch.
+
