@@ -48,6 +48,17 @@ namespace StingTools.Core.Clash
         // Defaulted to 0 so older clashes.json round-trips cleanly.
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
         public double TriageScore;
+        // E10: Cross-run recurrence counter. Incremented in
+        // ClashHistory.MergeWithPrior on every Reintroduced transition.
+        // Triage / F1 escalation reads this — RecurrenceCount=1 means
+        // "first reintroduction"; >=3 triggers severity auto-promotion.
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+        public int RecurrenceCount;
+        // F6: BCF round-trip back-link from CoordIssue → ClashRecord.
+        // Populated by ClashSlaIntegration.CreateIssues so a BCF re-import
+        // can reconstruct the issue ↔ clash association without scanning.
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string IssueGuid;
     }
 
     public sealed class StateTransition
