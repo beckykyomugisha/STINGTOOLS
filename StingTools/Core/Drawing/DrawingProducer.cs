@@ -499,16 +499,19 @@ namespace StingTools.Core.Drawing
 
         private static Dictionary<string, string> BuildTokenDict(DrawingType dt, DrawingContext ctx)
         {
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["disc"] = dt?.Discipline ?? "",
-                ["discipline"] = dt?.Discipline ?? "",
-                ["lvl"] = ctx?.Level?.Name ?? "",
-                ["mark"] = ctx?.Tag ?? "",
-                ["spool"] = ctx?.Tag ?? "",
-                ["purpose"] = dt?.Purpose ?? "",
-                ["package"] = ctx?.PackageId ?? dt?.PackageId ?? ""
-            };
+            // INT-06: route through the canonical builder so SheetManager,
+            // ShopDrawingComposer and the production engine all feed the
+            // exact same token set into TitleBlockParamApplier.
+            var d = DrawingTokenContext.Build(
+                doc:        null,        // producer is invoked without a doc handle here
+                dt:         dt,
+                discCode:   dt?.Discipline,
+                discipline: dt?.Discipline,
+                levelCode:  ctx?.Level?.Name,
+                spool:      ctx?.Tag,
+                mark:       ctx?.Tag);
+            d["package"] = ctx?.PackageId ?? dt?.PackageId ?? string.Empty;
+            return d;
         }
     }
 }

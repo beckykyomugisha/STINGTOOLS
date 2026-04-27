@@ -128,12 +128,26 @@ namespace StingTools.Core.Drawing
 
         private static void RunTagRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunOptions opts, AnnotationResult result)
         {
-            // Build effective rule list
+            // FG-02: handle every tag-like RuleType, not just bare "AutoTag".
+            // RoomTag / SpaceTag / AreaTag / MaterialTag / KeynoteTag /
+            // MultiCategoryTag are all variants of "tag this category" and
+            // should run via the same per-rule path; the differentiator is
+            // the resolved tag family (RoomTag uses Room tag families, etc.).
+            // RuleType is preserved on the rule so downstream callers can
+            // pick a tag family by purpose.
+            var tagRuleKinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "AutoTag", "RoomTag", "SpaceTag", "AreaTag",
+                "MaterialTag", "KeynoteTag", "MultiCategoryTag",
+            };
+
             List<AutoAnnotationRule> effective;
             if (pack.Rules != null && pack.Rules.Count > 0)
             {
-                effective = pack.Rules.Where(r => r != null && r.Enabled &&
-                    string.Equals(r.RuleType ?? "AutoTag", "AutoTag", StringComparison.OrdinalIgnoreCase)).ToList();
+                effective = pack.Rules
+                    .Where(r => r != null && r.Enabled
+                                && tagRuleKinds.Contains(r.RuleType ?? "AutoTag"))
+                    .ToList();
             }
             else if (pack.AutoTag == true)
             {

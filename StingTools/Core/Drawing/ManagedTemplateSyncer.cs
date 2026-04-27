@@ -41,9 +41,14 @@ namespace StingTools.Core.Drawing
             = new Dictionary<string, Dictionary<ViewType, ElementId>>(StringComparer.OrdinalIgnoreCase);
 
         // Default field set when ManagedFields is not specified.
+        // INT-02: tagColorScheme + defaultTagStyle are now first-class
+        // managed fields so a managed pack's tag-appearance defaults
+        // propagate via the template instead of resetting on every
+        // view assignment.
         private static readonly List<string> DefaultManagedFields = new List<string>
         {
-            "scale", "detailLevel", "discipline", "visualStyle", "phaseFilter"
+            "scale", "detailLevel", "discipline", "visualStyle", "phaseFilter",
+            "tagColorScheme", "defaultTagStyle"
         };
 
         private static string DocKey(Document doc)
@@ -178,6 +183,9 @@ namespace StingTools.Core.Drawing
                     case "scale":             probe[f] = pack.LineWeightScale; break; // pack carries no Scale itself; placeholder
                     case "detailLevel":       probe[f] = pack.DimensionStyle; break;  // placeholder — pack has no detail-level field
                     case "discipline":        probe[f] = pack.Discipline; break;
+                    case "tagColorScheme":    probe[f] = pack.TagColorScheme; break;
+                    case "defaultTagStyle":   probe[f] = pack.DefaultTagStyle; break;
+                    case "categoryTagStyles": probe[f] = pack.CategoryTagStyles; break;
                     case "visualStyle":       probe[f] = pack.VisualStyle; break;
                     case "phaseFilter":       probe[f] = pack.PhaseFilter; break;
                     case "phase":             probe[f] = pack.Phase; break;
@@ -199,11 +207,21 @@ namespace StingTools.Core.Drawing
             using (var sha = SHA256.Create())
             {
                 var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(json));
+                // ACC-08: full 64-char hex hash. The 16-char prefix was prone
+                // to silent collisions on benign edits.
                 var sb = new StringBuilder(bytes.Length * 2);
                 foreach (var b in bytes) sb.Append(b.ToString("x2"));
-                return sb.ToString().Substring(0, 16);
+                return sb.ToString();
             }
         }
+
+        // ACC-09: stable structured prefix for the stamp format so that
+        // typos in ad-hoc edits never silently parse to empty.
+        private const string StampPrefix = "pack=";
+        private const string StampChecksumKey = "|cs=";
+
+        internal static string FormatStamp(string packId, string checksum)
+            => $"{StampPrefix}{packId ?? string.Empty}{StampChecksumKey}{checksum ?? string.Empty}";
 
         internal static string GetStoredChecksum(View template)
         {
@@ -213,9 +231,14 @@ namespace StingTools.Core.Drawing
                 var p = template.LookupParameter(DrawingTypeStamper.PARAM_DRAWING_TYPE_ID);
                 var stamp = p?.AsString();
                 if (string.IsNullOrEmpty(stamp)) return string.Empty;
-                var idx = stamp.IndexOf(";cs=", StringComparison.Ordinal);
-                if (idx < 0) return string.Empty;
-                return stamp.Substring(idx + 4);
+                // ACC-09: accept new "pack=…|cs=…" format and the legacy
+                // "pack:…;cs=…" form so existing projects don't drift on
+                // first reload.
+                var idx = stamp.IndexOf(StampChecksumKey, StringComparison.Ordinal);
+                if (idx >= 0) return stamp.Substring(idx + StampChecksumKey.Length);
+                idx = stamp.IndexOf(";cs=", StringComparison.Ordinal);
+                if (idx >= 0) return stamp.Substring(idx + 4);
+                return string.Empty;
             }
             catch { return string.Empty; }
         }
@@ -263,7 +286,7 @@ namespace StingTools.Core.Drawing
                     SetManagedTemplateParameterIds(doc, existing, pack);
                     StingTools.Core.ParameterHelpers.SetString(existing,
                         DrawingTypeStamper.PARAM_DRAWING_TYPE_ID,
-                        $"pack:{pack.Id};cs={current}", overwrite: true);
+                        FormatStamp(pack.Id, current), overwrite: true);
                 }
                 lock (_cacheLock) { bucket[key] = existing.Id; }
                 return existing.Id;
@@ -320,7 +343,7 @@ namespace StingTools.Core.Drawing
             var checksum = ComputePackChecksum(pack);
             StingTools.Core.ParameterHelpers.SetString(newView,
                 DrawingTypeStamper.PARAM_DRAWING_TYPE_ID,
-                $"pack:{pack.Id};cs={checksum}", overwrite: true);
+                FormatStamp(pack.Id, checksum), overwrite: true);
 
             lock (_cacheLock) { bucket[key] = newView.Id; }
             return newView.Id;
@@ -400,6 +423,26 @@ namespace StingTools.Core.Drawing
                         case "displayOptions":
                         case "sun":
                             r.Warnings.Add($"Field '{field}' has no public Revit API — skipped.");
+                            break;
+                        case "tagColorScheme":
+                            // INT-02: persist the pack's variable colour
+                            // scheme onto the managed template so every view
+                            // assigned to it inherits the same scheme.
+                            if (!string.IsNullOrEmpty(pack.TagColorScheme))
+                                StingTools.Core.ParameterHelpers.SetString(
+                                    template, StingTools.Core.ParamRegistry.VIEW_TAG_STYLE,
+                                    pack.TagColorScheme, overwrite: true);
+                            break;
+                        case "defaultTagStyle":
+                            // INT-02: pack-level default tag style preset
+                            // (canonical "{size}{style}_{color}") flows into
+                            // the same TAG_*_BOOL switch logic used by
+                            // TokenProfileApplier — but on the template, so
+                            // it survives view-template re-assignment.
+                            if (!string.IsNullOrEmpty(pack.DefaultTagStyle))
+                                StingTools.Core.ParameterHelpers.SetString(
+                                    template, "STING_DEFAULT_TAG_STYLE_TXT",
+                                    pack.DefaultTagStyle, overwrite: true);
                             break;
                     }
                 }

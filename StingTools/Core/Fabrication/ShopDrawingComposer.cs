@@ -356,24 +356,20 @@ namespace StingTools.Core.Fabrication
             BuildTokenDict(Document doc, StingTools.Core.Drawing.DrawingType dt,
                 string spool, string discCode, string discipline, string sysCode, string levelCode, int seq)
         {
-            var d = new System.Collections.Generic.Dictionary<string, string>(
-                System.StringComparer.OrdinalIgnoreCase)
-            {
-                { "spool",      spool      ?? "" },
-                { "disc",       discCode   ?? "" },
-                { "discipline", discipline ?? "" },
-                { "sys",        sysCode    ?? "" },
-                { "lvl",        levelCode  ?? "" },
-                { "seq",        seq.ToString("D4") },
-                { "project",    ReadProjectInfo(doc, "PRJ_ORG_PROJECT_CODE") },
-                { "originator", ReadProjectInfo(doc, "PRJ_ORG_ORIGINATOR_CODE") },
-                { "vol",        dt?.IsoNaming?.Volume      ?? "" },
-                { "type",       dt?.IsoNaming?.Type        ?? "" },
-                { "role",       dt?.IsoNaming?.Role        ?? discCode ?? "" },
-                { "suit",       dt?.IsoNaming?.Suitability ?? "" },
-                { "rev",        dt?.IsoNaming?.Revision    ?? "" },
-            };
-            return d;
+            // INT-06: route through the canonical builder so the SheetManager
+            // and fabrication paths feed identical tokens to
+            // TitleBlockParamApplier. Adding new fields (mark, purpose, phase,
+            // …) only needs to happen in one place.
+            return StingTools.Core.Drawing.DrawingTokenContext.Build(
+                doc:        doc,
+                dt:         dt,
+                discCode:   discCode,
+                discipline: discipline,
+                sysCode:    sysCode,
+                levelCode:  levelCode,
+                seq:        seq,
+                seqWidth:   4,
+                spool:      spool);
         }
 
         private static string ReadProjectInfo(Document doc, string param)

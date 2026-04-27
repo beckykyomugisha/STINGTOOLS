@@ -91,13 +91,51 @@ namespace StingTools.Core.Drawing
                     }
                 }
 
-                // ── Step F. Display mode (per element in view) ─────────
-                if (dispMode.HasValue && dispMode.Value >= 1 && dispMode.Value <= 5)
-                    r.ElementWrites += WriteElementInts(doc, view, ParamRegistry.DISPLAY_MODE, dispMode.Value);
-
-                // ── Step C. TAG7 section visibility (per element) ──────
-                if (sectVis != null && sectVis.Count > 0)
-                    r.ElementWrites += WriteSectionVisibility(doc, view, sectVis);
+                // ── Steps F + C: per-element writes in a SINGLE pass ──
+                // PERF-03: previously the display-mode write, the section-
+                // visibility write, and the per-category depth write each
+                // ran their own FilteredElementCollector. Merge them into
+                // one collector pass so a 500-element view doesn't pay the
+                // 3× scan cost.
+                bool needDispMode = dispMode.HasValue && dispMode.Value >= 1 && dispMode.Value <= 5;
+                bool needSectVis  = sectVis != null && sectVis.Count > 0;
+                if (needDispMode || needSectVis)
+                {
+                    var canonicalSectVis = needSectVis
+                        ? CanonicaliseSectionVisibility(sectVis)
+                        : null;
+                    var ids = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .ToElementIds();
+                    foreach (var id in ids)
+                    {
+                        var el = doc.GetElement(id);
+                        if (el == null) continue;
+                        if (needDispMode)
+                        {
+                            try
+                            {
+                                Parameter p = el.LookupParameter(ParamRegistry.DISPLAY_MODE);
+                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Integer
+                                    && p.AsInteger() != dispMode.Value)
+                                {
+                                    p.Set(dispMode.Value); r.ElementWrites++;
+                                }
+                            }
+                            catch { /* element-level failure — keep going */ }
+                        }
+                        if (needSectVis && canonicalSectVis != null)
+                        {
+                            foreach (var kv in canonicalSectVis)
+                            {
+                                string pname = $"TAG_7_SECTION_VISIBLE_{kv.Key}_BOOL";
+                                if (el.LookupParameter(pname) == null) continue;
+                                if (ParameterHelpers.SetYesNo(el, pname, kv.Value, overwrite: true))
+                                    r.ElementWrites++;
+                            }
+                        }
+                    }
+                }
 
                 // ── Step G. Presentation-mode preset (global tier set) ─
                 if (!string.IsNullOrWhiteSpace(preset))
@@ -197,6 +235,19 @@ namespace StingTools.Core.Drawing
                 StingLog.Warn($"WriteElementInts({paramName}): {ex.Message}");
             }
             return n;
+        }
+
+        // PERF-03: helper used by the merged single-pass loop above.
+        private static Dictionary<string, bool> CanonicaliseSectionVisibility(Dictionary<string, bool> map)
+        {
+            var canonical = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            if (map == null) return canonical;
+            foreach (var kv in map)
+            {
+                string k = (kv.Key ?? string.Empty).Trim().ToUpperInvariant();
+                if (k.Length == 1 && k[0] >= 'A' && k[0] <= 'F') canonical[k] = kv.Value;
+            }
+            return canonical;
         }
 
         // ── TAG7 section visibility (per element) ───────────────────────

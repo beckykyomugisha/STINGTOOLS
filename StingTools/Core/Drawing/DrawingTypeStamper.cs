@@ -120,8 +120,11 @@ namespace StingTools.Core.Drawing
 
         /// <summary>
         /// Worksharing guard — true if the current user owns the
-        /// element's checkout or if the model is not workshared.
-        /// Avoids 'cannot modify' exceptions on federated runs.
+        /// element's checkout, or if the model is not workshared, or
+        /// if a NotOwned element was successfully checked out by this
+        /// user. ACC-06: previously returned true for NotOwned without
+        /// attempting checkout, which raised opaque "cannot modify"
+        /// exceptions when another user concurrently grabbed ownership.
         /// </summary>
         private static bool IsEditable(Element el)
         {
@@ -131,8 +134,28 @@ namespace StingTools.Core.Drawing
                 if (doc == null) return false;
                 if (!doc.IsWorkshared) return true;
                 var status = WorksharingUtils.GetCheckoutStatus(doc, el.Id);
-                return status == CheckoutStatus.OwnedByCurrentUser
-                    || status == CheckoutStatus.NotOwned;
+                if (status == CheckoutStatus.OwnedByCurrentUser) return true;
+                if (status == CheckoutStatus.OwnedByOtherUser)
+                {
+                    StingTools.Core.StingLog.Warn(
+                        $"DrawingTypeStamper: element {el.Id} owned by another user; skipping write.");
+                    return false;
+                }
+                // NotOwned: attempt to check out so a concurrent grab by
+                // another user surfaces here rather than as an exception
+                // mid-transaction.
+                try
+                {
+                    var coRequest = new System.Collections.Generic.List<ElementId> { el.Id };
+                    var taken = WorksharingUtils.CheckoutElements(doc, coRequest);
+                    return taken != null && taken.Contains(el.Id);
+                }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn(
+                        $"DrawingTypeStamper: checkout {el.Id} failed — {ex.Message}");
+                    return false;
+                }
             }
             catch { return true; }
         }

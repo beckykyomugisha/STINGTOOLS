@@ -40,14 +40,40 @@ namespace StingTools.Core.Drawing
 
     public static class ScopeBoxBinder
     {
+        // PERF-07: a strict prefix the collector can pre-filter on so
+        // non-STING scope boxes never reach the regex.
+        private const string NamePrefix = "STING::";
+
+        // ACC-02: the only legal characters inside a token segment are
+        // alphanumerics + dot + hyphen + underscore. Anything else is a
+        // typo or a manual rename that doesn't survive the parser.
         private static readonly Regex _pattern =
-            new Regex(@"^STING::([A-Za-z0-9_\-]+)(?:::([A-Za-z0-9_\-]+))?(?:::([A-Za-z0-9_\-]+))?$",
+            new Regex(@"^STING::([A-Za-z0-9_\-\.]+)(?:::([A-Za-z0-9_\-\.]+))?(?:::([A-Za-z0-9_\-\.]+))?$",
                       RegexOptions.Compiled);
 
+        /// <summary>
+        /// ACC-02: a scope-box name beginning with STING:: that fails the
+        /// strict pattern is reported back to callers so the user can
+        /// rename rather than seeing the box silently dropped from the
+        /// generation list.
+        /// </summary>
+        public sealed class NameWarning
+        {
+            public ElementId ScopeBoxId { get; set; }
+            public string    Name { get; set; }
+            public string    Reason { get; set; }
+        }
+
+        public static List<NameWarning> LastWarnings { get; private set; } = new List<NameWarning>();
+
         public static List<ScopeBoxBinding> ScanProject(Document doc)
+            => ScanProject(doc, out _);
+
+        public static List<ScopeBoxBinding> ScanProject(Document doc, out List<NameWarning> warnings)
         {
             var results = new List<ScopeBoxBinding>();
-            if (doc == null) return results;
+            warnings = new List<NameWarning>();
+            if (doc == null) { LastWarnings = warnings; return results; }
 
             try
             {
@@ -56,8 +82,22 @@ namespace StingTools.Core.Drawing
                     .WhereElementIsNotElementType())
                 {
                     var name = el.Name ?? "";
+                    // PERF-07: cheap startswith filter before the regex.
+                    if (!name.StartsWith(NamePrefix, StringComparison.OrdinalIgnoreCase)) continue;
                     var m = _pattern.Match(name);
-                    if (!m.Success) continue;
+                    if (!m.Success)
+                    {
+                        // ACC-02: surface the rejection so the operator can
+                        // fix typos like "STING::arch plan" → "STING::arch-plan".
+                        warnings.Add(new NameWarning
+                        {
+                            ScopeBoxId = el.Id,
+                            Name       = name,
+                            Reason     = "name has STING:: prefix but does not match "
+                                       + "STING::<id>[::<level>][::<tag>] (allowed chars: A-Z 0-9 . _ -)",
+                        });
+                        continue;
+                    }
                     results.Add(new ScopeBoxBinding
                     {
                         ScopeBox = el,
@@ -71,6 +111,7 @@ namespace StingTools.Core.Drawing
             {
                 StingTools.Core.StingLog.Warn($"ScopeBoxBinder.ScanProject: {ex.Message}");
             }
+            LastWarnings = warnings;
             return results;
         }
 

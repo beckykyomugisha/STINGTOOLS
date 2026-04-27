@@ -71,6 +71,9 @@ namespace StingTools.Core.Drawing
                 string resolved;
                 try
                 {
+                    // ACC-07: a null/empty template still resolves to the
+                    // empty string and writes through, ensuring cloned
+                    // sheets don't carry stale prior values forward.
                     resolved = ResolveTemplate(doc, kv.Value ?? "", tokens);
                 }
                 catch (Exception ex)
@@ -95,14 +98,18 @@ namespace StingTools.Core.Drawing
                     switch (p.StorageType)
                     {
                         case StorageType.String:
-                            p.Set(resolved);
+                            // ACC-07: always set, even for empty string,
+                            // so cloned/template sheets reset stale text.
+                            p.Set(resolved ?? string.Empty);
                             break;
                         case StorageType.Integer:
-                            if (int.TryParse(resolved, out var iv)) p.Set(iv);
+                            if (string.IsNullOrEmpty(resolved)) p.Set(0);
+                            else if (int.TryParse(resolved, out var iv)) p.Set(iv);
                             else r.Warnings.Add($"'{paramName}' expects integer; '{resolved}' not parsable.");
                             break;
                         case StorageType.Double:
-                            if (double.TryParse(resolved, out var dv)) p.Set(dv);
+                            if (string.IsNullOrEmpty(resolved)) p.Set(0.0);
+                            else if (double.TryParse(resolved, out var dv)) p.Set(dv);
                             else r.Warnings.Add($"'{paramName}' expects number; '{resolved}' not parsable.");
                             break;
                         default:
@@ -117,6 +124,35 @@ namespace StingTools.Core.Drawing
                 }
             }
             return r;
+        }
+
+        /// <summary>
+        /// ACC-04: list every <c>${ProjectInfo}</c> parameter referenced by
+        /// any title-block-params template in <paramref name="dt"/> that is
+        /// not currently bound on the document's ProjectInformation. Used
+        /// by <see cref="DrawingTypeValidator"/> at preflight so missing
+        /// shared parameters surface before generation rather than as
+        /// silently-empty title-block cells.
+        /// </summary>
+        public static List<string> FindMissingProjectInfoParams(Document doc, DrawingType dt)
+        {
+            var missing = new List<string>();
+            if (doc == null || dt?.TitleBlockParams == null || dt.TitleBlockParams.Count == 0) return missing;
+            var pi = doc.ProjectInformation;
+            if (pi == null) return missing;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in dt.TitleBlockParams)
+            {
+                var template = kv.Value ?? string.Empty;
+                foreach (Match m in _projInfo.Matches(template))
+                {
+                    var name = m.Groups[1].Value;
+                    if (string.IsNullOrEmpty(name) || !seen.Add(name)) continue;
+                    var p = pi.LookupParameter(name);
+                    if (p == null) missing.Add(name);
+                }
+            }
+            return missing;
         }
 
         // ── Internals ──
