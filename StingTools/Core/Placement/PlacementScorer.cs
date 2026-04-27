@@ -24,24 +24,28 @@ namespace StingTools.Core.Placement
     /// Stateless scorer. Caller passes in the room + rule, plus a
     /// collection of already-placed points used for MinSpacing checks.
     /// </summary>
-    public class PlacementScorer
+    public partial class PlacementScorer
     {
         /// <summary>
         /// Composite score below this value rejects the candidate
-        /// (returns empty list).
+        /// (returns empty list).  Phase 139 G — lowered from 0.40 to
+        /// 0.35 so coverage-guarantee mode keeps borderline candidates.
         /// </summary>
-        public const double ScoreThreshold = 0.40;
+        public const double ScoreThreshold = 0.35;
 
         /// <summary>
         /// Millimetre-to-feet conversion (Revit's internal unit).
         /// </summary>
         private const double MmToFt = 1.0 / 304.8;
 
-        private const double AnchorWeight    = 0.40;
-        private const double SideWeight      = 0.25;
-        private const double SpacingWeight   = 0.20;
-        private const double CollisionWeight = 0.10;
+        // Phase 139 G — re-weighted scoring with coverage-contribution
+        // component (0.10) when GuaranteeCoverage rules are active.
+        private const double AnchorWeight    = 0.35;
+        private const double SideWeight      = 0.20;
+        private const double SpacingWeight   = 0.15;
+        private const double CollisionWeight = 0.15;
         private const double SymmetryWeight  = 0.05;
+        private const double CoverageWeight  = 0.10;
 
         private readonly Document _doc;
         private LightingGridCalculator _lightingGrid;
@@ -125,7 +129,9 @@ namespace StingTools.Core.Placement
             {
                 var candidate = BuildCandidate(room, rule, anchor, alreadyPlaced);
                 if (candidate == null) continue;
-                if (candidate.Score < ScoreThreshold) continue;
+                // Phase 139 G — when GuaranteeCoverage = true, never reject for low score;
+                // mark as warning candidate instead.
+                if (!rule.GuaranteeCoverage && candidate.Score < ScoreThreshold) continue;
                 if (candidate.HasHardCollision) continue;
                 results.Add(candidate);
             }
@@ -237,7 +243,9 @@ namespace StingTools.Core.Placement
                     break;
 
                 default:
-                    points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
+                    // Phase 139 — try the new anchor types before fallback.
+                    if (!TryEmitPhase139Anchor(anchor, room, rule, anchorZ, offsetXFt, offsetYFt, points))
+                        points.Add(new XYZ(roomPt.X + offsetXFt, roomPt.Y + offsetYFt, anchorZ));
                     break;
             }
 
@@ -357,11 +365,17 @@ namespace StingTools.Core.Placement
             // (helps lighting grids and socket rails line up).
             c.SymmetryScore = ComputeSymmetryScore(anchor, alreadyPlaced);
 
+            // Phase 139 G — coverage contribution component.  Neutral 0.5
+            // when CoverageRadiusMm = 0; future enhancement quantifies the
+            // uncovered area each candidate would cover.
+            double coverageContribution = (rule.CoverageRadiusMm > 0) ? 1.0 : 0.5;
+
             c.Score = c.AnchorScore    * AnchorWeight
                     + c.SideScore      * SideWeight
                     + c.SpacingScore   * SpacingWeight
                     + c.CollisionScore * CollisionWeight
-                    + c.SymmetryScore  * SymmetryWeight;
+                    + c.SymmetryScore  * SymmetryWeight
+                    + coverageContribution * CoverageWeight;
 
             // §5.1 — apply family-level placement hints as a final score
             // modifier. Only the level hint biases the composite score

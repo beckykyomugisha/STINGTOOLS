@@ -571,6 +571,18 @@ namespace StingTools.Tags
             // Clear parameter lookup cache so newly bound parameters are found immediately
             ParameterHelpers.ClearParamCache();
 
+            // A-5: refresh ParamRegistry from PARAMETER_REGISTRY.json so any
+            // binding additions / new system codes are visible to in-session
+            // commands without a Revit restart. SharedParamGuids cached
+            // properties are flushed inside Reload().
+            try
+            {
+                ParamRegistry.Reload();
+                SharedParamGuids.InvalidateCache();
+                StingLog.Info("ParamRegistry reloaded after parameter binding.");
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadSharedParams ParamRegistry.Reload: {ex.Message}"); }
+
             var td = new TaskDialog("STING Tools - Load Shared Params");
             td.MainInstruction = requiredMissing > 0
                 ? $"Binding complete — {bound} bound, {requiredMissing} REQUIRED missing!"

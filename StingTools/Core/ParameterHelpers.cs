@@ -133,6 +133,12 @@ namespace StingTools.Core
             return doc.PathName ?? doc.Title ?? "Untitled";
         }
 
+        // A-7: hard cap to prevent unbounded growth across many documents
+        // opened/closed in one session. 50_000 is generous (a typical project
+        // has far fewer unique (typeId, paramName) pairs); a clear is logged
+        // at Warn so unexpected growth is visible.
+        private const int _paramCacheCap = 50_000;
+
         /// <summary>Cached parameter lookup. Uses stable document key + element's TypeId + paramName as cache key.
         /// Falls back to LookupParameter on first access per type, then O(1) thereafter.
         /// Exposed as `internal` so sibling classes in this file (NativeParamMapper,
@@ -145,12 +151,23 @@ namespace StingTools.Core
 
             if (!_paramCache.TryGetValue(key, out Definition cachedDef))
             {
+                StingLog.RecordMiss(StingLog.CacheKind.ParamCache); // E-1
                 Parameter found = el.LookupParameter(paramName);
+                // A-7: bounded — clear when the cache exceeds 50K entries
+                // (this should not happen in practice; the clear is logged
+                // so unexpected growth is visible in diagnostics).
+                if (_paramCache.Count >= _paramCacheCap)
+                {
+                    int original = _paramCache.Count;
+                    _paramCache.Clear();
+                    StingLog.Warn($"_paramCache reached {original} entries; cleared to enforce cap of {_paramCacheCap}.");
+                }
                 // Cache the Definition (not Parameter — that's per-element)
                 _paramCache[key] = found?.Definition;
                 return found;
             }
 
+            StingLog.RecordHit(StingLog.CacheKind.ParamCache); // E-1
             if (cachedDef == null) return null; // Known miss
             return el.get_Parameter(cachedDef);
         }
@@ -684,9 +701,11 @@ namespace StingTools.Core
                     && string.Equals(_roomCacheDocKey, key, StringComparison.Ordinal)
                     && (DateTime.UtcNow - _roomCacheStamp) < _roomCacheTtl)
                 {
+                    StingLog.RecordHit(StingLog.CacheKind.RoomIndex); // E-1
                     return _roomCacheIndex;
                 }
             }
+            StingLog.RecordMiss(StingLog.CacheKind.RoomIndex); // E-1
 
             var index = new Dictionary<ElementId, Room>();
             try

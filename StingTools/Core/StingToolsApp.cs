@@ -220,7 +220,12 @@ namespace StingTools.Core
                 Model.ModelWorksetAssigner.ClearCache();
                 // TAG-SORT-LEVEL-01: Clear cached level elevations to prevent stale data
                 Tags.BatchTagCommand.ClearLevelElevationCache();
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, and level caches");
+                // C-6 / D-3: cascade through Drawing-Type subsystem caches so
+                // a stale ElementId from this document never resolves to an
+                // element in the next.
+                try { Drawing.DrawingTypeRegistry.Reload(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing DrawingTypeRegistry.Reload: {ex.Message}"); }
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, workset, level, and drawing-type caches");
             }
             catch (Exception ex)
             {

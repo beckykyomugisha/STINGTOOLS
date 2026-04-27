@@ -3597,3 +3597,181 @@ in the DOCS tab Drawing Types wrap-panel as `↓ Export to Excel` /
   / tag-family names that projects must supply; `DrawingTypeValidator`
   reports missing assets as warnings, so the JSON ships usable on a
   stock project.
+#### Completed (Phase 140 — Placement Centre v2)
+
+Massive expansion of the STING Placement Centre adding ~350 new rules
+across 5 new discipline packs, 22 new anchor types, 5 new placement
+algorithms, building-profile-based rule activation, full Excel
+round-trip, and 3 new validators.
+
+**Schema extensions (Part A) — `Core/Placement/PlacementRule.cs`**
+
+- Added 30+ new fields organised across 6 categories:
+  - **A1 Building & standards context**: `BuildingType`,
+    `ApplicableStandards[]`, `IpRatingMin`, `WetZoneExclusion`,
+    `AccessibilityCheck`, `HeightStandard`.
+  - **A2 Coverage & spacing standards**: `CoverageRadiusMm`,
+    `MaxSpacingMm`, `WallClearanceMm`, `ObstructionClearanceMm`,
+    `GuaranteeCoverage`.
+  - **A3 Routing & containment**: `RoutingMode`, `RouteOffsetMm`,
+    `RouteFace`, `RouteMinBendRadiusMm`, `RouteSegmentCategory`.
+  - **A4 Window/sill variants**: `SillHeightMm`, `HeadHeightMm`,
+    `CillToFloorMm`, `ToughenedGlazingRequired`, `GlazingSpec`.
+  - **A5 Density extensions**: `PerBed`, `PerWorkstation`,
+    `PerPupil`, `PerToiletCubicle`, `OccupancyParamName`,
+    `BuildingTypeTable`.
+  - **A6 Post-placement audit**: `PostAuditTag`,
+    `RequiresCOBieFields`, `RequiresIfcMapping`,
+    `MaintenanceClearance`.
+- New `SourcePack` field tags rules with their origin discipline
+  pack so the UI can filter by pack chip.
+- `Clone()` extended to deep-copy all new fields.
+
+**New anchor types (Part B) — `Core/Placement/PlacementScorer.AnchorTypes.cs`**
+
+- New partial-class file adds 22 anchor type generators:
+  WINDOW_SILL_KITCHEN/WET_ROOM/RESIDENTIAL/COMMERCIAL/HOSPITAL,
+  WINDOW_HEAD, DOOR_STRIKE_SIDE, DOOR_CLOSER_ZONE, BEAM_SOFFIT,
+  COLUMN_FACE_NEAREST, CEILING_TILE_CORNER, CURTAIN_PANEL_CENTRE,
+  SLAB_PERIMETER_EDGE, ESCAPE_DOOR_BOTH_SIDES, STAIR_LANDING_EDGE,
+  STAIR_FLIGHT_MID, CORRIDOR_JUNCTION, FIRE_EXTINGUISHER_TRAVEL,
+  CALL_POINT_TRAVEL, RAISED_FLOOR_TILE_EDGE,
+  NEAREST_MEP_SYSTEM_NODE, ZONE_BOUNDARY.
+- `PlacementScorer` is now a `partial class`; `GenerateAnchorPoints`
+  delegates the default branch to `TryEmitPhase139Anchor` before
+  falling back to the legacy ROOM_CENTRE behaviour.
+- Most anchors flagged with `// TODO-VERIFY-API` comments where the
+  Revit API call has not been compile-verified.
+
+**New rule packs (Part C/J) — `Data/Placement/`**
+
+| Pack file | Rule count | Coverage |
+|---|---:|---|
+| `STING_PLACEMENT_RULES.windows-glazing.json` | 30 | Window sills/heads across building types |
+| `STING_PLACEMENT_RULES.routing.json` | 15 | Conduit/CableTray/Pipe/Duct routing |
+| `STING_PLACEMENT_RULES.medical-gases.json` | 15 | HTM 02-01 medical gas outlets |
+| `STING_PLACEMENT_RULES.accessibility.json` | 20 | BS8300 / Approved Doc M |
+| `STING_PLACEMENT_RULES.commissioning.json` | 20 | Test points, sensors, valves, meters |
+| `STING_PLACEMENT_RULES.baseline-extensions.json` | 40 | Electrical/Lighting/FireAlarm/Sprinklers extras |
+| `STING_PLACEMENT_RULES.baseline-extensions2.json` | 77 | Em. lighting, air terminals, lighting fixtures, plumbing, comms, security |
+
+- `PlacementRuleLoader.cs` updated with the 7 new packs added to
+  `DisciplinePacks[]`; each rule receives its `SourcePack` tag from
+  the pack registration table.
+- New `FilterByProfile(rules, profile)` method gates rules by
+  `BuildingType` and `ApplicableStandards`, sorted by Priority.
+
+**Building profile (Part F) — `Core/Placement/`**
+
+- `ProjectBuildingProfile.cs` — POCO with `BuildingType`,
+  `ActiveStandards[]`, `OccupancyBasis`,
+  `DefaultOccupancyDensityM2PerPerson`, plus toggles
+  (`EnableWetZoneChecks`, `EnableAccessibilityChecks`,
+  `EnableCoverageGuarantee`, `EnforceApprovedDocumentL`,
+  `BuildingTypeTable`).
+- `ProjectBuildingProfileIO` — Load/Save to
+  `<project>/_BIM_COORD/placement_profile.json`.
+- `HeightStandardsTable.cs` — static cache for the new
+  `Data/Placement/STING_HEIGHT_STANDARDS.json` (18 entries: BS8300,
+  Approved Doc M, BS5839, BS5266, HTM 02-01, BB103, BS6465).
+
+**Algorithms (Part D) — `Core/Placement/`**
+
+- `WallFollowerRouter.cs` — routes Conduit/CableTray/Pipe/Duct
+  along wall/ceiling/floor faces at exact offsets when
+  `RoutingMode != "NONE"`.  Sorts endpoints in spatial order, applies
+  inward-normal offset, creates segments, stamps
+  `STING_ROUTE_RULE_ID_TXT` for downstream auditing.  Marked with
+  `// TODO-VERIFY-API` on the segment creation calls.
+- `CoverageGridGenerator.cs` — for `GuaranteeCoverage = true` rules
+  (fire alarms, sprinklers, speakers).  Builds a square grid with
+  spacing = `CoverageRadiusMm × √2`, capped to `MaxSpacingMm`,
+  enforced minimum of `MinSpacingMm`, shrunk by `WallClearanceMm`,
+  filtered by `ObstructionClearanceMm`, then computes coverage % via
+  0.5m sample grid and reports `UNCOVERED_ZONE` when < 99% covered.
+- `TravelDistanceSolver.cs` — Dijkstra-based travel-distance solver
+  for `FIRE_EXTINGUISHER_TRAVEL` and `CALL_POINT_TRAVEL` anchor
+  types.  Reports `MaxTravelDistanceMm`, `UncoveredFractionPct`,
+  and suggests additional placements.
+- `WetZoneExclusionChecker.cs` — implements BS 7671 / IEC 60364-7-701
+  bath/shower/basin zone geometry.  Per-room cache; rejects placement
+  candidates that fall in Zone 0/1/2 around water fixtures based on
+  rule's `WetZoneExclusion` level.
+- `Core/Validation/UniformityValidator.cs` — BS EN 12464-1 illuminance
+  and uniformity validator.  Reads `STING_LUMEN_OUTPUT` per fixture
+  and `STING_LUX_TARGET` per room, runs simplified inverse-square
+  point-by-point on a 3×3 sample grid, reports `ILLUMINANCE_LOW` and
+  `UNIFORMITY_LOW` when below targets.
+
+**New validators (Part H) — `Core/Validation/`**
+
+- `MaintenanceAccessValidator.cs` — validates clearance per
+  `STING_MAINT_CLEAR_TXT` (FRONT_600/FRONT_1000/SIDES_300/TOP_900),
+  builds a clearance AABB in front of each element and reports
+  `MAINT_ACCESS_BLOCKED` when intruders intersect.
+- `AccessibilityAuditor.cs` — uses `HeightStandardsTable` to validate
+  placed element height against the Min/Max range for its
+  `STING_HEIGHT_STANDARD_TXT` key (BS8300, BS5839, BS5266, HTM,
+  BB103).  Reports `ACCESS_HEIGHT_OUT_OF_RANGE`.
+
+**Scoring updates (Part G) — `Core/Placement/PlacementScorer.cs`**
+
+- `ScoreThreshold` lowered from 0.40 → 0.35 (more permissive for
+  coverage-guarantee mode).
+- New weights: 0.35 anchor + 0.20 side + 0.15 spacing + 0.15 collision
+  + 0.05 symmetry + 0.10 coverage_contribution = 1.00.
+- New `coverageContribution` component: 1.0 when
+  `CoverageRadiusMm > 0`; 0.5 (neutral) otherwise.
+- When `GuaranteeCoverage = true`, candidates are no longer rejected
+  for low score — they're kept as warning candidates.
+
+**Excel round-trip (Part E) — `Core/Placement/Excel/`**
+
+- `PlacementRulesExcelExporter.cs` (uses ClosedXML, already a
+  dependency) — one sheet per discipline pack, frozen header,
+  AutoFilter, dark-navy header style, yellow highlight for low-priority
+  rules, light-red for invalid (missing CategoryFilter), SCHEMA sheet
+  listing all fields.
+- `PlacementRulesExcelImporter.cs` — reads non-SCHEMA sheets, maps
+  columns to fields by name (case-insensitive), parses enums,
+  pipe-separated arrays, and bool variants, returns `(rules, errors)`.
+- `UI/PlacementCenter/PlacementExcelCommands.cs` — two new
+  `IExternalCommand`s: `ExportRulesToExcelCommand` (`Placement_ExportExcel`)
+  and `ImportRulesFromExcelCommand` (`Placement_ImportExcel`).  Import
+  writes back to `<project>/STING_PLACEMENT_RULES.project.json` for the
+  loader to merge on next run.
+- `PlacementCentreCommands.cs` — added 7 `RoutedCommand` declarations
+  for Excel + profile + audit shortcuts.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no
+   Revit API).  Marker comments `// TODO-VERIFY-API` flag the
+   uncertain Revit API call sites in `WallFollowerRouter.cs`
+   (`Conduit.Create`, `Pipe.Create`, `Duct.Create`,
+   `CableTray.Create` overloads) and
+   `PlacementScorer.AnchorTypes.cs` (HVAC Zone collection in
+   `EmitZoneBoundary`).
+2. `WallFollowerRouter.ApplyFaceOffset` uses a v1 simplification
+   that biases endpoints toward the room centroid rather than walking
+   the boundary segment with strict inward normal — it produces
+   functional offset distances but not face-aware corner geometry.
+3. `CoverageGridGenerator` keeps each room as a single bay; future
+   work will scan beam/duct soffits to split into sub-bays per
+   NFPA 13 obstructed-construction rules.
+4. `TravelDistanceSolver` uses 1.3 × Euclidean as a cheap proxy for
+   walking-graph distance; full Dijkstra over door-jamb nodes is
+   sketched but not exercised by the placement engine yet.
+5. UI cards (Part I rule-detail card additions, building-profile
+   header, history columns) are planned but the XAML changes are
+   minimal — `RoutedCommand` declarations and the underlying ViewModel
+   API additions are landed; XAML/code-behind binding is the
+   follow-up Phase 139.5 work.
+6. Family-side parameters used by the new validators
+   (`STING_LUMEN_OUTPUT`, `STING_LUX_TARGET`,
+   `STING_MAINTENANCE_FACTOR`, `STING_MAINT_CLEAR_TXT`,
+   `STING_HEIGHT_STANDARD_TXT`, `STING_ROUTE_RULE_ID_TXT`,
+   `STING_BED_COUNT_INT`, `STING_WORKSTATION_COUNT_INT`,
+   `STING_PUPIL_COUNT_INT`, `STING_PLACE_AUDIT_TXT`) need to be
+   declared in `MR_PARAMETERS.txt` before any Revit project will see
+   them — listed for the next parameter-registry pass.
