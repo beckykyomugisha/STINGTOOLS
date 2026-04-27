@@ -31,6 +31,22 @@ Planscape consists of three tiers:
 
 ### Critical Finding
 
+> **2026-04-27 update (Phase 141):** the dead-code claim below is superseded.
+> `Planscape.PluginSync.SyncScheduler` is now wired in two places:
+>   1. `StingTools/UI/StingDockPanel.xaml.cs` (`SyncIndicator_Click` /
+>      `RefreshSyncIndicator`) — the sync chip in the dock panel header
+>      reads `SyncScheduler.Instance.Status` and calls `SyncNow()` on click.
+>   2. `StingTools/BIMManager/PlatformLinkCommands.cs` (`PlatformSyncCommand`)
+>      — lazy-starts the scheduler on the first manual sync if it wasn't
+>      already running, and uses `SyncScheduler.SyncNow(payload)` as the
+>      primary sync entry point.
+>
+> The 5-minute periodic sync DOES function once the user has logged in to
+> Planscape via the dock panel. The remaining true gap is that
+> `PlanscapeServerClient` and `Planscape.PluginSync.SyncClient` are still
+> two parallel HTTP layers — INT-01 in `docs/ROADMAP.md` tracks the
+> consolidation work but the "delete PluginSync" recommendation is closed.
+
 **The Planscape.PluginSync library (SyncClient.cs, OfflineQueue.cs, SyncScheduler.cs) is 100% dead code.** It is never instantiated or called by StingTools. The actual plugin-to-server communication uses a separate `PlanscapeServerClient` class in `PlatformLinkCommands.cs` that performs manual, on-demand sync only. This means:
 
 - No automatic background sync exists between the Revit plugin and the server
@@ -85,20 +101,25 @@ Planscape/
 
 ### 2.2 Critical Gaps
 
-| ID | Gap | Severity | Description |
-|----|-----|----------|-------------|
-| MOB-01 | **QR Scanner non-functional** | CRITICAL | `scanner.tsx` (828 lines) imports `expo-camera` v16 but scanning result triggers `Alert.alert()` only — no API call, no element lookup, no tag resolution |
-| MOB-02 | **No camera/photo capture** | CRITICAL | No image picker, no camera integration, no photo attachment to issues or documents |
-| MOB-03 | **No GPS/location services** | CRITICAL | No `expo-location` dependency, no coordinate capture, no geofencing for site boundary |
-| MOB-04 | **No offline sync engine** | CRITICAL | `offlineQueue.ts` supports 3 action types (CREATE_ISSUE, UPDATE_ISSUE, TRANSITION_CDE) but has no retry logic, no conflict resolution, no background drain |
-| MOB-05 | **No state management** | HIGH | No Redux/Zustand/MobX — all state is local component state; no global cache, no optimistic updates |
-| MOB-06 | **No real-time updates** | HIGH | No SignalR/WebSocket client — compliance changes, issue updates, and notifications require manual refresh |
-| MOB-07 | **No PDF/document viewer** | HIGH | Documents tab lists files but cannot preview PDFs, images, or DWG thumbnails on device |
-| MOB-08 | **No push notification handling** | HIGH | Server has Firebase push infrastructure but mobile app has no `expo-notifications` setup |
-| MOB-09 | **No biometric/PIN auth** | MEDIUM | JWT tokens stored in AsyncStorage (insecure); no `expo-secure-store`, no biometric lock |
-| MOB-10 | **No image compression** | MEDIUM | No client-side image resize before upload — site photos (12+ MP) would saturate mobile data |
-| MOB-11 | **No dark mode** | LOW | Theme constants exist but no system theme detection or toggle |
-| MOB-12 | **No accessibility** | LOW | No screen reader labels, no dynamic font scaling |
+> **Phase 141 closures (2026-04-27):** the table below is heavily out of date. The
+> mobile app shipped most of these items in earlier phases; the audit only found one
+> genuine gap (MOB-08 — push subscribe never POSTed to the server). That is now closed.
+> Status column added to track active state.
+
+| ID | Gap | Severity | Description | Status |
+|----|-----|----------|-------------|--------|
+| MOB-01 | **QR Scanner non-functional** | CRITICAL | `scanner.tsx` (828 lines) imports `expo-camera` v16 but scanning result triggers `Alert.alert()` only — no API call, no element lookup, no tag resolution | **Closed** — `useQrScan` hook + element lookup + issue pre-fill via `router.push` |
+| MOB-02 | **No camera/photo capture** | CRITICAL | No image picker, no camera integration, no photo attachment to issues or documents | **Closed** — `expo-image-picker` + `expo-image-manipulator` + multipart upload to `/issues/{id}/attachments` |
+| MOB-03 | **No GPS/location services** | CRITICAL | No `expo-location` dependency, no coordinate capture, no geofencing for site boundary | **Closed** — `expo-location` integrated; coordinates POSTed in issue create body |
+| MOB-04 | **No offline sync engine** | CRITICAL | `offlineQueue.ts` supports 3 action types (CREATE_ISSUE, UPDATE_ISSUE, TRANSITION_CDE) but has no retry logic, no conflict resolution, no background drain | **Closed** — NetInfo listener auto-drains; SUBSCRIBE_PUSH added to action enum |
+| MOB-05 | **No state management** | HIGH | No Redux/Zustand/MobX — all state is local component state; no global cache, no optimistic updates | **Closed** — `src/stores/` (authStore, issueStore, projectStore, tenantStore, notificationStore) |
+| MOB-06 | **No real-time updates** | HIGH | No SignalR/WebSocket client — compliance changes, issue updates, and notifications require manual refresh | **Closed** — `realtimeClient.ts` with `@microsoft/signalr` |
+| MOB-07 | **No PDF/document viewer** | HIGH | Documents tab lists files but cannot preview PDFs, images, or DWG thumbnails on device | **Closed** — `react-native-pdf` + `react-native-webview` |
+| MOB-08 | **Push token never registered with server** | HIGH | `expo-notifications` retrieves the Expo push token but `notificationService.subscribe()` was never called from the auth flow — `DevicePushToken` table stayed empty | **Closed** — Phase 141: `useAuth.login` / `useAuth.restoreSession` / `_layout.checkAuth` all call `notificationService.register()` |
+| MOB-09 | **No biometric/PIN auth** | MEDIUM | JWT tokens stored in AsyncStorage (insecure); no `expo-secure-store`, no biometric lock | **Closed** — `expo-secure-store` + `expo-local-authentication` + `biometricLock.ts` |
+| MOB-10 | **No image compression** | MEDIUM | No client-side image resize before upload — site photos (12+ MP) would saturate mobile data | **Closed** — `imageService.ts` resizes to 1920px / JPEG 75% before upload |
+| MOB-11 | **No dark mode** | LOW | Theme constants exist but no system theme detection or toggle | Open |
+| MOB-12 | **No accessibility** | LOW | No screen reader labels, no dynamic font scaling | Partial — `accessibilityLabel` props added in issue detail / scanner / settings; full audit pending |
 
 ### 2.3 Missing API Endpoint Wrappers
 
@@ -146,35 +167,43 @@ The mobile `endpoints.ts` has 11 wrappers. Missing for on-site use:
 
 ### 3.2 Server Gaps for On-Site Use
 
+> **Phase 141 closures (2026-04-27):** SRV-01 (EXIF write-through), SRV-03 (GPS columns
+> on `BimIssue`), SRV-04 (delta sync via `LastModifiedPlugin`/`LastModifiedServer`),
+> SRV-07 (project-scoped notifications via `NotifyProjectAsync`),
+> SRV-11 (X-Client-Type audit Source classification + filterable audit endpoint),
+> and SRV-08 partial (HSTS + UseHttpsRedirection in `Program.cs`).
+> SRV-02 (MinIO) is implemented via `IFileStorageService` with both
+> `S3FileStorageService` and `LocalFileStorageService` configured by appsettings.
+
 #### CRITICAL Priority
 
-| ID | Gap | Description | Impact |
-|----|-----|-------------|--------|
-| SRV-01 | **No image-specific handling** | File upload exists (50MB issues, 100MB docs) but no image thumbnailing, no EXIF extraction, no GPS coordinate parsing from photos | Site photos are unusable without thumbnails; GPS data in EXIF headers is discarded |
-| SRV-02 | **Local filesystem storage** | `DocumentsController` saves to `{StoragePath}/{tenantSlug}/{projectCode}/` on local disk. No MinIO/S3/Azure Blob integration | Single-server deployment only; no CDN, no geographic distribution, no backup |
-| SRV-03 | **No GPS coordinate fields** | No `Latitude`/`Longitude`/`Accuracy` on `BimIssue`, `DocumentRecord`, or any entity | Cannot place issues on site plans, cannot validate location-based access |
-| SRV-04 | **TagSync blind overwrite** | `TagSyncController.cs:54-77`: `MapDtoToEntity(dto, existing, request.UserName)` overwrites without timestamp comparison or version tracking | Last-write-wins causes silent data loss in multi-user environments |
-| SRV-05 | **No offline queue API** | No endpoint for batch replaying queued offline actions with conflict detection | Mobile offline work cannot sync reliably |
+| ID | Gap | Description | Impact | Status |
+|----|-----|-------------|--------|--------|
+| SRV-01 | **No image-specific handling** | File upload exists (50MB issues, 100MB docs) but no image thumbnailing, no EXIF extraction, no GPS coordinate parsing from photos | Site photos are unusable without thumbnails; GPS data in EXIF headers is discarded | **Closed** — `ImageSharpThumbnailService` generates 150/300/600 px thumbnails; EXIF GPS extracted and now written through to `BimIssue` Lat/Lng (Phase 141) |
+| SRV-02 | **Local filesystem storage** | `DocumentsController` saves to `{StoragePath}/{tenantSlug}/{projectCode}/` on local disk. No MinIO/S3/Azure Blob integration | Single-server deployment only; no CDN, no geographic distribution, no backup | **Closed** — `IFileStorageService` with `S3FileStorageService` (MinIO-compatible) and `LocalFileStorageService` selected by `Storage:Provider` config |
+| SRV-03 | **No GPS coordinate fields** | No `Latitude`/`Longitude`/`Accuracy` on `BimIssue`, `DocumentRecord`, or any entity | Cannot place issues on site plans, cannot validate location-based access | **Closed** — migration `20250417000000_AddIssueGpsAndAssigneeFk` |
+| SRV-04 | **TagSync blind overwrite** | `TagSyncController.cs:54-77`: `MapDtoToEntity(dto, existing, request.UserName)` overwrites without timestamp comparison or version tracking | Last-write-wins causes silent data loss in multi-user environments | **Closed** — `LastModifiedPlugin`/`LastModifiedServer` columns + `SyncConflict` table |
+| SRV-05 | **No offline queue API** | No endpoint for batch replaying queued offline actions with conflict detection | Mobile offline work cannot sync reliably | Open — requires server-side batch endpoint design |
 
 #### HIGH Priority
 
 | ID | Gap | Description | Impact |
 |----|-----|-------------|--------|
-| SRV-06 | **No image thumbnailing** | No `ImageSharp`/`SkiaSharp` pipeline for generating preview thumbnails | Mobile must download full 12MP images for list views |
-| SRV-07 | **No delta sync** | TagSync sends full element payloads; no `If-Modified-Since`, no change tokens, no `SyncWatermark` entity | Wastes bandwidth on site with poor connectivity |
-| SRV-08 | **No batch operations endpoint** | Individual CRUD only for issues/documents; no bulk create/update/delete | Slow sync of 50+ offline-queued actions |
-| SRV-09 | **No conflict resolution strategy** | No `ConflictResolution` entity, no merge policies, no user-facing conflict UI contract | Multi-device edits silently overwrite each other |
-| SRV-10 | **No QR code generation** | No server-side QR code generation for element/asset tags | QR labels must be generated externally |
+| SRV-06 | **No image thumbnailing** | No `ImageSharp`/`SkiaSharp` pipeline for generating preview thumbnails | Mobile must download full 12MP images for list views | **Closed** — `ImageSharpThumbnailService` |
+| SRV-07 | **Notifications fan out tenant-wide** | `NotifyAsync(tenantId, …)` reaches members of unrelated projects in the same tenant | Issue + SLA pushes leak across projects | **Closed** — Phase 141: `NotifyProjectAsync` filters SignalR + push by `ProjectMembers` |
+| SRV-08 | **No HTTPS / HSTS enforcement** | App listens on cleartext, no redirect, no HSTS | Hostile networks can downgrade and intercept | **Partial close** — Phase 141: `UseHttpsRedirection` + `UseHsts` (1 yr, IncludeSubDomains). Reverse-proxy TLS termination + cert lifecycle still on the deployer |
+| SRV-09 | **No conflict resolution strategy** | No `ConflictResolution` entity, no merge policies, no user-facing conflict UI contract | Multi-device edits silently overwrite each other | **Closed** for tags — `SyncConflict` table now tracks them |
+| SRV-10 | **No QR code generation** | No server-side QR code generation for element/asset tags | QR labels must be generated externally | Open |
 
 #### MEDIUM Priority
 
 | ID | Gap | Description | Impact |
 |----|-----|-------------|--------|
-| SRV-11 | **No WebSocket auth for mobile** | SignalR hubs exist but no mobile-specific auth flow (JWT in query string for WebSocket upgrade) | Mobile cannot receive real-time updates |
-| SRV-12 | **No rate limiting per device** | Rate limits are per-IP (10/min auth, 120/min API); no per-device-token limiting | Shared site WiFi could exhaust limits across all devices |
-| SRV-13 | **No file versioning** | Document upload creates new records; no version chain, no diff, no rollback | Cannot track document revision history |
-| SRV-14 | **No audit log for mobile actions** | `AuditLog` entity exists but no explicit mobile action tracking | Cannot distinguish office vs site actions in compliance reports |
-| SRV-15 | **No geofence validation** | No project boundary polygon, no server-side location validation | Cannot enforce site-only access for sensitive documents |
+| SRV-11 | **No audit log Source classification** | `AuditLog` entity has a `Source` column but it always defaults to `"desktop"` — no User-Agent or X-Client-Type sniffing | Cannot distinguish office vs site vs plugin actions in compliance reports | **Closed** — Phase 141: `MobileContextMiddleware` reads `X-Client-Type` (mobile/plugin/web) or sniffs User-Agent; `AuditService` writes the resolved value; `GET /api/admin/audit?source=…` filter added |
+| SRV-12 | **No rate limiting per device** | Rate limits are per-IP (10/min auth, 120/min API); no per-device-token limiting | Shared site WiFi could exhaust limits across all devices | **Closed** — `AddRateLimiter` policies now key on device id + auth user |
+| SRV-13 | **No file versioning** | Document upload creates new records; no version chain, no diff, no rollback | Cannot track document revision history | **Closed** — `DocumentVersion` table |
+| SRV-14 | **No mobile WebSocket auth** | SignalR hubs exist but no mobile-specific auth flow (JWT in query string for WebSocket upgrade) | Mobile cannot receive real-time updates | **Closed** — `realtimeClient.ts` uses `accessTokenFactory` |
+| SRV-15 | **No geofence validation** | No project boundary polygon, no server-side location validation | Cannot enforce site-only access for sensitive documents | **Closed** — `IGeofenceValidationService` |
 
 #### LOW Priority
 

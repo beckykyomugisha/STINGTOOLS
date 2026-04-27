@@ -239,6 +239,16 @@ builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// PR2 — HSTS: 1 year, include subdomains, mark for browser preload list.
+// Skipping the preload header until the cert is on a stable production domain.
+builder.Services.AddHsts(options =>
+{
+    options.IncludeSubDomains = true;
+    options.MaxAge = TimeSpan.FromDays(365);
+});
+
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new()
@@ -361,6 +371,21 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // PR2 — outside development, force TLS at the application layer in
+    // addition to whatever the reverse proxy enforces. HSTS tells browsers
+    // to refuse cleartext for one year (incl. subdomains). Behind a TLS-
+    // terminating proxy you must set `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`
+    // (or call `app.UseForwardedHeaders`) so the request still appears as
+    // HTTPS to the redirect middleware.
+    app.UseHsts();
+}
+
+// PR2 — Always-on HTTPS redirect. In development this is a no-op when the
+// app binds to an HTTPS port; in production it kicks in for any cleartext
+// listener that slips through.
+app.UseHttpsRedirection();
 
 // C1 — serve the wwwroot office dashboard (index.html + viewer.html + js/css).
 // Placed before auth so assets load without a token; the JS handles login

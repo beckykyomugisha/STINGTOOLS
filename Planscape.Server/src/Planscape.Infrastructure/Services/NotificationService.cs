@@ -220,6 +220,73 @@ public class NotificationService : INotificationService
         return true;
     }
 
+    /// <summary>
+    /// SRV-07 — Broadcast only to the userIds that are members of the given project.
+    /// Both SignalR (project group) and push (per-user FCM/APNs token list) are
+    /// filtered. Per-user preferences are honoured for the push channel; SignalR
+    /// goes to whichever sockets are joined to <c>project-{projectId}</c>
+    /// (NotificationHub already enforces membership at join time).
+    /// </summary>
+    public async Task NotifyProjectAsync(
+        Guid projectId,
+        string channel,
+        string title,
+        string message,
+        object? data = null,
+        CancellationToken ct = default)
+    {
+        _logger.LogInformation(
+            "Notification [{Channel}] to project {ProjectId}: {Title} — {Message}",
+            channel, projectId, title, message);
+
+        var payload = new { channel, title, message, data, timestamp = DateTime.UtcNow };
+
+        // SignalR — project group is gated server-side at JoinProjectGroup time.
+        await _hub.Clients.Group($"project-{projectId}")
+            .SendAsync("Notification", payload, ct);
+
+        if (_pushService == null) return;
+
+        // Push — fan-out per member, honouring per-user preferences via NotifyUserAsync's
+        // ResolveDelivery path. We do this inline rather than delegating to NotifyUserAsync
+        // because we want one push per member (not one SignalR send per member).
+        List<Guid> memberIds;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+            memberIds = await db.ProjectMembers
+                .AsNoTracking()
+                .Where(m => m.ProjectId == projectId)
+                .Select(m => m.UserId)
+                .ToListAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "NotifyProjectAsync: could not resolve members for project {ProjectId}", projectId);
+            return;
+        }
+
+        foreach (var userId in memberIds)
+        {
+            var (_, shouldPush) = await ResolveDelivery(userId, channel, ct);
+            if (!shouldPush) continue;
+
+            _ = _pushService.SendToUserAsync(userId, new PushPayload
+            {
+                Title = title,
+                Body = message,
+                Channel = channel,
+                Data = new Dictionary<string, string>
+                {
+                    ["type"] = "project_notification",
+                    ["channel"] = channel,
+                    ["projectId"] = projectId.ToString()
+                }
+            }, ct);
+        }
+    }
+
     /// <summary>In-memory registration for legacy tests. Prefer <see cref="DevicePushToken"/> table.</summary>
     public static void RegisterPushToken(Guid userId, string token)
     {

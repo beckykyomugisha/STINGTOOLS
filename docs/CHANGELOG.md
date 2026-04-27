@@ -3775,3 +3775,144 @@ round-trip, and 3 new validators.
    `STING_PUPIL_COUNT_INT`, `STING_PLACE_AUDIT_TXT`) need to be
    declared in `MR_PARAMETERS.txt` before any Revit project will see
    them — listed for the next parameter-registry pass.
+
+#### Completed (Phase 141 — Production gap fixes: on-site sharing path, audit/source classification, HTTPS, server push project-scoping)
+
+The on-site sharing journey from the field user creating an issue on
+their phone all the way to a project member receiving a push and seeing
+the photo + GPS pin had several latent gaps. This phase closes the
+ones that are tractable without external SDK access (Revit 2025 API,
+ACC API). Items that need an external API or a real Revit doc to verify
+are documented as open in the gap analysis rather than papered over.
+
+**Mobile (Planscape/) — push registration B4**
+
+1. `Planscape/src/hooks/useAuth.ts` — call
+   `notificationService.register()` after a successful login so the
+   server's `DevicePushToken` table receives the Expo push token. The
+   service had been authored but was orphan code; the only call site
+   was the in-tab "Test push" button.
+2. `Planscape/src/hooks/useAuth.ts` — also register on
+   `restoreSession()` so a re-issued Expo token after app reinstall is
+   pushed up at least once per cold start.
+3. `Planscape/app/_layout.tsx` — register on `checkAuth()` when a JWT
+   is already cached (cold start with active session).
+4. All three are fire-and-forget; failures land in `crashReporter` and
+   never block sign-in or app start.
+
+**Mobile (Planscape/) — audit classification M12**
+
+5. `Planscape/src/api/client.ts` — set
+   `X-Client-Type: mobile` on every authenticated request so the server
+   audit log can classify mobile-originated writes without
+   User-Agent guessing. Caller can override per-call via
+   `options.headers`.
+
+**Server (Planscape.Server/) — issue notification scoping B7 / SRV-07**
+
+6. `Planscape.Core/Interfaces/INotificationService.cs` — added
+   `NotifyProjectAsync(projectId, channel, …)`.
+7. `Planscape.Infrastructure/Services/NotificationService.cs` —
+   implemented `NotifyProjectAsync`: SignalR fans out to the
+   `project-{projectId}` group (NotificationHub already gates joins by
+   `ProjectMembers`); push fan-out queries `ProjectMembers.UserId` and
+   honours per-user delivery preferences via `ResolveDelivery`. Critical
+   channels (`sla_breach`, `critical`) still bypass quiet hours so
+   on-call recipients aren't silenced.
+8. `Planscape.API/Controllers/IssuesController.cs` — issue-created push
+   now goes through `NotifyProjectAsync` instead of
+   `NotifyAsync(tenantId, …)`. Tenant-wide broadcast for new issues
+   was leaking into other projects' members.
+9. `Planscape.Infrastructure/Services/BackgroundJobs.cs` — SLA escalation
+   notifications also routed through `NotifyProjectAsync` for the same
+   reason.
+
+**Server (Planscape.Server/) — EXIF GPS write-through H2 / SRV-01**
+
+10. `Planscape.API/Controllers/IssuesController.cs` — when an image
+    attachment carries EXIF GPS and the parent BimIssue has no
+    coordinates yet, promote the EXIF lat/lng onto the issue. Live-GPS
+    values from `expo-location` always win; EXIF is the fallback.
+    `LocationAccuracy` is set to 0 to mark EXIF-sourced coordinates
+    (vs. a positive metres value from a live GPS reading). Removed the
+    stale "BimIssue has no GPS columns" comment — those columns landed in
+    migration `20250417000000_AddIssueGpsAndAssigneeFk`.
+
+**Server (Planscape.Server/) — audit Source field M12 / SRV-11**
+
+11. `Planscape.API/Middleware/MobileContextMiddleware.cs` — read
+    `X-Client-Type` header (explicit) or fall back to User-Agent
+    sniffing (`Expo` / `okhttp` → mobile, `StingTools` / `Revit` →
+    plugin, `Mozilla` etc. → web). Stored in `HttpContext.Items["Source"]`
+    for `AuditService` to write to the row. The audit row's `Source`
+    column already existed but was always defaulted to `"desktop"`.
+12. `Planscape.API/Controllers/AdminController.cs` — `GET /api/admin/audit`
+    now accepts `?source=mobile|plugin|web|server|desktop` so admins
+    can triage by client.
+
+**Server (Planscape.Server/) — HTTPS PR2 / SRV-08**
+
+13. `Planscape.API/Program.cs` — `UseHttpsRedirection` always-on,
+    `UseHsts` for non-development with `MaxAge = 365 days` and
+    `IncludeSubDomains = true`. Behind a TLS-terminating reverse proxy
+    the deployer must enable forwarded-headers (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`)
+    so the redirect middleware sees the original https scheme.
+
+**Plugin (StingTools/) — server push of workflow runs H7 / INT-04**
+
+14. `StingTools/Core/WorkflowEngine.cs` — after a workflow preset
+    completes and the run record is persisted to
+    `STING_WORKFLOW_LOG.jsonl`, push the same record to the Planscape
+    server via `PlanscapeServerClient.LogWorkflowRunAsync`. Reads the
+    server projectId from `<doc>/_BIM_COORD/planscape_link.json`. Fire-
+    and-forget — local jsonl is the source of truth and we never block
+    a workflow on the network.
+
+**Plugin (StingTools/) — bulk MIM asset push H7 / INT-08**
+
+15. `StingTools/BIMManager/PlanscapeServerClient.cs` — added
+    `BulkPushMimAssetsAsync(projectId, assets)` that POSTs to the
+    existing `/api/projects/{id}/mim/assets/bulk` endpoint. Returns the
+    server-reported created count (server skips duplicates by
+    AssetTag, capped at 10,000 per request).
+
+**Plugin (StingTools/) — audit classification M12**
+
+16. `StingTools/BIMManager/PlanscapeServerClient.cs` —
+    `EnsureHttpClient` now sets `X-Client-Type: plugin` and
+    `User-Agent: StingTools-Revit/1.0` so the server audit log
+    classifies plugin-originated writes correctly.
+
+**Documentation corrections**
+
+17. `Planscape.PluginSync` library is no longer dead code (the
+    PLANSCAPE_GAPS analysis pre-dated its actual wiring). It is
+    actively used by `StingDockPanel.xaml.cs` (sync indicator click
+    handler + status refresh) and by `PlatformLinkCommands.PlatformSyncCommand`
+    (lazy-starts `SyncScheduler` on first sync). The "delete as dead
+    code" recommendation in `docs/PLANSCAPE_GAPS.md` is superseded;
+    INT-01 in `docs/ROADMAP.md` is closed.
+
+**Caveats / explicit deferrals**
+
+1. Built without `dotnet build` verification. Every C# call uses the
+   documented signature but has not been compile-checked against the
+   real Revit / EF Core / ASP.NET Core assemblies.
+2. ACC platform connector (H8) — left as
+   `"ACC sync not implemented."` placeholder result. Implementing it
+   needs production ACC credentials, OAuth callback URL whitelisting,
+   webhook signature verification, and a test Revit project on the
+   target ACC hub. Tracked in `docs/ROADMAP.md` as INT-09.
+3. Speckle integration (M11) — left as the existing HTTP stub. The
+   Speckle.Core SDK v2 is a major dependency add (≈25 transitive
+   packages) that should land in its own phase with proper end-to-end
+   testing on a real stream URL.
+4. Lighting BS EN 12464-1 grid (M9) — `LightingGridCommand` still
+   shows the TaskDialog scaffold with `// TODO(S2.10):` comment. The
+   illuminance lookup and lumen-method calculation are designed but
+   need the family-side `LUMEN_OUTPUT_INT` parameter and the room
+   department-code → activity-type lookup table seeded first.
+5. The 18 `TODO-VERIFY-API` markers across the placement engine,
+   visualization layer, and MCP descriptor are unresolved — verifying
+   them needs the actual Revit 2025 API documentation/binaries that
+   are not available in this sandbox.

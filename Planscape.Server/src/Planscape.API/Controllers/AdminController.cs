@@ -110,6 +110,7 @@ public class AdminController : ControllerBase
     [HttpGet("audit")]
     public async Task<ActionResult> GetAuditLog(
         [FromQuery] Guid? projectId = null, [FromQuery] string? action = null,
+        [FromQuery] string? source = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var tenantId = GetTenantId();
@@ -117,6 +118,9 @@ public class AdminController : ControllerBase
 
         if (projectId.HasValue) query = query.Where(a => a.ProjectId == projectId);
         if (!string.IsNullOrEmpty(action)) query = query.Where(a => a.Action == action);
+        // M12 — let admins filter by which client originated the write so a
+        // misbehaving mobile build or plugin version can be triaged at a glance.
+        if (!string.IsNullOrEmpty(source)) query = query.Where(a => a.Source == source);
 
         var total = await query.CountAsync();
         var logs = await query

@@ -221,8 +221,8 @@ public class IssuesController : ControllerBase
             projectId
         });
 
-        // Push notification for new issue
-        _ = _notifications.NotifyAsync(tenantId, "issues",
+        // SRV-07 — issue creation push must reach project members only, not the whole tenant.
+        _ = _notifications.NotifyProjectAsync(projectId, "issues",
             $"New {issue.Type}: {issue.IssueCode}",
             issue.Title,
             new { issue.Id, issue.IssueCode, issue.Type, issue.Priority, projectId });
@@ -447,13 +447,23 @@ public class IssuesController : ControllerBase
 
                 memStream.Position = 0;
                 var (lat, lng) = _thumbnails.ExtractGpsFromExif(memStream);
-                // If parent issue has no GPS, populate from EXIF. BimIssue has no GPS columns
-                // in the current schema, so we surface the coordinates via logs for now; a
-                // follow-up migration can promote them to first-class fields.
+                // H2 — Promote EXIF coordinates to the parent BimIssue row so the
+                // map view + on-site search work even when live GPS was denied at
+                // the moment of issue creation. We only fill blanks: a live-GPS
+                // value already on the issue always wins. LocationAccuracy is set
+                // to 0 to mark "EXIF-sourced" (vs. a positive metres value from
+                // expo-location).
                 if (lat.HasValue && lng.HasValue)
                 {
                     _logger.LogInformation("EXIF GPS extracted for issue {Code}: {Lat},{Lng}",
                         issue.IssueCode, lat.Value, lng.Value);
+                    if (!issue.Latitude.HasValue && !issue.Longitude.HasValue)
+                    {
+                        issue.Latitude = lat.Value;
+                        issue.Longitude = lng.Value;
+                        issue.LocationAccuracy = 0;
+                        await _db.SaveChangesAsync();
+                    }
                 }
             }
             catch (Exception ex)
