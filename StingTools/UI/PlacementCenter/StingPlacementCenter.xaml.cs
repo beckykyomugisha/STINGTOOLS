@@ -76,6 +76,7 @@ namespace StingTools.UI.PlacementCenter
             public IList<ElementId> RoomIds;
             public IList<PlacementRule> Rules;
             public StingProgressDialog Progress;
+            public System.Threading.CancellationTokenSource HeartbeatCts;
             public PlacementResult Result;
             public Exception Error;
         }
@@ -100,6 +101,10 @@ namespace StingTools.UI.PlacementCenter
                             {
                                 try
                                 {
+                                    // Phase 139.11 — first room reached → kill the
+                                    // pre-flight heartbeat so the per-room status
+                                    // is visible and not overwritten.
+                                    try { req.HeartbeatCts?.Cancel(); } catch { }
                                     req.Progress?.Increment($"Room {done} of {total}…");
                                     return req.Progress?.IsCancelled == true;
                                 }
@@ -549,6 +554,25 @@ namespace StingTools.UI.PlacementCenter
             // outer TransactionGroup keeps everything undoable as one step.
             var progress = StingProgressDialog.Show(
                 "STING — Placement Centre · Run", roomIds.Count);
+            // Phase 139.11 — coarse heartbeat so the user sees activity
+            // during pre-flight (catalogue scan, two-phase shared-param
+            // check, first-fix box placement) which can each take many
+            // seconds before the first per-room progress increment fires.
+            try { progress.SetStatus("Pre-flight — scanning loaded families…"); } catch { }
+            // Background ticker so the dialog never looks frozen even when
+            // a pre-flight step pauses the API thread for a stretch.
+            var heartbeatCts = new System.Threading.CancellationTokenSource();
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                int n = 0;
+                while (!heartbeatCts.IsCancellationRequested)
+                {
+                    System.Threading.Thread.Sleep(1500);
+                    if (heartbeatCts.IsCancellationRequested) break;
+                    n++;
+                    try { progress.SetStatus($"Pre-flight in progress ({n * 1.5:F0}s)…"); } catch { break; }
+                }
+            }, heartbeatCts.Token);
             try
             {
                 // Phase 139.10 — modeless WPF cannot start a Transaction
@@ -561,10 +585,11 @@ namespace StingTools.UI.PlacementCenter
                 // UI thread).
                 _runRequest = new PlacementRunRequest
                 {
-                    Doc      = _doc,
-                    RoomIds  = roomIds,
-                    Rules    = rules,
-                    Progress = progress,
+                    Doc          = _doc,
+                    RoomIds      = roomIds,
+                    Rules        = rules,
+                    Progress     = progress,
+                    HeartbeatCts = heartbeatCts,
                 };
                 _runDone   = false;
                 EnsureRunEvent();
@@ -592,6 +617,7 @@ namespace StingTools.UI.PlacementCenter
                 // Restore the option-bag so other entry points aren't affected.
                 StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
                 StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
+                try { heartbeatCts.Cancel(); } catch { }
                 try { progress?.Close(); } catch { }
             }
 

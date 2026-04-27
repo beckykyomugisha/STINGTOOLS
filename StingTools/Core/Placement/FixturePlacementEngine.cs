@@ -148,9 +148,21 @@ namespace StingTools.Core.Placement
             }
 
             // Phase 139.2 G — Step 0: pre-flight subsystem hooks.
+            // Phase 139.11 — only run AutoPopulate when the active rule set
+            // actually references manufacturer / catalogue fields. The
+            // catalogue walk is O(loaded-families) × 14 LookupParameter
+            // calls; for a 5000-symbol project with no MK rules in the run,
+            // it added 30+ seconds of "0 / N rooms" silence to the run.
             try
             {
-                ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(doc);
+                bool needsCatalogue = ordered.Any(r => r != null
+                    && (!string.IsNullOrEmpty(r.ManufacturerCode)
+                        || !string.IsNullOrEmpty(r.CatalogueRef)
+                        || r.IsClusterMember));
+                if (needsCatalogue)
+                    ManufacturerCatalogueRegistry.AutoPopulateFromFamilies(doc);
+                else
+                    StingLog.Info("FixturePlacementEngine: skipping AutoPopulate — no rule references manufacturer fields.");
             }
             catch (Exception ex) { result.Warnings.Add($"Catalogue auto-populate: {ex.Message}"); }
             try
