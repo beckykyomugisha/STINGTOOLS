@@ -41,10 +41,46 @@ namespace StingTools.Core.Clash
                     return Result.Cancelled;
                 }
 
+                string bcfPath = ExportToBcf(doc, run.Clashes, outDir);
+                if (string.IsNullOrEmpty(bcfPath))
+                {
+                    TaskDialog.Show("STING Clash BCF",
+                        "BCF export failed — see StingTools.log for details.");
+                    return Result.Failed;
+                }
+                TaskDialog.Show("STING Clash BCF",
+                    $"Exported {run.Clashes.Count} topic(s) to BCF 2.1.\n\nSaved: {bcfPath}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ClashBcfExportCommand.Execute", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// C6: Reusable export entry point. Returns the path of the written
+        /// .bcfzip on success, empty string on failure. Used by both this
+        /// command's interactive Execute path and ClashRunCommand's auto-
+        /// export-on-critical hook.
+        /// </summary>
+        public static string ExportToBcf(Document doc, List<ClashRecord> clashes, string outDir)
+        {
+            if (doc == null || clashes == null || clashes.Count == 0 || string.IsNullOrEmpty(outDir))
+                return "";
+
+            try
+            {
+                Directory.CreateDirectory(outDir);
                 string stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
                 string bcfPath = Path.Combine(outDir, $"clashes_{stamp}.bcfzip");
 
-                var snapshotter = new BcfSnapshotter(doc);
+                // D8: Snapshotter now reuses one temp 3D view for the whole
+                //     batch via IDisposable. The using-block guarantees the
+                //     view is cleaned up even on exception.
+                using var snapshotter = new BcfSnapshotter(doc);
                 var snapshotDir = Path.Combine(outDir, $"clash_snapshots_{stamp}");
                 int wroteViewpoints = 0, wroteSnapshots = 0;
 
@@ -53,7 +89,7 @@ namespace StingTools.Core.Clash
                 {
                     WriteXmlEntry(zip, "bcf.version", BuildVersionXml());
 
-                    foreach (var c in run.Clashes)
+                    foreach (var c in clashes)
                     {
                         string topicGuid = DeriveStableGuid(c);
                         WriteXmlEntry(zip, $"{topicGuid}/markup.bcf", BuildMarkupXml(c, topicGuid));
@@ -110,21 +146,14 @@ namespace StingTools.Core.Clash
                     StingLog.Warn($"ClashBcfExport snapshot-dir cleanup: {cleanupEx.Message} (dir: {snapshotDir})");
                 }
 
-                StingLog.Info($"ClashBcfExport: {run.Clashes.Count} topics, {wroteViewpoints} viewpoints, " +
+                StingLog.Info($"ClashBcfExport: {clashes.Count} topics, {wroteViewpoints} viewpoints, " +
                     $"{wroteSnapshots} snapshots → {bcfPath}");
-
-                TaskDialog.Show("STING Clash BCF",
-                    $"Exported {run.Clashes.Count} topic(s) to BCF 2.1.\n\n" +
-                    $"Viewpoints: {wroteViewpoints}\n" +
-                    $"Snapshots:  {wroteSnapshots}\n\n" +
-                    $"Saved: {bcfPath}");
-                return Result.Succeeded;
+                return bcfPath;
             }
             catch (Exception ex)
             {
-                StingLog.Error("ClashBcfExportCommand.Execute", ex);
-                message = ex.Message;
-                return Result.Failed;
+                StingLog.Error("ClashBcfExportCommand.ExportToBcf", ex);
+                return "";
             }
         }
 

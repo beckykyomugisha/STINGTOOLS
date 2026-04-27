@@ -42,7 +42,13 @@ namespace StingTools.Core.Clash
         {
             var list = meshes.ToList();
             Sweep.Build(list);
-            Parallel.ForEach(list, m =>
+            // D5: Bound parallelism. Unbounded Parallel.ForEach competes with
+            //     Revit's own worker threads (CustomExporter, view regen) and
+            //     causes UI judder during runs. Cap at ProcessorCount-1 so the
+            //     UI thread keeps a free core, with a floor of 1.
+            int workers = Math.Max(1, Environment.ProcessorCount - 1);
+            var po = new ParallelOptions { MaxDegreeOfParallelism = workers };
+            Parallel.ForEach(list, po, m =>
             {
                 // G3: lock-free insert via ConcurrentDictionary.
                 ObbTrees[m.Key] = ObbTree.Build(m);
@@ -57,7 +63,11 @@ namespace StingTools.Core.Clash
             sw.Restart();
 
             var hits = new ConcurrentBag<ClashHit>();
-            Parallel.ForEach(pairs, pair =>
+            // D5: Bound narrow-phase parallelism for the same reason as
+            //     BuildIndexes — keep one free core for the UI thread.
+            int workers = Math.Max(1, Environment.ProcessorCount - 1);
+            var po = new ParallelOptions { MaxDegreeOfParallelism = workers };
+            Parallel.ForEach(pairs, po, pair =>
             {
                 try
                 {
@@ -102,8 +112,30 @@ namespace StingTools.Core.Clash
             if (!overlap) return null;
 
             var centroid = 0.5f * (aabbMin + aabbMax);
+            // D3: Better volume estimate. Prior code used the AABB-intersection
+            //     box volume (extent.X × extent.Y × extent.Z) which is grossly
+            //     inflated for oblique intersections — a long pipe crossing a
+            //     beam reports the entire intersection-AABB volume even though
+            //     the actual contact volume is tiny. This skewed R001's 100mm³
+            //     threshold (slivers escape) and TriageScore (everything looks
+            //     like a major overlap).
+            //
+            //     New estimator: min-extent depth × intersection AREA on the
+            //     two largest axes. For a duct piercing a wall this is wall
+            //     thickness × pipe diameter ≈ true contact volume. For
+            //     parallel-stacked elements with clipping volume the answer
+            //     is correct. Worst case for thin slivers (extent.minor → 0)
+            //     it still reports near-zero, which is what we want.
             var volExtent = aabbMax - aabbMin;
-            float volFt3 = Math.Max(0f, volExtent.X) * Math.Max(0f, volExtent.Y) * Math.Max(0f, volExtent.Z);
+            float ex = Math.Max(0f, volExtent.X);
+            float ey = Math.Max(0f, volExtent.Y);
+            float ez = Math.Max(0f, volExtent.Z);
+            float minExt = Math.Min(ex, Math.Min(ey, ez));
+            // Sum of pairwise products – min² gives footprint of the larger two
+            // axes; multiplied by min depth approximates a slab of overlap.
+            float footprintFt2 = (ex * ey + ey * ez + ex * ez) - 3f * minExt * minExt;
+            footprintFt2 = Math.Max(0f, footprintFt2 * 0.5f);
+            float volFt3 = footprintFt2 * minExt;
             float volMm3 = volFt3 * 28316846.592f;   // ft^3 → mm^3
             return new ClashHit
             {
@@ -144,6 +176,19 @@ namespace StingTools.Core.Clash
                 if (na == null || nb == null) continue;
                 if (!AabbsOverlap(na.AabbMin, na.AabbMax, nb.AabbMin, nb.AabbMax)) continue;
 
+                // E3: Real OBB-OBB SAT prune. Only run when AABB extent
+                //     ratio (longest / shortest) > 3 — for box-like geometry
+                //     (chunky structural beams, square AHUs) the AABB and
+                //     OBB are essentially the same shape, and computing the
+                //     PCA axes is wasted work. For elongated geometry
+                //     (long ducts, cable trays, beams along a raked angle)
+                //     OBB pruning rejects many AABB-overlap pairs before
+                //     reaching triangle-triangle SAT.
+                if (IsElongated(na) || IsElongated(nb))
+                {
+                    if (!ObbSat.Overlap(na, nb, meshA, meshB)) continue;
+                }
+
                 if (na.IsLeaf && nb.IsLeaf)
                 {
                     for (int ia = 0; ia < na.TriCount; ia++)
@@ -163,18 +208,38 @@ namespace StingTools.Core.Clash
                         }
                     }
                 }
-                else if (!na.IsLeaf)
+                else if (na.IsLeaf)
                 {
-                    // Descend A first. Push both children — LIFO so Right
-                    // visited before Left gives a tiny locality win on
-                    // typical left-heavy trees.
+                    // A is a leaf, B internal — must descend B.
+                    stack.Push((na, nb.Right));
+                    stack.Push((na, nb.Left));
+                }
+                else if (nb.IsLeaf)
+                {
+                    // B is a leaf, A internal — must descend A.
                     stack.Push((na.Right, nb));
                     stack.Push((na.Left, nb));
                 }
-                else // nb is internal
+                else
                 {
-                    stack.Push((na, nb.Right));
-                    stack.Push((na, nb.Left));
+                    // E2: Both internal — descend the side with the larger AABB
+                    //     volume. Standard BVH practice: splitting the larger
+                    //     side first keeps subtree pairs balanced and prunes
+                    //     deeper trees more aggressively. Prior code arbitrarily
+                    //     picked A which left tall, narrow trees (typical for
+                    //     long elements like ducts) un-pruned.
+                    float volA = AabbVolume(na);
+                    float volB = AabbVolume(nb);
+                    if (volA >= volB)
+                    {
+                        stack.Push((na.Right, nb));
+                        stack.Push((na.Left, nb));
+                    }
+                    else
+                    {
+                        stack.Push((na, nb.Right));
+                        stack.Push((na, nb.Left));
+                    }
                 }
             }
             return false;
@@ -186,6 +251,29 @@ namespace StingTools.Core.Clash
             if (aMax.Y < bMin.Y || aMin.Y > bMax.Y) return false;
             if (aMax.Z < bMin.Z || aMin.Z > bMax.Z) return false;
             return true;
+        }
+
+        /// <summary>E2: AABB volume for descend-order selection.</summary>
+        private static float AabbVolume(ObbNode n)
+        {
+            var ext = n.AabbMax - n.AabbMin;
+            return Math.Max(0f, ext.X) * Math.Max(0f, ext.Y) * Math.Max(0f, ext.Z);
+        }
+
+        /// <summary>
+        /// E3: Heuristic — node is elongated if longest extent is > 3x the
+        /// shortest. Only elongated nodes pay the OBB SAT cost; box-like
+        /// nodes use the AABB-only path.
+        /// </summary>
+        private static bool IsElongated(ObbNode n)
+        {
+            var ext = n.AabbMax - n.AabbMin;
+            float ex = Math.Max(0.001f, ext.X);
+            float ey = Math.Max(0.001f, ext.Y);
+            float ez = Math.Max(0.001f, ext.Z);
+            float mx = Math.Max(ex, Math.Max(ey, ez));
+            float mn = Math.Min(ex, Math.Min(ey, ez));
+            return mx / mn > 3f;
         }
 
         /// <summary>

@@ -3775,3 +3775,310 @@ round-trip, and 3 new validators.
    `STING_PUPIL_COUNT_INT`, `STING_PLACE_AUDIT_TXT`) need to be
    declared in `MR_PARAMETERS.txt` before any Revit project will see
    them — listed for the next parameter-registry pass.
+
+#### Completed (Phase 141 — Clash Detection Bug Fixes — Category A)
+
+Five correctness bugs in the clash subsystem fixed. Every change is in
+`StingTools/Clash/` unless noted; commits land on
+`claude/enhance-clash-detection-Tb0IS`.
+
+1. **A1 Live flag state corruption** —
+   `Clash/ClashSession.cs` `RefreshElement` was nuking
+   `_flaggedIds` on every edit by replacing the entire set with the
+   single edited element's hits. Fixed by introducing a per-element
+   neighbour index `_clashNeighbours: Dictionary<int, HashSet<int>>`
+   that tracks symmetric edges (a↔b) and computing the diff narrowed to
+   the edited element plus its prior + new neighbours. `RemoveElement`
+   maintains the same map and clears flags only on neighbours that
+   lose their last edge. `InitialiseFromView` resets the map alongside
+   the mesh / OBB caches.
+2. **A2 SLA issue anchor mismatch** —
+   `Clash/ClashSlaIntegration.cs` `CreateIssues` was looking up
+   `g.Anchor` directly in `matrix.Cells` by `PairId`, but element-
+   pattern anchors are formatted as `"{pairId} via {side}={cat}:{eid}"`
+   and repetition anchors as `"{pairId} repetition (X-row, vol≈N)"` —
+   the lookup always returned null and every issue defaulted to
+   severity "MED" / assignee "Coord". Fixed by adding
+   `ExtractPairId()` that splits on " via " or " repetition " and
+   keeps the leading PairId token before the lookup.
+3. **A3 Clearance tolerance not enforced in kernel** —
+   `Clash/ClashKernel.cs` returned `Kind="hard"` for every triangle-
+   overlap pair regardless of the matched matrix cell's tolerance.
+   Fixed by adding `ClashRunCommand.ApplyClearanceTolerance` that runs
+   after `MergeWithPrior` and walks every kept clash whose
+   `cell.Tolerance` starts with `"CLEARANCE_"`: parses the suffix as
+   mm, computes AABB overlap depth (min component of `AabbMax-AabbMin`
+   in mm), and either drops the record (overlap within tolerance —
+   tessellation sliver) or promotes `Kind` to `"clearance"`. New
+   `ClashRecord.Kind` field, JSON-optional so existing clashes.json
+   files round-trip cleanly.
+4. **A4 Live path facts missing System/Workset** —
+   `Clash/ClashSession.cs` `FactsFromMesh` populated only `Category`,
+   so any matrix cell that filtered on `System=...` silently missed in
+   the live path. Replaced with `ResolveFacts` that resolves the
+   `Element` from `_doc` and reads System / Workset (via
+   `MEPCurve.MEPSystem.Name` and the `System Name` parameter for
+   FamilyInstances). Cached per-eid in `_factsCache` so the candidate
+   loop in `NarrowPhaseFor` pays one Revit lookup per element per
+   edit, not per pair. Cache invalidated on `RefreshElement` and
+   `RemoveElement` for the affected id.
+5. **A5 Repetition grouper ignored X/Y axes** —
+   `Clash/ClashGrouper.cs` `FindRepetitionGroups` only sorted by Z and
+   only checked the Z-axis spacing, breaking horizontal risers
+   clashing with wall framing in X or Y into spatial singletons.
+   Replaced `IsEquallySpaced` with `TryComputeMeanDev` that scores
+   each axis by mean-deviation; the axis with the smallest deviation
+   wins. Anchor description now reads `"X-row"`, `"Y-row"`, or
+   `"Z-stack"` so the BCC UI shows the winning axis.
+
+#### Completed (Phase 142 — Clash Detection Performance — Category B)
+
+Three hot-path performance fixes for clash subsystem batch operations.
+
+1. **B1 CrossModelClashCommand O(n²) inner loop** —
+   `Clash/ClashDetectionCommands.cs` `CrossModelClashCommand` was
+   nesting host MEP × all linked structural per link, calling
+   `get_BoundingBox()` inside the inner loop. For a 2 000 × 1 000 × 3-
+   link model that's 6 M comparisons with Revit API calls in the
+   innermost slot. Now: pre-cache host MEP bboxes once outside the
+   loop, build per-link `Dictionary<long, (Element, LocalBb, WorldMin,
+   WorldMax)>`, and probe each link via
+   `BoundingBoxIntersectsFilter` with a per-MEP outline transformed
+   through the inverse link transform. Inner loop shrinks to a
+   pre-computed AABB sweep before paying the 8-corner narrow-phase.
+   New helper `TransformedAabb.Build` exposes the world AABB build
+   that `AabbNarrowPhase.WorldAabb` does internally.
+2. **B2 MEPClearanceValidationCommand sequential collectors** —
+   `Clash/ClashDetectionCommands.cs` `AuditOne` was creating a
+   `FilteredElementCollector` per subject element. For 1 000 elements
+   that is 1 000 collector instantiations on the Revit API. Now: a
+   single pass pre-collects every duct + pipe + structural element
+   into `List<(ElementId, BoundingBoxXYZ, Category, Bic)>`, then each
+   subject does an in-memory AABB range query against the cache. No
+   per-subject collector instantiation.
+3. **B3 ClashScheduler raised live handler not full run** —
+   `Clash/ClashScheduler.cs` was raising `LiveClashHandler.Event`
+   which only drains the dirty queue — on an idle model the hourly
+   tick was a no-op. Added `ClashRunEventHandler : IExternalEventHandler`
+   that calls `ClashRunCommand.RunHeadless(app)` (a new static entry
+   point that runs the full pipeline silently). Scheduler now reads
+   `SchedulerIntervalMinutes` from `default_clash_matrix.json`
+   (default 60) and gates ticks on
+   `ClashSession.LastDirtyAtUtc > _lastRunUtc` so an idle model with
+   no edits since the last run is skipped. `MarkDirty` is called from
+   `RefreshElement` and `RemoveElement` to update the volatile
+   timestamp.
+
+#### Completed (Phase 143 — Clash Detection Automation — Category C)
+
+Six automation-logic gaps closed in the clash subsystem.
+
+1. **C1 ClashTriageEngine wired into ClashRunCommand** —
+   `Clash/ClashRunCommand.cs` now runs `ClashTriageEngine.Triage` after
+   `ClashGrouper.Group`. Inputs are built from `run.Clashes` plus the
+   immediately-prior `ClashRunRecord`: `RecurrenceCount` = identity
+   match in prior run (0/1), `DismissCount` = "Void" transitions in
+   `StateHistory`, `PenetrationMm` = computed from the AABB extent.
+   Score persisted to new `ClashRecord.TriageScore` field; clashes
+   sorted by score descending, then by severity, then by id for
+   deterministic order.
+2. **C2 Auto-assign clashes to discipline owners** —
+   `Clash/ClashSlaIntegration.cs` `EnrichAssignees(doc, issues, run)`
+   resolves workset owner names via
+   `WorksharingUtils.GetWorksharingTooltipInfo` and overlays them on
+   `CoordIssue.Assignee` plus `ClashGroupRecord.Assignee`.
+   `ClashRunCommand.EnrichGroupAssignees` synthesises a placeholder
+   issue list per group so the same logic runs as part of the headless
+   pass without duplicating the resolution code.
+3. **C3 Per-pair clearance distance in MEPClearanceValidationCommand**
+   — `Clash/ClashDetectionCommands.cs` now loads
+   `default_clash_matrix.json` and calls `ResolveTargetMm(matrix,
+   subjectCat, neighbourCat, fallbackMm)` for each subject ↔
+   neighbour pair. CLEARANCE_xx → xx mm; HARD → 0; otherwise the
+   hardcoded `DuctMinClearMm`/`PipeMinClearMm` is the fallback. The
+   PASS/FAIL gate now uses the worst-case per-pair target rather than
+   a single per-subject constant.
+4. **C4 Cold-init live flag parameter write** —
+   `Clash/ClashRunCommand.cs` `WriteColdInitLiveFlags` calls
+   `LiveClashFlag.Apply(doc, flagged, [])` after `SeedFromRun`,
+   following the same H6 pattern (transaction outside the lock) that
+   `RefreshElement` uses. Resumed sessions now show warning triangles
+   on flagged elements immediately rather than waiting for the next
+   dirty edit. `ClashRunCommand` was changed to
+   `TransactionMode.Manual` so the flag-write transaction can open.
+5. **C5 Configurable rule thresholds in JSON** —
+   `Clash/ClashRule.cs` now stores `Params: Dictionary<string, double>`
+   per `ClashRuleDefinition`; predicates read via the new helper
+   `ClashRule.ParamOr(def, key, fallback)`. R001 / R005 / R006 / R008 /
+   R009 read their thresholds from Params with the historical
+   constant as the fallback. `ClashRuleLibrary.LoadAugmented` accepts
+   a JSON entry without `Verdict` but with a matching `Id` as a Params
+   override on a built-in rule.
+6. **C6 BCF auto-export on severity threshold breach** —
+   `Clash/ClashBcfExportCommand.ExportToBcf(doc, clashes, outDir)`
+   refactored to a public static method.
+   `Clash/ClashRunCommand.cs` calls it automatically after
+   `SeedFromRun` when `default_clash_matrix.json` carries
+   `"AutoBcfOnCritical": true` and the run kept any
+   `Severity in {CRITICAL, HIGH}` clashes whose state is `New` or
+   `Reintroduced`. New `ClashMatrix.AutoBcfOnCritical` field defaults
+   to `false` so existing matrix files round-trip without changing
+   behaviour.
+
+#### Completed (Phase 144 — Clash Detection Performance D1–D10)
+
+Ten residual hot-path performance fixes. All in `StingTools/Clash/`.
+
+1. **D1 Mesh extractor cache** — `MeshExtractor.cs` now caches the
+   `Dictionary<ClashElementKey, ClashMeshBuffer>` per-(doc, view) keyed
+   on a soft signature (taggable element count + revision count + view
+   section-box hash). Re-runs that don't change the soft signature
+   skip the entire `CustomExporter` pass — 5–30 s saved on 50 k-element
+   models. Hard invalidation hook `MeshExtractor.InvalidateCacheFor(doc)`
+   wired from `ClashScheduler` on `DocumentSaved` /
+   `DocumentSynchronizedWithCentral`.
+2. **D2 BuildFactsByKey bulk-load** — `ClashRunCommand.BuildFactsByKey`
+   groups mesh keys by owning document and runs one
+   `FilteredElementCollector(doc, ids).WhereElementIsNotElementType()`
+   per doc instead of `doc.GetElement(...)` per mesh — 50 k Revit API
+   calls collapse to a handful.
+3. **D3 Better volume estimate** — `ClashKernel.TestPair` no longer
+   reports raw AABB-intersection volume (massively inflated for
+   oblique hits). Uses min-extent depth × intersection footprint as a
+   proxy. Restores R001's 100 mm³ tessellation gate and stops triage
+   scoring every clash as a major overlap.
+4. **D4 Pair dedup encoded as long** — `AabbSweep.CandidatePairs` packs
+   the unordered pair into a 64-bit long via per-call int handles,
+   replacing the `HashSet<(ClashElementKey, ClashElementKey)>` tuple
+   allocation. ~50–200 MB GC pressure removed on 1 M-pair runs.
+5. **D5 Bounded parallelism** — `ClashKernel.BuildIndexes` and `Run`
+   now use `MaxDegreeOfParallelism = ProcessorCount-1` so the UI thread
+   keeps a free core during heavy runs.
+6. **D6 Snapshot-under-lock** — `ClashSession.NarrowPhaseFor` materialises
+   the candidate enumeration into a local list before the loop so the
+   triangle-triangle SAT work doesn't hold the session lock.
+7. **D7 Connected-id cache** — `MEPClearanceValidationCommand.AuditOne`
+   caches `GetConnectedElementIds` per subject so the connector graph
+   walk doesn't re-run.
+8. **D8 BcfSnapshotter shared view** — `BcfSnapshotter` is now
+   `IDisposable` with one reusable temp View3D for the whole batch;
+   per-clash retarget via `SetSectionBox` only. 500-clash auto-BCF runs
+   no longer create+delete 500 transient views.
+9. **D9 ClashGrouper single-pass dict** — `FindElementPatternGroups`
+   builds one `Dictionary<(pair, side, eid), List<ClashRecord>>`
+   instead of two parallel dicts.
+10. **D10 Pooled extraction buffers** — `ClashSession.TryExtractOneElement`
+    uses `[ThreadStatic]` reusable `List<float>` / `List<int>` /
+    `Dictionary<long, int>` buffers so per-edit dragging doesn't
+    allocate three fresh containers per tick.
+
+#### Completed (Phase 145 — Clash Detection Algorithm Hardening E1–E10)
+
+Ten algorithm refinements addressing identity drift, OBB pruning,
+rule precedence, and category classification.
+
+1. **E1 Fuzzy identity merge** — `ClashHistory.MergeWithPrior` falls
+   back to `(elementA, elementB, pairId)` + centroid-distance match
+   (≤ 500 mm) when the exact identity hash misses. A duct nudged 7 mm
+   no longer surfaces as "Resolved + New" with state lost.
+2. **E2 Larger-side descent** — `ClashKernel.OverlapDescend` chooses
+   the side with the larger AABB volume to descend when both children
+   are internal. Standard BVH practice — keeps subtree pairs balanced
+   and prunes deeper trees more aggressively for elongated geometry.
+3. **E3 Real OBB-OBB SAT prune** — `ObbNode.EnsureObb` derives true
+   PCA-based OBB axes/half-extents lazily; new `ObbSat.Overlap` runs
+   the 15-axis SAT test as an extra prune AFTER the AABB overlap
+   passes. Gated on `IsElongated` (longest extent > 3× shortest) so
+   box-like geometry doesn't pay the PCA cost.
+4. **E4 Strictest-wins rule precedence** — `ClashRuleEngine.Classify`
+   collects every matching rule's verdict and returns the strictest
+   (`Pseudo > Intentional > Keep`). Rule order in `BuiltIns()` is no
+   longer load-bearing — large slivers always Pseudo even when
+   listed after R008.
+5. **E5 Adaptive grouper cells** — `ClashGrouper` Pass 3 sizes its
+   spatial cells from per-pair average AABB diagonal × 1.5, clamped
+   to `[0.5 m .. 6 m]`. Light fixtures cluster at ~1 m, AHU/beam at
+   4–6 m — coordinator-relevant rather than arbitrary.
+6. **E6 Relative spacing tolerance** — `TryComputeMeanDev` uses
+   `tolerance = max(0.05 ft, 0.1 × mean)` so tightly-packed lights
+   and wide beam centres both detect repetition correctly.
+7. **E7 Median-extent overlap depth** — `ApplyClearanceTolerance` uses
+   the median of the three intersection extents rather than the min;
+   captures the dominant penetration direction for oblique hits.
+8. **E8 ElementId-based self-clash filter** — `ClashSession.NarrowPhaseFor`
+   adds a defence-in-depth short-circuit when both meshes resolve to
+   the same `ElementId` (same FamilyInstance with multiple Solids).
+9. **E9 BuiltInCategory-based severity classifier** —
+   `ClashTriageEngine.IsStructural / IsServices` use OST_-prefixed
+   category sets instead of substring matches on display names. Curtain
+   walls correctly classified as architectural rather than structural.
+10. **E10 Persisted RecurrenceCount** — `ClashRecord.RecurrenceCount`
+    new field; `MergeWithPrior` increments it on every Reintroduced
+    transition; `ClashRunCommand` reads from the persisted value when
+    building `ClashInput.RecurrenceCount` so a clash reintroduced 4×
+    scores correctly (prior code capped at 1).
+
+#### Completed (Phase 146 — Clash Detection Automation F1–F14)
+
+Fourteen automation hooks that change coordinator behaviour rather
+than just report on it.
+
+1. **F1 Repeat-offender severity escalation** — `ClashHistory` promotes
+   severity one tier (LOW→MED→HIGH→CRITICAL) when `RecurrenceCount`
+   reaches 3. Logged as a `StateTransition` so the audit trail shows
+   the bump.
+2. **F2 CLASH_COUNT_INT parameter** — `LiveClashFlag.ApplyWithCounts`
+   writes a per-element clash count alongside `CLASH_LIVE_FLAG`. View
+   filters can now select "elements with > 3 clashes" for heat-map
+   templates.
+3. **F3 Ring-buffer archive** — `ClashPersistence.Save` mirrors every
+   run to `<dir>/archive/clashes_<utc>.json` capped at 30 entries.
+   `LoadArchive(dir, max)` returns the newest-first series for trend
+   reports / XLSX export.
+4. **F4 Event-driven scheduler triggers** — `ClashScheduler.Start`
+   subscribes to `Application.DocumentSaved` and
+   `DocumentSynchronizedWithCentral`; the periodic poll remains as a
+   fallback. Hooks invalidate `MeshExtractor` cache so post-save state
+   regenerates immediately.
+5. **F5 Score every clash** — new `ClashTriageEngine.TriageAll(inputs)`
+   returns the full scored set; `Triage(inputs)` is now a thin
+   `TriageAll().Take(TopN)` shim. `ClashRunCommand` persists score on
+   every `ClashRecord` rather than the first 20.
+6. **F6 IssueGuid back-link** — `ClashSlaIntegration.CreateIssues`
+   writes the new issue's GUID onto every member `ClashRecord.IssueGuid`
+   (and `LinkedIssueGuid` for legacy compat) so BCF re-import can
+   reconstruct the (issue, clash[]) association.
+7. **F7 ClashXlsxExportCommand** — new command and reusable
+   `ExportToXlsx(run, path)` static (ClosedXML). Four sheets: Summary
+   (run stats + severity buckets), Clashes (autofilter, per-row severity
+   colour), Groups, Trend (F3 archive series, last 30 runs).
+8. **F8 Exclusion audit log** — `ClashExclusions.IsExcludedAudited`
+   appends every `excluded` outcome to
+   `<dir>/clash_exclusions_audit.jsonl` with timestamp / matrix pair /
+   approver / reason / run id. ISO 19650 stage-gate evidence.
+9. **F9 Watched-element mechanism** — `ClashSession.Watch / Unwatch /
+   IsWatched / WatchedSnapshot`. `LiveClashHandler` re-runs narrow-
+   phase for every watched element on every tick within the 200 ms
+   budget so coordinators can pin a hard-to-investigate clash.
+10. **F10 Notification dispatch sidecar** — new `ClashNotifications`
+    type appends `clash_notifications.jsonl` events for every CRITICAL
+    or HIGH `New` / `Reintroduced` clash plus every severity escalation.
+    Local-first (no network coupling); a future Planscape adapter can
+    tail and forward to FCM / Slack / SignalR.
+11. **F11 Stage-gate clash budget** — `StageComplianceGateCommand`
+    reads `clashes.json` and adds a clash-budget check: Stage 4
+    requires zero active CRITICAL; Stage 5+ tightens to zero
+    CRITICAL OR HIGH. Reports per-stage in the existing TaskDialog.
+12. **F12 Element-level workset majority vote** —
+    `ClashSlaIntegration.EnrichAssignees` resolves owner per element
+    (cached), tallies votes per group, and assigns the majority
+    winner. Mixed-owner groups get a `(mixed)` suffix.
+13. **F13 Geometric resolution annotation** — `ClashHistory.MergeWithPrior`
+    annotates the prior record's `StateHistory` with
+    `By = "geometric (no longer detected)"` when an identity lapses,
+    closing the loop with `ResolutionHeuristics`.
+14. **F14 Full ClashRule overrides** — `ClashRuleLibrary.LoadAugmented`
+    treats any matching `Id` as an override on a built-in. Project
+    JSON can now patch any of `FilterA / FilterB / Verdict /
+    Description / Params / VolumeBelowMm3 / VolumeAboveMm3` without
+    re-defining the whole rule.

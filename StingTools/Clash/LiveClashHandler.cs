@@ -76,6 +76,25 @@ namespace StingTools.Core.Clash
                     }
                 }
 
+                // F9: Re-evaluate watched elements every tick even if they
+                //     weren't in the dirty queue. Lets coordinators "pin" a
+                //     hard-to-investigate clash so it always reflects current
+                //     state without waiting for an unrelated edit nearby.
+                if (sw.ElapsedMilliseconds < 200)
+                {
+                    foreach (var watchedId in session.WatchedSnapshot())
+                    {
+                        if (sw.ElapsedMilliseconds >= 200) break;
+                        try
+                        {
+                            var r = session.RefreshElement(watchedId);
+                            foreach (var id in r.NewlyFlagged) { toClear.Remove(id); toFlag.Add(id); }
+                            foreach (var id in r.NewlyCleared) { toFlag.Remove(id); toClear.Add(id); }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"LiveClash watched {watchedId}: {ex.Message}"); }
+                    }
+                }
+
                 if (toFlag.Count > 0 || toClear.Count > 0)
                 {
                     LiveClashFlag.Apply(doc, toFlag, toClear);

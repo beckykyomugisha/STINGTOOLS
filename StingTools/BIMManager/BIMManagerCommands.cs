@@ -8756,9 +8756,16 @@ namespace StingTools.BIMManager
                     break;
             }
 
+            // F11: Clash budget check — every stage gate ≥ 4 (Technical/IFC)
+            //      requires ZERO active CRITICAL clashes; stage 5+ tightens to
+            //      zero CRITICAL OR HIGH. Reads clashes.json from the project
+            //      output directory; absence is treated as a non-blocking warn.
+            var (clashOk, clashSummary) = EvaluateClashBudget(doc, ribaStage);
+            bool combinedPass = passed && clashOk;
+
             var report = new System.Text.StringBuilder();
             report.AppendLine($"RIBA Stage: {ribaStage} — {stageName}");
-            report.AppendLine($"Result: {(passed ? "PASSED ✓" : "FAILED ✗")}");
+            report.AppendLine($"Result: {(combinedPass ? "PASSED ✓" : "FAILED ✗")}");
             report.AppendLine();
             report.AppendLine($"Requirement: {requirement}");
             report.AppendLine($"Maximum suitability code: {suitabilityMax}");
@@ -8769,17 +8776,70 @@ namespace StingTools.BIMManager
             report.AppendLine($"  Complete tags:       {hasComplete,5} ({completePct:F1}%)");
             report.AppendLine($"  Fully resolved:      {fullyResolved,5} ({resolvedPct:F1}%)");
             report.AppendLine();
+            report.AppendLine($"── Clash Budget ──");
+            report.AppendLine($"  {clashSummary}");
+            report.AppendLine();
             report.AppendLine($"── RAG Status: {scan.RAGStatus} ({scan.CompliancePercent:F0}%) ──");
             report.AppendLine($"  {scan.TopIssues}");
 
             TaskDialog td = new TaskDialog("Stage Compliance Gate");
-            td.MainInstruction = passed
-                ? $"PASSED — Stage {ribaStage} compliance met"
+            td.MainInstruction = combinedPass
+                ? $"PASSED — Stage {ribaStage} compliance + clash budget met"
                 : $"FAILED — Stage {ribaStage} requirements not met";
             td.MainContent = report.ToString();
             td.Show();
 
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// F11: Stage-aware clash budget. Reads {output}/clashes.json and
+        /// gates the stage transition on:
+        ///   Stage 0–3: warning only — no hard gate.
+        ///   Stage 4 (Technical/IFC): zero active CRITICAL.
+        ///   Stage 5+: zero active CRITICAL or HIGH.
+        /// Returns (passed, human-readable summary). Missing clashes.json
+        /// is non-blocking with a warn message — stage gates predate the
+        /// clash subsystem on legacy projects.
+        /// </summary>
+        private static (bool ok, string summary) EvaluateClashBudget(Document doc, int ribaStage)
+        {
+            try
+            {
+                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                if (string.IsNullOrEmpty(outDir)) return (true, "no project output dir — clash budget skipped");
+                string clashesJson = Path.Combine(outDir, "clashes.json");
+                if (!File.Exists(clashesJson))
+                    return (true, "no clashes.json — clash budget skipped (run clash detection first)");
+
+                var run = StingTools.Core.Clash.ClashPersistence.Load(clashesJson);
+                if (run?.Clashes == null) return (true, "clashes.json empty — clash budget skipped");
+                int activeCritical = 0, activeHigh = 0;
+                foreach (var c in run.Clashes)
+                {
+                    if (c.State == "Resolved" || c.State == "Void") continue;
+                    if (c.Severity == "CRITICAL") activeCritical++;
+                    else if (c.Severity == "HIGH") activeHigh++;
+                }
+
+                if (ribaStage <= 3)
+                    return (true, $"informational — {activeCritical} active CRITICAL, {activeHigh} active HIGH (no hard budget pre-Stage 4)");
+                if (ribaStage == 4)
+                    return (activeCritical == 0,
+                        activeCritical == 0
+                            ? $"PASS — {activeCritical} active CRITICAL"
+                            : $"FAIL — {activeCritical} active CRITICAL (Stage 4 requires zero)");
+                // Stage 5+
+                return ((activeCritical + activeHigh) == 0,
+                    (activeCritical + activeHigh) == 0
+                        ? $"PASS — {activeCritical} CRITICAL / {activeHigh} HIGH"
+                        : $"FAIL — {activeCritical} active CRITICAL + {activeHigh} active HIGH (Stage {ribaStage} requires zero of each)");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"EvaluateClashBudget: {ex.Message}");
+                return (true, $"clash budget check errored — {ex.Message}");
+            }
         }
 
         private static int DetectRIBAStage(Document doc)
