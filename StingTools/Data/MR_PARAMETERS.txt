@@ -2483,6 +2483,8 @@ PARAM	c6d7e8f9-a0b1-4c2d-ae3f-4a5b6c7d8e9f	ASS_PLACE_SIDE_TXT	TEXT		1	1	Wall or 
 PARAM	d7e8f9a0-b1c2-4d3e-bf4a-5b6c7d8e9fa0	ELC_CPC_SZ_MM	TEXT		4	1	Circuit protective conductor size in mm2 per BS 7671	1
 PARAM	e8f9a0b1-c2d3-4e4f-ca5b-6c7d8e9fa0b1	PLM_PPE_INSULATION_THK_MM	NUMBER		6	1	Pipe insulation thickness in millimetres	1
 PARAM	f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2	PLM_SLOPE_PCT	TEXT		6	1	Drainage pipe slope percentage per BS EN 12056 (1:80 default for sanitary)	1
+PARAM	c7a3f2e1-9b04-4d88-b5a1-3e6f8d2c1047	STING_BOX_LOCATION_ID	TEXT		1	1	Phase 139.2 — GUID linking first-fix conduit/BESA box (Construction phase) to its second-fix device (Completion phase) for two-phase placement	1
+PARAM	d8b4a3f2-7c05-4e99-c6b2-4f7b9e3d2158	STING_NOGGIN_REQUIRED	YESNO		1	1	Phase 139.2 — flag set on a placed pendant/downlight when no joist is within JoistClearanceMm; export via Placement_ExportNogginRequirements	1
 PARAM	v4-0001-0000-0000-000000000001	ASS_SPOOL_NR_TXT	TEXT		1	1	Spool or bundle number assigned by AssemblyBuilder	1
 PARAM	v4-0001-0000-0000-000000000002	ASS_WEIGHT_KG	NUMBER		1	1	Assembly total weight in kilograms (sum of member volume x material density)	1
 PARAM	v4-0001-0000-0000-000000000003	ASS_TEST_PRESSURE_BAR	NUMBER		1	1	Hydrostatic or pneumatic test pressure for the assembly in bar	1

@@ -38,14 +38,15 @@ namespace StingTools.Core.Placement
         /// </summary>
         private const double MmToFt = 1.0 / 304.8;
 
-        // Phase 139 G — re-weighted scoring with coverage-contribution
-        // component (0.10) when GuaranteeCoverage rules are active.
-        private const double AnchorWeight    = 0.35;
-        private const double SideWeight      = 0.20;
-        private const double SpacingWeight   = 0.15;
-        private const double CollisionWeight = 0.15;
-        private const double SymmetryWeight  = 0.05;
-        private const double CoverageWeight  = 0.10;
+        // Phase 139.2 P — re-weighted scoring; coverage-contribution and
+        // manufacturer-resolution scores added.  Sum = 1.00.
+        private const double AnchorWeight       = 0.35;
+        private const double SideWeight         = 0.22;
+        private const double SpacingWeight      = 0.18;
+        private const double CollisionWeight    = 0.10;
+        private const double SymmetryWeight     = 0.05;
+        private const double CoverageWeight     = 0.07;
+        private const double ManufacturerWeight = 0.03;
 
         private readonly Document _doc;
         private LightingGridCalculator _lightingGrid;
@@ -365,17 +366,17 @@ namespace StingTools.Core.Placement
             // (helps lighting grids and socket rails line up).
             c.SymmetryScore = ComputeSymmetryScore(anchor, alreadyPlaced);
 
-            // Phase 139 G — coverage contribution component.  Neutral 0.5
-            // when CoverageRadiusMm = 0; future enhancement quantifies the
-            // uncovered area each candidate would cover.
-            double coverageContribution = (rule.CoverageRadiusMm > 0) ? 1.0 : 0.5;
+            // Phase 139.2 P — coverage contribution + manufacturer resolution.
+            double coverageContribution = ScoreCoverageContribution(anchor, rule, alreadyPlaced);
+            double manufacturerScore    = ScoreManufacturerResolution(rule);
 
-            c.Score = c.AnchorScore    * AnchorWeight
-                    + c.SideScore      * SideWeight
-                    + c.SpacingScore   * SpacingWeight
-                    + c.CollisionScore * CollisionWeight
-                    + c.SymmetryScore  * SymmetryWeight
-                    + coverageContribution * CoverageWeight;
+            c.Score = c.AnchorScore       * AnchorWeight
+                    + c.SideScore         * SideWeight
+                    + c.SpacingScore      * SpacingWeight
+                    + c.CollisionScore    * CollisionWeight
+                    + c.SymmetryScore     * SymmetryWeight
+                    + coverageContribution * CoverageWeight
+                    + manufacturerScore   * ManufacturerWeight;
 
             // §5.1 — apply family-level placement hints as a final score
             // modifier. Only the level hint biases the composite score
@@ -466,6 +467,61 @@ namespace StingTools.Core.Placement
             }
             catch { }
             return null;
+        }
+
+        /// <summary>
+        /// Phase 139.2 P — coverage contribution.  Returns 1.0 when the
+        /// candidate sits in a previously-uncovered zone, 0.0 when fully
+        /// covered, linear in-between.  CoverageRadiusMm = 0 → neutral 0.5
+        /// so legacy rules score as before.
+        /// </summary>
+        private double ScoreCoverageContribution(XYZ candidate, PlacementRule rule, IList<XYZ> alreadyPlaced)
+        {
+            if (rule == null || candidate == null) return 0.5;
+            if (rule.CoverageRadiusMm <= 0) return 0.5;
+            if (alreadyPlaced == null || alreadyPlaced.Count == 0) return 1.0;
+            double radiusFt = rule.CoverageRadiusMm * MmToFt;
+            double minDist = double.MaxValue;
+            foreach (var p in alreadyPlaced)
+            {
+                if (p == null) continue;
+                double dx = p.X - candidate.X, dy = p.Y - candidate.Y;
+                double d = Math.Sqrt(dx * dx + dy * dy);
+                if (d < minDist) minDist = d;
+            }
+            if (minDist >= radiusFt) return 1.0;
+            return Math.Max(0.0, minDist / radiusFt);
+        }
+
+        /// <summary>
+        /// Phase 139.2 P — manufacturer resolution.  1.0 when the rule's
+        /// CatalogueRef resolves to an entry whose declared family is
+        /// loaded in the document; 0.0 when CatalogueRef is empty or
+        /// catalogue lookup fails.
+        /// </summary>
+        private double ScoreManufacturerResolution(PlacementRule rule)
+        {
+            if (rule == null || string.IsNullOrEmpty(rule.CatalogueRef)) return 0.0;
+            try
+            {
+                var entry = ManufacturerCatalogueRegistry.GetForRule(rule);
+                if (entry == null) return 0.0;
+                if (string.IsNullOrEmpty(entry.RevitFamilyName)) return 0.5;
+                if (_doc == null) return 0.5;
+                var col = new FilteredElementCollector(_doc).OfClass(typeof(Family));
+                foreach (var el in col)
+                {
+                    if (el is Family fam &&
+                        string.Equals(fam.Name, entry.RevitFamilyName, StringComparison.OrdinalIgnoreCase))
+                        return 1.0;
+                }
+                return 0.5;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementScorer.ScoreManufacturerResolution: {ex.Message}");
+                return 0.0;
+            }
         }
 
         /// <summary>
