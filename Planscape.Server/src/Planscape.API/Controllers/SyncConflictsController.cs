@@ -194,12 +194,17 @@ public class SyncConflictsController : ControllerBase
     }
 
     /// <summary>
-    /// Phase 144 — Bulk ACCEPT_CLIENT with per-conflict field maps. The
+    /// Phase 144/145 — Bulk ACCEPT_CLIENT with per-conflict field maps. The
     /// caller supplies one entry per conflict; each entry's <c>fields</c> is
     /// applied to the linked TaggedElement before the conflict is marked
-    /// CLIENT_WINS. Caps at 250 per call (lower than ACCEPT_SERVER bulk
-    /// because each row writes element data and the bigger payload makes
-    /// timeouts more likely on a poor site connection).
+    /// CLIENT_WINS.
+    ///
+    /// Phase 145: cap raised from 250 → 500. To avoid the per-row write
+    /// stalling under a single SaveChangesAsync, the work runs in 50-row
+    /// batches, each in its own savepoint. Failure inside a batch fails
+    /// just that batch — earlier batches keep, later batches don't run —
+    /// so the caller can resume by re-posting the unresolved tail (the
+    /// endpoint is idempotent against already-resolved rows).
     /// </summary>
     [HttpPost("bulk-resolve-with-fields")]
     public async Task<ActionResult> BulkResolveWithFields(
@@ -208,8 +213,8 @@ public class SyncConflictsController : ControllerBase
     {
         if (req.Items == null || req.Items.Count == 0)
             return BadRequest("items is required");
-        if (req.Items.Count > 250)
-            return BadRequest("Maximum 250 conflicts per bulk-resolve-with-fields call");
+        if (req.Items.Count > 500)
+            return BadRequest("Maximum 500 conflicts per bulk-resolve-with-fields call");
 
         // Reject duplicate conflictIds in the same payload — first-write-wins
         // would silently drop later edits and the manager wouldn't know why.
@@ -231,38 +236,70 @@ public class SyncConflictsController : ControllerBase
                        ?? User.FindFirst("user_id")?.Value
                        ?? "Unknown";
 
+        const int batchSize = 50;
         var resolved = new List<Guid>();
         var skipped = new List<object>();
-        foreach (var item in req.Items)
+        var failedBatches = new List<object>();
+
+        foreach (var batch in req.Items.Chunk(batchSize))
         {
-            if (!conflicts.TryGetValue(item.ConflictId, out var c))
+            var batchResolved = new List<Guid>();
+            foreach (var item in batch)
             {
-                skipped.Add(new { conflictId = item.ConflictId, reason = "not found / not in tenant" });
-                continue;
-            }
-            // Skip already-resolved rows so a re-submitted batch is idempotent.
-            if (c.Resolution != "PENDING" && c.Resolution != "SERVER_WINS")
-            {
-                skipped.Add(new { conflictId = c.Id, reason = $"already {c.Resolution}" });
-                continue;
-            }
-            if (c.TaggedElement == null)
-            {
-                // Element was deleted server-side after the conflict was
-                // recorded — can't re-apply client fields, so mark MERGED.
-                c.Resolution = "MERGED";
-                resolved.Add(c.Id);
-                continue;
+                if (!conflicts.TryGetValue(item.ConflictId, out var c))
+                {
+                    skipped.Add(new { conflictId = item.ConflictId, reason = "not found / not in tenant" });
+                    continue;
+                }
+                // Skip already-resolved rows so a re-submitted batch is idempotent.
+                if (c.Resolution != "PENDING" && c.Resolution != "SERVER_WINS")
+                {
+                    skipped.Add(new { conflictId = c.Id, reason = $"already {c.Resolution}" });
+                    continue;
+                }
+                if (c.TaggedElement == null)
+                {
+                    // Element was deleted server-side after the conflict was
+                    // recorded — can't re-apply client fields, so mark MERGED.
+                    c.Resolution = "MERGED";
+                    batchResolved.Add(c.Id);
+                    continue;
+                }
+
+                ApplyClientFields(c.TaggedElement, item.Fields);
+                c.TaggedElement.Version += 1;
+                c.TaggedElement.LastModifiedUtc = DateTime.UtcNow;
+                c.Resolution = "CLIENT_WINS";
+                batchResolved.Add(c.Id);
             }
 
-            ApplyClientFields(c.TaggedElement, item.Fields);
-            c.TaggedElement.Version += 1;
-            c.TaggedElement.LastModifiedUtc = DateTime.UtcNow;
-            c.Resolution = "CLIENT_WINS";
-            resolved.Add(c.Id);
+            try
+            {
+                await _db.SaveChangesAsync();
+                resolved.AddRange(batchResolved);
+            }
+            catch (DbUpdateException ex)
+            {
+                // Roll back the change tracker for this batch — anything we
+                // wrote in batchResolved must be detached so the caller can
+                // safely retry the same ids on the next call.
+                foreach (var c in batch.SelectMany(i => conflicts.TryGetValue(i.ConflictId, out var x) ? new[] { x } : Array.Empty<SyncConflict>()))
+                {
+                    var entry = _db.Entry(c);
+                    if (entry.State == EntityState.Modified) await entry.ReloadAsync();
+                    if (c.TaggedElement != null)
+                    {
+                        var teEntry = _db.Entry(c.TaggedElement);
+                        if (teEntry.State == EntityState.Modified) await teEntry.ReloadAsync();
+                    }
+                }
+                _logger.LogWarning(ex, "Bulk resolve batch failed for project {ProjectId} ({BatchSize} items)", projectId, batch.Length);
+                failedBatches.Add(new { size = batch.Length, error = ex.GetBaseException().Message });
+                // Stop after the first failed batch so the caller has a clear
+                // recovery semantic: replay everything from this batch onward.
+                break;
+            }
         }
-
-        await _db.SaveChangesAsync();
 
         foreach (var id in resolved)
             await _audit.LogAsync("RESOLVE_CLIENT_WINS", "SyncConflict", id.ToString(),
@@ -282,6 +319,7 @@ public class SyncConflictsController : ControllerBase
             resolved = resolved.Count,
             ids = resolved,
             skipped,
+            failedBatches,
         });
     }
 

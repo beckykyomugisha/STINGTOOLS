@@ -5,6 +5,7 @@ export default function StagesLayout() {
     <Stack screenOptions={{ headerShown: true }}>
       <Stack.Screen name="index" options={{ title: 'Stage Gates' }} />
       <Stack.Screen name="deliverables" options={{ title: 'Deliverables' }} />
+      <Stack.Screen name="criteria" options={{ title: 'Gate Criteria' }} />
     </Stack>
   );
 }

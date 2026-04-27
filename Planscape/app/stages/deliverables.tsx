@@ -21,7 +21,9 @@ import { theme } from '@/utils/theme';
 import {
   listDeliverables,
   transitionDeliverable,
+  getDeliverableStateMachine,
   type DeliverableSummary,
+  type DeliverableStateMachine,
 } from '@/api/endpoints';
 import { useProjectStore } from '@/stores/projectStore';
 
@@ -31,6 +33,7 @@ export default function DeliverablesScreen() {
   const { gateId, gateCode } = useLocalSearchParams<{ gateId?: string; gateCode?: string }>();
   const projectId = useProjectStore((s) => s.active?.id);
   const [rows, setRows] = useState<DeliverableSummary[]>([]);
+  const [machine, setMachine] = useState<DeliverableStateMachine | null>(null);
   const [filter, setFilter] = useState<StatusFilter>('ALL');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,13 +43,21 @@ export default function DeliverablesScreen() {
   const load = useCallback(async () => {
     if (!projectId) return;
     try {
-      const r = await listDeliverables(projectId, {
-        stageGateId: gateId,
-        status: filter === 'ALL' ? undefined : filter,
-        overdueOnly: overdueOnly || undefined,
-        pageSize: 200,
-      });
-      setRows(r.rows);
+      // Phase 145 — fetch the resolved state machine in parallel with the
+      // deliverables list so contextual transition buttons match whatever
+      // the project actually allows. Failure is non-fatal: we fall back to
+      // null and the row hides per-row buttons.
+      const [list, sm] = await Promise.allSettled([
+        listDeliverables(projectId, {
+          stageGateId: gateId,
+          status: filter === 'ALL' ? undefined : filter,
+          overdueOnly: overdueOnly || undefined,
+          pageSize: 200,
+        }),
+        getDeliverableStateMachine(projectId),
+      ]);
+      if (list.status === 'fulfilled') setRows(list.value.rows);
+      setMachine(sm.status === 'fulfilled' ? sm.value : null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -55,30 +66,19 @@ export default function DeliverablesScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  function nextStatusChoices(d: DeliverableSummary): Array<{ label: string; status: DeliverableSummary['status']; danger?: boolean }> {
-    switch (d.status) {
-      case 'PENDING': return [
-        { label: 'Start', status: 'IN_PROGRESS' },
-        { label: 'Waive', status: 'WAIVED' },
-      ];
-      case 'IN_PROGRESS': return [
-        { label: 'Submit', status: 'SUBMITTED' },
-        { label: 'Waive', status: 'WAIVED' },
-        { label: 'Reset', status: 'PENDING' },
-      ];
-      case 'SUBMITTED': return [
-        { label: 'Accept', status: 'ACCEPTED' },
-        { label: 'Reject', status: 'REJECTED', danger: true },
-      ];
-      case 'REJECTED': return [
-        { label: 'Resume', status: 'IN_PROGRESS' },
-        { label: 'Waive', status: 'WAIVED' },
-      ];
-      case 'WAIVED': return [
-        { label: 'Reopen', status: 'PENDING' },
-      ];
-      default: return [];
-    }
+  // Phase 145 — derive the next-status choices from the resolved state
+  // machine rather than a hard-coded switch so custom project flows work
+  // out of the box. Falls back to an empty list when the machine endpoint
+  // failed (the row then has no per-row transition buttons).
+  function nextStatusChoices(d: DeliverableSummary): Array<{ label: string; status: string; danger?: boolean }> {
+    const targets = machine?.transitions
+      .filter((t) => t.from.toUpperCase() === d.status.toUpperCase())
+      .map((t) => t.to.toUpperCase()) ?? [];
+    return targets.map((s) => ({
+      label: friendlyTransitionLabel(d.status, s),
+      status: s,
+      danger: s === 'REJECTED' || s === 'FAILED',
+    }));
   }
 
   async function transition(d: DeliverableSummary, target: DeliverableSummary['status']) {
@@ -180,6 +180,26 @@ export default function DeliverablesScreen() {
       </ScrollView>
     </View>
   );
+}
+
+// Phase 145 — produce a friendly button label for a state transition.
+// Knows the canonical 6-state ISO 19650 vocabulary; falls back to a
+// "from → to" label so custom states still render readably.
+function friendlyTransitionLabel(from: string, to: string): string {
+  const t = to.toUpperCase();
+  switch (`${from.toUpperCase()}→${t}`) {
+    case 'PENDING→IN_PROGRESS': return 'Start';
+    case 'PENDING→WAIVED': return 'Waive';
+    case 'IN_PROGRESS→SUBMITTED': return 'Submit';
+    case 'IN_PROGRESS→WAIVED': return 'Waive';
+    case 'IN_PROGRESS→PENDING': return 'Reset';
+    case 'SUBMITTED→ACCEPTED': return 'Accept';
+    case 'SUBMITTED→REJECTED': return 'Reject';
+    case 'REJECTED→IN_PROGRESS': return 'Resume';
+    case 'REJECTED→WAIVED': return 'Waive';
+    case 'WAIVED→PENDING': return 'Reopen';
+  }
+  return `→ ${t}`;
 }
 
 function deliverableColor(s: DeliverableSummary['status']): string {

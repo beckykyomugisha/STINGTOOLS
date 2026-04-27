@@ -2125,9 +2125,9 @@ Planscape/
 │   ├── inbox/                            # "My Actions" aggregator (Phase 142)
 │   ├── diary/                            # Daily site diary (Phase 142)
 │   ├── conflicts/                        # Sync-conflict triage (Phase 143)
-│   ├── heatmap/                          # Tag completeness heatmap (Phase 144)
-│   ├── stages/                           # RIBA stage gates + MIDP deliverables (Phase 144)
-│   └── project-settings/                 # Project admin settings (Phase 144)
+│   ├── heatmap/                          # Tag completeness heatmap (Phase 144, raw-SQL aggregator since Phase 145)
+│   ├── stages/                           # RIBA stage gates + MIDP deliverables (Phase 144) + criterion sign-off (Phase 145)
+│   └── project-settings/                 # Project admin settings (Phase 144) + custom state machine (Phase 145)
 └── src/
     ├── api/
     │   ├── client.ts                     # HTTP client (JWT, auto-refresh, X-Client-Type=mobile)

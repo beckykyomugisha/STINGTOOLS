@@ -89,9 +89,12 @@ public class ProjectSettingsController : ControllerBase
             // upload path. Surfaced here so the mobile/web settings screens
             // can render them as toggles instead of having to know the JSON
             // override key. Add new admin booleans to AdminSettingFlags.
+            // Phase 145 — adds the custom deliverable state machine override.
             admin = new
             {
                 enforceIso19650Naming = project.EnforceIso19650Naming,
+                hasCustomDeliverableStateMachine = !string.IsNullOrWhiteSpace(project.CustomDeliverableStateMachineJson),
+                customDeliverableStateMachineJson = project.CustomDeliverableStateMachineJson,
             },
         };
 
@@ -105,6 +108,15 @@ public class ProjectSettingsController : ControllerBase
     private static readonly HashSet<string> AdminSettingFlags = new(StringComparer.OrdinalIgnoreCase)
     {
         "enforceIso19650Naming",
+    };
+
+    /// <summary>String-typed admin fields (vs the booleans above). Phase 145
+    /// adds <c>customDeliverableStateMachineJson</c> so a BIM Manager can
+    /// post a per-project override of the canonical 6-state ISO 19650 flow.
+    /// Empty string clears the override.</summary>
+    private static readonly HashSet<string> AdminStringFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "customDeliverableStateMachineJson",
     };
 
     private static int GetInt(Dictionary<string, object?> dict, string key, int fallback)
@@ -138,23 +150,68 @@ public class ProjectSettingsController : ControllerBase
         // Phase 144 — split admin booleans (first-class columns) from soft
         // preferences (ConfigJson). The mobile settings screen sends both in
         // the same body for simplicity, so we route by key.
+        // Phase 145 — additionally route admin *string* fields (e.g. the
+        // custom state-machine JSONB) to first-class columns.
         var configOverrides = new Dictionary<string, object?>(overrides.Count, StringComparer.OrdinalIgnoreCase);
         foreach (var kv in overrides)
         {
-            if (!AdminSettingFlags.Contains(kv.Key))
+            if (AdminSettingFlags.Contains(kv.Key))
             {
-                configOverrides[kv.Key] = kv.Value;
+                var truthy = ParseBool(kv.Value);
+                if (string.Equals(kv.Key, "enforceIso19650Naming", StringComparison.OrdinalIgnoreCase))
+                    project.EnforceIso19650Naming = truthy;
                 continue;
             }
-
-            var truthy = ParseBool(kv.Value);
-            if (string.Equals(kv.Key, "enforceIso19650Naming", StringComparison.OrdinalIgnoreCase))
-                project.EnforceIso19650Naming = truthy;
+            if (AdminStringFields.Contains(kv.Key))
+            {
+                var s = AsString(kv.Value);
+                if (string.Equals(kv.Key, "customDeliverableStateMachineJson", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Empty string clears the override; a non-empty value is
+                    // validated by parsing it through DeliverableStateMachine
+                    // so a malformed payload is rejected at the API instead of
+                    // silently falling back at request-time.
+                    if (string.IsNullOrWhiteSpace(s))
+                    {
+                        project.CustomDeliverableStateMachineJson = null;
+                    }
+                    else
+                    {
+                        var parsed = Planscape.Infrastructure.Workflow.DeliverableStateMachine.LoadOrDefault(s);
+                        if (!parsed.IsCustom)
+                            return BadRequest(new
+                            {
+                                error = "customDeliverableStateMachineJson is malformed or has no transitions",
+                                hint = "Body must be JSON with at least one entry in transitions[]"
+                            });
+                        project.CustomDeliverableStateMachineJson = s;
+                    }
+                }
+                continue;
+            }
+            configOverrides[kv.Key] = kv.Value;
         }
 
         project.ConfigJson = System.Text.Json.JsonSerializer.Serialize(configOverrides);
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    private static string? AsString(object? raw)
+    {
+        if (raw is null) return null;
+        if (raw is string s) return s;
+        if (raw is System.Text.Json.JsonElement je)
+        {
+            return je.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.String => je.GetString(),
+                System.Text.Json.JsonValueKind.Object or System.Text.Json.JsonValueKind.Array => je.GetRawText(),
+                System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined => null,
+                _ => je.ToString(),
+            };
+        }
+        return raw.ToString();
     }
 
     private static bool ParseBool(object? raw)

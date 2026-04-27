@@ -203,33 +203,73 @@ public class ComplianceController : ControllerBase
     /// FUNC" tells them where to point the team's effort.
     /// </summary>
     [HttpGet("tag-heatmap")]
-    public async Task<ActionResult> GetTagHeatmap(Guid projectId)
+    public async Task<ActionResult> GetTagHeatmap(Guid projectId, CancellationToken ct = default)
     {
         var tenantId = GetTenantId();
-        var projectOk = await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        var projectOk = await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == tenantId, ct);
         if (!projectOk) return NotFound("Project not found");
 
-        // Pull only the columns we need to compute completeness — no point
-        // streaming Tag7 narratives into memory for an aggregate query.
-        // EF Core translates this to a single GROUP BY query in PG.
-        var rows = await _db.TaggedElements.AsNoTracking()
-            .Where(e => e.ProjectId == projectId)
-            .Select(e => new
-            {
-                Disc = e.Disc,
-                Loc = e.Loc,
-                Zone = e.Zone,
-                Lvl = e.Lvl,
-                Sys = e.Sys,
-                Func = e.Func,
-                Prod = e.Prod,
-                Seq = e.Seq,
-                Status = e.Status ?? "",
-                Rev = e.Rev ?? "",
-            })
-            .ToListAsync();
+        // Phase 145 — aggregate in the DB with `count(*) FILTER (WHERE …)` so
+        // the response time stays flat as the project scales. The previous
+        // app-tier implementation was fine for prototype data sets but on a
+        // 200k-element federated model it streamed ~4 MB of slim DTO rows
+        // into the API process per call. Single SELECT, indexed on
+        // (ProjectId, Disc) for the GROUP BY.
+        //
+        // The "(unset)" bucket is produced via COALESCE(NULLIF(...)) so the
+        // query plan stays sortable on the bucket name. PG-only; the
+        // `EnsureCreated` path is fine because every prod deployment runs
+        // PostgreSQL.
+        const string sql = @"
+SELECT
+  COALESCE(NULLIF(BTRIM(""Disc""), ''), '(unset)')                         AS discipline,
+  COUNT(*)::int                                                            AS element_count,
+  COUNT(*) FILTER (WHERE BTRIM(""Disc"")    <> '' AND ""Disc""   IS NOT NULL)::int AS disc_n,
+  COUNT(*) FILTER (WHERE BTRIM(""Loc"")     <> '' AND ""Loc""    IS NOT NULL)::int AS loc_n,
+  COUNT(*) FILTER (WHERE BTRIM(""Zone"")    <> '' AND ""Zone""   IS NOT NULL)::int AS zone_n,
+  COUNT(*) FILTER (WHERE BTRIM(""Lvl"")     <> '' AND ""Lvl""    IS NOT NULL)::int AS lvl_n,
+  COUNT(*) FILTER (WHERE BTRIM(""Sys"")     <> '' AND ""Sys""    IS NOT NULL)::int AS sys_n,
+  COUNT(*) FILTER (WHERE BTRIM(""Func"")    <> '' AND ""Func""   IS NOT NULL)::int AS func_n,
+  COUNT(*) FILTER (WHERE BTRIM(""Prod"")    <> '' AND ""Prod""   IS NOT NULL)::int AS prod_n,
+  COUNT(*) FILTER (WHERE BTRIM(""Seq"")     <> '' AND ""Seq""    IS NOT NULL)::int AS seq_n,
+  COUNT(*) FILTER (WHERE BTRIM(""Status"")  <> '' AND ""Status"" IS NOT NULL)::int AS status_n,
+  COUNT(*) FILTER (WHERE BTRIM(""Rev"")     <> '' AND ""Rev""    IS NOT NULL)::int AS rev_n
+FROM ""TaggedElements""
+WHERE ""ProjectId"" = {0}
+GROUP BY 1
+ORDER BY (CASE WHEN COALESCE(NULLIF(BTRIM(""Disc""), ''), '(unset)') = '(unset)' THEN 1 ELSE 0 END), 1;";
 
-        if (rows.Count == 0)
+        var conn = _db.Database.GetDbConnection();
+        var raw = new List<RawHeatmapRow>();
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
+        await using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = sql.Replace("{0}", "@p0");
+            var p = cmd.CreateParameter();
+            p.ParameterName = "@p0";
+            p.Value = projectId;
+            cmd.Parameters.Add(p);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                raw.Add(new RawHeatmapRow(
+                    reader.GetString(0),
+                    reader.GetInt32(1),
+                    reader.GetInt32(2),
+                    reader.GetInt32(3),
+                    reader.GetInt32(4),
+                    reader.GetInt32(5),
+                    reader.GetInt32(6),
+                    reader.GetInt32(7),
+                    reader.GetInt32(8),
+                    reader.GetInt32(9),
+                    reader.GetInt32(10),
+                    reader.GetInt32(11)));
+            }
+        }
+
+        var totalElements = raw.Sum(r => r.ElementCount);
+        if (raw.Count == 0)
         {
             return Ok(new
             {
@@ -241,48 +281,46 @@ public class ComplianceController : ControllerBase
             });
         }
 
-        // Bucket "" / null Disc as "(unset)" so the row is visible. A blank
-        // Disc on a tagged element is itself a coordination issue and the
-        // manager should see it.
-        const string UnsetBucket = "(unset)";
-        var groups = rows
-            .GroupBy(r => string.IsNullOrWhiteSpace(r.Disc) ? UnsetBucket : r.Disc)
-            .OrderBy(g => g.Key == UnsetBucket ? 1 : 0) // unset last
-            .ThenBy(g => g.Key)
-            .Select(g =>
+        var groups = raw.Select(r =>
+        {
+            int Pct(int c) => r.ElementCount == 0 ? 0 : (int)Math.Round(100.0 * c / r.ElementCount);
+            return new
             {
-                var n = g.Count();
-                int Pct(int c) => n == 0 ? 0 : (int)Math.Round(100.0 * c / n);
-                return new
+                discipline = r.Discipline,
+                elementCount = r.ElementCount,
+                cells = new
                 {
-                    discipline = g.Key,
-                    elementCount = n,
-                    cells = new
-                    {
-                        DISC = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Disc))),
-                        LOC = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Loc))),
-                        ZONE = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Zone))),
-                        LVL = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Lvl))),
-                        SYS = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Sys))),
-                        FUNC = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Func))),
-                        PROD = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Prod))),
-                        SEQ = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Seq))),
-                        STATUS = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Status))),
-                        REV = Pct(g.Count(r => !string.IsNullOrWhiteSpace(r.Rev))),
-                    }
-                };
-            })
-            .ToList();
+                    DISC = Pct(r.DiscN),
+                    LOC = Pct(r.LocN),
+                    ZONE = Pct(r.ZoneN),
+                    LVL = Pct(r.LvlN),
+                    SYS = Pct(r.SysN),
+                    FUNC = Pct(r.FuncN),
+                    PROD = Pct(r.ProdN),
+                    SEQ = Pct(r.SeqN),
+                    STATUS = Pct(r.StatusN),
+                    REV = Pct(r.RevN),
+                }
+            };
+        }).ToList();
 
         return Ok(new
         {
             projectId,
             generatedAt = DateTime.UtcNow,
-            totalElements = rows.Count,
+            totalElements,
             tokens = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ", "STATUS", "REV" },
             disciplines = groups,
         });
     }
+
+    /// <summary>Internal row shape returned by the heatmap raw SQL. Defined inline
+    /// so it doesn't leak into the public DTO surface.</summary>
+    private sealed record RawHeatmapRow(
+        string Discipline,
+        int ElementCount,
+        int DiscN, int LocN, int ZoneN, int LvlN, int SysN, int FuncN, int ProdN, int SeqN,
+        int StatusN, int RevN);
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;

@@ -223,9 +223,170 @@ public class StageGatesController : ControllerBase
         ("RIBA-7", "Use",                     7),
     };
 
+    // ── Criterion sign-off (Phase 145) ──────────────────────────────────
+
+    /// <summary>
+    /// Phase 145 — list the structured criteria for a stage gate. Returns
+    /// the parsed criteria array even when CriteriaJson is null/empty, so
+    /// the mobile checklist can render an empty-state. Each criterion is
+    /// the shape { key, label, description?, met, evidenceDocId?,
+    /// signedBy?, signedAt?, comment? }.
+    /// </summary>
+    [HttpGet("{gateId}/criteria")]
+    public async Task<ActionResult> ListCriteria(Guid projectId, Guid gateId)
+    {
+        var tenantId = GetTenantId();
+        var gate = await _db.StageGates.AsNoTracking()
+            .FirstOrDefaultAsync(g => g.Id == gateId && g.ProjectId == projectId
+                                 && g.Project!.TenantId == tenantId);
+        if (gate == null) return NotFound();
+
+        var criteria = ParseCriteriaJson(gate.CriteriaJson);
+        return Ok(new
+        {
+            gateId,
+            stageCode = gate.StageCode,
+            criteria,
+            summary = new
+            {
+                total = criteria.Count,
+                met = criteria.Count(c => c.Met),
+                outstanding = criteria.Count(c => !c.Met),
+            }
+        });
+    }
+
+    /// <summary>
+    /// Replace the criteria list. Used when the BIM Manager imports a new
+    /// criteria template (e.g. RIBA Stage 3 default checks). The body is
+    /// the full list; partial updates use the per-criterion sign-off
+    /// endpoint below.
+    /// </summary>
+    [HttpPut("{gateId}/criteria")]
+    public async Task<ActionResult> ReplaceCriteria(Guid projectId, Guid gateId, [FromBody] List<CriterionDto> criteria)
+    {
+        var tenantId = GetTenantId();
+        var gate = await _db.StageGates
+            .FirstOrDefaultAsync(g => g.Id == gateId && g.ProjectId == projectId
+                                 && g.Project!.TenantId == tenantId);
+        if (gate == null) return NotFound();
+
+        // Reject duplicate keys — the per-criterion sign-off path keys by
+        // `key`, so duplicates would silently shadow each other on PUT.
+        var keys = criteria.Select(c => (c.Key ?? "").Trim()).Where(k => k.Length > 0).ToList();
+        if (keys.Count != keys.Distinct(StringComparer.OrdinalIgnoreCase).Count())
+            return BadRequest("criteria contains duplicate keys");
+        if (keys.Count != criteria.Count)
+            return BadRequest("every criterion must have a non-empty key");
+
+        gate.CriteriaJson = SerializeCriteria(criteria);
+        gate.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync("REPLACE_CRITERIA", "StageGate", gate.Id.ToString());
+        return Ok(new { gateId, criteria });
+    }
+
+    /// <summary>
+    /// Sign off (or reset) a single criterion by key. The caller's display
+    /// name is stamped on the row; <c>met=false</c> clears the signoff.
+    /// Returns the updated criteria list so the mobile UI can re-render
+    /// without re-fetching.
+    /// </summary>
+    [HttpPost("{gateId}/criteria/{key}/signoff")]
+    public async Task<ActionResult> SignOffCriterion(
+        Guid projectId, Guid gateId, string key, [FromBody] CriterionSignoffRequest req)
+    {
+        var tenantId = GetTenantId();
+        var gate = await _db.StageGates
+            .FirstOrDefaultAsync(g => g.Id == gateId && g.ProjectId == projectId
+                                 && g.Project!.TenantId == tenantId);
+        if (gate == null) return NotFound();
+
+        var criteria = ParseCriteriaJson(gate.CriteriaJson);
+        var match = criteria.FirstOrDefault(c => string.Equals(c.Key, key, StringComparison.OrdinalIgnoreCase));
+        if (match == null) return NotFound(new { error = $"Criterion '{key}' not found on this gate" });
+
+        var actor = User.FindFirst("display_name")?.Value ?? "Unknown";
+        match.Met = req.Met;
+        match.Comment = req.Comment;
+        match.EvidenceDocId = req.EvidenceDocId;
+        if (req.Met)
+        {
+            match.SignedBy = actor;
+            match.SignedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            // Clearing — strip the signoff so a future "met=true" gets a
+            // fresh timestamp / signer rather than the old one.
+            match.SignedBy = null;
+            match.SignedAt = null;
+        }
+
+        gate.CriteriaJson = SerializeCriteria(criteria);
+        gate.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync(req.Met ? "SIGNOFF_CRITERION" : "UNSIGN_CRITERION",
+            "StageGate", $"{gate.Id}::{match.Key}",
+            System.Text.Json.JsonSerializer.Serialize(new { match.Key, match.Met }));
+
+        return Ok(new
+        {
+            gateId,
+            criteria,
+            summary = new
+            {
+                total = criteria.Count,
+                met = criteria.Count(c => c.Met),
+                outstanding = criteria.Count(c => !c.Met),
+            }
+        });
+    }
+
+    private static List<CriterionDto> ParseCriteriaJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new List<CriterionDto>();
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<CriterionDto>>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? new List<CriterionDto>();
+        }
+        catch
+        {
+            return new List<CriterionDto>();
+        }
+    }
+
+    private static string SerializeCriteria(List<CriterionDto> criteria) =>
+        System.Text.Json.JsonSerializer.Serialize(criteria, new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+        });
+
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 }
+
+/// <summary>
+/// Phase 145 — structured stage-gate criterion. Stored as an array under
+/// <see cref="StageGate.CriteriaJson"/>. Validated by key uniqueness on
+/// <c>PUT /criteria</c>.
+/// </summary>
+public class CriterionDto
+{
+    public string Key { get; set; } = "";
+    public string Label { get; set; } = "";
+    public string? Description { get; set; }
+    public bool Met { get; set; }
+    public Guid? EvidenceDocId { get; set; }
+    public string? SignedBy { get; set; }
+    public DateTime? SignedAt { get; set; }
+    public string? Comment { get; set; }
+}
+
+public record CriterionSignoffRequest(bool Met, string? Comment, Guid? EvidenceDocId);
 
 public record StageGateRequest(
     string StageCode,

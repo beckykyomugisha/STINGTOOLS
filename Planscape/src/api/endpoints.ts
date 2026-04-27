@@ -770,12 +770,78 @@ export function listDeliverables(
 export function transitionDeliverable(
   projectId: string,
   deliverableId: string,
-  newStatus: 'IN_PROGRESS' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | 'WAIVED' | 'PENDING',
+  newStatus: string,
   args: { documentId?: string; reason?: string } = {},
 ): Promise<DeliverableSummary> {
   return apiFetch(`/api/projects/${projectId}/deliverables/${deliverableId}/transition`, {
     method: 'POST',
     body: JSON.stringify({ newStatus, documentId: args.documentId, reason: args.reason }),
+  });
+}
+
+// Phase 145 — resolved deliverable state machine for the active project.
+// Returns the canonical ISO 19650 flow unless the project has overridden
+// it via Project.CustomDeliverableStateMachineJson. Mobile uses the
+// `transitions` array to render contextual buttons that match what the
+// server will actually accept.
+export interface DeliverableStateMachine {
+  name: string;
+  isCustom: boolean;
+  jsonProvidedButFellBack: boolean;
+  states: string[];
+  initial?: string | null;
+  terminal: string[];
+  transitions: Array<{ from: string; to: string }>;
+}
+
+export function getDeliverableStateMachine(projectId: string): Promise<DeliverableStateMachine> {
+  return apiFetch(`/api/projects/${projectId}/deliverables/state-machine`);
+}
+
+// ── Stage gate criterion sign-off (Phase 145) ───────────────────────────
+
+export interface StageCriterion {
+  key: string;
+  label: string;
+  description?: string | null;
+  met: boolean;
+  evidenceDocId?: string | null;
+  signedBy?: string | null;
+  signedAt?: string | null;
+  comment?: string | null;
+}
+
+export interface StageCriteriaResponse {
+  gateId: string;
+  stageCode: string;
+  criteria: StageCriterion[];
+  summary: { total: number; met: number; outstanding: number };
+}
+
+export function listStageCriteria(projectId: string, gateId: string): Promise<StageCriteriaResponse> {
+  return apiFetch(`/api/projects/${projectId}/stagegates/${gateId}/criteria`);
+}
+
+export function replaceStageCriteria(
+  projectId: string,
+  gateId: string,
+  criteria: StageCriterion[],
+): Promise<{ gateId: string; criteria: StageCriterion[] }> {
+  return apiFetch(`/api/projects/${projectId}/stagegates/${gateId}/criteria`, {
+    method: 'PUT', body: JSON.stringify(criteria),
+  });
+}
+
+export function signOffStageCriterion(
+  projectId: string,
+  gateId: string,
+  key: string,
+  met: boolean,
+  args: { comment?: string; evidenceDocId?: string } = {},
+): Promise<StageCriteriaResponse> {
+  return apiFetch(`/api/projects/${projectId}/stagegates/${gateId}/criteria/${encodeURIComponent(key)}/signoff`, {
+    method: 'POST',
+    body: JSON.stringify({ met, comment: args.comment, evidenceDocId: args.evidenceDocId }),
   });
 }
 

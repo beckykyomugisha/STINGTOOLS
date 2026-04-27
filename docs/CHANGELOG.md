@@ -4301,3 +4301,126 @@ information-delivery planning.
 6. Deliverable transition validation is the canonical state machine
    in code; if a project wants a bespoke flow that has to land as
    a separate `customStateMachine` config — not in this phase.
+
+#### Completed (Phase 145 — Phase 144 caveat closures: heatmap SQL, larger bulk-resolve, custom state machines, criterion sign-off)
+
+Closes the four caveats from Phase 144's commit message. None of these
+were blockers, but each one represented a "this is fine for now"
+shortcut that would bite at scale or for a tenant outside the canonical
+ISO 19650 flow. All four landed in the same phase so the BIM Manager
+surface is internally consistent.
+
+**1 — Tag completeness heatmap → DB-side aggregation**
+
+1. `Planscape.API/Controllers/ComplianceController.cs` — replaced the
+   app-tier `GroupBy` with a single PG raw-SQL query using
+   `COUNT(*) FILTER (WHERE …)` per token, grouped by
+   `COALESCE(NULLIF(BTRIM(Disc), ''), '(unset)')`. Response time stays
+   flat as the project scales — the previous implementation streamed
+   ~4 MB of slim DTO rows on a 200k-element federated model. SQL is
+   parameterised on `ProjectId` so query-plan caching kicks in for
+   repeated calls. Internal `RawHeatmapRow` record holds the column
+   shape; the response DTO is unchanged so mobile doesn't notice.
+
+**2 — Bulk ACCEPT_CLIENT cap raised**
+
+2. `Planscape.API/Controllers/SyncConflictsController.cs` —
+   `bulk-resolve-with-fields` cap raised from 250 → 500. Each call
+   now processes work in 50-row batches with one `SaveChangesAsync`
+   per batch. On `DbUpdateException` the offending batch is rolled
+   back via `EntityEntry.ReloadAsync` (so the change-tracker matches
+   the database) and the response carries a `failedBatches` array
+   plus the partial `resolved`/`skipped` lists. Idempotent: the
+   caller can replay the unresolved tail. Comment in the code makes
+   the recovery semantic explicit.
+
+**3 — Per-project custom deliverable state machine**
+
+3. `Planscape.Core/Entities/Project.cs` — added
+   `CustomDeliverableStateMachineJson` (jsonb, nullable). Migration
+   `20260427300000_AddCustomDeliverableStateMachine`.
+4. New `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs`
+   — single class holding both the canonical 6-state ISO 19650 flow
+   (`Default`) and a forgiving JSON loader (`LoadOrDefault`). A
+   malformed JSON, an empty `transitions` array, or a non-object
+   root all fall back to `Default` rather than locking the project
+   out of any transition. Returns an `IsCustom` flag so the UI can
+   distinguish "tenant override active" from "fell back".
+5. `Planscape.API/Controllers/DeliverablesController.cs` — `Transition`
+   now loads the project's machine and validates against it. Error
+   payload includes `allowedTargets` + `machine` name + `isCustom`
+   flag so the mobile client can re-render contextual buttons after
+   a 400. New `GET /deliverables/state-machine` exposes the resolved
+   machine for the active project.
+6. `Planscape.API/Controllers/ProjectSettingsController.cs` —
+   admin-string-fields whitelist now routes
+   `customDeliverableStateMachineJson` to the first-class column.
+   Empty string clears the override; a non-empty value is parsed
+   through `LoadOrDefault` server-side and rejected with a 400 if it
+   has no usable transitions, so the BIM Manager hears about the bad
+   JSON at PUT time rather than seeing silent fallback at request
+   time. Helper `AsString` mirrors the existing `ParseBool`.
+7. `Planscape/src/api/endpoints.ts` — `transitionDeliverable` now
+   accepts `string` for `newStatus` so custom machine states work.
+   Added `getDeliverableStateMachine` + `DeliverableStateMachine`
+   interface.
+8. `Planscape/src/types/api.ts` — extended `ProjectSettings.admin`
+   with `hasCustomDeliverableStateMachine` +
+   `customDeliverableStateMachineJson`.
+9. `Planscape/app/stages/deliverables.tsx` — replaced the hard-coded
+   next-status switch with a derivation from the resolved machine's
+   `transitions` array (fetched in parallel with the deliverables
+   list). New `friendlyTransitionLabel` helper produces a readable
+   button label for canonical state pairs and falls back to "→ X"
+   for custom states.
+
+**4 — Stage gate criterion-by-criterion sign-off**
+
+10. `Planscape.API/Controllers/StageGatesController.cs` — three new
+    endpoints + a new structured `CriterionDto`:
+      - `GET /stagegates/{id}/criteria` — parsed list with
+        `met`/`outstanding`/`total` summary
+      - `PUT /stagegates/{id}/criteria` — replace the list (used when
+        importing a default checklist). Rejects duplicate keys and
+        empty keys.
+      - `POST /stagegates/{id}/criteria/{key}/signoff` — flip
+        `met` for one criterion; on `met=true` stamps the actor's
+        display name + UTC timestamp, on `met=false` clears the
+        signoff so the next "met=true" gets a fresh stamp. Comment
+        + evidence document FK persisted alongside.
+    All three audit log via `_audit.LogAsync`. Helpers
+    `ParseCriteriaJson` / `SerializeCriteria` use camelCase JSON
+    naming so the JSONB column round-trips cleanly.
+11. `Planscape/src/api/endpoints.ts` — added `listStageCriteria`,
+    `replaceStageCriteria`, `signOffStageCriterion` +
+    `StageCriterion` / `StageCriteriaResponse` interfaces.
+12. New `Planscape/app/stages/criteria.tsx` — checklist UI. Each
+    row is a tappable checkbox + label + description + signoff
+    timestamp + tap-to-edit comment field. Empty-state offers a
+    "Seed defaults" button that POSTs a built-in RIBA-stage default
+    checklist (4 stage codes covered today: RIBA-3, RIBA-4, RIBA-5,
+    RIBA-6, RIBA-7). Progress bar at top shows met / total.
+13. `Planscape/app/stages/_layout.tsx` — registered the new screen.
+14. `Planscape/app/stages/index.tsx` — added a "Criteria ›" link
+    next to "Deliverables ›" on each gate card.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. Custom state machines run side-effect logic (submitter / acceptor
+   stamp, rejection-reason capture) only for canonical state names
+   (SUBMITTED / ACCEPTED / REJECTED). A custom flow that uses
+   bespoke names won't get those metadata writes; the transition
+   succeeds but `SubmittedAt` etc. stay null. Documented in the
+   controller comment.
+3. The criterion sign-off endpoints write the whole criteria array
+   on each call. For gates with very large checklists (>200 items)
+   this is sub-optimal; in practice gates rarely carry that many
+   criteria so a per-criterion row table can wait.
+4. Built-in RIBA criterion templates cover only 5 of the 8 RIBA
+   stages (3–7). The earlier stages typically don't have a BIM-
+   specific checklist; the BIM Manager authors them from the office
+   dashboard if needed.
+5. The heatmap raw SQL is PostgreSQL-only (uses `BTRIM` + `FILTER`).
+   Production deployments are all PG, so this is safe; if the test
+   suite were to spin up SQLite the heatmap test would need a stub.

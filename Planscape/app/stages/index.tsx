@@ -148,13 +148,22 @@ export default function StagesScreen() {
             </View>
 
             <View style={styles.actions}>
-              <TouchableOpacity
-                style={styles.linkBtn}
-                onPress={() => router.push({ pathname: '/stages/deliverables', params: { gateId: g.id, gateCode: g.stageCode } } as any)}
-                accessibilityLabel={`Open deliverables for ${g.stageCode}`}
-              >
-                <Text style={styles.linkBtnText}>Deliverables ›</Text>
-              </TouchableOpacity>
+              <View style={styles.linkRow}>
+                <TouchableOpacity
+                  style={styles.linkBtn}
+                  onPress={() => router.push({ pathname: '/stages/deliverables', params: { gateId: g.id, gateCode: g.stageCode } } as any)}
+                  accessibilityLabel={`Open deliverables for ${g.stageCode}`}
+                >
+                  <Text style={styles.linkBtnText}>Deliverables ›</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.linkBtn}
+                  onPress={() => router.push({ pathname: '/stages/criteria', params: { gateId: g.id, gateCode: g.stageCode } } as any)}
+                  accessibilityLabel={`Open criteria for ${g.stageCode}`}
+                >
+                  <Text style={styles.linkBtnText}>Criteria ›</Text>
+                </TouchableOpacity>
+              </View>
               {g.status !== 'PASSED' && g.status !== 'FAILED' && g.status !== 'WAIVED' && (
                 <View style={styles.decisionRow}>
                   <TouchableOpacity
@@ -270,6 +279,7 @@ const styles = StyleSheet.create({
   counterValue: { fontSize: theme.fontSize.lg, fontWeight: '700', color: theme.colors.text },
   counterLabel: { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary },
   actions: { gap: theme.spacing.sm },
+  linkRow: { flexDirection: 'row', gap: theme.spacing.lg },
   linkBtn: { paddingVertical: 4 },
   linkBtnText: { fontSize: theme.fontSize.sm, color: theme.colors.accent, fontWeight: '600' },
   decisionRow: { flexDirection: 'row', gap: theme.spacing.sm },

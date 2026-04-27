@@ -28,6 +28,18 @@ public class Project
     // it on once the team has migrated naming.
     public bool EnforceIso19650Naming { get; set; }
 
+    /// <summary>
+    /// Phase 145 — optional JSONB override for the
+    /// <see cref="InformationDeliverable"/> state machine. Shape:
+    /// <c>{ "states": ["A","B",…], "transitions": [{"from":"A","to":"B"}, …],
+    /// "terminal": ["X"] }</c>. Null means use the canonical 6-state ISO
+    /// 19650 flow. Validated by <c>DeliverableStateMachine.LoadOrDefault</c>
+    /// at request time so a malformed config falls back rather than locking
+    /// the project out of transitions.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
+    public string? CustomDeliverableStateMachineJson { get; set; }
+
     // Geofence boundary (S12) — GeoJSON Polygon
     [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
     public string? BoundaryPolygon { get; set; }

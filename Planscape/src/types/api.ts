@@ -241,7 +241,12 @@ export interface ProjectSettings {
   slaHours: { critical: number; high: number; medium: number; low: number };
   geofence: { hasBoundary: boolean; requireBoundary: boolean };
   // Phase 144 — first-class admin booleans (stored on Project row, not ConfigJson)
-  admin: { enforceIso19650Naming: boolean };
+  // Phase 145 — adds the custom deliverable state machine carrier.
+  admin: {
+    enforceIso19650Naming: boolean;
+    hasCustomDeliverableStateMachine: boolean;
+    customDeliverableStateMachineJson: string | null;
+  };
 }
 
 export interface NotificationPreferences {

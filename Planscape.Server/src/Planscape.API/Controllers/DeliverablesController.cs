@@ -6,6 +6,7 @@ using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Workflow;
 
 namespace Planscape.API.Controllers;
 
@@ -176,27 +177,45 @@ public class DeliverablesController : ControllerBase
 
     /// <summary>
     /// Apply a state transition. Validates against the ISO 19650
-    /// information-state machine; rejects out-of-order moves.
+    /// information-state machine — or the project's
+    /// <c>CustomDeliverableStateMachineJson</c> override when set.
+    /// Rejects out-of-order moves.
     /// </summary>
     [HttpPost("{deliverableId}/transition")]
     public async Task<ActionResult> Transition(
         Guid projectId, Guid deliverableId, [FromBody] DeliverableTransitionRequest req)
     {
         var tenantId = GetTenantId();
+        var project = await _db.Projects.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound("Project not found");
+
         var d = await _db.InformationDeliverables
-            .FirstOrDefaultAsync(x => x.Id == deliverableId && x.ProjectId == projectId
-                                 && x.Project!.TenantId == tenantId);
+            .FirstOrDefaultAsync(x => x.Id == deliverableId && x.ProjectId == projectId);
         if (d == null) return NotFound();
 
+        var machine = DeliverableStateMachine.LoadOrDefault(project.CustomDeliverableStateMachineJson);
         var target = (req.NewStatus ?? "").ToUpperInvariant();
-        if (!IsValidTransition(d.Status, target))
-            return BadRequest(new { error = $"Cannot transition from {d.Status} to {target}" });
+        if (!machine.IsValidTransition(d.Status, target))
+        {
+            var allowed = machine.NextStates(d.Status);
+            return BadRequest(new
+            {
+                error = $"Cannot transition from {d.Status} to {target}",
+                machine = machine.Name,
+                isCustom = machine.IsCustom,
+                allowedTargets = allowed,
+            });
+        }
 
         d.Status = target;
         d.UpdatedAt = DateTime.UtcNow;
         var actor = User.FindFirst("display_name")?.Value ?? "Unknown";
         Guid? actorId = Guid.TryParse(User.FindFirst("user_id")?.Value, out var uid) ? uid : null;
 
+        // Side-effects keyed by canonical state names; custom machines that
+        // reuse SUBMITTED / ACCEPTED / REJECTED inherit them, anything else
+        // gets a plain transition with no extra metadata writes.
         switch (target)
         {
             case "SUBMITTED":
@@ -226,21 +245,38 @@ public class DeliverablesController : ControllerBase
         return Ok(d);
     }
 
-    private static bool IsValidTransition(string current, string target) =>
-        (current, target) switch
+    /// <summary>
+    /// Phase 145 — exposes the resolved state machine for this project so a
+    /// mobile / web client can render contextual transition buttons that
+    /// match whatever the project actually allows. Returns the full
+    /// machine description plus a flag indicating whether it is the
+    /// canonical default or a tenant override.
+    /// </summary>
+    [HttpGet("state-machine")]
+    public async Task<ActionResult> GetStateMachine(Guid projectId)
+    {
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound("Project not found");
+
+        var machine = DeliverableStateMachine.LoadOrDefault(project.CustomDeliverableStateMachineJson);
+        // If the JSON column is non-empty but the loader fell back to Default,
+        // surface that fact so the BIM Manager can fix the malformed config.
+        var jsonProvided = !string.IsNullOrWhiteSpace(project.CustomDeliverableStateMachineJson);
+        return Ok(new
         {
-            ("PENDING", "IN_PROGRESS") => true,
-            ("PENDING", "WAIVED") => true,
-            ("IN_PROGRESS", "SUBMITTED") => true,
-            ("IN_PROGRESS", "WAIVED") => true,
-            ("IN_PROGRESS", "PENDING") => true,
-            ("SUBMITTED", "ACCEPTED") => true,
-            ("SUBMITTED", "REJECTED") => true,
-            ("REJECTED", "IN_PROGRESS") => true,
-            ("REJECTED", "WAIVED") => true,
-            ("WAIVED", "PENDING") => true,
-            _ => false,
-        };
+            machine.Name,
+            isCustom = machine.IsCustom,
+            jsonProvidedButFellBack = jsonProvided && !machine.IsCustom,
+            states = machine.States,
+            initial = machine.InitialState,
+            terminal = machine.TerminalStates,
+            transitions = machine.Transitions
+                .Select(t => new { from = t.From, to = t.To })
+                .OrderBy(t => t.from).ThenBy(t => t.to),
+        });
+    }
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
