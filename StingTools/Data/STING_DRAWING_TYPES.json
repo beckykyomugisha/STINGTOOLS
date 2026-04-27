@@ -155,6 +155,11 @@
         "role": "A",
         "suitability": "S2",
         "revision": "P01"
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -277,6 +282,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -400,6 +410,11 @@
         "role": "A",
         "suitability": "S2",
         "revision": "P01"
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -538,6 +553,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -677,6 +697,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -758,7 +783,13 @@
         "role": "S",
         "suitability": "S2",
         "revision": "P01"
-      }
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "viewStylePackId": "corp-structural-plan"
     },
     {
       "id": "struct-section-A1-1to50",
@@ -833,7 +864,13 @@
             "enabled": true
           }
         ]
-      }
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "viewStylePackId": "corp-structural-plan"
     },
     {
       "id": "mep-plan-A1-1to100",
@@ -948,6 +985,11 @@
         "role": "M",
         "suitability": "S2",
         "revision": "P01"
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -964,9 +1006,27 @@
       "sheetNumberPattern": "M-CO-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP COORDINATION — {lvl}",
       "productionRules": [
-        { "idx": 0, "viewType": "FloorPlan", "slotIndex": 0, "required": true,  "nameSuffix": " - PLAN" },
-        { "idx": 1, "viewType": "ThreeD",    "slotIndex": 1, "required": false, "nameSuffix": " - ISO"  },
-        { "idx": 2, "viewType": "Section",   "slotIndex": 2, "required": false, "nameSuffix": " - SEC"  }
+        {
+          "idx": 0,
+          "viewType": "FloorPlan",
+          "slotIndex": 0,
+          "required": true,
+          "nameSuffix": " - PLAN"
+        },
+        {
+          "idx": 1,
+          "viewType": "ThreeD",
+          "slotIndex": 1,
+          "required": false,
+          "nameSuffix": " - ISO"
+        },
+        {
+          "idx": 2,
+          "viewType": "Section",
+          "slotIndex": 2,
+          "required": false,
+          "nameSuffix": " - SEC"
+        }
       ],
       "crop": {
         "kind": "ScopeBoxOrBbox",
@@ -1066,8 +1126,20 @@
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "{discipline} spool {spool}",
       "productionRules": [
-        { "idx": 0, "viewType": "FloorPlan", "slotIndex": 0, "required": true, "nameSuffix": " - PLAN" },
-        { "idx": 1, "viewType": "ThreeD",    "slotIndex": 1, "required": true, "nameSuffix": " - ISO"  }
+        {
+          "idx": 0,
+          "viewType": "FloorPlan",
+          "slotIndex": 0,
+          "required": true,
+          "nameSuffix": " - PLAN"
+        },
+        {
+          "idx": 1,
+          "viewType": "ThreeD",
+          "slotIndex": 1,
+          "required": true,
+          "nameSuffix": " - ISO"
+        }
       ],
       "crop": {
         "kind": "TightBbox",
@@ -1184,6 +1256,11 @@
         "role": "P",
         "suitability": "A",
         "revision": "C01"
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1291,6 +1368,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1372,6 +1454,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1401,6 +1488,11 @@
       ],
       "annotation": {
         "rules": []
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1456,6 +1548,11 @@
       ],
       "annotation": {
         "rules": []
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "lineWeightScale": 0.9,
+        "halftoneLinks": false
       }
     },
     {
@@ -1485,6 +1582,11 @@
       ],
       "annotation": {
         "rules": []
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1542,6 +1644,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "lineWeightScale": 0.9,
+        "halftoneLinks": false
       }
     },
     {
@@ -1608,6 +1715,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1677,6 +1789,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "lineWeightScale": 0.9,
+        "halftoneLinks": false
       }
     },
     {
@@ -1742,6 +1859,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1817,6 +1939,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "lineWeightScale": 0.9,
+        "halftoneLinks": false
       }
     },
     {
@@ -1955,6 +2082,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -1984,6 +2116,11 @@
       ],
       "annotation": {
         "rules": []
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -2057,7 +2194,13 @@
             "enabled": true
           }
         ]
-      }
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "viewStylePackId": "corp-structural-plan"
     },
     {
       "id": "struct-rebar-detail-A3-1to20",
@@ -2111,7 +2254,13 @@
             "enabled": true
           }
         ]
-      }
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "viewStylePackId": "corp-structural-plan"
     },
     {
       "id": "mep-hvac-duct-A1-1to100",
@@ -2219,6 +2368,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -2332,6 +2486,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -2424,6 +2583,11 @@
         "role": "E",
         "suitability": "S2",
         "revision": "P01"
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -2509,6 +2673,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -2593,6 +2762,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -2670,6 +2844,11 @@
             "enabled": true
           }
         ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
       }
     },
     {
@@ -2865,8 +3044,20 @@
       "viewTemplateName": "STING - Presentation 3D",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "productionRules": [
-        { "idx": 0, "viewType": "ThreeD",    "slotIndex": 0, "required": true,  "nameSuffix": "" },
-        { "idx": 1, "viewType": "FloorPlan", "slotIndex": 1, "required": false, "nameSuffix": " - KEY" }
+        {
+          "idx": 0,
+          "viewType": "ThreeD",
+          "slotIndex": 0,
+          "required": true,
+          "nameSuffix": ""
+        },
+        {
+          "idx": 1,
+          "viewType": "FloorPlan",
+          "slotIndex": 1,
+          "required": false,
+          "nameSuffix": " - KEY"
+        }
       ],
       "sheetNamePattern": "3D AXONOMETRIC — {mark}",
       "crop": {
@@ -3352,6 +3543,409 @@
       }
     },
     {
+      "id": "arch-setting-out-A1-1to50",
+      "name": "Setting Out / Dimensioned Plan — A1 @ 1:50",
+      "description": "Construction setting-out plan. Ordinate dimensions from origin grid; gridlines and level annotations enabled; mono print.",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING A1 Title Block",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "",
+      "viewStylePackId": "corp-standard-plan",
+      "sheetNumberPattern": "{disc}-{lvl}-SP-{seq:D4}",
+      "sheetNamePattern": "Setting Out Plan — Level {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 1.0,
+          "normH": 1.0,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Ordinate",
+        "autoTag": false,
+        "rules": [
+          {
+            "category": "*",
+            "ruleType": "GridDim",
+            "enabled": true
+          },
+          {
+            "category": "*",
+            "ruleType": "LevelAnnotation",
+            "enabled": true
+          }
+        ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "arch-partition-layout-A1-1to50",
+      "name": "Internal Partition Layout — A1 @ 1:50",
+      "description": "Partition / wall layout with door + window tags. Linear dims; mono print.",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING A1 Title Block",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "",
+      "viewStylePackId": "corp-standard-plan",
+      "sheetNumberPattern": "{disc}-{lvl}-PL-{seq:D4}",
+      "sheetNamePattern": "Partition Layout — Level {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 1.0,
+          "normH": 1.0,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Linear",
+        "autoTag": true,
+        "rules": [
+          {
+            "category": "Walls",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "arch-demolition-A1-1to100",
+      "name": "Demolition Plan — A1 @ 1:100",
+      "description": "Demolition phase plan. Existing-to-remain halftoned; demolished elements red dashed; new work bold.",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "phase": "Demolition",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING A1 Title Block",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewStylePackId": "corp-demolition-phase",
+      "sheetNumberPattern": "{disc}-{lvl}-DP-{seq:D4}",
+      "sheetNamePattern": "Demolition Plan — Level {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 75
+      },
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 1.0,
+          "normH": 1.0,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Linear",
+        "autoTag": false
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "arch-sanitary-layout-A1-1to50",
+      "name": "Sanitary / Wet Room Layout — A1 @ 1:50",
+      "description": "Sanitary fixture layout cropped to room boundary. Auto-tags fixtures and rooms; linear dims; mono print.",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING A1 Title Block",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "",
+      "viewStylePackId": "corp-standard-plan",
+      "sheetNumberPattern": "{disc}-{lvl}-SL-{seq:D4}",
+      "sheetNamePattern": "Sanitary Layout — Level {lvl}",
+      "crop": {
+        "kind": "RoomBoundary",
+        "marginMm": 200
+      },
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 1.0,
+          "normH": 1.0,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Linear",
+        "autoTag": true,
+        "rules": [
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "RoomTag",
+            "enabled": true
+          }
+        ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "arch-raised-floor-A1-1to50",
+      "name": "Raised Access Floor Plan — A1 @ 1:50",
+      "description": "Raised access floor (RAF) panel grid layout. Ordinate dimensions from origin; mono print.",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING A1 Title Block",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "",
+      "viewStylePackId": "corp-standard-plan",
+      "sheetNumberPattern": "{disc}-{lvl}-RF-{seq:D4}",
+      "sheetNamePattern": "Raised Access Floor — Level {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 50
+      },
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 1.0,
+          "normH": 1.0,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Ordinate",
+        "autoTag": false
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "arch-screed-buildup-A3-1to10",
+      "name": "Floor Build-Up Detail — A3 @ 1:10",
+      "description": "Layered floor build-up detail (screed, separation, insulation, slab). Tight crop; material tags.",
+      "origin": "corporate",
+      "purpose": "Detail",
+      "discipline": "A",
+      "phase": "*",
+      "paperSize": "A3",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING A1 Title Block",
+      "scale": 10,
+      "detailLevel": "Fine",
+      "viewTemplateName": "",
+      "viewStylePackId": "corp-standard-detail",
+      "sheetNumberPattern": "{disc}-DT-FL-{seq:D4}",
+      "sheetNamePattern": "Floor Build-Up Detail",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 30
+      },
+      "slots": [
+        {
+          "label": "Detail",
+          "viewType": "Detail",
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 1.0,
+          "normH": 1.0,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Linear",
+        "autoTag": false,
+        "rules": [
+          {
+            "category": "*",
+            "ruleType": "MaterialTag",
+            "enabled": true
+          }
+        ]
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "arch-area-plan-A1-1to200",
+      "name": "GIA / NIA Area Plan — A1 @ 1:200",
+      "description": "Gross / net internal area plan with area + room tags. Coarse detail level; presentation print.",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "phase": "*",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING A1 Title Block",
+      "scale": 200,
+      "detailLevel": "Coarse",
+      "viewTemplateName": "",
+      "viewStylePackId": "corp-standard-plan",
+      "sheetNumberPattern": "{disc}-{lvl}-AP-{seq:D4}",
+      "sheetNamePattern": "Area Plan — Level {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 75
+      },
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 1.0,
+          "normH": 1.0,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "None",
+        "autoTag": false,
+        "rules": [
+          {
+            "category": "Areas",
+            "ruleType": "AreaTag",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "RoomTag",
+            "enabled": true
+          }
+        ]
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "lineWeightScale": 0.9,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "pres-floor-plan-A1",
+      "name": "Presentation Floor Plan — A1",
+      "description": "Client presentation floor plan. Rich material colours, room tags only, no dimensions.",
+      "origin": "corporate",
+      "purpose": "Plan",
+      "discipline": "A",
+      "phase": "PRESENTATION",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING A1 Title Block",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "",
+      "viewStylePackId": "corp-presentation-rich",
+      "sheetNumberPattern": "{disc}-{lvl}-PR-{seq:D4}",
+      "sheetNamePattern": "Presentation Floor Plan — Level {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 100
+      },
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.0,
+          "normY": 0.0,
+          "normW": 1.0,
+          "normH": 1.0,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "None",
+        "autoTag": false,
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "RoomTag",
+            "enabled": true
+          }
+        ]
+      },
+      "print": {
+        "colourScheme": "PresentationRich",
+        "lineWeightScale": 0.8,
+        "halftoneLinks": false
+      }
+    },
+    {
       "id": "mep-plan-presentation",
       "name": "MEP Plan — Presentation (Phase 135)",
       "description": "Client-facing MEP plan. Shallow paragraph depth, only TAG7 sections A+B visible, soft Discipline colour scheme, segment mask hides LVL/ZONE for visual cleanliness.",
@@ -3367,24 +3961,59 @@
       "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "MEP PRESENTATION — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 200 },
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 200
+      },
       "slots": [
-        { "label": "Main Plan", "viewType": "Plan", "normX": 0.03, "normY": 0.05, "normW": 0.75, "normH": 0.9, "required": true },
-        { "label": "Legend",    "viewType": "Legend", "normX": 0.8, "normY": 0.05, "normW": 0.18, "normH": 0.9 }
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
       ],
       "annotation": {
         "dimensionStrategy": "Linear",
-        "tagFamilies": { "Mechanical Equipment": "STING_TAG_MECH" },
+        "tagFamilies": {
+          "Mechanical Equipment": "STING_TAG_MECH"
+        },
         "denseUntilScale": 100,
         "rules": [
-          { "category": "Mechanical Equipment", "ruleType": "AutoTag", "enabled": true },
-          { "category": "Air Terminals",        "ruleType": "AutoTag", "enabled": true }
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Air Terminals",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
         ]
       },
       "tokenProfile": {
         "presentationMode": "Presentation",
         "paraDepth": 2,
-        "sectionVisibility": { "A": true, "B": true, "C": false, "D": false, "E": false, "F": false },
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": false,
+          "D": false,
+          "E": false,
+          "F": false
+        },
         "tagSize": "2.5",
         "tagStyle": "NOM",
         "tagColor": "BLUE",
@@ -3392,7 +4021,11 @@
         "segmentMask": "10010101",
         "displayMode": 4
       },
-      "print": { "colourScheme": "PresentationRich", "halftoneLinks": true, "lineWeightScale": 0.8 }
+      "print": {
+        "colourScheme": "PresentationRich",
+        "halftoneLinks": true,
+        "lineWeightScale": 0.8
+      }
     },
     {
       "id": "mep-plan-technical",
@@ -3410,26 +4043,64 @@
       "viewStylePackId": "corp-coordination",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "MEP TECHNICAL — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 100 },
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 100
+      },
       "slots": [
-        { "label": "Main Plan", "viewType": "Plan", "normX": 0.03, "normY": 0.05, "normW": 0.75, "normH": 0.9, "required": true },
-        { "label": "Legend",    "viewType": "Legend", "normX": 0.8, "normY": 0.05, "normW": 0.18, "normH": 0.9 }
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
       ],
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
           "Mechanical Equipment": "STING_TAG_MECH",
-          "Air Terminals":        "STING_TAG_AIR_TERMINAL",
-          "Pipe Fittings":        "STING_TAG_PIPE",
-          "Duct Fittings":        "STING_TAG_DUCT"
+          "Air Terminals": "STING_TAG_AIR_TERMINAL",
+          "Pipe Fittings": "STING_TAG_PIPE",
+          "Duct Fittings": "STING_TAG_DUCT"
         },
         "denseUntilScale": 100,
         "rules": [
-          { "category": "Grids",                "ruleType": "AutoDim", "enabled": true },
-          { "category": "Mechanical Equipment", "ruleType": "AutoTag", "enabled": true },
-          { "category": "Air Terminals",        "ruleType": "AutoTag", "enabled": true },
-          { "category": "Pipe Fittings",        "ruleType": "AutoTag", "enabled": true },
-          { "category": "Duct Fittings",        "ruleType": "AutoTag", "enabled": true }
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Air Terminals",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
         ]
       },
       "tokenProfile": {
@@ -3437,11 +4108,18 @@
         "paraDepth": 5,
         "categoryDepths": {
           "Mechanical Equipment": 7,
-          "Air Terminals":        4,
-          "Pipe Fittings":        6,
-          "Duct Fittings":        6
+          "Air Terminals": 4,
+          "Pipe Fittings": 6,
+          "Duct Fittings": 6
         },
-        "sectionVisibility": { "A": true, "B": true, "C": true, "D": true, "E": true, "F": true },
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": true
+        },
         "tagSize": "2",
         "tagStyle": "BOLD",
         "tagColor": "BLACK",
@@ -3449,7 +4127,11 @@
         "segmentMask": "11111111",
         "displayMode": 5
       },
-      "print": { "colourScheme": "Monochrome", "halftoneLinks": false, "lineWeightScale": 1.0 }
+      "print": {
+        "colourScheme": "Monochrome",
+        "halftoneLinks": false,
+        "lineWeightScale": 1.0
+      }
     },
     {
       "id": "mep-plan-fabrication",
@@ -3467,11 +4149,36 @@
       "viewStylePackId": "corp-fabrication-shop",
       "sheetNumberPattern": "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}",
       "sheetNamePattern": "MEP FABRICATION — {lvl}",
-      "crop": { "kind": "ScopeBoxOrBbox", "marginMm": 80 },
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 80
+      },
       "slots": [
-        { "label": "Main Plan",   "viewType": "Plan",     "normX": 0.03, "normY": 0.30, "normW": 0.75, "normH": 0.65, "required": true },
-        { "label": "Cut List",    "viewType": "Schedule", "normX": 0.03, "normY": 0.05, "normW": 0.75, "normH": 0.22 },
-        { "label": "Spool Refs",  "viewType": "Legend",   "normX": 0.80, "normY": 0.05, "normW": 0.18, "normH": 0.9 }
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.3,
+          "normW": 0.75,
+          "normH": 0.65,
+          "required": true
+        },
+        {
+          "label": "Cut List",
+          "viewType": "Schedule",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.22
+        },
+        {
+          "label": "Spool Refs",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
       ],
       "annotation": {
         "dimensionStrategy": "Ordinate",
@@ -3482,20 +4189,39 @@
         },
         "denseUntilScale": 50,
         "rules": [
-          { "category": "Pipe Fittings",        "ruleType": "AutoTag", "enabled": true },
-          { "category": "Duct Fittings",        "ruleType": "AutoTag", "enabled": true },
-          { "category": "Mechanical Equipment", "ruleType": "AutoTag", "enabled": true }
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
         ]
       },
       "tokenProfile": {
         "presentationMode": "FullSpec",
         "paraDepth": 10,
         "categoryDepths": {
-          "Pipe Fittings":        10,
-          "Duct Fittings":        10,
+          "Pipe Fittings": 10,
+          "Duct Fittings": 10,
           "Mechanical Equipment": 8
         },
-        "sectionVisibility": { "A": true, "B": true, "C": true, "D": true, "E": true, "F": true },
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": true
+        },
         "tagSize": "2",
         "tagStyle": "BOLD",
         "tagColor": "RED",
@@ -3503,7 +4229,11 @@
         "segmentMask": "10001011",
         "displayMode": 5
       },
-      "print": { "colourScheme": "Monochrome", "halftoneLinks": false, "lineWeightScale": 1.1 }
+      "print": {
+        "colourScheme": "Monochrome",
+        "halftoneLinks": false,
+        "lineWeightScale": 1.1
+      }
     }
     ,
     {
@@ -3638,9 +4368,72 @@
     }
   ],
   "routing": [
-    { "discipline": "M", "phase": "PRESENTATION", "docType": "PLAN", "drawingTypeId": "mep-plan-presentation" },
-    { "discipline": "M", "phase": "TECHNICAL",   "docType": "PLAN", "drawingTypeId": "mep-plan-technical" },
-    { "discipline": "M", "phase": "FABRICATION", "docType": "PLAN", "drawingTypeId": "mep-plan-fabrication" },
+    {
+      "discipline": "Architecture",
+      "phase": "*",
+      "docType": "SETTING_OUT",
+      "drawingTypeId": "arch-setting-out-A1-1to50"
+    },
+    {
+      "discipline": "Architecture",
+      "phase": "*",
+      "docType": "PARTITION",
+      "drawingTypeId": "arch-partition-layout-A1-1to50"
+    },
+    {
+      "discipline": "Architecture",
+      "phase": "Demolition",
+      "docType": "*",
+      "drawingTypeId": "arch-demolition-A1-1to100"
+    },
+    {
+      "discipline": "Architecture",
+      "phase": "*",
+      "docType": "SANITARY",
+      "drawingTypeId": "arch-sanitary-layout-A1-1to50"
+    },
+    {
+      "discipline": "Architecture",
+      "phase": "*",
+      "docType": "RAISED_FLOOR",
+      "drawingTypeId": "arch-raised-floor-A1-1to50"
+    },
+    {
+      "discipline": "Architecture",
+      "phase": "*",
+      "docType": "FLOOR_DETAIL",
+      "drawingTypeId": "arch-screed-buildup-A3-1to10"
+    },
+    {
+      "discipline": "Architecture",
+      "phase": "*",
+      "docType": "AREA_PLAN",
+      "drawingTypeId": "arch-area-plan-A1-1to200"
+    },
+    {
+      "discipline": "Architecture",
+      "phase": "PRESENTATION",
+      "docType": "PLAN",
+      "drawingTypeId": "pres-floor-plan-A1"
+    },
+    {
+      "discipline": "M",
+      "phase": "PRESENTATION",
+      "docType": "PLAN",
+      "drawingTypeId": "mep-plan-presentation"
+    },
+    {
+      "discipline": "M",
+      "phase": "TECHNICAL",
+      "docType": "PLAN",
+      "drawingTypeId": "mep-plan-technical"
+    },
+    {
+      "discipline": "M",
+      "phase": "FABRICATION",
+      "docType": "PLAN",
+      "drawingTypeId": "mep-plan-fabrication"
+    },
     {
       "discipline": "P",
       "phase": "*",
