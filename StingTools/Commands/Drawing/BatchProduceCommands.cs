@@ -100,6 +100,7 @@ namespace StingTools.Commands.Drawing
                 // / per-DrawingType Apply call hits the (template name →
                 // ElementId) and (pack id → pack) memos.
                 DrawingTypePresentation.Prewarm(doc);
+                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Plan", "RCP");
                 var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
@@ -155,6 +156,7 @@ namespace StingTools.Commands.Drawing
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
+                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var scopes = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
@@ -227,6 +229,7 @@ namespace StingTools.Commands.Drawing
 
                 // PERF-01: pre-warm view-template + pack caches before per-room loop.
                 DrawingTypePresentation.Prewarm(doc);
+                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation");
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()
@@ -295,6 +298,7 @@ namespace StingTools.Commands.Drawing
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
+                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Section");
                 var grids = new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>().ToList();
@@ -384,6 +388,7 @@ namespace StingTools.Commands.Drawing
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
+                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation")
                     .Where(t => !(t.Name ?? "").ToLowerInvariant().Contains("interior")).ToList();
