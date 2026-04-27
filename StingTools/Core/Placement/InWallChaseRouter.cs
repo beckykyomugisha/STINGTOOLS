@@ -56,7 +56,15 @@ namespace StingTools.Core.Placement
             public int             RejectedSegments { get; set; }
             public double          AvailableChaseDepthMm { get; set; }
             public double          RequiredChaseDepthMm  { get; set; }
+            public int             SleevesPlaced   { get; set; }
         }
+
+        /// <summary>
+        /// When true, calls SleeveEngine.PlaceSleeves on the created
+        /// pipe segments after routing — auto-cuts the host wall and
+        /// drops a STING_SLEEVE_ROUND family at every penetration.
+        /// </summary>
+        public bool AutoSleeve { get; set; } = true;
 
         private readonly Document _doc;
         private readonly StructuralAwareness _structural;
@@ -165,6 +173,30 @@ namespace StingTools.Core.Placement
                     {
                         result.Warnings.Add($"InWallChaseRouter: segment {i} create: {ex.Message}");
                         result.RejectedSegments++;
+                    }
+                }
+
+                // Phase 139.4 — auto-sleeve every created segment.  The
+                // SleeveEngine scans each pipe, finds host penetrations
+                // (walls / floors / roofs / ceilings), cuts an opening,
+                // and drops a STING_SLEEVE_ROUND family at every hit.
+                if (AutoSleeve && result.CreatedSegments.Count > 0)
+                {
+                    try
+                    {
+                        var pipes = result.CreatedSegments
+                            .Select(id => _doc.GetElement(id))
+                            .Where(e => e != null)
+                            .ToList();
+                        var sleeveResult = StingTools.Core.Mep.SleeveEngine.PlaceSleeves(_doc, pipes, dryRun: false);
+                        result.SleevesPlaced = sleeveResult.Placed;
+                        if (sleeveResult.Warnings != null && sleeveResult.Warnings.Count > 0)
+                            result.Warnings.AddRange(sleeveResult.Warnings.Take(10));
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"InWallChaseRouter.AutoSleeve: {ex.Message}");
+                        result.Warnings.Add($"AutoSleeve: {ex.Message}");
                     }
                 }
             }

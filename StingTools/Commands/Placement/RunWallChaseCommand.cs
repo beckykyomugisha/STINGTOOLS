@@ -66,7 +66,8 @@ namespace StingTools.Commands.Placement
                     ? "(no warnings)"
                     : string.Join("\n  ", outcome.Warnings.Take(20));
                 TaskDialog.Show("STING - Wall Chase",
-                    $"Created: {outcome.CreatedSegments.Count}  Rejected: {outcome.RejectedSegments}\n\n" +
+                    $"Pipes:   {outcome.CreatedSegments.Count}  Rejected: {outcome.RejectedSegments}\n" +
+                    $"Sleeves: {outcome.SleevesPlaced}\n\n" +
                     $"Available chase depth: {outcome.AvailableChaseDepthMm:F0} mm\n" +
                     $"Required chase depth:  {outcome.RequiredChaseDepthMm:F0} mm\n\n" +
                     $"Warnings:\n  {warnText}");
