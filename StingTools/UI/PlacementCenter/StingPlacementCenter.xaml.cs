@@ -48,6 +48,80 @@ namespace StingTools.UI.PlacementCenter
         private DateTime? _lastRunUtc;
         private List<ElementId> _lastPlacedIds = new List<ElementId>();
 
+        // Phase 139.10 — modeless WPF can't open a Transaction directly
+        // under Revit 2025+. Dispatch the engine through an
+        // IExternalEventHandler that runs on the Revit API thread.
+        private ExternalEvent _runEvent;
+        private PlacementRunHandler _runHandler;
+        private PlacementRunRequest _runRequest;
+        private bool _runDone;
+        private System.Windows.Threading.DispatcherFrame _runFrame;
+
+        private void EnsureRunEvent()
+        {
+            if (_runEvent != null) return;
+            _runHandler = new PlacementRunHandler(this);
+            _runEvent   = ExternalEvent.Create(_runHandler);
+        }
+
+        private class PlacementRunRequest
+        {
+            public Document Doc;
+            public IList<ElementId> RoomIds;
+            public IList<PlacementRule> Rules;
+            public StingProgressDialog Progress;
+            public PlacementResult Result;
+            public Exception Error;
+        }
+
+        private sealed class PlacementRunHandler : IExternalEventHandler
+        {
+            private readonly StingPlacementCenter _owner;
+            public PlacementRunHandler(StingPlacementCenter owner) { _owner = owner; }
+            public string GetName() => "STING Placement Centre Run";
+            public void Execute(UIApplication app)
+            {
+                var req = _owner._runRequest;
+                if (req == null) { Signal(); return; }
+                try
+                {
+                    using (var tg = new TransactionGroup(req.Doc, "STING Placement Centre — Run"))
+                    {
+                        tg.Start();
+                        req.Result = FixturePlacementEngine.PlaceFixturesInScope(
+                            req.Doc, req.RoomIds, req.Rules, dryRun: false,
+                            progress: (done, total) =>
+                            {
+                                try
+                                {
+                                    req.Progress?.Increment($"Room {done} of {total}…");
+                                    return req.Progress?.IsCancelled == true;
+                                }
+                                catch { return false; }
+                            });
+                        tg.Assimilate();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    req.Error = ex;
+                    StingLog.Error("PlacementRunHandler.Execute", ex);
+                }
+                finally { Signal(); }
+            }
+            private void Signal()
+            {
+                try
+                {
+                    _owner._runDone = true;
+                    var f = _owner._runFrame;
+                    if (f != null)
+                        _owner.Dispatcher.BeginInvoke(new System.Action(() => f.Continue = false));
+                }
+                catch { }
+            }
+        }
+
         public StingPlacementCenter(UIApplication uiApp)
         {
             // Pre-register the IsDirty → "●" converter before InitializeComponent
@@ -397,14 +471,18 @@ namespace StingTools.UI.PlacementCenter
                 }
                 if (emptyCats.Count > 0)
                 {
-                    var td2 = new TaskDialog("STING — Placement Centre · Categories with no family loaded")
+                    var td2 = new TaskDialog("STING — Placement Centre · Categories without a placeable Type")
                     {
-                        MainInstruction = $"{emptyCats.Count} categor{(emptyCats.Count == 1 ? "y has" : "ies have")} no FamilySymbol loaded",
+                        MainInstruction = $"{emptyCats.Count} categor{(emptyCats.Count == 1 ? "y has" : "ies have")} no Family Type loaded",
                         MainContent =
-                            "These categories will silently drop all their rules:\n  " +
+                            "These categories have no Family Type (FamilySymbol) loaded into the project:\n  " +
                             string.Join("\n  ", emptyCats.Take(15)) +
                             (emptyCats.Count > 15 ? $"\n  + {emptyCats.Count - 15} more" : "") +
-                            "\n\nLoad at least one family per category and run Placement_AuditSetup to verify. Continue anyway?",
+                            "\n\nIn Revit a Family is the .rfa container; a Type (FamilySymbol) is one of the variants inside it. " +
+                            "The placement engine creates instances of a Type, not a Family — a Family without any of its Types " +
+                            "loaded into the project still drops every rule for its category.\n\n" +
+                            "Insert > Load Family, expand the .rfa in the Project Browser and drag at least one Type into a view, " +
+                            "or run Placement_AuditSetup for a full project setup check. Continue anyway?",
                         CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                         DefaultButton = TaskDialogResult.No,
                     };
@@ -452,28 +530,33 @@ namespace StingTools.UI.PlacementCenter
                 "STING — Placement Centre · Run", roomIds.Count);
             try
             {
-                // FixturePlacementEngine opens its own Transaction inside the
-                // supplied document. Wrap it in a TransactionGroup so the run
-                // is undoable as a single step but DO NOT open another
-                // Transaction here — Revit forbids nested Transactions and
-                // the engine would silently fail with "Transaction start
-                // failed: …" in result.Warnings.
-                using (var tg = new TransactionGroup(_doc, "STING Placement Centre — Run"))
+                // Phase 139.10 — modeless WPF cannot start a Transaction
+                // directly under Revit 2025+ ("Starting a transaction from
+                // an external application running outside of API context
+                // is not allowed"). Dispatch the run to the Revit API
+                // thread via an IExternalEventHandler. The handler runs
+                // the engine inside a TransactionGroup, then signals back
+                // here via _runDone (set on the API thread, polled on the
+                // UI thread).
+                _runRequest = new PlacementRunRequest
                 {
-                    tg.Start();
-                    result = FixturePlacementEngine.PlaceFixturesInScope(
-                        _doc, roomIds, rules, dryRun: false,
-                        progress: (done, total) =>
-                        {
-                            try
-                            {
-                                progress.Increment($"Room {done} of {total}…");
-                                return progress.IsCancelled;
-                            }
-                            catch { return false; }
-                        });
-                    tg.Assimilate();
-                }
+                    Doc      = _doc,
+                    RoomIds  = roomIds,
+                    Rules    = rules,
+                    Progress = progress,
+                };
+                _runDone   = false;
+                EnsureRunEvent();
+                _runEvent.Raise();
+                // WPF-native nested pump: keeps the UI responsive (progress
+                // bar updates, Cancel button reacts) while the API-thread
+                // handler executes the engine.
+                var frame = new System.Windows.Threading.DispatcherFrame();
+                _runFrame = frame;
+                System.Windows.Threading.Dispatcher.PushFrame(frame);
+                _runFrame = null;
+                result = _runRequest?.Result;
+                if (_runRequest?.Error != null) throw _runRequest.Error;
             }
             catch (Exception ex)
             {
@@ -523,10 +606,11 @@ namespace StingTools.UI.PlacementCenter
                 if (placed == 0)
                 {
                     panel.AddSection("ZERO PLACED — common causes")
-                        .Text("• Ticked category has no FamilySymbol loaded (engine prints 'No FamilySymbol found for category X' in warnings).")
-                        .Text("• RoomFilter regex doesn't match the active rooms (check rule's RoomFilter against the room name in Properties).")
-                        .Text("• PlacementHostPreflight rejected every candidate (hosted family with no host element nearby).")
-                        .Text("• Run Placement_AuditSetup to confirm shared parameters bound + families loaded.");
+                        .Text("• Modeless transaction error ('Starting a transaction … is not allowed') — Phase 139.10 routes the run through IExternalEventHandler; pull the latest if you still see this.")
+                        .Text("• Ticked category has no Family Type loaded. A Family (.rfa) is the container; the engine needs at least one Type loaded into the project (drag one from the .rfa in Project Browser into a view).")
+                        .Text("• RoomFilter regex doesn't match the active rooms (check the rule's RoomFilter against the room name in Properties).")
+                        .Text("• PlacementHostPreflight rejected every candidate (hosted family but no host wall/ceiling element nearby).")
+                        .Text("• Run Placement_AuditSetup to confirm shared parameters bound + Types loaded.");
                 }
 
                 if (result?.Warnings != null && result.Warnings.Count > 0)

@@ -4240,3 +4240,41 @@ Fixes:
   common reasons (no family loaded, RoomFilter mismatch, host
   pre-flight rejection, audit not run).
 
+
+#### Completed (Phase 139.10 — modeless run via IExternalEventHandler + Family/Type wording)
+
+User reported the result panel showed "Transaction start failed:
+Starting a transaction from an external application running outside
+of API context is not allowed" with 0 placed — the engine never even
+got to score candidates. Plus a fair question: why does the pre-flight
+check say "FamilySymbol" not "Family"?
+
+**Modeless transaction fix:**
+
+The Placement Centre is a modeless WPF Window. Revit 2025+ refuses to
+let modeless code start a Transaction or TransactionGroup directly.
+The Centre's `OnRunPlacement_Click` was calling `tg.Start()` straight
+from the button-click handler.
+
+`OnRunPlacement_Click` now dispatches to a new
+`PlacementRunHandler : IExternalEventHandler` which Revit calls back on
+the API thread. The handler runs the engine inside a TransactionGroup
+on that thread; the UI thread keeps responsive via a
+`DispatcherFrame` nested message pump that drains until the handler
+signals completion. Cancel + progress updates continue to work.
+
+**Family vs Type wording:**
+
+Pre-flight TaskDialog now reads "no Family Type loaded" instead of
+"no FamilySymbol loaded", with an explanation: a `Family` (.rfa) is
+the container; a `Type` (FamilySymbol) is one of the variants inside
+it. The engine creates instances of a Type, not the Family — a Family
+loaded with no Types active in the project still drops every rule in
+its category. Designers know to "drag at least one Type from the .rfa
+in Project Browser into a view" rather than just loading the .rfa.
+
+Same wording applied to:
+- Centre's TaskDialog when categories have no Type loaded.
+- `PlaceFixturesCommand` (dock-panel) equivalent dialog.
+- Centre's "ZERO PLACED — common causes" section in the result panel.
+
