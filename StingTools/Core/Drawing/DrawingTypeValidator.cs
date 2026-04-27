@@ -146,6 +146,9 @@ namespace StingTools.Core.Drawing
             //   applier would silently substitute an empty string.
             ValidateProjectInfoBindings(doc, dt, r);
 
+            // ── GAP-K: slot ViewType compatibility with profile.Purpose ──
+            ValidateSlotPurposeAlignment(dt, r);
+
             return r;
         }
 
@@ -430,6 +433,54 @@ namespace StingTools.Core.Drawing
             if (s.NormX + s.NormW > 1.0001 || s.NormY + s.NormH > 1.0001)
                 r.Add(ValidationSeverity.Warning, "DT-056",
                     $"Slot '{s.Label}' extends beyond the drawable zone (normX+W={s.NormX + s.NormW:F2} normY+H={s.NormY + s.NormH:F2}).");
+        }
+
+        // GAP-K: profile.Purpose says "Plan" but a slot.ViewType is "Section",
+        // or vice versa, indicates a bookkeeping mistake in the JSON. The
+        // production engine would still produce the slotted view, but its
+        // purpose tag wouldn't match the slot type, so downstream filters
+        // (browser organizer, sheet packs) place it in surprising places.
+        private static void ValidateSlotPurposeAlignment(DrawingType dt, ValidationReport r)
+        {
+            if (dt?.Slots == null || dt.Slots.Count == 0) return;
+            var purpose = (dt.Purpose ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(purpose) ||
+                purpose.Equals(DrawingPurpose.Coordination, StringComparison.OrdinalIgnoreCase) ||
+                purpose.Equals(DrawingPurpose.Spool, StringComparison.OrdinalIgnoreCase))
+                return; // multi-view profiles inherently mix slot types
+            foreach (var s in dt.Slots)
+            {
+                if (s == null || string.IsNullOrEmpty(s.ViewType)) continue;
+                if (!s.ViewType.Equals(purpose, StringComparison.OrdinalIgnoreCase)
+                    && !IsCompatibleSlotViewType(purpose, s.ViewType))
+                {
+                    r.Add(ValidationSeverity.Info, "DT-057",
+                        $"Slot '{s.Label}' has ViewType '{s.ViewType}' on a {purpose} profile — confirm this is intentional.");
+                }
+            }
+        }
+
+        private static bool IsCompatibleSlotViewType(string purpose, string slotType)
+        {
+            // A small whitelist of "Plan profile may host an inset Schedule",
+            // "Section profile may host an inset Detail", etc. — common
+            // multi-view layouts that don't deserve a warning.
+            var p = purpose ?? string.Empty;
+            var s = slotType ?? string.Empty;
+            if (p.Equals(DrawingPurpose.Plan,      StringComparison.OrdinalIgnoreCase) &&
+                (s.Equals("Schedule", StringComparison.OrdinalIgnoreCase) ||
+                 s.Equals("Legend",   StringComparison.OrdinalIgnoreCase) ||
+                 s.Equals("RCP",      StringComparison.OrdinalIgnoreCase)))
+                return true;
+            if (p.Equals(DrawingPurpose.Section,   StringComparison.OrdinalIgnoreCase) &&
+                (s.Equals("Detail",   StringComparison.OrdinalIgnoreCase) ||
+                 s.Equals("Plan",     StringComparison.OrdinalIgnoreCase)))
+                return true;
+            if (p.Equals(DrawingPurpose.ThreeD,    StringComparison.OrdinalIgnoreCase) &&
+                (s.Equals("Plan",     StringComparison.OrdinalIgnoreCase) ||
+                 s.Equals("ISO",      StringComparison.OrdinalIgnoreCase)))
+                return true;
+            return false;
         }
     }
 }

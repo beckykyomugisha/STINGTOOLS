@@ -112,6 +112,37 @@ namespace StingTools.Core.Drawing
             return results;
         }
 
+        // GAP-F: per-Scan cache built lazily — ScanProject runs once at
+        // command entry, then FindExistingView is called per binding;
+        // building the index once is O(views) total instead of
+        // O(views × bindings).
+        [ThreadStatic] private static Dictionary<(string dtId, long sbId), ElementId> _existingByBinding;
+
+        public static void PrimeExistingViewIndex(Document doc)
+        {
+            if (doc == null) { _existingByBinding = null; return; }
+            var idx = new Dictionary<(string, long), ElementId>();
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
+                {
+                    if (!(el is View v) || v.IsTemplate) continue;
+                    var dtId = DrawingTypeStamper.Read(v);
+                    if (string.IsNullOrEmpty(dtId)) continue;
+                    var sbParam = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                    if (sbParam == null) continue;
+                    var sbId = sbParam.AsElementId();
+                    if (sbId == null || sbId == ElementId.InvalidElementId) continue;
+                    idx[(dtId, sbId.IntegerValue)] = v.Id;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"ScopeBoxBinder.PrimeExistingViewIndex: {ex.Message}");
+            }
+            _existingByBinding = idx;
+        }
+
         /// <summary>
         /// Find the existing view (if any) that was previously created
         /// by this binding — same DrawingType stamp + same scope-box
@@ -119,7 +150,16 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public static View FindExistingView(Document doc, ScopeBoxBinding b)
         {
-            if (doc == null || b == null) return null;
+            if (doc == null || b == null || b.ScopeBox == null) return null;
+            // GAP-F: short-circuit via thread-local index when primed.
+            if (_existingByBinding != null
+                && _existingByBinding.TryGetValue((b.DrawingTypeId, b.ScopeBox.Id.IntegerValue), out var cachedId))
+            {
+                if (doc.GetElement(cachedId) is View vCached
+                    && vCached.IsValidObject && !vCached.IsTemplate)
+                    return vCached;
+                // Stale entry — fall through to the slow path.
+            }
             try
             {
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))

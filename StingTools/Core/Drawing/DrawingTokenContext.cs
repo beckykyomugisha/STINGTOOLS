@@ -49,9 +49,6 @@ namespace StingTools.Core.Drawing
                 { "sys",        sysCode    ?? string.Empty },
                 { "lvl",        levelCode  ?? string.Empty },
                 { "mark",       mark       ?? string.Empty },
-                { "seq",        seq.HasValue
-                                  ? seq.Value.ToString("D" + Math.Max(1, seqWidth))
-                                  : string.Empty },
                 { "purpose",    dt?.Purpose ?? string.Empty },
                 { "phase",      dt?.Phase   ?? string.Empty },
                 { "project",    ReadProjectInfo(doc, "PRJ_ORG_PROJECT_CODE") },
@@ -63,6 +60,13 @@ namespace StingTools.Core.Drawing
                 { "suit",       dt?.IsoNaming?.Suitability ?? string.Empty },
                 { "rev",        dt?.IsoNaming?.Revision    ?? string.Empty },
             };
+            // GAP-D: only emit "seq" when the caller actually has a value.
+            // The applier's TryGetValue(...) miss path leaves the literal
+            // "{seq:Dn}" untouched so a downstream stage (sheet renumber,
+            // package sequencer) can fill it later — better than silently
+            // rendering "Sheet Number A--" because the upstream had no seq.
+            if (seq.HasValue)
+                d["seq"] = seq.Value.ToString("D" + Math.Max(1, seqWidth));
             return d;
         }
 

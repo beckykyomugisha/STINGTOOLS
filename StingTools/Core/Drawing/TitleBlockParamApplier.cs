@@ -56,13 +56,19 @@ namespace StingTools.Core.Drawing
             if (doc == null || sheet == null || dt?.TitleBlockParams == null
                 || dt.TitleBlockParams.Count == 0) return r;
 
-            var tb = FindTitleBlockInstance(doc, sheet);
-            if (tb == null)
+            // GAP-A: walk every title-block instance on the sheet, not just
+            // the first. Sheets that host more than one TB (front + back,
+            // landscape + portrait variants) used to leave the second
+            // instance with stale values; now every TB receives the same
+            // declarative payload.
+            var tbs = FindAllTitleBlockInstances(doc, sheet);
+            if (tbs.Count == 0)
             {
                 r.Warnings.Add($"Sheet '{sheet.SheetNumber}' has no title block to stamp.");
                 return r;
             }
 
+            foreach (var tb in tbs)
             foreach (var kv in dt.TitleBlockParams)
             {
                 var paramName = kv.Key;
@@ -142,9 +148,10 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(priorId)) return 0;
             var priorDt = DrawingTypeRegistry.Get(doc, priorId);
             if (priorDt?.TitleBlockParams == null || priorDt.TitleBlockParams.Count == 0) return 0;
-            var tb = FindTitleBlockInstance(doc, sheet);
-            if (tb == null) return 0;
+            var tbs = FindAllTitleBlockInstances(doc, sheet);
+            if (tbs.Count == 0) return 0;
             int cleared = 0;
+            foreach (var tb in tbs)
             foreach (var k in priorDt.TitleBlockParams.Keys)
             {
                 if (string.IsNullOrWhiteSpace(k)) continue;
@@ -262,6 +269,19 @@ namespace StingTools.Core.Drawing
                     .FirstOrDefault();
             }
             catch { return null; }
+        }
+
+        private static List<FamilyInstance> FindAllTitleBlockInstances(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc, sheet.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .ToList();
+            }
+            catch { return new List<FamilyInstance>(); }
         }
     }
 }

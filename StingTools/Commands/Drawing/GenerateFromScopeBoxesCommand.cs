@@ -36,6 +36,10 @@ namespace StingTools.Commands.Drawing
                 // PERF-01: warm view-template + pack caches once before the
                 // batch so per-view Apply() calls hit cached lookups.
                 DrawingTypePresentation.Prewarm(doc);
+                // GAP-F: prime the (DrawingType, ScopeBox) → existing-view
+                // index so per-binding FindExistingView is O(1) instead of
+                // O(views) per call.
+                ScopeBoxBinder.PrimeExistingViewIndex(doc);
 
                 var bindings = ScopeBoxBinder.ScanProject(doc, out var nameWarnings);
                 if (bindings.Count == 0 && nameWarnings.Count == 0)

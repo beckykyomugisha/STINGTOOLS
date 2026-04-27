@@ -117,6 +117,29 @@ namespace StingTools.Core.Drawing
                     if (existing != null)
                     {
                         result.WasIdempotent = true;
+                        // GAP-H: re-apply the profile so a re-run after a
+                        // profile edit refreshes scale / template / pack /
+                        // stamps. SyncStyles flag (annotation off) avoids
+                        // re-tagging an already-tagged view. Returning the
+                        // raw id without Apply meant idempotent re-runs
+                        // were a permanent no-op even after pack edits.
+                        try
+                        {
+                            var refreshOpts = new DrawingTypePresentation.ApplyOptions
+                            {
+                                AnnotationOptions = new AnnotationRunOptions
+                                {
+                                    SkipAutoTag = true, SkipAutoDim = true,
+                                    SkipDecorative = true, SkipSpots = true
+                                }
+                            };
+                            var refreshed = DrawingTypePresentation.Apply(doc, existing, dt, refreshOpts);
+                            result.Warnings.AddRange(refreshed.Warnings);
+                        }
+                        catch (Exception ex)
+                        {
+                            result.Warnings.Add($"Idempotent refresh ({existing.Id}): {ex.Message}");
+                        }
                         return existing.Id;
                     }
                 }

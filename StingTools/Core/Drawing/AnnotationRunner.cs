@@ -259,8 +259,22 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     var bb = el.get_BoundingBox(view);
-                    if (bb == null) continue;
-                    var center = (bb.Min + bb.Max) * 0.5;
+                    XYZ center;
+                    if (bb != null)
+                    {
+                        center = (bb.Min + bb.Max) * 0.5;
+                    }
+                    else
+                    {
+                        // GAP-I: schedule items / annotation-host elements
+                        // may legitimately return a null view bbox. Try the
+                        // element's location point/curve before giving up;
+                        // worst case place at the view's centre so the tag
+                        // exists and can be moved by the user.
+                        center = ResolveFallbackTagPoint(el, view);
+                        if (center == null) continue;
+                        result.Warnings.Add($"TagRule '{el.Id}': null bbox in view, fallback placement used.");
+                    }
                     IndependentTag.Create(doc, tagSymbolId, view.Id,
                         new Reference(el), addLeader, ori, center);
                     result.TagsPlaced++;
@@ -273,6 +287,24 @@ namespace StingTools.Core.Drawing
                     catch { }
                 }
             }
+        }
+
+        // GAP-I helper: derive a tag point when the element's bbox is null.
+        private static XYZ ResolveFallbackTagPoint(Element el, View view)
+        {
+            try
+            {
+                if (el.Location is LocationPoint lp && lp.Point != null) return lp.Point;
+                if (el.Location is LocationCurve lc && lc.Curve != null)
+                {
+                    var c = lc.Curve;
+                    return (c.GetEndPoint(0) + c.GetEndPoint(1)) * 0.5;
+                }
+                // View centre as last-resort fallback.
+                if (view?.Origin != null) return view.Origin;
+            }
+            catch { /* best effort */ }
+            return null;
         }
 
         private static int GetPackTagDepth(AnnotationRulePack pack, string category)

@@ -402,11 +402,23 @@ namespace StingTools.Core.Drawing
         {
             string activeParam = t.ParamName;
             string[] all = ParamRegistry.AllTagStyleParams;
+            if (all == null || all.Length == 0) return 0;
 
+            // GAP-C: previously walked every ElementType in the document
+            // (10,000+ in a typical project) probing for TAG_*_BOOL params.
+            // The TAG_*_BOOL parameters only exist on tag-family types, so
+            // pre-filter by category before LookupParameter probing —
+            // typical project drops to ~50 tag types instead of 10,000+.
+            var probeParam = all[0];
             int updated = 0;
-            var allTypes = new FilteredElementCollector(doc).WhereElementIsElementType();
-            foreach (Element typeEl in allTypes)
+            var typeIter = new FilteredElementCollector(doc)
+                .WhereElementIsElementType()
+                .Where(IsTagFamilyType);
+            foreach (Element typeEl in typeIter)
             {
+                // Cheap reject: if the canonical TAG_*_BOOL probe is
+                // missing, this type doesn't carry the style matrix.
+                if (typeEl.LookupParameter(probeParam) == null) continue;
                 bool any = false;
                 foreach (string pname in all)
                 {
@@ -419,6 +431,52 @@ namespace StingTools.Core.Drawing
                 if (any) updated++;
             }
             return updated;
+        }
+
+        private static bool IsTagFamilyType(Element el)
+        {
+            try
+            {
+                if (el is FamilySymbol fs)
+                {
+                    var cat = fs.Category;
+                    if (cat == null) return false;
+                    var bic = (BuiltInCategory)cat.Id.IntegerValue;
+                    switch (bic)
+                    {
+                        case BuiltInCategory.OST_DoorTags:
+                        case BuiltInCategory.OST_WindowTags:
+                        case BuiltInCategory.OST_RoomTags:
+                        case BuiltInCategory.OST_WallTags:
+                        case BuiltInCategory.OST_FloorTags:
+                        case BuiltInCategory.OST_CeilingTags:
+                        case BuiltInCategory.OST_RoofTags:
+                        case BuiltInCategory.OST_StairsTags:
+                        case BuiltInCategory.OST_StructuralColumnTags:
+                        case BuiltInCategory.OST_StructuralFramingTags:
+                        case BuiltInCategory.OST_StructuralFoundationTags:
+                        case BuiltInCategory.OST_FurnitureTags:
+                        case BuiltInCategory.OST_LightingFixtureTags:
+                        case BuiltInCategory.OST_MechanicalEquipmentTags:
+                        case BuiltInCategory.OST_PlumbingFixtureTags:
+                        case BuiltInCategory.OST_DuctTags:
+                        case BuiltInCategory.OST_PipeTags:
+                        case BuiltInCategory.OST_ConduitTags:
+                        case BuiltInCategory.OST_CableTrayTags:
+                        case BuiltInCategory.OST_ElectricalEquipmentTags:
+                        case BuiltInCategory.OST_ElectricalFixtureTags:
+                        case BuiltInCategory.OST_GenericModelTags:
+                        case BuiltInCategory.OST_KeynoteTags:
+                        case BuiltInCategory.OST_MultiCategoryTags:
+                        case BuiltInCategory.OST_AreaTags:
+                        case BuiltInCategory.OST_SpaceTags:
+                        case BuiltInCategory.OST_MaterialTags:
+                            return true;
+                    }
+                }
+            }
+            catch { /* defensive — fall through */ }
+            return false;
         }
 
         private static int ApplyCategoryTagStyles(Document doc, View view, Dictionary<string, string> map)

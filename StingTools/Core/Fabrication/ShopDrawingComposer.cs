@@ -48,8 +48,31 @@ namespace StingTools.Core.Fabrication
         // unique SP-M-HVAC-L02-0003 even when the assembly has no spool
         // number yet (Phase A fallback; Phase B will hydrate from a
         // persistent doc_sequences.json keyed per project).
-        private static readonly Dictionary<string, int> _sequenceByBucket
-            = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        // GAP-B: per-document sequence bucket. Previously a single static
+        // dict was shared across every open document, so sheet numbers
+        // could collide / overshoot on the second project opened in the
+        // same session. Outer key is the document path; inner is the
+        // disc:sys:lvl bucket the original code already used.
+        private static readonly Dictionary<string, Dictionary<string, int>> _sequenceByBucket
+            = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+
+        private static string DocBucketKey(Document doc)
+        {
+            if (doc == null) return "__null__";
+            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
+            catch { return "__unknown__"; }
+        }
+
+        private static Dictionary<string, int> GetDocBucket(Document doc)
+        {
+            string k = DocBucketKey(doc);
+            lock (_sequenceByBucket)
+            {
+                if (!_sequenceByBucket.TryGetValue(k, out var inner))
+                    _sequenceByBucket[k] = inner = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                return inner;
+            }
+        }
 
         // Slot positions on a 1:50 A1 sheet (Revit feet, sheet origin).
         // Plan TL, ISO TR, Elev0 BL, Elev90 ML, 3D BR, BOM RIGHT-PANEL.
@@ -211,11 +234,14 @@ namespace StingTools.Core.Fabrication
             string sysCode  = string.IsNullOrEmpty(systemCode) ? "GEN" : Sanitise(systemCode);
             string bucket   = $"{discCode}:{sysCode}:{levelCode}";
             int seq;
-            lock (_sequenceByBucket)
+            // GAP-B: per-document bucket — the outer lock prevents two
+            // composer calls on the same doc from racing the increment.
+            var docBucket = GetDocBucket(doc);
+            lock (docBucket)
             {
-                _sequenceByBucket.TryGetValue(bucket, out seq);
+                docBucket.TryGetValue(bucket, out seq);
                 seq += 1;
-                _sequenceByBucket[bucket] = seq;
+                docBucket[bucket] = seq;
             }
 
             // Honour the user pattern when the ShopDrawingOptionsDialog

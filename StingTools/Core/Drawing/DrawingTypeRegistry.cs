@@ -131,7 +131,15 @@ namespace StingTools.Core.Drawing
                 {
                     string warnKey = (leaf.Id ?? string.Empty) + "→" + (cur.Id ?? string.Empty);
                     bool fire;
-                    lock (_driftWarnedLock) fire = _extendsDriftWarned.Add(warnKey);
+                    lock (_driftWarnedLock)
+                    {
+                        // GAP-G: soft-cap so a long-running session with many
+                        // unique (child, parent) pairs cannot leak unbounded
+                        // memory. 1024 is an order of magnitude above any
+                        // realistic project's drawing-type catalogue.
+                        if (_extendsDriftWarned.Count > 1024) _extendsDriftWarned.Clear();
+                        fire = _extendsDriftWarned.Add(warnKey);
+                    }
                     if (fire)
                         StingTools.Core.StingLog.Warn(
                             $"DrawingType '{leaf.Id}' extends '{cur.Id}' which has drifted from corporate baseline; " +
@@ -348,9 +356,33 @@ namespace StingTools.Core.Drawing
             }
             merged.DrawingTypes = byId.Values.ToList();
 
-            // Project routing rules are prepended (first-match-wins semantics)
+            // Project routing rules are prepended (first-match-wins semantics).
+            // GAP-J: dedupe by the (discipline, phase, docType) triple plus
+            // any predicate fields that participate in matching, so a project
+            // rule that overrides a corporate rule for the same key fully
+            // suppresses the corporate entry rather than leaving it as a
+            // never-reached trailing rule.
             if (over.Routing != null && over.Routing.Count > 0)
+            {
                 merged.Routing.InsertRange(0, over.Routing);
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var deduped = new List<DrawingRoutingRule>();
+                foreach (var rule in merged.Routing)
+                {
+                    if (rule == null) continue;
+                    string sig = string.Join("|",
+                        rule.Discipline ?? "*",
+                        rule.Phase ?? "*",
+                        rule.DocType ?? "*",
+                        rule.DisciplineMatches ?? "",
+                        rule.PhaseMatches ?? "",
+                        rule.DocTypeMatches ?? "",
+                        rule.LevelMatches ?? "",
+                        rule.ProjectCodeMatches ?? "");
+                    if (seen.Add(sig)) deduped.Add(rule);
+                }
+                merged.Routing = deduped;
+            }
 
             return merged;
         }
