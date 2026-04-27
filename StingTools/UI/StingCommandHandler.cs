@@ -334,6 +334,8 @@ namespace StingTools.UI
                     case "DrawingTypes_Inspect": RunCommand<Commands.Drawing.DrawingTypesInspectCommand>(app); break;
                     case "DrawingTypes_Reload":  RunCommand<Commands.Drawing.DrawingTypesReloadCommand>(app);  break;
                     case "DrawingTypes_Editor":  RunCommand<Commands.Drawing.DrawingTypeEditorCommand>(app);   break;
+                    case "DrawingTypes_ExportExcel": RunCommand<BIMManager.DrawingTypeExportExcelCommand>(app); break;
+                    case "DrawingTypes_ImportExcel": RunCommand<BIMManager.DrawingTypeImportExcelCommand>(app); break;
                     case "DrawingTypes_GroupBrowser":  DrawingTypesGroupBrowserInline(app); break;
                     case "DrawingTypes_SyncStyles":    DrawingTypesSyncStylesInline(app);   break;
                     case "DrawingTypes_FromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;

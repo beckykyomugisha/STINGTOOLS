@@ -3453,3 +3453,147 @@ deferred. That follow-up has now landed:
   the runtime mirror — and is not yet referenced by an
   `IExternalCommand`. A Phase 139 follow-up will add a
   `MepSymbolBrowser` command that surfaces these in the Tags tab.
+
+#### Completed (Phase 139 — Drawing Types library expansion + Excel round-trip)
+
+**STING_DRAWING_TYPES.json — 8 new corporate types + 8 routing rules**
+
+Added 8 architectural / presentation profiles to the Drawing Type
+catalogue, taking the corporate count from 43 → 51 production
+profiles. Each type carries a real `viewStylePackId`, full ISO 19650
+`sheetNumberPattern`, and a populated `print` block:
+
+- `arch-setting-out-A1-1to50` — construction setting-out plan, ordinate
+  dims, mono print, `corp-standard-plan` pack.
+- `arch-partition-layout-A1-1to50` — internal partition layout with
+  wall / door / window auto-tags.
+- `arch-demolition-A1-1to100` — phase-aware demolition plan, references
+  the new `corp-demolition-phase` pack (existing-grey / demolished-red /
+  new-bold filter rule cascade).
+- `arch-sanitary-layout-A1-1to50` — wet-room layout cropped to room
+  boundary, fixture + room tags.
+- `arch-raised-floor-A1-1to50` — RAF panel-grid plan, ordinate dims.
+- `arch-screed-buildup-A3-1to10` — A3 floor build-up detail with
+  material tags, tight bbox crop + 30 mm margin.
+- `arch-area-plan-A1-1to200` — GIA / NIA area + room tags, presentation
+  print at 0.9× line-weight scale.
+- `pres-floor-plan-A1` — client-presentation floor plan, room tags
+  only, no dims, `corp-presentation-rich` pack.
+
+The 8 routing rules are prepended to the routing table so they resolve
+ahead of the generic `arch-plan-A1-1to100` catch-all. New `docType`
+codes: `SETTING_OUT`, `PARTITION`, `SANITARY`, `RAISED_FLOOR`,
+`FLOOR_DETAIL`, `AREA_PLAN`. The `Demolition` phase + wildcard `*`
+docType also routes to the demolition profile.
+
+Also added `print` blocks to the 29 corporate types that lacked one
+and re-pointed the 4 structural types (`struct-plan`, `struct-section`,
+`struct-foundation`, `struct-rebar-detail`) at the new
+`corp-structural-plan` pack.
+
+**STING_VIEW_STYLE_PACKS.json — comprehensive UK AEC VG standards**
+
+Rewrote the corporate style-pack catalogue against BS 1192:2007+A2:2016
++ ISO 13567 + CIBSE discipline colour conventions:
+
+- `corp-base` expanded from ~10 categories to **79 categories**
+  (every architectural / structural / MEP / annotation / view-control
+  category in the Revit BIC list). Discipline colours: structural
+  concrete `#C00000`, structural steel `#0070C0`, HVAC ductwork
+  `#00B0F0`, mechanical pipework `#00B050`, electrical HV/LV `#FFC000`,
+  plumbing `#00FFFF`, fire protection `#FF0000`, low-voltage / data
+  `#7030A0`, civil drainage `#C08000`, site `#008000`. Five universal
+  filter rules (Existing-Halftone / New-Construction / Demolished /
+  Temporary / Proposed-Planning) shipped on the root pack so every
+  child inherits them.
+- `corp-standard-plan` / `corp-standard-rcp` /
+  `corp-standard-section` / `corp-standard-elevation` /
+  `corp-standard-detail` overhauled to override only the cells that
+  differ from the base — structural framing in steel-blue at LW 7,
+  walls cut LW 8 on plans, MEP halftoned as background, RCP flips
+  ceilings bold and walls halftoned, sections cut LW 8 with beyond-cut
+  LW 4 grey, details push wall-cut to LW 9.
+- `corp-coordination` — extends `corp-base`. Architectural + structural
+  backgrounds halftoned at LW 4 (50% transparency on floors); ducts +
+  pipes + electrical un-halftoned in CIBSE colours. New
+  `Linked Arch - Background` filter rule for halftoning the linked-in
+  architectural model.
+- `corp-fabrication-shop` — re-parented onto `corp-base` (was
+  `corp-coordination`). Mono LW 7 pipework / ductwork; insulation LW
+  3 grey; everything else halftoned.
+- `corp-presentation-rich` — re-parented onto `corp-base` (was
+  `corp-standard-plan`). Walls dark slate `#2F3542` LW 7-8; floors
+  `#DFE4EA`; ceilings `#747D8C`; rooms 60% transparent; MEP +
+  structural + grids halftoned; soft `#A5D6A7` topography.
+- `corp-presentation-mono` — full greyscale override of
+  presentation-rich (4 greys: `#000000`, `#404040`, `#808080`,
+  `#C0C0C0`); transparency cleared, halftone disabled.
+- `corp-clarification` — re-parented onto `corp-standard-plan` (was
+  `corp-base`). Adds a `Clarification Markup` red filter rule + red
+  revision clouds + red text notes.
+
+Two new corporate packs:
+
+- **`corp-demolition-phase`** — extends `corp-standard-plan`. Carries
+  the standard demolition filter trio (Demolished / Existing-To-Remain /
+  New Work) tuned for plan output.
+- **`corp-structural-plan`** — extends `corp-base`. Concrete-floors
+  `#C00000` LW 7-8, steel-framing `#0070C0` LW 7-8, rebar `#FF0000`
+  LW 5; all architectural + MEP categories halftoned. Wired into the 4
+  structural drawing types and added to the routing table at
+  `Plan/STRUCT` and `Section/STRUCT`.
+
+**Excel round-trip — `BIMManager/DrawingTypeExcelCommands.cs`**
+
+New ~1,650-line file implementing bidirectional Excel ↔ JSON exchange
+for the Drawing Type catalogue and View Style Pack library:
+
+- `DrawingTypeExcelEngine` (internal static): `ExportWorkbook` builds
+  an 8-sheet workbook (DrawingTypes, StylePacks, VgOverrides,
+  FilterRules, Slots, TitleBlockParams, Routing, _Legend hidden) with
+  data-validation dropdowns on every enum column, **live colour swatches**
+  on hex cells (cell background fill matches the resolved colour, text
+  colour auto-inverts for legibility), locked id/origin/checksum columns,
+  alternating row fill, frozen header row, and a hidden legend sheet
+  with the 14 discipline reference colours + Revit line-weight
+  conversion table. `ValidateImport` runs eight integrity checks
+  (orphan references in 4 dimensions, duplicate ids, hex-colour
+  pattern, numeric-range bounds, enum membership, and DFS-based
+  extends-cycle detection). `ImportWorkbook` clones the existing
+  libraries, applies edits with `ChangeRecord` per-field tracking,
+  flips modified corporate entries to `project` origin so the
+  shipped baseline files stay pristine, and full-replaces VG /
+  filter / slot / title-block-param child collections per parent.
+  `ApplyImport` writes `_BIM_COORD/drawing_types.json` +
+  `view_style_packs.json` and invalidates both runtime registry
+  caches.
+- `DrawingTypeExportExcelCommand` — read-only command, writes to
+  `OutputLocationHelper.GetOutputPath(...)`, offers Open-in-Excel /
+  Open-folder follow-up actions.
+- `DrawingTypeImportExcelCommand` — manual-transaction command. Pre-flight
+  validates the workbook; surfaces errors via `StingResultPanel` and
+  blocks import; surfaces warnings via TaskDialog and asks for
+  confirmation; shows a per-EntityType change-summary panel before
+  applying inside a single `STING Import Drawing Types` transaction.
+- Both commands implement `IExternalCommand` + `IPanelCommand` so they
+  fire correctly from both the ribbon and the WPF dock panel.
+
+Wired into `StingCommandHandler.cs` via two new tags
+(`DrawingTypes_ExportExcel` / `DrawingTypes_ImportExcel`) and surfaced
+in the DOCS tab Drawing Types wrap-panel as `↓ Export to Excel` /
+`↑ Import from Excel` buttons.
+
+**Caveats**
+
+- Built without `dotnet build` verification (Linux sandbox).
+- The `ViewStylePackLibrary` runtime class in
+  `Core/Drawing/ViewStylePack.cs` uses `viewStylePacks` as its root
+  JSON property whereas the on-disk file uses `stylePacks` — this drift
+  pre-dates Phase 139 and is documented inline in
+  `DrawingTypeExcelCommands.cs`. The Excel command works around it by
+  using its own POCO set (`StylePackDoc`) that matches the file 1:1
+  (mirrors the editor-side model in `DrawingTypeEditorDialog.cs`).
+- The 11 corporate VG packs reference text / dimension / view-template
+  / tag-family names that projects must supply; `DrawingTypeValidator`
+  reports missing assets as warnings, so the JSON ships usable on a
+  stock project.
