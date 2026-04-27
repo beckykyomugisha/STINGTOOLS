@@ -1010,7 +1010,9 @@ namespace StingTools.BIMManager
             FlipModifiedCorporateOriginDt(dt, changes);
             FlipModifiedCorporateOriginPacks(packs, changes);
 
-            return new ImportResult { UpdatedDtLib = dt, UpdatedPackLib = packs, Changes = changes };
+            var result = new ImportResult { UpdatedDtLib = dt, UpdatedPackLib = packs };
+            result.Changes.AddRange(changes);
+            return result;
         }
 
         private static DrawingTypeLibrary CloneDt(DrawingTypeLibrary src)
