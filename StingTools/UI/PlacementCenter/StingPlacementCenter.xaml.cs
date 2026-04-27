@@ -101,6 +101,10 @@ namespace StingTools.UI.PlacementCenter
             rbScopeSel.Checked       += (_,__) => VM.RunOpts.Scope = "Selection";
             rbScopeProj.Checked      += (_,__) => VM.RunOpts.Scope = "Project";
 
+            // Phase 139.8 — Auto-place category checklist toggles.
+            btnCatAll.Click  += (_,__) => SetAllCategoryChecks(true);
+            btnCatNone.Click += (_,__) => SetAllCategoryChecks(false);
+
             // Per-rule field handlers — wired manually so we can validate after each edit
             cmbCategory.LostFocus       += (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
             cmbCategory.SelectionChanged+= (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
@@ -342,6 +346,23 @@ namespace StingTools.UI.PlacementCenter
                 return;
             }
 
+            // Phase 139.8 — apply the explicit category checklist if any
+            // box is ticked. Empty checklist = "every category in the rule
+            // pack is allowed" (legacy behaviour).
+            var allowed = ReadCategoryChecklist();
+            if (allowed.Count > 0)
+            {
+                int before = rules.Count;
+                rules = rules.Where(r => allowed.Contains(r.CategoryFilter ?? "")).ToList();
+                StingLog.Info($"PlacementCenter: category filter kept {rules.Count} / {before} rules.");
+                if (rules.Count == 0)
+                {
+                    TaskDialog.Show("STING — Placement Centre",
+                        "Category checklist filtered every rule out. Tick more categories or clear the checklist.");
+                    return;
+                }
+            }
+
             var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
             if (roomIds.Count == 0)
             {
@@ -351,10 +372,13 @@ namespace StingTools.UI.PlacementCenter
             }
 
             // Confirm with a summary so the run isn't silently destructive.
+            string catLine = allowed.Count == 0
+                ? "Categories: ALL (checklist empty)"
+                : "Categories: " + string.Join(", ", allowed);
             var confirm = new TaskDialog("STING — Run Placement")
             {
                 MainInstruction = $"Place fixtures in {roomIds.Count} room(s)?",
-                MainContent = $"Rules: {rules.Count}\nScope: {VM.RunOpts.Scope}\nValidators after: {VM.RunOpts.RunValidators}\n\nThe engine creates new FamilyInstance(s); use Undo or 'Undo last run' (Phase D) to revert.",
+                MainContent = $"Rules: {rules.Count}\nScope: {VM.RunOpts.Scope}\n{catLine}\nValidators after: {VM.RunOpts.RunValidators}\n\nThe engine creates new FamilyInstance(s); use Undo or 'Undo last run' (Phase D) to revert.",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 DefaultButton = TaskDialogResult.No,
             };
@@ -1026,6 +1050,44 @@ namespace StingTools.UI.PlacementCenter
                 e.PropertyName == nameof(VM.DirtyCount) ||
                 e.PropertyName == nameof(VM.ProjectFilePath))
                 UpdateStatus();
+        }
+
+        // Phase 139.8 — checklist plumbing.
+        private (System.Windows.Controls.CheckBox cb, string cat)[] CategoryChecklist()
+            => new (System.Windows.Controls.CheckBox, string)[]
+            {
+                (cbCatElec,   "Electrical Fixtures"),
+                (cbCatLtgDev, "Lighting Devices"),
+                (cbCatLtgFix, "Lighting Fixtures"),
+                (cbCatComm,   "Communication Devices"),
+                (cbCatData,   "Data Devices"),
+                (cbCatSec,    "Security Devices"),
+                (cbCatFire,   "Fire Alarm Devices"),
+                (cbCatPlm,    "Plumbing Fixtures"),
+                (cbCatHvac,   "Air Terminals"),
+                (cbCatSpr,    "Sprinklers"),
+                (cbCatMech,   "Mechanical Equipment"),
+                (cbCatCond,   "Conduits"),
+                (cbCatJBox,   "Junction Boxes"),
+                (cbCatPipe,   "Pipes"),
+                (cbCatTray,   "Cable Trays"),
+                (cbCatSpec,   "Specialty Equipment"),
+                (cbCatFurn,   "Furniture"),
+                (cbCatNurse,  "Nurse Call Devices"),
+            };
+
+        private System.Collections.Generic.HashSet<string> ReadCategoryChecklist()
+        {
+            var s = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            foreach (var (cb, cat) in CategoryChecklist())
+                if (cb != null && cb.IsChecked == true) s.Add(cat);
+            return s;
+        }
+
+        private void SetAllCategoryChecks(bool on)
+        {
+            foreach (var (cb, _) in CategoryChecklist())
+                if (cb != null) cb.IsChecked = on;
         }
 
         private void UpdateStatus()

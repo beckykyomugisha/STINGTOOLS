@@ -4136,3 +4136,79 @@ parameters, common mistakes), the project-setup checklist, and a
 re-run cadence guide for designers. Cross-referenced from the audit
 command.
 
+
+#### Completed (Phase 139.7 — Scope honoured + pre-flight family check)
+
+Real-world bug report: user picked "Active view" radio in the
+Fixtures tab; confirm dialog said "About to place fixtures across the
+entire project". Plus the result panel showed half the per-rule
+counts at zero with a single warning line buried mid-list — designer
+couldn't tell whether a category had no rules, or had rules but no
+family loaded.
+
+**Scope radio honoured (the headline fix):**
+
+`PlaceFixturesOptions.ScopeMode` enum (SelectedRooms / ActiveView /
+AllRooms) plumbed from the dock-panel `rbFxScopeSel` /
+`rbFxScopeView` / `rbFxScopeAll` radios via a new `RadState` helper
+in `StingDockPanel.xaml.cs` (mirror of the existing `ChkState`).
+
+`PlaceFixturesCommand.Execute` now branches on `ScopeMode`:
+
+- `SelectedRooms` — uses `uidoc.Selection.GetElementIds()` (legacy);
+  if no rooms are selected, prompts the user instead of silently
+  falling through to "entire project".
+- `ActiveView` — uses
+  `new FilteredElementCollector(doc, view.Id).OfCategory(OST_Rooms)`,
+  the proper view-bounded query.
+- `AllRooms` — engine fallback (empty `selectedRoomIds`).
+
+`ConfirmPlacement(string scopeLabel)` and
+`PromptDryRunChoice(string scopeLabel)` now take the resolved label
+instead of computing it from selection count, so the dialog text
+matches the radio.
+
+**Pre-flight family check:**
+
+After the rule load + category filter, the command walks every
+ticked category and reports those with zero loaded `FamilySymbol`s.
+The user sees a TaskDialog listing the affected categories and is
+asked to continue or cancel. Stops the silent "No FamilySymbol
+found for category 'Electrical Fixtures' — skipping its rules"
+warning that was leaving designers wondering why their sockets
+hadn't landed.
+
+
+#### Completed (Phase 139.8 — ActiveView room collection + Placement Centre auto-place checklist)
+
+User reported the Phase 139.7 fix went halfway: the Placement Centre's
+own Run-Placement dialog said "Place fixtures in 1 room(s)" with
+"Scope: ActiveView" — even though the active plan had ~12 rooms.
+
+Root cause: `FilteredElementCollector(doc, view.Id).OfCategory(OST_Rooms)`
+doesn't enumerate rooms reliably. Revit's view-bounded collector
+walks the view's drawn elements and Rooms (logical, non-3D entities)
+get filtered out unpredictably; one or zero rooms is the typical
+result.
+
+Fix:
+
+- `PlacementCenterBridge.ResolveScope` (Centre-side) and
+  `PlaceFixturesCommand.Execute` (dock-panel-side) ActiveView branch
+  now:
+    - Plan view → `view.GenLevel`-bounded room walk.
+    - Other view types → bbox-intersection against `view.CropBox`
+      (with no-crop fallback to all rooms).
+- `StingPlacementCenter.xaml` adds an explicit "Auto-place" category
+  checklist with 18 categories (Electrical Fixtures, Lighting
+  Devices, Lighting Fixtures, Communication Devices, Data Devices,
+  Security Devices, Fire Alarm Devices, Plumbing Fixtures, Air
+  Terminals, Sprinklers, Mechanical Equipment, Conduits, Junction
+  Boxes, Pipes, Cable Trays, Specialty Equipment, Furniture, Nurse
+  Call Devices) plus All / None convenience buttons.
+- `OnRunPlacement_Click` filters the active rule pack by the ticked
+  categories before invoking the engine. Empty checklist =
+  every-category (legacy behaviour). The confirm dialog now lists
+  the allowed categories so the user can see what the run will and
+  won't touch.
+
