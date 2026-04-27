@@ -3211,6 +3211,95 @@ namespace StingTools.Model
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
         }
+
+        // ── Phase-142: Beam support post-creation pass ───────────────────
+
+        /// <summary>
+        /// Applies per-beam adjustments after CreateBeamsFromLines has run:
+        ///
+        ///   - BeamsRestOnWalls: when at least one endpoint is supported by a
+        ///     wall (and not by a column), set z-offset Start/End so the beam
+        ///     base sits at the wall top instead of the level base.
+        ///   - MarkCantileverBeams: stamp the Comments parameter with
+        ///     "Cantilever (start)", "Cantilever (end)", or "Free beam" when
+        ///     one or both endpoints lack any structural support.
+        /// </summary>
+        private void ApplyBeamSupportPostCreation(
+            List<ElementId> createdIds, int beamStartIndex,
+            List<BeamSupportClassifier.BeamSupport> supports,
+            DWGConversionConfig config, StructuralModelResult result)
+        {
+            int beamCount = createdIds.Count - beamStartIndex;
+            if (beamCount <= 0) return;
+
+            int offsetApplied = 0, cantileverMarked = 0;
+            using (var tx = new Transaction(_doc, "STING STRUCT: Beam support post-creation"))
+            {
+                tx.Start();
+                for (int i = 0; i < beamCount && i < supports.Count; i++)
+                {
+                    var id = createdIds[beamStartIndex + i];
+                    var el = _doc.GetElement(id);
+                    if (el == null || el.Category == null) continue;
+                    if (el.Category.Id.IntegerValue !=
+                        (int)BuiltInCategory.OST_StructuralFraming)
+                        continue; // category mismatch — skip rather than guess
+
+                    var sup = supports[i];
+
+                    // Per-beam BeamsRestOnWalls: only apply when at least one endpoint
+                    // sits on a wall AND no endpoint sits on a column.
+                    if (config.BeamsRestOnWalls && sup.RestsOnWall)
+                    {
+                        bool eitherOnColumn =
+                            sup.StartSupport == BeamSupportClassifier.SupportType.Column
+                            || sup.EndSupport == BeamSupportClassifier.SupportType.Column
+                            || sup.StartSupport == BeamSupportClassifier.SupportType.Both
+                            || sup.EndSupport == BeamSupportClassifier.SupportType.Both;
+                        if (!eitherOnColumn)
+                        {
+                            try
+                            {
+                                double liftFt = Units.Mm(config.WallHeightMm);
+                                var startOff = el.get_Parameter(
+                                    BuiltInParameter.STRUCTURAL_BEAM_END0_ELEVATION);
+                                var endOff   = el.get_Parameter(
+                                    BuiltInParameter.STRUCTURAL_BEAM_END1_ELEVATION);
+                                if (startOff != null && !startOff.IsReadOnly) startOff.Set(liftFt);
+                                if (endOff != null && !endOff.IsReadOnly)     endOff.Set(liftFt);
+                                offsetApplied++;
+                            }
+                            catch (Exception ex) { result.Warnings.Add($"Beam-on-wall offset: {ex.Message}"); }
+                        }
+                    }
+
+                    // Cantilever / free-end Comments stamp.
+                    if (config.MarkCantileverBeams && sup.HasFreeEnd)
+                    {
+                        try
+                        {
+                            string label;
+                            if (sup.StartSupport == BeamSupportClassifier.SupportType.None
+                                && sup.EndSupport == BeamSupportClassifier.SupportType.None)
+                                label = "STING: Free beam (no support)";
+                            else if (sup.StartSupport == BeamSupportClassifier.SupportType.None)
+                                label = "STING: Cantilever (start)";
+                            else
+                                label = "STING: Cantilever (end)";
+                            var p = el.LookupParameter("Comments");
+                            if (p != null && !p.IsReadOnly) { p.Set(label); cantileverMarked++; }
+                        }
+                        catch (Exception ex) { result.Warnings.Add($"Cantilever mark: {ex.Message}"); }
+                    }
+                }
+                tx.Commit();
+            }
+
+            if (offsetApplied > 0)
+                StingLog.Info($"  Beam-on-wall offset applied to {offsetApplied} beam(s)");
+            if (cantileverMarked > 0)
+                StingLog.Info($"  Cantilever / free-beam stamps applied to {cantileverMarked} beam(s)");
+        }
     }
 
 
@@ -3507,102 +3596,6 @@ namespace StingTools.Model
             return point.DistanceTo(proj);
         }
 
-        // ── Phase-142: Beam support post-creation pass ───────────────────
-
-        /// <summary>
-        /// Applies per-beam adjustments after CreateBeamsFromLines has run:
-        ///
-        ///   - BeamsRestOnWalls: when at least one endpoint is supported by a
-        ///     wall (and not by a column), set z-offset Start/End so the beam
-        ///     base sits at the wall top instead of the level base.
-        ///   - MarkCantileverBeams: stamp the Comments parameter with
-        ///     "Cantilever (start)", "Cantilever (end)", or "Free beam" when
-        ///     one or both endpoints lack any structural support.
-        /// </summary>
-        private void ApplyBeamSupportPostCreation(
-            List<ElementId> createdIds, int beamStartIndex,
-            List<BeamSupportClassifier.BeamSupport> supports,
-            DWGConversionConfig config, StructuralModelResult result)
-        {
-            // The beams we just added are at indices [beamStartIndex, end). Their
-            // positional order in createdIds matches the BeamLines order (and thus
-            // the supports list order) ONLY when no exceptions were thrown during
-            // creation. We tolerate mismatches by walking pairwise and bailing on
-            // a category mismatch.
-
-            int beamCount = createdIds.Count - beamStartIndex;
-            if (beamCount <= 0) return;
-
-            int offsetApplied = 0, cantileverMarked = 0;
-            using (var tx = new Transaction(_doc, "STING STRUCT: Beam support post-creation"))
-            {
-                tx.Start();
-                for (int i = 0; i < beamCount && i < supports.Count; i++)
-                {
-                    var id = createdIds[beamStartIndex + i];
-                    var el = _doc.GetElement(id);
-                    if (el == null || el.Category == null) continue;
-                    if (el.Category.Id.IntegerValue !=
-                        (int)BuiltInCategory.OST_StructuralFraming)
-                        continue; // category mismatch — skip rather than guess
-
-                    var sup = supports[i];
-
-                    // Per-beam BeamsRestOnWalls: only apply when at least one endpoint
-                    // sits on a wall AND no endpoint sits on a column. Beams between
-                    // columns keep their level-relative position.
-                    if (config.BeamsRestOnWalls && sup.RestsOnWall)
-                    {
-                        bool eitherOnColumn =
-                            sup.StartSupport == BeamSupportClassifier.SupportType.Column
-                            || sup.EndSupport == BeamSupportClassifier.SupportType.Column
-                            || sup.StartSupport == BeamSupportClassifier.SupportType.Both
-                            || sup.EndSupport == BeamSupportClassifier.SupportType.Both;
-                        if (!eitherOnColumn)
-                        {
-                            try
-                            {
-                                // Lift the beam base by wall height so it sits ON TOP of the wall.
-                                double liftFt = Units.Mm(config.WallHeightMm);
-                                var startOff = el.get_Parameter(
-                                    BuiltInParameter.STRUCTURAL_BEAM_END0_ELEVATION);
-                                var endOff   = el.get_Parameter(
-                                    BuiltInParameter.STRUCTURAL_BEAM_END1_ELEVATION);
-                                if (startOff != null && !startOff.IsReadOnly) startOff.Set(liftFt);
-                                if (endOff != null && !endOff.IsReadOnly)     endOff.Set(liftFt);
-                                offsetApplied++;
-                            }
-                            catch (Exception ex) { result.Warnings.Add($"Beam-on-wall offset: {ex.Message}"); }
-                        }
-                    }
-
-                    // Cantilever / free-end Comments stamp.
-                    if (config.MarkCantileverBeams && sup.HasFreeEnd)
-                    {
-                        try
-                        {
-                            string label;
-                            if (sup.StartSupport == BeamSupportClassifier.SupportType.None
-                                && sup.EndSupport == BeamSupportClassifier.SupportType.None)
-                                label = "STING: Free beam (no support)";
-                            else if (sup.StartSupport == BeamSupportClassifier.SupportType.None)
-                                label = "STING: Cantilever (start)";
-                            else
-                                label = "STING: Cantilever (end)";
-                            var p = el.LookupParameter("Comments");
-                            if (p != null && !p.IsReadOnly) { p.Set(label); cantileverMarked++; }
-                        }
-                        catch (Exception ex) { result.Warnings.Add($"Cantilever mark: {ex.Message}"); }
-                    }
-                }
-                tx.Commit();
-            }
-
-            if (offsetApplied > 0)
-                StingLog.Info($"  Beam-on-wall offset applied to {offsetApplied} beam(s)");
-            if (cantileverMarked > 0)
-                StingLog.Info($"  Cantilever / free-beam stamps applied to {cantileverMarked} beam(s)");
-        }
     }
 
     #endregion
