@@ -54,8 +54,6 @@ namespace StingTools.UI.PlacementCenter
         private ExternalEvent _runEvent;
         private PlacementRunHandler _runHandler;
         private PlacementRunRequest _runRequest;
-        private bool _runDone;
-        private System.Windows.Threading.DispatcherFrame _runFrame;
 
         private void EnsureRunEvent()
         {
@@ -79,6 +77,9 @@ namespace StingTools.UI.PlacementCenter
             public System.Threading.CancellationTokenSource HeartbeatCts;
             public PlacementResult Result;
             public Exception Error;
+            public DateTime StartUtc;
+            public bool PrevStamp;
+            public bool PrevLearn;
         }
 
         private sealed class PlacementRunHandler : IExternalEventHandler
@@ -124,10 +125,14 @@ namespace StingTools.UI.PlacementCenter
             {
                 try
                 {
-                    _owner._runDone = true;
-                    var f = _owner._runFrame;
-                    if (f != null)
-                        _owner.Dispatcher.BeginInvoke(new System.Action(() => f.Continue = false));
+                    var req  = _owner._runRequest;
+                    var res  = req?.Result;
+                    var err  = req?.Error;
+                    _owner.Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        try { _owner.OnRunCompleted(req, res, err); }
+                        catch (Exception ex) { StingLog.Warn($"OnRunCompleted: {ex.Message}"); }
+                    }));
                 }
                 catch { }
             }
@@ -577,55 +582,68 @@ namespace StingTools.UI.PlacementCenter
                     try { progress.SetStatus(label); } catch { break; }
                 }
             }, heartbeatCts.Token);
+            // Phase 139.13 — non-blocking ExternalEvent dispatch.  The
+            // previous PushFrame approach blocked the WPF thread waiting
+            // for Revit to service the event, but Revit only services
+            // ExternalEvents on its idle cycle and a nested WPF message
+            // pump apparently doesn't trigger that idle reliably (user
+            // saw "Pre-flight in progress (3776s)" with no engine
+            // activity). The standard pattern is fire-and-forget: the
+            // click handler returns immediately, the handler completes
+            // asynchronously, and the post-run UI work is dispatched
+            // back via Dispatcher.BeginInvoke.
+            _runRequest = new PlacementRunRequest
+            {
+                Doc          = _doc,
+                RoomIds      = roomIds,
+                Rules        = rules,
+                Progress     = progress,
+                HeartbeatCts = heartbeatCts,
+                StartUtc     = startUtc,
+                PrevStamp    = prevStamp,
+                PrevLearn    = prevLearn,
+            };
             try
             {
-                // Phase 139.10 — modeless WPF cannot start a Transaction
-                // directly under Revit 2025+ ("Starting a transaction from
-                // an external application running outside of API context
-                // is not allowed"). Dispatch the run to the Revit API
-                // thread via an IExternalEventHandler. The handler runs
-                // the engine inside a TransactionGroup, then signals back
-                // here via _runDone (set on the API thread, polled on the
-                // UI thread).
-                _runRequest = new PlacementRunRequest
-                {
-                    Doc          = _doc,
-                    RoomIds      = roomIds,
-                    Rules        = rules,
-                    Progress     = progress,
-                    HeartbeatCts = heartbeatCts,
-                };
-                _runDone   = false;
                 EnsureRunEvent();
                 _runEvent.Raise();
-                // WPF-native nested pump: keeps the UI responsive (progress
-                // bar updates, Cancel button reacts) while the API-thread
-                // handler executes the engine.
-                var frame = new System.Windows.Threading.DispatcherFrame();
-                _runFrame = frame;
-                System.Windows.Threading.Dispatcher.PushFrame(frame);
-                _runFrame = null;
-                result = _runRequest?.Result;
-                if (_runRequest?.Error != null) throw _runRequest.Error;
             }
             catch (Exception ex)
             {
-                StingLog.Error("PlacementCenter.OnRunPlacement", ex);
-                TaskDialog.Show("STING — Placement Centre", $"Run failed: {ex.Message}");
-                VM.Status = $"Run failed: {ex.Message}";
+                StingLog.Error("PlacementCenter.OnRunPlacement raise", ex);
+                TaskDialog.Show("STING — Placement Centre", $"Could not start run: {ex.Message}");
+                try { heartbeatCts.Cancel(); } catch { }
+                try { progress?.Close(); } catch { }
+                StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
+                StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
+                return;
+            }
+            // Click-handler returns here. Engine runs on API thread; the
+            // handler will invoke OnRunCompleted on the WPF thread when
+            // done.
+            return;
+        }
+
+        // Phase 139.13 — completion callback. Runs on the WPF thread
+        // (Dispatcher.BeginInvoke from the IExternalEventHandler).
+        private void OnRunCompleted(PlacementRunRequest req, PlacementResult result, Exception err)
+        {
+            try { req?.HeartbeatCts?.Cancel(); } catch { }
+            try { req?.Progress?.Close(); } catch { }
+            StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = req?.PrevStamp ?? false;
+            StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = req?.PrevLearn ?? false;
+
+            if (err != null)
+            {
+                StingLog.Error("PlacementCenter.OnRunCompleted err", err);
+                TaskDialog.Show("STING — Placement Centre", $"Run failed: {err.Message}");
+                VM.Status = $"Run failed: {err.Message}";
                 UpdateStatus();
                 return;
             }
-            finally
-            {
-                // Restore the option-bag so other entry points aren't affected.
-                StingTools.Commands.Placement.PlaceFixturesOptions.StampProvenance = prevStamp;
-                StingTools.Commands.Placement.PlaceFixturesOptions.HonourLearned   = prevLearn;
-                try { heartbeatCts.Cancel(); } catch { }
-                try { progress?.Close(); } catch { }
-            }
 
-            _lastRunUtc = startUtc;
+
+            _lastRunUtc = req.StartUtc;
             _lastPlacedIds = result?.PlacedIds?.ToList() ?? new List<ElementId>();
             int placed  = _lastPlacedIds.Count;
             int skipped = result?.SkippedCount ?? 0;
@@ -634,15 +652,13 @@ namespace StingTools.UI.PlacementCenter
             VM.Status = $"Placed {placed} · skipped {skipped} · warnings {warns}";
             UpdateStatus();
 
-            // Phase 139.9 — rich result panel so the user sees what landed
-            // (or didn't) without having to read the bottom status bar.
             try
             {
                 var panel = StingResultPanel.Create("STING — Placement Centre · Run");
                 panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s)");
                 panel.AddSection("SUMMARY")
-                    .Metric("Rooms scoped",         roomIds.Count.ToString())
-                    .Metric("Rules considered",     rules.Count.ToString())
+                    .Metric("Rooms scoped",         (req.RoomIds?.Count ?? 0).ToString())
+                    .Metric("Rules considered",     (req.Rules?.Count ?? 0).ToString())
                     .Metric("Candidates evaluated", (result?.CandidatesEvaluated ?? 0).ToString())
                     .Metric("Placed",               placed.ToString())
                     .Metric("Skipped",              skipped.ToString());
@@ -657,7 +673,6 @@ namespace StingTools.UI.PlacementCenter
                 if (placed == 0)
                 {
                     panel.AddSection("ZERO PLACED — common causes")
-                        .Text("• Modeless transaction error ('Starting a transaction … is not allowed') — Phase 139.10 routes the run through IExternalEventHandler; pull the latest if you still see this.")
                         .Text("• Ticked category has no Family Type loaded. A Family (.rfa) is the container; the engine needs at least one Type loaded into the project (drag one from the .rfa in Project Browser into a view).")
                         .Text("• RoomFilter regex doesn't match the active rooms (check the rule's RoomFilter against the room name in Properties).")
                         .Text("• PlacementHostPreflight rejected every candidate (hosted family but no host wall/ceiling element nearby).")
@@ -675,21 +690,15 @@ namespace StingTools.UI.PlacementCenter
             }
             catch (Exception pEx) { StingLog.Warn($"PlacementCenter post-run panel: {pEx.Message}"); }
 
-            // History panel is the source of truth for "what just happened" —
-            // refresh it so the new bucket appears immediately, before any
-            // dialog steals focus.
             try { VM.SetHistory(HistoryBridge.ReadHistory(_doc)); }
             catch (Exception hEx) { StingLog.Warn($"PlacementCenter post-run history refresh: {hEx.Message}"); }
 
-            // Auto-paint the AVF compliance heat-map when the toggle is on so
-            // the user sees coverage immediately after the commit.
             if (VM.RunOpts.AutoHeatmap && placed > 0)
             {
-                try { OnHeatmap_Click(sender, e); }
+                try { OnHeatmap_Click(this, null); }
                 catch (Exception hmEx) { StingLog.Warn($"PlacementCenter auto-heatmap: {hmEx.Message}"); }
             }
 
-            // Optional: validators on what just happened
             if (VM.RunOpts.RunValidators)
                 ShowFindings(scopeToProvenance: true, headline: "Run + post-validation");
             else

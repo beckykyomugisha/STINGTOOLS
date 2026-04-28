@@ -4363,3 +4363,31 @@ Three fixes:
    `"<phase> (Ns)…"` instead of `"Pre-flight in progress (Ns)…"`. The
    user now sees exactly which step is consuming time.
 
+
+#### Completed (Phase 139.13 — non-blocking ExternalEvent dispatch)
+
+User reported the Phase 139.10 PushFrame approach hung at
+"Pre-flight in progress (3776s)" — engine never ran. Root cause: the
+Centre's button-click handler called `Dispatcher.PushFrame(frame)` to
+wait for the API-thread handler to complete, but Revit only services
+ExternalEvents on its idle cycle and a nested WPF message pump
+apparently doesn't trigger that idle reliably. Result was a
+deadlock indistinguishable from a slow run.
+
+Fix: refactor the run into the standard fire-and-forget
+ExternalEvent pattern.
+
+- `OnRunPlacement_Click` builds the request, raises the
+  ExternalEvent, then RETURNS immediately. No nested DispatcherFrame.
+- `PlacementRunHandler.Execute` runs the engine on the API thread.
+  When complete (success or error), it does
+  `Dispatcher.BeginInvoke(() => _owner.OnRunCompleted(req, res, err))`
+  which the WPF UI thread services on its next idle cycle.
+- `OnRunCompleted` does all the post-run UI work (status update,
+  rich result panel, history refresh, auto-heatmap, validators).
+  Runs on the WPF thread, so all WPF API calls are safe.
+- The PlacementRunRequest now carries StartUtc / PrevStamp / PrevLearn
+  so OnRunCompleted has the full context the click handler used to
+  hold in locals.
+- Dropped the unused `_runDone` and `_runFrame` fields.
+
