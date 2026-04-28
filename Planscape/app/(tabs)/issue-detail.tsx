@@ -49,7 +49,10 @@ import {
   listProjectMembers,
 } from '@/api/endpoints';
 import { apiFetch, getToken } from '@/api/client';
+import { getModel, modelFileUrl } from '@/api/models';
+import { ModelViewer } from '@/components/ModelViewer';
 import type { BimIssue, IssueAttachment, Project, ProjectMember } from '@/types/api';
+import type { ModelMeta, ModelPin } from '@/types/models';
 import { theme, getPriorityColor } from '@/utils/theme';
 import { imageService } from '@/services/imageService';
 import { locationService } from '@/services/locationService';
@@ -78,6 +81,14 @@ export default function IssueDetailScreen() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // MODEL-VIEWER — when issue.modelId is set we embed <ModelViewer> inline so
+  // coordinators see 3D context without leaving the detail screen. The viewer
+  // WebView can't forward an Authorization header, so the geometry URL gets
+  // the JWT appended as ?access_token=...; same pattern as app/models/[id].tsx.
+  const [viewerMeta, setViewerMeta] = useState<ModelMeta | null>(null);
+  const [viewerModelUrl, setViewerModelUrl] = useState<string | undefined>(undefined);
+  const [viewerPins, setViewerPins] = useState<ModelPin[]>([]);
+  const [viewerError, setViewerError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +186,59 @@ export default function IssueDetailScreen() {
       loadAttachments(project.id, issue.id);
     }
   }, [issue, project, loadAttachments]);
+
+  // MODEL-VIEWER — load the linked model + auth-tokened URL whenever the
+  // issue's modelId changes. Failure (model deleted, network down) is
+  // non-fatal — the embed silently disappears and the existing
+  // WebBrowser-based "Open in 3D" button still works as a fallback.
+  useEffect(() => {
+    if (!issue || !project) return;
+    if (!issue.modelId) {
+      setViewerMeta(null);
+      setViewerModelUrl(undefined);
+      setViewerPins([]);
+      setViewerError(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [meta, token, base] = await Promise.all([
+          getModel(project.id, issue.modelId!),
+          getToken(),
+          modelFileUrl(project.id, issue.modelId!),
+        ]);
+        if (cancelled) return;
+        const url = token ? `${base}?access_token=${encodeURIComponent(token)}` : base;
+        setViewerMeta(meta);
+        setViewerModelUrl(url);
+        // Place a single pin at the issue's anchor coords when present.
+        // Falls back to no pin so the embed still renders model context
+        // for issues that link a model but were created outside the viewer.
+        const x = issue.modelX, y = issue.modelY, z = issue.modelZ;
+        if (typeof x === 'number' && typeof y === 'number' && typeof z === 'number') {
+          // Pin id == issue id matches the convention in app/models/[id].tsx
+          // (ModelViewer's onPinTap uses the id as the issueId on the way back).
+          setViewerPins([{
+            id: issue.id,
+            x, y, z,
+            priority: issue.priority as ModelPin['priority'],
+          }]);
+        } else {
+          setViewerPins([]);
+        }
+        setViewerError(null);
+      } catch (err) {
+        if (cancelled) return;
+        console.warn('[issue-detail] model load failed', err);
+        setViewerError(String((err as Error)?.message ?? err));
+        setViewerMeta(null);
+        setViewerModelUrl(undefined);
+        setViewerPins([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [issue, project]);
 
   /**
    * Phase 96 — look up the current user's project role so action gating can
@@ -566,6 +630,34 @@ export default function IssueDetailScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* MODEL-VIEWER — inline 3D context for issues linked to a model.
+            Replaces the previous WebBrowser-only flow when modelId is set;
+            the actionBar's "View in 3D" button is still the right fallback
+            for un-linked issues and a "fullscreen" alternative for linked
+            ones. Fixed height keeps the surrounding ScrollView usable. */}
+        {issue.modelId && viewerModelUrl && (
+          <View style={styles.viewerSection}>
+            <Text style={styles.viewerHeader}>
+              3D model{viewerMeta?.name ? ` — ${viewerMeta.name}` : ''}
+            </Text>
+            <View style={styles.viewerHost}>
+              <ModelViewer
+                modelUrl={viewerModelUrl}
+                pins={viewerPins}
+                onError={(err) => setViewerError(err)}
+              />
+            </View>
+            {viewerPins.length === 0 && (
+              <Text style={styles.viewerHint}>
+                Issue is linked to this model but has no anchor coordinates.
+              </Text>
+            )}
+            {viewerError && (
+              <Text style={styles.viewerError}>{viewerError}</Text>
+            )}
+          </View>
+        )}
+
         {/* Photo gallery */}
         <View style={styles.gallerySection}>
           <Text style={styles.galleryHeader}>
@@ -866,6 +958,35 @@ const styles = StyleSheet.create({
     color: theme.colors.surface,
     fontSize: theme.fontSize.md,
     fontWeight: '600',
+  },
+
+  // MODEL-VIEWER — inline 3D context.
+  viewerSection: {
+    padding: theme.spacing.md,
+    paddingBottom: 0,
+  },
+  viewerHeader: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.sm,
+  },
+  viewerHost: {
+    height: 280,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
+  },
+  viewerHint: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  viewerError: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.danger,
   },
 
   gallerySection: {
