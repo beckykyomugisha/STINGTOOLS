@@ -106,7 +106,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             }
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Phase 152 — finer-grained policy for tenant-keywords admin
+    // endpoints so a BIM Manager (ISO 19650 role K on any project) can
+    // edit deliverable-state-machine vocabulary without being promoted
+    // to a tenant Owner. The handler short-circuits on Admin / Owner
+    // so existing operators are unaffected.
+    options.AddPolicy("BimManagerOrAdmin", policy =>
+        policy.Requirements.Add(new Planscape.Infrastructure.Authorization.BimManagerOrAdminRequirement()));
+});
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+    Planscape.Infrastructure.Authorization.BimManagerOrAdminHandler>();
 
 // ── Services ──
 builder.Services.AddHttpContextAccessor();

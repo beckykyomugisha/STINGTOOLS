@@ -142,6 +142,9 @@
         case "models":       await renderModels(main); break;
         case "schedule":     await renderList(main, `Schedule`, `/api/projects/${state.projectId}/schedule`, scheduleColumns); break;
         case "cost":         await renderCost(main); break;
+        // Phase 152 — admin: tenant keyword extensions for the
+        // deliverable state machine. Doesn't depend on a project.
+        case "tenant-keywords": await renderTenantKeywords(main); break;
       }
     } catch (e) {
       main.innerHTML = `<div class="empty">Could not load: ${esc(String(e))}</div>`;
@@ -301,6 +304,105 @@
   }
   function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // ── Phase 152: Tenant keyword extensions editor ───────────────────────
+  // Admin / BIM Manager surface. The server caches the result via Redis +
+  // a striped LRU; PUT body is validated server-side so a malformed JSON
+  // returns 400 with a structured error instead of being silently
+  // ignored at request time.
+  async function renderTenantKeywords(main) {
+    let current;
+    try {
+      current = await api(`/api/admin/tenant-keywords`);
+    } catch (e) {
+      main.innerHTML = `<div class="empty">Could not load tenant keywords: ${esc(String(e))}</div>`;
+      return;
+    }
+    const sample = `{
+  "working":   ["PARKED", "WAITING_ON_X"],
+  "terminal":  ["FROZEN", "DECOMMISSIONED"],
+  "rejecting": ["BLOCKED_BY_QA"]
+}`;
+    const initial = current.json && current.json.length > 0
+      ? safeFormatJson(current.json)
+      : sample;
+
+    main.innerHTML = `
+      <h1>Tenant keyword extensions</h1>
+      <p class="hint">
+        Tenant-scoped vocabulary for the deliverable state-machine role
+        inferer. Sits between platform defaults and per-project keywords;
+        project keywords still win. Recognised role buckets:
+        <code>initial</code> · <code>working</code> · <code>submitting</code> ·
+        <code>accepting</code> · <code>rejecting</code> · <code>terminal</code>.
+        Other keys are ignored.
+      </p>
+      <div class="card" style="max-width:760px">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong>Current configuration</strong>
+          <span class="chip ${current.hasExtensions ? 'green' : 'grey'}">
+            ${current.hasExtensions ? 'Active' : 'None set'}
+          </span>
+        </div>
+        <textarea id="tkJson" rows="14" spellcheck="false"
+                  style="width:100%;font-family:ui-monospace,monospace;font-size:13px"
+        >${esc(initial)}</textarea>
+        <div class="row" style="gap:8px;margin-top:8px;align-items:center">
+          <button id="tkSave" class="primary">Save</button>
+          <button id="tkClear" class="ghost">Clear extensions</button>
+          <button id="tkReset" class="ghost">Reset editor</button>
+          <span id="tkStatus" class="hint" style="margin-left:auto"></span>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("tkSave").onclick = async () => {
+      const body = document.getElementById("tkJson").value || "";
+      const status = document.getElementById("tkStatus");
+      status.textContent = "Saving…";
+      try {
+        const res = await api(`/api/admin/tenant-keywords`, {
+          method: "PUT",
+          body: JSON.stringify({ json: body }),
+        });
+        status.textContent = `Saved · ${res.buckets || 0} bucket(s) · ${res.entries || 0} keyword(s)`;
+        status.className = "hint ok";
+      } catch (e) {
+        status.textContent = `Save failed — ${esc(String(e))}`;
+        status.className = "hint error";
+      }
+    };
+
+    document.getElementById("tkClear").onclick = async () => {
+      if (!confirm("Clear all tenant keyword extensions? Projects fall back to platform + built-in vocabulary.")) return;
+      const status = document.getElementById("tkStatus");
+      status.textContent = "Clearing…";
+      try {
+        await api(`/api/admin/tenant-keywords`, {
+          method: "PUT",
+          body: JSON.stringify({ json: null }),
+        });
+        document.getElementById("tkJson").value = sample;
+        status.textContent = "Cleared.";
+        status.className = "hint ok";
+      } catch (e) {
+        status.textContent = `Clear failed — ${esc(String(e))}`;
+        status.className = "hint error";
+      }
+    };
+
+    document.getElementById("tkReset").onclick = () => {
+      document.getElementById("tkJson").value = initial;
+      const s = document.getElementById("tkStatus");
+      s.textContent = "Editor reset.";
+      s.className = "hint";
+    };
+  }
+
+  function safeFormatJson(s) {
+    try { return JSON.stringify(JSON.parse(s), null, 2); }
+    catch { return s; }
   }
   function fmtDate(v) { if (!v) return ""; try { return new Date(v).toLocaleDateString(); } catch { return v; } }
   function fmt(v, ccy) {

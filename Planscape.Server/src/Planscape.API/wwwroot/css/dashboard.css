@@ -37,6 +37,10 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
 .nav-link { display: block; padding: 10px 20px; color: var(--muted); text-decoration: none; font-weight: 500; }
 .nav-link:hover { background: var(--bg); color: var(--text); }
 .nav-link.active { color: var(--primary); border-left: 3px solid var(--accent); background: var(--bg); }
+/* Phase 152 — admin-section divider + status colours */
+.nav-divider { height: 1px; background: var(--border, #e0e0e0); margin: 16px 12px; }
+.hint.ok { color: #2e7d32; }
+.hint.error { color: var(--danger, #c62828); }
 
 .main { margin-left: 200px; margin-top: 52px; padding: 24px; }
 

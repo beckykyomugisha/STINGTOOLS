@@ -4981,3 +4981,111 @@ hardening items.
    deferred — the API surface is in place but the office dashboard
    doesn't render an editor yet. CLI / curl-based operator
    workflow works today.
+
+#### Completed (Phase 152 — Phase 151 caveat closures: Redis L2 cache, BIM-Manager auth policy, dashboard editor)
+
+The three remaining caveats from Phase 151 were all real production
+hardening items.
+
+**1 — Redis-backed L2 cache**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Workflow/DbTenantKeywordResolver.cs`
+   gained an optional `IDistributedCache` constructor parameter.
+   Two-tier cache:
+     - **L1**: static striped-LRU keyed on `(TenantId, FNV-1a content
+       hash)` (Phase 151). Process-local, survives across requests.
+     - **L2**: `IDistributedCache` (Redis in production) keyed on
+       `tk:{TenantId}:{hash}` with a 14-day TTL. Survives process
+       restarts and is shared across the API fleet so a horizontal-
+       scaled deployment doesn't pay the parse cost N times.
+   Read path: L1 hit → done. L1 miss → L2 lookup → if hit, parse
+   and fill L1. L2 miss → fetch JSON from DB → parse → fill L2 →
+   fill L1. Hash flip on admin update naturally invalidates both
+   tiers.
+2. L2 stores the source JSON, not the parsed dict, so a future DTO
+   addition doesn't need a cross-deployment invalidation. Parse is
+   cheap.
+3. L2 calls are guarded by `try { ... } catch { /* fall through */ }`
+   on both `GetStringAsync` and `SetStringAsync`. A Redis blip
+   degrades gracefully to L1 + DB rather than 500-ing the request.
+4. DI is unchanged — `IDistributedCache` was already registered for
+   `TenantContext` (Phase 96) so the resolver picks it up via the
+   optional ctor parameter without any `Program.cs` edits.
+
+**2 — Finer-grained `BimManagerOrAdmin` authorisation policy**
+
+5. New
+   `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminRequirement.cs`
+   + `BimManagerOrAdminHandler.cs`. Two short-circuits:
+     - Tenant-level `Admin` / `Owner` role grants without a DB hit
+       (existing operators see no behaviour change — the policy is a
+       strict superset of the old role gate).
+     - Otherwise a DB lookup against `ProjectMembers` grants when at
+       least one row has `Iso19650Role == "K"` and matches the
+       caller's tenant claim. One row is enough — a BIM Manager on
+       any active project counts.
+   Handler resolves the DbContext via `IServiceScopeFactory` so it's
+   safe outside an HTTP request (e.g. SignalR, future).
+6. `Planscape.API/Program.cs` — `AddAuthorization(o => o.AddPolicy("BimManagerOrAdmin", …))`
+   registration plus singleton handler. The new policy and the
+   existing `[Authorize(Roles = "…")]` controller guards coexist —
+   the policy is opt-in per controller / action.
+7. New
+   `Planscape.API/Controllers/TenantKeywordsController.cs` — the
+   tenant-keywords endpoints moved out of `AdminController` so the
+   class-level `Admin/Owner` role gate could be replaced by the new
+   policy. Routes are unchanged (`GET / PUT /api/admin/tenant-keywords`)
+   so existing CLI / curl callers are unaffected.
+8. `AdminController.cs` — duplicated tenant-keywords actions
+   removed; a comment marker points to the new controller. The
+   `TenantKeywordsRequest` record stays on `AdminController.cs` in
+   the same namespace so the new controller can reference it without
+   a using.
+
+**3 — Dashboard editor for tenant keywords**
+
+9. `Planscape.API/wwwroot/index.html` — new sidebar entry under a
+   divider labelled "Tenant keywords".
+10. `Planscape.API/wwwroot/js/dashboard.js` — `renderTenantKeywords`
+    handler. Fetches the current JSON, renders it in a textarea
+    (formatted via `JSON.stringify` when valid), and exposes Save /
+    Clear / Reset buttons. Save POSTs to the new policy-gated PUT
+    endpoint and surfaces the bucket / entry count from the response.
+    Clear confirms before sending null. Editor falls back to a sample
+    config when the tenant has no extensions configured yet.
+11. `Planscape.API/wwwroot/css/dashboard.css` — admin-section
+    divider style + `.hint.ok` / `.hint.error` colour modifiers used
+    by the editor's status line.
+
+**4 — Tests**
+
+12. `Planscape.Server/tests/Planscape.Tests/TenantKeywordL2CacheTests.cs`
+    — 5 facts covering: L2 read-through after a process boundary,
+    L2-blip resilience (throwing IDistributedCache → DB fallback),
+    null-L2 backwards compat (single-arg ctor matches Phase 151),
+    empty tenantId, and null JSON. Uses
+    `MemoryDistributedCache` via a thin `MemoryDistributedCacheStub`
+    wrapper as the Redis stand-in so the tests run without any
+    external server.
+13. `Planscape.Server/tests/Planscape.Tests/BimManagerOrAdminHandlerTests.cs`
+    — 6 facts covering: Admin role short-circuit, Owner role
+    short-circuit, BIM Manager grant via project member, unrelated
+    role denial, missing user_id claim denial, inactive
+    project-member denial. Uses an isolated in-memory DbContext per
+    test so the policy logic is exercised end-to-end without a Redis
+    dependency.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The L2 entry TTL is 14 days. A tenant with no traffic for longer
+   than that re-parses on next request — fine, the parse is cheap.
+3. The dashboard editor accepts free-form JSON and relies on the
+   server-side validator for correctness. Inline schema-level
+   feedback (e.g. "you typed a bucket name that isn't recognised")
+   is still server-round-trip-only; a JSON-schema-aware editor
+   would be a future polish item.
+4. The auth policy uses `Iso19650Role == "K"` as the BIM Manager
+   marker. Tenants whose `ProjectMember.Iso19650Role` rows aren't
+   populated won't get the BIM-Manager grant and will need to be
+   tenant Admin / Owner instead. Documented in the handler XML doc.
