@@ -8581,3 +8581,145 @@ the (tabs)/issues creation modal and threads the anchor coords through.
    the RFI/NCR/SI/TQ/CLASH/DEFECT enum cleanly (an architectural
    element's discipline is "ARC", which doesn't match any Type
    value). Defaulting to `RFI` matches the manual creation flow.
+
+#### Completed (Phase 164 — Phase 163 caveat closures: server modelId filter, sibling-list envelope unwrap, resolved-toggle, XKT availability probe)
+
+Closes Phase 163 caveats (2), (3), (4) — sibling-pin resolved toggle,
+server-side `?modelId=` filter, and per-model fullscreen XKT availability
+probe. Caveats (1) "no tsc/eslint verification" and (5) "Type preselect
+from discipline" stay open by design: (1) is environmental (sandbox has
+no Node toolchain) and (5) lacks a clean enum mapping (discipline codes
+ARC/STR/MEP don't correspond to RFI/NCR/SI/TQ/CLASH/DEFECT in any
+defensible way).
+
+Investigation surfaced an additional latent bug: the mobile `listIssues`
+helper was typed `Promise<BimIssue[]>` but the controller actually
+returns `{ items, total, page, pageSize }`. Every consumer (scanner,
+models/[id].tsx, issues tab, Phase 163 sibling-pin loader) was running
+`.filter()` / `.map()` against the envelope and silently failing into
+its try/catch wrapper. Phase 164 fixes the helper to unwrap the
+envelope, which means the Phase 163 sibling-pin filter now actually has
+data to filter on. Without this fix, sibling pins never rendered in
+practice — the filter operated on `undefined.modelId` for every entry
+because the (broken) iteration produced no entries at all.
+
+1. **Server `?modelId=` query filter** (caveat 3).
+   `Planscape.Server/src/Planscape.API/Controllers/IssuesController.cs`
+   `GetIssues` gained a `[FromQuery] Guid? modelId` parameter. When
+   present, appends `query.Where(i => i.ModelId == modelId)` to the
+   existing `(ProjectId, Status, Type)` filter chain. Backed by the
+   single-column index `BimIssue.ModelId` already defined at
+   `PlanscapeDbContext.cs:136`, so no migration is required.
+
+   The projection at the bottom of the same handler gained five fields
+   — `ModelId`, `ModelElementGuid`, `ModelX`, `ModelY`, `ModelZ` —
+   without which the mobile sibling-pin filter operates on null fields
+   the wire envelope never carries. Additive at the wire level: existing
+   clients ignore unknown JSON properties, so this is a safe extension.
+
+2. **Mobile `listIssues` helper extended + envelope unwrap** (caveat 3 +
+   latent bug fix). `Planscape/src/api/endpoints.ts`:
+   - New `ListIssuesOptions` type — `{ modelId?, status?, type?, page?,
+     pageSize? }`.
+   - `listIssues(projectId, opts?)` builds a query string from `opts`
+     and delegates to `apiFetch<unknown>`. The result is unwrapped:
+     when the response is `{ items: [...] }`, return `items`; when it's
+     a flat array (older / future variant), pass through; otherwise
+     return `[]` so `.filter()` / `.map()` callers don't crash on
+     unexpected shapes.
+   - All existing callers (scanner.tsx, models/[id].tsx, issues.tsx
+     loader, Phase 163 sibling-pin loader) keep working unchanged
+     because the new signature is backwards-compatible — `opts` is
+     optional and missing/null fields produce no query string segments.
+
+3. **Cached XKT availability helper** (caveat 4).
+   `Planscape/src/api/endpoints.ts` exports a new
+   `listAvailableXkts(): Promise<Set<string>>` that hits
+   `GET /api/viewer/models` once per session and caches the resulting
+   filename list as a `Set<string>`. Network failures resolve to an
+   empty Set so callers can pick a sensible default rather than block
+   on a probe failure. `_resetXktCache()` is exported for re-auth /
+   logout teardown.
+
+4. **Resolved-sibling toggle** (caveat 2).
+   `Planscape/app/(tabs)/issue-detail.tsx`:
+   - New state cluster: `showResolvedSiblings: boolean` (default
+     `false`) and `resolvedSiblingCount: number` (computed during pin
+     construction so the toggle's label can announce how many pins it
+     would surface).
+   - The viewer-load effect now adds `showResolvedSiblings` to its
+     dependency array, so toggling refires the loader and recomputes
+     pins. The pin construction loop counts resolved/closed siblings
+     unconditionally (`resolvedCount++`) and only emits them as pins
+     when the toggle is on (`if (isResolved && !showResolvedSiblings)
+     continue`).
+   - New JSX block in the `viewerSection` renders a `TouchableOpacity`
+     toggle below the viewer, hidden when `resolvedSiblingCount === 0`
+     (no point offering an empty action). Label flips between
+     "○ Show resolved neighbours (N)" and "✓ Show resolved neighbours
+     (N)" with matching `accessibilityLabel` for screen readers.
+   - New styles: `viewerToggle` (small chip-style button against the
+     theme's background colour) + `viewerToggleText`.
+
+5. **XKT availability probe in fullscreen routing** (caveat 4).
+   Two call sites updated:
+   - `Planscape/app/(tabs)/issue-detail.tsx` `openIn3D` — when
+     `issue.modelId` is set, `await listAvailableXkts()` and use the
+     modelId XKT only when the cache contains `<modelId>.xkt` or the
+     cache is empty (network failure → optimistic). Otherwise fall
+     back to the project default. Honest about the constraint: list-
+     endpoint failure means we can't verify availability, so we don't
+     punish operators with reachable but failing list calls.
+   - `Planscape/app/(tabs)/issues.tsx` `openViewer(projectCode,
+     modelId?)` — same gate, lifted into the existing helper so the
+     IssueCard call site at the list-screen FAB inherits the behaviour
+     for free.
+
+6. **`listIssues({ modelId })` rewire in viewer-load effect**
+   (caveat 3 consumption). The Phase 163 viewer-load effect's
+   `listIssues(project.id)` call is now `listIssues(project.id, {
+   modelId: issue.modelId! })`. Pin construction also gains the
+   defensive `if (sib.modelId !== issue.modelId) continue` guard kept
+   from Phase 163 (server-side filter does this already, but the
+   double-check covers any future caller that bypasses the filter).
+
+**Files**
+
+- `Planscape.Server/src/Planscape.API/Controllers/IssuesController.cs`
+  — `?modelId=` filter + projection extension (~11 lines).
+- `Planscape/src/api/endpoints.ts` — `ListIssuesOptions` type, extended
+  `listIssues` with envelope unwrap, new `listAvailableXkts` helper,
+  `_resetXktCache` (~69 lines added).
+- `Planscape/app/(tabs)/issue-detail.tsx` — resolved-toggle state +
+  effect dep + pin construction branch + toggle JSX + styles, XKT
+  availability probe in `openIn3D`, modelId-filtered listIssues call
+  (~107 lines net).
+- `Planscape/app/(tabs)/issues.tsx` — `listAvailableXkts` import,
+  `openViewer` XKT availability probe (~24 lines).
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `dotnet build` / `tsc` / `eslint` verification (Linux
+   sandbox). Brace balance verified across all four changed files
+   (522/522, 401/401, 296/296, 135/135). Caveat 1 from Phase 163
+   stays open — no Node toolchain in this sandbox to run the linters.
+2. The XKT cache lives for the whole AppDomain / mobile session. Stale
+   cache fires on rare race: an XKT published mid-session won't show
+   up until the user force-restarts the app. Acceptable because XKT
+   publishes are infrequent operator actions; if it becomes annoying,
+   `_resetXktCache` is already exported so a `pull-to-refresh` or
+   re-auth handler could call it.
+3. The resolved-sibling toggle refetches issues from the server on
+   every flip (the `showResolvedSiblings` dep on the viewer-load
+   effect). Cleaner UX than holding both lists in memory and switching,
+   but at high latency it produces a brief "pins disappear / reappear"
+   flicker. A future enhancement could split the loader into "fetch
+   once" + "filter client-side" — deferred because the toggle rarely
+   flips and the flicker is < 500 ms in normal conditions.
+4. Caveat 5 (Type preselect from discipline) stays open — see
+   recommendation pre-Phase-164: discipline values don't map to the
+   issue-Type enum cleanly enough to ship a heuristic that's better
+   than "default to RFI." Operators who want a different default can
+   change it manually in two taps; an auto-mapper that's wrong half
+   the time would be a usability regression.

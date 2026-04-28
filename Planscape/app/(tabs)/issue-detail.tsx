@@ -46,6 +46,7 @@ import {
   uploadIssueAttachment,
   listProjects,
   listIssues,
+  listAvailableXkts,
   updateIssue,
   listProjectMembers,
 } from '@/api/endpoints';
@@ -90,6 +91,12 @@ export default function IssueDetailScreen() {
   const [viewerModelUrl, setViewerModelUrl] = useState<string | undefined>(undefined);
   const [viewerPins, setViewerPins] = useState<ModelPin[]>([]);
   const [viewerError, setViewerError] = useState<string | null>(null);
+  // Phase 164 caveat 2 — toggle to surface resolved/closed sibling pins.
+  // Off by default so the embed stays focused on actionable items.
+  const [showResolvedSiblings, setShowResolvedSiblings] = useState(false);
+  // Phase 164 caveat 2 — track resolved-sibling count separately so the
+  // toggle's label can announce how many pins it would add.
+  const [resolvedSiblingCount, setResolvedSiblingCount] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -204,17 +211,18 @@ export default function IssueDetailScreen() {
     let cancelled = false;
     (async () => {
       try {
-        // Phase 163 — fetch sibling issues alongside model meta so the embed
-        // pins every open issue on the same model. Project-wide listIssues
-        // is fine — typical projects sit in 10–500 issues, well within one
-        // page. We filter client-side because the server doesn't expose a
-        // `?modelId=` query param yet (cheap to add later if list size
-        // becomes a concern).
-        const [meta, token, base, allIssues] = await Promise.all([
+        // Phase 164 caveat 3 — pass modelId to listIssues so the server's
+        // existing single-column index on BimIssue.ModelId does the
+        // filtering. Cheap one-page request even on 5K-issue projects
+        // (typical model has 5–50 anchored issues). The Phase 164 server
+        // projection now also returns ModelId/ModelX/Y/Z so the pin
+        // construction below actually has data to work with — Phase 163's
+        // version filtered on fields the wire envelope didn't carry.
+        const [meta, token, base, siblings] = await Promise.all([
           getModel(project.id, issue.modelId!),
           getToken(),
           modelFileUrl(project.id, issue.modelId!),
-          listIssues(project.id).catch((err) => {
+          listIssues(project.id, { modelId: issue.modelId! }).catch((err) => {
             console.warn('[issue-detail] sibling-issue fetch failed', err);
             return [] as BimIssue[];
           }),
@@ -225,9 +233,10 @@ export default function IssueDetailScreen() {
         setViewerModelUrl(url);
 
         // Build the pin list: the issue's own pin first (when anchored),
-        // followed by every other open issue on the same model that has
-        // anchor coords. Pin id == issue id matches the convention in
-        // app/models/[id].tsx so onPinTap can route by id directly.
+        // followed by sibling pins per the resolved-toggle gate. Pin id ==
+        // issue id matches the convention in app/models/[id].tsx so
+        // onPinTap can route by id directly. Resolved-sibling count is
+        // computed unconditionally so the toggle can announce it.
         const pins: ModelPin[] = [];
         const x = issue.modelX, y = issue.modelY, z = issue.modelZ;
         if (typeof x === 'number' && typeof y === 'number' && typeof z === 'number') {
@@ -237,13 +246,20 @@ export default function IssueDetailScreen() {
             priority: issue.priority as ModelPin['priority'],
           });
         }
-        for (const sib of allIssues ?? []) {
+        let resolvedCount = 0;
+        for (const sib of siblings ?? []) {
           if (sib.id === issue.id) continue;
+          // Server already filters by modelId; this is a defensive belt-
+          // and-braces check for any future caller that bypasses the filter.
           if (sib.modelId !== issue.modelId) continue;
-          if (sib.status === 'CLOSED' || sib.status === 'RESOLVED') continue;
           if (typeof sib.modelX !== 'number' ||
               typeof sib.modelY !== 'number' ||
               typeof sib.modelZ !== 'number') continue;
+          const isResolved = sib.status === 'CLOSED' || sib.status === 'RESOLVED';
+          if (isResolved) {
+            resolvedCount++;
+            if (!showResolvedSiblings) continue;
+          }
           pins.push({
             id: sib.id,
             x: sib.modelX,
@@ -253,6 +269,7 @@ export default function IssueDetailScreen() {
           });
         }
         setViewerPins(pins);
+        setResolvedSiblingCount(resolvedCount);
         setViewerError(null);
       } catch (err) {
         if (cancelled) return;
@@ -261,10 +278,11 @@ export default function IssueDetailScreen() {
         setViewerMeta(null);
         setViewerModelUrl(undefined);
         setViewerPins([]);
+        setResolvedSiblingCount(0);
       }
     })();
     return () => { cancelled = true; };
-  }, [issue, project]);
+  }, [issue, project, showResolvedSiblings]);
 
   /**
    * Phase 96 — look up the current user's project role so action gating can
@@ -320,15 +338,22 @@ export default function IssueDetailScreen() {
     try {
       const base = await _getBaseUrl();
       const params = new URLSearchParams();
-      // Phase 163 — when the issue is linked to a specific model, route
-      // the fullscreen viewer to that model's XKT. Falls back to the
-      // project default when no link is set. The XKT pipeline is
-      // operator-controlled (ViewerController serves *.xkt verbatim from
-      // disk), so per-model routing requires that XKT files happen to be
-      // named by model GUID — when they're not, the viewer 404s and the
-      // user sees the "Viewer unavailable" alert. The inline embed (which
-      // uses a different transport entirely) keeps working in that case.
-      const xktBase = issue.modelId ? issue.modelId : project.code;
+      // Phase 164 caveat 4 — probe GET /api/viewer/models (cached per session)
+      // before deciding which XKT to point WebBrowser at. If the issue is
+      // linked to a model AND a `<modelId>.xkt` file is published, use it;
+      // otherwise fall back to the project default so the user gets *some*
+      // viewer rather than a 404. When the list endpoint itself is
+      // unreachable, the cache is an empty Set — we then optimistically try
+      // the modelId route and let WebBrowser surface any 404 through its
+      // own UI (better than blocking the action on a probe failure).
+      let xktBase = project.code;
+      if (issue.modelId) {
+        const available = await listAvailableXkts();
+        const modelXkt = `${issue.modelId}.xkt`;
+        if (available.size === 0 || available.has(modelXkt)) {
+          xktBase = issue.modelId;
+        }
+      }
       params.set('model', `${xktBase}.xkt`);
       if (issue.modelElementGuid) params.set('element', issue.modelElementGuid);
       if (typeof issue.modelX === 'number' && typeof issue.modelY === 'number' && typeof issue.modelZ === 'number') {
@@ -696,6 +721,29 @@ export default function IssueDetailScreen() {
                 Issue is linked to this model but has no anchor coordinates.
               </Text>
             )}
+            {/* Phase 164 caveat 2 — toggle resolved/closed sibling pins. Hidden
+                when no resolved siblings exist (no point offering an empty
+                action). Tapping refires the viewer-load effect via the
+                showResolvedSiblings dep so pins recompute server-side
+                client-side. */}
+            {resolvedSiblingCount > 0 && (
+              <TouchableOpacity
+                style={styles.viewerToggle}
+                onPress={() => setShowResolvedSiblings((prev) => !prev)}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: showResolvedSiblings }}
+                accessibilityLabel={
+                  showResolvedSiblings
+                    ? `Hide ${resolvedSiblingCount} resolved/closed neighbours`
+                    : `Show ${resolvedSiblingCount} resolved/closed neighbours`
+                }
+              >
+                <Text style={styles.viewerToggleText}>
+                  {showResolvedSiblings ? '✓ ' : '○ '}
+                  Show resolved neighbours ({resolvedSiblingCount})
+                </Text>
+              </TouchableOpacity>
+            )}
             {viewerError && (
               <Text style={styles.viewerError}>{viewerError}</Text>
             )}
@@ -1026,6 +1074,19 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xs,
     color: theme.colors.textSecondary,
     fontStyle: 'italic',
+  },
+  // Phase 164 caveat 2 — resolved-sibling toggle.
+  viewerToggle: {
+    marginTop: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.background,
+    alignSelf: 'flex-start',
+  },
+  viewerToggleText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
   },
   viewerError: {
     marginTop: theme.spacing.sm,

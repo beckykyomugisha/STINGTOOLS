@@ -17,7 +17,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { theme, getPriorityColor } from '@/utils/theme';
-import { listProjects, listIssues, createIssue, uploadIssueAttachment, updateIssue, _getBaseUrl } from '@/api/endpoints';
+import { listProjects, listIssues, createIssue, uploadIssueAttachment, updateIssue, listAvailableXkts, _getBaseUrl } from '@/api/endpoints';
 import { listModels } from '@/api/models';
 import type { ModelMeta } from '@/types/models';
 import type { BimIssue, Project, ProjectMember } from '@/types/api';
@@ -40,13 +40,21 @@ import { debounce } from '@/utils/debounce';
 async function openViewer(projectCode: string, modelId?: string | null): Promise<void> {
   try {
     const base = await _getBaseUrl();
-    // Phase 163 — when the caller has an issue with a linked model, route
-    // the fullscreen viewer to that model's XKT instead of the project's
-    // default XKT. Operator-managed naming (ViewerController serves *.xkt
-    // verbatim from disk) means a per-model XKT only loads when the file
-    // happens to be named by GUID; otherwise the viewer 404s and the user
-    // sees the "Viewer unavailable" alert path inside WebBrowser.
-    const xktBase = modelId ? modelId : projectCode;
+    // Phase 164 caveat 4 — probe the cached XKT availability list before
+    // committing to a per-model URL. When a `<modelId>.xkt` file is
+    // published we use it; when only the project default exists, fall back
+    // to `<projectCode>.xkt` so the user lands in a working viewer rather
+    // than a 404. Empty cache (network failure on the list endpoint) →
+    // optimistically use modelId so configured projects don't get punished
+    // by transient list-endpoint failures.
+    let xktBase = projectCode;
+    if (modelId) {
+      const available = await listAvailableXkts();
+      const modelXkt = `${modelId}.xkt`;
+      if (available.size === 0 || available.has(modelXkt)) {
+        xktBase = modelId;
+      }
+    }
     const url = `${base}/viewer/index.html?model=${encodeURIComponent(xktBase)}.xkt`;
     await WebBrowser.openBrowserAsync(url, {
       // Corporate-themed in-app browser tab — falls back to Safari View
