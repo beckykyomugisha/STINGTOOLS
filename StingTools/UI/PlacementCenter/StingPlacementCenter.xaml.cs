@@ -158,7 +158,30 @@ namespace StingTools.UI.PlacementCenter
             catch { }
             ThemeManager.InitialiseResources();
 
-            // Phase 139.10b — ExternalEvent.Create must be called from a
+            // Phase 139.24 — bring Revit's main window to front before
+        // showing a TaskDialog from the Centre. Without this, the
+        // TaskDialog opens parented to Revit's main window but BEHIND
+        // the modeless Centre, where the user can't see or click it.
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
+
+        private void RaiseRevitToFront()
+        {
+            try
+            {
+                IntPtr hwnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                if (hwnd != IntPtr.Zero)
+                {
+                    BringWindowToTop(hwnd);
+                    SetForegroundWindow(hwnd);
+                }
+            }
+            catch { }
+        }
+
+        // Phase 139.10b — ExternalEvent.Create must be called from a
             // Revit API context. Constructor runs inside the
             // OpenPlacementCenterCommand.Execute, which IS an API context;
             // the button-click handler is NOT. Create the event eagerly
@@ -398,7 +421,8 @@ namespace StingTools.UI.PlacementCenter
                     CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                     DefaultButton = TaskDialogResult.No,
                 };
-                if (confirm.Show() != TaskDialogResult.Yes) return;
+                RaiseRevitToFront();
+            if (confirm.Show() != TaskDialogResult.Yes) return;
             }
             VM.ReloadDefaults();
             VM.AttachFilteredView();
@@ -565,6 +589,7 @@ namespace StingTools.UI.PlacementCenter
 
                 if (blockers.Count > 0)
                 {
+                    RaiseRevitToFront();
                     var dlg = new TaskDialog("STING — Placement Centre · Prerequisites missing")
                     {
                         MainInstruction = $"{blockers.Count} prerequisite(s) failed — run aborted.",
@@ -852,6 +877,7 @@ namespace StingTools.UI.PlacementCenter
                     if (result.Warnings.Count > 30)
                         panel.Text($"(+{result.Warnings.Count - 30} more — see StingLog)");
                 }
+                RaiseRevitToFront();
                 panel.Show();
             }
             catch (Exception pEx) { StingLog.Warn($"PlacementCenter post-run panel: {pEx.Message}"); }

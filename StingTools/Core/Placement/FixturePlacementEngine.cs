@@ -79,7 +79,7 @@ namespace StingTools.Core.Placement
         }
 
         // Phase 139.21 — phase tag stable for grep / diagnostics.
-        public const string PhaseTag = "Phase 139.21";
+        public const string PhaseTag = "Phase 139.24";
 
         /// <summary>
         /// Entry point. If rules is null/empty, loads the default + project
