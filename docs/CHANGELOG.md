@@ -4721,3 +4721,50 @@ The two surviving HARD-fail blockers are unchanged:
 - `0/N doors have FromRoom or ToRoom` (door rules will mis-target)
 - Rule pack has no rules matching any ticked category (zero-output run).
 
+
+#### Completed (Phase 139.22 — face-based + extended wall-host anchor set)
+
+User asked: "make sure all doors have a switch on the right location
+according to the rules. review deeply the workflow for issues
+hindering switches to be placed on wall."
+
+Two real engine gaps found:
+
+1. **`WorkPlaneBased` (face-based) families bundled with un-hosted
+   types.** `PlacementHostPreflight.Place` had:
+
+   ```csharp
+   case FamilyPlacementType.OneLevelBased:
+   case FamilyPlacementType.TwoLevelsBased:
+   case FamilyPlacementType.WorkPlaneBased:
+       r.Placed = doc.Create.NewFamilyInstance(position, symbol, room?.Level, NonStructural);
+   ```
+
+   Face-based families went through the level-based overload —
+   creating a face-based instance on the **level's work plane**
+   instead of attaching to a wall. Visually that's a face-based
+   switch floating mid-room.
+
+   **Fix:** new `TryFaceBasedPlace` helper. For wall-anchored rules
+   it finds the nearest wall, fetches the room-side face via
+   `HostObjectUtils.GetSideFaces(wall, ShellLayerType.Interior)`,
+   and places via the face-based overload
+   `doc.Create.NewFamilyInstance(faceRef, position, refDir, symbol)`.
+   For ceiling-anchored rules it uses
+   `HostObjectUtils.GetBottomFaces(ceiling)`. Falls back to
+   level-based when no host is in range (free-standing face-based
+   families like floor sensors).
+
+2. **`TryHostedPlace.prefersWall` missed the Phase 139.2+ anchor
+   names.** Pre-139.22 it only matched `WALL_MIDPOINT`,
+   `WALL_CORNER`, `DOOR_HINGE`, `DOOR_JAMB`, `WINDOW_SILL`. So a
+   wall-hosted family targeted by `WALL_FACE_OFFSET` /
+   `DOOR_LATCH_SIDE` / `DOOR_HINGE_SIDE_150` / `DOOR_HEAD` /
+   `DOOR_STRIKE_SIDE` / `DOOR_CLOSER_ZONE` / `ESCAPE_DOOR_BOTH_SIDES`
+   fell through to the fallback chain — which guesses Ceiling first.
+   Result: wall-hosted switches landed on a ceiling instead of a
+   wall.
+
+   **Fix:** prefersWall now matches all those anchors plus
+   `anchor.StartsWith("WINDOW_")` to cover the variant sills.
+
