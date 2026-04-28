@@ -99,6 +99,10 @@ export async function apiFetch<T>(
     // FLEX-15 — let the server pick the right translation for responses
     // (errors, push payload text, email copy triggered by this request).
     'X-Language': getLanguage(),
+    // M12 — explicit client-type header so server audit log can classify
+    // mobile-originated writes without User-Agent guessing. Caller can still
+    // override via options.headers (rare).
+    'X-Client-Type': 'mobile',
     ...(options.headers as Record<string, string>),
   };
 

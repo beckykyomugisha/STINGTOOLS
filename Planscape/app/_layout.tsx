@@ -5,6 +5,7 @@ import { AppState } from 'react-native';
 import { getToken, onSessionExpired } from '@/api/client';
 import { crashReporter } from '@/services/crashReporter';
 import { notificationTapRouter } from '@/services/notificationTapRouter';
+import { notificationService } from '@/services/notificationService';
 import { initI18n } from '@/i18n';
 import { markBackgrounded, challengeIfDue } from '@/services/biometricLock';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -68,6 +69,12 @@ export default function RootLayout() {
     const token = await getToken();
     setIsAuthenticated(!!token);
     setIsReady(true);
+    if (token) {
+      // B4 — cold-start push registration when a JWT is already cached.
+      notificationService.register().catch((err) => {
+        crashReporter.warn('_layout.checkAuth: push register failed', { err: String(err) });
+      });
+    }
   }
 
   if (!isReady) return null;

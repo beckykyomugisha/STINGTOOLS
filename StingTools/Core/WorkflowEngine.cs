@@ -1147,6 +1147,36 @@ namespace StingTools.Core
                 // GAP-09: Save data hash sidecar after workflow to mark data as processed
                 SaveDataHashSidecar(doc);
 
+                // INT-04 / H7 — push the run record to Planscape so the server
+                // workflow trend graph reflects local activity. Fire-and-forget;
+                // the local jsonl record is the source of truth and we never
+                // block a workflow on the network.
+                try
+                {
+                    string cfgPath = System.IO.Path.Combine(
+                        System.IO.Path.GetDirectoryName(doc.PathName) ?? "",
+                        "_BIM_COORD", "planscape_link.json");
+                    Guid serverProjectId = StingTools.BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(cfgPath);
+                    if (serverProjectId != Guid.Empty)
+                    {
+                        var client = StingTools.BIMManager.PlanscapeServerClient.Instance;
+                        _ = client.LogWorkflowRunAsync(
+                            serverProjectId,
+                            preset.Name ?? "",
+                            preset.Steps.Count,
+                            passed,
+                            failed,
+                            skipped,
+                            record.DurationSeconds,
+                            record.ComplianceBefore,
+                            record.ComplianceAfter);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"WorkflowEngine: server push skipped — {ex.Message}");
+                }
+
                 // Pack 122 / Gap B — stamp the last-run scalars onto ES so the
                 // morning briefing, dock panel, and Idling SLA scanner can read
                 // workflow state without parsing STING_WORKFLOW_LOG.jsonl.

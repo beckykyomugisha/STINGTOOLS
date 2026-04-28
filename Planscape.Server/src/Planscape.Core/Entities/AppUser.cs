@@ -29,5 +29,14 @@ public enum UserRole
     Coordinator = 2,
     Manager = 3,
     Admin = 4,
-    Owner = 5
+    Owner = 5,
+
+    // Phase 158 — separation-of-duties role for SOC2 / ISO 27001
+    // audits. A SecurityOfficer can revoke user sessions
+    // (token-floor bumps + audit trail) but is NOT an Admin/Owner;
+    // they can't edit projects, members, or BIM-Manager roles.
+    // Authorisation policy <c>SecurityOfficerOrAdmin</c> grants
+    // SecurityOfficer + Admin + Owner; Admin / Owner short-circuits
+    // so existing operators are unaffected.
+    SecurityOfficer = 6,
 }

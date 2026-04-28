@@ -87,6 +87,76 @@ public class TransmittalsController : ControllerBase
         return CreatedAtAction(nameof(GetTransmittals), new { projectId }, transmittal);
     }
 
+    /// <summary>
+    /// Phase 142 — bulk-create endpoint so the offline queue and the
+    /// plugin's PlanscapeServerClient can flush a backlog in one round-trip
+    /// instead of N. Caps at 200 per call to keep request bodies bounded;
+    /// caller must chunk larger batches. The TX code sequence is computed
+    /// once and incremented in-memory to avoid scanning N times.
+    /// </summary>
+    [HttpPost("bulk")]
+    public async Task<ActionResult> BulkCreate(Guid projectId, [FromBody] List<CreateTransmittalRequest> reqs)
+    {
+        if (reqs == null) return BadRequest("Body must be a JSON array");
+        if (reqs.Count == 0) return Ok(new { created = 0, items = Array.Empty<object>() });
+        if (reqs.Count > 200) return BadRequest("Maximum 200 transmittals per bulk operation");
+
+        var tenantId = GetTenantId();
+        var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound("Project not found");
+
+        var existingCodes = await _db.Transmittals
+            .Where(t => t.ProjectId == projectId)
+            .Select(t => t.TransmittalCode)
+            .ToListAsync();
+
+        int nextNum = 1;
+        foreach (var code in existingCodes)
+        {
+            var parts = code.Split('-');
+            if (parts.Length == 2 && int.TryParse(parts[1], out int n) && n >= nextNum)
+                nextNum = n + 1;
+        }
+
+        var createdBy = User.FindFirst("display_name")?.Value ?? "Unknown";
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+
+        var rows = new List<Transmittal>(reqs.Count);
+        foreach (var req in reqs)
+        {
+            var t = new Transmittal
+            {
+                ProjectId = projectId,
+                TransmittalCode = $"TX-{nextNum:D4}",
+                Recipient = req.Recipient,
+                Notes = req.Notes,
+                DocumentIdsJson = req.DocumentIdsJson,
+                CreatedBy = createdBy
+            };
+            nextNum++;
+            rows.Add(t);
+            _db.Transmittals.Add(t);
+            _db.AuditLogs.Add(new AuditLog
+            {
+                TenantId = tenantId,
+                ProjectId = projectId,
+                UserId = userId,
+                Action = "transmittal_created",
+                EntityType = "Transmittal",
+                EntityId = t.Id.ToString(),
+                DetailsJson = JsonSerializer.Serialize(new { t.TransmittalCode, t.Recipient, bulk = true }),
+                Timestamp = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(new
+        {
+            created = rows.Count,
+            items = rows.Select(r => new { r.Id, r.TransmittalCode, r.Recipient, r.Status, r.CreatedAt })
+        });
+    }
+
     [HttpPut("{txId}/send")]
     public async Task<ActionResult> MarkSent(Guid projectId, Guid txId)
     {

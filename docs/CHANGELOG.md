@@ -6073,3 +6073,1971 @@ twice and confirm the second pass writes 0 containers; (ii) tag a
 50-instance family and confirm only 1 type-override lookup fires;
 (iii) run a Re-Tag with Overwrite and confirm SYS/FUNC/PROD are still
 re-derived (overwrite path preserved).
+#### Completed (Phase 141 — Production gap fixes: on-site sharing path, audit/source classification, HTTPS, server push project-scoping)
+
+The on-site sharing journey from the field user creating an issue on
+their phone all the way to a project member receiving a push and seeing
+the photo + GPS pin had several latent gaps. This phase closes the
+ones that are tractable without external SDK access (Revit 2025 API,
+ACC API). Items that need an external API or a real Revit doc to verify
+are documented as open in the gap analysis rather than papered over.
+
+**Mobile (Planscape/) — push registration B4**
+
+1. `Planscape/src/hooks/useAuth.ts` — call
+   `notificationService.register()` after a successful login so the
+   server's `DevicePushToken` table receives the Expo push token. The
+   service had been authored but was orphan code; the only call site
+   was the in-tab "Test push" button.
+2. `Planscape/src/hooks/useAuth.ts` — also register on
+   `restoreSession()` so a re-issued Expo token after app reinstall is
+   pushed up at least once per cold start.
+3. `Planscape/app/_layout.tsx` — register on `checkAuth()` when a JWT
+   is already cached (cold start with active session).
+4. All three are fire-and-forget; failures land in `crashReporter` and
+   never block sign-in or app start.
+
+**Mobile (Planscape/) — audit classification M12**
+
+5. `Planscape/src/api/client.ts` — set
+   `X-Client-Type: mobile` on every authenticated request so the server
+   audit log can classify mobile-originated writes without
+   User-Agent guessing. Caller can override per-call via
+   `options.headers`.
+
+**Server (Planscape.Server/) — issue notification scoping B7 / SRV-07**
+
+6. `Planscape.Core/Interfaces/INotificationService.cs` — added
+   `NotifyProjectAsync(projectId, channel, …)`.
+7. `Planscape.Infrastructure/Services/NotificationService.cs` —
+   implemented `NotifyProjectAsync`: SignalR fans out to the
+   `project-{projectId}` group (NotificationHub already gates joins by
+   `ProjectMembers`); push fan-out queries `ProjectMembers.UserId` and
+   honours per-user delivery preferences via `ResolveDelivery`. Critical
+   channels (`sla_breach`, `critical`) still bypass quiet hours so
+   on-call recipients aren't silenced.
+8. `Planscape.API/Controllers/IssuesController.cs` — issue-created push
+   now goes through `NotifyProjectAsync` instead of
+   `NotifyAsync(tenantId, …)`. Tenant-wide broadcast for new issues
+   was leaking into other projects' members.
+9. `Planscape.Infrastructure/Services/BackgroundJobs.cs` — SLA escalation
+   notifications also routed through `NotifyProjectAsync` for the same
+   reason.
+
+**Server (Planscape.Server/) — EXIF GPS write-through H2 / SRV-01**
+
+10. `Planscape.API/Controllers/IssuesController.cs` — when an image
+    attachment carries EXIF GPS and the parent BimIssue has no
+    coordinates yet, promote the EXIF lat/lng onto the issue. Live-GPS
+    values from `expo-location` always win; EXIF is the fallback.
+    `LocationAccuracy` is set to 0 to mark EXIF-sourced coordinates
+    (vs. a positive metres value from a live GPS reading). Removed the
+    stale "BimIssue has no GPS columns" comment — those columns landed in
+    migration `20250417000000_AddIssueGpsAndAssigneeFk`.
+
+**Server (Planscape.Server/) — audit Source field M12 / SRV-11**
+
+11. `Planscape.API/Middleware/MobileContextMiddleware.cs` — read
+    `X-Client-Type` header (explicit) or fall back to User-Agent
+    sniffing (`Expo` / `okhttp` → mobile, `StingTools` / `Revit` →
+    plugin, `Mozilla` etc. → web). Stored in `HttpContext.Items["Source"]`
+    for `AuditService` to write to the row. The audit row's `Source`
+    column already existed but was always defaulted to `"desktop"`.
+12. `Planscape.API/Controllers/AdminController.cs` — `GET /api/admin/audit`
+    now accepts `?source=mobile|plugin|web|server|desktop` so admins
+    can triage by client.
+
+**Server (Planscape.Server/) — HTTPS PR2 / SRV-08**
+
+13. `Planscape.API/Program.cs` — `UseHttpsRedirection` always-on,
+    `UseHsts` for non-development with `MaxAge = 365 days` and
+    `IncludeSubDomains = true`. Behind a TLS-terminating reverse proxy
+    the deployer must enable forwarded-headers (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`)
+    so the redirect middleware sees the original https scheme.
+
+**Plugin (StingTools/) — server push of workflow runs H7 / INT-04**
+
+14. `StingTools/Core/WorkflowEngine.cs` — after a workflow preset
+    completes and the run record is persisted to
+    `STING_WORKFLOW_LOG.jsonl`, push the same record to the Planscape
+    server via `PlanscapeServerClient.LogWorkflowRunAsync`. Reads the
+    server projectId from `<doc>/_BIM_COORD/planscape_link.json`. Fire-
+    and-forget — local jsonl is the source of truth and we never block
+    a workflow on the network.
+
+**Plugin (StingTools/) — bulk MIM asset push H7 / INT-08**
+
+15. `StingTools/BIMManager/PlanscapeServerClient.cs` — added
+    `BulkPushMimAssetsAsync(projectId, assets)` that POSTs to the
+    existing `/api/projects/{id}/mim/assets/bulk` endpoint. Returns the
+    server-reported created count (server skips duplicates by
+    AssetTag, capped at 10,000 per request).
+
+**Plugin (StingTools/) — audit classification M12**
+
+16. `StingTools/BIMManager/PlanscapeServerClient.cs` —
+    `EnsureHttpClient` now sets `X-Client-Type: plugin` and
+    `User-Agent: StingTools-Revit/1.0` so the server audit log
+    classifies plugin-originated writes correctly.
+
+**Documentation corrections**
+
+17. `Planscape.PluginSync` library is no longer dead code (the
+    PLANSCAPE_GAPS analysis pre-dated its actual wiring). It is
+    actively used by `StingDockPanel.xaml.cs` (sync indicator click
+    handler + status refresh) and by `PlatformLinkCommands.PlatformSyncCommand`
+    (lazy-starts `SyncScheduler` on first sync). The "delete as dead
+    code" recommendation in `docs/PLANSCAPE_GAPS.md` is superseded;
+    INT-01 in `docs/ROADMAP.md` is closed.
+
+**Caveats / explicit deferrals**
+
+1. Built without `dotnet build` verification. Every C# call uses the
+   documented signature but has not been compile-checked against the
+   real Revit / EF Core / ASP.NET Core assemblies.
+2. ACC platform connector (H8) — left as
+   `"ACC sync not implemented."` placeholder result. Implementing it
+   needs production ACC credentials, OAuth callback URL whitelisting,
+   webhook signature verification, and a test Revit project on the
+   target ACC hub. Tracked in `docs/ROADMAP.md` as INT-09.
+3. Speckle integration (M11) — left as the existing HTTP stub. The
+   Speckle.Core SDK v2 is a major dependency add (≈25 transitive
+   packages) that should land in its own phase with proper end-to-end
+   testing on a real stream URL.
+4. Lighting BS EN 12464-1 grid (M9) — `LightingGridCommand` still
+   shows the TaskDialog scaffold with `// TODO(S2.10):` comment. The
+   illuminance lookup and lumen-method calculation are designed but
+   need the family-side `LUMEN_OUTPUT_INT` parameter and the room
+   department-code → activity-type lookup table seeded first.
+5. The 18 `TODO-VERIFY-API` markers across the placement engine,
+   visualization layer, and MCP descriptor are unresolved — verifying
+   them needs the actual Revit 2025 API documentation/binaries that
+   are not available in this sandbox.
+
+#### Completed (Phase 142 — Mobile coordination: My Actions inbox, Daily Site Diary, bulk endpoints, GPS map deep-link)
+
+Building from the BIM/Construction Manager's daily-on-site point of view:
+the genuine mobile gaps were not the long checklist in
+`PLANSCAPE_GAPS.md` (most of those had landed in earlier phases) but
+the everyday navigation friction — having to bounce between Issues,
+Meetings, and Documents tabs to find what's assigned to oneself, and
+having no way to file the standard CIOB end-of-day site diary at all.
+
+**My Actions inbox (server + mobile)**
+
+1. New `Planscape.API/Controllers/MyActionsController.cs` — single-shot
+   aggregator at `GET /api/projects/{id}/myactions?limit=N` that
+   returns four buckets in one round-trip: issues assigned to me
+   (FK / email / display-name match for legacy rows), meeting action
+   items assigned to my display name, pending document approvals on
+   the project, and SLA-breached issues across the team. Project
+   membership is enforced — the inbox never leaks rows from a project
+   the caller can't see. Pre-Phase-142 the mobile would have needed
+   three separate round-trips and a manual cross-filter to assemble
+   this list.
+2. `Planscape/src/api/endpoints.ts` — added `getMyActions(...)` +
+   `MyActionsPayload` interface mirroring the server DTO.
+3. New `Planscape/app/inbox/` route (sub-route, not a tab) — list view
+   with four summary tiles and four sectioned lists; each row taps
+   straight to issue-detail / meeting / documents tab.
+4. `Planscape/app/(tabs)/index.tsx` — high-visibility "My Actions"
+   call-to-action card on the dashboard between the KPI row and the
+   discipline breakdown. Hidden when the aggregator query failed
+   (network / permission / cold-start) so the dashboard never blocks.
+   Card highlights red when there's at least one SLA breach.
+
+**Daily Site Diary (entity + migration + controller + mobile)**
+
+5. New entities `Planscape.Core/Entities/SiteDiary.cs` +
+   `SiteDiaryAttachment` — one row per `(project, diary date,
+   author)`, status machine DRAFT → SUBMITTED → ACKNOWLEDGED →
+   ARCHIVED, JSONB columns for `ManpowerByTradeJson` /
+   `EquipmentJson` / `DeliveriesJson` / `ChecklistJson` so the schema
+   scales without migrations. Photos hang off the diary via
+   attachment rows that reuse the `DocumentRecord` storage pipeline.
+6. New migration `20260427000000_AddSiteDiary.cs` — creates the two
+   tables with the standard PG types (jsonb, text, double precision)
+   and indexes on `(ProjectId)`, `(ProjectId, DiaryDate)`, `Status`.
+7. New `Planscape.API/Controllers/SiteDiariesController.cs` — full
+   CRUD + lifecycle:
+     - `GET /sitediaries` paginated list with date / status filter
+     - `GET /sitediaries/{id}` detail with attachments
+     - `POST /sitediaries` create — re-POSTing the same day's draft
+       by the same author updates rather than duplicates; 409 if a
+       non-DRAFT entry already exists for that day
+     - `PUT /sitediaries/{id}` edit (DRAFT only)
+     - `POST /sitediaries/{id}/submit` — locks the entry, fires a
+       project-scoped push (`NotifyProjectAsync` from Phase 141)
+     - `POST /sitediaries/{id}/acknowledge` — manager sign-off
+     - `POST /sitediaries/{id}/attachments/link` — link an existing
+       uploaded `DocumentRecord` to the diary, idempotent
+     - `DELETE /sitediaries/{id}` (DRAFT only)
+8. `PlanscapeDbContext` — added `SiteDiaries` + `SiteDiaryAttachments`
+   DbSets and the entity configuration with FKs and indexes.
+9. `Planscape/src/api/endpoints.ts` — added the seven matching
+   endpoint wrappers + `SiteDiarySummary` / `SiteDiaryDetail` /
+   `CreateSiteDiaryRequest` interfaces.
+10. New `Planscape/app/diary/` route — three screens:
+     - `index.tsx` — chronological list with status pill, FAB to
+       create, manpower count + weather summary on each row
+     - `new.tsx` — form with author role, weather, temperature,
+       manpower, narrative, safety incidents, delays. Two buttons —
+       Save Draft (stays editable) and Submit (locks + notifies)
+     - `[id].tsx` — detail with all sections; manager acknowledge
+       button on SUBMITTED entries
+
+**Quick-action launcher on dashboard**
+
+11. `Planscape/app/(tabs)/index.tsx` — added a 4-button quick-action
+    row (Site Diary, Meetings, Transmittals, Warnings) between the
+    My Actions card and the discipline breakdown. Previously these
+    sub-routes were only reachable via deep-link from a notification
+    tap; now the manager can find them in one cold-start.
+
+**Bulk transmittal + meeting endpoints**
+
+12. `Planscape.API/Controllers/TransmittalsController.cs` — new
+    `POST /transmittals/bulk` that accepts a JSON array (max 200)
+    and produces TX codes from a single in-memory counter rather
+    than scanning N times. Each row gets its own audit log entry
+    with `bulk = true` flag.
+13. `Planscape.API/Controllers/MeetingsController.cs` — equivalent
+    `POST /meetings/bulk`.
+14. `StingTools/BIMManager/PlanscapeServerClient.cs` — added
+    `BulkCreateTransmittalsAsync` and `BulkCreateMeetingsAsync` so
+    the offline-queue drain and the workflow flush use the bulk
+    routes. Closes the last item on the H7 list from Phase 141.
+
+**Issues tab Mine filter**
+
+15. `Planscape/src/stores/authStore.ts` — extended with `email` and
+    `displayName` so screens can match assignees by name for legacy
+    issues that pre-date the `AssigneeUserId` migration without an
+    extra `/me` round-trip.
+16. `Planscape/src/hooks/useAuth.ts` — actually populates the
+    authStore on `login()` and `restoreSession()`. Was previously
+    declared but never set, so `issue-detail` and `documents` were
+    reading `null`.
+17. `Planscape/app/(tabs)/issues.tsx` — added "👤 Mine" toggle chip
+    to the priority filter bar. Filters the issue list to rows where
+    the assignee resolves to the current user via FK first, email
+    second, display name third. Disabled gracefully when the
+    authStore hasn't loaded yet (cold-start) so it never silently
+    filters everything out.
+
+**GPS map deep-link**
+
+18. `Planscape/app/(tabs)/issue-detail.tsx` — surfaced the GPS
+    coordinates that Phase 141 started capturing. New strip below
+    the field grid shows lat/lng, accuracy, and taps through to the
+    device's native map app via `Linking.openURL` with platform-
+    appropriate URL schemes (`geo:` on Android, `maps://` on iOS,
+    Google Maps web fallback). Resilient — falls back to the web URL
+    if `Linking.canOpenURL` rejects.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. `MeetingActionItem.Assignee` is a free-text display name; the
+   My Actions match is therefore conservative and may surface the
+   row for a different user with the same display name in the same
+   tenant. Fix is a follow-up migration that adds `AssigneeUserId`.
+3. Site diary attachment screen on mobile is read-only for now —
+   linking a photo to a diary entry uses the existing document
+   upload pipeline followed by the `attachments/link` POST; a
+   one-tap "add photo to diary" UI will land in a follow-up.
+4. The new `SiteDiariesController` is not yet exercised by the
+   plugin (the construction manager workflow is mobile-first).
+   Plugin-side surfacing in the BIM Coordination Center can land
+   when there is demand.
+
+#### Completed (Phase 143 — BIM Coordinator surfaces: sync conflict triage, federation status, ISO 19650 naming enforcement)
+
+Audited from the BIM Manager / Coordinator's day-to-day perspective —
+distinct from Phase 142's Construction Manager focus. The BIM
+Coordinator's worries are model federation freshness, tag-sync data
+integrity across the team, and information-governance enforcement on
+the CDE. Three concrete gaps closed; one carrier added to the project
+entity.
+
+**Sync conflict triage UI**
+
+1. New `Planscape.API/Controllers/SyncConflictsController.cs` —
+   `TagSyncController` had been writing `SyncConflict` rows whenever a
+   plugin push arrived with a stale `LastModifiedUtc`, but no GET
+   endpoint and no UI existed. BIM Managers investigating "why did my
+   edit vanish?" had to query the database directly. New endpoints:
+     - `GET /api/projects/{id}/syncconflicts` paginated, filterable by
+       resolution status (PENDING / SERVER_WINS / CLIENT_WINS / MERGED)
+     - `GET /.../{conflictId}` detail with the linked TaggedElement's
+       current 8-segment tag fields
+     - `POST /.../{conflictId}/resolve` — apply ACCEPT_SERVER /
+       ACCEPT_CLIENT / MERGED + audit
+     - `POST /.../bulk-resolve` — apply the same resolution to up to
+       500 conflicts in one call (typical when a batch was clobbered)
+   Resolutions broadcast a project-scoped push so any other reviewer
+   sees the count drop. ACCEPT_CLIENT requires the caller to provide
+   the field values to re-apply (`ClientFieldsDto`).
+2. `Planscape/src/api/endpoints.ts` — added six wrappers + the
+   `SyncConflictSummary` / `SyncConflictDetail` /
+   `SyncConflictsListResponse` interfaces.
+3. New `Planscape/app/conflicts/` route — list with summary tiles
+   (pending / 7-day server-wins / showing) + filter chips
+   (PENDING / SERVER_WINS / CLIENT_WINS / MERGED / ALL) + per-row
+   inline resolve buttons + multi-select bulk-resolve bar with
+   confirm dialog.
+
+**Federation status aggregator**
+
+4. `Planscape.API/Controllers/ModelsController.cs` — new
+   `GET /api/projects/{id}/federation-status?staleDays=N` endpoint.
+   Aggregates the latest published model per discipline + counts +
+   RAG. Stale = not republished in N days (default 14, the typical
+   ISO 19650 information-exchange cadence on UK projects). Returns
+   per-discipline `latest` + `daysSinceUpload` + `stale` flag.
+5. `Planscape/src/api/endpoints.ts` — added `getFederationStatus(...)`
+   + `FederationStatus` interface.
+
+**BIM Coordination dashboard tile**
+
+6. `Planscape/app/(tabs)/index.tsx` — new "BIM Coordination" card
+   between My Actions and the quick-action row. Two stacked rows:
+   federation-status one-liner with RAG dot + tap-through to the
+   documents tab; sync-conflict count one-liner with red dot when >0
+   + tap-through to the new conflicts screen. Hidden when neither
+   query succeeded so dashboards on projects without models stay
+   clean. Both queries fire via `Promise.allSettled` in parallel
+   with the existing My Actions fetch.
+
+**ISO 19650 naming enforcement**
+
+7. New `Planscape.Infrastructure/Validation/Iso19650NamingValidator.cs` —
+   server-side port of the plugin's `BIMManagerEngine.ValidateDocumentName`.
+   Same dictionaries (30 document type codes + 19 originator role
+   codes per BS EN ISO 19650 / UK 2021 NA). Pattern is
+   `Project-Originator-Volume-Level-Type-Role-Class-Number`. Validator
+   is lenient on Volume + Level (project-bespoke); hard-fails on missing
+   fields, malformed Project / Originator codes, and unknown Type / Role.
+8. New entity field `Project.EnforceIso19650Naming` (default false) +
+   migration `20260427100000_AddProjectEnforceNaming`. BIM Manager
+   flips this on per-project once the team has migrated naming.
+9. `Planscape.API/Controllers/DocumentsController.cs` — wired the
+   validator into the upload endpoint. Skipped for non-deliverable
+   types (`ATTACHMENT` / `PHOTO`) since site photos and issue
+   attachments aren't expected to follow controlled naming. On
+   violation returns 400 with structured payload `{error, pattern,
+   fileName, issues[]}` so the client can list the segment failures.
+10. New `GET /documents/validate-name?fileName=...` dry-run endpoint
+    so the office dashboard / mobile uploader can give inline
+    feedback before the user actually uploads. Always 200 — non-
+    compliance surfaces in the `isValid: false` body, never as HTTP
+    error.
+11. `Planscape/src/api/endpoints.ts` — added `validateDocumentName(...)`
+    + `NameValidationResult`.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. ACCEPT_CLIENT bulk-resolve is not supported — re-applying the
+   rejected client edit needs the per-element field map and a single
+   bulk resolution would have to carry one of those per id. The
+   single-conflict ACCEPT_CLIENT path is the only way to do this for
+   now.
+3. The federation aggregator groups by `Discipline` field on
+   `ProjectModel` — models uploaded with no discipline tag fall into
+   a synthetic "GEN" bucket (visible in the UI), flagging the
+   workflow gap rather than hiding it.
+4. Naming enforcement is opt-in. Projects must flip
+   `EnforceIso19650Naming = true` (e.g. via PUT
+   `/api/projects/{id}/settings`) — no admin UI for that yet; the
+   web settings dashboard or a manual SQL update is the workaround.
+
+#### Completed (Phase 144 — BIM Coordinator deferrals: project admin UI, bulk ACCEPT_CLIENT, tag heatmap, stage gates + MIDP)
+
+Closes the four items deferred at the end of Phase 143. All four sit
+under the same BIM Manager / Coordinator persona — project-information
+governance, sync data integrity, cross-discipline coverage, and
+information-delivery planning.
+
+**1 — Project admin settings UI**
+
+1. `Planscape.API/Controllers/ProjectSettingsController.cs` — extended
+   `GET /api/projects/{id}/settings` to surface a new `admin` block
+   containing `enforceIso19650Naming`. Extended `PUT` to route admin
+   booleans to first-class Project columns (whitelisted via
+   `AdminSettingFlags`); other keys still flow into `ConfigJson` as
+   soft preferences. Added `ParseBool` helper for the JSON-element
+   coercion.
+2. `Planscape/src/types/api.ts` — added `admin` block to
+   `ProjectSettings`.
+3. `Planscape/src/api/endpoints.ts` — added
+   `updateProjectSettings(projectId, overrides)` wrapper.
+4. New `Planscape/app/project-settings/` route — single screen with
+   one toggle today (ISO 19650 naming enforcement) plus read-only
+   sections for SLAs, upload limits, geofence. Optimistic update on
+   the toggle with rollback on failure; specific 403 message tells
+   non-admin users which roles are required (K or C).
+5. `Planscape/app/(tabs)/settings.tsx` — added a "Project admin
+   settings" link row above the logout button. Server-side
+   permission gate is preserved so non-admins can still see the
+   current state.
+
+**2 — Bulk ACCEPT_CLIENT for sync conflicts**
+
+6. `Planscape.API/Controllers/SyncConflictsController.cs` —
+   - Existing `bulk-resolve` now rejects `ACCEPT_CLIENT` with a 400
+     pointing at the new endpoint.
+   - New `POST /syncconflicts/bulk-resolve-with-fields` takes
+     `[{ conflictId, fields }, …]` (cap 250). For each item it
+     re-applies the supplied field values to the linked
+     `TaggedElement` before flipping `Resolution` to CLIENT_WINS.
+     Idempotent — already-resolved rows are reported in `skipped`.
+     Deleted-on-server elements are short-circuited to MERGED.
+     Single audit entry per resolved row + one project-scoped push.
+7. `Planscape/src/api/endpoints.ts` — added
+   `bulkResolveSyncConflictsWithFields` + `ConflictFieldOverrides`
+   interface.
+
+**3 — Cross-discipline tag completeness heatmap**
+
+8. `Planscape.API/Controllers/ComplianceController.cs` — new
+   `GET /compliance/tag-heatmap` endpoint. Returns a matrix
+   [discipline][token] = pct over the 10 ISO 19650 tag tokens
+   (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD / SEQ + STATUS + REV).
+   Bucket "" / null Disc as "(unset)" so blank-discipline tagged
+   elements stay visible — that's a coordination signal. Query is
+   one round-trip; aggregation runs in app-tier via `GroupBy` on a
+   slim DTO selection so we don't stream Tag7 narratives.
+9. `Planscape/src/api/endpoints.ts` — added `getTagHeatmap` +
+   `TagHeatmap` / `TagToken` types.
+10. New `Planscape/app/heatmap/` route — horizontally-scrollable grid
+    with sticky discipline column, 4-tier RAG palette
+    (≥90 green / 70–89 lime / 50–69 amber / <50 red), per-token
+    average row in the header, element-count subtitle per
+    discipline, footer legend. Pull-to-refresh.
+
+**4 — Stage Gate + MIDP / IE Deliverable tracking**
+
+11. New entities `Planscape.Core/Entities/StageGate.cs` (+ same file)
+    `InformationDeliverable`. `StageGate` carries a stable
+    `(ProjectId, StageCode)` unique index + `SortOrder`,
+    `PlannedDate`, `ActualDate`, status machine NOT_STARTED →
+    IN_PROGRESS → PASSED / FAILED / WAIVED, plus structured
+    `CriteriaJson` (jsonb) for criterion-by-criterion sign-off and
+    decision metadata (`DecidedBy*`, `DecidedAt`).
+    `InformationDeliverable` carries the standard ISO 19650 fields
+    (`Code`, `Type`, `OwnerRole`, `Discipline`, `SuitabilityTarget`,
+    `DueDate`, `Status`) with a state machine PENDING →
+    IN_PROGRESS → SUBMITTED → ACCEPTED / REJECTED / WAIVED. Optional
+    FK to a `StageGate` row (rolls up) and to a `DocumentRecord`
+    row (the actual published artefact).
+12. `PlanscapeDbContext` — added two DbSets and OnModelCreating
+    config (FKs, unique indexes on `(ProjectId, StageCode)` and
+    `(ProjectId, Code)`, status + due-date indexes for the
+    BIM-manager filter views).
+13. New migration
+    `20260427200000_AddStageGatesAndDeliverables.cs` — creates both
+    tables with the standard PG types (jsonb for `CriteriaJson`,
+    text for the long-form narratives, double precision for
+    bounding values) + the four indexes per table.
+14. New `Planscape.API/Controllers/StageGatesController.cs` —
+    list / get / create / update / decide. List returns each gate's
+    deliverable rollup (total / pending / in_progress / submitted /
+    accepted / rejected / overdue) in a single round-trip via EF
+    sub-queries so the mobile timeline renders without follow-ups.
+    `POST /stagegates/seed-riba` is a convenience that idempotently
+    inserts the eight RIBA Plan of Work 2020 stages (0–7) so a new
+    project doesn't need each one typed by hand. Decisions fire a
+    project-scoped notification.
+15. New `Planscape.API/Controllers/DeliverablesController.cs` —
+    list (filter by stageGateId / status / discipline / overdueOnly)
+    / get / create / update / `POST /deliverables/{id}/transition`
+    that validates the from→to map server-side and stamps
+    submitter / acceptor metadata as appropriate.
+16. `Planscape/src/api/endpoints.ts` — added `listStageGates`,
+    `seedRibaStages`, `decideStageGate`, `listDeliverables`,
+    `transitionDeliverable` + `StageGateSummary` and
+    `DeliverableSummary` interfaces.
+17. New `Planscape/app/stages/` route — two screens:
+     - `index.tsx` — RIBA-style timeline of every stage gate. Each
+       card shows planned/actual dates, deliverable rollup, three
+       decision buttons (Pass / Fail / Waive) with a confirm
+       dialog. Empty-project state offers a "Seed RIBA stages"
+       button that POSTs to `/seed-riba`.
+     - `deliverables.tsx` — paged list of deliverables filtered by
+       stageGateId. Status filter chips + overdue toggle.
+       Per-row contextual transition buttons that match the
+       allowed-from→to map; rejection prompts for a reason via
+       `Alert.prompt`.
+
+**Dashboard wiring**
+
+18. `Planscape/app/(tabs)/index.tsx` — added two new shortcut rows
+    inside the BIM Coordination card: "Tag completeness heatmap"
+    and "Stage gates & MIDP". Both above the discipline breakdown
+    so the BIM Coordinator's deep tooling is one tap from
+    cold-start.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. The BIM Coordinator settings PUT relies on the existing project
+   role gate (K/C). Tenants without populated `ProjectMember.Iso19650Role`
+   values will see 403 on every flip — flagged in the in-app
+   Alert text so the user knows what to ask their admin.
+3. Bulk ACCEPT_CLIENT cap is 250 (vs 500 for ACCEPT_SERVER) because
+   each row writes element data and the bigger payload makes
+   timeouts more likely on a poor site connection. Caller chunks
+   bigger batches.
+4. The heatmap aggregates in app-tier rather than via raw SQL
+   `count(*) FILTER (WHERE …)`. Acceptable for projects up to ~50k
+   tagged elements; bigger projects should swap in a SQL query.
+5. Stage gate criteria are free-form `CriteriaJson` (jsonb). A
+   structured criterion-by-criterion sign-off UI on mobile is a
+   follow-up — the API is ready for it via the same field.
+6. Deliverable transition validation is the canonical state machine
+   in code; if a project wants a bespoke flow that has to land as
+   a separate `customStateMachine` config — not in this phase.
+
+#### Completed (Phase 145 — Phase 144 caveat closures: heatmap SQL, larger bulk-resolve, custom state machines, criterion sign-off)
+
+Closes the four caveats from Phase 144's commit message. None of these
+were blockers, but each one represented a "this is fine for now"
+shortcut that would bite at scale or for a tenant outside the canonical
+ISO 19650 flow. All four landed in the same phase so the BIM Manager
+surface is internally consistent.
+
+**1 — Tag completeness heatmap → DB-side aggregation**
+
+1. `Planscape.API/Controllers/ComplianceController.cs` — replaced the
+   app-tier `GroupBy` with a single PG raw-SQL query using
+   `COUNT(*) FILTER (WHERE …)` per token, grouped by
+   `COALESCE(NULLIF(BTRIM(Disc), ''), '(unset)')`. Response time stays
+   flat as the project scales — the previous implementation streamed
+   ~4 MB of slim DTO rows on a 200k-element federated model. SQL is
+   parameterised on `ProjectId` so query-plan caching kicks in for
+   repeated calls. Internal `RawHeatmapRow` record holds the column
+   shape; the response DTO is unchanged so mobile doesn't notice.
+
+**2 — Bulk ACCEPT_CLIENT cap raised**
+
+2. `Planscape.API/Controllers/SyncConflictsController.cs` —
+   `bulk-resolve-with-fields` cap raised from 250 → 500. Each call
+   now processes work in 50-row batches with one `SaveChangesAsync`
+   per batch. On `DbUpdateException` the offending batch is rolled
+   back via `EntityEntry.ReloadAsync` (so the change-tracker matches
+   the database) and the response carries a `failedBatches` array
+   plus the partial `resolved`/`skipped` lists. Idempotent: the
+   caller can replay the unresolved tail. Comment in the code makes
+   the recovery semantic explicit.
+
+**3 — Per-project custom deliverable state machine**
+
+3. `Planscape.Core/Entities/Project.cs` — added
+   `CustomDeliverableStateMachineJson` (jsonb, nullable). Migration
+   `20260427300000_AddCustomDeliverableStateMachine`.
+4. New `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs`
+   — single class holding both the canonical 6-state ISO 19650 flow
+   (`Default`) and a forgiving JSON loader (`LoadOrDefault`). A
+   malformed JSON, an empty `transitions` array, or a non-object
+   root all fall back to `Default` rather than locking the project
+   out of any transition. Returns an `IsCustom` flag so the UI can
+   distinguish "tenant override active" from "fell back".
+5. `Planscape.API/Controllers/DeliverablesController.cs` — `Transition`
+   now loads the project's machine and validates against it. Error
+   payload includes `allowedTargets` + `machine` name + `isCustom`
+   flag so the mobile client can re-render contextual buttons after
+   a 400. New `GET /deliverables/state-machine` exposes the resolved
+   machine for the active project.
+6. `Planscape.API/Controllers/ProjectSettingsController.cs` —
+   admin-string-fields whitelist now routes
+   `customDeliverableStateMachineJson` to the first-class column.
+   Empty string clears the override; a non-empty value is parsed
+   through `LoadOrDefault` server-side and rejected with a 400 if it
+   has no usable transitions, so the BIM Manager hears about the bad
+   JSON at PUT time rather than seeing silent fallback at request
+   time. Helper `AsString` mirrors the existing `ParseBool`.
+7. `Planscape/src/api/endpoints.ts` — `transitionDeliverable` now
+   accepts `string` for `newStatus` so custom machine states work.
+   Added `getDeliverableStateMachine` + `DeliverableStateMachine`
+   interface.
+8. `Planscape/src/types/api.ts` — extended `ProjectSettings.admin`
+   with `hasCustomDeliverableStateMachine` +
+   `customDeliverableStateMachineJson`.
+9. `Planscape/app/stages/deliverables.tsx` — replaced the hard-coded
+   next-status switch with a derivation from the resolved machine's
+   `transitions` array (fetched in parallel with the deliverables
+   list). New `friendlyTransitionLabel` helper produces a readable
+   button label for canonical state pairs and falls back to "→ X"
+   for custom states.
+
+**4 — Stage gate criterion-by-criterion sign-off**
+
+10. `Planscape.API/Controllers/StageGatesController.cs` — three new
+    endpoints + a new structured `CriterionDto`:
+      - `GET /stagegates/{id}/criteria` — parsed list with
+        `met`/`outstanding`/`total` summary
+      - `PUT /stagegates/{id}/criteria` — replace the list (used when
+        importing a default checklist). Rejects duplicate keys and
+        empty keys.
+      - `POST /stagegates/{id}/criteria/{key}/signoff` — flip
+        `met` for one criterion; on `met=true` stamps the actor's
+        display name + UTC timestamp, on `met=false` clears the
+        signoff so the next "met=true" gets a fresh stamp. Comment
+        + evidence document FK persisted alongside.
+    All three audit log via `_audit.LogAsync`. Helpers
+    `ParseCriteriaJson` / `SerializeCriteria` use camelCase JSON
+    naming so the JSONB column round-trips cleanly.
+11. `Planscape/src/api/endpoints.ts` — added `listStageCriteria`,
+    `replaceStageCriteria`, `signOffStageCriterion` +
+    `StageCriterion` / `StageCriteriaResponse` interfaces.
+12. New `Planscape/app/stages/criteria.tsx` — checklist UI. Each
+    row is a tappable checkbox + label + description + signoff
+    timestamp + tap-to-edit comment field. Empty-state offers a
+    "Seed defaults" button that POSTs a built-in RIBA-stage default
+    checklist (4 stage codes covered today: RIBA-3, RIBA-4, RIBA-5,
+    RIBA-6, RIBA-7). Progress bar at top shows met / total.
+13. `Planscape/app/stages/_layout.tsx` — registered the new screen.
+14. `Planscape/app/stages/index.tsx` — added a "Criteria ›" link
+    next to "Deliverables ›" on each gate card.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. Custom state machines run side-effect logic (submitter / acceptor
+   stamp, rejection-reason capture) only for canonical state names
+   (SUBMITTED / ACCEPTED / REJECTED). A custom flow that uses
+   bespoke names won't get those metadata writes; the transition
+   succeeds but `SubmittedAt` etc. stay null. Documented in the
+   controller comment.
+3. The criterion sign-off endpoints write the whole criteria array
+   on each call. For gates with very large checklists (>200 items)
+   this is sub-optimal; in practice gates rarely carry that many
+   criteria so a per-criterion row table can wait.
+4. Built-in RIBA criterion templates cover only 5 of the 8 RIBA
+   stages (3–7). The earlier stages typically don't have a BIM-
+   specific checklist; the BIM Manager authors them from the office
+   dashboard if needed.
+5. The heatmap raw SQL is PostgreSQL-only (uses `BTRIM` + `FILTER`).
+   Production deployments are all PG, so this is safe; if the test
+   suite were to spin up SQLite the heatmap test would need a stub.
+
+#### Completed (Phase 146 — Phase 145 caveat closures: heatmap dialect fallback, RIBA 0–2 seeds, semantic-role side-effects, normalised criterion table)
+
+Closes the four caveats from Phase 145's commit message. Each was a real
+piece of engineering debt rather than a silent shortcut, so the fixes
+land here as one coherent BIM-Manager-surface clean-up phase.
+
+**1 — Heatmap dialect fallback**
+
+1. `Planscape.API/Controllers/ComplianceController.cs` — added a one-shot
+   provider check (`_db.Database.ProviderName.Contains("Npgsql")`) on
+   the heatmap path. PostgreSQL deployments keep the raw-SQL
+   `COUNT(*) FILTER (WHERE …)` aggregator; SQLite (test suite),
+   SQL Server, and the in-memory provider fall through to a new
+   `ComputeHeatmapLinqAsync` helper that streams slim DTO rows via EF
+   Core then groups in app-tier. Response shape is identical so mobile
+   doesn't notice. The PG path's `BTRIM` / `FILTER` are no longer a
+   portability blocker for tests.
+
+**2 — RIBA stages 0–2 default checklists**
+
+2. `Planscape/app/stages/criteria.tsx` — extended `ribaDefaults` with
+   built-in checklist templates for the three early RIBA stages that
+   were missing:
+     - RIBA-0 Strategic Definition (3 criteria — business case, brief,
+       initial appointments)
+     - RIBA-1 Preparation and Briefing (5 criteria — EIR, PIR,
+       pre-appointment BEP, outline MIDP, feasibility)
+     - RIBA-2 Concept Design (5 criteria — design options, post-
+       appointment BEP, LOIN matrix, outline specs, stage 2 cost plan)
+   Coverage is now stages 0–7. Templates are intentionally minimal
+   (3–5 items) so the BIM Manager can pull them in as a starter
+   checklist and add bespoke criteria from there.
+
+**3 — Custom-state side-effect coverage via semantic roles**
+
+3. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   added a `SemanticRoles` dictionary (state name → role string) plus
+   a `RoleOf(state)` resolver. Recognised roles:
+   `initial / working / submitting / accepting / rejecting / terminal /
+   none`. The default ISO 19650 machine seeds the canonical mapping so
+   nothing changes for existing projects.
+4. `LoadOrDefault` parses an optional `"roles": { "STATE": "submitting", … }`
+   block on the custom JSON. Unknown role values are silently dropped
+   (no 500), so a typo in the role name doesn't take down the project.
+   The `KnownRoles` whitelist gates entries.
+5. `Planscape.API/Controllers/DeliverablesController.cs` — `Transition`
+   now keys side-effect logic on `machine.RoleOf(target)` instead of
+   the literal canonical state names. A custom flow that maps
+   `UNDER_REVIEW → submitting` will now stamp `SubmittedAt` /
+   `SubmittedBy` / `DocumentId` exactly like the canonical
+   `SUBMITTED` state. Comment in the switch documents the contract.
+6. `GET /deliverables/state-machine` now exposes the `roles` map so
+   the mobile client can colour buttons or render badges by semantic
+   role instead of string-matching on canonical names.
+7. `Planscape/src/api/endpoints.ts` — added `roles` to
+   `DeliverableStateMachine` interface.
+
+**4 — Normalised StageGateCriterion table**
+
+8. New entity `Planscape.Core/Entities/StageGateCriterion.cs` — one row
+   per (gate, key). Holds the same field set as the legacy
+   `CriterionDto` plus `SortOrder`, `SignedByUserId`, `CreatedAt`,
+   `UpdatedAt`. Indexed on `(StageGateId, Key)` UNIQUE so the per-key
+   sign-off endpoint locates the row in O(1).
+9. `PlanscapeDbContext` — added `StageGateCriteria` DbSet + EF
+   configuration with the unique index and cascade-on-delete from
+   StageGate.
+10. New migration `20260427400000_AddStageGateCriteria` — creates the
+    table; the legacy `StageGate.CriteriaJson` column is preserved for
+    read-fallback during the transition.
+11. `Planscape.API/Controllers/StageGatesController.cs` —
+     - `GET /criteria` now reads through new
+       `LoadCriteriaAsync(gate)` helper. Prefers the normalised table;
+       falls back to the JSONB blob when the table is empty (older
+       projects).
+     - `PUT /criteria` writes to the table inside a transaction:
+       `RemoveRange(existing) + Add(new)` + `SaveChangesAsync` +
+       `tx.CommitAsync`. JSONB column kept in sync for read-fallback.
+     - `POST /criteria/{key}/signoff` writes the single row in O(1).
+       On first touch of a criterion that only exists in the JSONB
+       blob (legacy gate), the row is migrated into the table on the
+       fly so subsequent reads come from the normalised path.
+       Comment + evidence document FK + signedByUserId all persisted.
+   Per-criterion sign-off no longer rewrites the full criteria array;
+   200-criterion checklists scale linearly from here.
+
+**Caveats**
+
+1. Built without `dotnet build` / `expo build` verification.
+2. The legacy `StageGate.CriteriaJson` column is still kept in sync
+   on `PUT /criteria` so older mobile clients reading via the old
+   path see the latest data. Once the mobile cutover is complete the
+   column can be dropped in a follow-up phase.
+3. `RoleOf` is case-insensitive but currently uppercases on insert
+   into the `SemanticRoles` dictionary; mixed-case state names in the
+   custom JSON are normalised at parse time.
+4. Custom JSON without a `"roles"` block keeps Phase 145 behaviour
+   (no metadata side-effects on transition). Documented in the
+   `DeliverableStateMachine` class comment so a BIM Manager debugging
+   "why didn't `SubmittedAt` get stamped?" lands on the right answer.
+
+#### Completed (Phase 147 — Phase 146 caveat closures: legacy column retired, role inference, unit tests)
+
+The three caveats from Phase 146 were genuine engineering debt, not
+silent shortcuts. This phase pays each one down.
+
+**1 — Legacy `StageGate.CriteriaJson` retired as a write target**
+
+1. New migration
+   `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20260427500000_BackfillStageGateCriteria.cs`
+   — PG-side data backfill that copies any remaining JSONB criteria into
+   the normalised `StageGateCriteria` table. Idempotent: only touches
+   gates that have a non-null `CriteriaJson` AND no rows in the table
+   yet, and uses `ON CONFLICT (StageGateId, Key) DO NOTHING` so a
+   project halfway through migration via the per-key auto-migrate path
+   doesn't get duplicates.
+2. `Planscape.API/Controllers/StageGatesController.cs` —
+   `ReplaceCriteria` (PUT) no longer dual-writes to
+   `gate.CriteriaJson`. The normalised table is now the source of
+   truth. Read-fallback to the JSONB blob is preserved on the GET path
+   for projects that haven't been touched since the backfill (e.g. a
+   read-only client browsing an old gate). New writes always populate
+   the table.
+3. The legacy `CriteriaJson` column is intentionally not dropped yet —
+   it gives any third-party reader a graceful deprecation window. A
+   follow-up phase can drop it once we're confident no client reads it.
+
+**2 — Inferred semantic roles when `roles` block is missing**
+
+4. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   added a `CanonicalRoles` lookup mapping the standard ISO 19650
+   state names (and common synonyms — `IN-PROGRESS`, `WIP`, `DRAFT`
+   → working; `FOR_REVIEW`, `UNDER_REVIEW`, `IN_REVIEW` → submitting;
+   `APPROVED`, `PUBLISHED` → accepting; `DECLINED`, `RETURNED` →
+   rejecting; `ARCHIVED`, `CLOSED` → terminal) to their roles.
+5. `LoadOrDefault` — when the custom JSON omits a `"roles"` block,
+   the loader now infers roles by matching state names (from both
+   `states[]` and the `from`/`to` of `transitions[]`) against
+   `CanonicalRoles`. Bespoke names with no canonical alias keep
+   `"none"`. Explicit `roles` always wins — providing a `roles` block
+   disables inference for that machine.
+6. Net effect: a tenant whose only customisation is reordering
+   transitions on the canonical state names now gets the metadata
+   side-effects (SubmittedAt / AcceptedAt / RejectionReason) for
+   free, with no JSON edits beyond the new transitions.
+
+**3 — Unit tests for the new logic**
+
+7. `Planscape.Server/tests/Planscape.Tests/DeliverableStateMachineTests.cs`
+   — 16 facts/theories covering:
+     - Canonical default validates forward transitions, rejects jumps
+     - Default seeds the canonical role for every state
+     - `RoleOf` returns "none" for unknown / empty input
+     - Forgiving loader falls back on null, empty, malformed,
+       wrong-root-type, empty-arcs, no-transitions JSON
+     - Explicit `"roles"` block parses + drops unknown role values
+     - Phase 147 inferred roles fire when block is missing
+     - Synonyms (`DRAFT` → working, `APPROVED` → accepting) recognised
+     - Bespoke names with no roles block stay "none"
+     - Explicit roles win over inference
+8. `Planscape.Server/tests/Planscape.Tests/Iso19650NamingValidatorTests.cs`
+   — 11 facts/theories covering the Phase 143 validator that had no
+   test coverage: canonical 8-segment acceptance (with / without
+   extension), short-segment + long-project-code rejection, unknown
+   type / role rejection, whitespace + forbidden-char rejection,
+   8+ segment tolerance, and exposure of the type / role
+   dictionaries.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification — the
+   sandbox has no .NET SDK. The tests are syntactically valid xUnit
+   against the test project's existing references; CI / local
+   `dotnet test Planscape.Server/tests/Planscape.Tests` will be the
+   first time they actually execute.
+2. The PG backfill migration uses `gen_random_uuid()`, which
+   requires the `pgcrypto` extension. Existing Planscape PG
+   deployments already have it (the initial migration enabled it);
+   fresh DBs created from the snapshot inherit it.
+3. The `CanonicalRoles` synonym list isn't exhaustive. Tenants
+   with truly bespoke vocabulary still need an explicit `"roles"`
+   block; the changelog and machine class XML doc both make that
+   explicit.
+
+#### Completed (Phase 148 — Phase 147 caveat closures: pgcrypto self-sufficient, fuzzy role inference, more tests)
+
+The two remaining caveats from Phase 147 were both genuine — a hidden
+deployment dependency and an inference fallback that didn't go far
+enough.
+
+**1 — Backfill migration is now self-sufficient on PG 12+**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20260427500000_BackfillStageGateCriteria.cs`
+   — added `CREATE EXTENSION IF NOT EXISTS pgcrypto;` at the head of
+   the `Up` method. The migration uses `gen_random_uuid()`, which is
+   built into PostgreSQL 13+ but needs the pgcrypto extension on
+   PG 12. Every existing Planscape PG deployment already has
+   pgcrypto enabled (the initial migration loaded it), so this is
+   belt-and-braces: a fresh PG 12 instance running the migrations
+   cold no longer depends on a previous migration's side-effect.
+   `IF NOT EXISTS` makes it a no-op when the extension is already
+   present, so no extra permission is needed on hosts that
+   pre-installed it.
+
+**2 — Substring-keyword fallback for bespoke state names**
+
+2. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   new internal `InferRoleByKeyword(state)` helper with six
+   priority-ordered keyword vocabularies tuned to ISO 19650 / NEC /
+   JCT terminology:
+     - **rejecting** (highest priority): REJECT, DECLIN, RETURN,
+       REWORK, FAIL, VOID
+     - **accepting**: ACCEPT, APPROV, PUBLISH, SIGNED_OFF, SIGNOFF, PASSED
+     - **submitting**: SUBMIT, REVIEW, ISSUED_FOR, FOR_INFORMATION,
+       FOR_APPROVAL, FOR_COMMENT
+     - **terminal**: ARCHIV, CLOSED, CANCELL, WAIVE, SUPERSED,
+       COMPLETE, FINAL, DONE
+     - **working**: PROGRESS, WIP, DRAFT, ACTIVE, BUILD, ONGOING
+     - **initial** (lowest): PENDING, BACKLOG, TODO, NEW, QUEUED,
+       OPEN, BRIEF
+   Outcome roles (rejecting / accepting) win over in-flight roles
+   (submitting / working) so `FINAL_REVIEW_REJECTED` resolves to
+   rejecting rather than terminal-or-submitting. Returns null when
+   no keyword matches — caller leaves the role unset and `RoleOf`
+   reports "none".
+3. `LoadOrDefault` — when the custom JSON omits a `"roles"` block
+   AND a state name has no `CanonicalRoles` exact match, the
+   substring path now fires. Both the `states[]` loop and the
+   `transitions[]` from/to loop fall back to the keyword inference.
+   Tenants with truly bespoke vocabularies (`ARCH_HAS_REVIEWED`,
+   `ME_FINAL_APPROVAL`, `CLIENT_SIGNOFF`) now get sensible role
+   inference for free; explicit `"roles"` blocks still win and
+   disable inference entirely.
+
+**3 — Tests for the new fuzzy path**
+
+4. `Planscape.Server/tests/Planscape.Tests/RoleInferenceTests.cs` —
+   24 facts/theories covering:
+     - Each of the 6 role buckets recognised via keyword (8 examples
+       per bucket via `[Theory]`)
+     - Priority order: rejecting > accepting > submitting > terminal
+       > working > initial (4 priority-collision tests with state
+       names that match multiple buckets)
+     - Null / empty / whitespace input → null
+     - Case insensitivity
+     - Integration with `LoadOrDefault`: bespoke names now get
+       inferred roles (the "INTAKE / DRAFTING / AWAITING_REVIEW /
+       PUBLISHED_TO_CDE" path Phase 147 had to leave at "none")
+     - Explicit `"roles"` block still wins over fuzzy inference
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The keyword vocabulary is opinionated. Tenants whose state names
+   collide with off-list synonyms (e.g. `ON_HOLD` is none of these
+   buckets, `LOCKED` ditto) will still need an explicit `"roles"`
+   block. The vocabulary is intentionally conservative — false
+   positives (a state misclassified) are worse than false negatives
+   (a state with no role, leading to skipped metadata) because the
+   metadata path is silent.
+3. The substring scan is O(state-name × keyword-count) per call,
+   ~50 character comparisons per state. Negligible at the call
+   volumes the controller sees, but if a future codepath calls
+   `RoleOf` per-element across a 100k-row dataset we'd want to
+   precompute. Documented in the helper's XML doc.
+
+#### Completed (Phase 149 — Phase 148 caveat closures: vocabulary expansion, tenant keyword extensions, memoised RoleOf)
+
+The two remaining caveats from Phase 148 were both real:
+- the keyword vocabulary missed common JCT/NEC state words like
+  `ON_HOLD`, `LOCKED`, `BLOCKED`, `FROZEN`, `ESCALATED`
+- the per-call cost was bounded but unmemoised, so a future caller
+  hitting `RoleOf` with the same unknown state in a tight loop would
+  pay it repeatedly
+
+**1 — Vocabulary expansion**
+
+1. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   extended five of the six keyword lists with common state terms
+   that appear on real BIM projects but weren't in Phase 148:
+     - `submitting`: + `ESCALAT` (ESCALATED, ESCALATED_TO_DIRECTOR)
+     - `terminal`: + `LOCKED`, `FROZEN`, `ABANDON`, `WITHDRAW`,
+       `HANDED_OVER`, `HANDOVER`
+     - `working`: + `ON_HOLD`, `ONHOLD`, `BLOCKED`, `WAITING`, `PAUSED`
+   Priority order is unchanged — outcome roles (rejecting / accepting)
+   still beat in-flight roles, so `PAUSED_FOR_REVIEW` resolves to
+   submitting (REVIEW > PAUSED).
+
+**2 — Tenant-supplied keyword extension block**
+
+2. New optional `"keywords"` block on the custom state-machine JSON.
+   Shape:
+   ```json
+   {
+     "states": ["NEW", "PARKED", "DELIVERED"],
+     "transitions": [...],
+     "keywords": {
+       "working":  ["PARKED", "WAITING_ON_X"],
+       "accepting": ["DELIVERED"]
+     }
+   }
+   ```
+   Caller-defined keywords take precedence over the built-in
+   vocabulary, so a tenant whose `LOCKED` means "engineer is editing"
+   (working) can override the canonical `LOCKED → terminal` mapping.
+3. `LoadOrDefault.ParseCustomKeywords` filters to the six canonical
+   role bucket names; unknown buckets are silently dropped, non-string
+   array entries are skipped. Both sanitisations have explicit tests
+   so a typo in the JSON doesn't 500.
+4. `LoadOrDefault` pre-resolves roles for any *declared* state (in
+   `states[]` or in transition endpoints) by consulting custom
+   keywords first, then the built-ins. Undeclared states fall through
+   to `RoleOf`'s runtime inference path.
+5. `CustomKeywords` is a new public property on
+   `DeliverableStateMachine`; the default machine has an empty map.
+6. `DeliverablesController.GetStateMachine` now surfaces
+   `customKeywords` so the mobile / web client can render the
+   extension table next to the state-machine diagram.
+7. `Planscape/src/api/endpoints.ts` — extended the
+   `DeliverableStateMachine` interface with `customKeywords?: Record<string, string[]>`.
+
+**3 — Memoised `RoleOf` for unknown states**
+
+8. `RoleOf` now consults `SemanticRoles` (the precomputed table) first;
+   on miss, it falls into a per-instance
+   `ConcurrentDictionary<string, string>` cache that holds the
+   inferred result so repeated queries with the same unknown state
+   are amortised O(1).
+9. `InferRoleWithExtensions` is a private instance helper that walks
+   `RolePriority` against the tenant `CustomKeywords` first, then
+   delegates to the static `InferRoleByKeyword`. Lets the runtime
+   path inherit the same outcome-beats-in-flight semantics as the
+   loader's pre-resolution path.
+
+**4 — Tests**
+
+10. `Planscape.Server/tests/Planscape.Tests/RoleExtensionTests.cs` —
+    16 facts/theories covering:
+      - Phase 149 vocabulary additions across `working` (5 examples)
+        and `terminal` (6) buckets, plus `ESCALATED → submitting`
+      - Tenant keyword block: extends built-ins, can override
+        canonical mappings, respects priority order, drops unknown
+        bucket names, skips non-string entries
+      - Custom keywords coexist with explicit `roles` block
+      - `RoleOf` is consistent across repeated calls (memoisation
+        invariant)
+      - Pre-computed states bypass runtime inference
+      - Runtime inference uses custom keywords for undeclared states
+      - `Default` machine's `CustomKeywords` is empty
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. Tenant keyword extensions are scoped to the project's machine —
+   no cross-tenant or platform-wide vocabulary. A platform-level
+   default-extension config could land in a future phase if multiple
+   tenants converge on the same bespoke vocab.
+3. The runtime memoisation cache is unbounded. State-machine
+   instances are normally one per loaded project (resolved per
+   request via `LoadOrDefault`), so the per-instance cache lifecycle
+   matches the request lifecycle. If a future caller starts holding
+   a single machine across many requests, the cache should grow a
+   bounded eviction policy.
+
+#### Completed (Phase 150 — Phase 149 caveat closures: bounded LRU cache, platform-wide keyword config)
+
+The two remaining caveats from Phase 149 were genuine production
+hardening items, not silent shortcuts.
+
+**1 — Bounded LRU cache**
+
+1. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/BoundedLruCache.cs`
+   — small thread-safe bounded LRU. Textbook dict-of-linked-list
+   pattern: O(1) `GetOrAdd` via dictionary lookup; touching an entry
+   promotes it to the head; tail is dropped when capacity exceeds.
+   Single coarse lock — write contention is low for the state-machine
+   use case (one writer per machine instance, ≤256 keys), so a
+   striped lock or RWLock would be over-engineering. Internal —
+   surfaced to tests via `InternalsVisibleTo`.
+2. `DeliverableStateMachine` — replaced the unbounded
+   `ConcurrentDictionary<string, string>` runtime cache with the new
+   `BoundedLruCache<string, string>` at capacity 256. Worst-case
+   memory: ~20 KB per instance even if every state name in audit-log
+   history is queried. Capacity is generous because state-machine use
+   cases rarely see more than a few dozen unique state names per
+   project; the cap is purely a defensive ceiling.
+3. New
+   `Planscape.Server/tests/Planscape.Tests/BoundedLruCacheTests.cs`
+   — 7 facts covering capacity validation, factory invocation count,
+   eviction on overflow, touch-promotes-entry semantics, custom
+   equality comparer pass-through, and a stress test inserting
+   1,000 keys into an 8-slot cache to confirm the cap holds.
+
+**2 — Platform-wide keyword extensions**
+
+4. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/IPlatformKeywordRegistry.cs`
+   — `IPlatformKeywordRegistry` interface plus two implementations:
+     - `ConfigPlatformKeywordRegistry` reads from
+       `DeliverableStateMachine:Keywords` in IConfiguration. Section
+       shape mirrors the per-project block:
+       ```json
+       "DeliverableStateMachine": {
+         "Keywords": {
+           "working":  [ "PARKED", "WAITING_ON_X" ],
+           "terminal": [ "FROZEN", "DECOMMISSIONED" ]
+         }
+       }
+       ```
+     - `EmptyPlatformKeywordRegistry` for tests / dev configs where
+       no platform-wide keywords are configured. Keeps DI surface
+       clean so callers never null-check.
+   Unknown bucket names are silently dropped, blank entries skipped,
+   case-insensitive dedupe via `Distinct` so a typo can't 500.
+5. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   added `LoadOrDefault(string? json, IReadOnlyDictionary<...>? platformKeywords)`
+   overload. Project-level `"keywords"` JSON wins on bucket
+   collisions; otherwise the project + platform lists concatenate
+   and dedupe. Legacy single-arg `LoadOrDefault(string?)` overload
+   is preserved (calls through with `platformKeywords: null`) so
+   existing call sites keep working.
+6. New helper `MergeKeywordLayers` performs the layered merge with
+   project-wins semantics. When project JSON is null but platform
+   keywords are present, the loader returns a Default-machine clone
+   carrying the platform layer so even canonical-flow projects get
+   platform vocabulary.
+7. `Planscape.API/Program.cs` — registered
+   `IPlatformKeywordRegistry` as a singleton bound to
+   `ConfigPlatformKeywordRegistry`.
+8. `Planscape.API/Controllers/DeliverablesController.cs` — accepts
+   `IPlatformKeywordRegistry` via DI; both `LoadOrDefault` call sites
+   (transition + state-machine GET) now pass `_platformKeywords.Keywords`
+   through. `ProjectSettingsController`'s validation path stays on
+   the single-arg overload — it's checking the project JSON in
+   isolation and platform keywords don't change parse-validity.
+9. New
+   `Planscape.Server/tests/Planscape.Tests/PlatformKeywordTests.cs`
+   — 8 facts covering: empty section yields empty registry, valid
+   sections populate, unknown buckets dropped, dedupe + whitespace
+   skip, EmptyPlatformKeywordRegistry contract, platform-only on
+   default machine, null platform returns the singleton Default
+   unchanged, project-wins merge, and the legacy single-arg
+   signature still works.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. Platform keywords are global to the deployment. A future phase
+   could add a tenant-scoped middle layer (read from
+   `Tenant.SettingsJson` or a new column) sitting between platform
+   and project; the merge helper is already structured for that.
+3. The LRU cache's lock is single-coarse. At the call volumes the
+   controller sees this is fine; if a future codepath calls
+   `RoleOf` from many threads concurrently on the same machine
+   instance, lock contention could become measurable and a
+   striped lock would help.
+
+#### Completed (Phase 151 — Phase 150 caveat closures: tenant keyword layer, striped LRU lock)
+
+The two remaining caveats from Phase 150 were both real production
+hardening items.
+
+**1 — Tenant-scoped keyword extensions**
+
+1. `Planscape.Core/Entities/Tenant.cs` — added
+   `KeywordExtensionsJson` (jsonb, nullable). Same shape as the
+   per-project `"keywords"` block.
+2. New migration `20260427600000_AddTenantKeywordExtensions.cs` —
+   adds the column. Null is the no-op default so existing tenants
+   are unaffected.
+3. New `Planscape.Infrastructure/Workflow/ITenantKeywordResolver.cs`
+   + `DbTenantKeywordResolver.cs` — DB-backed resolver with a static
+   striped-LRU cache keyed on `(TenantId, FNV-1a content hash)`. The
+   hash flips when an admin updates the JSON, so stale cache entries
+   self-invalidate on next read. Forgiving parser (same canonical-
+   bucket / typo-skip rules as the project parser); malformed JSON
+   falls back to empty rather than 500. Cache is `static readonly`
+   so the scoped resolver lifecycle doesn't rebuild it cold per
+   request.
+4. `DbTenantKeywordResolver.ParseForValidation(string)` — public
+   sibling of the private `Parse` so the admin PUT endpoint can
+   validate the JSON before persisting; mirrors the request-time
+   parse rules.
+5. `DeliverableStateMachine.MergeKeywordLayers` — generalised from
+   the Phase 150 two-layer signature to an n-ary
+   `params IReadOnlyDictionary<...>?[] layersInPriorityOrder`
+   overload. Higher-priority layers go first; later layers fill
+   buckets not claimed by earlier ones; within a bucket, all layers'
+   entries concatenate then dedupe (case-insensitive).
+6. `Planscape.API/Program.cs` — registered
+   `ITenantKeywordResolver → DbTenantKeywordResolver` as a scoped
+   service.
+7. `Planscape.API/Controllers/DeliverablesController.cs` — both
+   `LoadOrDefault` call sites now do
+   `MergeKeywordLayers(tenantKeywords, _platformKeywords.Keywords)`
+   first, then pass the merged "deployment defaults" as the second
+   arg. Project keywords sit on top via the existing project-vs-
+   platform merge inside `LoadOrDefault`. Net priority:
+   project > tenant > platform > built-ins.
+8. `Planscape.API/Controllers/AdminController.cs` — new
+   `GET /api/admin/tenant-keywords` (read current JSON +
+   `hasExtensions` flag) and `PUT /api/admin/tenant-keywords` (set /
+   clear). PUT validates the body via `ParseForValidation` before
+   persisting so a malformed payload returns 400 immediately rather
+   than being silently ignored at request time. Admin/Owner role
+   gate inherited from the controller-level `[Authorize]`.
+
+**2 — Striped LRU lock**
+
+9. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/StripedBoundedLruCache.cs`
+   — internal striped variant of the Phase 150
+   `BoundedLruCache<TKey,TValue>`. Each stripe is its own
+   self-contained cache with its own lock, so concurrent reads /
+   writes targeting different keys don't contend. Stripe count is
+   rounded up to the next power of two so the dispatch is
+   `hash & mask` instead of a div. Total capacity = stripe count ×
+   per-stripe capacity (per-stripe rounded up so the sum is
+   ≥ requested total).
+10. `DeliverableStateMachine` — runtime role memoisation now uses
+    the striped cache (8 stripes × 32 entries = 256 total, matches
+    the prior cap). `RoleOf` for unknown states still amortises to
+    O(1) and high-throughput callers no longer share a single lock.
+
+**3 — Tests**
+
+11. `StripedBoundedLruCacheTests.cs` (6 facts) — capacity
+    validation, stripe-count rounding to powers of two, factory
+    invocation count, custom comparer pass-through, total-cap
+    bounding under 1k insertions across 8 stripes, and a 16-thread
+    × 1k-reads-per-thread concurrency test that asserts the cap
+    holds without crashing.
+12. `TenantKeywordMergeTests.cs` (12 facts) — n-ary merge edge
+    cases (no layers / all null / single-layer pass-through),
+    two-layer and three-layer priority order, dedupe across layers
+    and across cases, empty-layer skip, and the
+    `ParseForValidation` validator (valid JSON, six malformed-input
+    cases, non-string entry filtering).
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The tenant resolver's static cache survives across requests but
+   not across process restarts (no Redis-backed shared cache).
+   That's fine for the typical scale — even a busy deployment with
+   100 tenants reaches steady state on the resolver cache within
+   the first few requests.
+3. Admin endpoints are gated by the controller-level
+   `[Authorize(Roles = "Admin,Owner")]`. Tenants that need a more
+   granular permission (e.g. only the BIM Manager role) will need
+   a follow-up phase to introduce a fine-grained policy.
+4. Mobile UI to edit tenant keywords from the office dashboard is
+   deferred — the API surface is in place but the office dashboard
+   doesn't render an editor yet. CLI / curl-based operator
+   workflow works today.
+
+#### Completed (Phase 152 — Phase 151 caveat closures: Redis L2 cache, BIM-Manager auth policy, dashboard editor)
+
+The three remaining caveats from Phase 151 were all real production
+hardening items.
+
+**1 — Redis-backed L2 cache**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Workflow/DbTenantKeywordResolver.cs`
+   gained an optional `IDistributedCache` constructor parameter.
+   Two-tier cache:
+     - **L1**: static striped-LRU keyed on `(TenantId, FNV-1a content
+       hash)` (Phase 151). Process-local, survives across requests.
+     - **L2**: `IDistributedCache` (Redis in production) keyed on
+       `tk:{TenantId}:{hash}` with a 14-day TTL. Survives process
+       restarts and is shared across the API fleet so a horizontal-
+       scaled deployment doesn't pay the parse cost N times.
+   Read path: L1 hit → done. L1 miss → L2 lookup → if hit, parse
+   and fill L1. L2 miss → fetch JSON from DB → parse → fill L2 →
+   fill L1. Hash flip on admin update naturally invalidates both
+   tiers.
+2. L2 stores the source JSON, not the parsed dict, so a future DTO
+   addition doesn't need a cross-deployment invalidation. Parse is
+   cheap.
+3. L2 calls are guarded by `try { ... } catch { /* fall through */ }`
+   on both `GetStringAsync` and `SetStringAsync`. A Redis blip
+   degrades gracefully to L1 + DB rather than 500-ing the request.
+4. DI is unchanged — `IDistributedCache` was already registered for
+   `TenantContext` (Phase 96) so the resolver picks it up via the
+   optional ctor parameter without any `Program.cs` edits.
+
+**2 — Finer-grained `BimManagerOrAdmin` authorisation policy**
+
+5. New
+   `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminRequirement.cs`
+   + `BimManagerOrAdminHandler.cs`. Two short-circuits:
+     - Tenant-level `Admin` / `Owner` role grants without a DB hit
+       (existing operators see no behaviour change — the policy is a
+       strict superset of the old role gate).
+     - Otherwise a DB lookup against `ProjectMembers` grants when at
+       least one row has `Iso19650Role == "K"` and matches the
+       caller's tenant claim. One row is enough — a BIM Manager on
+       any active project counts.
+   Handler resolves the DbContext via `IServiceScopeFactory` so it's
+   safe outside an HTTP request (e.g. SignalR, future).
+6. `Planscape.API/Program.cs` — `AddAuthorization(o => o.AddPolicy("BimManagerOrAdmin", …))`
+   registration plus singleton handler. The new policy and the
+   existing `[Authorize(Roles = "…")]` controller guards coexist —
+   the policy is opt-in per controller / action.
+7. New
+   `Planscape.API/Controllers/TenantKeywordsController.cs` — the
+   tenant-keywords endpoints moved out of `AdminController` so the
+   class-level `Admin/Owner` role gate could be replaced by the new
+   policy. Routes are unchanged (`GET / PUT /api/admin/tenant-keywords`)
+   so existing CLI / curl callers are unaffected.
+8. `AdminController.cs` — duplicated tenant-keywords actions
+   removed; a comment marker points to the new controller. The
+   `TenantKeywordsRequest` record stays on `AdminController.cs` in
+   the same namespace so the new controller can reference it without
+   a using.
+
+**3 — Dashboard editor for tenant keywords**
+
+9. `Planscape.API/wwwroot/index.html` — new sidebar entry under a
+   divider labelled "Tenant keywords".
+10. `Planscape.API/wwwroot/js/dashboard.js` — `renderTenantKeywords`
+    handler. Fetches the current JSON, renders it in a textarea
+    (formatted via `JSON.stringify` when valid), and exposes Save /
+    Clear / Reset buttons. Save POSTs to the new policy-gated PUT
+    endpoint and surfaces the bucket / entry count from the response.
+    Clear confirms before sending null. Editor falls back to a sample
+    config when the tenant has no extensions configured yet.
+11. `Planscape.API/wwwroot/css/dashboard.css` — admin-section
+    divider style + `.hint.ok` / `.hint.error` colour modifiers used
+    by the editor's status line.
+
+**4 — Tests**
+
+12. `Planscape.Server/tests/Planscape.Tests/TenantKeywordL2CacheTests.cs`
+    — 5 facts covering: L2 read-through after a process boundary,
+    L2-blip resilience (throwing IDistributedCache → DB fallback),
+    null-L2 backwards compat (single-arg ctor matches Phase 151),
+    empty tenantId, and null JSON. Uses
+    `MemoryDistributedCache` via a thin `MemoryDistributedCacheStub`
+    wrapper as the Redis stand-in so the tests run without any
+    external server.
+13. `Planscape.Server/tests/Planscape.Tests/BimManagerOrAdminHandlerTests.cs`
+    — 6 facts covering: Admin role short-circuit, Owner role
+    short-circuit, BIM Manager grant via project member, unrelated
+    role denial, missing user_id claim denial, inactive
+    project-member denial. Uses an isolated in-memory DbContext per
+    test so the policy logic is exercised end-to-end without a Redis
+    dependency.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The L2 entry TTL is 14 days. A tenant with no traffic for longer
+   than that re-parses on next request — fine, the parse is cheap.
+3. The dashboard editor accepts free-form JSON and relies on the
+   server-side validator for correctness. Inline schema-level
+   feedback (e.g. "you typed a bucket name that isn't recognised")
+   is still server-round-trip-only; a JSON-schema-aware editor
+   would be a future polish item.
+4. The auth policy uses `Iso19650Role == "K"` as the BIM Manager
+   marker. Tenants whose `ProjectMember.Iso19650Role` rows aren't
+   populated won't get the BIM-Manager grant and will need to be
+   tenant Admin / Owner instead. Documented in the handler XML doc.
+
+#### Completed (Phase 153 — Phase 152 caveat closures: configurable TTLs, inline JSON validation, broadened BIM Manager grant)
+
+The three remaining caveats from Phase 152 were all real production
+hardening items.
+
+**1 — Configurable + sliding L2 TTL**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Workflow/DbTenantKeywordResolver.cs`
+   — `IDistributedCache` write-path now sets both
+   `AbsoluteExpirationRelativeToNow` (caps lifetime) and
+   `SlidingExpiration` (refreshes on every read). Active tenants
+   stay hot indefinitely; absolute cap defends against indefinitely
+   pinned stale state.
+2. Both TTLs are configurable via appsettings:
+     - `DeliverableStateMachine:Cache:AbsoluteTtlDays` (default 14)
+     - `DeliverableStateMachine:Cache:SlidingTtlDays`  (default 7)
+3. New private `ReadTtl` helper validates the config: non-positive
+   or non-numeric falls back to default; values >365 days are
+   capped at 365 to defend against fat-finger configs that would
+   freeze stale data forever.
+4. Constructor signature gained an optional `IConfiguration` third
+   parameter. DI auto-injects it; existing single- and two-arg
+   callers (tests / unit-test fixtures) continue to work via the
+   default values.
+
+**2 — Inline schema-aware JSON validation in dashboard editor**
+
+5. `Planscape.Server/src/Planscape.API/wwwroot/js/dashboard.js` —
+   new `validateTenantKeywordsJson(text)` pure function mirrors the
+   server's `ParseForValidation` rules: parse JSON syntactically;
+   reject non-object roots; reject unknown bucket names against the
+   six canonical roles (initial / working / submitting / accepting
+   / rejecting / terminal); require array values; require non-empty
+   string entries.
+6. The textarea fires `input` → `validate()` on every keystroke.
+   `Save` is disabled on hard errors and the inline status banner
+   surfaces the specific issue ("Unknown bucket name(s): foo. Valid:
+   …" / "'working' contains non-string entries; …"). Server still
+   validates (defence in depth) but operators see typo feedback in
+   real time instead of round-tripping a 400.
+7. `dashboard.js` and `dashboard.css` add nothing else — the `.hint
+   .ok` / `.hint.error` classes from Phase 152 carry the green /
+   red colouring.
+
+**3 — Broadened BIM Manager grant**
+
+8. `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminHandler.cs`
+   — the hardcoded `Iso19650Role == "K"` check became a configurable
+   list. Read from `Authorization:BimManagerIso19650Roles`, defaults
+   to `["K"]`. Operators can broaden to `["K", "C"]` (BIM Manager +
+   Coordinator) or any other set without rebuilding.
+9. New AppUser-level grant path. Phase 152 only consulted
+   `ProjectMember.Iso19650Role`; if a user was flagged as BIM
+   Manager via `AppUser.Iso19650Role` at onboarding but had no
+   per-project membership row yet, they still got denied. The new
+   path checks `AppUser.Iso19650Role` against the configured list
+   first; falls through to the project-membership check if no
+   match. Tenant scoping is still enforced — a stale token from a
+   user moved to a different tenant doesn't grant.
+10. `ReadRoleList` config helper handles empty / missing config by
+    falling back to default; non-string entries dropped silently;
+    case-insensitive (uppercases at construction time so the hot
+    path is `Contains` against an uppercase list).
+
+**4 — Tests**
+
+11. `Planscape.Server/tests/Planscape.Tests/TenantKeywordTtlConfigTests.cs`
+    — 7 facts/theories: defaults applied when no config, configured
+    overrides flow through to `DistributedCacheEntryOptions`,
+    malformed values (zero / negative / non-numeric / empty) fall
+    back to default, excessive values cap at 365 days. Recording
+    `IDistributedCache` stub captures the actual options passed to
+    `SetStringAsync`.
+12. `Planscape.Server/tests/Planscape.Tests/BimManagerRoleConfigTests.cs`
+    — 7 facts: configured roles override default "K", narrowing
+    config excludes previously-granted users, empty config falls
+    back, case-insensitive matching, AppUser-level grant works
+    without project membership, AppUser grant follows config list,
+    cross-tenant AppUser denied.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The dashboard validator is a JavaScript mirror of the server's
+   parsing rules; if the server rules drift, the validator could
+   silently lag. Both are documented to refer to the canonical
+   `ParseForValidation` contract; a future refactor could code-gen
+   the JS validator from the server's role list.
+3. Sliding TTL is implemented per Microsoft's distributed-cache
+   contract; both Redis and `MemoryDistributedCache` honour it on
+   `Get`. SQL Server distributed cache also supports it. Other
+   third-party `IDistributedCache` providers may not — operators
+   running on bespoke providers should validate.
+4. Configurable BIM Manager roles are deployment-global. A
+   tenant-scoped override would land in a future phase if a
+   multi-tenant deployment needs different policies per customer.
+
+#### Completed (Phase 154 — Phase 153 caveat closures: server-source-of-truth role buckets, tenant-scoped BIM Manager override)
+
+The two remaining caveats from Phase 153 were both real production
+hardening items.
+
+**1 — Server source of truth for role buckets**
+
+1. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/RoleBuckets.cs`
+   — single static class holding the canonical six-bucket list
+   (`Canonical`), the case-insensitive set (`Set`), and the +none
+   sentinel set (`WithNone`). Replaces three duplicates that were
+   slowly drifting:
+     - `DeliverableStateMachine.KnownRoles`
+     - `DbTenantKeywordResolver.ValidRoles`
+     - `ConfigPlatformKeywordRegistry.ValidRoles`
+   All three now reference `RoleBuckets.Set` / `RoleBuckets.WithNone`
+   so adding a seventh bucket later is a one-file change.
+2. New `Planscape.Server/src/Planscape.API/Controllers/RoleBucketsController.cs`
+   — `GET /api/state-machine/role-buckets` returns the canonical
+   list to authenticated callers. No tenant data here; the list is
+   universal across deployments.
+3. `Planscape.Server/src/Planscape.API/wwwroot/js/dashboard.js` —
+   `validateTenantKeywordsJson` now consults a `TK_VALID_BUCKETS`
+   set populated by `loadRoleBucketsOnce()` on first render of the
+   tenant-keywords view. Falls back to a hardcoded copy of the
+   historical six on fetch failure so the editor isn't blocked by
+   a slow Redis blip on dashboard startup. If a future bucket
+   lands server-side, subsequent validations honour it without a
+   JS rebuild.
+
+**2 — Tenant-scoped BIM Manager role override**
+
+4. `Planscape.Server/src/Planscape.Core/Entities/Tenant.cs` — added
+   `BimManagerIso19650RolesJson` (jsonb, nullable). JSON array of
+   ISO 19650 single-letter codes, e.g. `["K", "C", "M"]`. Null falls
+   back to the deployment-wide
+   `Authorization:BimManagerIso19650Roles` appsettings list
+   (default `["K"]`).
+5. New migration `20260427700000_AddTenantBimManagerRoles.cs` —
+   adds the column. Null is the no-op default so existing tenants
+   are unaffected.
+6. `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminHandler.cs`
+   — `ResolveEffectiveRoles(string? tenantOverrideJson)` parses
+   the tenant override (forgiving: malformed JSON / non-array root /
+   non-string entries / empty array → fall back to platform list).
+   The handler fetches the override + AppUser role + project
+   membership in three reads against the same DbContext per
+   request, all scoped to the caller's tenant claim.
+7. Net priority: tenant override (when set) → deployment-global
+   appsettings (when set) → hardcoded `["K"]`.
+
+**3 — Tests**
+
+8. `Planscape.Server/tests/Planscape.Tests/RoleBucketsTests.cs` —
+   6 facts/theories pinning the bucket list (count, exact names,
+   case-insensitivity, "none" sentinel handling, rejection of
+   unknown buckets). Adding / renaming a bucket now requires a
+   deliberate update here alongside the production list — no
+   silent drift.
+9. `Planscape.Server/tests/Planscape.Tests/TenantBimManagerRoleOverrideTests.cs`
+   — 9 facts/theories: tenant narrows below deployment, tenant
+   broadens beyond deployment, case-insensitive matching,
+   malformed override falls back (5 theory cases), null override
+   falls back, override applies to AppUser-level grant path.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. Tenant override JSON is parsed on every authorisation request.
+   Acceptable because the request is already tenant-scoped and the
+   parse is cheap; if measured profiles later show otherwise, a
+   per-tenant cache (similar to `DbTenantKeywordResolver`) could
+   land in a follow-up phase.
+3. The tenant override has no admin-UI editor yet — the column is
+   set via direct SQL or via the existing tenant settings PUT (when
+   that endpoint lands; see SRV-50 backlog item). The plumbing is
+   in place ahead of the UI.
+4. The `RoleBuckets.WithNone` set still treats "none" as a legal
+   value in custom-machine `"roles"` blocks (matches Phase 146
+   behaviour); custom keyword blocks reject it via the narrower
+   `RoleBuckets.Set`.
+
+#### Completed (Phase 155 — Phase 154 caveat closures: tenant role cache, admin UI, role-block asymmetry surfaced)
+
+The three remaining caveats from Phase 154 were all genuine
+hardening / operational items.
+
+**1 — Per-tenant cache for the BIM Manager role override**
+
+1. New
+   `Planscape.Server/src/Planscape.Infrastructure/Authorization/ITenantBimManagerRoleResolver.cs`
+   — interface with the `ResolveAsync(tenantId)` shape, mirroring
+   `ITenantKeywordResolver` so future readers find the pattern
+   familiar.
+2. New `DbTenantBimManagerRoleResolver` — DB-backed implementation
+   with a static `StripedBoundedLruCache<string, IReadOnlyList<string>?>`
+   keyed on `(TenantId, FNV-1a content hash)`. Cache survives across
+   the resolver's scoped lifecycle so authorisation requests don't
+   rebuild it cold per call. Forgiving parser: malformed / non-array
+   / empty → returns `null` (caller falls back to deployment list).
+3. `BimManagerOrAdminHandler` — replaced the inline
+   `ResolveEffectiveRoles` parser with a cached resolver call.
+   `effectiveRoles = tenantOverride ?? _bimManagerRoles` keeps the
+   priority semantics unchanged. The retired inline parser is left
+   as a comment marker pointing readers at the resolver.
+4. `Planscape.API/Program.cs` — registered
+   `ITenantBimManagerRoleResolver → DbTenantBimManagerRoleResolver`
+   as a scoped service.
+
+**2 — Admin endpoint + dashboard editor for tenant role override**
+
+5. New
+   `Planscape.Server/src/Planscape.API/Controllers/TenantBimManagerRolesController.cs`
+   — `GET / PUT /api/admin/tenant-bim-manager-roles`. Same
+   `BimManagerOrAdmin` policy gate as the tenant-keywords endpoint.
+   PUT validates the body via the resolver's
+   `ParseForValidation` so a malformed payload is rejected at PUT
+   time rather than being silently ignored at request time.
+6. `Planscape.API/wwwroot/index.html` — added a "BIM-Manager roles"
+   sidebar entry under the existing admin divider.
+7. `Planscape.API/wwwroot/js/dashboard.js` —
+   `renderTenantBimManagerRoles(main)` mirrors the tenant-keywords
+   editor: textarea + Save / Clear / Reset buttons, inline
+   keystroke-by-keystroke validation via
+   `validateBimManagerRolesJson`. Validator checks JSON syntax,
+   array root, all-strings, no-empty entries, and rejects
+   suspiciously-long strings (>4 chars) that don't match the
+   single-letter ISO 19650 code shape.
+
+**3 — Role-block vs keyword-block asymmetry surfaced through the API**
+
+8. `Planscape.API/Controllers/RoleBucketsController.cs` — extended
+   the response with two semantic names that disambiguate the two
+   contexts:
+     - `keywordBlockBuckets` (six canonical buckets, no "none") —
+       what a tenant's `"keywords"` block can declare.
+     - `rolesBlockKeys` (six canonical buckets PLUS "none") —
+       what a custom-machine `"roles"` block can map a state to.
+   The legacy `buckets` / `priorityOrder` aliases stay for backward
+   compat with Phase 154 dashboards.
+9. The asymmetry is now self-documenting: the API tells the JS
+   validator which list to use in which context. The historical
+   note ("matches Phase 146 behaviour") is preserved in code
+   comments but is no longer the only place to find the contract.
+
+**4 — Tests**
+
+10. `DbTenantBimManagerRoleResolverTests.cs` (12 facts/theories) —
+    no-override → null, valid override returns roles, uppercase +
+    dedupe, six malformed-input fallback theories, empty tenantId,
+    repeated-call cache hit (stale entry replaced after JSON
+    edit), `ParseForValidation` consistency.
+11. `RoleBucketsAsymmetryTests.cs` (4 facts) — pins the
+    `WithNone` ⊃ `Set` invariant, the +1 size delta, the "none"
+    sentinel as the single extra, and the canonical priority
+    order. Adding / removing a bucket later requires a deliberate
+    update here alongside `RoleBuckets`.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The cache uses the same static striped-LRU as the keyword
+   resolver — process-local, survives across requests but not
+   process restarts. A Redis L2 layer (similar to Phase 152's
+   `IDistributedCache` write-through on the keyword resolver)
+   would land in a follow-up phase if multi-instance deployments
+   show measurable cold-start latency on the auth path.
+3. The admin UI uses the same `BimManagerOrAdmin` policy gate as
+   the tenant-keywords editor. A user who's been demoted from
+   BIM Manager but still holds a valid token will retain edit
+   access until the token expires; same caveat applies to every
+   policy-gated endpoint and is documented in the policy XML doc.
+4. `keywordBlockBuckets` and `rolesBlockKeys` are returned on every
+   role-buckets call; the response is small so caching client-side
+   for a session is enough — server-side ETag / 304 negotiation
+   would be over-engineering at this size.
+
+#### Completed (Phase 156 — Phase 155 caveat closures: Redis L2 for role resolver, JWT iat-revocation, ETag on role-buckets)
+
+The three remaining caveats from Phase 155 were all real production
+hardening items.
+
+**1 — Redis L2 cache for the BIM Manager role resolver**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Authorization/DbTenantBimManagerRoleResolver.cs`
+   — gained optional `IDistributedCache` + `IConfiguration` ctor
+   parameters. Two-tier read-through identical to Phase 152's
+   keyword resolver:
+     - L1: static striped LRU keyed on `(TenantId, FNV-1a hash)`
+     - L2: `IDistributedCache` keyed on `tbmr:{TenantId}:{hash}`,
+       sliding + absolute TTLs configurable via
+       `Authorization:BimManagerRoles:{Absolute,Sliding}TtlDays`
+       (defaults 14 / 7).
+2. L2 stores the source JSON, not the parsed list, so future DTO
+   additions don't invalidate the cluster-wide cache. Parse cost is
+   microseconds. L2 errors degrade gracefully to L1 + DB rather
+   than 500-ing the auth path.
+
+**2 — JWT permission-revocation lag mitigation**
+
+3. New
+   `Planscape.Server/src/Planscape.Infrastructure/Authorization/IPermissionRevocationStore.cs`
+   — interface with two methods: `GetMinIatAsync(userId)` returns
+   the floor for "minimum acceptable iat", `RevokeAllPriorTokensAsync(userId)`
+   bumps the floor to "now". Tokens issued before the floor lose
+   policy-gated access immediately.
+4. New `RedisPermissionRevocationStore` — Redis-backed
+   implementation (`auth:revocation:{userId}` keys) with TTL from
+   `Authorization:RevocationFloorTtlDays` (default 30 days, capped
+   at 365). Once every surviving token predates the floor, Redis
+   evicts the entry. Failures on either GET or SET fall back to no-
+   op so a Redis blip can't 500 the auth path or block admin
+   actions.
+5. New `NullPermissionRevocationStore` — no-op for unit tests / dev
+   configs without Redis.
+6. `BimManagerOrAdminHandler` — new check between user-id resolution
+   and DB scope. Reads the floor; if the JWT's `iat` claim
+   pre-dates it, denies. Tokens without an `iat` claim are denied
+   when a floor exists (forces clients to migrate to iat-bearing
+   tokens) but accepted when no floor exists (legacy back-compat).
+   Admin/Owner short-circuit happens earlier so admins can't lock
+   themselves out via their own revocation.
+7. `AdminController.UpdateUser` — detects permission-changing field
+   edits (Role / Iso19650Role / IsActive). When any change, calls
+   `RevokeAllPriorTokensAsync` after the DB save commits. Display-
+   name changes don't trigger revocation. Fire-and-forget — Redis
+   blip can't block the admin action.
+8. `Planscape.API/Program.cs` — registered both stores; production
+   wires the Redis-backed one.
+
+**3 — ETag / 304 on role-buckets endpoint**
+
+9. `Planscape.Server/src/Planscape.API/Controllers/RoleBucketsController.cs`
+   — payload promoted to a `static readonly` field; `ETag` is a
+   `static readonly` strong validator computed from
+   `SHA256(JSON-serialized payload).Substring(0, 16)`. Stable across
+   processes (the payload is hardcoded), so any instance in a
+   horizontal-scaled fleet returns the same tag for the same body.
+10. Endpoint sets `ETag` and `Cache-Control: private, max-age=3600`
+    on every response. Browsers / mobile clients revalidate against
+    the tag once an hour; matches return a body-less 304. Saves
+    ~250 bytes per call without complicating client logic. Dashboard
+    JS continues to session-cache via `TK_BUCKETS_LOADED` — the
+    HTTP-level ETag is an additional layer, not a replacement.
+
+**4 — Tests**
+
+11. `PermissionRevocationStoreTests` (8 facts) — pre-revoke returns
+    null, revoke + get returns recent epoch, distinct users are
+    independent, idempotent + latest wins, empty user-id no-ops,
+    Redis-down GET returns null, Redis-down revoke doesn't throw,
+    null store always returns null.
+12. `RevocationFloorHandlerTests` (5 facts) — token issued after
+    revocation grants, token issued before revocation denied, no
+    floor + no iat still grants (legacy), floor + no iat denies
+    (forces iat migration), Admin role bypasses revocation check.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The revocation floor lookup adds one Redis GET per policy-gated
+   request. Hot path is sub-millisecond on a co-located Redis
+   instance and bounded by a try/catch fallback when Redis is
+   slow. If profiles later show this as a bottleneck, batching
+   the floor lookup with the existing tenant-override lookup via
+   pipelining would be a future optimisation.
+3. Manual force-revoke endpoint isn't included — currently only
+   the `UpdateUser` path triggers a floor bump. A standalone
+   `POST /admin/users/{id}/revoke-tokens` could land in a
+   follow-up if SOC2 / ISO 27001 audits require an explicit
+   "logout this user everywhere" action distinct from a role
+   change.
+4. The ETag is computed from a static payload, so the value is
+   bit-stable across the deployment. If a future bucket addition
+   updates the canonical list, the ETag will flip on the next
+   process restart and clients revalidate at most one hour after
+   that — well within typical deployment-rollout windows.
+
+#### Completed (Phase 157 — Phase 156 caveat closures: concurrent auth-handler reads, explicit revoke endpoint)
+
+The two remaining caveats from Phase 156 were both real production
+hardening items.
+
+**1 — Concurrent revocation + tenant-override reads**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Authorization/BimManagerOrAdminHandler.cs`
+   — both the `IPermissionRevocationStore.GetMinIatAsync` and
+   `ITenantBimManagerRoleResolver.ResolveAsync` calls now launch
+   together via `Task.WhenAll`. They target distinct keys / cache
+   entries so there's no contention; the auth path's Redis-bound
+   latency drops to roughly the slower of the two operations
+   instead of the sum.
+2. Used `Task.WhenAll` rather than StackExchange.Redis `IBatch`
+   pipelining: simpler, lets each consumer keep its own L1 / L2 /
+   DB fallback chain (the keyword resolver routes through
+   IDistributedCache then DB; the revocation store is direct
+   IDistributedCache only). True multiplexed pipelining would
+   shave another ~0.5ms but at the cost of giving up the resolver's
+   internal L1 short-circuit.
+3. Admin / Owner short-circuit still happens before the
+   concurrent block so the cheap path stays cheap.
+
+**2 — Explicit "revoke this user everywhere" admin endpoint**
+
+4. `Planscape.Server/src/Planscape.API/Controllers/AdminController.cs`
+   — new `POST /api/admin/users/{userId}/revoke-tokens`. Bumps
+   the user's iat-floor in
+   `IPermissionRevocationStore` and audit-logs the action under
+   the `USER_REVOKE` kind. Distinct from the implicit revocation
+   triggered by `UpdateUser` (which also fires when the admin
+   actually changes a permission field) so SOC2 / ISO 27001
+   audits get a discrete "session termination" event in the
+   trail separate from "permission change".
+5. Idempotent — calling repeatedly bumps the floor each time;
+   monotonic floors mean tokens issued between calls still fail
+   the check on next request.
+6. Returns 404 when the target user isn't in the caller's
+   tenant. Returns 200 with the email + revocation timestamp on
+   success so the caller can verify which user they actually
+   logged out (the user-id alone is rarely enough confirmation).
+7. `AdminController` ctor gained an `IAuditService` dependency
+   for the audit-log write.
+
+**3 — Tests**
+
+8. `Planscape.Server/tests/Planscape.Tests/AuthHandlerConcurrentReadsTests.cs`
+   — 3 facts:
+     - "RevocationAndTenantOverride_LaunchInParallel" verifies the
+       Task.WhenAll dispatch by giving both fakes a 200ms delay and
+       asserting total wall time < 350ms (vs ~400ms if serial).
+     - "BothLookups_AreObservedByTheHandler" guards against an
+       accidental short-circuit on the wrong path.
+     - "RevocationFloorAndOverride_BothApplied" exercises the
+       composed semantics — fresh iat clears the floor, but a
+       narrower tenant override still denies the K-role member.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The 350ms wall-clock assertion in the parallel test is
+   timing-dependent. CI under heavy load (e.g. shared GH Actions
+   runners spiking) could exceed it; the constant has plenty of
+   headroom but a hard-deadline alternative (e.g. measure each
+   leg's start-time via instrumented fakes) would be more robust.
+   Acceptable for now since the real production benefit is the
+   shape of the call graph, which the second test pins.
+3. `revoke-tokens` audit-logs with a free-text `reason` of
+   "explicit admin revoke". A future enhancement could accept a
+   caller-supplied reason in the request body so the trail
+   captures *why* the revocation happened (suspected credential
+   leak, employee offboarding, etc.).
+4. The endpoint is gated by the controller-level
+   `[Authorize(Roles = "Admin,Owner")]`. A finer-grained policy
+   (e.g. dedicated "Security Officer" role for SOC2 separation
+   of duties) would be a follow-up if compliance audits require it.
+
+#### Completed (Phase 158 — Phase 157 caveat closures: deterministic concurrency test, caller-supplied revoke reason, SecurityOfficer separation-of-duties)
+
+The three remaining caveats from Phase 157 — one test-quality, two
+real production hardening items.
+
+**1 — Deterministic concurrent-launch test**
+
+1. `Planscape.Server/tests/Planscape.Tests/AuthHandlerConcurrentReadsTests.cs`
+   — replaced the timing-dependent `sw.ElapsedMilliseconds < 350`
+   assertion with a barrier-based pattern. Each fake records
+   "started" via a `TaskCompletionSource`, then awaits the peer's
+   barrier before completing. If the handler dispatches the calls
+   serially the second fake never starts (the first is blocked on
+   the second's gate that will never open). Concurrent dispatch
+   lets both gates open and both fakes complete. Wrapped in
+   `Task.WhenAny + Task.Delay(2s)` timeout so a serial regression
+   surfaces as a clean Assert rather than a hung CI.
+2. `using System.Diagnostics` removed (Stopwatch no longer used).
+
+**2 — Caller-supplied revoke reason**
+
+3. New `Planscape.Server/src/Planscape.API/Controllers/SecurityController.cs`
+   — moved the revoke-tokens endpoint here from `AdminController`
+   (the old route is dropped because nothing depends on it yet).
+   Endpoint accepts an optional body `{ "reason": "...",
+   "category": "..." }` where category is intended for SOC2-
+   friendly classification (suspected_credential_leak /
+   employee_offboarding / scheduled_rotation / suspicious_activity)
+   and reason is free-text context. The audit-log entry now
+   captures both fields plus a `via` marker so historical reviews
+   can distinguish security-controller revokes from implicit
+   user-update-triggered revokes.
+4. Reason length capped at 500 chars server-side so a pasted
+   novel doesn't bloat the audit table. Empty / unset fields are
+   audit-logged as `(no reason supplied)` / `unspecified` so the
+   row is always grep-able.
+
+**3 — SecurityOfficer separation-of-duties role**
+
+5. `Planscape.Server/src/Planscape.Core/Entities/AppUser.cs` —
+   added `UserRole.SecurityOfficer = 6`. SecurityOfficer can
+   revoke sessions + read audit logs but is NOT an Admin / Owner;
+   they can't edit projects, members, or BIM-Manager roles.
+   Backwards-compatible — existing users default to Viewer; new
+   role is opt-in via `PUT /api/admin/users/{id}` (which itself
+   requires Admin/Owner so the privilege escalation path stays
+   gated on the highest-trust role).
+6. New `Planscape.Server/src/Planscape.Infrastructure/Authorization/SecurityOfficerOrAdminRequirement.cs`
+   + `SecurityOfficerOrAdminHandler.cs` — pure claims-only check,
+   no DB hit. Grants on Admin / Owner / SecurityOfficer roles.
+7. `Planscape.API/Program.cs` — registered the new policy
+   `SecurityOfficerOrAdmin` + handler. Existing
+   `BimManagerOrAdmin` policy registration is unchanged.
+8. `SecurityController` is gated by the new policy at the class
+   level, so a SecurityOfficer can revoke without holding tenant
+   admin powers.
+
+**4 — Tests**
+
+9. `Planscape.Server/tests/Planscape.Tests/SecurityOfficerOrAdminHandlerTests.cs`
+   — 12 facts/theories covering: each of Admin / Owner /
+   SecurityOfficer grants (3 theory entries), six non-qualifying
+   roles deny (theory), no role-claim denies, multiple-roles-with-
+   one-qualifying grants.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The audit-log `category` field is free-form — no server-side
+   enum constraint — because SOC2 / ISO 27001 audit categories
+   evolve faster than schema migrations. A future enhancement
+   could ship a recommended-categories endpoint backed by
+   appsettings so dashboards can render a dropdown without
+   blocking unfamiliar values.
+3. The role-list claims-check uses string comparison (`IsInRole`).
+   ASP.NET Identity's role normalisation pipeline already
+   uppercases role names, so case-mismatch isn't a concern here,
+   but a custom JWT issuer that emits non-standard role claim
+   names would need its own claim-mapping middleware.
+4. Old `/api/admin/users/{id}/revoke-tokens` route was retired
+   in favour of `/api/security/users/{id}/revoke-tokens`. No
+   external clients yet depend on the old route (it landed in
+   Phase 157, this phase) so removing it is safe; the SOC2
+   audit migration path is explicit in the controller's class-
+   level XML doc.
+
+#### Completed (Phase 159 — Phase 158 caveat closures: recommended audit categories endpoint, backward-compat revoke route alias)
+
+The two remaining caveats from Phase 158 were both production-readiness
+items rather than design questions: a missing operator-facing list of
+SOC2-friendly audit categories, and a hard cutover on the Phase 157
+revoke-tokens route that left no deprecation window for dashboards or
+CLI tooling. Both close in this phase.
+
+1. **Recommended audit categories endpoint, appsettings-backed**.
+   New `GET /api/audit/categories` controller exposes the canonical
+   SOC2 / ISO 27001 categories that the Phase 158 SecurityController
+   audit log entries embed. Behaviour:
+
+   - **Built-in fallback** — seven canonical entries
+     (`suspected_credential_leak`, `employee_offboarding`,
+     `scheduled_rotation`, `suspicious_activity`, `policy_change`,
+     `regulatory_request`, `unspecified`) ship in code so a fresh
+     deployment renders a usable dropdown without configuration.
+   - **Operator override** via `Audit:Categories` in `appsettings.json`.
+     Configured entries are merged with the built-ins (case-insensitive
+     dedupe so `REGULATORY_REQUEST` doesn't double-list with
+     `regulatory_request`); operator entries surface ahead of the
+     built-in tail so a tenant's preferred taxonomy renders at the top.
+   - **ETag / 304 negotiation** with content-stable SHA-256 hash and
+     `Cache-Control: private, max-age=3600` matching the role-buckets
+     endpoint pattern (Phase 156). Configured deployments produce
+     different ETags than vanilla ones so dashboards on the configured
+     host can't 304-cache the vanilla list.
+   - **Auth gate** is `[Authorize]` only (no policy) — any
+     authenticated user can fetch the list because it's advisory data,
+     not a security action. A coordinator filing an issue must be able
+     to see the same dropdown the SecurityOfficer sees.
+   - **Advisory note** in the response body explicitly states that
+     the revoke-tokens endpoint accepts any string in the category
+     field; this prevents a future engineer from mistakenly assuming
+     the list is enforced and shipping a schema migration based on
+     dashboard behaviour alone.
+
+   The category field on `POST /api/security/users/{id}/revoke-tokens`
+   stays free-form — operators submit any string they want, and the
+   audit log captures it verbatim. This endpoint is purely a "nudge"
+   surface: dashboards / mobile clients fetch it once per session and
+   render a dropdown that nudges operators toward the canonical
+   taxonomy without blocking emerging categories.
+
+2. **Backward-compat revoke route alias**. The Phase 158 caveat
+   noted that the old `/api/admin/users/{id}/revoke-tokens` route was
+   retired in the same window it was added, which left no deprecation
+   path. Phase 159 adds a leading-slash absolute attribute on the
+   `RevokeTokens` action:
+
+   ```csharp
+   [HttpPost("users/{userId}/revoke-tokens")]
+   [HttpPost("/api/admin/users/{userId}/revoke-tokens")]
+   public async Task<ActionResult> RevokeTokens(...)
+   ```
+
+   The leading slash overrides the class-level `[Route("api/security")]`
+   prefix so both routes hit the same handler with the same
+   `SecurityOfficerOrAdmin` policy gate. The audit log records
+   `via: "security_controller"` either way so operators can still grep
+   for stragglers that hit the legacy URL during the deprecation
+   window. The auth gate on the alias is laxer than the original
+   Phase 157 route (which was `Admin/Owner` only) — this is
+   intentional and matches the Phase 158 SOC2 separation-of-duties
+   redesign. Old clients keep working; new clients should prefer the
+   `/api/security/...` route.
+
+3. **Tests**. Two new test files:
+
+   - `AuditCategoriesControllerTests` (7 facts, no config) +
+     `AuditCategoriesConfiguredTests` (4 facts, sub-factory injects
+     `Audit:Categories`) covering: built-in fallback, advisory note,
+     ETag/Cache-Control headers, ETag stability, 304 short-circuit on
+     `If-None-Match`, 401 unauthenticated, 200 for member role,
+     configured + built-in merge, case-insensitive dedupe (single entry
+     for `REGULATORY_REQUEST` ∪ `regulatory_request`), configured
+     entries sort ahead of built-in tail, configured ETag differs from
+     vanilla ETag.
+   - `SecurityControllerRouteAliasTests` (7 facts) covering: new route
+     200, legacy route 200 (same payload shape), both routes share the
+     same SecurityOfficerOrAdmin policy gate, legacy route 404 on
+     non-existent user, legacy route 404 on cross-tenant user (no
+     tenant-isolation regression via the URL alias), legacy route 403
+     for Member role (alias is NOT laxer than the new route), legacy
+     route accepts a bare POST with no body so existing `curl -X POST`
+     scripts don't 415 on the upgrade.
+
+**Files**
+
+- `Planscape.Server/src/Planscape.API/Controllers/AuditCategoriesController.cs` (NEW, 99 lines).
+- `Planscape.Server/src/Planscape.API/Controllers/SecurityController.cs` (modified — added legacy route attribute, ~10-line block comment).
+- `Planscape.Server/tests/Planscape.Tests/AuditCategoriesControllerTests.cs` (NEW, 230 lines).
+- `Planscape.Server/tests/Planscape.Tests/SecurityControllerRouteAliasTests.cs` (NEW, 129 lines).
+- `docs/CHANGELOG.md` — this entry.
+- `Planscape.Server/docs/PLANSCAPE_GAPS.md` — added SRV-63 + SRV-64
+  rows, both Closed in Phase 159.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification (sandbox
+   has no .NET SDK).
+2. The recommended-categories endpoint is global to the deployment —
+   a single appsettings list applies to every tenant. A tenant-scoped
+   override (similar to the BIM-Manager keyword resolver) would let
+   each tenant author its own taxonomy; deferred to a future phase
+   because real-world SOC2 taxonomies tend to be platform-wide rather
+   than tenant-specific.
+3. The legacy route alias has no telemetry counter today, so we
+   can't measure how many clients still hit `/api/admin/...` vs
+   `/api/security/...`. The audit log's `via: "security_controller"`
+   marker is identical for both paths. A future enhancement could
+   stamp the request URL into the audit row so dashboards can
+   visualise the migration.

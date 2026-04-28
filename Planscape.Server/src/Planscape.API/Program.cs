@@ -106,7 +106,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             }
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Phase 152 — finer-grained policy for tenant-keywords admin
+    // endpoints so a BIM Manager (ISO 19650 role K on any project) can
+    // edit deliverable-state-machine vocabulary without being promoted
+    // to a tenant Owner. The handler short-circuits on Admin / Owner
+    // so existing operators are unaffected.
+    options.AddPolicy("BimManagerOrAdmin", policy =>
+        policy.Requirements.Add(new Planscape.Infrastructure.Authorization.BimManagerOrAdminRequirement()));
+
+    // Phase 158 — separation-of-duties policy for security-sensitive
+    // endpoints (token revocation, future audit-log surfaces). Grants
+    // SecurityOfficer + Admin + Owner so a tenant can ship a dedicated
+    // SecurityOfficer persona without giving them tenant admin powers.
+    options.AddPolicy("SecurityOfficerOrAdmin", policy =>
+        policy.Requirements.Add(new Planscape.Infrastructure.Authorization.SecurityOfficerOrAdminRequirement()));
+});
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+    Planscape.Infrastructure.Authorization.BimManagerOrAdminHandler>();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+    Planscape.Infrastructure.Authorization.SecurityOfficerOrAdminHandler>();
 
 // ── Services ──
 builder.Services.AddHttpContextAccessor();
@@ -121,6 +141,29 @@ else
 {
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 }
+// Phase 150 — platform-wide deliverable state-machine keyword
+// extensions. Bound from `DeliverableStateMachine:Keywords` in
+// appsettings; falls back to an empty registry when the section is
+// absent so projects continue to use built-in vocabulary only.
+builder.Services.AddSingleton<Planscape.Infrastructure.Workflow.IPlatformKeywordRegistry,
+    Planscape.Infrastructure.Workflow.ConfigPlatformKeywordRegistry>();
+// Phase 151 — tenant-scoped keyword extensions (read-through cache).
+// Singleton so the cache survives across requests; the resolver itself
+// holds the DbContext via the request scope when invoked.
+builder.Services.AddScoped<Planscape.Infrastructure.Workflow.ITenantKeywordResolver,
+    Planscape.Infrastructure.Workflow.DbTenantKeywordResolver>();
+// Phase 155 — tenant-scoped BIM Manager role override resolver.
+// Same lifecycle / cache shape as the keyword resolver above so the
+// authorisation handler doesn't re-parse the JSON per request.
+builder.Services.AddScoped<Planscape.Infrastructure.Authorization.ITenantBimManagerRoleResolver,
+    Planscape.Infrastructure.Authorization.DbTenantBimManagerRoleResolver>();
+// Phase 156 — JWT permission-revocation store (Redis-backed). The
+// auth handler reads it on every policy-gated authorisation; admin
+// actions that change a user's role bump the per-user floor so old
+// tokens lose access immediately rather than waiting for expiry.
+builder.Services.AddSingleton<Planscape.Infrastructure.Authorization.IPermissionRevocationStore,
+    Planscape.Infrastructure.Authorization.RedisPermissionRevocationStore>();
+
 builder.Services.AddScoped<Planscape.Core.Interfaces.IGeofenceValidationService, Planscape.Infrastructure.Services.GeofenceValidationService>();
 builder.Services.AddScoped<Planscape.API.Services.IThumbnailService, Planscape.API.Services.ImageSharpThumbnailService>();
 builder.Services.AddScoped<Planscape.API.Services.IAuditService, Planscape.API.Services.AuditService>();
@@ -239,6 +282,16 @@ builder.Services.AddSingleton<Planscape.Core.Interfaces.IModelThumbnailGenerator
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// PR2 — HSTS: 1 year, include subdomains, mark for browser preload list.
+// Skipping the preload header until the cert is on a stable production domain.
+builder.Services.AddHsts(options =>
+{
+    options.IncludeSubDomains = true;
+    options.MaxAge = TimeSpan.FromDays(365);
+});
+
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new()
@@ -361,6 +414,21 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // PR2 — outside development, force TLS at the application layer in
+    // addition to whatever the reverse proxy enforces. HSTS tells browsers
+    // to refuse cleartext for one year (incl. subdomains). Behind a TLS-
+    // terminating proxy you must set `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`
+    // (or call `app.UseForwardedHeaders`) so the request still appears as
+    // HTTPS to the redirect middleware.
+    app.UseHsts();
+}
+
+// PR2 — Always-on HTTPS redirect. In development this is a no-op when the
+// app binds to an HTTPS port; in production it kicks in for any cleartext
+// listener that slips through.
+app.UseHttpsRedirection();
 
 // C1 — serve the wwwroot office dashboard (index.html + viewer.html + js/css).
 // Placed before auth so assets load without a token; the JS handles login

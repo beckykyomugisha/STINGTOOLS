@@ -162,6 +162,34 @@ public class DocumentsController : ControllerBase
         if (file.Length == 0) return BadRequest("File is empty");
         if (file.Length > MaxFileSize) return BadRequest($"File exceeds {MaxFileSize / (1024 * 1024)} MB limit");
 
+        // Phase 143 — ISO 19650 naming enforcement (per-project toggle).
+        // Skipped for non-deliverable types (ATTACHMENT, PHOTO) since site
+        // photos and issue attachments aren't expected to follow the
+        // controlled file-naming convention.
+        var docTypeUpper = (documentType ?? "").ToUpperInvariant();
+        var isDeliverable = docTypeUpper switch
+        {
+            "ATTACHMENT" => false,
+            "PHOTO" => false,
+            "" => true, // unspecified counts as deliverable
+            _ => true,
+        };
+        if (project.EnforceIso19650Naming && isDeliverable)
+        {
+            var validation = Planscape.Infrastructure.Validation.Iso19650NamingValidator
+                .Validate(file.FileName);
+            if (!validation.IsValid)
+            {
+                return BadRequest(new
+                {
+                    error = "ISO 19650 naming convention violated",
+                    pattern = validation.Pattern,
+                    fileName = file.FileName,
+                    issues = validation.Errors,
+                });
+            }
+        }
+
         var tenantSlug = project.Tenant?.Slug ?? tenantId.ToString();
         var userName = User.FindFirst("display_name")?.Value ?? "Unknown";
 
@@ -642,6 +670,27 @@ public class DocumentsController : ControllerBase
             .ToListAsync();
 
         return Ok(new { doc.Id, doc.FileName, doc.CdeStatus, approvals });
+    }
+
+    /// <summary>
+    /// Phase 143 — dry-run validate a candidate file name against the ISO
+    /// 19650 / UK 2021 NA naming pattern. Lets the office dashboard + the
+    /// mobile uploader give the user inline feedback before they upload.
+    /// Always returns 200 with a structured payload (no body validation
+    /// errors result in <c>isValid: true</c>).
+    /// </summary>
+    [HttpGet("validate-name")]
+    public ActionResult ValidateName([FromQuery] string fileName)
+    {
+        var result = Planscape.Infrastructure.Validation.Iso19650NamingValidator
+            .Validate(fileName ?? "");
+        return Ok(new
+        {
+            fileName = fileName ?? "",
+            isValid = result.IsValid,
+            pattern = result.Pattern,
+            issues = result.Errors,
+        });
     }
 
     private Guid GetTenantId() =>
