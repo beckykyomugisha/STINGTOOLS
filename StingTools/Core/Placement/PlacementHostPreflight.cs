@@ -408,8 +408,28 @@ namespace StingTools.Core.Placement
                 }
 
                 // Fall-back: level-based plonk.
-                r.Placed = doc.Create.NewFamilyInstance(
-                    position, symbol, room?.Level, StructuralType.NonStructural);
+                // Phase 139.26 — WorkPlaneBased families can throw
+                // "instances cannot be created from a face-based family
+                //  without a face" on this overload. Catch it explicitly
+                // so the engine logs "skipped" rather than letting an
+                // uncaught exception poison the per-room loop.
+                try
+                {
+                    r.Placed = doc.Create.NewFamilyInstance(
+                        position, symbol, room?.Level, StructuralType.NonStructural);
+                    if (r.Placed == null)
+                    {
+                        r.Skipped = true;
+                        r.Reason = $"TryFaceBasedPlace fallback (level-based) returned null for '{symbol.Family?.Name}'. " +
+                                   "WorkPlaneBased family with no host face nearby — load a wall-hosted variant or place a Ceiling near these rooms.";
+                    }
+                }
+                catch (Exception fbEx)
+                {
+                    r.Skipped = true;
+                    r.Reason = $"TryFaceBasedPlace fallback (level-based) threw for '{symbol.Family?.Name}': {fbEx.Message}. " +
+                               "WorkPlaneBased family rejects level-based creation — load a wall-hosted variant or place a Ceiling near these rooms.";
+                }
                 return r;
             }
             catch (Exception ex)
