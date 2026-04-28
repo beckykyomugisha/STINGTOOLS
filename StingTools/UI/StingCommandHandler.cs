@@ -155,6 +155,8 @@ namespace StingTools.UI
                         RunCommand<Commands.Placement.RunWallChaseCommand>(app); break;
                     case "Placement_AuditSetup":
                         RunCommand<Commands.Placement.PlacementSetupAuditCommand>(app); break;
+                    case "Placement_Diagnose":
+                        RunCommand<Commands.Placement.PlacementDiagnoseCommand>(app); break;
 
                     // ── v4 MVP: auto-drop routing (Phase 3) ──
                     case "Routing_AutoDrop":         RunCommand<Commands.Routing.AutoDropCommand>(app); break;
