@@ -216,8 +216,11 @@ else
 builder.Services.AddHttpClient("FCM");
 builder.Services.AddHttpClient("Expo");
 builder.Services.AddHttpClient("webhook");
+builder.Services.AddHttpClient("outbound-webhook");
 // T3 — Slack / Teams outbound webhook dispatcher (fire-and-forget).
 builder.Services.AddSingleton<Planscape.Infrastructure.Services.ChatWebhookDispatcher>();
+// Phase 165 (NEW-08) — generic outbound webhook dispatcher (HMAC-signed, retry).
+builder.Services.AddSingleton<Planscape.Infrastructure.Services.OutboundWebhookDispatcher>();
 builder.Services.AddSingleton<Planscape.Infrastructure.Services.ExpoPushService>();
 if (!string.IsNullOrEmpty(builder.Configuration["Firebase:ProjectId"])
     || !string.IsNullOrEmpty(builder.Configuration["Expo:AccessToken"])
