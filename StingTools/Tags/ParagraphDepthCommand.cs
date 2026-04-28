@@ -199,7 +199,7 @@ namespace StingTools.Tags
             string picked = null;
             try
             {
-                picked = StingTools.UI.StingListPicker.Show(
+                picked = StingTools.Select.StingListPicker.Show(
                     "Set Paragraph Depth",
                     "Choose how many tiers (T1-T10) of tag content are shown",
                     items);
