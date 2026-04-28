@@ -4788,3 +4788,97 @@ The two remaining caveats from Phase 148 were both real:
    matches the request lifecycle. If a future caller starts holding
    a single machine across many requests, the cache should grow a
    bounded eviction policy.
+
+#### Completed (Phase 150 — Phase 149 caveat closures: bounded LRU cache, platform-wide keyword config)
+
+The two remaining caveats from Phase 149 were genuine production
+hardening items, not silent shortcuts.
+
+**1 — Bounded LRU cache**
+
+1. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/BoundedLruCache.cs`
+   — small thread-safe bounded LRU. Textbook dict-of-linked-list
+   pattern: O(1) `GetOrAdd` via dictionary lookup; touching an entry
+   promotes it to the head; tail is dropped when capacity exceeds.
+   Single coarse lock — write contention is low for the state-machine
+   use case (one writer per machine instance, ≤256 keys), so a
+   striped lock or RWLock would be over-engineering. Internal —
+   surfaced to tests via `InternalsVisibleTo`.
+2. `DeliverableStateMachine` — replaced the unbounded
+   `ConcurrentDictionary<string, string>` runtime cache with the new
+   `BoundedLruCache<string, string>` at capacity 256. Worst-case
+   memory: ~20 KB per instance even if every state name in audit-log
+   history is queried. Capacity is generous because state-machine use
+   cases rarely see more than a few dozen unique state names per
+   project; the cap is purely a defensive ceiling.
+3. New
+   `Planscape.Server/tests/Planscape.Tests/BoundedLruCacheTests.cs`
+   — 7 facts covering capacity validation, factory invocation count,
+   eviction on overflow, touch-promotes-entry semantics, custom
+   equality comparer pass-through, and a stress test inserting
+   1,000 keys into an 8-slot cache to confirm the cap holds.
+
+**2 — Platform-wide keyword extensions**
+
+4. New
+   `Planscape.Server/src/Planscape.Infrastructure/Workflow/IPlatformKeywordRegistry.cs`
+   — `IPlatformKeywordRegistry` interface plus two implementations:
+     - `ConfigPlatformKeywordRegistry` reads from
+       `DeliverableStateMachine:Keywords` in IConfiguration. Section
+       shape mirrors the per-project block:
+       ```json
+       "DeliverableStateMachine": {
+         "Keywords": {
+           "working":  [ "PARKED", "WAITING_ON_X" ],
+           "terminal": [ "FROZEN", "DECOMMISSIONED" ]
+         }
+       }
+       ```
+     - `EmptyPlatformKeywordRegistry` for tests / dev configs where
+       no platform-wide keywords are configured. Keeps DI surface
+       clean so callers never null-check.
+   Unknown bucket names are silently dropped, blank entries skipped,
+   case-insensitive dedupe via `Distinct` so a typo can't 500.
+5. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   added `LoadOrDefault(string? json, IReadOnlyDictionary<...>? platformKeywords)`
+   overload. Project-level `"keywords"` JSON wins on bucket
+   collisions; otherwise the project + platform lists concatenate
+   and dedupe. Legacy single-arg `LoadOrDefault(string?)` overload
+   is preserved (calls through with `platformKeywords: null`) so
+   existing call sites keep working.
+6. New helper `MergeKeywordLayers` performs the layered merge with
+   project-wins semantics. When project JSON is null but platform
+   keywords are present, the loader returns a Default-machine clone
+   carrying the platform layer so even canonical-flow projects get
+   platform vocabulary.
+7. `Planscape.API/Program.cs` — registered
+   `IPlatformKeywordRegistry` as a singleton bound to
+   `ConfigPlatformKeywordRegistry`.
+8. `Planscape.API/Controllers/DeliverablesController.cs` — accepts
+   `IPlatformKeywordRegistry` via DI; both `LoadOrDefault` call sites
+   (transition + state-machine GET) now pass `_platformKeywords.Keywords`
+   through. `ProjectSettingsController`'s validation path stays on
+   the single-arg overload — it's checking the project JSON in
+   isolation and platform keywords don't change parse-validity.
+9. New
+   `Planscape.Server/tests/Planscape.Tests/PlatformKeywordTests.cs`
+   — 8 facts covering: empty section yields empty registry, valid
+   sections populate, unknown buckets dropped, dedupe + whitespace
+   skip, EmptyPlatformKeywordRegistry contract, platform-only on
+   default machine, null platform returns the singleton Default
+   unchanged, project-wins merge, and the legacy single-arg
+   signature still works.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. Platform keywords are global to the deployment. A future phase
+   could add a tenant-scoped middle layer (read from
+   `Tenant.SettingsJson` or a new column) sitting between platform
+   and project; the merge helper is already structured for that.
+3. The LRU cache's lock is single-coarse. At the call volumes the
+   controller sees this is fine; if a future codepath calls
+   `RoleOf` from many threads concurrently on the same machine
+   instance, lock contention could become measurable and a
+   striped lock would help.

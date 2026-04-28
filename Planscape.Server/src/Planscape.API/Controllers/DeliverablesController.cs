@@ -32,16 +32,19 @@ public class DeliverablesController : ControllerBase
     private readonly IAuditService _audit;
     private readonly INotificationService _notifications;
     private readonly ILogger<DeliverablesController> _logger;
+    private readonly Planscape.Infrastructure.Workflow.IPlatformKeywordRegistry _platformKeywords;
 
     public DeliverablesController(
         PlanscapeDbContext db,
         IAuditService audit,
         INotificationService notifications,
-        ILogger<DeliverablesController> logger)
+        ILogger<DeliverablesController> logger,
+        Planscape.Infrastructure.Workflow.IPlatformKeywordRegistry platformKeywords)
     {
         _db = db;
         _audit = audit;
         _notifications = notifications;
+        _platformKeywords = platformKeywords;
         _logger = logger;
     }
 
@@ -194,7 +197,7 @@ public class DeliverablesController : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == deliverableId && x.ProjectId == projectId);
         if (d == null) return NotFound();
 
-        var machine = DeliverableStateMachine.LoadOrDefault(project.CustomDeliverableStateMachineJson);
+        var machine = DeliverableStateMachine.LoadOrDefault(project.CustomDeliverableStateMachineJson, _platformKeywords.Keywords);
         var target = (req.NewStatus ?? "").ToUpperInvariant();
         if (!machine.IsValidTransition(d.Status, target))
         {
@@ -264,7 +267,7 @@ public class DeliverablesController : ControllerBase
             .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
 
-        var machine = DeliverableStateMachine.LoadOrDefault(project.CustomDeliverableStateMachineJson);
+        var machine = DeliverableStateMachine.LoadOrDefault(project.CustomDeliverableStateMachineJson, _platformKeywords.Keywords);
         // If the JSON column is non-empty but the loader fell back to Default,
         // surface that fact so the BIM Manager can fix the malformed config.
         var jsonProvided = !string.IsNullOrWhiteSpace(project.CustomDeliverableStateMachineJson);

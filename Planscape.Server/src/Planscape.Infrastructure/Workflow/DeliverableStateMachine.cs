@@ -84,7 +84,14 @@ public sealed class DeliverableStateMachine
         return _runtimeRoleCache.GetOrAdd(key, k => InferRoleWithExtensions(k) ?? "none");
     }
 
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _runtimeRoleCache = new();
+    // Phase 149 introduced runtime memoisation; Phase 150 makes it
+    // bounded. The cap is generous — state-machine use cases rarely see
+    // more than a few dozen unique state names per project, even with
+    // every misspelling in the audit log. 256 entries × ~80 bytes per
+    // entry = ~20 KB worst case per instance.
+    private const int RoleCacheCapacity = 256;
+    private readonly BoundedLruCache<string, string> _runtimeRoleCache =
+        new(RoleCacheCapacity, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Phase 149 — instance-level inference that consults caller-supplied
@@ -165,9 +172,40 @@ public sealed class DeliverableStateMachine
     /// All comparisons are case-insensitive — the parser uppercases incoming
     /// state names.
     /// </summary>
-    public static DeliverableStateMachine LoadOrDefault(string? json)
+    public static DeliverableStateMachine LoadOrDefault(string? json) =>
+        LoadOrDefault(json, platformKeywords: null);
+
+    /// <summary>
+    /// Phase 150 — overload accepting platform-wide keyword extensions.
+    /// Project-level <c>"keywords"</c> wins; platform sits below it but
+    /// above the built-in vocabulary. <paramref name="platformKeywords"/>
+    /// can be null to skip the layer (matches the legacy single-arg
+    /// behaviour).
+    /// </summary>
+    public static DeliverableStateMachine LoadOrDefault(
+        string? json,
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>>? platformKeywords)
     {
-        if (string.IsNullOrWhiteSpace(json)) return Default;
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            // Even the default machine can benefit from platform-wide
+            // keyword extensions (e.g. "FROZEN" common across tenants
+            // but absent from the canonical machine). When platform
+            // keywords are present, return a copy of Default with that
+            // layer attached so RoleOf can consult it on cache miss.
+            return platformKeywords == null || platformKeywords.Count == 0
+                ? Default
+                : new DeliverableStateMachine
+                {
+                    Name = Default.Name,
+                    States = Default.States,
+                    InitialState = Default.InitialState,
+                    Transitions = Default.Transitions,
+                    TerminalStates = Default.TerminalStates,
+                    SemanticRoles = Default.SemanticRoles,
+                    CustomKeywords = platformKeywords,
+                };
+        }
 
         try
         {
@@ -268,7 +306,12 @@ public sealed class DeliverableStateMachine
             // explicit `roles` block. Custom keywords still fire via
             // <see cref="RoleOf"/> for any state queried at runtime that
             // isn't in the precomputed table.
-            var customKeywords = ParseCustomKeywords(root);
+            // Phase 150 — merge platform-wide keywords below the
+            // project's own. Project entries win on key collisions so
+            // a tenant can still override a platform default.
+            var customKeywords = MergeKeywordLayers(
+                projectLayer: ParseCustomKeywords(root),
+                platformLayer: platformKeywords);
             // If the loader didn't pre-resolve a role for a declared
             // state but the tenant-supplied keywords would, do that
             // resolution now so RoleOf for those states is the cheap
@@ -418,6 +461,43 @@ public sealed class DeliverableStateMachine
     /// silently (typo doesn't 500). Each bucket's value must be a JSON
     /// array of strings; non-strings within a bucket are skipped.
     /// </summary>
+    /// <summary>
+    /// Phase 150 — combine project-level keywords with platform-level
+    /// keywords. Project entries win on bucket collisions so tenants
+    /// can override platform defaults; otherwise the two layers are
+    /// concatenated and de-duped (case-insensitive). Either argument
+    /// can be null.
+    /// </summary>
+    private static IReadOnlyDictionary<string, IReadOnlyCollection<string>> MergeKeywordLayers(
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>>? projectLayer,
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>>? platformLayer)
+    {
+        if (platformLayer == null || platformLayer.Count == 0)
+            return projectLayer ?? new Dictionary<string, IReadOnlyCollection<string>>();
+        if (projectLayer == null || projectLayer.Count == 0)
+            return platformLayer;
+
+        var merged = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);
+        var allRoles = new HashSet<string>(projectLayer.Keys, StringComparer.OrdinalIgnoreCase);
+        foreach (var key in platformLayer.Keys) allRoles.Add(key);
+
+        foreach (var role in allRoles)
+        {
+            var combined = new List<string>();
+            // Project layer first so its order wins on equal keys after
+            // distinct-ing.
+            if (projectLayer.TryGetValue(role, out var proj)) combined.AddRange(proj);
+            if (platformLayer.TryGetValue(role, out var plat)) combined.AddRange(plat);
+            var deduped = combined
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim().ToUpperInvariant())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (deduped.Count > 0) merged[role] = deduped.AsReadOnly();
+        }
+        return merged;
+    }
+
     private static IReadOnlyDictionary<string, IReadOnlyCollection<string>> ParseCustomKeywords(JsonElement root)
     {
         var result = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);

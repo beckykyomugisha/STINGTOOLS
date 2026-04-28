@@ -121,6 +121,13 @@ else
 {
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IFileStorageService, Planscape.Infrastructure.Storage.LocalFileStorageService>();
 }
+// Phase 150 — platform-wide deliverable state-machine keyword
+// extensions. Bound from `DeliverableStateMachine:Keywords` in
+// appsettings; falls back to an empty registry when the section is
+// absent so projects continue to use built-in vocabulary only.
+builder.Services.AddSingleton<Planscape.Infrastructure.Workflow.IPlatformKeywordRegistry,
+    Planscape.Infrastructure.Workflow.ConfigPlatformKeywordRegistry>();
+
 builder.Services.AddScoped<Planscape.Core.Interfaces.IGeofenceValidationService, Planscape.Infrastructure.Services.GeofenceValidationService>();
 builder.Services.AddScoped<Planscape.API.Services.IThumbnailService, Planscape.API.Services.ImageSharpThumbnailService>();
 builder.Services.AddScoped<Planscape.API.Services.IAuditService, Planscape.API.Services.AuditService>();
