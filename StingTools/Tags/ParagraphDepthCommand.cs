@@ -73,6 +73,8 @@ namespace StingTools.Tags
                     "Standard (T1-T2)", "Tiers 1+2 — adds materials, thermal, acoustic data");
                 td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
                     "Comprehensive (T1-T3)", "Tiers 1+2+3 — full spec with regulatory, sustainability, QA");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                    "Pick depth 4-10...", "Open the full T4-T10 picker (commissioning → compliance)");
                 td.CommonButtons = TaskDialogCommonButtons.Cancel;
 
                 TaskDialogResult result = td.Show();
@@ -81,6 +83,11 @@ namespace StingTools.Tags
                     case TaskDialogResult.CommandLink1: depth = 1; break;
                     case TaskDialogResult.CommandLink2: depth = 2; break;
                     case TaskDialogResult.CommandLink3: depth = 3; break;
+                    case TaskDialogResult.CommandLink4:
+                        int? picked = PickDepth4To10();
+                        if (picked == null) return Result.Cancelled;
+                        depth = picked.Value;
+                        break;
                     default: return Result.Cancelled;
                 }
                 depthName = DepthDisplayName(depth);
@@ -166,6 +173,81 @@ namespace StingTools.Tags
             }
             StingLog.Info($"Paragraph depth set to {depthName} on {updated} types");
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Phase 165 — full 10-tier picker reachable from the legacy depth dialog's
+        /// fourth command link. Mirrors the slider on the dock panel for users
+        /// without slider access. Returns 1-10 or null on cancel.
+        /// </summary>
+        private static int? PickDepth4To10()
+        {
+            var items = new List<string>
+            {
+                "1 — Compact (T1 — Identity only)",
+                "2 — Standard (T1-T2 — + System & dimensions)",
+                "3 — Comprehensive (T1-T3 — + Spatial / regulatory / QA)",
+                "4 — + Commissioning data (T4)",
+                "5 — + Cost & Procurement (T5)",
+                "6 — + Carbon & Sustainability (T6)",
+                "7 — + Fabrication & QC (T7)",
+                "8 — + Clash Triage (T8)",
+                "9 — + As-Built Record (T9)",
+                "10 — Full Specification (T1-T10 incl. compliance audit)",
+            };
+
+            string picked = null;
+            try
+            {
+                picked = StingTools.UI.StingListPicker.Show(
+                    "Set Paragraph Depth",
+                    "Choose how many tiers (T1-T10) of tag content are shown",
+                    items);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PickDepth4To10 list picker failed, falling back to TaskDialog: {ex.Message}");
+            }
+
+            if (!string.IsNullOrEmpty(picked))
+            {
+                int sp = picked.IndexOf(' ');
+                string head = sp > 0 ? picked.Substring(0, sp) : picked;
+                if (int.TryParse(head, out int d) && d >= 1 && d <= 10) return d;
+                return null;
+            }
+
+            // Fallback — chain two TaskDialogs (TD command links cap at 4).
+            TaskDialog td = new TaskDialog("Set Paragraph Depth");
+            td.MainInstruction = "Pick depth tier range";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "1-3 (Compact / Standard / Comprehensive)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "4-6 (+ Commissioning / Cost / Carbon)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "7-10 (+ Fabrication / Clash / As-built / Full)");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            int rangeStart;
+            switch (td.Show())
+            {
+                case TaskDialogResult.CommandLink1: rangeStart = 1; break;
+                case TaskDialogResult.CommandLink2: rangeStart = 4; break;
+                case TaskDialogResult.CommandLink3: rangeStart = 7; break;
+                default: return null;
+            }
+
+            TaskDialog td2 = new TaskDialog("Set Paragraph Depth");
+            td2.MainInstruction = $"Pick exact depth ({rangeStart}-{Math.Min(rangeStart + 3, 10)})";
+            int rangeMax = rangeStart == 7 ? 10 : rangeStart + 2;
+            for (int d = rangeStart; d <= rangeMax; d++)
+            {
+                var cmd = (TaskDialogCommandLinkId)
+                    ((int)TaskDialogCommandLinkId.CommandLink1 + (d - rangeStart));
+                td2.AddCommandLink(cmd, $"Depth {d}");
+            }
+            td2.CommonButtons = TaskDialogCommonButtons.Cancel;
+            var r = td2.Show();
+            if (r == TaskDialogResult.Cancel) return null;
+            int offset = (int)r - (int)TaskDialogResult.CommandLink1;
+            return rangeStart + offset;
         }
 
         private static string DepthDisplayName(int depth)
@@ -358,4 +440,5 @@ namespace StingTools.Tags
             };
         }
     }
+
 }
