@@ -99,10 +99,18 @@ namespace StingTools.Core.Placement
                     // overload works.
                     case FamilyPlacementType.OneLevelBased:
                     case FamilyPlacementType.TwoLevelsBased:
-                    case FamilyPlacementType.WorkPlaneBased:
                         r.Placed = doc.Create.NewFamilyInstance(
                             position, symbol, room?.Level, StructuralType.NonStructural);
                         return r;
+
+                    case FamilyPlacementType.WorkPlaneBased:
+                        // Phase 139.22 — face-based families. When the rule's
+                        // anchor is wall-related, place via the face-based
+                        // overload NewFamilyInstance(Reference, XYZ, XYZ, sym)
+                        // so the family physically attaches to the wall's
+                        // interior face. Falls back to level-based when no
+                        // wall is nearby (free-standing face-based).
+                        return TryFaceBasedPlace(doc, symbol, room, position, rule);
 
                     // OneLevelBasedHosted = wall / ceiling / floor / roof
                     // hosted templates. Locate the host before calling the
@@ -147,11 +155,25 @@ namespace StingTools.Core.Placement
                                  || anchor == "LIGHTING_GRID"
                                  || anchor == "LUX_GRID"
                                  || anchor == "EN12464";
+            // Phase 139.22 — extend the wall-anchor set so OneLevelBasedHosted
+            // families targeted by Phase 139.2+ rules (WALL_FACE_OFFSET,
+            // DOOR_LATCH_SIDE, DOOR_HINGE_SIDE_150, DOOR_HEAD, DOOR_STRIKE_SIDE,
+            // DOOR_CLOSER_ZONE, ESCAPE_DOOR_BOTH_SIDES, WINDOW_HEAD, the
+            // WINDOW_SILL_* variants) all route through TryHostedPlace's
+            // NearestOf<Wall> search.  Pre-139.22 those anchors fell through
+            // to the fallback chain and the engine guessed Ceiling first.
             bool prefersWall    = anchor == "WALL_MIDPOINT"
                                  || anchor == "WALL_CORNER"
+                                 || anchor == "WALL_FACE_OFFSET"
                                  || anchor == "DOOR_HINGE"
                                  || anchor == "DOOR_JAMB"
-                                 || anchor == "WINDOW_SILL";
+                                 || anchor == "DOOR_HEAD"
+                                 || anchor == "DOOR_LATCH_SIDE"
+                                 || anchor == "DOOR_HINGE_SIDE_150"
+                                 || anchor == "DOOR_STRIKE_SIDE"
+                                 || anchor == "DOOR_CLOSER_ZONE"
+                                 || anchor == "ESCAPE_DOOR_BOTH_SIDES"
+                                 || anchor.StartsWith("WINDOW_");
 
             Element host = null;
             try
@@ -284,6 +306,94 @@ namespace StingTools.Core.Placement
             {
                 r.Skipped = true;
                 r.Reason  = $"PlaceOnCeilingSoffit: {ex.Message}";
+                return r;
+            }
+        }
+
+        // Phase 139.22 — face-based placement for WorkPlaneBased families.
+        // Uses NewFamilyInstance(Reference, XYZ, XYZ, FamilySymbol) so the
+        // family physically attaches to a wall's interior face (or the
+        // ceiling's bottom face) instead of plonked at a free XYZ. Falls
+        // back to the level-based overload when no wall/ceiling is
+        // nearby (free-standing face-based families).
+        private static PlacementHostPreflightResult TryFaceBasedPlace(
+            Document doc, FamilySymbol symbol, Room room, XYZ position, PlacementRule rule)
+        {
+            var r = new PlacementHostPreflightResult();
+            try
+            {
+                string anchor = (rule?.AnchorType ?? "").ToUpperInvariant();
+                bool wallAnchor = anchor == "WALL_MIDPOINT" || anchor == "WALL_CORNER"
+                               || anchor == "WALL_FACE_OFFSET"
+                               || anchor.StartsWith("DOOR_")
+                               || anchor.StartsWith("WINDOW_");
+                bool ceilingAnchor = anchor == "CEILING_CENTRE"
+                               || anchor == "CEILING_TILE_CENTRE"
+                               || anchor == "LIGHTING_GRID"
+                               || anchor == "LUX_GRID";
+
+                if (wallAnchor)
+                {
+                    var wall = NearestOf<Wall>(doc, position, 6.0);
+                    if (wall != null)
+                    {
+                        IList<Reference> faceRefs = null;
+                        try { faceRefs = HostObjectUtils.GetSideFaces(wall, ShellLayerType.Interior); }
+                        catch { }
+                        if (faceRefs != null && faceRefs.Count > 0)
+                        {
+                            var faceRef = faceRefs[0];
+                            XYZ refDir = wall.Orientation ?? XYZ.BasisX;
+                            // Rotate the wall normal 90° about Z to get a
+                            // tangent that lies in the face plane.
+                            refDir = new XYZ(-refDir.Y, refDir.X, 0);
+                            if (refDir.IsZeroLength()) refDir = XYZ.BasisX;
+                            else refDir = refDir.Normalize();
+                            try
+                            {
+                                r.Placed = doc.Create.NewFamilyInstance(faceRef, position, refDir, symbol);
+                                if (r.Placed != null) return r;
+                            }
+                            catch (Exception fex)
+                            {
+                                StingLog.Warn($"TryFaceBasedPlace wall: {fex.Message}");
+                            }
+                        }
+                    }
+                }
+                else if (ceilingAnchor)
+                {
+                    var ceiling = NearestOf<Ceiling>(doc, position, 12.0);
+                    if (ceiling != null)
+                    {
+                        IList<Reference> faceRefs = null;
+                        try { faceRefs = HostObjectUtils.GetBottomFaces(ceiling); }
+                        catch { }
+                        if (faceRefs != null && faceRefs.Count > 0)
+                        {
+                            var faceRef = faceRefs[0];
+                            try
+                            {
+                                r.Placed = doc.Create.NewFamilyInstance(faceRef, position, XYZ.BasisX, symbol);
+                                if (r.Placed != null) return r;
+                            }
+                            catch (Exception fex)
+                            {
+                                StingLog.Warn($"TryFaceBasedPlace ceiling: {fex.Message}");
+                            }
+                        }
+                    }
+                }
+
+                // Fall-back: level-based plonk.
+                r.Placed = doc.Create.NewFamilyInstance(
+                    position, symbol, room?.Level, StructuralType.NonStructural);
+                return r;
+            }
+            catch (Exception ex)
+            {
+                r.Skipped = true;
+                r.Reason = $"TryFaceBasedPlace: {ex.Message}";
                 return r;
             }
         }
