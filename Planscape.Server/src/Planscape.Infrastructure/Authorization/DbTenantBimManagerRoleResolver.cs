@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.Workflow;
 
@@ -26,8 +28,43 @@ public sealed class DbTenantBimManagerRoleResolver : ITenantBimManagerRoleResolv
         = new(totalCapacity: 256, stripeCount: 8, comparer: StringComparer.Ordinal);
 
     private readonly PlanscapeDbContext _db;
+    private readonly IDistributedCache? _l2;
+    private readonly TimeSpan _absoluteTtl;
+    private readonly TimeSpan _slidingTtl;
 
-    public DbTenantBimManagerRoleResolver(PlanscapeDbContext db) => _db = db;
+    /// <summary>
+    /// Phase 156 — accept an optional <see cref="IDistributedCache"/>
+    /// as the L2 (Redis-backed) tier, mirroring the keyword resolver
+    /// from Phase 152. Two-tier cache:
+    ///   L1 — static striped LRU keyed on <c>(TenantId, FNV-1a hash)</c>.
+    ///   L2 — IDistributedCache keyed on <c>tbmr:{TenantId}:{hash}</c>.
+    ///        Survives process restarts; shared across the API fleet
+    ///        so horizontal-scaled deployments don't pay the parse
+    ///        cost N times.
+    /// TTLs read from <c>Authorization:BimManagerRoles:{Absolute,Sliding}TtlDays</c>
+    /// (defaults 14 / 7 days). L2 errors degrade gracefully to L1 +
+    /// DB rather than 500-ing the auth path.
+    /// </summary>
+    public DbTenantBimManagerRoleResolver(
+        PlanscapeDbContext db,
+        IDistributedCache? distributedCache = null,
+        IConfiguration? config = null)
+    {
+        _db = db;
+        _l2 = distributedCache;
+        _absoluteTtl = ReadTtl(config, "Authorization:BimManagerRoles:AbsoluteTtlDays", defaultDays: 14);
+        _slidingTtl = ReadTtl(config, "Authorization:BimManagerRoles:SlidingTtlDays",  defaultDays: 7);
+    }
+
+    private static TimeSpan ReadTtl(IConfiguration? config, string key, int defaultDays)
+    {
+        if (config == null) return TimeSpan.FromDays(defaultDays);
+        var raw = config[key];
+        if (string.IsNullOrWhiteSpace(raw)) return TimeSpan.FromDays(defaultDays);
+        if (!int.TryParse(raw, out var days) || days <= 0) return TimeSpan.FromDays(defaultDays);
+        if (days > 365) days = 365;
+        return TimeSpan.FromDays(days);
+    }
 
     public async Task<IReadOnlyList<string>?> ResolveAsync(Guid tenantId, CancellationToken ct = default)
     {
@@ -39,8 +76,46 @@ public sealed class DbTenantBimManagerRoleResolver : ITenantBimManagerRoleResolv
             .FirstOrDefaultAsync(ct);
         if (string.IsNullOrWhiteSpace(json)) return null;
 
-        var key = $"{tenantId}:{StableHash(json!)}";
-        return _cache.GetOrAdd(key, _ => Parse(json!));
+        var hash = StableHash(json!);
+        var l1Key = $"{tenantId}:{hash}";
+
+        // L1 hit — fast path. Note: L1 caches null (no usable
+        // override) too, so a re-parse storm on malformed JSON is
+        // bounded.
+        if (_cache.TryPeek(l1Key, out var hit)) return hit;
+
+        // L2 read-through. The cached value is the source JSON
+        // (not the parsed list) so a future DTO change doesn't
+        // invalidate the cluster-wide cache. Parse cost is
+        // microseconds; cluster-coordination cost is what we save.
+        if (_l2 != null)
+        {
+            var l2Key = $"tbmr:{l1Key}";
+            try
+            {
+                var raw = await _l2.GetStringAsync(l2Key, ct);
+                if (!string.IsNullOrEmpty(raw))
+                {
+                    return _cache.GetOrAdd(l1Key, _ => Parse(raw));
+                }
+            }
+            catch { /* L2 blip — fall through to DB / parse */ }
+
+            var parsed = _cache.GetOrAdd(l1Key, _ => Parse(json!));
+            try
+            {
+                await _l2.SetStringAsync(l2Key, json!,
+                    new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = _absoluteTtl,
+                        SlidingExpiration = _slidingTtl,
+                    }, ct);
+            }
+            catch { /* L2 unavailable — L1 still has the value */ }
+            return parsed;
+        }
+
+        return _cache.GetOrAdd(l1Key, _ => Parse(json!));
     }
 
     /// <summary>Phase 155 — exposed for the admin PUT endpoint to

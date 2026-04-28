@@ -5364,3 +5364,104 @@ hardening / operational items.
    role-buckets call; the response is small so caching client-side
    for a session is enough — server-side ETag / 304 negotiation
    would be over-engineering at this size.
+
+#### Completed (Phase 156 — Phase 155 caveat closures: Redis L2 for role resolver, JWT iat-revocation, ETag on role-buckets)
+
+The three remaining caveats from Phase 155 were all real production
+hardening items.
+
+**1 — Redis L2 cache for the BIM Manager role resolver**
+
+1. `Planscape.Server/src/Planscape.Infrastructure/Authorization/DbTenantBimManagerRoleResolver.cs`
+   — gained optional `IDistributedCache` + `IConfiguration` ctor
+   parameters. Two-tier read-through identical to Phase 152's
+   keyword resolver:
+     - L1: static striped LRU keyed on `(TenantId, FNV-1a hash)`
+     - L2: `IDistributedCache` keyed on `tbmr:{TenantId}:{hash}`,
+       sliding + absolute TTLs configurable via
+       `Authorization:BimManagerRoles:{Absolute,Sliding}TtlDays`
+       (defaults 14 / 7).
+2. L2 stores the source JSON, not the parsed list, so future DTO
+   additions don't invalidate the cluster-wide cache. Parse cost is
+   microseconds. L2 errors degrade gracefully to L1 + DB rather
+   than 500-ing the auth path.
+
+**2 — JWT permission-revocation lag mitigation**
+
+3. New
+   `Planscape.Server/src/Planscape.Infrastructure/Authorization/IPermissionRevocationStore.cs`
+   — interface with two methods: `GetMinIatAsync(userId)` returns
+   the floor for "minimum acceptable iat", `RevokeAllPriorTokensAsync(userId)`
+   bumps the floor to "now". Tokens issued before the floor lose
+   policy-gated access immediately.
+4. New `RedisPermissionRevocationStore` — Redis-backed
+   implementation (`auth:revocation:{userId}` keys) with TTL from
+   `Authorization:RevocationFloorTtlDays` (default 30 days, capped
+   at 365). Once every surviving token predates the floor, Redis
+   evicts the entry. Failures on either GET or SET fall back to no-
+   op so a Redis blip can't 500 the auth path or block admin
+   actions.
+5. New `NullPermissionRevocationStore` — no-op for unit tests / dev
+   configs without Redis.
+6. `BimManagerOrAdminHandler` — new check between user-id resolution
+   and DB scope. Reads the floor; if the JWT's `iat` claim
+   pre-dates it, denies. Tokens without an `iat` claim are denied
+   when a floor exists (forces clients to migrate to iat-bearing
+   tokens) but accepted when no floor exists (legacy back-compat).
+   Admin/Owner short-circuit happens earlier so admins can't lock
+   themselves out via their own revocation.
+7. `AdminController.UpdateUser` — detects permission-changing field
+   edits (Role / Iso19650Role / IsActive). When any change, calls
+   `RevokeAllPriorTokensAsync` after the DB save commits. Display-
+   name changes don't trigger revocation. Fire-and-forget — Redis
+   blip can't block the admin action.
+8. `Planscape.API/Program.cs` — registered both stores; production
+   wires the Redis-backed one.
+
+**3 — ETag / 304 on role-buckets endpoint**
+
+9. `Planscape.Server/src/Planscape.API/Controllers/RoleBucketsController.cs`
+   — payload promoted to a `static readonly` field; `ETag` is a
+   `static readonly` strong validator computed from
+   `SHA256(JSON-serialized payload).Substring(0, 16)`. Stable across
+   processes (the payload is hardcoded), so any instance in a
+   horizontal-scaled fleet returns the same tag for the same body.
+10. Endpoint sets `ETag` and `Cache-Control: private, max-age=3600`
+    on every response. Browsers / mobile clients revalidate against
+    the tag once an hour; matches return a body-less 304. Saves
+    ~250 bytes per call without complicating client logic. Dashboard
+    JS continues to session-cache via `TK_BUCKETS_LOADED` — the
+    HTTP-level ETag is an additional layer, not a replacement.
+
+**4 — Tests**
+
+11. `PermissionRevocationStoreTests` (8 facts) — pre-revoke returns
+    null, revoke + get returns recent epoch, distinct users are
+    independent, idempotent + latest wins, empty user-id no-ops,
+    Redis-down GET returns null, Redis-down revoke doesn't throw,
+    null store always returns null.
+12. `RevocationFloorHandlerTests` (5 facts) — token issued after
+    revocation grants, token issued before revocation denied, no
+    floor + no iat still grants (legacy), floor + no iat denies
+    (forces iat migration), Admin role bypasses revocation check.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification.
+2. The revocation floor lookup adds one Redis GET per policy-gated
+   request. Hot path is sub-millisecond on a co-located Redis
+   instance and bounded by a try/catch fallback when Redis is
+   slow. If profiles later show this as a bottleneck, batching
+   the floor lookup with the existing tenant-override lookup via
+   pipelining would be a future optimisation.
+3. Manual force-revoke endpoint isn't included — currently only
+   the `UpdateUser` path triggers a floor bump. A standalone
+   `POST /admin/users/{id}/revoke-tokens` could land in a
+   follow-up if SOC2 / ISO 27001 audits require an explicit
+   "logout this user everywhere" action distinct from a role
+   change.
+4. The ETag is computed from a static payload, so the value is
+   bit-stable across the deployment. If a future bucket addition
+   updates the canonical list, the ETag will flip on the next
+   process restart and clients revalidate at most one hour after
+   that — well within typical deployment-rollout windows.

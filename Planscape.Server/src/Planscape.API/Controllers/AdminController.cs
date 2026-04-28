@@ -16,8 +16,15 @@ namespace Planscape.API.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
+    private readonly Planscape.Infrastructure.Authorization.IPermissionRevocationStore _revocations;
 
-    public AdminController(PlanscapeDbContext db) => _db = db;
+    public AdminController(
+        PlanscapeDbContext db,
+        Planscape.Infrastructure.Authorization.IPermissionRevocationStore revocations)
+    {
+        _db = db;
+        _revocations = revocations;
+    }
 
     // ── Organization Management ──
 
@@ -96,12 +103,35 @@ public class AdminController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.TenantId == tenantId);
         if (user == null) return NotFound();
 
+        // Phase 156 — detect permission-changing fields before
+        // applying. If any of them changed value, bump the user's
+        // revocation floor after the save commits so old tokens
+        // can't pivot through policy-gated endpoints. Display-name
+        // changes don't trigger revocation — they're not security-
+        // relevant.
+        var permissionChanged = false;
         if (req.DisplayName != null) user.DisplayName = req.DisplayName;
-        if (req.Role != null && Enum.TryParse<UserRole>(req.Role, true, out var r)) user.Role = r;
-        if (req.Iso19650Role != null) user.Iso19650Role = req.Iso19650Role;
-        if (req.IsActive.HasValue) user.IsActive = req.IsActive.Value;
+        if (req.Role != null && Enum.TryParse<UserRole>(req.Role, true, out var r) && user.Role != r)
+        {
+            user.Role = r; permissionChanged = true;
+        }
+        if (req.Iso19650Role != null && user.Iso19650Role != req.Iso19650Role)
+        {
+            user.Iso19650Role = req.Iso19650Role; permissionChanged = true;
+        }
+        if (req.IsActive.HasValue && user.IsActive != req.IsActive.Value)
+        {
+            user.IsActive = req.IsActive.Value; permissionChanged = true;
+        }
 
         await _db.SaveChangesAsync();
+        if (permissionChanged)
+        {
+            // Fire-and-forget; a Redis blip mustn't block the admin
+            // action. The store no-ops on connection failure so the
+            // worst case is the pre-Phase-156 lag for that one user.
+            _ = _revocations.RevokeAllPriorTokensAsync(user.Id);
+        }
         return Ok(new { user.Id, user.Email, user.DisplayName, user.Role, user.IsActive });
     }
 

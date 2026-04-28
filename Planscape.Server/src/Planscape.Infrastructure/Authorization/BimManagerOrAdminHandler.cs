@@ -98,6 +98,32 @@ public sealed class BimManagerOrAdminHandler : AuthorizationHandler<BimManagerOr
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
 
+        // Phase 156 — JWT permission-revocation check. The standard
+        // JWT pattern has no built-in revocation, so a user demoted
+        // from BIM Manager retains policy-gated access until token
+        // expiry. We mitigate by storing a per-user "minimum iat"
+        // floor in Redis: any token issued before the floor is
+        // rejected here even though its signature is still valid.
+        // Admins (the short-circuit above) bypass this check so an
+        // admin can't be locked out by their own action.
+        var revocations = scope.ServiceProvider.GetRequiredService<IPermissionRevocationStore>();
+        var minIat = await revocations.GetMinIatAsync(userId);
+        if (minIat is long floor)
+        {
+            var iatClaim = context.User.FindFirst("iat")?.Value;
+            if (long.TryParse(iatClaim, out var tokenIat) && tokenIat < floor)
+            {
+                // Stale token — caller's permissions changed since
+                // it was issued. Deny without leaking the floor.
+                return;
+            }
+            // No iat claim? Conservative: deny. Every Planscape JWT
+            // includes iat (set by AuthController.Login); a token
+            // without it is non-conformant and shouldn't grant
+            // policy-gated access.
+            if (iatClaim == null) return;
+        }
+
         // Phase 153 — AppUser-level grant. Some tenants populate
         // AppUser.Iso19650Role at onboarding before any per-project
         // membership row exists. Honour that signal so a BIM Manager

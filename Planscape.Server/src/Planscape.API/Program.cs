@@ -148,6 +148,12 @@ builder.Services.AddScoped<Planscape.Infrastructure.Workflow.ITenantKeywordResol
 // authorisation handler doesn't re-parse the JSON per request.
 builder.Services.AddScoped<Planscape.Infrastructure.Authorization.ITenantBimManagerRoleResolver,
     Planscape.Infrastructure.Authorization.DbTenantBimManagerRoleResolver>();
+// Phase 156 — JWT permission-revocation store (Redis-backed). The
+// auth handler reads it on every policy-gated authorisation; admin
+// actions that change a user's role bump the per-user floor so old
+// tokens lose access immediately rather than waiting for expiry.
+builder.Services.AddSingleton<Planscape.Infrastructure.Authorization.IPermissionRevocationStore,
+    Planscape.Infrastructure.Authorization.RedisPermissionRevocationStore>();
 
 builder.Services.AddScoped<Planscape.Core.Interfaces.IGeofenceValidationService, Planscape.Infrastructure.Services.GeofenceValidationService>();
 builder.Services.AddScoped<Planscape.API.Services.IThumbnailService, Planscape.API.Services.ImageSharpThumbnailService>();

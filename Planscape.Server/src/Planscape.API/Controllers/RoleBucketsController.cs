@@ -19,24 +19,11 @@ namespace Planscape.API.Controllers;
 [Authorize]
 public class RoleBucketsController : ControllerBase
 {
-    [HttpGet]
-    public ActionResult Get() => Ok(new
+    /// <summary>Static body — same on every request, same across every
+    /// deployment with the same code. We compute it once at type-init
+    /// time so the controller path is allocation-free.</summary>
+    private static readonly object PayloadObject = new
     {
-        // Phase 155 — surface the role-block-vs-keyword-block
-        // asymmetry the JS validator needs to honour.
-        //
-        //   keywordBlockBuckets — what a tenant's `"keywords"` block
-        //     can declare. Six canonical buckets, no "none". Used by
-        //     the dashboard's keyword-extension validator.
-        //
-        //   rolesBlockKeys — what a custom-machine `"roles"` block
-        //     can map a state to. Six canonical buckets PLUS the
-        //     "none" sentinel meaning "this state has no semantic
-        //     role; skip metadata side-effects on transition".
-        //
-        // The legacy `buckets` / `priorityOrder` aliases are kept for
-        // backward compat with Phase 154 dashboards that read the
-        // canonical list under those keys.
         keywordBlockBuckets = RoleBuckets.Canonical,
         rolesBlockKeys = new[]
         {
@@ -45,5 +32,40 @@ public class RoleBucketsController : ControllerBase
         },
         buckets = RoleBuckets.Canonical,        // legacy alias (Phase 154)
         priorityOrder = RoleBuckets.Canonical,  // legacy alias (Phase 154)
-    });
+    };
+
+    /// <summary>Phase 156 — strong ETag derived from the SHA-256 of the
+    /// payload's JSON serialisation. Stable across processes (the
+    /// canonical list is hardcoded), so any instance in a horizontal-
+    /// scaled fleet returns the same tag for the same payload.</summary>
+    private static readonly string ETag = ComputeETag(PayloadObject);
+
+    private static string ComputeETag(object payload)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(payload);
+        var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json));
+        // Strong validator: surrounded by quotes per RFC 7232.
+        return "\"" + System.Convert.ToHexString(hash).Substring(0, 16) + "\"";
+    }
+
+    [HttpGet]
+    public ActionResult Get()
+    {
+        // Phase 156 — ETag / 304 negotiation. The body is constant
+        // across the deployment so we can answer If-None-Match
+        // matches with a body-less 304. Saves ~250 bytes per call
+        // and lets browsers / mobile clients keep a long-lived
+        // local cache. Cache-Control hints clients to reuse for
+        // up to 1 hour without revalidating, but every request
+        // that does revalidate hits the cheap match-and-304 path.
+        Response.Headers.ETag = ETag;
+        Response.Headers.CacheControl = "private, max-age=3600";
+
+        if (Request.Headers.IfNoneMatch.Count > 0
+            && Request.Headers.IfNoneMatch.Contains(ETag))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+        return Ok(PayloadObject);
+    }
 }
