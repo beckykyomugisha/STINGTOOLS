@@ -345,3 +345,29 @@ but deferred so each could land cleanly in its own follow-up.
 | `DWG-STRUCT-DEEP-6b` Connection-detail element synthesis | Phase 143 stamps junction-type Marks but does not create connection geometry. A future pass would create bolt patterns, weld lines, or Revit structural connection family instances at each L/T/Cross junction. | Connection-element synthesizer per junction type, consumed by Revit structural connection families. |
 | ~~`DWG-STRUCT-DEEP-7` Continuous columns via Top Constraint = top level~~ | **DONE** Phase 142. `CreateColumnsWithHeight` already sets `FAMILY_TOP_LEVEL_PARAM` to the top level when `topLevel != null` — Phase 142 verified the existing behaviour, added the explicit `UseTopConstraintForContinuousColumns` config flag for documentation, and clarified the wizard tooltip. |
 | ~~`DWG-STRUCT-DEEP-8` Beams-on-walls applied per-beam, not globally~~ | **DONE** Phase 142. `BeamSupportClassifier` reads each beam endpoint's actual support type; `ApplyBeamSupportPostCreation` only applies the wall-top offset to beams that rest on a wall and not on a column. (The `BeamsRestOnWalls` config field had been on the type since Phase 78 but was never read — Phase 142 closed the loop.) |
+
+### Cloud-Sync & Federation Feature Audit (2026-04-28)
+
+A consultancy estimate received in April 2026 priced seven phases of cloud-sync work
+(STC hook, conflict detection, auto-sync scheduler, Speckle, web 3D viewer, BCF
+endpoints, mobile 3D context) at £20–28k. An audit against the live tree shows
+six of the seven are already shipped — the estimate was working from out-of-date
+assumptions about what the codebase contains. **This table is the authoritative
+ground truth so future estimates do not re-bid these line items.**
+
+| Estimate phase | Real status | Evidence | Open scope |
+|---|---|---|---|
+| 3 — `OnDocumentSynchronizedWithCentral` deferred-tag drain | **DONE** | `StingTools/Core/StingToolsApp.cs:87` subscribes; drain logic at `:185–243`. CHANGELOG entry 371 (R-02). | None |
+| 4 — `LastModifiedUtc` last-write-wins conflict detection | **DONE** | Field on `TagElementPayload` (`StingTools/BIMManager/PlanscapeServerClient.cs:1042`); populated from `ASS_TAG_MODIFIED_DT` at `StingTools/BIMManager/PlatformLinkCommands.cs:2140`. Server side: migration `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20250418000000_AddTagLastModified.cs` + conflict logic in `TagSyncController.cs:69–104` + `Planscape.Server/tests/Planscape.Tests/TagSyncConflictTests.cs` (184 lines). CHANGELOG Phase 91. | None |
+| 5 — `SyncScheduler.Start()` 5-min auto-sync | **DONE** | Wired at `StingTools/Core/StingToolsApp.cs:95–118` via `PluginSyncTickBridge`; `DocumentSaved` enqueue at `:542–635`. CHANGELOG Phase 92 ("Activate Planscape.PluginSync.SyncScheduler"). | None |
+| 6 — Speckle Send / Receive / Diff | **DONE** | Snapshot engine + three commands + `SpeckleSnapshot` workflow preset (Phase 92). HTTP transport `SpeckleHttpTransport` (~190 lines, raw GraphQL + multipart `/objects/{streamId}` upload, no Speckle SDK NuGet) added in Phase 161 — `Send` round-trips a single root `Base` with tag DTOs inline; `Receive` reads the latest commit on the target branch and overwrites the local snapshot. Stream URL parser supports both v2 `/streams/<id>[/branches/<name>]` and FE2/v3 `/projects/<id>[/models/<name>]` shapes. | None |
+| 7 — xeokit / web 3D viewer | **DONE** | `Planscape.Server/src/Planscape.API/wwwroot/{index.html,viewer/,viewer.html,css/,js/}`; `app.UseStaticFiles()` in `Program.cs`; `ViewerController.cs` (99 lines, "PHASE 93 — xeokit-based model viewer") at `/api/viewer/models[/{filename}]`. | None |
+| 8 — BCF 2.1 export/import endpoints | **DONE** | Shared engine: `StingTools/BIMManager/BcfEngine.cs` (~380 lines, `Planscape.Shared.BCF` namespace, no Revit / no Newtonsoft). Server controller: `Planscape.Server/src/Planscape.API/Controllers/BcfController.cs` (186 lines) — `GET /api/projects/{id}/bcf/export`, `POST /api/projects/{id}/bcf/import`, BcfGuid round-trip. CHANGELOG Phase 95. | None on the endpoint itself. (`BIM-BCF-SYNC-01` below tracks the separate ACC/Procore-pull half.) |
+| 9 — Mobile 3D context in issue detail | **DONE** | Three complementary paths shipped: (a) **Phase 94** — fullscreen WebBrowser xeokit viewer via `openViewer(projectCode, modelId?)` in `issues.tsx`/`issue-detail.tsx`. (b) **Phase 162** — inline `<ModelViewer>` embed in `issue-detail.tsx` gated on `issue.modelId`; "Linked model" chip-row picker in `issues.tsx` creation form driven by `listModels(projectId)`; server `CreateIssueRequest` accepts `ModelId` + anchor coords with project-ownership validation. (c) **Phase 163** — closes Phase 162's three caveats: viewer's `onPlaceIssue` gesture deep-links into the (tabs) creation modal via `?fromViewer=1&modelId=...&modelX/Y/Z=...&modelElementGuid=...` (replaces the broken `/issues/new` push at `models/[id].tsx:96`); the inline embed pins every other open issue on the same model with `onPinTap` navigation; fullscreen `openIn3D`/`openViewer` route through `<modelId>.xkt` when the issue is linked, falling back to the project default otherwise. | None |
+
+**Bonus already-shipped, missed by the consultancy estimate**: Sync-conflict triage UI
+(`Planscape.Server/src/Planscape.API/Controllers/SyncConflictsController.cs`, 427 lines
++ mobile `Planscape/app/conflicts/` route, CHANGELOG Phase 143).
+
+**Net remaining work for this whole bundle**: nothing — the last partial item
+(Speckle HTTP transport) closed in Phase 161.

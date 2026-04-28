@@ -62,6 +62,7 @@ public class IssuesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult> GetIssues(Guid projectId,
         [FromQuery] string? status = null, [FromQuery] string? type = null,
+        [FromQuery] Guid? modelId = null,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var tenantId = GetTenantId();
@@ -69,6 +70,10 @@ public class IssuesController : ControllerBase
 
         if (!string.IsNullOrEmpty(status)) query = query.Where(i => i.Status == status);
         if (!string.IsNullOrEmpty(type)) query = query.Where(i => i.Type == type);
+        // Phase 164 — modelId filter so the mobile sibling-pin loader can
+        // request only issues anchored to the active model. Backed by the
+        // existing single-column index on BimIssue.ModelId (PlanscapeDbContext.cs:136).
+        if (modelId.HasValue) query = query.Where(i => i.ModelId == modelId);
 
         var total = await query.CountAsync();
         var issues = await query
@@ -78,6 +83,12 @@ public class IssuesController : ControllerBase
             {
                 i.Id, i.IssueCode, i.Type, i.Title, i.Priority, i.Status,
                 i.Assignee, i.Discipline, i.Revision, i.CreatedBy, i.CreatedAt, i.DueDate, i.ResolvedAt,
+                // Phase 164 — model anchor fields. Without these the Phase 163
+                // mobile sibling-pin filter operated on fields the projection
+                // never returned, so pins never rendered. Adding them here is
+                // additive at the wire level (existing clients ignore unknown
+                // properties).
+                i.ModelId, i.ModelElementGuid, i.ModelX, i.ModelY, i.ModelZ,
                 IsOverdue = i.DueDate.HasValue && i.DueDate < DateTime.UtcNow && i.Status != "CLOSED" && i.Status != "RESOLVED",
                 DaysOpen = (int)(DateTime.UtcNow - i.CreatedAt).TotalDays
             })
@@ -99,6 +110,19 @@ public class IssuesController : ControllerBase
             !System.Text.RegularExpressions.Regex.IsMatch(req.Type, @"^[A-Z]{2,6}$"))
         {
             return BadRequest(new { error = "Type must be 2-6 uppercase letters (e.g. RFI, NCR, SI, TQ, CLASH, DEFECT)" });
+        }
+
+        // MODEL-VIEWER — validate ModelId belongs to this project. Stops a
+        // malicious client linking an issue to a model in a different project
+        // (which would still upload but later 404 on the viewer file fetch).
+        // Soft-deleted models are rejected too — same `DeletedAt == null`
+        // gate as ModelsController.
+        if (req.ModelId.HasValue)
+        {
+            bool modelOwned = await _db.ProjectModels.AnyAsync(m =>
+                m.Id == req.ModelId.Value && m.ProjectId == projectId && m.DeletedAt == null);
+            if (!modelOwned)
+                return BadRequest(new { error = "ModelId does not belong to this project" });
         }
 
         // NEW-LOGIC-08 — Validate lat/lng ranges before geofence check.
@@ -188,6 +212,12 @@ public class IssuesController : ControllerBase
             LocationAccuracy = req.LocationAccuracy,
             DeviceId = req.DeviceId ?? Request.Headers["X-Device-Id"].ToString(),
             Source = source,
+            // MODEL-VIEWER — pass through the 3D anchor when supplied.
+            ModelId = req.ModelId,
+            ModelElementGuid = req.ModelElementGuid,
+            ModelX = req.ModelX,
+            ModelY = req.ModelY,
+            ModelZ = req.ModelZ,
         };
 
         // NEW-LOGIC-01/02 — Save with retry on UNIQUE(ProjectId, IssueCode) collision.
@@ -776,6 +806,16 @@ public record CreateIssueRequest(
     double? Longitude,
     double? LocationAccuracy,
     string? DeviceId,
-    string? Source);
+    string? Source,
+    // MODEL-VIEWER — 3D anchor captured at creation time.
+    // ModelId comes from the mobile creation form's model picker.
+    // ModelElementGuid + ModelX/Y/Z come from "create issue here" gestures
+    // raised inside the viewer; both halves are nullable so plain RFI flows
+    // (no model linkage at all) keep working unchanged.
+    Guid? ModelId,
+    string? ModelElementGuid,
+    double? ModelX,
+    double? ModelY,
+    double? ModelZ);
 public record UpdateIssueRequest(string? Status, string? Priority, string? Assignee, string? Description);
 public record LinkAttachmentRequest(Guid DocumentId);

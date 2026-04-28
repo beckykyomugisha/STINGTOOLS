@@ -68,8 +68,73 @@ export function getComplianceTrend(projectId: string): Promise<ComplianceSnapsho
 
 // ── Issues ──
 
-export function listIssues(projectId: string): Promise<BimIssue[]> {
-  return apiFetch(`/api/projects/${projectId}/issues`);
+/**
+ * Phase 164 — accepts an optional filter object so callers (e.g. the
+ * sibling-pin loader in issue-detail.tsx) can fetch only the issues they
+ * care about and let the server's ProjectId/ModelId index do the work.
+ *
+ * Also unwraps the paginated `{ items, total, page, pageSize }` envelope
+ * the controller returns. Pre-Phase-164 this helper was typed
+ * `Promise<BimIssue[]>` but actually returned the envelope, so consumers
+ * calling `.filter()`/`.map()` on the result silently failed via their
+ * try/catch wrappers. Backwards-compatible: when the server returns a
+ * flat array we still pass it through unchanged.
+ */
+export interface ListIssuesOptions {
+  modelId?: string;
+  status?: string;
+  type?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export async function listIssues(
+  projectId: string,
+  opts?: ListIssuesOptions
+): Promise<BimIssue[]> {
+  const params = new URLSearchParams();
+  if (opts?.modelId)  params.set('modelId',  opts.modelId);
+  if (opts?.status)   params.set('status',   opts.status);
+  if (opts?.type)     params.set('type',     opts.type);
+  if (opts?.page)     params.set('page',     String(opts.page));
+  if (opts?.pageSize) params.set('pageSize', String(opts.pageSize));
+  const qs = params.toString();
+  const path = `/api/projects/${projectId}/issues${qs ? `?${qs}` : ''}`;
+  const raw = await apiFetch<unknown>(path);
+  // Unwrap envelope when present; pass-through when caller / older server
+  // returns a flat array.
+  if (raw && typeof raw === 'object' && Array.isArray((raw as { items?: unknown }).items)) {
+    return (raw as { items: BimIssue[] }).items;
+  }
+  return Array.isArray(raw) ? (raw as BimIssue[]) : [];
+}
+
+// ── Viewer XKT availability (Phase 164, caveat 4) ─────────────────────
+// Module-level cache of filenames returned by GET /api/viewer/models.
+// XKT files are operator-managed (ViewerController serves *.xkt verbatim
+// from {Storage:Path}/xkt/), so per-model fullscreen routing only loads
+// when the operator's pipeline names files by GUID. This helper lets the
+// caller decide which XKT to point WebBrowser at without round-tripping
+// for every issue.
+let _xktNameCache: Set<string> | null = null;
+
+export async function listAvailableXkts(): Promise<Set<string>> {
+  if (_xktNameCache) return _xktNameCache;
+  try {
+    const list = await apiFetch<string[]>(`/api/viewer/models`);
+    _xktNameCache = new Set(Array.isArray(list) ? list : []);
+  } catch (err) {
+    // Network failure / 401 / unknown shape — treat as "unknown availability"
+    // and let the caller decide its fallback.
+    console.warn('[endpoints.listAvailableXkts] failed', err);
+    _xktNameCache = new Set();
+  }
+  return _xktNameCache;
+}
+
+/** Drop the cached XKT list (e.g. after re-auth or on logout). */
+export function _resetXktCache(): void {
+  _xktNameCache = null;
 }
 
 export function createIssue(

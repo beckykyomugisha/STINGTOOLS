@@ -17,7 +17,9 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { theme, getPriorityColor } from '@/utils/theme';
-import { listProjects, listIssues, createIssue, uploadIssueAttachment, updateIssue, _getBaseUrl } from '@/api/endpoints';
+import { listProjects, listIssues, createIssue, uploadIssueAttachment, updateIssue, listAvailableXkts, _getBaseUrl } from '@/api/endpoints';
+import { listModels } from '@/api/models';
+import type { ModelMeta } from '@/types/models';
 import type { BimIssue, Project, ProjectMember } from '@/types/api';
 import { imageService, CapturedImage } from '@/services/imageService';
 import { locationService } from '@/services/locationService';
@@ -35,10 +37,25 @@ import { debounce } from '@/utils/debounce';
  * The viewer itself lives in wwwroot on the Planscape.Server and reads the
  * 'model' query parameter to fetch the xkt bundle.
  */
-async function openViewer(projectCode: string): Promise<void> {
+async function openViewer(projectCode: string, modelId?: string | null): Promise<void> {
   try {
     const base = await _getBaseUrl();
-    const url = `${base}/viewer/index.html?model=${encodeURIComponent(projectCode)}.xkt`;
+    // Phase 164 caveat 4 — probe the cached XKT availability list before
+    // committing to a per-model URL. When a `<modelId>.xkt` file is
+    // published we use it; when only the project default exists, fall back
+    // to `<projectCode>.xkt` so the user lands in a working viewer rather
+    // than a 404. Empty cache (network failure on the list endpoint) →
+    // optimistically use modelId so configured projects don't get punished
+    // by transient list-endpoint failures.
+    let xktBase = projectCode;
+    if (modelId) {
+      const available = await listAvailableXkts();
+      const modelXkt = `${modelId}.xkt`;
+      if (available.size === 0 || available.has(modelXkt)) {
+        xktBase = modelId;
+      }
+    }
+    const url = `${base}/viewer/index.html?model=${encodeURIComponent(xktBase)}.xkt`;
     await WebBrowser.openBrowserAsync(url, {
       // Corporate-themed in-app browser tab — falls back to Safari View
       // Controller on iOS and Custom Tabs on Android automatically.
@@ -59,14 +76,28 @@ export default function IssuesScreen() {
   // ?projectId=Y. Scanner pushes ?createForElement=X&elementTag=Y to pre-fill
   // a new-issue form. The ref guards against re-firing the redirect/open on
   // every render while the user is browsing.
+  // Phase 163 — viewer's onPlaceIssue ("create issue here" gesture) pushes
+  // ?fromViewer=1&modelId=...&modelElementGuid=...&modelX/Y/Z=... so anchor
+  // coords flow into the creation form. Replaces the broken /issues/new
+  // target the viewer used to push to.
   const params = useLocalSearchParams<{
     issueId?: string;
     projectId?: string;
     createForElement?: string;
     elementTag?: string;
+    fromViewer?: string;
+    modelId?: string;
+    modelElementGuid?: string;
+    modelX?: string;
+    modelY?: string;
+    modelZ?: string;
+    tag?: string;
+    category?: string;
+    discipline?: string;
   }>();
   const deepLinkHandled = useRef(false);
   const scannerLinkHandled = useRef(false);
+  const viewerLinkHandled = useRef(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [issues, setIssues] = useState<BimIssue[]>([]);
@@ -104,6 +135,17 @@ export default function IssuesScreen() {
   const [newAssignee, setNewAssignee] = useState<ProjectMember | null>(null);
   const [newPhotos, setNewPhotos] = useState<CapturedImage[]>([]);
   const [newElementIds, setNewElementIds] = useState<string>('');
+  // MODEL-VIEWER — model picker. `availableModels` is lazy-loaded the first
+  // time the create modal opens for a given project (cheap GET, project
+  // typically has 1–6 models). `newModelId === null` means "no model link".
+  const [availableModels, setAvailableModels] = useState<ModelMeta[]>([]);
+  const [newModelId, setNewModelId] = useState<string | null>(null);
+  // Phase 163 — anchor coords from the viewer's PlaceIssue gesture.
+  // Populated only via the deep-link path; the manual creation flow leaves
+  // them undefined so plain RFI issues stay anchor-less.
+  const [newModelElementGuid, setNewModelElementGuid] = useState<string | null>(null);
+  const [newModelXyz, setNewModelXyz] = useState<{ x: number; y: number; z: number } | null>(null);
+  const modelsLoadedForProject = useRef<string | null>(null);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
   const [creationStatus, setCreationStatus] = useState<string | null>(null);
 
@@ -179,6 +221,57 @@ export default function IssuesScreen() {
     }
   }, [params.createForElement, params.elementTag, activeProject]);
 
+  // Phase 163 — viewer's onPlaceIssue ("create issue here") pushes
+  // ?fromViewer=1&modelId=...&modelElementGuid=...&modelX/Y/Z=...&tag=...
+  // Pre-fill the create modal with the model link + anchor coords + a sensible
+  // default title so coordinators don't have to retype anything.
+  useEffect(() => {
+    if (viewerLinkHandled.current) return;
+    if (!params.fromViewer || !params.modelId || !activeProject) return;
+    viewerLinkHandled.current = true;
+
+    setNewModelId(params.modelId);
+    if (params.modelElementGuid) setNewModelElementGuid(params.modelElementGuid);
+
+    const x = params.modelX ? Number(params.modelX) : NaN;
+    const y = params.modelY ? Number(params.modelY) : NaN;
+    const z = params.modelZ ? Number(params.modelZ) : NaN;
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+      setNewModelXyz({ x, y, z });
+    }
+
+    if (params.tag) setNewTitle(`Issue at ${params.tag}`);
+    if (params.discipline) {
+      // Discipline preselect — falls through silently if the value isn't a
+      // recognised RFI/NCR/SI/etc type.
+    }
+    if (params.modelElementGuid) setNewElementIds(params.modelElementGuid);
+
+    setShowCreate(true);
+    router.setParams({
+      fromViewer: undefined,
+      modelId: undefined,
+      modelElementGuid: undefined,
+      modelX: undefined,
+      modelY: undefined,
+      modelZ: undefined,
+      tag: undefined,
+      category: undefined,
+      discipline: undefined,
+    });
+  }, [
+    params.fromViewer,
+    params.modelId,
+    params.modelElementGuid,
+    params.modelX,
+    params.modelY,
+    params.modelZ,
+    params.tag,
+    params.category,
+    params.discipline,
+    activeProject,
+  ]);
+
   function onRefresh() {
     setRefreshing(true);
     loadData(activeProject?.id);
@@ -247,8 +340,26 @@ export default function IssuesScreen() {
     setNewAssignee(null);
     setNewPhotos([]);
     setNewElementIds('');
+    setNewModelId(null);
+    setNewModelElementGuid(null);
+    setNewModelXyz(null);
     setCreationStatus(null);
   }
+
+  // MODEL-VIEWER — lazy-load the project's models the first time the create
+  // modal opens. Failures are non-fatal: the picker silently shows "(none)"
+  // only, so issue creation still works in offline / read-error scenarios.
+  useEffect(() => {
+    if (!showCreate || !activeProject) return;
+    if (modelsLoadedForProject.current === activeProject.id) return;
+    modelsLoadedForProject.current = activeProject.id;
+    listModels(activeProject.id)
+      .then((rows) => setAvailableModels(rows ?? []))
+      .catch((err) => {
+        console.warn('[issues.create] listModels failed', err);
+        setAvailableModels([]);
+      });
+  }, [showCreate, activeProject]);
 
   /**
    * Phase 96 — toggle an issue in/out of the bulk selection set. Clearing the
@@ -374,6 +485,18 @@ export default function IssuesScreen() {
         // Phase 96 — scanner-initiated issues carry elementIds through so the
         // server can later lookup "which elements does this issue touch".
         elementIds: newElementIds || undefined,
+        // MODEL-VIEWER — link the issue to a 3D model when the user picked
+        // one in the model chip row. Server-side validation rejects model
+        // ids that don't belong to this project.
+        modelId: newModelId ?? undefined,
+        // Phase 163 — anchor coords come from the viewer's PlaceIssue
+        // gesture (deep-linked into this form via ?fromViewer=1...). Manual
+        // creation paths leave these undefined so plain RFI issues are
+        // anchor-less.
+        modelElementGuid: newModelElementGuid ?? undefined,
+        modelX: newModelXyz?.x,
+        modelY: newModelXyz?.y,
+        modelZ: newModelXyz?.z,
         latitude: location?.latitude,
         longitude: location?.longitude,
         locationAccuracy: location?.accuracy ?? undefined,
@@ -546,7 +669,7 @@ export default function IssuesScreen() {
               }
             }}
             onLongPress={() => { if (!bulkMode) enterBulkMode(item.id); }}
-            onViewIn3D={() => openViewer(activeProject.code)}
+            onViewIn3D={() => openViewer(activeProject.code, item.modelId)}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -615,6 +738,39 @@ export default function IssuesScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {/* MODEL-VIEWER — Linked model picker. Hidden when the project has
+                no published models; otherwise renders a "(none)" + per-model
+                chip row so coordinators can anchor an issue to a specific
+                federated model at creation time. The detail screen embeds the
+                3D viewer when this is set. */}
+            {availableModels.length > 0 && (
+              <>
+                <Text style={styles.inputLabel}>Linked model</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeRow}>
+                  <TouchableOpacity
+                    key="__none__"
+                    style={[styles.typeChip, newModelId === null && styles.typeChipActive]}
+                    onPress={() => setNewModelId(null)}
+                  >
+                    <Text style={[styles.typeChipText, newModelId === null && styles.typeChipTextActive]}>
+                      (none)
+                    </Text>
+                  </TouchableOpacity>
+                  {availableModels.map((m) => (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[styles.typeChip, newModelId === m.id && styles.typeChipActive]}
+                      onPress={() => setNewModelId(m.id)}
+                    >
+                      <Text style={[styles.typeChipText, newModelId === m.id && styles.typeChipTextActive]} numberOfLines={1}>
+                        {m.name || m.fileName || m.id.slice(0, 8)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
 
             <Text style={styles.inputLabel}>Priority</Text>
             <View style={styles.priorityRow}>

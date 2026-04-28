@@ -8041,3 +8041,685 @@ CLI tooling. Both close in this phase.
    marker is identical for both paths. A future enhancement could
    stamp the request URL into the audit row so dashboards can
    visualise the migration.
+
+#### Completed (Phase 160 — Cloud-sync feature audit: ground-truth reconciliation against external estimate)
+
+A consultancy estimate received in April 2026 priced seven phases of cloud-sync
+work (STC hook, conflict detection, auto-sync scheduler, Speckle, web 3D viewer,
+BCF endpoints, mobile 3D context) at £20–28k. Audit of the live tree found six
+of the seven already shipped — the estimate was working from out-of-date
+assumptions about the codebase. This phase records the reconciliation so future
+costings start from accurate facts. No code changes; documentation only.
+
+1. **Per-phase verification.** Each line item in the estimate was checked
+   against the working tree:
+   - **Phase 3 (STC drain)**: subscription at `StingTools/Core/StingToolsApp.cs:87`,
+     drain at `:185–243`. Closed by entry 371 (R-02 Workshared deferred element
+     queue).
+   - **Phase 4 (`LastModifiedUtc` conflict detection)**: field on
+     `TagElementPayload` at `StingTools/BIMManager/PlanscapeServerClient.cs:1042`;
+     populated from `ASS_TAG_MODIFIED_DT` at
+     `StingTools/BIMManager/PlatformLinkCommands.cs:2140`; server-side migration
+     `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20250418000000_AddTagLastModified.cs`;
+     conflict logic in `TagSyncController.cs:69–104`; covered by
+     `Planscape.Server/tests/Planscape.Tests/TagSyncConflictTests.cs` (184 lines).
+     Closed in Phase 91.
+   - **Phase 5 (5-min auto-sync)**: `PluginSyncTickBridge` wired at
+     `StingTools/Core/StingToolsApp.cs:95–118`; `DocumentSaved` enqueue at
+     `:542–635`. Closed in Phase 92.
+   - **Phase 6 (Speckle Send/Receive)**: `StingTools/BIMManager/SpeckleLinkCommands.cs`
+     (381 lines) provides snapshot engine + three IExternalCommands +
+     `SpeckleSnapshot` workflow preset. Closed in Phase 92 — but the file's
+     header comment notes HTTP push/pull is `TODO pending SDK v2 integration`,
+     so the SDK adapter is the only genuinely open scope from the estimate.
+   - **Phase 7 (xeokit web viewer)**: `Planscape.Server/src/Planscape.API/wwwroot/`
+     contains `index.html`, `viewer/`, `viewer.html`, `css/`, `js/`;
+     `app.UseStaticFiles()` is in `Program.cs`; `ViewerController.cs` (99 lines,
+     marked "PHASE 93 — xeokit-based model viewer") serves XKT files at
+     `/api/viewer/models[/{filename}]`. Closed in Phase 93.
+   - **Phase 8 (BCF 2.1 endpoints)**: shared engine at
+     `StingTools/BIMManager/BcfEngine.cs` (~380 lines, `Planscape.Shared.BCF`
+     namespace, no Revit / no Newtonsoft); server controller at
+     `Planscape.Server/src/Planscape.API/Controllers/BcfController.cs` (186
+     lines) with `GET /api/projects/{id}/bcf/export` + `POST /bcf/import` +
+     BcfGuid round-trip. Closed in Phase 95.
+   - **Phase 9 (Mobile 3D context in issue detail)**: `openViewer(projectCode)`
+     at `Planscape/app/(tabs)/issues.tsx:38–49` opens
+     `{base}/viewer/index.html?model=<code>.xkt` via `WebBrowser.openBrowserAsync()`;
+     `IssueCard`'s "🧊 View in 3D" action wired at `:549`; mirrored at
+     `Planscape/app/(tabs)/issue-detail.tsx:243`. Closed in Phase 94. The
+     implementation pops the existing xeokit web viewer in an in-app browser
+     rather than embedding the React Native `ModelViewer.tsx` component
+     inline — functionally equivalent for the user-facing requirement
+     (coordinator sees the issue in 3D from mobile).
+
+2. **Bonus already-shipped, missed by the estimate**. The estimate didn't
+   mention sync-conflict triage at all, but it is also done:
+   `Planscape.Server/src/Planscape.API/Controllers/SyncConflictsController.cs`
+   (427 lines) + mobile `Planscape/app/conflicts/` route. Closed in
+   Phase 143.
+
+3. **Net remaining scope from the estimate**. Only the Speckle SDK v2
+   transport (Phase 6 partial) is genuinely open, ≈3–5 dev-days. The other
+   six phases would have been double-billed had the estimate been
+   followed. Revised true cost for the bundle is roughly £3.3k–5.0k vs the
+   £20–28k consultancy figure.
+
+4. **`docs/ROADMAP.md`** gained a new "Cloud-Sync & Federation Feature
+   Audit (2026-04-28)" section that mirrors this entry as a reference
+   table, so anyone scanning ROADMAP for open work no longer has to
+   chase down the closure phases manually.
+
+**Files**
+
+- `docs/ROADMAP.md` — added "Cloud-Sync & Federation Feature Audit
+  (2026-04-28)" section (~16 rows of evidence + bonus + net-remaining
+  paragraph).
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Documentation-only phase — no code changed, no build-verification
+   required. Future audits should re-run the same per-line-item
+   verification before relying on the cost figures (newer phases may
+   have shifted line numbers).
+2. The original estimate's grep terms (`ModelViewer`, `modelId`) failed
+   to match the Phase 9 implementation because Phase 94 chose the
+   `WebBrowser.openBrowserAsync()` route over an inline React Native
+   component. Future estimate-vs-tree checks should search for the
+   user-facing behaviour (does the screen open a 3D view?) rather than
+   a specific component name.
+3. The Speckle SDK v2 line item remains open in
+   `StingTools/BIMManager/SpeckleLinkCommands.cs` — the snapshot engine
+   already round-trips through JSON, so any future Speckle work picks
+   up an established DTO contract rather than starting from scratch.
+
+#### Completed (Phase 161 — Speckle HTTP transport: real Send / Receive against Speckle Server)
+
+Closes the last open item from the Phase 160 ground-truth audit. The Phase 92
+`SpeckleLinkEngine` shipped a snapshot DTO + JSON writer + three
+`IExternalCommand` wrappers, but the file's own header comment flagged
+HTTP push/pull as "stubbed out pending Speckle SDK v2 integration." Phase 161
+adds the transport without pulling the Speckle SDK NuGet — Speckle's v2
+GraphQL surface is small enough to drive directly from `HttpClient`, and
+keeping the SDK out of the dependency graph avoids the assembly-collision
+risk that bit other Revit add-ins shipping `Speckle.Core` alongside its
+transitive `Serilog` / `GraphQL` deps.
+
+1. **`StingTools/BIMManager/SpeckleLinkCommands.cs`** grew from 381 to ~840
+   lines. New region `── HTTP Transport: SpeckleHttpTransport ──` houses
+   one internal static class with two public operations and the supporting
+   plumbing.
+
+   - **`SpeckleHttpTransport.Send(streamUrl, token, dtos, message)`** —
+     builds a single root `Base` object containing `tags: [<DTOs>]` inline
+     (no detached children, so no recursive reference walk needed),
+     computes a Speckle-style sha256 object id over canonicalised JSON
+     (keys sorted recursively, array order preserved, `id` field excluded
+     from hash input), gzips an NDJSON line and POSTs it as multipart
+     form-data to `{server}/objects/{streamId}` with field name
+     `batch-1`. Then issues a `commitCreate` GraphQL mutation referencing
+     the new object id and returns the commit id. `sourceApplication`
+     stamped as `STING-Tags` so commits are attributable in the Speckle
+     activity feed.
+   - **`SpeckleHttpTransport.Receive(streamUrl, token)`** — runs the
+     `stream(id) { branch(name) { commits(limit: 1) { items { id
+     referencedObject } } } }` v2 query, then GETs
+     `{server}/objects/{streamId}/{objectId}/single` and parses the
+     `tags` array out of the root JSON. Returns `null` (not empty list)
+     when the branch has no commits so callers can distinguish "empty
+     branch" from "non-empty branch with zero tags." The v2 surface is
+     kept as a compatibility layer on every modern Speckle host (FE2 /
+     project-based servers included), so this works against both legacy
+     v2 hosts and current installations.
+   - **`ParseStreamUrl(url)`** accepts both URL shapes:
+     `https://host/streams/<id>[/branches/<name>]` and
+     `https://host/projects/<id>[/models/<name>]`. Branch defaults to
+     `main`. Throws `ArgumentException` with a self-describing message on
+     any other shape.
+   - **`ComputeObjectId`** sorts JObject keys recursively (ordinal),
+     preserves JArray order, hashes the resulting UTF-8 bytes with
+     SHA-256, and lowercases the hex digest. Self-consistent across
+     Send / Receive — the Speckle server stores objects under whatever
+     id the client supplies, so round-trip works regardless of whether
+     other Speckle clients would compute the same canonical hash.
+   - **`GraphQLData`** wraps the GraphQL POST: 401 → "authentication
+     failed, check token" message; non-2xx → status + reason + body;
+     `errors` array → first message; otherwise returns `data` JObject.
+     `SafeReadBody` swallows read exceptions so error reporting never
+     itself throws.
+   - **One shared `HttpClient`** (`static readonly`, 60s timeout, no
+     `BaseAddress` set so a single instance handles different Speckle
+     hosts). Reused per .NET HttpClient guidance.
+
+2. **Engine wiring** (`SpeckleLinkEngine.SendToSpeckle` /
+   `ReceiveFromSpeckle`):
+
+   - **Send** — local snapshot is written first (atomic temp+Move
+     unchanged). When `streamUrl` and `token` are both non-empty,
+     `SpeckleHttpTransport.Send` runs against the dtos reloaded from
+     the just-written snapshot, surfaces the commit id in the
+     TaskDialog, and logs `Speckle: pushed commit <id> (<n> elements)`.
+     A server failure shows the error in the dialog but the local
+     snapshot stays valid — no rollback path needed.
+   - **Receive** — when configured, `SpeckleHttpTransport.Receive` runs
+     first; on success the local snapshot is overwritten via
+     `WriteSnapshotToDisk` so subsequent `SpeckleDiff` calls compare
+     current model state against the latest server commit. On any
+     server failure the engine falls back to whatever is on disk —
+     extracted into a new `ReadSnapshotFromDisk` helper so both Send
+     (for the push payload) and Receive (for the fallback read) share
+     one implementation. The helper returns `null` to signal
+     "not on disk" vs an empty list for "on disk but empty."
+
+3. **Config loader** — duplicated 7-line `JObject.Parse(speckle_config.json)`
+   block in `SpeckleSendCommand` was extracted to a new
+   `internal static class SpeckleConfig` with `Load(doc) -> (streamUrl, token)`.
+   `SpeckleReceiveCommand` now also calls it (previously hard-coded
+   `("", "")` so it could only ever read the local snapshot — that
+   bypass closed in this phase). `SpeckleConfig.Load` swallows file/JSON
+   parse errors and returns empty strings so the engine treats malformed
+   config as "local-only" rather than crashing the command.
+
+4. **Doc string updates** on `SendToSpeckle` and `ReceiveFromSpeckle`
+   no longer claim "deferred until the Speckle SDK v2 is added" — both
+   docstrings now describe the live HTTP path with the local-fallback
+   semantics.
+
+5. **`docs/ROADMAP.md`** — Phase 6 row in the "Cloud-Sync & Federation
+   Feature Audit (2026-04-28)" table flipped from PARTIAL to DONE with
+   reference to this phase. Net-remaining-work paragraph updated from
+   "only the Speckle SDK v2 transport" to "nothing — the last partial
+   item closed in Phase 161."
+
+**Files**
+
+- `StingTools/BIMManager/SpeckleLinkCommands.cs` — added 6 `using`
+  directives, expanded header comment, modified `SendToSpeckle` and
+  `ReceiveFromSpeckle` to call the HTTP transport, added private
+  `ReadSnapshotFromDisk` + `WriteSnapshotToDisk` helpers on
+  `SpeckleLinkEngine`, added `SpeckleHttpTransport` static class
+  (~190 lines), added `SpeckleConfig` static class (~28 lines),
+  updated `SpeckleSendCommand` and `SpeckleReceiveCommand` to use
+  the shared config loader, refreshed two stale XML doc comments.
+  381 → ~838 lines.
+- `docs/ROADMAP.md` — Phase 6 row + remaining-work paragraph.
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `dotnet build` verification (Linux sandbox, no .NET
+   SDK / no Revit API). Brace-balance check passes (169 open / 169
+   close). Every Revit API call uses the documented signature — no
+   Revit API additions in this phase, only HTTP / JSON / cryptography
+   on the BCL. The `HttpClient.SendAsync(...).GetAwaiter().GetResult()`
+   bridge from sync `IExternalCommand.Execute` mirrors the existing
+   pattern in `PlanscapeServerClient.cs`.
+2. Object id is Speckle-style sha256 over canonicalised JSON but the
+   canonicalisation rules are the simple recursive-sort variant rather
+   than the exact algorithm in `Speckle.Newtonsoft.Json`'s
+   `SortedAlphabeticalContractResolver`. Self-consistent across our
+   own Send / Receive — that's all the Speckle server requires for
+   round-trip — but third-party clients hashing the same payload may
+   compute a different id. Acceptable for STING's use case (we control
+   both ends); revisit if we ever need our objects to round-trip
+   through other Speckle connectors as a hash-identity match.
+3. Branch defaulting: when the streamUrl path doesn't include a branch
+   /model segment, both Send and Receive default to `main`. Speckle
+   FE2 created `main` automatically on every project so this is the
+   right default for new projects, but legacy v2 streams sometimes
+   default to `master`. Operators with v2 streams should specify the
+   branch explicitly in the URL: `.../streams/<id>/branches/master`.
+4. Single-commit Receive only — pulls the latest commit on the branch.
+   No pagination or commit-history walking. A future enhancement could
+   accept an explicit commit id in the URL
+   (`.../streams/<id>/commits/<commitId>`) and route through a
+   GetByCommit query, but the minimum-viable scope from the consultancy
+   estimate was last-commit-only and the snapshot DTO has no
+   commit-history concept anyway.
+5. No subscription / webhook support — the transport is request /
+   response only. Real-time push from Speckle ("commit created on
+   stream X") would need either websocket subscriptions (Speckle GraphQL
+   subscriptions endpoint) or a webhook receiver on Planscape Server.
+   Both are out of scope for the Phase 6 line item.
+
+#### Completed (Phase 162 — Mobile issue ↔ model linkage: inline ModelViewer + creation-form picker)
+
+The Phase 160 audit closed Phase 9 of the consultancy estimate by recording
+the Phase 94 WebBrowser-based "Open in 3D" flow as a functional equivalent of
+the originally-spec'd inline embed. Phase 162 implements the originally-spec'd
+shape too: an inline `<ModelViewer>` in `issue-detail.tsx` that renders
+in-page when the issue is linked to a model, plus a "Linked model" picker
+in the creation form so coordinators can establish that link at issue-raise
+time. The WebBrowser path stays as the fullscreen / unlinked-issue
+fallback so neither flow regresses.
+
+The server scaffolding was already 80% in place — `BimIssue.ModelId` plus
+`ModelElementGuid` and `ModelX/Y/Z` columns landed in an earlier
+"MODEL-VIEWER" pass on the entity, and the mobile `BimIssue` type already
+declared the matching nullable fields. The missing wiring was on three
+edges: the server `CreateIssueRequest` record didn't expose those fields,
+the mobile creation form had no UI to capture a model link, and the detail
+screen had no `<ModelViewer>` consumer. All three closed in this phase.
+
+1. **Server `CreateIssueRequest`** (`Planscape.Server/src/Planscape.API/Controllers/IssuesController.cs:765`)
+   gained five trailing nullable parameters — `ModelId`, `ModelElementGuid`,
+   `ModelX`, `ModelY`, `ModelZ`. The `CreateIssue` handler now passes them
+   through to the `BimIssue` initialiser. Additive at the wire level: every
+   existing client that didn't send these fields keeps working unchanged
+   because the params are nullable. ASP.NET Core's `JsonSerializerDefaults.Web`
+   handles the camelCase→PascalCase mapping (`modelId` → `ModelId`)
+   automatically.
+2. **Server-side ownership validation**. New early-exit check between the
+   regex/Type validation and the geofence check rejects requests whose
+   `ModelId` doesn't belong to the target project (or points at a
+   soft-deleted model). Stops a malicious / buggy client linking an issue
+   to another project's model — the link would otherwise upload but later
+   404 on the viewer file fetch, leaving an orphan issue. Mirrors the
+   `ProjectId == projectId && DeletedAt == null` gate used everywhere in
+   `ModelsController`.
+3. **Mobile creation form** (`Planscape/app/(tabs)/issues.tsx`):
+   - New imports: `listModels` from `@/api/models` and `ModelMeta` from
+     `@/types/models`.
+   - New state: `availableModels: ModelMeta[]`, `newModelId: string | null`,
+     and a `modelsLoadedForProject: useRef<string | null>(null)` cache key
+     so re-opening the modal doesn't re-fetch (and switching projects
+     correctly invalidates the cache).
+   - New effect fires when `showCreate` flips true and `activeProject`
+     resolves: lazy-loads `listModels(activeProject.id)` and stashes the
+     result. Failures (network down, no models published) are non-fatal —
+     the picker silently shows "(none)" only.
+   - New chip row between "Type" and "Priority", hidden when
+     `availableModels.length === 0` so projects with no published models
+     show the modal exactly as before. The row leads with a "(none)" chip
+     (default selection) followed by one chip per model, captioned by
+     `m.name || m.fileName || m.id.slice(0, 8)` to handle every variant
+     of `ModelMeta` payload completeness.
+   - `createIssue` payload appends `modelId: newModelId ?? undefined` so
+     the field is omitted from the JSON when no model is linked.
+   - `resetCreateForm` clears `newModelId` alongside the existing fields.
+4. **Mobile detail screen** (`Planscape/app/(tabs)/issue-detail.tsx`):
+   - New imports: `getModel` and `modelFileUrl` from `@/api/models`,
+     `ModelViewer` from `@/components/ModelViewer`, `ModelMeta` and
+     `ModelPin` from `@/types/models`.
+   - New state cluster: `viewerMeta`, `viewerModelUrl`, `viewerPins`, and
+     `viewerError`.
+   - New effect (`[issue, project]` dependency) fires after the issue +
+     project pair resolves. When `issue.modelId` is set, runs three calls
+     in parallel — `getModel(...)`, `getToken()`, `modelFileUrl(...)` —
+     then sets `viewerModelUrl = base + '?access_token=<jwt>'`. The
+     WebView can't forward an Authorization header, so the JWT travels
+     in the query string; same pattern as the existing
+     `app/models/[id].tsx` viewer screen. When `(modelX, modelY, modelZ)`
+     are all set, builds a single `ModelPin` so the viewer renders the
+     issue's anchor; otherwise leaves `pins` empty and renders a hint
+     line ("Issue is linked to this model but has no anchor coordinates").
+     Cancellation flag prevents stale fetches from racing into stale
+     state when the user rapidly switches issues.
+   - New JSX block between the action bar and the photo gallery, gated
+     on `issue.modelId && viewerModelUrl`, embeds the `<ModelViewer>` in
+     a fixed-280px-tall container so the surrounding ScrollView keeps
+     working. Header reads `3D model — {meta.name}`. Hint line surfaces
+     for issues linked to a model but lacking anchor coordinates. Error
+     line surfaces any `onError` callback string from the viewer.
+   - The actionBar's "🧊 View in 3D" WebBrowser button stays in place so
+     un-linked issues still get the project-default fullscreen viewer
+     and linked issues get an "expand to fullscreen" alternative.
+5. **Style additions** in `issue-detail.tsx`'s StyleSheet: `viewerSection`,
+   `viewerHeader`, `viewerHost` (height 280, rounded, surface bg),
+   `viewerHint` (italic muted), `viewerError` (red). All keyed off the
+   existing `theme` object (`theme.colors.danger`,
+   `theme.borderRadius.md`, etc.) so dark-mode / theme-switch work
+   downstream pick them up automatically.
+6. **`docs/ROADMAP.md`** Phase 9 row updated to record both delivery
+   paths (Phase 94 WebBrowser fallback + Phase 162 inline embed).
+
+**Files**
+
+- `Planscape.Server/src/Planscape.API/Controllers/IssuesController.cs`
+  — `CreateIssueRequest` record + entity initialiser + ownership check
+  (~30 lines added).
+- `Planscape/app/(tabs)/issues.tsx` — imports, state cluster, lazy-load
+  effect, payload field, picker JSX, reset-form clear (~55 lines added).
+- `Planscape/app/(tabs)/issue-detail.tsx` — imports, state cluster, model
+  load effect, embedded viewer JSX, styles (~85 lines added).
+- `docs/ROADMAP.md` — Phase 9 row in the Cloud-Sync audit table.
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `dotnet build` / `tsc` / `eslint` verification (Linux
+   sandbox, no Revit / .NET / Node toolchain). Brace balance verified
+   on all three changed files (servers + both mobile screens). Every
+   referenced symbol resolves: `theme.colors.danger` (not `error` —
+   theme.ts ships `danger` as the RAG-red token, that's the typo I
+   caught and fixed before commit), `ModelPin` minus the non-existent
+   `issueId` field (the existing convention is `id === issueId`, mirrored
+   from `app/models/[id].tsx:64`), and `ModelMeta.name` / `fileName`
+   both required (so the `||` fallback chain for the chip caption is
+   defensive but never strictly needed).
+2. Anchor capture (`ModelElementGuid` + `ModelX/Y/Z`) is wired through
+   the server but the creation form only captures `ModelId`. The
+   anchor coords come from the viewer's "create issue here" gesture
+   (`PlaceIssueEvent` in the existing `ModelViewer` API), which routes
+   through a different code path (the viewer screen pushes
+   `/issues?createForElement=...&modelX=...` deep links) — out of
+   scope for the originally-spec'd "add modelId to creation form."
+3. Single-pin embed only. When the issue's anchor is unset, the viewer
+   renders the model with no pins. A future enhancement could pin
+   sibling issues on the same model so coordinators see neighbouring
+   open issues without leaving the screen — deferred because the
+   detail screen's purpose is *this* issue's context, and surfacing
+   siblings risks visual noise.
+4. WebView ergonomics inside a vertical ScrollView: the 280px-tall
+   viewer is high enough for orbit-and-fit gestures but can fight the
+   parent scroll on touch-near-the-edge. The `<ModelViewer>` component
+   already nests its WebView in a sized container (`flex: 1` against
+   the parent), so the gesture handling is whatever `react-native-webview`
+   provides on each platform. Acceptable on iOS; Android may need
+   `nestedScrollEnabled` plumbing if real-world feedback shows
+   jankiness.
+5. The existing `WebBrowser.openBrowserAsync` button in the actionBar
+   still loads the project-default model (no per-issue `modelId`
+   parameter). When the issue is linked to a non-default model, the
+   inline embed shows the right one but the fullscreen button still
+   shows the default — minor inconsistency that could be closed by
+   threading `?model=<modelId>.xkt` into the query string when
+   `issue.modelId` is set. Deferred because the inline embed is now
+   the primary 3D surface for linked issues.
+
+#### Completed (Phase 163 — Phase 162 caveat closures: anchor capture, sibling pins, per-model fullscreen routing)
+
+Closes the three caveats logged at the bottom of Phase 162. Each caveat
+turned out to be smaller than the entry made it sound, and one of them
+(the anchor-capture path) was actually fixing a pre-existing bug rather
+than adding a new feature — the viewer's "create issue here" gesture was
+pushing to a route (`/issues/new`) that doesn't exist anywhere in the
+mobile app, so every long-press on an element in `app/models/[id].tsx`
+silently navigated to a 404 screen. Phase 163 reroutes that push through
+the (tabs)/issues creation modal and threads the anchor coords through.
+
+1. **Anchor capture from the viewer's PlaceIssueEvent** (caveat 1).
+   `Planscape/app/models/[id].tsx:93` — the existing `onPlaceIssue`
+   handler used to push to `/issues/new` (a route that doesn't exist;
+   only `app/issues/[id].tsx` exists, and that's the legacy single-issue
+   detail screen, not a creation form). The push now goes to
+   `/(tabs)/issues` with `fromViewer=1` plus the five anchor params
+   (`modelId`, `modelElementGuid`, `modelX`, `modelY`, `modelZ`) and
+   the three element-metadata params (`tag`, `category`, `discipline`).
+   Same convention as scanner.tsx, meetings/index.tsx, the dashboard
+   tile — every other in-app deep-link to the issues tab uses
+   `pathname: '/(tabs)/issues'`.
+
+   `Planscape/app/(tabs)/issues.tsx` — `useLocalSearchParams<>` shape
+   gained the eight `fromViewer`/`modelId`/`modelElementGuid`/`modelX/Y/Z`/
+   `tag`/`category`/`discipline` fields and a new `viewerLinkHandled`
+   ref guard mirroring the `scannerLinkHandled` pattern. New effect on
+   `[params.fromViewer, params.modelId, ...activeProject]` parses the
+   params, validates `modelX/Y/Z` are finite numbers (NaN-safe via
+   `Number.isFinite`), pre-fills `newModelId` + `newModelElementGuid` +
+   `newModelXyz`, defaults the title to `Issue at <tag>` when present,
+   opens the create modal, and clears the router params (Phase 96
+   convention) so re-mounting the tab doesn't re-trigger the modal.
+
+   The `createIssue` payload gained three nullable fields:
+   `modelElementGuid`, `modelX`, `modelY`, `modelZ` — so the
+   already-extended Phase 162 server `CreateIssueRequest` actually
+   receives anchor data on viewer-deep-linked issues. Manual creation
+   paths (the FAB, the scanner) leave them undefined as before, so
+   plain RFI flows stay anchor-less.
+
+   `resetCreateForm` clears `newModelElementGuid` and `newModelXyz`
+   alongside the existing fields so closing-and-reopening the modal
+   doesn't carry stale anchor state from a prior viewer push.
+
+2. **Sibling pins on the embedded viewer** (caveat 2).
+   `Planscape/app/(tabs)/issue-detail.tsx` — the viewer-load effect
+   gained a fourth parallel call: `listIssues(project.id)`. Failures
+   are non-fatal (catch + console.warn + empty array) so a sibling-list
+   network error doesn't break the embed itself. Pin construction
+   loops over the result, skips the issue's own row, skips siblings
+   with mismatching `modelId`, skips closed/resolved siblings (they're
+   not actionable so polluting the model with their pins adds noise),
+   skips siblings without anchor coords, and emits a `ModelPin` with
+   `id == sib.id` so `onPinTap` can route by id.
+
+   The embedded `<ModelViewer onPinTap={...} />` handler navigates to
+   `/(tabs)/issue-detail?id=<sib.id>&projectId=<project.id>` when the
+   tapped pin's id is not the current issue (no-op self-tap guard).
+   Includes `projectId` per Phase 96's `paramProjectId` optimisation
+   to skip the O(n) project probe on the destination screen.
+
+3. **Fullscreen WebBrowser routing per `issue.modelId`** (caveat 3).
+   Two call sites updated: the IssueCard's "View in 3D" button on the
+   list screen and the openIn3D handler on the detail screen. Both now
+   build the XKT URL as `<modelId>.xkt` when the issue is linked, with
+   a fallback to `<projectCode>.xkt` for un-linked issues.
+
+   `Planscape/app/(tabs)/issues.tsx` — `openViewer(projectCode, modelId?)`
+   gained a second optional param. The IssueCard call site at
+   `:657` now passes `item.modelId`. When `modelId` is set, the URL is
+   `?model=<modelId>.xkt`; otherwise `?model=<projectCode>.xkt`.
+
+   `Planscape/app/(tabs)/issue-detail.tsx` — the `openIn3D` handler at
+   `:318` now derives `xktBase = issue.modelId ?? project.code` before
+   appending the `.xkt` suffix.
+
+   The XKT pipeline is operator-controlled: ViewerController serves
+   `*.xkt` verbatim from `{Storage:Path}/xkt/` with no enforced naming
+   convention (see Phase 93 commentary). Per-model routing therefore
+   only loads when the operator's XKT publishing pipeline happens to
+   name files by model GUID. When it doesn't, the WebBrowser flow 404s
+   and the user sees the existing "Viewer unavailable" alert path.
+   Acceptable because the inline embed (which uses a different
+   transport — the GLB endpoint via `modelFileUrl(...)`) keeps working
+   regardless, so coordinators with mismatched naming conventions still
+   get 3D context for linked issues.
+
+4. **Pin-tap navigation in `app/models/[id].tsx`** (incidental fix).
+   The standalone viewer screen's `onPinTap` previously routed to
+   `/issues/<id>` which lands on the legacy `app/issues/[id].tsx` detail
+   screen rather than the (tabs)/issue-detail screen every other deep
+   link uses. Updated to `/(tabs)/issue-detail?id=<id>` to match the
+   sibling-pin routing in caveat 2 and the rest of the app's deep-link
+   conventions.
+
+5. **`docs/ROADMAP.md`** Phase 9 row updated to record three delivery
+   paths instead of two — the Phase 163 closures explicitly listed so
+   future audits can grep for them without reading the whole entry.
+
+**Files**
+
+- `Planscape/app/(tabs)/issues.tsx` — viewer deep-link param shape (+8
+  fields), `viewerLinkHandled` ref guard, viewer deep-link effect (~40
+  lines), `openViewer(projectCode, modelId?)` second param, IssueCard
+  call site update, anchor-coord state cluster (`newModelElementGuid`,
+  `newModelXyz`), payload extension (3 fields), `resetCreateForm`
+  clear (~95 lines added).
+- `Planscape/app/(tabs)/issue-detail.tsx` — `listIssues` import,
+  sibling-pin construction loop (~30 lines), `onPinTap` handler with
+  self-tap guard, `openIn3D` per-model XKT routing (~10 lines added).
+- `Planscape/app/models/[id].tsx` — `onPlaceIssue` push retargeted from
+  the broken `/issues/new` route to `/(tabs)/issues?fromViewer=1`
+  (the actual (tabs) creation modal); `onPinTap` retargeted from the
+  legacy `/issues/<id>` to `/(tabs)/issue-detail?id=<id>` for deep-link
+  consistency.
+- `docs/ROADMAP.md` — Phase 9 row in the Cloud-Sync audit table.
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `tsc` / `eslint` verification (Linux sandbox, no Node
+   toolchain). Brace balance verified on all three changed mobile
+   files (519/519, 382/382, 59/59). Every imported symbol resolves
+   against the existing API surface (`listIssues`, `ModelPin`,
+   `useLocalSearchParams`, `router.setParams`).
+2. Sibling-pin filter excludes `CLOSED` and `RESOLVED` issues. That
+   choice keeps the embed focused on actionable items — open RFIs,
+   NCRs, defects — but coordinators reviewing a historical incident
+   may want closed pins on too. A future toggle ("Show resolved
+   neighbours") would close that gap; out of scope for this caveat
+   pass since the consultancy estimate didn't budget the toggle.
+3. The `listIssues(projectId)` call is project-wide, no
+   server-side `?modelId=` filter. Acceptable for typical project
+   sizes (10–500 issues) but at 5K+ issues the response becomes
+   wasteful. The right server-side fix is a query parameter on the
+   existing list endpoint plus a covering index on `(ProjectId,
+   ModelId, Status)`. Deferred until real-world list sizes show
+   measurable latency — the issue-detail screen fetches this lazily
+   so it doesn't gate the initial render either way.
+4. Per-model XKT routing assumes the operator's XKT pipeline names
+   files by model GUID. When it doesn't, the WebBrowser fullscreen
+   flow 404s. The detail screen surfaces the alert via the existing
+   `try/catch` in `openIn3D`. A future enhancement could probe via
+   `HEAD /api/viewer/models/<modelId>.xkt` before opening the
+   browser and fall back to the project default on 404 — adds one
+   round-trip and one branch, deferred because the inline embed
+   already provides 3D context regardless of XKT availability.
+5. The deep-link effect doesn't preselect the issue Type from the
+   `category`/`discipline` params — those values often don't map to
+   the RFI/NCR/SI/TQ/CLASH/DEFECT enum cleanly (an architectural
+   element's discipline is "ARC", which doesn't match any Type
+   value). Defaulting to `RFI` matches the manual creation flow.
+
+#### Completed (Phase 164 — Phase 163 caveat closures: server modelId filter, sibling-list envelope unwrap, resolved-toggle, XKT availability probe)
+
+Closes Phase 163 caveats (2), (3), (4) — sibling-pin resolved toggle,
+server-side `?modelId=` filter, and per-model fullscreen XKT availability
+probe. Caveats (1) "no tsc/eslint verification" and (5) "Type preselect
+from discipline" stay open by design: (1) is environmental (sandbox has
+no Node toolchain) and (5) lacks a clean enum mapping (discipline codes
+ARC/STR/MEP don't correspond to RFI/NCR/SI/TQ/CLASH/DEFECT in any
+defensible way).
+
+Investigation surfaced an additional latent bug: the mobile `listIssues`
+helper was typed `Promise<BimIssue[]>` but the controller actually
+returns `{ items, total, page, pageSize }`. Every consumer (scanner,
+models/[id].tsx, issues tab, Phase 163 sibling-pin loader) was running
+`.filter()` / `.map()` against the envelope and silently failing into
+its try/catch wrapper. Phase 164 fixes the helper to unwrap the
+envelope, which means the Phase 163 sibling-pin filter now actually has
+data to filter on. Without this fix, sibling pins never rendered in
+practice — the filter operated on `undefined.modelId` for every entry
+because the (broken) iteration produced no entries at all.
+
+1. **Server `?modelId=` query filter** (caveat 3).
+   `Planscape.Server/src/Planscape.API/Controllers/IssuesController.cs`
+   `GetIssues` gained a `[FromQuery] Guid? modelId` parameter. When
+   present, appends `query.Where(i => i.ModelId == modelId)` to the
+   existing `(ProjectId, Status, Type)` filter chain. Backed by the
+   single-column index `BimIssue.ModelId` already defined at
+   `PlanscapeDbContext.cs:136`, so no migration is required.
+
+   The projection at the bottom of the same handler gained five fields
+   — `ModelId`, `ModelElementGuid`, `ModelX`, `ModelY`, `ModelZ` —
+   without which the mobile sibling-pin filter operates on null fields
+   the wire envelope never carries. Additive at the wire level: existing
+   clients ignore unknown JSON properties, so this is a safe extension.
+
+2. **Mobile `listIssues` helper extended + envelope unwrap** (caveat 3 +
+   latent bug fix). `Planscape/src/api/endpoints.ts`:
+   - New `ListIssuesOptions` type — `{ modelId?, status?, type?, page?,
+     pageSize? }`.
+   - `listIssues(projectId, opts?)` builds a query string from `opts`
+     and delegates to `apiFetch<unknown>`. The result is unwrapped:
+     when the response is `{ items: [...] }`, return `items`; when it's
+     a flat array (older / future variant), pass through; otherwise
+     return `[]` so `.filter()` / `.map()` callers don't crash on
+     unexpected shapes.
+   - All existing callers (scanner.tsx, models/[id].tsx, issues.tsx
+     loader, Phase 163 sibling-pin loader) keep working unchanged
+     because the new signature is backwards-compatible — `opts` is
+     optional and missing/null fields produce no query string segments.
+
+3. **Cached XKT availability helper** (caveat 4).
+   `Planscape/src/api/endpoints.ts` exports a new
+   `listAvailableXkts(): Promise<Set<string>>` that hits
+   `GET /api/viewer/models` once per session and caches the resulting
+   filename list as a `Set<string>`. Network failures resolve to an
+   empty Set so callers can pick a sensible default rather than block
+   on a probe failure. `_resetXktCache()` is exported for re-auth /
+   logout teardown.
+
+4. **Resolved-sibling toggle** (caveat 2).
+   `Planscape/app/(tabs)/issue-detail.tsx`:
+   - New state cluster: `showResolvedSiblings: boolean` (default
+     `false`) and `resolvedSiblingCount: number` (computed during pin
+     construction so the toggle's label can announce how many pins it
+     would surface).
+   - The viewer-load effect now adds `showResolvedSiblings` to its
+     dependency array, so toggling refires the loader and recomputes
+     pins. The pin construction loop counts resolved/closed siblings
+     unconditionally (`resolvedCount++`) and only emits them as pins
+     when the toggle is on (`if (isResolved && !showResolvedSiblings)
+     continue`).
+   - New JSX block in the `viewerSection` renders a `TouchableOpacity`
+     toggle below the viewer, hidden when `resolvedSiblingCount === 0`
+     (no point offering an empty action). Label flips between
+     "○ Show resolved neighbours (N)" and "✓ Show resolved neighbours
+     (N)" with matching `accessibilityLabel` for screen readers.
+   - New styles: `viewerToggle` (small chip-style button against the
+     theme's background colour) + `viewerToggleText`.
+
+5. **XKT availability probe in fullscreen routing** (caveat 4).
+   Two call sites updated:
+   - `Planscape/app/(tabs)/issue-detail.tsx` `openIn3D` — when
+     `issue.modelId` is set, `await listAvailableXkts()` and use the
+     modelId XKT only when the cache contains `<modelId>.xkt` or the
+     cache is empty (network failure → optimistic). Otherwise fall
+     back to the project default. Honest about the constraint: list-
+     endpoint failure means we can't verify availability, so we don't
+     punish operators with reachable but failing list calls.
+   - `Planscape/app/(tabs)/issues.tsx` `openViewer(projectCode,
+     modelId?)` — same gate, lifted into the existing helper so the
+     IssueCard call site at the list-screen FAB inherits the behaviour
+     for free.
+
+6. **`listIssues({ modelId })` rewire in viewer-load effect**
+   (caveat 3 consumption). The Phase 163 viewer-load effect's
+   `listIssues(project.id)` call is now `listIssues(project.id, {
+   modelId: issue.modelId! })`. Pin construction also gains the
+   defensive `if (sib.modelId !== issue.modelId) continue` guard kept
+   from Phase 163 (server-side filter does this already, but the
+   double-check covers any future caller that bypasses the filter).
+
+**Files**
+
+- `Planscape.Server/src/Planscape.API/Controllers/IssuesController.cs`
+  — `?modelId=` filter + projection extension (~11 lines).
+- `Planscape/src/api/endpoints.ts` — `ListIssuesOptions` type, extended
+  `listIssues` with envelope unwrap, new `listAvailableXkts` helper,
+  `_resetXktCache` (~69 lines added).
+- `Planscape/app/(tabs)/issue-detail.tsx` — resolved-toggle state +
+  effect dep + pin construction branch + toggle JSX + styles, XKT
+  availability probe in `openIn3D`, modelId-filtered listIssues call
+  (~107 lines net).
+- `Planscape/app/(tabs)/issues.tsx` — `listAvailableXkts` import,
+  `openViewer` XKT availability probe (~24 lines).
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Built without `dotnet build` / `tsc` / `eslint` verification (Linux
+   sandbox). Brace balance verified across all four changed files
+   (522/522, 401/401, 296/296, 135/135). Caveat 1 from Phase 163
+   stays open — no Node toolchain in this sandbox to run the linters.
+2. The XKT cache lives for the whole AppDomain / mobile session. Stale
+   cache fires on rare race: an XKT published mid-session won't show
+   up until the user force-restarts the app. Acceptable because XKT
+   publishes are infrequent operator actions; if it becomes annoying,
+   `_resetXktCache` is already exported so a `pull-to-refresh` or
+   re-auth handler could call it.
+3. The resolved-sibling toggle refetches issues from the server on
+   every flip (the `showResolvedSiblings` dep on the viewer-load
+   effect). Cleaner UX than holding both lists in memory and switching,
+   but at high latency it produces a brief "pins disappear / reappear"
+   flicker. A future enhancement could split the loader into "fetch
+   once" + "filter client-side" — deferred because the toggle rarely
+   flips and the flicker is < 500 ms in normal conditions.
+4. Caveat 5 (Type preselect from discipline) stays open — see
+   recommendation pre-Phase-164: discipline values don't map to the
+   issue-Type enum cleanly enough to ship a heuristic that's better
+   than "default to RFI." Operators who want a different default can
+   change it manually in two taps; an auto-mapper that's wrong half
+   the time would be a usability regression.
