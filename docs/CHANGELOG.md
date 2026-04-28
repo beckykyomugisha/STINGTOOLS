@@ -8041,3 +8041,95 @@ CLI tooling. Both close in this phase.
    marker is identical for both paths. A future enhancement could
    stamp the request URL into the audit row so dashboards can
    visualise the migration.
+
+#### Completed (Phase 160 — Cloud-sync feature audit: ground-truth reconciliation against external estimate)
+
+A consultancy estimate received in April 2026 priced seven phases of cloud-sync
+work (STC hook, conflict detection, auto-sync scheduler, Speckle, web 3D viewer,
+BCF endpoints, mobile 3D context) at £20–28k. Audit of the live tree found six
+of the seven already shipped — the estimate was working from out-of-date
+assumptions about the codebase. This phase records the reconciliation so future
+costings start from accurate facts. No code changes; documentation only.
+
+1. **Per-phase verification.** Each line item in the estimate was checked
+   against the working tree:
+   - **Phase 3 (STC drain)**: subscription at `StingTools/Core/StingToolsApp.cs:87`,
+     drain at `:185–243`. Closed by entry 371 (R-02 Workshared deferred element
+     queue).
+   - **Phase 4 (`LastModifiedUtc` conflict detection)**: field on
+     `TagElementPayload` at `StingTools/BIMManager/PlanscapeServerClient.cs:1042`;
+     populated from `ASS_TAG_MODIFIED_DT` at
+     `StingTools/BIMManager/PlatformLinkCommands.cs:2140`; server-side migration
+     `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20250418000000_AddTagLastModified.cs`;
+     conflict logic in `TagSyncController.cs:69–104`; covered by
+     `Planscape.Server/tests/Planscape.Tests/TagSyncConflictTests.cs` (184 lines).
+     Closed in Phase 91.
+   - **Phase 5 (5-min auto-sync)**: `PluginSyncTickBridge` wired at
+     `StingTools/Core/StingToolsApp.cs:95–118`; `DocumentSaved` enqueue at
+     `:542–635`. Closed in Phase 92.
+   - **Phase 6 (Speckle Send/Receive)**: `StingTools/BIMManager/SpeckleLinkCommands.cs`
+     (381 lines) provides snapshot engine + three IExternalCommands +
+     `SpeckleSnapshot` workflow preset. Closed in Phase 92 — but the file's
+     header comment notes HTTP push/pull is `TODO pending SDK v2 integration`,
+     so the SDK adapter is the only genuinely open scope from the estimate.
+   - **Phase 7 (xeokit web viewer)**: `Planscape.Server/src/Planscape.API/wwwroot/`
+     contains `index.html`, `viewer/`, `viewer.html`, `css/`, `js/`;
+     `app.UseStaticFiles()` is in `Program.cs`; `ViewerController.cs` (99 lines,
+     marked "PHASE 93 — xeokit-based model viewer") serves XKT files at
+     `/api/viewer/models[/{filename}]`. Closed in Phase 93.
+   - **Phase 8 (BCF 2.1 endpoints)**: shared engine at
+     `StingTools/BIMManager/BcfEngine.cs` (~380 lines, `Planscape.Shared.BCF`
+     namespace, no Revit / no Newtonsoft); server controller at
+     `Planscape.Server/src/Planscape.API/Controllers/BcfController.cs` (186
+     lines) with `GET /api/projects/{id}/bcf/export` + `POST /bcf/import` +
+     BcfGuid round-trip. Closed in Phase 95.
+   - **Phase 9 (Mobile 3D context in issue detail)**: `openViewer(projectCode)`
+     at `Planscape/app/(tabs)/issues.tsx:38–49` opens
+     `{base}/viewer/index.html?model=<code>.xkt` via `WebBrowser.openBrowserAsync()`;
+     `IssueCard`'s "🧊 View in 3D" action wired at `:549`; mirrored at
+     `Planscape/app/(tabs)/issue-detail.tsx:243`. Closed in Phase 94. The
+     implementation pops the existing xeokit web viewer in an in-app browser
+     rather than embedding the React Native `ModelViewer.tsx` component
+     inline — functionally equivalent for the user-facing requirement
+     (coordinator sees the issue in 3D from mobile).
+
+2. **Bonus already-shipped, missed by the estimate**. The estimate didn't
+   mention sync-conflict triage at all, but it is also done:
+   `Planscape.Server/src/Planscape.API/Controllers/SyncConflictsController.cs`
+   (427 lines) + mobile `Planscape/app/conflicts/` route. Closed in
+   Phase 143.
+
+3. **Net remaining scope from the estimate**. Only the Speckle SDK v2
+   transport (Phase 6 partial) is genuinely open, ≈3–5 dev-days. The other
+   six phases would have been double-billed had the estimate been
+   followed. Revised true cost for the bundle is roughly £3.3k–5.0k vs the
+   £20–28k consultancy figure.
+
+4. **`docs/ROADMAP.md`** gained a new "Cloud-Sync & Federation Feature
+   Audit (2026-04-28)" section that mirrors this entry as a reference
+   table, so anyone scanning ROADMAP for open work no longer has to
+   chase down the closure phases manually.
+
+**Files**
+
+- `docs/ROADMAP.md` — added "Cloud-Sync & Federation Feature Audit
+  (2026-04-28)" section (~16 rows of evidence + bonus + net-remaining
+  paragraph).
+- `docs/CHANGELOG.md` — this entry.
+
+**Caveats**
+
+1. Documentation-only phase — no code changed, no build-verification
+   required. Future audits should re-run the same per-line-item
+   verification before relying on the cost figures (newer phases may
+   have shifted line numbers).
+2. The original estimate's grep terms (`ModelViewer`, `modelId`) failed
+   to match the Phase 9 implementation because Phase 94 chose the
+   `WebBrowser.openBrowserAsync()` route over an inline React Native
+   component. Future estimate-vs-tree checks should search for the
+   user-facing behaviour (does the screen open a 3D view?) rather than
+   a specific component name.
+3. The Speckle SDK v2 line item remains open in
+   `StingTools/BIMManager/SpeckleLinkCommands.cs` — the snapshot engine
+   already round-trips through JSON, so any future Speckle work picks
+   up an established DTO contract rather than starting from scratch.
