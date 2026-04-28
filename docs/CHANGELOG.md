@@ -4525,3 +4525,86 @@ land here as one coherent BIM-Manager-surface clean-up phase.
    (no metadata side-effects on transition). Documented in the
    `DeliverableStateMachine` class comment so a BIM Manager debugging
    "why didn't `SubmittedAt` get stamped?" lands on the right answer.
+
+#### Completed (Phase 147 — Phase 146 caveat closures: legacy column retired, role inference, unit tests)
+
+The three caveats from Phase 146 were genuine engineering debt, not
+silent shortcuts. This phase pays each one down.
+
+**1 — Legacy `StageGate.CriteriaJson` retired as a write target**
+
+1. New migration
+   `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/20260427500000_BackfillStageGateCriteria.cs`
+   — PG-side data backfill that copies any remaining JSONB criteria into
+   the normalised `StageGateCriteria` table. Idempotent: only touches
+   gates that have a non-null `CriteriaJson` AND no rows in the table
+   yet, and uses `ON CONFLICT (StageGateId, Key) DO NOTHING` so a
+   project halfway through migration via the per-key auto-migrate path
+   doesn't get duplicates.
+2. `Planscape.API/Controllers/StageGatesController.cs` —
+   `ReplaceCriteria` (PUT) no longer dual-writes to
+   `gate.CriteriaJson`. The normalised table is now the source of
+   truth. Read-fallback to the JSONB blob is preserved on the GET path
+   for projects that haven't been touched since the backfill (e.g. a
+   read-only client browsing an old gate). New writes always populate
+   the table.
+3. The legacy `CriteriaJson` column is intentionally not dropped yet —
+   it gives any third-party reader a graceful deprecation window. A
+   follow-up phase can drop it once we're confident no client reads it.
+
+**2 — Inferred semantic roles when `roles` block is missing**
+
+4. `Planscape.Infrastructure/Workflow/DeliverableStateMachine.cs` —
+   added a `CanonicalRoles` lookup mapping the standard ISO 19650
+   state names (and common synonyms — `IN-PROGRESS`, `WIP`, `DRAFT`
+   → working; `FOR_REVIEW`, `UNDER_REVIEW`, `IN_REVIEW` → submitting;
+   `APPROVED`, `PUBLISHED` → accepting; `DECLINED`, `RETURNED` →
+   rejecting; `ARCHIVED`, `CLOSED` → terminal) to their roles.
+5. `LoadOrDefault` — when the custom JSON omits a `"roles"` block,
+   the loader now infers roles by matching state names (from both
+   `states[]` and the `from`/`to` of `transitions[]`) against
+   `CanonicalRoles`. Bespoke names with no canonical alias keep
+   `"none"`. Explicit `roles` always wins — providing a `roles` block
+   disables inference for that machine.
+6. Net effect: a tenant whose only customisation is reordering
+   transitions on the canonical state names now gets the metadata
+   side-effects (SubmittedAt / AcceptedAt / RejectionReason) for
+   free, with no JSON edits beyond the new transitions.
+
+**3 — Unit tests for the new logic**
+
+7. `Planscape.Server/tests/Planscape.Tests/DeliverableStateMachineTests.cs`
+   — 16 facts/theories covering:
+     - Canonical default validates forward transitions, rejects jumps
+     - Default seeds the canonical role for every state
+     - `RoleOf` returns "none" for unknown / empty input
+     - Forgiving loader falls back on null, empty, malformed,
+       wrong-root-type, empty-arcs, no-transitions JSON
+     - Explicit `"roles"` block parses + drops unknown role values
+     - Phase 147 inferred roles fire when block is missing
+     - Synonyms (`DRAFT` → working, `APPROVED` → accepting) recognised
+     - Bespoke names with no roles block stay "none"
+     - Explicit roles win over inference
+8. `Planscape.Server/tests/Planscape.Tests/Iso19650NamingValidatorTests.cs`
+   — 11 facts/theories covering the Phase 143 validator that had no
+   test coverage: canonical 8-segment acceptance (with / without
+   extension), short-segment + long-project-code rejection, unknown
+   type / role rejection, whitespace + forbidden-char rejection,
+   8+ segment tolerance, and exposure of the type / role
+   dictionaries.
+
+**Caveats**
+
+1. Built without `dotnet build` / `dotnet test` verification — the
+   sandbox has no .NET SDK. The tests are syntactically valid xUnit
+   against the test project's existing references; CI / local
+   `dotnet test Planscape.Server/tests/Planscape.Tests` will be the
+   first time they actually execute.
+2. The PG backfill migration uses `gen_random_uuid()`, which
+   requires the `pgcrypto` extension. Existing Planscape PG
+   deployments already have it (the initial migration enabled it);
+   fresh DBs created from the snapshot inherit it.
+3. The `CanonicalRoles` synonym list isn't exhaustive. Tenants
+   with truly bespoke vocabulary still need an explicit `"roles"`
+   block; the changelog and machine class XML doc both make that
+   explicit.

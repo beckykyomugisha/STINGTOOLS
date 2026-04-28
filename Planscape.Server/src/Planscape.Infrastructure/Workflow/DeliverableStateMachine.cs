@@ -141,11 +141,18 @@ public sealed class DeliverableStateMachine
             // Phase 146 — per-state semantic roles. Object form
             // `{ "STATE_NAME": "submitting" }` maps custom names to the
             // canonical side-effect categories. Unknown role values are
-            // ignored (no-op rather than 500). If the JSON omits "roles"
-            // entirely, the machine still works — every state just gets
-            // the default "none" role and side-effects are skipped.
+            // ignored (no-op rather than 500).
+            //
+            // Phase 147 — when the JSON omits "roles" entirely, infer
+            // them from canonical state names case-insensitively. A
+            // tenant who only wants different transitions (not different
+            // names) gets the canonical metadata side-effects for free.
+            // States that aren't a canonical name keep "none". Explicit
+            // "roles" always wins over inference.
             var roles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (root.TryGetProperty("roles", out var rolesEl) && rolesEl.ValueKind == JsonValueKind.Object)
+            var hasRolesBlock = root.TryGetProperty("roles", out var rolesEl)
+                                && rolesEl.ValueKind == JsonValueKind.Object;
+            if (hasRolesBlock)
             {
                 foreach (var prop in rolesEl.EnumerateObject())
                 {
@@ -153,6 +160,22 @@ public sealed class DeliverableStateMachine
                     var role = (prop.Value.GetString() ?? "").Trim().ToLowerInvariant();
                     if (KnownRoles.Contains(role))
                         roles[prop.Name.ToUpperInvariant()] = role;
+                }
+            }
+            else
+            {
+                foreach (var s in states)
+                {
+                    if (CanonicalRoles.TryGetValue(s, out var canonical))
+                        roles[s] = canonical;
+                }
+                // Inferred initial / terminal roles too — the canonical
+                // dictionary covers them, but make sure we don't skip
+                // states that only appear in transitions[] not states[].
+                foreach (var (from, to) in transitions)
+                {
+                    if (!roles.ContainsKey(from) && CanonicalRoles.TryGetValue(from, out var rf)) roles[from] = rf;
+                    if (!roles.ContainsKey(to) && CanonicalRoles.TryGetValue(to, out var rt)) roles[to] = rt;
                 }
             }
 
@@ -179,6 +202,37 @@ public sealed class DeliverableStateMachine
     private static readonly HashSet<string> KnownRoles = new(StringComparer.OrdinalIgnoreCase)
     {
         "initial", "working", "submitting", "accepting", "rejecting", "terminal", "none",
+    };
+
+    /// <summary>
+    /// Phase 147 — canonical state-name to role lookup used when a custom
+    /// JSON omits a <c>"roles"</c> block. Lets a project that just
+    /// reorders transitions inherit the canonical metadata side-effects
+    /// without having to enumerate every role explicitly. Custom state
+    /// names that aren't on this list stay role-less unless the JSON
+    /// declares them.
+    /// </summary>
+    private static readonly Dictionary<string, string> CanonicalRoles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["PENDING"]     = "initial",
+        ["IN_PROGRESS"] = "working",
+        ["IN-PROGRESS"] = "working",
+        ["INPROGRESS"]  = "working",
+        ["WIP"]         = "working",
+        ["DRAFT"]       = "working",
+        ["SUBMITTED"]   = "submitting",
+        ["FOR_REVIEW"]  = "submitting",
+        ["UNDER_REVIEW"] = "submitting",
+        ["IN_REVIEW"]   = "submitting",
+        ["ACCEPTED"]    = "accepting",
+        ["APPROVED"]    = "accepting",
+        ["PUBLISHED"]   = "accepting",
+        ["REJECTED"]    = "rejecting",
+        ["DECLINED"]    = "rejecting",
+        ["RETURNED"]    = "rejecting",
+        ["WAIVED"]      = "terminal",
+        ["ARCHIVED"]    = "terminal",
+        ["CLOSED"]      = "terminal",
     };
 
     private static string[] ReadStringArray(JsonElement obj, string key)

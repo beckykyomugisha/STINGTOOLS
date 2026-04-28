@@ -314,7 +314,11 @@ public class StageGatesController : ControllerBase
                     Comment = dto.Comment,
                 });
             }
-            gate.CriteriaJson = SerializeCriteria(criteria);
+            // Phase 147 — the normalised table is now the source of truth.
+            // We no longer dual-write to gate.CriteriaJson; the read-path
+            // falls back to the blob only when the table is empty for this
+            // gate (legacy projects that haven't been touched since the
+            // backfill migration). New writes always populate the table.
             gate.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
