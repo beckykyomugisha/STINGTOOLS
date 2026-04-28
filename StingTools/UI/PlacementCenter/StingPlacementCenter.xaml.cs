@@ -520,7 +520,7 @@ namespace StingTools.UI.PlacementCenter
                         if (!(el is FamilyInstance fi)) continue;
                         if (fi.LevelId != vp.GenLevel.Id) continue;
                         doorsTotal++;
-                        Room from = null, to = null;
+                        Autodesk.Revit.DB.Architecture.Room from = null, to = null;
                         try { from = fi.FromRoom; } catch { }
                         try { to = fi.ToRoom; } catch { }
                         if (from != null || to != null) doorsWithSpatial++;
