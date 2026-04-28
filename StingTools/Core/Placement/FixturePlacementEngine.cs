@@ -481,6 +481,15 @@ namespace StingTools.Core.Placement
 
                     WriteAnchorParameters(fi, rule);
                     OrientPlacedInstance(doc, fi, rule, room);
+                    // Phase 139.16 diagnostic: log placement XYZ + distance to host
+                    // wall (post-snap) so users / I can verify wall-anchored rules
+                    // landed flush on the wall rather than in the centre of the room.
+                    try
+                    {
+                        XYZ p = (fi.Location as LocationPoint)?.Point;
+                        if (p != null)
+                            StingLog.Info($"FixturePlacementEngine: placed '{rule.MergeKey}' at ({p.X:F2},{p.Y:F2},{p.Z:F2}) host={(fi.Host?.GetType().Name ?? "<none>")}.");
+                    } catch { }
                     // Pack 123 / Gap E — stamp provenance so BOQ / cleanup /
                     // audit can identify auto-created fixtures. Centre's
                     // "Stamp provenance" checkbox flips PlaceFixturesOptions.
@@ -948,6 +957,57 @@ namespace StingTools.Core.Placement
                     if (fi.CanFlipFacing)
                         fi.flipFacing();
                 }
+
+                // Phase 139.16 — snap the family onto the nearest wall's
+                // room-side face. Wall anchors compute an XYZ on the wall
+                // CENTERLINE; un-hosted families plonked at that point sit
+                // visually inside the wall. Project the location onto the
+                // wall's room-side face plane so the family appears flush
+                // mounted. Skip when fi is already wall-hosted (Revit
+                // already handles that). Tolerance: 600 mm — anything
+                // further from a wall stays where it was placed.
+                try
+                {
+                    if (fi.Host == null && fi.Location is LocationPoint lp && lp.Point != null)
+                    {
+                        const double snapRadiusFt = 600.0 / 304.8;
+                        Wall best = null; double bestSq = snapRadiusFt * snapRadiusFt;
+                        var bb = room?.get_BoundingBox(null);
+                        if (bb != null)
+                        {
+                            var pad = snapRadiusFt + 0.5;
+                            var outline = new Outline(
+                                new XYZ(bb.Min.X - pad, bb.Min.Y - pad, bb.Min.Z - pad),
+                                new XYZ(bb.Max.X + pad, bb.Max.Y + pad, bb.Max.Z + pad));
+                            var bbf = new BoundingBoxIntersectsFilter(outline);
+                            foreach (var el in new FilteredElementCollector(doc)
+                                .OfCategory(BuiltInCategory.OST_Walls)
+                                .WhereElementIsNotElementType()
+                                .WherePasses(bbf))
+                            {
+                                if (!(el is Wall w) || !(w.Location is LocationCurve lc) || lc.Curve == null) continue;
+                                var proj = lc.Curve.Project(lp.Point);
+                                if (proj == null) continue;
+                                double d = proj.Distance;
+                                if (d * d < bestSq) { bestSq = d * d; best = w; }
+                            }
+                        }
+                        if (best != null && best.Location is LocationCurve bestLc && bestLc.Curve != null)
+                        {
+                            var proj2 = bestLc.Curve.Project(lp.Point);
+                            if (proj2 != null && proj2.XYZPoint != null)
+                            {
+                                XYZ snapped = new XYZ(proj2.XYZPoint.X, proj2.XYZPoint.Y, lp.Point.Z);
+                                if (!snapped.IsAlmostEqualTo(lp.Point))
+                                {
+                                    var move = snapped - lp.Point;
+                                    ElementTransformUtils.MoveElement(doc, fi.Id, move);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception snapEx) { StingLog.Warn($"OrientPlacedInstance wall-snap {fi?.Id?.Value}: {snapEx.Message}"); }
             }
             catch (Exception ex) { StingLog.Warn($"OrientPlacedInstance {fi?.Id?.Value}: {ex.Message}"); }
         }

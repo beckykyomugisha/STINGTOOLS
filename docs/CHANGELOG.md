@@ -4452,3 +4452,35 @@ authoring issues, not bugs:
   family doesn't have `HostFlipped` set correctly. Fixed at family
   authoring time, not engine.
 
+
+#### Completed (Phase 139.16 — wall snap + door-tangent fallback + placement diagnostic log)
+
+User reported switches still landing in the wrong positions and lights
+scattered messily even after Phase 139.15 tightened the
+accessible-switch rule. Deep dig found two real engine bugs:
+
+1. **`EmitDoorAnchor` direction fallback was world-X axis.** When
+   `door.Host` is not a basic `Wall` (curtain wall, panel host, or a
+   broken host reference), `WallTangent(door.Host as Wall)` returns
+   null and the anchor's offset shift was applied along
+   `XYZ.BasisX` — for a door on a north-south wall the 300 mm offset
+   moved the switch east-west into thin air. Now the engine derives
+   `along` from `door.FacingOrientation` rotated 90° about Z (a valid
+   in-plane tangent for any host), with a final fallback to the
+   room-centroid → door direction perpendicular.
+
+2. **No post-placement wall snap.** Wall anchors compute an XYZ on
+   the wall *centerline*; un-hosted families placed at that point
+   sit visually inside the wall, not flush against the room face.
+   `OrientPlacedInstance` now projects the placed family's location
+   onto the nearest wall's location curve when (a) the family has
+   no host AND (b) a wall is within 600 mm. Uses
+   `ElementTransformUtils.MoveElement` so the family stays on the
+   correct level and respects its own rotation.
+
+3. **Diagnostic log.** Every successful placement now logs the
+   final XYZ + host type (`<none>` for un-hosted) to `StingTools.log`,
+   so when designers see strange placement we can read the log and
+   confirm whether the engine emitted bad coordinates or whether the
+   family failed to host.
+
