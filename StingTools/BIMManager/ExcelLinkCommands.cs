@@ -276,6 +276,26 @@ namespace StingTools.BIMManager
                         });
                     }
                 }
+
+                // BIM-EXCEL-CROSS-01: FUNC↔SYS validity matrix (Phase148Engine).
+                // Catches invalid combinations like FUNC=PWR on SYS=HVAC that the
+                // legacy ValidateTokenCrossRefs path doesn't cover.
+                if (!string.IsNullOrEmpty(sys) && !string.IsNullOrEmpty(func))
+                {
+                    var hits = FuncSysValidator.Validate(new[] {
+                        (row: 0, tagId: group.Key.ToString(), sys: sys, func: func)
+                    });
+                    foreach (var hit in hits)
+                    {
+                        warnings.Add(new ValidationWarning
+                        {
+                            ElementId = group.Key,
+                            Column = "FUNC_SYS_MATRIX",
+                            Value = $"SYS={sys},FUNC={func}",
+                            Message = hit.Reason
+                        });
+                    }
+                }
             }
 
             return warnings;

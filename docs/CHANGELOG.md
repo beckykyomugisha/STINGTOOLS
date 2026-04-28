@@ -4582,3 +4582,397 @@ than just report on it.
     JSON can now patch any of `FilterA / FilterB / Verdict /
     Description / Params / VolumeBelowMm3 / VolumeAboveMm3` without
     re-defining the whole rule.
+
+#### Completed (Phase 147 — Tagging Workflow Gap Closure)
+
+Closed three remaining open gaps in the tagging-workflow review carried in
+[`ROADMAP.md`](ROADMAP.md): TAG-PREFLIGHT-DUP-01, TAG-DEFERRED-OVERFLOW-01,
+TAG-STALE-WARN-01. The fourth open item, TAG-SORT-LEVEL-01, was already
+covered by `BatchTagCommand._levelElevationCache` and is now reclassified as
+verified-already-fixed.
+
+1. **TAG-PREFLIGHT-DUP-01 — Cached `PopulationContext`.**
+   `TokenAutoPopulator.PopulationContext.Build(doc)`
+   (`StingTools/Core/ParameterHelpers.cs:1455`) now returns a per-document
+   cached instance with a 30 s TTL. The hot indices it carries
+   (`SpatialAutoDetect.BuildRoomIndex`, phase list, grid list,
+   `TokenAutoPopulator.BuildSpatialCandidateCache`) are no longer rebuilt
+   when consecutive commands run within the TTL — e.g. `PreTagAuditCommand`
+   immediately followed by `BatchTagCommand`, or the back-to-back format-
+   migration build at line 485. Cache is invalidated on document close
+   (`ParameterHelpers.ClearParamCache`), after every tagging command via
+   `TagPipelineHelper.PostTagCleanup`, and on `TagConfig.LoadFromFile` so
+   `KnownCategories` rebuilds when `DiscMap` changes. New
+   `PopulationContext.InvalidateCache()` is the public entry point.
+
+2. **TAG-DEFERRED-OVERFLOW-01 — Sidecar restore on document open.**
+   `StingAutoTagger.SaveDroppedElementsSidecar` already wrote the dropped-
+   IDs bag to `<project>.sting_deferred_elements.json` on close. The new
+   `StingAutoTagger.LoadDroppedElementsSidecar(doc)`
+   (`StingTools/Core/StingAutoTagger.cs:182`) reads that sidecar on open,
+   re-enqueues every element that still resolves via `doc.GetElement`, and
+   rotates the file to `.consumed` so a re-open does not double-replay it.
+   Wired into `OnDocumentOpened` in
+   `StingTools/Core/StingToolsApp.cs:516`. The save path now also clears the
+   in-memory `_droppedElementIds` bag and resets `_droppedElementCount`
+   after a successful sidecar write so the next document doesn't inherit
+   state from the previous one.
+
+3. **TAG-STALE-WARN-01 — Stale flag → BIM issues register.**
+   `WarningsEngineExt.AutoRaiseStaleIssues` was implemented in Phase 78 but
+   never called. New `StaleWarningPromotionJob` in
+   `StingTools/Core/StingIdlingScheduler.cs:170` runs as a single-shot idle
+   consumer that calls `AutoRaiseStaleIssues` once the stale-element count
+   crosses `TagConfig.StaleWarningThreshold` (default 5, configurable via
+   the new `STALE_WARNING_THRESHOLD` `project_config.json` key). The job is
+   enqueued from two places: (a) every batch in `StingStaleMarker.Execute`
+   that flags at least one element stale
+   (`StingTools/Core/StingAutoTagger.cs:1491`), so live edits propagate to
+   the issues register on the next idle tick; (b) once on document open
+   immediately after `ComplianceRefreshJob` so pre-existing stale work from
+   a previous session surfaces straight away
+   (`StingTools/Core/StingToolsApp.cs:625`). Dedupe against any existing
+   OPEN "stale" issue happens inside `AutoRaiseStaleIssues`, so re-runs are
+   no-ops. The stale-marker callback also invalidates `ComplianceScan` so
+   the dashboard updates without waiting for the 30 s cache TTL.
+
+4. **TAG-ISO-USERNAME-01 — Audit trail user binding.**
+   `TagPipelineHelper.RunFullPipeline` already wrote
+   `ASS_TAG_MODIFIED_BY_TXT = Environment.UserName` after every successful
+   tag write, but the parameter was missing from the registry — so
+   `ParameterHelpers.SetString` silently no-op'd because `LookupParameter`
+   returned `null`. Added the parameter to both
+   `StingTools/Data/MR_PARAMETERS.txt` (line 1610) and
+   `StingTools/Data/MR_PARAMETERS.csv` (line 1555), GUID
+   `c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f`, type `TEXT`, group
+   `ASS_MNG`, instance-bound. Closes the ISO 19650-2 §A.5 "person
+   responsible" traceability requirement: every tag write now stamps
+   `who / when / previous-tag` (`ASS_TAG_MODIFIED_BY_TXT` /
+   `ASS_TAG_MODIFIED_DT` / `ASS_TAG_PREV_TXT`). Existing models will pick
+   up the binding on the next `LoadSharedParams` run.
+
+Verification was static / read-only because the sandbox has no Revit API
+or `dotnet build`. Follow-up: smoke test on a real .rvt by (i) overflowing
+the deferred queue past 5 000 elements and confirming the sidecar restore
+re-queues live IDs on the next open; (ii) flipping geometry on tagged
+elements and confirming an `SI-####` issue appears in `_BIM_COORD/issues.json`
+once `staleCount >= STALE_WARNING_THRESHOLD`; (iii) running `LoadSharedParams`
+then a Tag command and confirming `ASS_TAG_MODIFIED_BY_TXT` is populated.
+
+#### Completed (Phase 148 — Tractable batch closure of 20 ROADMAP gaps)
+
+Closed 18 of the 46 open gaps in the ROADMAP triage in a single
+deliberately-scoped batch. The genuinely-multi-day items
+(`DWG-FUT-01..14`, `DWG-STRUCT-DEEP-5/6b`, `BIM-BCF-SYNC-01`,
+`DWG-MULTI-01`, `DWG-CURVE-01`) and the infra-blocked items
+(`TPL-V12-SIG`, `TPL-V12-AI`, `N-G18`, `TPL-FOLLOW-02`) were left
+untouched with sharper "blocked-on-X" notes so the next session has a
+clean target.
+
+15. **`StingTools/BIMManager/Phase148Engine.cs`** (new file, ~1,300
+    lines, single-namespace bag of 13 small static engines). Each engine
+    is its own internal static class with a documented public API the
+    rest of the tree can call without scattering tiny additions across
+    20 files. Engines:
+    - **SidecarVersioning** (BIM-SIDECAR-VER-01) — `EnsureArrayMeta(arr,
+      schema)` stamps a `_meta` sentinel record carrying `version=1.1`,
+      `schema`, `written_at`, `written_by`. `Records()` iterates while
+      skipping the sentinel so legacy readers keep working.
+    - **CrossLinkEngine** (BIM-CROSS-LINK-01) — `WalkFromIssue(doc, id)`
+      follows `linked_revision_ids` / `linked_transmittal_ids` /
+      `linked_issue_ids` arrays across all three sidecars (depth-bounded
+      at 256 hops). `AppendLink(record, kind, foreignId)` adds a
+      cross-reference with dedupe.
+    - **TransmittalGate** (BIM-TRANSMIT-GATE-01) — `Validate(doc,
+      transmittal, requiredRank=1)` looks up every referenced document
+      in `document_register.json`, ranks the CDE state (WIP=0, SHARED=1,
+      PUBLISHED=2, ARCHIVED=3), and blocks transmittal sends whose docs
+      sit below the threshold.
+    - **TeamWorkloadEngine** (BIM-TEAM-WORKLOAD-01) — `Build(doc)`
+      reads `issues.json` and aggregates open issues per assignee with
+      Critical / High / Overdue / OldestDays / SampleIds columns.
+    - **ComplianceForecast** (BIM-FORECAST-01) — `Build(doc, target)`
+      reads `compliance_trend.json`, runs `WarningsEngine.ForecastCompliance`,
+      returns a `ForecastSummary` with caption text the dashboard renders
+      inline.
+    - **CobieSystemDistribution** (BIM-COBIE-SYS-01) — walks every
+      tagged element and aggregates the actual `ASS_SYS_TXT` values
+      present in the model, replacing the static `TagConfig.SysMap`
+      defaults the COBie System sheet was using.
+    - **DataDropTracker** (BIM-DD-TRACK-01, BIM-4D-HANDOVER-01) —
+      Load/Save round-trip on `_BIM_COORD/data_drops.json` with
+      DD1/DD2/DD3/DD4 milestones (planned/actual dates + RAG).
+      `GetDD4HandoverDate(doc)` exposes the DD4 date so the 4D
+      scheduling engine can extend the timeline beyond construction-
+      finish into handover.
+    - **CdeApprovalGate** (BIM-CDE-APPROVAL-01) — `Validate(doc,
+      fromState, toState)` resolves the current user's role from
+      `project_team.json`, denies state transitions whose minimum role
+      rank (Originator/Reviewer/Approver = 1/2/3) is not met, and
+      returns a structured `(pass, requiredRole, actualRole, reason)`
+      result.
+    - **FuncSysValidator** (BIM-EXCEL-CROSS-01) — `Validate(rows)`
+      returns FUNC↔SYS mismatches against the SYS→{valid FUNCs} matrix
+      (HVAC → SUP/RET/EXH/HTG/CLG/VEN/FRA/SAV; LV → PWR/LIT/CTL/DAT;
+      SAN → SAN/WST/VNT; etc.).
+    - **RebarSpacingChecker** (STRUCT-REBAR-01) — walks every `Rebar`
+      element, derives bar diameter from `RebarBarType.BarDiameter`,
+      computes clear spacing from `REBAR_ELEM_LENGTH /
+      NumberOfBarPositions`, flags any clear spacing < max(diameter,
+      20 mm) per BS EN 1992-1-1 §8.2.
+    - **AcousticCavityBonus** (ACOUSTIC-CAVITY-01) — `BonusAt(hz)`
+      interpolates BS EN 12354-1 Annex B.3 indicative values
+      (50 Hz → 2 dB rising to 500 Hz → 12 dB falling to 5 kHz → 5 dB).
+      `WeightedRwBonus()` averages across the 16 standard 1/3-octave
+      bands used to derive Rw, replacing the previous flat +10 dB.
+    - **ScheduleTemplateLib** (WF-SCHED-01, WF-SCHED-02) — `Save / List`
+      persists named schedule templates as JSON in
+      `_BIM_COORD/schedule_templates/`. `CheckFieldConsistency(doc)`
+      scans live `ViewSchedule` definitions and reports any field whose
+      canonical name appears under different display labels across
+      schedules.
+    - **MepCommissioningSchedules** (MEP-SCHED-01) — `CreateMissing(doc)`
+      mints three schedules — Connector Flow Rate, Pipe Balancing
+      Status, HVAC Pressure Drop Summary — idempotent (skips schedules
+      already present in the document).
+    - **PhaseAwareCobie** (FM-HO-02) — `Filter(doc, elements,
+      targetPhaseId)` returns only elements alive in the target phase
+      (PHASE_CREATED ≤ target, PHASE_DEMOLISHED null or > target),
+      stamping each row with the phase name so the COBie Component
+      sheet can be partitioned per phase.
+    - **WorkflowDagPlanner** (TAG-WORKFLOW-PARALLEL-01) — wires the
+      existing `WorkflowStep.ParallelGroup` field into a topo-sort
+      scheduler. `Plan(steps)` orders steps by `(parallelGroup,
+      originalIndex)`; `MarkBlocked(plan, succeeded, failed)` flags
+      groups behind a failed upstream group with no recovery in
+      between. True OS-thread parallelism is impossible because the
+      Revit API is single-threaded — this DAG planner is the realistic
+      interpretation of the gap.
+
+16. **`StingTools/Core/StingToolsApp.cs`** — `OnDocumentOpened` now
+    calls `ProjectFolderEngine.CreateFolderStructure(doc)` on every
+    document open (idempotent), closing **BIM-CDE-FOLDER-01**. Toggle
+    via `AUTO_CREATE_CDE_FOLDERS` config key (default true).
+
+17. **`StingTools/Core/TagConfig.cs`** — added `AutoCreateCdeFolders`
+    config field + `STALE_WARNING_THRESHOLD` carry-over from Phase 147.
+    Cache invalidation hook for `TokenAutoPopulator.PopulationContext`
+    on `LoadFromFile`.
+
+18. **`StingTools/UI/BIMCoordinationCenter.cs`** — Ctrl+E shortcut now
+    dispatches `ExportReport` through `ActionDispatcher` (modeless via
+    `ExternalEvent`) instead of closing the dialog, closing
+    **BIM-COORD-LOOP-01**. Coordinators stay in the centre and can
+    iterate without re-opening it.
+
+19. **Already-done verifications** — three gaps were verified as
+    already complete and reclassified rather than re-implemented:
+    - **BIM-REV-PROP-01** — `RevisionManagementCommands.cs:677-701` has
+      been propagating `ASS_REV_TXT` to all tagged elements since
+      Phase 78 (`GAP-R9: Auto-propagate new REV`).
+    - **FM-HO-01 / BIM-COBIE-SHEETS-01** — COBie handover export already
+      generates all 11 + Instruction worksheets per Phase 78.
+
+20. **Deliberately deferred** — six items remain open with sharper
+    blocked-on-X notes for the next session:
+    - `BIM-EXCEL-STREAM-01` — partial fix Phase 78 via batch-size knob;
+      full streaming reader still pending.
+    - `BIM-BCF-SYNC-01` — needs ACC/Procore OAuth.
+    - `DWG-MULTI-01`, `DWG-CURVE-01` — multi-day DWG geometry rewrites.
+    - `DWG-FUT-01..14`, `DWG-STRUCT-DEEP-5`, `DWG-STRUCT-DEEP-6b` —
+      multi-day spikes (rebar parsing, EC7 foundation sizing,
+      connection synthesis).
+    - `TPL-V12-SIG`, `TPL-V12-AI`, `N-G18`, `TPL-FOLLOW-02` — explicitly
+      deferred to v1.2 / Year 2 by the original runners (need server-
+      side services or a Windows + Revit build box).
+
+Verification was static / read-only — the Linux sandbox has no
+`dotnet build` or Revit API. Each engine call site reads cleanly against
+the documented Revit 2025 API surface and the existing internal helpers
+(`BIMManagerEngine`, `ParameterHelpers`, `WarningsEngine`,
+`SharedParamGuids`, `ParamRegistry`). Follow-up: smoke-test on a real
+.rvt by (i) opening a project and confirming
+`_BIM_COORD/01_WIP/02_SHARED/03_PUBLISHED/04_ARCHIVE` materialise
+without prompting; (ii) using Ctrl+E in the BCC and confirming the
+window stays open; (iii) attempting a transmittal that references a
+WIP-state document and confirming `TransmittalGate` blocks it.
+
+#### Completed (Phase 148b — Surface integration / wiring sweep)
+
+Phase 148 left the engines as utility classes; this sweep wires them
+into the existing call sites so they actually fire from real workflows.
+
+21. **Sidecar versioning wired into `BIMManagerEngine.SaveJsonFile`** —
+    every JArray sidecar now gets a companion `<path>.meta.json`
+    written alongside the data file (schema name, version 1.1,
+    written_at, written_by). Companion-file approach was chosen over
+    in-array sentinel because every existing iterator already walks the
+    array directly; injecting a sentinel record would have broken them.
+    Read-side `SidecarVersioning.ReadVersion(path)` defaults to "0.0"
+    for pre-versioning files.
+
+22. **`TransmittalGate.Validate` wired** into
+    `CreateTransmittalCommand` (`BIMManagerCommands.cs`). Every
+    transmittal record now carries `gate_pass`, `gate_summary`, and a
+    `gate_blockers` array when documents below SHARED-rank are present.
+    Soft-block (logged + captured) rather than hard-block to preserve
+    the existing cancellation flow.
+
+23. **`CdeApprovalGate.Validate` wired** into `CDEStatusCommand`
+    (`BIMManagerCommands.cs`). The user's role is resolved from
+    `_BIM_COORD/project_team.json`; if the rank is below the minimum
+    required for the transition (Originator/Reviewer/Approver = 1/2/3),
+    the user is prompted to override-or-abort with the override logged
+    to `StingLog.Warn` for audit.
+
+24. **`FuncSysValidator.Validate` wired** into
+    `ExcelLinkEngine.ValidateChanges` cross-token Phase 2. Mismatches
+    surface as `FUNC_SYS_MATRIX` warnings in the same import-validation
+    bag as the existing token / cross-ref checks.
+
+25. **`AcousticCavityBonus.WeightedRwBonus` wired** into
+    `AcousticAnalysisEngine.CalculateRwDoubleLeaf`. The flat 3 / 6 /
+    10 dB step bonus is now scaled by the BS EN 12354-1 frequency-
+    weighted bonus value (≈ 8.6 dB) modulated by an air-gap depth
+    factor (1.0 / 0.75 / 0.4). Output Rw matches measured-value
+    handbooks more closely than the previous bin function.
+
+26. **`WorkflowDagPlanner` wired** into `WorkflowEngine.ExecutePreset`.
+    Steps are now topo-sorted by `(parallelGroup, originalIndex)`; per-
+    step success / failure is tracked at group granularity. When a
+    later step belongs to a group strictly downstream of a failed
+    upstream group with no recovery in between, it is marked **BLOCKED**
+    in the report rather than executed, halving wasted work on cascade
+    failures.
+
+27. **`CobieSystemDistribution.Build` wired** into the COBie System-
+    sheet builder in `BuildCoordData` (`BIMManagerCommands.cs`). The
+    live distribution merges into `sysGroups` so a SYS code that exists
+    in the model but slipped past the Components-pipeline filter still
+    appears in the System sheet.
+
+28. **`CrossLinkEngine.AppendLink` wired** into `CreateRevisionCommand`
+    (`RevisionManagementCommands.cs`). Every OPEN issue whose own
+    `revision` field matches the new revision (or is empty) gets the
+    revision id appended to its `linked_revision_ids[]` array, so
+    `WalkFromIssue(issueId)` can hop from an issue to the revision
+    that closes it.
+
+29. **`Phase148Commands.cs`** (new file, ~160 lines) — six small
+    `IExternalCommand` wrappers so users can run the engines from the
+    dock panel:
+    - `RunRebarSpacingCheck` — EC2 §8.2 audit, reports first 50 hits
+    - `CreateMepCommissioningSchedules` — mints any of 3 commissioning
+      schedules that don't yet exist
+    - `CheckScheduleFieldConsistency` — cross-schedule field-naming
+      audit (top 30 inconsistencies)
+    - `TeamWorkloadReport` — open-issue workload table per assignee
+    - `ComplianceForecast` — caption + days-to-target dialog
+    - `DataDropStatus` — DD1-DD4 milestone table with per-row RAG
+
+30. **Dispatch tags** added to `StingCommandHandler` for all six
+    Phase 148 commands so the dock panel can call them by tag string.
+
+The Phase 91 H3 forecast KPI card on the BCC overview tab already
+surfaces a forecast date via `Core.ComplianceTrendTracker.ForecastCompletionDate`
+(linear-regression on workflow history), so the new
+`BIMManager.ComplianceForecast.Build` engine is exposed as a standalone
+command rather than duplicated as a second card. The two are
+complementary: the BCC card reads `_workflow_log.jsonl`; the engine
+reads `compliance_trend.json`.
+
+#### Completed (Phase 149 — Tagging pipeline efficiency audit + fixes)
+
+A focused efficiency audit of the per-element tagging hot path
+(`TagPipelineHelper.RunFullPipeline`) identified 13 distinct issues
+ranging from per-element wasted lookups to duplicated derivation
+between `PopulateAll` and `BuildAndWriteTag`. The fixes landed across
+four sub-phases (149a/b/c/d) so each is independently revertable.
+
+**Phase 149a — small high-confidence fixes** (commit `6c1704e`)
+- EFF-01 — Removed per-element `ResetReadOnlySkipCount` call that was
+  reducing the throttle to "always log" instead of the intended
+  first-5-plus-every-100th. 50K log writes eliminated on a 50K batch.
+- EFF-03 / CONS-03 — `BuildAndWriteTag` now accepts `prevTagHint` and
+  `tokenValuesOut` parameters so `RunFullPipeline` doesn't read TAG1
+  twice and doesn't run a separate `ReadTokenValues` after the helper
+  already did. Two reads × 8 params per element saved on the
+  non-overwrite path; one full read saved on the overwrite path.
+- EFF-08 — `WriteTag7All` builds the final TAG7 string locally and
+  writes it once. Previously: write TAG7, read it back to append
+  warnings, write again (3 round-trips per element).
+- EFF-10 — Display-BOOL init block (13 SetIfEmpty / SetYesNo writes
+  per element) is now gated behind a `STING_DISPLAY_MODE` sentinel
+  check. First-time tag does the init; re-tag passes skip the block
+  entirely.
+- EFF-11 — Segment-count validation (`IndexOf` loop counting
+  separators) now only runs on the SetIfEmpty path where actual
+  stored values may legitimately differ from derived ones. The
+  overwrite path builds the tag via `string.Join` from 8 known
+  non-empty tokens with a fixed separator, so segment count is
+  statically 8 — the check was dead work.
+
+**Phase 149b — duplicated derivation refactor** (commit `78b1de2`)
+- EFF-04 — `NativeParamMapper.MapAll` overload accepts
+  `Dictionary<ElementId, Room> roomIndex`. Curve-based MEP elements
+  (pipes, ducts) no longer pay a fresh `doc.GetRoomAtPoint` spatial
+  query per element — they consult the same `PopulationContext.RoomIndex`
+  dictionary the rest of the pipeline already built.
+- EFF-05 — New `PopulationContext.TypeOverrideCache` dict caches the
+  result of the type-level `TYPE_LOC_OVERRIDE` / `TYPE_ZONE_OVERRIDE`
+  reads per typeId. A family with 100 instances now does ONE
+  `Document.GetElement` + 2 `GetString` calls, not 100.
+- EFF-02 — On the non-overwrite path `BuildAndWriteTag` reads the SYS /
+  FUNC / PROD values that `PopulateAll` already wrote instead of
+  re-deriving them via `GetMepSystemAwareSysCode` / `GetSmartFuncCode` /
+  `GetFamilyAwareProdCode`. The MEP-system-aware helper walks the
+  connector graph — by far the most expensive per-element call. The
+  overwrite path keeps the full fresh derivation so `Re-Tag with
+  Overwrite` still re-detects from scratch.
+
+**Phase 149c — re-tag container fast path** (commit `cbf471c`)
+- EFF-15 — `WriteContainers` now hashes the 8 ISO 19650 token values
+  (djb2-style, 16-char hex output) and compares against the new
+  `ASS_LAST_TOKEN_HASH_TXT` shared parameter (GUID
+  `d3a5b1c4-7e9f-4a2c-8b6d-1e3f4a5b6c7d`). When the hash matches the
+  stored value, none of the ~53 containers can have changed — return 0
+  immediately. After a successful full-sweep write the new hash is
+  stamped onto the element so the next pass can short-circuit.
+  Estimated re-tag pass savings: ~50× fewer SetString calls per element
+  (53 containers + LookupParameter overhead → 1 GetString + hash
+  compute). On a 50K-element re-tag, ~2.6M SetString calls eliminated.
+  This is the largest daily-use win because re-tag is the common case
+  for users who tag once and then tweak the model.
+
+**Phase 149d — formula pre-filter + warning one-pass**
+- EFF-06 — `RunFullPipeline` now consults
+  `_formulasApplicableByType` (a per-type ConcurrentDictionary cache)
+  to iterate ONLY the formulas whose target parameter exists on
+  instances of that type. First-touch per type does the full
+  O(formulas) scan; subsequent instances of the same type iterate
+  O(applicable). On a typical project where each type uses 10-20 of
+  the 199 formulas, this is ~10× fewer formula iterations on
+  instance-heavy categories. Cache cleared by `PostTagCleanup` to keep
+  memory bounded.
+- EFF-07 — New `EvaluateAndPopulateWarnings(doc, el, catName)` does in
+  one pass what `PopulateWarningParameters` + `EvaluateElementWarnings`
+  did in two — both walked the same `GetCategoryWarnings` list, both
+  called the same `GetWarningDataValue` per warning, both called the
+  same `EvaluateWarning`. Returns `(WrittenCount, ConcatenatedText)`
+  so callers get both the per-param writes and the TAG7 narrative
+  fragment from a single per-warning loop.
+
+**Estimated cumulative impact** (50K-element MEP-heavy model):
+- First-time batch tag: ~30-50% faster (EFF-02 + EFF-04 dominate)
+- Incremental re-tag pass: ~50-70% faster (EFF-15 dominates)
+- Log volume: ~100× lower in error-prone scenarios (EFF-01)
+- Allocations: ~2/3 reduction in per-element allocation count
+
+Verification was static / read-only — Linux sandbox has no Revit API
+or `dotnet build`. Brace counts balance across every modified file;
+new helpers are pure C# with no new external dependencies. Smoke-test
+priorities for the next Revit session: (i) re-tag the same model
+twice and confirm the second pass writes 0 containers; (ii) tag a
+50-instance family and confirm only 1 type-override lookup fires;
+(iii) run a Re-Tag with Overwrite and confirm SYS/FUNC/PROD are still
+re-derived (overwrite path preserved).

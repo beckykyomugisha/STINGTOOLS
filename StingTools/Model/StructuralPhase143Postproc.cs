@@ -414,7 +414,8 @@ namespace StingTools.Model
             {
                 var el = doc.GetElement(id);
                 if (el == null) continue;
-                int catId = el.Category?.Id?.IntegerValue ?? 0;
+                // CS0618: ElementId.IntegerValue is deprecated since Revit 2024; .Value returns long.
+                int catId = (int)(el.Category?.Id?.Value ?? 0L);
                 if (catId == (int)BuiltInCategory.OST_StructuralColumns
                     && el.Location is LocationPoint lp)
                     columns.Add((id, lp.Point));

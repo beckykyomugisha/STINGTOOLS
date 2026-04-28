@@ -164,8 +164,73 @@ namespace StingTools.Core
                 System.IO.File.WriteAllText(tempPath, json);
                 System.IO.File.Move(tempPath, sidecarPath, true);
                 StingLog.Info($"AutoTagger: saved {ids.Length} dropped element IDs to sidecar for recovery");
+
+                // TAG-DEFERRED-OVERFLOW-01: Clear the in-memory bag so the next document
+                // doesn't inherit dropped IDs from the previous one. The sidecar is the
+                // durable record from this point forward.
+                while (_droppedElementIds.TryTake(out _)) { }
+                _droppedElementCount = 0;
             }
             catch (Exception ex) { StingLog.Warn($"Deferred sidecar save: {ex.Message}"); }
+        }
+
+        /// <summary>TAG-DEFERRED-OVERFLOW-01: On document open, restore element IDs that
+        /// previously overflowed the deferred queue and re-enqueue any that still resolve
+        /// to live elements in the model. Loaded once per document; the sidecar is rotated
+        /// to a `.consumed` filename so a second open does not re-queue stale IDs.
+        /// Returns the number of elements re-enqueued.</summary>
+        public static int LoadDroppedElementsSidecar(Document doc)
+        {
+            try
+            {
+                string projectPath = doc?.PathName;
+                if (string.IsNullOrEmpty(projectPath)) return 0;
+                string sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_deferred_elements.json");
+                if (!System.IO.File.Exists(sidecarPath)) return 0;
+
+                string json = System.IO.File.ReadAllText(sidecarPath);
+                var parsed = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var idArr = parsed["element_ids"] as Newtonsoft.Json.Linq.JArray;
+                if (idArr == null || idArr.Count == 0)
+                {
+                    // Empty sidecar — clean up and exit.
+                    try { System.IO.File.Delete(sidecarPath); } catch { /* best effort */ }
+                    return 0;
+                }
+
+                int restored = 0;
+                int missing = 0;
+                foreach (var token in idArr)
+                {
+                    // CS7036 fix: JToken.Value<T>() requires a key when called on JObject;
+                    // for a JArray element we want the scalar conversion via cast / ToObject<T>().
+                    long raw = (long)token;
+                    ElementId id = new ElementId(raw);
+                    Element el = null;
+                    try { el = doc.GetElement(id); } catch { /* ignore — id may belong to a deleted element */ }
+                    if (el == null || !el.IsValidObject) { missing++; continue; }
+                    EnqueueDeferred(id);
+                    restored++;
+                }
+
+                // Rotate the sidecar so a re-open of the same document doesn't replay it.
+                try
+                {
+                    string consumed = sidecarPath + ".consumed";
+                    if (System.IO.File.Exists(consumed)) System.IO.File.Delete(consumed);
+                    System.IO.File.Move(sidecarPath, consumed);
+                }
+                catch (Exception rotEx) { StingLog.Warn($"Deferred sidecar rotate: {rotEx.Message}"); }
+
+                StingLog.Info($"AutoTagger: restored {restored} dropped element IDs from sidecar " +
+                    $"({missing} no longer resolved). Will retry on next sync-to-central.");
+                return restored;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Deferred sidecar load: {ex.Message}");
+                return 0;
+            }
         }
 
         /// <summary>Phase 78: Get dropped element count for dashboard display.</summary>
@@ -1332,6 +1397,10 @@ namespace StingTools.Core
                     StingLog.Warn($"StingStaleMarker room index build: {riEx.Message}");
                 }
 
+                // TAG-STALE-WARN-01: count the elements newly flagged as stale this batch
+                // so we can decide whether to schedule a stale-warning promotion job.
+                int staleMarkedThisBatch = 0;
+
                 foreach (ElementId id in modifiedIds)
                 {
                     try
@@ -1407,12 +1476,28 @@ namespace StingTools.Core
                             Parameter p = el.LookupParameter(ParamRegistry.STALE);
                             if (p != null && !p.IsReadOnly)
                                 p.Set(1);
+                            staleMarkedThisBatch++;
                         }
                     }
                     catch (Exception ex)
                     {
                         StingLog.Warn($"StingStaleMarker element {id.Value}: {ex.Message}");
                     }
+                }
+
+                // TAG-STALE-WARN-01: When this batch flags any element stale, schedule a
+                // single-shot idle job to promote the stale flag into a BIM issue once the
+                // total stale count crosses TagConfig.StaleWarningThreshold. Enqueueing is
+                // safe inside the IUpdater callback (the job runs later on idle, after the
+                // transaction has committed and the document is no longer write-locked).
+                if (staleMarkedThisBatch > 0 && TagConfig.StaleWarningThreshold > 0)
+                {
+                    try { StingIdlingScheduler.Enqueue(new StaleWarningPromotionJob()); }
+                    catch (Exception schEx) { StingLog.Warn($"StaleMarker enqueue stale-warning job: {schEx.Message}"); }
+                    // Also invalidate the compliance scan so the dashboard reflects the
+                    // new stale count without waiting for the 30 s cache TTL to expire.
+                    try { ComplianceScan.InvalidateCache(); }
+                    catch (Exception ciEx) { StingLog.Warn($"StaleMarker invalidate compliance cache: {ciEx.Message}"); }
                 }
             }
             catch (Exception ex)

@@ -2623,8 +2623,8 @@ namespace StingTools.Model
                             {
                                 var el = _doc.GetElement(id);
                                 return el?.Category != null
-                                    && el.Category.Id.IntegerValue ==
-                                       (int)BuiltInCategory.OST_StructuralColumns;
+                                    && el.Category.Id.Value ==
+                                       (long)BuiltInCategory.OST_StructuralColumns;
                             }));
 
                         if (config.NumberingPerCategory != null
@@ -3241,8 +3241,8 @@ namespace StingTools.Model
                     var id = createdIds[beamStartIndex + i];
                     var el = _doc.GetElement(id);
                     if (el == null || el.Category == null) continue;
-                    if (el.Category.Id.IntegerValue !=
-                        (int)BuiltInCategory.OST_StructuralFraming)
+                    if (el.Category.Id.Value !=
+                        (long)BuiltInCategory.OST_StructuralFraming)
                         continue; // category mismatch — skip rather than guess
 
                     var sup = supports[i];
