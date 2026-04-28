@@ -454,18 +454,39 @@ namespace StingTools.UI.PlacementCenter
             // Phase 139.8 — apply the explicit category checklist if any
             // box is ticked. Empty checklist = "every category in the rule
             // pack is allowed" (legacy behaviour).
+            // Phase 139.20 — also surface the filter outcome so the user
+            // sees what is and isn't ticked. Without this, a run that
+            // places fire-alarm devices when the user thought they only
+            // ticked "lights" looks like a bug — but is actually either
+            // (a) the checkbox really is ticked, or (b) all cb fields
+            // are null (stale XAML build).
             var allowed = ReadCategoryChecklist();
             if (allowed.Count > 0)
             {
                 int before = rules.Count;
+                var filteredOutCats = rules
+                    .Select(r => r.CategoryFilter ?? "")
+                    .Where(c => !allowed.Contains(c))
+                    .Distinct()
+                    .OrderBy(c => c)
+                    .ToList();
                 rules = rules.Where(r => allowed.Contains(r.CategoryFilter ?? "")).ToList();
-                StingLog.Info($"PlacementCenter: category filter kept {rules.Count} / {before} rules.");
+                StingLog.Info($"PlacementCenter: category filter kept {rules.Count} / {before} rules. " +
+                              $"Allowed: [{string.Join(", ", allowed.OrderBy(s => s))}]. " +
+                              $"Excluded categories: [{string.Join(", ", filteredOutCats)}].");
                 if (rules.Count == 0)
                 {
                     TaskDialog.Show("STING — Placement Centre",
                         "Category checklist filtered every rule out. Tick more categories or clear the checklist.");
                     return;
                 }
+            }
+            else
+            {
+                // Empty checklist — report explicitly so the user can't
+                // misinterpret "everything placed" as "filter broken".
+                StingLog.Info("PlacementCenter: category checklist is EMPTY → all rule categories will run. " +
+                              "Tick boxes to restrict.");
             }
 
             var roomIds = PlacementCenterBridge.ResolveScope(_uiDoc, VM.RunOpts.Scope);
@@ -660,9 +681,29 @@ namespace StingTools.UI.PlacementCenter
             {
                 var panel = StingResultPanel.Create("STING — Placement Centre · Run");
                 panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s)");
+
+                // Phase 139.20 — surface which categories were actually
+                // allowed by the checklist, alongside the categories that
+                // got placed. If "Fire Alarm Devices" appears in the
+                // placed-by-category list when the user thought they
+                // ticked only Lighting Devices + Lighting Fixtures, the
+                // mismatch is visible here rather than buried in StingLog.
+                var placedCats = (req.Rules ?? new List<PlacementRule>())
+                    .Where(r => result?.CountsByRule != null && result.CountsByRule.ContainsKey(r.MergeKey))
+                    .Select(r => r.CategoryFilter ?? "(none)")
+                    .Distinct()
+                    .OrderBy(c => c)
+                    .ToList();
+                var allowedCats = ReadCategoryChecklist();
+                string allowedTxt = allowedCats.Count == 0
+                    ? "(empty — every category allowed)"
+                    : string.Join(", ", allowedCats.OrderBy(s => s));
+
                 panel.AddSection("SUMMARY")
                     .Metric("Rooms scoped",         (req.RoomIds?.Count ?? 0).ToString())
                     .Metric("Rules considered",     (req.Rules?.Count ?? 0).ToString())
+                    .Metric("Categories allowed",   allowedTxt)
+                    .Metric("Categories placed",    placedCats.Count == 0 ? "(none)" : string.Join(", ", placedCats))
                     .Metric("Candidates evaluated", (result?.CandidatesEvaluated ?? 0).ToString())
                     .Metric("Placed",               placed.ToString())
                     .Metric("Skipped",              skipped.ToString());
@@ -1329,8 +1370,27 @@ namespace StingTools.UI.PlacementCenter
         private System.Collections.Generic.HashSet<string> ReadCategoryChecklist()
         {
             var s = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            // Phase 139.20 — log every checkbox state + null-state. If
+            // many cb fields are null, the XAML auto-generated bindings
+            // didn't compile (stale build). If all fields exist but the
+            // user thinks they ticked one and we report unchecked, the
+            // problem is UI confusion not code. Either way the user can
+            // read the StingLog and we know which root cause to chase.
+            int totalCb = 0, nullCb = 0, checkedCb = 0;
+            var checkedNames = new System.Collections.Generic.List<string>();
+            var nullNames    = new System.Collections.Generic.List<string>();
             foreach (var (cb, cat) in CategoryChecklist())
-                if (cb != null && cb.IsChecked == true) s.Add(cat);
+            {
+                totalCb++;
+                if (cb == null) { nullCb++; nullNames.Add(cat); continue; }
+                if (cb.IsChecked == true) { checkedCb++; checkedNames.Add(cat); s.Add(cat); }
+            }
+            StingLog.Info($"PlacementCenter: category checklist read — {totalCb} controls, " +
+                          $"{nullCb} NULL ({(nullNames.Count > 0 ? string.Join(", ", nullNames) : "")}), " +
+                          $"{checkedCb} ticked ({(checkedNames.Count > 0 ? string.Join(", ", checkedNames) : "<none>")}).");
+            if (nullCb > 0)
+                StingLog.Warn($"PlacementCenter: {nullCb} of {totalCb} category checkboxes are NULL — " +
+                              "XAML auto-generated bindings did not compile. Rebuild the plug-in.");
             return s;
         }
 

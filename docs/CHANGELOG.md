@@ -4603,3 +4603,35 @@ Outputs to a TaskDialog preview + a CSV-style txt file on disk for
 copy-paste back to support.
 
 Registered as "Placement_Diagnose" tag in StingCommandHandler.
+
+#### Completed (Phase 139.20 — diagnose category-checklist filter)
+
+User reported placement run included Fire Alarm Devices even though
+they only ticked Lighting Devices + Lighting Fixtures. That points at
+one of three real causes:
+
+1. The XAML auto-generated `cbCat*` field bindings didn't compile
+   (stale build) → all 18 fields are null at runtime → my
+   `ReadCategoryChecklist` reads zero ticks → `allowed.Count == 0`
+   → the filter is bypassed → every rule in the pack runs.
+2. The user actually ticked Fire Alarm Devices but doesn't remember.
+3. A bug in the checklist plumbing.
+
+Fix: instead of guessing, surface the truth.
+
+- `ReadCategoryChecklist()` now logs `total / null / ticked` counts
+  for every (cb, cat) pair to `StingTools.log`. If the null count
+  is non-zero, a separate warning explicitly says "XAML
+  auto-generated bindings did not compile. Rebuild the plug-in".
+- `OnRunPlacement_Click` logs the allowed-categories set + the
+  categories it just excluded.
+- The post-run result panel now shows `Categories allowed` and
+  `Categories placed` rows in the SUMMARY section. If the run placed
+  Fire Alarm Devices when only Lighting was ticked, the mismatch
+  is visible front-and-centre instead of buried in the engine log.
+
+Together these tell us which root cause is real: stale build → null
+fields surfaced; user UI confusion → "Allowed: Lighting, Lighting
+Fixtures, Fire Alarm Devices" displayed clearly; genuine bug →
+Allowed list says one thing, Placed list says another.
+
