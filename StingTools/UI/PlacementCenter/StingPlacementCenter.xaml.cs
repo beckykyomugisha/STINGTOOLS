@@ -55,6 +55,29 @@ namespace StingTools.UI.PlacementCenter
         private PlacementRunHandler _runHandler;
         private PlacementRunRequest _runRequest;
 
+        // Phase 139.24 — bring Revit's main window to front before
+        // showing a TaskDialog from the Centre. Without this, the
+        // TaskDialog opens parented to Revit's main window but BEHIND
+        // the modeless Centre, where the user can't see or click it.
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
+
+        private void RaiseRevitToFront()
+        {
+            try
+            {
+                IntPtr hwnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                if (hwnd != IntPtr.Zero)
+                {
+                    BringWindowToTop(hwnd);
+                    SetForegroundWindow(hwnd);
+                }
+            }
+            catch { }
+        }
+
         private void EnsureRunEvent()
         {
             // Phase 139.10b — the ExternalEvent must be created in the
@@ -157,29 +180,6 @@ namespace StingTools.UI.PlacementCenter
             }
             catch { }
             ThemeManager.InitialiseResources();
-
-            // Phase 139.24 — bring Revit's main window to front before
-        // showing a TaskDialog from the Centre. Without this, the
-        // TaskDialog opens parented to Revit's main window but BEHIND
-        // the modeless Centre, where the user can't see or click it.
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool BringWindowToTop(IntPtr hWnd);
-
-        private void RaiseRevitToFront()
-        {
-            try
-            {
-                IntPtr hwnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
-                if (hwnd != IntPtr.Zero)
-                {
-                    BringWindowToTop(hwnd);
-                    SetForegroundWindow(hwnd);
-                }
-            }
-            catch { }
-        }
 
         // Phase 139.10b — ExternalEvent.Create must be called from a
             // Revit API context. Constructor runs inside the
