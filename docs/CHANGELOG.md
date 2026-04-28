@@ -4635,3 +4635,52 @@ fields surfaced; user UI confusion → "Allowed: Lighting, Lighting
 Fixtures, Fire Alarm Devices" displayed clearly; genuine bug →
 Allowed list says one thing, Placed list says another.
 
+
+#### Completed (Phase 139.21 — build stamp + prerequisites preflight)
+
+User said "still the exact same locations and errors" across multiple
+fix commits and asked me to research, not guess. The honest reading
+is that one of two things is true on every "nothing changed" report:
+
+  (a) The plug-in DLL on disk wasn't refreshed — Revit is running
+      yesterday's binary.
+  (b) The model is missing a prerequisite the engine has no way to
+      satisfy at run time (un-hosted family for a wall anchor; doors
+      with no spatial relationship; etc.) and the engine just shrugged
+      and produced wrong placements anyway.
+
+Two concrete fixes:
+
+**1. Build stamp on every surface.** New
+`FixturePlacementEngine.BuildStamp` reads the assembly's `LastWriteTime`
+(seconds-resolution timestamp of the actual on-disk DLL). Surfaced in:
+
+- The Placement Centre window title bar
+  (`STING — Placement Centre  [build 2026-04-28 19:35:00  Phase 139.21]`)
+- Every result-panel subtitle.
+
+If two consecutive runs report the same BuildStamp, the user is on the
+same DLL — `extract_plugin.sh` didn't refresh, or Revit cached the old
+file. They can stop debugging code and rebuild.
+
+**2. Prerequisites preflight that hard-fails.** Before `OnRunPlacement`
+asks the user to confirm, it walks three blockers:
+
+  - For every wall-anchored rule's category, scans loaded
+    FamilySymbols. If NO type in that category is
+    `OneLevelBasedHosted`, hard-fail with a list of the
+    actually-loaded placement types. Wall placement is impossible
+    without a hosted family — no amount of post-snap fixes that.
+  - For every door on the active level, checks `FromRoom` / `ToRoom`.
+    If 0/N have spatial relationships, hard-fail with instruction:
+    "select all rooms, run Architecture > Recompute Areas/Volumes,
+    or reset room boundaries". If <50% have it, log a warning that
+    those will be skipped.
+  - If the rule pack has no rules matching any ticked category,
+    hard-fail.
+
+When ANY blocker fires, the run is aborted with a TaskDialog showing
+all blockers + remediation, AND each blocker is logged to
+`StingTools.log` so the user can paste them. No more silent wrong
+placements.
+

@@ -50,6 +50,37 @@ namespace StingTools.Core.Placement
         // an opaque elapsed-time counter.
         public static volatile string CurrentPhase = "";
 
+        // Phase 139.21 — build stamp. Reads the assembly's PE-header
+        // timestamp (the second the DLL was linked) so the Centre title
+        // bar + result panel can surface it on every run. If two
+        // consecutive runs report the same BuildStamp, the user is on
+        // the same DLL — i.e. the build cache hasn't refreshed and the
+        // new code isn't loaded. Cached on first read.
+        private static string _buildStamp;
+        public static string BuildStamp
+        {
+            get
+            {
+                if (_buildStamp != null) return _buildStamp;
+                try
+                {
+                    var asm = typeof(FixturePlacementEngine).Assembly;
+                    string path = asm.Location;
+                    var dt = !string.IsNullOrEmpty(path) && System.IO.File.Exists(path)
+                        ? System.IO.File.GetLastWriteTime(path)
+                        : DateTime.MinValue;
+                    _buildStamp = dt == DateTime.MinValue
+                        ? "(unknown)"
+                        : dt.ToString("yyyy-MM-dd HH:mm:ss");
+                }
+                catch { _buildStamp = "(unknown)"; }
+                return _buildStamp;
+            }
+        }
+
+        // Phase 139.21 — phase tag stable for grep / diagnostics.
+        public const string PhaseTag = "Phase 139.21";
+
         /// <summary>
         /// Entry point. If rules is null/empty, loads the default + project
         /// override library. If dryRun is true, returns candidates without

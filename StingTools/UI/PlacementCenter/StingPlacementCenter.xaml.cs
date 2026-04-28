@@ -146,6 +146,16 @@ namespace StingTools.UI.PlacementCenter
 
             InitializeComponent();
             ThemeManager.RegisterTarget(this);
+            // Phase 139.21 — surface the assembly's build stamp on the
+            // window title bar. If the user runs two consecutive
+            // sessions and the stamp doesn't change, the plug-in DLL
+            // wasn't refreshed (extract_plugin.sh skipped the copy or
+            // Revit cached the old DLL).
+            try
+            {
+                this.Title = $"STING — Placement Centre  [build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp}  {StingTools.Core.Placement.FixturePlacementEngine.PhaseTag}]";
+            }
+            catch { }
             ThemeManager.InitialiseResources();
 
             // Phase 139.10b — ExternalEvent.Create must be called from a
@@ -460,7 +470,100 @@ namespace StingTools.UI.PlacementCenter
             // ticked "lights" looks like a bug — but is actually either
             // (a) the checkbox really is ticked, or (b) all cb fields
             // are null (stale XAML build).
+            // Read the category checklist once; preflight + filter both use it.
             var allowed = ReadCategoryChecklist();
+
+            // Phase 139.21 — prerequisites preflight. Hard-fail the run
+            // when the model is missing setup that makes correct
+            // placement impossible. Up to now the engine ran in
+            // "best-effort" mode regardless of family-type / door-data
+            // problems, producing the silent wrong-position bug the
+            // user kept reporting.
+            try
+            {
+                var blockers = new List<string>();
+                var helpfulHints = new List<string>();
+
+                // 1. Wall-anchored rules vs family placement type.
+                var wallRules = rules.Where(r =>
+                {
+                    var a = (r.AnchorType ?? "").ToUpperInvariant();
+                    return a == "WALL_MIDPOINT" || a == "WALL_CORNER" || a == "WALL_FACE_OFFSET"
+                        || a.StartsWith("DOOR_") || a.StartsWith("WINDOW_");
+                }).ToList();
+                var wallCats = wallRules.Select(r => r.CategoryFilter ?? "").Distinct().ToList();
+                foreach (var cat in wallCats)
+                {
+                    if (string.IsNullOrEmpty(cat)) continue;
+                    var symbols = new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol))
+                        .Cast<FamilySymbol>().Where(fs => fs.Category != null
+                            && string.Equals(fs.Category.Name, cat, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    if (symbols.Count == 0) continue; // separate "missing family" warning already covers
+                    bool anyHosted = symbols.Any(fs => fs.Family?.FamilyPlacementType == FamilyPlacementType.OneLevelBasedHosted);
+                    if (!anyHosted)
+                    {
+                        var first = symbols.FirstOrDefault();
+                        blockers.Add($"• Category '{cat}' has {symbols.Count} Family Type(s) loaded but NONE is OneLevelBasedHosted (e.g. '{first?.Family?.Name}' is {first?.Family?.FamilyPlacementType}). Wall-anchored rules cannot attach to a wall — switches will float at the calculated XYZ instead of mounting. Re-author or load a wall-hosted variant.");
+                    }
+                }
+
+                // 2. Doors without FromRoom / ToRoom on the active level.
+                var view = _doc.ActiveView;
+                if (view is ViewPlan vp && vp.GenLevel != null)
+                {
+                    int doorsTotal = 0, doorsWithSpatial = 0;
+                    foreach (var el in new FilteredElementCollector(_doc)
+                        .OfCategory(BuiltInCategory.OST_Doors)
+                        .WhereElementIsNotElementType())
+                    {
+                        if (!(el is FamilyInstance fi)) continue;
+                        if (fi.LevelId != vp.GenLevel.Id) continue;
+                        doorsTotal++;
+                        Room from = null, to = null;
+                        try { from = fi.FromRoom; } catch { }
+                        try { to = fi.ToRoom; } catch { }
+                        if (from != null || to != null) doorsWithSpatial++;
+                    }
+                    if (doorsTotal > 0 && doorsWithSpatial == 0)
+                    {
+                        blockers.Add($"• {doorsTotal} door(s) on the active level have no FromRoom or ToRoom set. Door-anchored rules will mis-target. Fix: select all rooms in the model, run "Architecture > Recompute Areas / Volumes" or reset the room boundaries so spatial relationships re-compute, then run again.");
+                    }
+                    else if (doorsTotal > 0 && doorsWithSpatial < doorsTotal / 2)
+                    {
+                        helpfulHints.Add($"~{doorsTotal - doorsWithSpatial} of {doorsTotal} doors have no FromRoom/ToRoom — those will be skipped by Phase 139.18 filter.");
+                    }
+                }
+
+                // 3. The actual rule pack must include category-checklist entries.
+                if (allowed.Count > 0)
+                {
+                    var rulesAllowed = rules.Where(r => allowed.Contains(r.CategoryFilter ?? "")).ToList();
+                    if (rulesAllowed.Count == 0)
+                    {
+                        blockers.Add($"• None of the {rules.Count} active rules match any ticked category. Untick something or load a rule pack covering: {string.Join(", ", allowed)}.");
+                    }
+                }
+
+                if (blockers.Count > 0)
+                {
+                    var dlg = new TaskDialog("STING — Placement Centre · Prerequisites missing")
+                    {
+                        MainInstruction = $"{blockers.Count} prerequisite(s) failed — run aborted.",
+                        MainContent = string.Join("\n\n", blockers)
+                            + "\n\nPhase 139.21 hard-fails the run when these are present so we don't produce silently-wrong placements. "
+                            + (helpfulHints.Count > 0 ? "\n\nAlso noted:\n  " + string.Join("\n  ", helpfulHints) : ""),
+                        CommonButtons = TaskDialogCommonButtons.Close,
+                    };
+                    dlg.Show();
+                    StingLog.Warn($"PlacementCenter: prerequisites preflight failed — {blockers.Count} blocker(s). Run aborted.");
+                    foreach (var b in blockers) StingLog.Warn("  " + b);
+                    return;
+                }
+                if (helpfulHints.Count > 0)
+                    foreach (var h in helpfulHints) StingLog.Info("PlacementCenter preflight hint: " + h);
+            }
+            catch (Exception preEx) { StingLog.Warn($"PlacementCenter preflight: {preEx.Message}"); }
             if (allowed.Count > 0)
             {
                 int before = rules.Count;
@@ -680,7 +783,7 @@ namespace StingTools.UI.PlacementCenter
             try
             {
                 var panel = StingResultPanel.Create("STING — Placement Centre · Run");
-                panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s)");
+                panel.SetSubtitle($"{placed} placed · {skipped} skipped · {warns} warning(s) · build {StingTools.Core.Placement.FixturePlacementEngine.BuildStamp} ({StingTools.Core.Placement.FixturePlacementEngine.PhaseTag})");
 
                 // Phase 139.20 — surface which categories were actually
                 // allowed by the checklist, alongside the categories that
