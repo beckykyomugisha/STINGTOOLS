@@ -975,6 +975,10 @@ namespace StingTools.Core
         /// <summary>HC-003: Configurable batch size for ResolveAllIssues. Default 500.</summary>
         public static int ResolveBatchSize { get; internal set; } = 500;
 
+        /// <summary>TAG-STALE-WARN-01: Minimum stale-element count before the auto-warning
+        /// promotion job opens a BIM issue. 0 disables the auto-promotion. Default 5.</summary>
+        public static int StaleWarningThreshold { get; internal set; } = 5;
+
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
 
@@ -1375,7 +1379,7 @@ namespace StingTools.Core
                     "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER",
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
-                    "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE",
+                    "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE","STALE_WARNING_THRESHOLD",
                     "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
                     "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
                     "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
@@ -1569,6 +1573,16 @@ namespace StingTools.Core
                     if (ResolveBatchSize > 5000) ResolveBatchSize = 5000;
                 }
 
+                // TAG-STALE-WARN-01: Configurable threshold for auto-creating stale-element issues.
+                StaleWarningThreshold = 5; // default
+                if (data.TryGetValue("STALE_WARNING_THRESHOLD", out object swtObj))
+                {
+                    if (swtObj is long sl) StaleWarningThreshold = (int)sl;
+                    else if (int.TryParse(swtObj?.ToString(), out int si)) StaleWarningThreshold = si;
+                    if (StaleWarningThreshold < 0) StaleWarningThreshold = 0;
+                    if (StaleWarningThreshold > 100000) StaleWarningThreshold = 100000;
+                }
+
                 // Streaming COBie batch size
                 CobieStreamBatchSize = 5000; // default
                 if (data.TryGetValue("COBIE_STREAM_BATCH_SIZE", out object csObj))
@@ -1740,6 +1754,10 @@ namespace StingTools.Core
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
                 try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
                 catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
+                // TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext because
+                // KnownCategories is derived from DiscMap and may have changed.
+                try { TokenAutoPopulator.PopulationContext.InvalidateCache(); }
+                catch (Exception) { /* harmless if helper not yet initialised */ }
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
                 LoadCategoryWarningsFromLabels();

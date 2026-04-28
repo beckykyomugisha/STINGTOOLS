@@ -1552,6 +1552,7 @@ Generic Models,PRJ_STATUS_COD_TXT,a1b2c3d4-505e-4a01-b001-000000000194,TEXT,PRJ_
 Generic Models,PRJ_REV_COD_TXT,a1b2c3d4-505f-4a01-b001-000000000195,TEXT,PRJ_INFORMATION,Type,ISO 19650 revision code,False,,,MULTI,1,0
 Generic Models,ASS_GRID_REF_TXT,e74bcb65-d0f2-5ced-9576-184678b62c0b,TEXT,ASS_MNG,Type,Ass Grid Ref [ISO 19650],False,,,MULTI,1,0
 Generic Models,ASS_TAG_MODIFIED_DT,b8d4f2a3-c5e6-4f7b-a09c-2d3e4f5a6b7c,TEXT,ASS_MNG,Type,Ass Tag Modified Dt [ISO 19650],False,,,MULTI,1,0
+Generic Models,ASS_TAG_MODIFIED_BY_TXT,c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f,TEXT,ASS_MNG,Type,Ass Tag Modified By [ISO 19650],False,,,MULTI,1,0
 Generic Models,ASS_TAG_PREV_TXT,a7c3e1f2-b4d5-4e6a-9f8b-1c2d3e4f5a6b,TEXT,ASS_MNG,Type,Ass Tag Prev [ISO 19650],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_REF_TXT,40e9482b-e3d2-5b7d-81cf-61d68303613d,TEXT,ASS_MNG,Type,Ass Tiein Ref [ISO 19650],False,,,MULTI,1,0
 Generic Models,ASS_TIEIN_SIZE_TXT,5bc65c4e-492c-5e7f-b892-b9c14b58d20a,TEXT,ASS_MNG,Type,Ass Tiein Size [ISO 19650],False,,,MULTI,1,0

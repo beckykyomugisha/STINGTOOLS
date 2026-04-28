@@ -4582,3 +4582,79 @@ than just report on it.
     JSON can now patch any of `FilterA / FilterB / Verdict /
     Description / Params / VolumeBelowMm3 / VolumeAboveMm3` without
     re-defining the whole rule.
+
+#### Completed (Phase 147 — Tagging Workflow Gap Closure)
+
+Closed three remaining open gaps in the tagging-workflow review carried in
+[`ROADMAP.md`](ROADMAP.md): TAG-PREFLIGHT-DUP-01, TAG-DEFERRED-OVERFLOW-01,
+TAG-STALE-WARN-01. The fourth open item, TAG-SORT-LEVEL-01, was already
+covered by `BatchTagCommand._levelElevationCache` and is now reclassified as
+verified-already-fixed.
+
+1. **TAG-PREFLIGHT-DUP-01 — Cached `PopulationContext`.**
+   `TokenAutoPopulator.PopulationContext.Build(doc)`
+   (`StingTools/Core/ParameterHelpers.cs:1455`) now returns a per-document
+   cached instance with a 30 s TTL. The hot indices it carries
+   (`SpatialAutoDetect.BuildRoomIndex`, phase list, grid list,
+   `TokenAutoPopulator.BuildSpatialCandidateCache`) are no longer rebuilt
+   when consecutive commands run within the TTL — e.g. `PreTagAuditCommand`
+   immediately followed by `BatchTagCommand`, or the back-to-back format-
+   migration build at line 485. Cache is invalidated on document close
+   (`ParameterHelpers.ClearParamCache`), after every tagging command via
+   `TagPipelineHelper.PostTagCleanup`, and on `TagConfig.LoadFromFile` so
+   `KnownCategories` rebuilds when `DiscMap` changes. New
+   `PopulationContext.InvalidateCache()` is the public entry point.
+
+2. **TAG-DEFERRED-OVERFLOW-01 — Sidecar restore on document open.**
+   `StingAutoTagger.SaveDroppedElementsSidecar` already wrote the dropped-
+   IDs bag to `<project>.sting_deferred_elements.json` on close. The new
+   `StingAutoTagger.LoadDroppedElementsSidecar(doc)`
+   (`StingTools/Core/StingAutoTagger.cs:182`) reads that sidecar on open,
+   re-enqueues every element that still resolves via `doc.GetElement`, and
+   rotates the file to `.consumed` so a re-open does not double-replay it.
+   Wired into `OnDocumentOpened` in
+   `StingTools/Core/StingToolsApp.cs:516`. The save path now also clears the
+   in-memory `_droppedElementIds` bag and resets `_droppedElementCount`
+   after a successful sidecar write so the next document doesn't inherit
+   state from the previous one.
+
+3. **TAG-STALE-WARN-01 — Stale flag → BIM issues register.**
+   `WarningsEngineExt.AutoRaiseStaleIssues` was implemented in Phase 78 but
+   never called. New `StaleWarningPromotionJob` in
+   `StingTools/Core/StingIdlingScheduler.cs:170` runs as a single-shot idle
+   consumer that calls `AutoRaiseStaleIssues` once the stale-element count
+   crosses `TagConfig.StaleWarningThreshold` (default 5, configurable via
+   the new `STALE_WARNING_THRESHOLD` `project_config.json` key). The job is
+   enqueued from two places: (a) every batch in `StingStaleMarker.Execute`
+   that flags at least one element stale
+   (`StingTools/Core/StingAutoTagger.cs:1491`), so live edits propagate to
+   the issues register on the next idle tick; (b) once on document open
+   immediately after `ComplianceRefreshJob` so pre-existing stale work from
+   a previous session surfaces straight away
+   (`StingTools/Core/StingToolsApp.cs:625`). Dedupe against any existing
+   OPEN "stale" issue happens inside `AutoRaiseStaleIssues`, so re-runs are
+   no-ops. The stale-marker callback also invalidates `ComplianceScan` so
+   the dashboard updates without waiting for the 30 s cache TTL.
+
+4. **TAG-ISO-USERNAME-01 — Audit trail user binding.**
+   `TagPipelineHelper.RunFullPipeline` already wrote
+   `ASS_TAG_MODIFIED_BY_TXT = Environment.UserName` after every successful
+   tag write, but the parameter was missing from the registry — so
+   `ParameterHelpers.SetString` silently no-op'd because `LookupParameter`
+   returned `null`. Added the parameter to both
+   `StingTools/Data/MR_PARAMETERS.txt` (line 1610) and
+   `StingTools/Data/MR_PARAMETERS.csv` (line 1555), GUID
+   `c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f`, type `TEXT`, group
+   `ASS_MNG`, instance-bound. Closes the ISO 19650-2 §A.5 "person
+   responsible" traceability requirement: every tag write now stamps
+   `who / when / previous-tag` (`ASS_TAG_MODIFIED_BY_TXT` /
+   `ASS_TAG_MODIFIED_DT` / `ASS_TAG_PREV_TXT`). Existing models will pick
+   up the binding on the next `LoadSharedParams` run.
+
+Verification was static / read-only because the sandbox has no Revit API
+or `dotnet build`. Follow-up: smoke test on a real .rvt by (i) overflowing
+the deferred queue past 5 000 elements and confirming the sidecar restore
+re-queues live IDs on the next open; (ii) flipping geometry on tagged
+elements and confirming an `SI-####` issue appears in `_BIM_COORD/issues.json`
+once `staleCount >= STALE_WARNING_THRESHOLD`; (iii) running `LoadSharedParams`
+then a Tag command and confirming `ASS_TAG_MODIFIED_BY_TXT` is populated.

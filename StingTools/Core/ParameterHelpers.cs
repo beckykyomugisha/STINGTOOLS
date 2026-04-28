@@ -122,6 +122,9 @@ namespace StingTools.Core
             // PERF: Clear cached last phase on document switch
             _lastPhaseDocKey = null;
             _lastPhaseCache = null;
+            // TAG-PREFLIGHT-DUP-01: Clear cached PopulationContext on document switch
+            // so a stale room / phase index from a closed document never resurfaces.
+            TokenAutoPopulator.PopulationContext.InvalidateCache();
             // Phase 79b: Reset read-only skip counter on document switch
             // to prevent stale counts from previous document leaking through
             _readOnlySkipCount = 0;
@@ -1422,11 +1425,66 @@ namespace StingTools.Core
                 $"Phases={CachedPhases?.Count ?? 0}, Grids={CachedGrids?.Count ?? 0}, " +
                 $"LOC={ProjectLoc ?? "null"}, REV={ProjectRev ?? "null"}";
 
+            // TAG-PREFLIGHT-DUP-01: Per-document cached PopulationContext so consecutive
+            // commands (e.g. PreTagAudit followed by BatchTag) reuse the spatial / room /
+            // phase / grid indices instead of rebuilding them from scratch each time.
+            // 30 s TTL matches the room index cache; the cache is invalidated on document
+            // close, on TagConfig reload, and after any tagging command via PostTagCleanup.
+            private static (string docKey, DateTime time, PopulationContext ctx) _cached;
+            private static readonly object _cacheLock = new object();
+            private static readonly TimeSpan _cacheTtl = TimeSpan.FromSeconds(30);
+
+            /// <summary>
+            /// TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext. Call from
+            /// PostTagCleanup, document close, and TagConfig reload paths.
+            /// </summary>
+            public static void InvalidateCache()
+            {
+                lock (_cacheLock)
+                {
+                    _cached = default;
+                }
+            }
+
             /// <summary>
             /// Build a PopulationContext once for a batch operation.
             /// Caches all project-level lookups: room index, LOC, REV, phases.
+            /// TAG-PREFLIGHT-DUP-01: Cached per-document with a 30 s TTL so back-to-back
+            /// callers (pre-flight audit, batch tag, combine) share the same heavy indices.
             /// </summary>
             public static PopulationContext Build(Document doc)
+            {
+                // Match original behaviour: a null document is a programmer error and
+                // should fail fast in the collector below rather than be silently masked.
+                if (doc != null)
+                {
+                    string docKey = ParameterHelpers.GetStableDocKey(doc);
+                    lock (_cacheLock)
+                    {
+                        if (_cached.ctx != null
+                            && _cached.docKey == docKey
+                            && (DateTime.UtcNow - _cached.time) < _cacheTtl
+                            && _cached.ctx.IsValid())
+                        {
+                            return _cached.ctx;
+                        }
+                    }
+
+                    var fresh = BuildFresh(doc);
+                    if (fresh != null)
+                    {
+                        lock (_cacheLock)
+                        {
+                            _cached = (docKey, DateTime.UtcNow, fresh);
+                        }
+                    }
+                    return fresh;
+                }
+
+                return BuildFresh(doc);
+            }
+
+            private static PopulationContext BuildFresh(Document doc)
             {
                 var phases = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase))
@@ -3693,6 +3751,9 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"{commandName} SaveSeqSidecar: {ex.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            // TAG-PREFLIGHT-DUP-01: Drop the cached PopulationContext so the next
+            // tagging command sees fresh room / phase / grid data after writes.
+            TokenAutoPopulator.PopulationContext.InvalidateCache();
             // DIAG-01: Reset read-only skip counter at batch boundary so each operation
             // gets fresh diagnostic logging (first 5 warnings + every 100th).
             ParameterHelpers.ResetReadOnlySkipCount();
