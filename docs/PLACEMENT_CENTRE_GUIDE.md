@@ -1490,3 +1490,329 @@ A worked dependency chain across three packs:
 
 *v2 deep-dive complete. Sections 0–11 remain the everyday reference;
 12–17 cover what changed and how to use it.*
+
+---
+
+## 18. Family-authoring guide — make every category 100 % placement-perfect
+
+The Placement Centre is only as good as the families it places.
+**A perfectly authored family resolves to one anchor, one orientation,
+one host type, one weight, one envelope, one insertion XYZ — every
+time.** A loosely authored family forces the engine to guess, and
+guessing produces the off-by-50 mm misplacements that haunt the
+co-ordination meeting.
+
+This section is the **family author's contract** with the Centre.
+Follow it, and the Centre lands every fixture exactly where the rule
+says, with the right host, the right clearance and the right COBie /
+IFC mapping. Skip a row, and you get warnings or silent fall-backs.
+
+### 18.1 The mental model — why family authoring matters
+
+Every placement is a five-step reconciliation between the **rule**
+(what the standard says) and the **family** (what Revit can actually
+produce):
+
+1. The rule says *"PLACE light-switch on hinge side, 1100 mm AFF, 300 mm from door"*.
+2. The engine asks the family: *"are you wall-hosted? what's your insertion point? how heavy are you? what variant? what clearance?"*.
+3. The family answers via 7 `PLACE_*` parameters (read by `PlacementParamReader`) plus the legacy clearance / envelope / weight block.
+4. `PlacementHostPreflight` picks the right `NewFamilyInstance` overload for the family's `FamilyPlacementType`.
+5. The fixture lands. `PostPlacementHooks` (if enabled) tag, COBie-seed and connector-probe in the same transaction.
+
+Steps 2-4 only succeed if the family is authored to the conventions
+below. Otherwise the engine falls back to defaults — which work, but
+not 100 %.
+
+### 18.2 The seven `PLACE_*` placement-hint parameters
+
+Bind these as **type parameters** on every family the Centre places.
+They live in `MR_PARAMETERS.txt` group `PLACEMENT` with stable GUIDs
+so they survive family migration. Read by `PlacementParamReader.Read`
+(type wins; instance is fallback).
+
+| Parameter | Type | Allowed values | What the engine does with it |
+|---|---|---|---|
+| `PLACE_HOST_TYPE_TXT` | TEXT | `WorkPlane` / `WallHosted` / `CeilingHosted` / `FaceBased` / `FloorHosted` / `Free` | `PlacementHostPreflight` picks the matching `NewFamilyInstance` overload. **Mismatched value = silent free-standing instance with null Host.** |
+| `PLACE_MOUNT_HEIGHT_MM` | NUMBER | mm above FFL (or below ceiling per rule's `MountingReference`) | Default mounting height when no rule-level override is present (e.g. switch 1100, socket 300, MCP 1400) |
+| `PLACE_SPACING_RULE_TXT` | TEXT | `Grid(Wmm,Hmm)` / `Perimeter(stepMm)` / `PerArea(1per10sqm)` / `WallPitch(stepMm)` / `Free` | Hints the auto-density mode when a rule has `RuleKind = Density` but no per-area value |
+| `PLACE_ORIENTATION_RULE_TXT` | TEXT | `FaceAccessDoor` / `FaceNorth` / `FaceWallNormal` / `FaceRoomCentre` / `Free` | Engine rotates the placed instance so the family's "front" faces the named direction |
+| `PLACE_LEVEL_HINT_TXT` | TEXT | Comma/semi/pipe-separated keywords with `*` wildcard (`Plant*`, `Roof`, `B*`) | Boosts `PlacementScorer` when the candidate's level matches; mismatch costs 0.4 |
+| `PLACE_GROUP_KEY_TXT` | TEXT | Free-form id for grouped placements (`RCP-MODULE-01`, `BEDHEAD-KIT-A`) | Co-place rules use this to keep grouped fixtures together |
+| `PLACE_WEIGHT_KG` | NUMBER | mass in kg | Triggers `MaintenanceAccessValidator` structural pre-flight + selects appropriate hanger family |
+
+> **Layman tip:** the PLACE_ block is *what the family knows about
+> itself*. The rule is *what the standard says*. The engine
+> reconciles the two. Empty PLACE_ values mean "I have no opinion —
+> trust the rule" and that is fine for most categories. Non-empty
+> values lock the family to a specific behaviour and make placement
+> deterministic.
+
+### 18.3 The clearance / envelope / weight block
+
+Eight more type parameters used by validators and by `Push to
+Families` (toolbar §4.9). Author once per family-type; the Centre
+writes the rule's values into them so all downstream tools (clash
+detection, structural pre-flight, COBie export, generative design)
+see one consistent number.
+
+| Parameter | Type | Used by |
+|---|---|---|
+| `STING_CLEARANCE_MM` | NUMBER | Omnidirectional clearance (Maintenance + Clearance validators) |
+| `STING_CLEARANCE_FRONT_MM` | NUMBER | Service-access clearance in front (AHUs, panels) |
+| `STING_CLEARANCE_BACK_MM` | NUMBER | Behind clearance (cable bend radii) |
+| `STING_CLEARANCE_SIDE_MM` | NUMBER | Side clearance (bend, door swing, neighbouring kit) |
+| `STING_CLEARANCE_TOP_MM` | NUMBER | Overhead clearance (lifting, bird-cage scaffold) |
+| `MNT_ENV_W_MM` / `_D_MM` / `_H_MM` | NUMBER | Mounting envelope (bounding box) — clash + routing |
+| `FIRE_SEP_MM` | NUMBER | Distance to keep from fire-rated surfaces |
+| `PLACE_WEIGHT_KG` | NUMBER | Same as §18.2 — duplicated here so structural pre-flight reads it without parsing PLACE_ block |
+
+> **Layman tip:** even if you don't intend to use the Centre, fill in
+> these parameters once per type. They are read by every other
+> downstream tool. The Centre is just the easiest way to populate
+> them for a whole library at once via Push to Families.
+
+### 18.4 The variant-hint contract: `STING_FIXTURE_VARIANT_TXT`
+
+A *type* parameter every placement-eligible family carries. The
+Centre's `VariantHint` resolver walks every family type in the rule's
+category, reads this parameter, and matches against the rule's
+`VariantHint` chain or regex.
+
+| Convention | Example value | Reason |
+|---|---|---|
+| Use UPPER-SNAKE | `FLUSH`, `SURFACE`, `RECESSED`, `IP65`, `EM`, `EM_IP65`, `DALI_DT8` | Stable text comparison |
+| One concept per token | `IP65` not `IP65_OUTDOOR` (split into `IP65` + `OUTDOOR`) | Lets rules combine concepts orthogonally |
+| Provide a sensible default | If the family has only one variant, set value to `STANDARD` | Empty means "untagged" — engine treats as wildcard |
+| Name only what changes | The variant tag changes between types of the same family | Don't repeat brand / model / size — those are other parameters |
+
+#### Common variant vocabulary (use these strings)
+
+| Domain | Tokens |
+|---|---|
+| Mounting | `FLUSH`, `SURFACE`, `RECESSED`, `PENDANT`, `STEM`, `WALL`, `CEILING`, `FLOOR`, `DESK` |
+| IP rating | `IP20`, `IP40`, `IP44`, `IP54`, `IP55`, `IP65`, `IP66`, `IP67`, `IP68` |
+| Emergency | `EM`, `EM_3HR`, `EM_1HR`, `NEM` |
+| Control | `DALI`, `DALI_DT6`, `DALI_DT8`, `KNX`, `0_10V`, `PHASE_DIM`, `MANUAL` |
+| Safety | `ATEX_ZONE1`, `ATEX_ZONE2`, `EX_NA` |
+| Healthcare | `MEDICAL`, `ANTIBAC`, `CLEAN_ROOM` |
+| Acoustic | `ACOUSTIC`, `STD_ACOUSTIC` |
+| Use a wildcard | `*` or empty | Wildcard tells the resolver "any variant accepts me" |
+
+> **Layman tip:** if a rule says `VariantHint = FLUSH,SURFACE` and
+> you author both flush and surface variants of the same family,
+> tag them with `STING_FIXTURE_VARIANT_TXT = FLUSH` and `= SURFACE`
+> respectively. The Centre will pick FLUSH first, fall back to
+> SURFACE if no FLUSH variant is loaded.
+
+### 18.5 Insertion point + reference plane conventions
+
+The single most common source of "off by 50 mm" misplacement is a
+family whose **insertion point is not where the rule expects**.
+
+#### 18.5.1 Per family-template insertion convention
+
+| FamilyPlacementType | Required insertion location | Reference plane name to use |
+|---|---|---|
+| `OneLevelBased` (free-standing) | Centroid of plan footprint, on FFL | `Centre (Front/Back)` × `Centre (Left/Right)` |
+| `WallBased` | On the **wall face**, at the family centroid in elevation | Wall hosting plane is the back face by default — flip if back-to-wall fixtures need to mount with their *front* on the wall |
+| `CeilingBased` | On the **ceiling face**, at the family centroid in plan | Ceiling hosting plane on top of the family |
+| `FaceBased` (work-plane based) | Work-plane is the active face. Origin should be the *visible* centre when projected to plan | Use `Centre (Front/Back)` × `Centre (Left/Right)` aligned to plan view |
+| `WorkPlaneBased` (non-hosted) | Free placement at the chosen work plane. Origin = centroid | Author against named ref planes so type swaps preserve origin |
+
+#### 18.5.2 Origin-rule cheat sheet
+
+| Family kind | Origin location | Why |
+|---|---|---|
+| Wall switch / socket | On wall face, at *electrical centre* (centre of the gang plate) | Rule offsets are measured from this point |
+| Light switch (bank) | Back-box centre — NOT the centre of all gangs | Engine adds `OffsetXMm` from the back-box centre |
+| Ceiling-mounted luminaire (recessed) | Centre of light aperture (not the housing) | The aperture is what aligns with the ceiling tile grid |
+| Pendant luminaire | Stem top (where it joins the ceiling) — *not* the lamp centre | Rule mounting height is the stem-top elevation |
+| Ceiling diffuser | Centre of the throat (face of suspended ceiling) | Throat alignment with ductwork is what matters |
+| WC pan | Floor-level centre of the pan, at the back wall | BS 6465 measures from this point |
+| Basin | Floor-level centre directly below the bowl centre | Reach (Approved Doc M) is measured from the bowl centre |
+| Door | At the active leaf hinge, on the wall reference plane | Approved Doc M switch placement is "300 mm from hinge" |
+| Window | Centre of the opening, at sill level | `WINDOW_SILL` anchors land here |
+| Smoke detector | Centre of the head, on the soffit face | `CEILING_TILE_CORNER` snaps to this point |
+| MCP / break-glass | Centre of the front face | BS 5839-1 height is to the centre of the unit |
+| Fire extinguisher | Centre of bracket, on the wall face | BS 5306-8 travel is centre-to-centre |
+| Sprinkler head | Centre of the deflector, on the soffit face | BS EN 12845 spacing measured deflector-to-deflector |
+
+#### 18.5.3 Reference-plane discipline
+
+Every family type the Centre touches must have **two named reference
+planes** flagged `Defines Origin = Yes` perpendicular to each other:
+
+```
+Reference Plane "Origin Front-Back"   ← Defines Origin = Yes
+Reference Plane "Origin Left-Right"   ← Defines Origin = Yes
+```
+
+If you ever swap the family from one template to another (rare but
+happens during fabrication) the origin stays put because it is keyed
+to the named planes, not to coincidental geometry.
+
+### 18.6 The complete category × family-template matrix
+
+For every Revit category the Centre places, this is the canonical
+authoring recipe. Use it as a cookbook: pick the row, set the columns
+verbatim, and the Centre lands the family with 100 % alignment.
+
+| Category | FamilyPlacementType (`.rft` template) | `PLACE_HOST_TYPE_TXT` | Origin convention | Default `PLACE_MOUNT_HEIGHT_MM` | Common `STING_FIXTURE_VARIANT_TXT` | Default rule anchor | Notes |
+|---|---|---|---|---|---|---|---|
+| **Lighting Fixtures** (recessed) | Ceiling-based metric.rft | `CeilingHosted` | Centre of aperture | `0` (taken from ceiling) | `RECESSED,IP20,IP44,IP65` | `LIGHTING_GRID` or `CEILING_TILE_CORNER` | Aperture aligned to tile grid; lumen output on type param `LUMENS` |
+| **Lighting Fixtures** (pendant) | Ceiling-based metric.rft | `CeilingHosted` | Stem top | `2400` (drop = ceiling–rule) | `PENDANT,STEM` | `ROOM_CENTRE` or `LIGHTING_GRID` | Stem length parameter drives lamp height, *not* PLACE_MOUNT_HEIGHT |
+| **Lighting Fixtures** (wall) | Wall-based metric.rft | `WallHosted` | Wall face, centroid | `2200` | `WALL,IP44,IP65,EM` | `WALL_MIDPOINT` | EM batteries: tag with `EM` variant |
+| **Lighting Devices** (switch) | Wall-based metric.rft | `WallHosted` | Centre of gang plate | `1100` | `FLUSH,SURFACE,GRID` | `DOOR_HINGE` | Approved Doc M: hinge side, 1100 mm AFF |
+| **Lighting Devices** (occupancy sensor) | Ceiling-based metric.rft | `CeilingHosted` | Centre of head | `0` | `PIR,DUAL_TECH,DALI` | `CEILING_TILE_CORNER` | PIR coverage circle visible only at coarse detail |
+| **Electrical Fixtures** (socket) | Wall-based metric.rft | `WallHosted` | Centre of gang plate | `300` | `FLUSH,SURFACE,FLOOR_BOX,IP65` | `WALL_MIDPOINT` or `PERIMETER_OFFSET` | Floor-box variant uses `FloorHosted` host type |
+| **Electrical Fixtures** (data outlet) | Wall-based metric.rft | `WallHosted` | Centre of gang plate | `300` | `RJ45_CAT6,RJ45_CAT6A,FIBRE_LC` | `WALL_MIDPOINT` co-placed with socket | Use `PLACE_GROUP_KEY_TXT="DESK-OUTLET"` |
+| **Electrical Equipment** (DB / MCB panel) | Wall-based metric.rft | `WallHosted` | Centre of cabinet | `1200` (top of cabinet at ~2.0 m) | `STD,RECESSED,IP44` | `WALL_CORNER` | Specify front clearance ≥ 800 mm via `STING_CLEARANCE_FRONT_MM` |
+| **Electrical Equipment** (switchboard) | Free-standing metric.rft | `Free` | Centre of plinth | `0` | `STD,IP44,IP54` | `WALL_CORNER` | Set front clearance ≥ 1100 mm; back ≥ 600 mm |
+| **Mechanical Equipment** (AHU) | Free-standing metric.rft | `Free` | Centre of unit base | `0` | `INDOOR,OUTDOOR,IP54` | `GRID_INTERSECTION` | Set front clearance to coil-pull length; weight ≥ unit dry mass |
+| **Mechanical Equipment** (FCU) | Ceiling-based metric.rft | `CeilingHosted` | Centre of return | `0` | `EXPOSED,RECESSED,DUCTED` | `ROOM_CENTRE` or `CEILING_TILE_CORNER` | Top clearance for filter pull |
+| **Air Terminals** (diffuser) | Ceiling-based metric.rft | `CeilingHosted` | Centre of throat | `0` | `4WAY,LINEAR,SLOT,EGGCRATE` | `CEILING_TILE_CORNER` | Throat aligns with tile grid; flow-rate via `FLOW_CFM` parameter |
+| **Air Terminals** (extract grille) | Ceiling-based metric.rft | `CeilingHosted` | Centre of grille | `0` | `EGGCRATE,LINEAR,DISC` | `CEILING_TILE_CORNER` | – |
+| **Plumbing Fixtures** (WC pan) | Wall-based metric.rft (or floor-based for back-to-wall) | `WallHosted` or `FloorHosted` | Floor-level centre | `0` | `FLOOR_MOUNTED,WALL_HUNG,DDA` | `WALL_CORNER` | DDA variant has different reach |
+| **Plumbing Fixtures** (basin) | Wall-based metric.rft | `WallHosted` | Centre of bowl | `850` (rim height) | `WALL_HUNG,VANITY,DDA,SURGEON` | `OPPOSITE_WALL` | Approved Doc M reach is from bowl centre |
+| **Plumbing Fixtures** (shower) | Floor-based metric.rft | `FloorHosted` | Centre of shower tray | `0` | `TRAY,WALK_IN,DDA` | `WALL_CORNER` | Wet-zone Z0 — never place sockets / switches here |
+| **Plumbing Fixtures** (urinal) | Wall-based metric.rft | `WallHosted` | Centre of bowl | `650` (rim) | `BOWL,STALL,WATERLESS` | `WALL_MIDPOINT` | BS 6465 spacing 700 mm centre-to-centre |
+| **Sprinklers** (pendant) | Ceiling-based metric.rft | `CeilingHosted` | Centre of deflector | `0` | `PENDANT,UPRIGHT,RECESSED,SIDEWALL` | `CEILING_TILE_CORNER` | BS EN 12845 — 4 m centres for OH1 |
+| **Sprinklers** (sidewall) | Wall-based metric.rft | `WallHosted` | Centre of deflector | `2200` | `SIDEWALL,EXTENDED_COVERAGE` | `WALL_MIDPOINT` | – |
+| **Fire Alarm Devices** (smoke detector) | Ceiling-based metric.rft | `CeilingHosted` | Centre of head | `0` | `OPTICAL,IONISATION,HEAT,MULTI` | `CEILING_TILE_CORNER` | BS 5839-1 7.5 m radius — set `CoverageRadiusMm = 7500` |
+| **Fire Alarm Devices** (MCP) | Wall-based metric.rft | `WallHosted` | Centre of front face | `1400` | `STD,IP65,DDA` | `DOOR_STRIKE_SIDE` (Phase 139) | BS 5839-1 §22 height 1.4 m |
+| **Fire Alarm Devices** (sounder) | Wall-based or ceiling-based | as template | Centre of grille | `2200` (wall) / `0` (ceiling) | `WALL,CEILING,VAD,VAS` | `WALL_MIDPOINT` | VAD = visual; VAS = combined sounder/visual |
+| **Communication Devices** (CCTV) | Ceiling-based metric.rft | `CeilingHosted` | Centre of dome | `0` | `DOME,BULLET,PTZ` | `CEILING_TILE_CORNER` or `CORRIDOR_JUNCTION` (Phase 139) | Set rotation by `PLACE_ORIENTATION_RULE_TXT="FaceRoomCentre"` |
+| **Security Devices** (PIR) | Wall-based or ceiling-based | as template | Centre of head | `2200` (wall) / `0` (ceiling) | `WALL,CEILING_360,DUAL_TECH` | `WALL_CORNER` | Coverage cone visible only at coarse detail |
+| **Doors** | Door.rft | `WallHosted` | Hinge side, on wall ref plane | `0` (sill) | `STD,FE30,FE60,FE90,DDA` | n/a (built-in placement) | Family must expose hinge-side ref plane named `Hinge` so anchor `DOOR_HINGE` finds it |
+| **Windows** | Window.rft | `WallHosted` | Centre of opening, at sill | reads `SillHeightMm` from rule | `STD,DG,TGH,FE30,LAMINATED` | n/a | Sill at 800 mm or higher: tag `STD`; below 800 mm: tag `TGH` |
+| **Furniture** (desk) | Free-standing | `Free` | Centre of work surface | `0` | `LINEAR,L_SHAPE,BENCH` | n/a (placed by FF&E layout, not Centre) | Desk corner reference for socket co-placement |
+| **Casework** (kitchen units) | Wall-based or floor-based | as template | Front centre, at base | `0` (base) / `2400` (wall) | `STD,SOFT_CLOSE,DDA` | `WALL_MIDPOINT` | DDA wall units: lower mounting height |
+| **Specialty Equipment** (medical bedhead) | Wall-based metric.rft | `WallHosted` | Centre of bedhead, at bed-deck level | `1300` | `STD,HTM02,HTM01_5` | `WALL_MIDPOINT` | Co-place O₂ / VAC / N₂O / power / nurse-call |
+| **Generic Models** (grab rail, blind motor, …) | Work-plane based | `WorkPlane` | Family centroid | varies | varies | varies | Default fall-back when no specific category fits |
+
+### 18.7 Subcategory + visibility discipline
+
+The Centre's `ObstructionIndex` and the validators all read element
+geometry in plan view. That fails silently when a family hides its
+geometry at the project's view scale. Author every family with these
+visibility rules:
+
+| Geometry layer | Subcategory | Visible at | Rationale |
+|---|---|---|---|
+| Symbolic 2D plan annotation | `<Family>_Symbol` | Coarse + Medium + Fine | Plan recognition at 1:200 |
+| 3D housing / box | `<Family>_Housing` | Medium + Fine | Clash detection |
+| 3D internals (lamp, transformer, coil) | `<Family>_Internals` | Fine only | Reduces clutter |
+| Coverage / spread cone | `<Family>_Coverage` | Coarse only | Audit / commissioning |
+| Connector points | (no subcategory) | always | Required for system traversal |
+
+Turn off `Cut` for purely symbolic 2D representations — Centre's
+plan-cut bounding-box reads can otherwise grab a stray symbol line and
+misjudge the obstruction footprint.
+
+### 18.8 Connector authoring (MEP families only)
+
+Every MEP family the Centre places must have at least one connector
+authored on the host plane:
+
+| Domain | Connector type | Direction | Notes |
+|---|---|---|---|
+| Electrical | Electrical (Power / Data / Comms / FireAlarm / Security / Nurse) | In | One connector per circuit |
+| Hydronic / Domestic / Sanitary | Pipe (Hydronic Supply, Hydronic Return, Domestic Cold, Domestic Hot, Sanitary, …) | In/Out per role | Flow direction matters for slope validation |
+| Air | Duct (Supply Air / Return Air / Exhaust Air) | In/Out | Diffuser = In; grille = Out |
+| Cable Tray / Conduit | Cable Tray / Conduit | none | Continuous run — connectors auto-snap |
+
+`PostPlacementHooks.AssignMepSystem` (Run Options ▸ "Probe MEP
+connectors after placement") records a warning if a placed instance
+has unconnected connectors. Set the connector primary flag (one per
+family) so `MEPSystemBuilder` can find the head of the system.
+
+### 18.9 Pre-flight checklist (use before shipping a family)
+
+Run through this list once per family-type before adding it to the
+office library:
+
+```
+[ ] FamilyPlacementType matches PLACE_HOST_TYPE_TXT
+[ ] Origin reference planes named + flagged "Defines Origin = Yes"
+[ ] PLACE_HOST_TYPE_TXT  filled
+[ ] PLACE_MOUNT_HEIGHT_MM filled (default for the category)
+[ ] PLACE_SPACING_RULE_TXT filled if rule will use Density mode
+[ ] PLACE_ORIENTATION_RULE_TXT filled if facing matters
+[ ] PLACE_LEVEL_HINT_TXT  filled if family is level-restricted
+[ ] PLACE_GROUP_KEY_TXT   filled if family is part of a kit
+[ ] PLACE_WEIGHT_KG       filled (mass in kg)
+[ ] STING_FIXTURE_VARIANT_TXT filled (one of §18.4 vocabulary)
+[ ] STING_CLEARANCE_MM    filled
+[ ] STING_CLEARANCE_FRONT_MM (if applicable)
+[ ] STING_CLEARANCE_BACK / SIDE / TOP   (if applicable)
+[ ] MNT_ENV_W/D/H_MM      (bounding envelope)
+[ ] FIRE_SEP_MM           (if family interacts with fire-rated surfaces)
+[ ] LUMENS                (if Lighting Fixture)
+[ ] FLOW_CFM / _LPS       (if Air Terminal / Mechanical Equipment)
+[ ] Connectors authored + primary flagged (MEP categories)
+[ ] Subcategories per §18.7
+[ ] Visibility rules per family detail level
+```
+
+Drop the family into a test project, run **DOCS ▸ Sheet Manager ▸
+ISO Compliance** then **Placement Centre ▸ Validate**. Both should
+report zero warnings on the family's category.
+
+### 18.10 Worked example — author a 600 × 600 LED troffer
+
+Cookbook walk-through. Should take ~10 minutes once you know the recipe.
+
+1. **File ▸ New ▸ Family ▸ Lighting Fixture (ceiling-based metric).rft**.
+2. Family Types → set:
+   - `LUMENS` = `4000`
+   - `STING_FIXTURE_VARIANT_TXT` = `RECESSED,IP20`
+   - `PLACE_HOST_TYPE_TXT` = `CeilingHosted`
+   - `PLACE_MOUNT_HEIGHT_MM` = `0` (taken from ceiling)
+   - `PLACE_ORIENTATION_RULE_TXT` = `FaceWallNormal` (so troffers align long-axis with walls)
+   - `PLACE_WEIGHT_KG` = `4`
+   - `STING_CLEARANCE_MM` = `100`
+   - `MNT_ENV_W_MM/D_MM/H_MM` = `595 / 595 / 80`
+3. Author origin reference planes:
+   - `Origin Front-Back` (Defines Origin = Yes)
+   - `Origin Left-Right` (Defines Origin = Yes)
+   - Origin sits at the **centre of the light aperture**, not the housing centre.
+4. Subcategories:
+   - `Lighting_Symbol` (visible Coarse / Medium / Fine, no cut)
+   - `Lighting_Housing` (visible Medium / Fine, cut)
+   - `Lighting_Internals` (visible Fine only)
+5. Add an Electrical Power connector at the housing top, flagged primary.
+6. Save as `STING_LIGHT_RECESSED_4000LM.rfa`, load into a test project.
+7. Open the Centre. Pick rule `lighting-ceiling-recessed-office`. The
+   resolver finds the new family because:
+   - Category matches (`Lighting Fixtures`).
+   - Variant `RECESSED` matches the rule's `VariantHint`.
+8. `Preview` lays luminaires on the EN 12464-1 grid, `CeilingGridSnap`
+   snaps each to the nearest tile corner, troffers orient long-axis
+   along the room.
+9. `Run Placement` → 100 % perfect alignment, every troffer flush
+   with the ceiling tile, every primary connector ready for system
+   wiring.
+
+> **Layman tip:** if your placement is even slightly off — a 50 mm
+> shift, a wrong rotation, a missing host — go back to §18.5 first.
+> The origin is right 9 times out of 10. The other time it is the
+> variant tag.
+
+### 18.11 What goes wrong if you skip family authoring
+
+A summary of the cost of each missing rule:
+
+| Skipped row | Symptom |
+|---|---|
+| `PLACE_HOST_TYPE_TXT` empty | Engine guesses from family template; if template doesn't match rule's anchor, fixture lands free-standing with null Host |
+| `PLACE_MOUNT_HEIGHT_MM` empty | Engine uses rule default; fine, but if rule itself is empty fixture lands at FFL = 0 |
+| Origin reference plane unnamed | Type swap relocates the origin; placement drifts |
+| `STING_FIXTURE_VARIANT_TXT` empty | Resolver picks alphabetical first family in the category; almost certainly wrong |
+| `STING_CLEARANCE_MM` = 0 | Maintenance validator passes everything; service-tech can't actually reach the kit |
+| Connectors missing | `PostPlacementHooks.AssignMepSystem` warns; `Connectivity` validator fails |
+| Subcategory wrong | `ObstructionIndex` misreads bounding box; clash detection misses the family |
+| `LUMENS` empty (Lighting Fixtures only) | `LightingGridCalculator` divides by zero, falls back to 1 luminaire per 25 m² (under-lit room) |
+
+> **Layman version:** every empty row costs 10 minutes per project.
+> Author the family once with §18.9's checklist and save 10 minutes
+> on every subsequent project that loads it.
